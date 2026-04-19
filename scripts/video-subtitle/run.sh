@@ -7,7 +7,10 @@ set -euo pipefail
 LANG_CODE="ja"
 MODEL="medium"
 BURN=1
-FONT="Hiragino Sans"
+case "$(uname -s)" in
+  Darwin) FONT="Hiragino Sans" ;;
+  *)      FONT="Noto Sans CJK JP" ;;
+esac
 FONTSIZE=42
 OUT_DIR=""
 INPUT=""
