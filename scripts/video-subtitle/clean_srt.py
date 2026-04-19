@@ -21,19 +21,34 @@ MAX_CHARS = 42  # per line (CJK counted as-is)
 
 HALLUCINATION_PATTERNS = {
     "ja": [
-        r"^ご視聴(ありがとうございました|いただきありがとうございました).?$",
-        r"^チャンネル登録.*お願いします.?$",
-        r"^字幕.*(提供|作成|by).*$",
+        r"^ご(視聴|清聴).*(ありがとう).*$",
+        r"^(最後|本日)までご視聴.*$",
+        r"^チャンネル登録.*お願い(します|いたします).?$",
+        r"^(いいね|高評価).*お願い(します|いたします).?$",
+        r"^次回もお楽しみに.?$",
+        r"^また(次回|お会いしましょう).?$",
+        r"^それでは(皆さん|また).*$",
+        r"^字幕.*(提供|作成|by|By|BY).*$",
         r"^提供[:：].*$",
         r"^おわり。?$",
+        r"^(以上|終わり)(です|でした)?。?$",
     ],
     "en": [
-        r"^thanks? for watching\.?$",
-        r"^please subscribe.*$",
+        r"^thanks? for watching[\.!]*$",
+        r"^thank you for watching[\.!]*$",
+        r"^(please )?(like (and )?)?subscribe.*$",
+        r"^don'?t forget to (like|subscribe).*$",
         r"^subtitles? by .*$",
-        r"^\[music\]$",
+        r"^captions? by .*$",
+        r"^\[(music|applause|laughter)\]$",
+        r"^\(.*(music|applause)\).*$",
     ],
 }
+
+# Matches "ABC" followed by at least 2 more repeats of the same 2-40 char run,
+# with optional whitespace/punctuation between. Catches Whisper's loop-mode
+# hallucinations like "ありがとうございましたありがとうございましたありがとうございました".
+_LOOP_RE = re.compile(r"(.{2,40}?)(?:[\s、。.,]*\1){2,}", re.DOTALL)
 
 
 @dataclass
@@ -132,6 +147,31 @@ def strip_hallucinations(cues: list[Cue], lang: str) -> list[Cue]:
     return cleaned
 
 
+def collapse_repetition_loops(text: str) -> str:
+    """Collapse 3+ consecutive repeats of any 2-40 char substring down to one.
+
+    Whisper occasionally gets stuck in a decoding loop, producing output like
+    "ありがとうございましたありがとうございましたありがとうございました". This is
+    distinct from a presenter actually saying something three times — those
+    usually have different surrounding context and varied spacing, so the
+    strict >=3 threshold avoids false positives on legitimate repetition.
+    """
+    prev = None
+    while text != prev:
+        prev = text
+        text = _LOOP_RE.sub(r"\1", text)
+    return text
+
+
+def collapse_loops_in_cues(cues: list[Cue]) -> list[Cue]:
+    out: list[Cue] = []
+    for cue in cues:
+        collapsed = collapse_repetition_loops(cue.text).strip()
+        if collapsed:
+            out.append(Cue(cue.index, cue.start, cue.end, collapsed))
+    return out
+
+
 def dedupe_consecutive(cues: list[Cue]) -> list[Cue]:
     out: list[Cue] = []
     for cue in cues:
@@ -223,6 +263,7 @@ def main() -> int:
         return 1
 
     cues = [Cue(c.index, c.start, c.end, normalise_text(c.text)) for c in cues]
+    cues = collapse_loops_in_cues(cues)
     cues = strip_hallucinations(cues, args.lang)
     cues = dedupe_consecutive(cues)
     cues = merge_too_short(cues)

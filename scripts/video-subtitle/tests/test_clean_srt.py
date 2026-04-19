@@ -14,11 +14,54 @@ import clean_srt as m  # noqa: E402
 def pipeline(src: str, lang: str = "ja") -> list[m.Cue]:
     cues = m.parse_srt(src)
     cues = [m.Cue(c.index, c.start, c.end, m.normalise_text(c.text)) for c in cues]
+    cues = m.collapse_loops_in_cues(cues)
     cues = m.strip_hallucinations(cues, lang)
     cues = m.dedupe_consecutive(cues)
     cues = m.merge_too_short(cues)
     cues = m.split_too_long(cues)
     return m.reindex(cues)
+
+
+class LoopCollapseTest(unittest.TestCase):
+    def test_collapses_japanese_decoder_loop(self):
+        text = "ありがとうございました" * 5
+        self.assertEqual(m.collapse_repetition_loops(text), "ありがとうございました")
+
+    def test_collapses_english_loop(self):
+        self.assertEqual(m.collapse_repetition_loops("hello hello hello hello"),
+                         "hello")
+
+    def test_keeps_double_repetition_intact(self):
+        # "とても とても" is idiomatic emphasis — only >=3 reps collapse.
+        self.assertEqual(m.collapse_repetition_loops("とても とても"), "とても とても")
+
+    def test_collapses_with_punctuation_between(self):
+        text = "ありがとう、ありがとう、ありがとう、ありがとう"
+        self.assertEqual(m.collapse_repetition_loops(text), "ありがとう")
+
+    def test_drops_cue_if_collapse_leaves_empty(self):
+        src = "1\n00:00:00,000 --> 00:00:05,000\n \n"
+        cues = m.collapse_loops_in_cues(m.parse_srt(src))
+        self.assertEqual(len(cues), 0)
+
+
+class ExpandedHallucinationTest(unittest.TestCase):
+    def test_strips_gosechou(self):
+        src = ("1\n00:00:00,000 --> 00:00:02,000\n本編\n\n"
+               "2\n00:00:02,000 --> 00:00:04,000\nご清聴ありがとうございました\n")
+        cues = pipeline(src, "ja")
+        self.assertEqual(len(cues), 1)
+        self.assertEqual(cues[0].text, "本編")
+
+    def test_strips_subscribe_variants(self):
+        for tail in ("like and subscribe",
+                     "Please subscribe to the channel",
+                     "Don't forget to like"):
+            src = (f"1\n00:00:00,000 --> 00:00:02,000\nreal\n\n"
+                   f"2\n00:00:02,000 --> 00:00:04,000\n{tail}\n")
+            cues = pipeline(src, "en")
+            self.assertEqual(len(cues), 1, f"failed on {tail!r}")
+            self.assertEqual(cues[0].text, "real")
 
 
 class ParseTest(unittest.TestCase):
