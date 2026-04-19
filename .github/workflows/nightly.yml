@@ -1,0 +1,99 @@
+name: Nightly
+
+on:
+  schedule:
+    # 20:00 UTC = 05:00 JST
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history required for `git diff HEAD@{7days} HEAD`
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (B)
+        run: npm ci > /tmp/npm-ci.log 2>&1
+
+      - name: Build (B)
+        run: npm run build > /tmp/build.log 2>&1
+
+      - name: Detect & remove safe debug artifacts (B)
+        id: cleanup
+        run: node scripts/nightly/cleanup.mjs
+
+      - name: Open cleanup PR
+        if: steps.cleanup.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: nightly/cleanup-${{ github.run_id }}
+          base: main
+          title: 'chore(nightly): remove safe debug artifacts'
+          commit-message: 'chore(nightly): remove safe console.log/debugger/TODO'
+          body: |
+            Automated nightly cleanup of debug artifacts that appear safe to remove.
+
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Removed items: ${{ steps.cleanup.outputs.summary }}
+          delete-branch: true
+
+      - name: Fetch previous bundle history (D)
+        continue-on-error: true
+        run: |
+          git fetch origin nightly-data:nightly-data 2>/dev/null || true
+          if git show nightly-data:bundle-history.txt > bundle-history.txt 2>/dev/null; then
+            echo "Fetched existing bundle-history.txt"
+          else
+            echo "No existing history; starting fresh"
+            : > bundle-history.txt
+          fi
+
+      - name: Run nightly report (C/D/E/F/H)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VERCEL_APP_NAME: lumenium-app
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/nightly/run.mjs
+
+      - name: Persist bundle history to nightly-data branch
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/nightly/persist-history.sh
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-logs-${{ github.run_id }}
+          path: |
+            /tmp/npm-ci.log
+            /tmp/build.log
+            nightly-report.md
+          if-no-files-found: warn
+          retention-days: 14
