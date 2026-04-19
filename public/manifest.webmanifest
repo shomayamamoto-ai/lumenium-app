@@ -1,0 +1,57 @@
+{
+  "name": "Lumenium",
+  "short_name": "Lumenium",
+  "description": "動画制作・DX支援のプロフェッショナル。SNS集客、動画制作、AI導入、LINE構築、キャスト手配まで。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "lang": "ja",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/lumenium-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/lumenium-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "お問い合わせ",
+      "short_name": "お問い合わせ",
+      "description": "Lumeniumに相談する",
+      "url": "/#contact-form"
+    },
+    {
+      "name": "サービス",
+      "short_name": "サービス",
+      "description": "提供サービスを見る",
+      "url": "/#services"
+    }
+  ]
+}

@@ -3,20 +3,204 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Dark-only site: fix data-theme to dark so styles apply immediately -->
+    <script>document.documentElement.setAttribute('data-theme','dark');</script>
+    <!-- Google Analytics: set GA_ID and uncomment to enable (avoids loading gtag.js with a placeholder) -->
+    <script>
+      (function(){
+        var GA_ID = ''; // e.g. 'G-ABCDEFGHIJ' — leave empty to skip loading gtag.js
+        if (!GA_ID || /^G-X+$/.test(GA_ID)) return;
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', GA_ID);
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+        document.head.appendChild(s);
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Lumenium" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Lumenium" />
+    <meta name="format-detection" content="telephone=no" />
     <title>Lumenium | 動画制作・DX支援のプロフェッショナル</title>
     <meta name="description" content="SNS集客、動画制作、AI導入、LINE構築、キャスト手配まで。「困った」を丸ごと任せられるクリエイティブパートナー Lumenium。" />
     <meta property="og:title" content="Lumenium | 動画制作・DX支援のプロフェッショナル" />
     <meta property="og:description" content="SNS集客、動画制作、AI導入、LINE構築——企画から運用まで、まるっとお任せください。" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://lumenium.net" />
+    <meta property="og:image" content="https://lumenium.net/api/og" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://lumenium.net/api/og" />
     <link rel="canonical" href="https://lumenium.net" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta property="og:site_name" content="Lumenium" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Lumenium — 動画制作・DX支援のプロフェッショナル" />
+    <meta name="twitter:title" content="Lumenium | 動画制作・DX支援のプロフェッショナル" />
+    <meta name="twitter:description" content="SNS集客、動画制作、AI導入、LINE構築——企画から運用まで、まるっとお任せください。" />
+    <meta name="twitter:image:alt" content="Lumenium ロゴとタグライン" />
+    <meta name="keywords" content="動画制作,AI導入,SNS運用,LINE構築,Web制作,DX支援,AI研修,キャスト手配,ライター,教材制作,作詞作曲,Lumenium" />
+    <meta name="author" content="山本 捷真 / Lumenium" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Preload LCP-critical logo (used in Splash intro) -->
+    <link rel="preload" as="image" href="/favicon.svg" fetchpriority="high" type="image/svg+xml">
+    <!-- Minimal fonts: Inter Tight (Latin) + Zen Kaku Gothic New (Japanese) with used weights only -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet"></noscript>
+    <!-- DNS prefetch for 3rd-party services used later -->
+    <link rel="dns-prefetch" href="https://line-bot-omega-liard.vercel.app">
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://lumenium.net/#organization",
+          "name": "Lumenium",
+          "alternateName": "ルミニウム",
+          "url": "https://lumenium.net",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://lumenium.net/favicon.svg",
+            "width": 512,
+            "height": 512
+          },
+          "image": "https://lumenium.net/api/og",
+          "description": "動画制作・DX支援・AI導入・SNS運用・Web制作を企画から運用まで一括対応するクリエイティブカンパニー",
+          "slogan": "目的に、光を当てる。",
+          "founder": {
+            "@type": "Person",
+            "name": "山本 捷真",
+            "jobTitle": "代表",
+            "worksFor": { "@id": "https://lumenium.net/#organization" }
+          },
+          "contactPoint": [{
+            "@type": "ContactPoint",
+            "contactType": "customer service",
+            "url": "https://lumenium.net/#contact-form",
+            "availableLanguage": ["Japanese", "English"]
+          }],
+          "areaServed": { "@type": "Country", "name": "Japan" },
+          "knowsAbout": [
+            "動画制作", "AI導入", "SNS運用", "LINE Bot", "Web制作",
+            "アプリ開発", "キャスト手配", "ライター", "教材制作", "作詞作曲"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://lumenium.net/#website",
+          "url": "https://lumenium.net",
+          "name": "Lumenium",
+          "inLanguage": "ja-JP",
+          "publisher": { "@id": "https://lumenium.net/#organization" }
+        },
+        {
+          "@type": "ProfessionalService",
+          "@id": "https://lumenium.net/#service",
+          "name": "Lumenium クリエイティブ & DX 支援",
+          "provider": { "@id": "https://lumenium.net/#organization" },
+          "areaServed": { "@type": "Country", "name": "Japan" },
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "提供サービス",
+            "itemListElement": [
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "動画制作・映像編集", "description": "PR・SNS・企業紹介・AI動画。企画から納品まで一貫対応。" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AI導入・研修", "description": "企業向けAI研修、教材制作、IT講師。現場目線で指導。" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "SNS運用・LINE構築", "description": "SNS運用代行、企画構成、LINE Bot制作。" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Web制作・アプリ開発", "description": "HP、LP、Webアプリ、スマホアプリの開発。" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "キャスト手配・イベント", "description": "在籍150名のモデル・アクター手配。MC、イベント企画運営。" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "クリエイティブ制作", "description": "ロゴ、バナー、ポスター、イラスト、教材制作、作詞作曲。" } }
+            ]
+          }
+        }
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "どんな相談でも対応してもらえますか?", "acceptedAnswer": { "@type": "Answer", "text": "はい、抽象的な内容でもお気軽にご相談ください。お話を伺いながら最適なプランをご提案します。" } },
+        { "@type": "Question", "name": "料金はいくらくらいですか?", "acceptedAnswer": { "@type": "Answer", "text": "動画は3万円〜、Web制作は30万円〜、クリエイティブは3万円〜が目安です。お見積りは無料です。" } },
+        { "@type": "Question", "name": "見積りだけでも依頼できますか?", "acceptedAnswer": { "@type": "Answer", "text": "もちろん可能です。他社比較や社内稟議用の概算にもご活用ください。強引な営業は一切いたしません。" } },
+        { "@type": "Question", "name": "返信はどのくらいで来ますか?", "acceptedAnswer": { "@type": "Answer", "text": "お問い合わせから48時間以内にご返信いたします。急ぎの場合は優先的に対応します。" } },
+        { "@type": "Question", "name": "納期はどのくらいですか?", "acceptedAnswer": { "@type": "Answer", "text": "動画は2週間〜、Web制作は1〜2ヶ月、AI研修は1〜2週間が標準です。調整可能ですのでご相談ください。" } },
+        { "@type": "Question", "name": "修正は何回まで対応してもらえますか?", "acceptedAnswer": { "@type": "Answer", "text": "通常2〜3回までは見積りに含まれています。案件ごとにご相談の上で決定します。" } },
+        { "@type": "Question", "name": "進行中のコミュニケーション方法は?", "acceptedAnswer": { "@type": "Answer", "text": "Slack / Chatwork / メール / Google Meet など、お客様が使い慣れたツールに合わせます。" } },
+        { "@type": "Question", "name": "途中でキャンセルや変更は可能ですか?", "acceptedAnswer": { "@type": "Answer", "text": "着手前なら無償キャンセル可能。制作開始後は進行状況に応じてご相談させていただきます。" } },
+        { "@type": "Question", "name": "遠方でも依頼できますか?", "acceptedAnswer": { "@type": "Answer", "text": "はい、オンラインでのやり取りが可能です。Zoom / Google Meet で全国どこからでもご依頼いただけます。" } },
+        { "@type": "Question", "name": "個人でも依頼できますか?", "acceptedAnswer": { "@type": "Answer", "text": "もちろんです。個人の方、個人事業主の方からのご依頼も歓迎しています。" } },
+        { "@type": "Question", "name": "業界に合う実績はありますか?", "acceptedAnswer": { "@type": "Answer", "text": "飲食・IT・美容・教育・広告・士業など12以上の業界で実績があります。初めての業界もリサーチから対応します。" } },
+        { "@type": "Question", "name": "NDAは対応できますか?", "acceptedAnswer": { "@type": "Answer", "text": "はい、貴社フォーマットでの締結に対応可能です。当方のひな形も用意しています。" } }
+      ]
+    }
+    </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background:#010104;margin:0;">
+    <div id="root">
+      <!-- Pre-mount placeholder: seamless black canvas that matches the splash background -->
+      <div id="boot-splash" style="position:fixed;inset:0;z-index:99999;background:#010104;"></div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Service Worker — DISABLED until splash issue resolved.
+      if ('serviceWorker' in navigator) {
+        try {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+          }).catch(function(){});
+          if (window.caches && caches.keys) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(k) { caches.delete(k); });
+            }).catch(function(){});
+          }
+        } catch (e) {}
+      }
+
+      // On-screen error diagnostic — show JS errors directly in the boot-splash
+      (function() {
+        function showError(msg, src) {
+          var el = document.getElementById('boot-splash-error');
+          if (!el) {
+            el = document.createElement('div');
+            el.id = 'boot-splash-error';
+            el.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;z-index:999999;background:rgba(239,68,68,0.95);color:#fff;padding:14px 18px;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-all;line-height:1.5;';
+            document.body.appendChild(el);
+          }
+          el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + (src ? ' @ ' + src : '') + '\n';
+        }
+        window.addEventListener('error', function(e) {
+          showError(e.message || 'unknown error', e.filename ? (e.filename + ':' + e.lineno) : '');
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          var r = e.reason;
+          showError('UnhandledRejection: ' + (r && (r.message || r.toString()) || 'unknown'));
+        });
+        // If after 6s #root still has the boot-splash, React never mounted.
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.querySelector('#boot-splash')) {
+            showError('React did not mount within 6s. Bundle may have failed to execute.');
+          }
+        }, 6000);
+      })();
+    </script>
   </body>
 </html>
