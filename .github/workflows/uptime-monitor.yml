@@ -1,0 +1,77 @@
+name: Lumenium Uptime Monitor
+
+# Required repository secrets:
+#   CLAUDE_CODE_OAUTH_TOKEN - run `claude setup-token` locally (uses Claude Pro/Max subscription, no API billing)
+#   NOTION_TOKEN            - Notion internal integration token with access to the state/alerts pages
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: uptime-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - name: Run uptime check via Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--permission-mode bypassPermissions'
+          mcp_config: |
+            {
+              "mcpServers": {
+                "notion": {
+                  "command": "npx",
+                  "args": ["-y", "@notionhq/notion-mcp-server"],
+                  "env": {
+                    "OPENAPI_MCP_HEADERS": "{\"Authorization\":\"Bearer ${{ secrets.NOTION_TOKEN }}\",\"Notion-Version\":\"2022-06-28\"}"
+                  }
+                }
+              }
+            }
+          prompt: |
+            あなたは lumenium.net の死活監視エージェントです。以下の手順を実行してください。
+
+            ## 1. ヘルスチェック
+            Bash で実行:
+              curl -o /dev/null -s -w "%{http_code}|%{time_total}" --max-time 10 https://lumenium.net
+            HTTP 200 かつ 応答時間 < 5.0s → STATUS=up、それ以外 → STATUS=down
+
+            ## 2. 前回状態を Notion から読み取る
+            State ページ ID: 347d39ce-861a-8165-8000-cda7f94e7433 （タイトル: "Lumenium Uptime State"）
+            notion-fetch で取得し、本文から JSON を読み取る:
+              {"status": "up/down", "since": "ISO timestamp", "last_check": "ISO timestamp", "last_alert": "ISO timestamp or none"}
+            ページが取得できない場合は初回とみなし、現在の STATUS で JSON を作成して終了（アラートなし）。
+
+            ## 3. 状態機械
+            - UP→UP: 状態ページの last_check のみ更新。Notion にアラート投稿禁止。
+            - UP→DOWN: ダウンアラートを投稿し、since/last_alert を現在時刻に更新。
+            - DOWN→UP: 復旧アラートを投稿し、since/last_alert を現在時刻に更新。
+            - DOWN→DOWN: last_alert から4時間以上経過していれば継続ダウンリマインドを投稿して last_alert 更新、それ以外はサイレント。
+
+            ## 4. Notion アラート投稿（状態変化時・継続リマインド時のみ）
+            親ページ: "Lumenium Daily Morning Briefing" (ID: 346d39ce-861a-81d2-8dfa-fc2687eeae1d)
+            配下に "Lumenium Uptime Alerts" というハブページを notion-search で検索し、無ければ作成。
+            アラートはハブページ配下に子ページとして作成:
+
+            ダウン時タイトル: 🚨 DOWN: lumenium.net (YYYY-MM-DD HH:MM JST)
+            本文: 検知時刻、HTTPステータス、応答時間、推奨アクション（Vercel確認: https://vercel.com/shomayamamoto-ai/lumenium-app）
+
+            復旧時タイトル: ✅ RECOVERED: lumenium.net (YYYY-MM-DD HH:MM JST)
+            本文: ダウン期間（since フィールドから算出）、復旧時刻、応答時間
+
+            ## 5. 状態を Notion に保存
+            State ページの本文 JSON（コードブロック内）を最新状態に置換する（notion-update-page の update_content を使用）。
+
+            ## 絶対ルール
+            - UP→UP のときは Notion にアラートページを作成しない
+            - 状態は必ず毎回更新する
+            - 処理は60秒以内に完了する
