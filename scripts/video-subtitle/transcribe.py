@@ -19,6 +19,7 @@ Invoked as:
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import sys
 
@@ -32,18 +33,27 @@ PAUSE_THRESHOLD = 0.6  # seconds of silence between words that triggers a cue br
 MAX_CUE_DURATION = 6.0  # seconds; segments longer than this are re-split by pause
 
 
-def _resegment_by_pauses(segments) -> list[clean_srt.Cue]:
-    """Flatten segment.words into cues that break at natural pauses.
+def _process_segments(segments):
+    """Collect cues (re-segmented at natural pauses) and word-level timing.
 
-    Falls back to segment-level boundaries when a segment has no word-level
-    timestamps (can happen on extremely short or music-only segments).
+    Returns (cues, words). ``words`` is a flat list of ``{start, end, word,
+    probability}`` dicts suitable for json.dump — used downstream by
+    detect_fillers.py.
     """
     cues: list[clean_srt.Cue] = []
+    words_out: list[dict] = []
     for seg in segments:
         seg_text = (seg.text or "").strip()
         if not seg_text:
             continue
         words = [w for w in (seg.words or []) if (w.word or "").strip()]
+        for w in words:
+            words_out.append({
+                "start": float(w.start),
+                "end": float(w.end),
+                "word": (w.word or "").strip(),
+                "probability": float(getattr(w, "probability", 0.0) or 0.0),
+            })
         if not words or (seg.end - seg.start) <= MAX_CUE_DURATION:
             cues.append(clean_srt.Cue(
                 len(cues) + 1, float(seg.start), float(seg.end), seg_text))
@@ -69,7 +79,7 @@ def _resegment_by_pauses(segments) -> list[clean_srt.Cue]:
             cues.append(clean_srt.Cue(
                 len(cues) + 1, group_start, last_end,
                 "".join(group_words).strip()))
-    return cues
+    return cues, words_out
 
 
 def main() -> int:
@@ -88,6 +98,9 @@ def main() -> int:
                     help="Disable Silero VAD (use when audio is already tight)")
     ap.add_argument("--prompt", default="",
                     help="initial_prompt — nudges vocabulary toward given terms")
+    ap.add_argument("--words-json", default="",
+                    help="If set, also write the per-word timing list to this path "
+                         "(consumed by detect_fillers.py)")
     args = ap.parse_args()
 
     try:
@@ -129,14 +142,18 @@ def main() -> int:
         transcribe_kwargs["initial_prompt"] = args.prompt
 
     segments, info = model.transcribe(args.src, **transcribe_kwargs)
-    cues = _resegment_by_pauses(segments)
+    cues, words = _process_segments(segments)
 
     with open(args.dst, "w", encoding="utf-8") as f:
         f.write(clean_srt.emit(cues))
 
+    if args.words_json:
+        with open(args.words_json, "w", encoding="utf-8") as f:
+            json.dump(words, f, ensure_ascii=False, indent=2)
+
     dur = info.duration if info else 0.0
-    print(f"transcribe: wrote {len(cues)} cues covering ~{dur:.1f}s of audio",
-          file=sys.stderr)
+    print(f"transcribe: wrote {len(cues)} cues, {len(words)} words "
+          f"covering ~{dur:.1f}s of audio", file=sys.stderr)
     return 0
 
 
