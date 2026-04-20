@@ -1213,31 +1213,6 @@ section.block { padding: 110px 0; position: relative; }
   font-weight: 500;
 }
 
-/* ========== Hero marquee (scrolling talent names) ========== */
-.hero-marquee {
-  position: absolute;
-  left: 0; right: 0; bottom: 110px;
-  overflow: hidden;
-  z-index: 2;
-  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
-}
-.marquee-track {
-  display: inline-flex;
-  gap: 20px;
-  white-space: nowrap;
-  animation: marqueeX 90s linear infinite;
-  font-family: "Noto Serif JP", var(--serif);
-  font-size: 14px;
-  color: rgba(255,255,255,0.55);
-  letter-spacing: 0.15em;
-}
-.marquee-track .dot { color: rgba(255,255,255,0.3); font-size: 8px; align-self: center; }
-@keyframes marqueeX {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
 /* ========== Filmography ========== */
 .profile-filmography {
   padding: 80px 0 40px;
@@ -1331,7 +1306,5 @@ section.block { padding: 110px 0; position: relative; }
   .filmography-list li, .talent-news-list li {
     grid-template-columns: 1fr; gap: 4px;
   }
-  .hero-marquee { bottom: 130px; }
-  .marquee-track { font-size: 12px; }
 }
 

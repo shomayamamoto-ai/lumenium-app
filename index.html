@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=4">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
 </head>
 <body>
   <div class="preloader" aria-hidden="true">
@@ -52,11 +52,6 @@
       <h1 class="hero-title">あなたの<span class="en">Vision</span>を世界へ提言する</h1>
       <div class="hero-company">合同会社 <span class="en">AdvoVisions</span></div>
       <p class="hero-sub">150名の才能が輝く、次世代タレント・アーティストマネジメント</p>
-    </div>
-
-    <!-- marquee of talent names scrolling through hero bottom -->
-    <div class="hero-marquee" aria-hidden="true">
-      <div class="marquee-track"></div>
     </div>
 
     <div class="hero-wave" aria-hidden="true">
@@ -362,7 +357,7 @@
     </div>
   </div>
 
-  <script src="assets/js/members-data.js?v=4"></script>
+  <script src="assets/js/members-data.js?v=5"></script>
   <script>
     (function () {
       const host = document.getElementById("featured-talents-grid");
@@ -391,15 +386,8 @@
         `).join("");
       }
 
-      // marquee
-      const track = document.querySelector(".marquee-track");
-      if (track && window.ADVO_MEMBERS) {
-        const names = window.ADVO_MEMBERS.map(m => m.name).slice(0, 40);
-        const line = names.map(n => `<span>${n}</span>`).join(`<span class="dot">●</span>`);
-        track.innerHTML = line + `<span class="dot">●</span>` + line;
-      }
     })();
   </script>
-  <script src="assets/js/main.js?v=4"></script>
+  <script src="assets/js/main.js?v=5"></script>
 </body>
 </html>
