@@ -1,11 +1,11 @@
 /* AdvoVisions — shared behavior */
 
 // Preloader — hold long enough for the multi-phase opening animation
-// (mark 0.2s + word 1.2s + tagline 2.0s + dwell → exit ≈ 2.9s)
+// (mark 0.6s + rings 1.0s + word 1.7s + tagline 2.4s + bar 2.7s + exit ≈ 4.1s)
 (function () {
   const pre = document.querySelector(".preloader");
   if (!pre) return;
-  const MIN_HOLD_MS = 2900;
+  const MIN_HOLD_MS = 4100;
   const t0 = performance.now();
   const done = () => {
     const elapsed = performance.now() - t0;
@@ -14,6 +14,46 @@
   };
   if (document.readyState === "complete") done();
   else window.addEventListener("load", done);
+})();
+
+// Split hero title into per-letter spans for staggered reveal
+(function () {
+  const h1 = document.querySelector(".hero-title");
+  if (!h1) return;
+  // walk children, split text nodes only (preserve inner <span class="en">Vision</span>)
+  const out = [];
+  let i = 0;
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      for (const ch of text) {
+        if (ch === " " || ch === "\u3000") {
+          out.push(`<span class="letter space" style="--i:${i++}"> </span>`);
+        } else {
+          out.push(`<span class="letter" style="--i:${i++}">${ch}</span>`);
+        }
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      // wrap the element's textual chars too; emit opening tag, recurse, closing
+      const tag = node.tagName.toLowerCase();
+      const attrs = Array.from(node.attributes).map(a => ` ${a.name}="${a.value}"`).join("");
+      out.push(`<${tag}${attrs}>`);
+      node.childNodes.forEach(walk);
+      out.push(`</${tag}>`);
+    }
+  };
+  h1.childNodes.forEach(walk);
+  h1.innerHTML = out.join("");
+})();
+
+// Add a scroll cue at the bottom of the hero (appears after opening)
+(function () {
+  const hero = document.querySelector(".hero");
+  if (!hero || hero.querySelector(".scroll-cue")) return;
+  const cue = document.createElement("div");
+  cue.className = "scroll-cue";
+  cue.textContent = "Scroll";
+  hero.appendChild(cue);
 })();
 
 // Scroll progress bar
