@@ -28,6 +28,18 @@
       ]
     },
     {
+      "source": "/(index\\.html)?",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(404|game|racing|runner|specified-commerce)\\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+      ]
+    },
+    {
       "source": "/intro.mp4",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=604800" }
