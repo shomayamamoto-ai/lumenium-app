@@ -2,7 +2,7 @@ export default function Profile() {
   const career = [
     { year: '2019.4', detail: '慶應義塾大学 文学部 入学', sub: '経済新人会マーケ研 / 早稲田AI研究会' },
     { year: '在学中', detail: 'ADKビジコン・Microsoftビジコン入賞多数', sub: '' },
-    { year: '2020.3〜', detail: 'フリーランスとして独立', sub: '動画 / SNS / AI開発' },
+    { year: '2020.3〜', detail: '個人事業主として活動開始', sub: '動画 / SNS / AI開発' },
     { year: '2024.1', detail: '株式会社Link AI（業務委託）', sub: 'AIメディア事業部 PM / メルマガライター' },
     { year: '2026.3', detail: '慶應義塾大学 文学部 卒業', sub: '' },
     { year: '現在', detail: 'Lumenium 設立', sub: '動画制作・DX支援・AI研修を軸に事業展開' },
@@ -58,7 +58,7 @@ export default function Profile() {
           <article className="profile-brick">
             <span className="profile-brick-label">BACKGROUND</span>
             <h4 className="profile-brick-title">バックグラウンド</h4>
-            <p className="profile-brick-text">在学中に独立。フリーランスとしてマーケ・映像・AI開発を横断。企業のAI導入コンサル、メディア運営 PM、ライター業を経て Lumenium を設立。</p>
+            <p className="profile-brick-text">在学中から個人事業主として活動開始。マーケ・映像・AI開発を横断し、企業のAI導入コンサル、メディア運営 PM、ライター業を経て Lumenium を設立。</p>
             <ul className="profile-brick-list">
               <li>慶應義塾大学 文学部 卒業</li>
               <li>ビジネスコンテスト入賞多数</li>
