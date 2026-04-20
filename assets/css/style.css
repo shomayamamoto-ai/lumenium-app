@@ -2663,3 +2663,59 @@ section.block.in-view::after { opacity: 1; }
   gap: 12px !important;
   height: 44px !important;
 }
+
+/* ============================================================
+   v18: hero gets a top-to-bottom gradient so the header area
+   is naturally light where the logo lives, and the tagline area
+   below remains deep brand blue.
+   ============================================================ */
+
+.hero {
+  background: linear-gradient(180deg,
+    #ffffff 0%,
+    #f0f4ff 14%,
+    #cfd6ff 22%,
+    #6b79ea 45%,
+    #2437c8 72%,
+    #1a2aa0 100%
+  ) !important;
+  padding-top: 140px !important;
+}
+.hero::before, .hero::after { display: none !important; }
+.hero-shape, .hero-particles { display: none !important; }
+
+/* Hero content (tagline section) sits in the deep-blue mid, so keep white text */
+.hero-title, .hero-company, .hero-sub {
+  color: #ffffff;
+}
+
+/* Header stays transparent — the light top of the hero now provides the white */
+.site-header {
+  background: transparent !important;
+  box-shadow: none !important;
+  height: 86px !important;
+}
+.site-header.scrolled {
+  background: rgba(255,255,255,0.95) !important;
+  box-shadow: 0 1px 0 rgba(19,30,122,0.08), 0 10px 30px rgba(19,30,122,0.08) !important;
+}
+
+/* Over the light top band, nav is dark */
+.site-header .nav a,
+.site-header .nav-toggle span { color: var(--ink) !important; }
+.site-header .nav a::after { background: var(--brand) !important; }
+
+/* Logo is always the BLUE variant now (sits on white-ish top of hero) */
+.site-header .logo-wrap .logo-blue  { display: block !important; }
+.site-header .logo-wrap .logo-white { display: none !important; }
+.site-header .logo-wrap { height: 52px !important; gap: 14px !important; }
+.site-header .logo-icon { height: 100% !important; }
+.site-header .logo-text { height: 88% !important; }
+
+/* Hide hero-wave — the gradient itself is the transition */
+.hero-wave { display: none !important; }
+
+/* Raise the tagline down a bit so it sits firmly in the blue zone */
+.hero-content {
+  margin-top: clamp(80px, 12vh, 140px) !important;
+}
