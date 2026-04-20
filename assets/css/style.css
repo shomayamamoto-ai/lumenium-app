@@ -211,3 +211,38 @@
 /* Lavender empty box shouldn't appear if src is missing */
 .spotlight-photo:has(img[src=""])::before,
 .spotlight-photo:empty::before{content:"Talent of the Month";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-family:"Cormorant Garamond",serif;font-style:italic;font-size:22px;letter-spacing:.06em}
+/* === v35b: kill residual blur + logo-on-scroll fix === */
+/* The .reveal/.stagger blur filter was left over after we disabled opacity hiding,
+   causing all body copy to render slightly fuzzy. Force filter:none everywhere. */
+.reveal,
+.reveal-left,
+.reveal-right,
+.stagger > *,
+.reveal *,
+.stagger > * *{
+  filter: none !important;
+}
+.hero-title .letter,
+.hero-title,
+.hero-company,
+.hero-sub,
+.hero-title *{filter:none !important;opacity:1 !important;transform:none !important;animation:none !important}
+
+/* When header is over hero AND user has scrolled past it, the white logo
+   was colliding with the white header background. Restore the dark logo
+   variant on scroll. */
+.site-header.on-hero.scrolled .logo-icon{content:url('../img/logo-original.png?v=35')}
+.site-header.on-hero.scrolled .logo-text{content:url('../img/logo.png?v=35')}
+.site-header.on-hero.scrolled .logo-icon,
+.site-header.on-hero.scrolled .logo-text{filter:none !important}
+.site-header.on-hero.scrolled .nav a{color:var(--ink) !important}
+.site-header.on-hero.scrolled .nav a::after{background:var(--brand) !important}
+/* === v35c: hard overrides — whenever scrolled, force dark logo + white header === */
+.site-header.scrolled .logo-icon{content:url('../img/logo-original.png?v=35') !important}
+.site-header.scrolled .logo-text{content:url('../img/logo.png?v=35') !important}
+.site-header.scrolled .logo-icon,
+.site-header.scrolled .logo-text{filter:none !important}
+.site-header.scrolled{background:rgba(255,255,255,0.95) !important;backdrop-filter:blur(10px) !important;-webkit-backdrop-filter:blur(10px) !important;box-shadow:0 1px 0 rgba(19,30,122,0.06),0 6px 24px rgba(19,30,122,0.06) !important}
+.site-header.scrolled .nav a{color:var(--ink) !important}
+.site-header.scrolled .nav-toggle span{background:var(--ink) !important}
+.site-header.scrolled .nav a::after{background:var(--brand) !important}
