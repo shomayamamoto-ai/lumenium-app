@@ -127,3 +127,65 @@
 
 /* Hero parallax container */
 .hero-video{will-change:transform}
+/* === v34 fixes === */
+/* Swap logo assets to white variants when header sits on hero */
+.site-header.on-hero .logo-icon{content:url('../img/logo-original-white.png?v=34')}
+.site-header.on-hero .logo-text{content:url('../img/wordmark-white.png?v=34')}
+/* Drop-shadow so white logo doesn't feel pasted on blue */
+.site-header.on-hero .logo-icon,
+.site-header.on-hero .logo-text{filter:drop-shadow(0 2px 20px rgba(255,255,255,0.18)) drop-shadow(0 0 2px rgba(15,20,48,0.15))}
+
+/* Tighten hero→content transition: shrink wave + press padding */
+.hero{padding:140px 24px 100px !important;min-height:86vh !important}
+.hero-wave svg{height:72px !important}
+.press-strip{padding:36px 0 56px !important;border-top:0 !important}
+.press-strip-label{margin-bottom:20px !important}
+
+/* Make header more premium over hero (subtle gradient instead of flat transparent) */
+.site-header.on-hero{background:linear-gradient(180deg,rgba(15,20,48,0.22) 0%,rgba(15,20,48,0.05) 70%,transparent 100%) !important;backdrop-filter:blur(6px) saturate(1.1);-webkit-backdrop-filter:blur(6px) saturate(1.1)}
+
+/* Remove any leftover white chip behind nav on hero */
+.site-header.on-hero .nav{background:transparent !important}
+.site-header.on-hero .nav a{background:transparent !important;color:#fff !important}
+
+@media(max-width:900px){
+  .hero{padding:120px 20px 80px !important;min-height:78vh !important}
+  .hero-wave svg{height:54px !important}
+  .press-strip{padding:24px 0 40px !important}
+}
+/* === v34: Preloader — disable all movement, keep static logo === */
+.preloader,
+.preloader *,
+.preloader *::before,
+.preloader *::after{
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  transition: opacity .5s ease !important;
+}
+.preloader-mark,
+.preloader-brand,
+.preloader-tagline,
+.preloader-bar,
+.preloader-bar span,
+.preloader-word,
+.preloader-sweep,
+.preloader-stars,
+.ring,.ring-1,.ring-2,.ring-3{opacity:1 !important}
+/* Remove scene effects that imply motion */
+.preloader-sweep,
+.preloader-stars,
+.preloader::before,
+.preloader::after,
+.preloader-mark-wrap::before,
+.preloader-mark-wrap::after{display:none !important}
+/* Hide the chromatic split duplicates on brand text */
+.preloader-brand::before,
+.preloader-brand::after{display:none !important;content:none !important}
+.preloader-brand{color:#fff !important}
+/* Simple fade-out on dismiss (no panel slide) */
+.preloader-exit-a,
+.preloader-exit-b{display:none !important}
+.preloader{transition:opacity .6s ease !important}
+.preloader.done{opacity:0;pointer-events:none}
