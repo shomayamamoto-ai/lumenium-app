@@ -1,20 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" aria-label="AdvoVisions">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" aria-label="AdvoVisions" preserveAspectRatio="xMinYMid meet">
   <defs>
     <linearGradient id="chromeB" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#3b4bd4"/>
-      <stop offset="100%" stop-color="#0f1a70"/>
+      <stop offset="0%" stop-color="#1a2aa0"/>
+      <stop offset="100%" stop-color="#0a1155"/>
     </linearGradient>
   </defs>
   <!-- thin baseline -->
-  <line x1="10" y1="95" x2="610" y2="95" stroke="#2437c8" stroke-width="1.2" opacity="0.55"/>
-  <!-- 'A' in bright blue outline -->
-  <text x="10" y="88"
-        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="300" font-size="104" letter-spacing="-3"
-        fill="none" stroke="#2437c8" stroke-width="1.8">A</text>
-  <!-- 'dvoVisions' in gradient blue outline -->
-  <text x="96" y="88"
-        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="300" font-size="104" letter-spacing="-3"
-        fill="none" stroke="url(#chromeB)" stroke-width="1.8">dvoVisions</text>
+  <line x1="6" y1="100" x2="614" y2="100" stroke="#2437c8" stroke-width="1.4" opacity="0.6"/>
+  <!-- 'A' in brand blue -->
+  <text x="6" y="92"
+        font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif"
+        font-weight="400"
+        font-size="108" letter-spacing="-3"
+        fill="#2437c8">A</text>
+  <!-- 'dvoVisions' in dark blue gradient -->
+  <text x="88" y="92"
+        font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif"
+        font-weight="400"
+        font-size="108" letter-spacing="-3"
+        fill="url(#chromeB)">dvoVisions</text>
 </svg>

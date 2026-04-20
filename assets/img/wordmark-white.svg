@@ -1,27 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" aria-label="AdvoVisions">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" aria-label="AdvoVisions" preserveAspectRatio="xMinYMid meet">
   <defs>
     <linearGradient id="chromeW" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="50%" stop-color="#e6e9f4"/>
-      <stop offset="100%" stop-color="#9ba4c8"/>
+      <stop offset="65%" stop-color="#e0e5f5"/>
+      <stop offset="100%" stop-color="#b7bfd8"/>
     </linearGradient>
-    <filter id="neonGlow" x="-10%" y="-30%" width="120%" height="160%">
-      <feGaussianBlur stdDeviation="1.6" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
-  <!-- horizontal cyan light line along baseline -->
-  <line x1="10" y1="95" x2="610" y2="95" stroke="#5aa9ff" stroke-width="1.8" opacity="0.85" filter="url(#neonGlow)"/>
-  <!-- 'A' in neon blue outline -->
-  <text x="10" y="88"
-        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="200" font-size="104" letter-spacing="-3"
-        fill="none" stroke="#5aa9ff" stroke-width="1.6"
-        filter="url(#neonGlow)">A</text>
-  <!-- 'dvoVisions' in chrome outline -->
-  <text x="96" y="88"
-        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="200" font-size="104" letter-spacing="-3"
-        fill="none" stroke="url(#chromeW)" stroke-width="1.6"
-        filter="url(#neonGlow)">dvoVisions</text>
+  <!-- baseline cyan light line -->
+  <line x1="6" y1="100" x2="614" y2="100" stroke="#5aa9ff" stroke-width="2" opacity="0.9"/>
+  <!-- 'A' bright blue, filled -->
+  <text x="6" y="92"
+        font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif"
+        font-weight="300"
+        font-size="108" letter-spacing="-3"
+        fill="#5aa9ff">A</text>
+  <!-- 'dvoVisions' chrome gradient -->
+  <text x="88" y="92"
+        font-family="'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif"
+        font-weight="300"
+        font-size="108" letter-spacing="-3"
+        fill="url(#chromeW)">dvoVisions</text>
 </svg>
