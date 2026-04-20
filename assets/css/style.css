@@ -79,3 +79,51 @@
 /* Reveal timing refinement */
 .reveal{transition:opacity .9s cubic-bezier(.2,.8,.2,1),transform .9s cubic-bezier(.2,.8,.2,1)}
 .stagger>*{transition-delay:calc(var(--i,0)*60ms)}
+/* === v33 additions === */
+/* Philosophy section */
+.philosophy{background:linear-gradient(180deg,#fff 0%,#f6f8ff 100%)}
+.philo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:48px}
+.philo-card{position:relative;padding:40px 32px 36px;background:#fff;border:1px solid var(--line);border-radius:14px;transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .5s ease,border-color .3s ease}
+.philo-card:hover{transform:translateY(-6px);box-shadow:0 30px 60px -30px rgba(15,20,48,.2);border-color:var(--brand-line)}
+.philo-num{font-family:"Cormorant Garamond",serif;font-style:italic;font-size:48px;color:var(--brand);opacity:.4;letter-spacing:-.02em;line-height:1;margin-bottom:20px}
+.philo-title{font-size:20px;font-weight:600;margin:0 0 16px;color:var(--ink);letter-spacing:.02em}
+.philo-card p{color:var(--ink-dim);line-height:1.9;font-size:14px;margin:0 0 20px}
+.philo-points{list-style:none;padding:0;margin:0;border-top:1px solid var(--line);padding-top:20px}
+.philo-points li{padding:8px 0 8px 20px;font-size:13px;color:var(--ink);position:relative}
+.philo-points li::before{content:"✓";position:absolute;left:0;top:8px;color:var(--brand);font-weight:600}
+@media(max-width:900px){.philo-grid{grid-template-columns:1fr;gap:20px}.philo-card{padding:32px 24px}}
+
+/* Brand testimonials carousel */
+.testimonials{background:var(--paper-soft)}
+.testimonial-carousel{margin-top:48px;position:relative}
+.testimonial-track{display:flex;gap:28px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px 4px 24px;scrollbar-width:none;-ms-overflow-style:none}
+.testimonial-track::-webkit-scrollbar{display:none}
+.testimonial-card{flex:0 0 min(440px,86vw);scroll-snap-align:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:36px 32px;position:relative;box-shadow:0 10px 30px -20px rgba(15,20,48,.15)}
+.testimonial-card .quote-mark{width:28px;height:28px;fill:var(--brand);opacity:.2;margin-bottom:16px}
+.testimonial-card p{font-size:15px;line-height:1.9;color:var(--ink);margin:0 0 24px}
+.testimonial-card cite{display:flex;flex-direction:column;gap:4px;font-style:normal;padding-top:20px;border-top:1px solid var(--line)}
+.testimonial-card cite strong{font-size:14px;color:var(--ink);font-weight:600}
+.testimonial-card cite span{font-size:12px;color:var(--ink-dim)}
+.testimonial-dots{display:flex;justify-content:center;gap:8px;margin-top:20px}
+.testimonial-dots button{width:8px;height:8px;border-radius:50%;background:var(--line);border:0;cursor:pointer;transition:all .3s ease;padding:0}
+.testimonial-dots button.active{background:var(--brand);width:28px;border-radius:4px}
+
+/* FAQ accordion */
+.faq-list{margin-top:32px}
+.faq-item{border-bottom:1px solid var(--line);padding:0}
+.faq-item summary{list-style:none;cursor:pointer;padding:22px 40px 22px 0;font-size:15px;font-weight:500;color:var(--ink);position:relative;user-select:none;transition:color .3s ease}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"+";position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;line-height:24px;text-align:center;border:1px solid var(--line);border-radius:50%;color:var(--ink-dim);font-size:18px;font-weight:300;transition:transform .4s ease,background .3s ease,color .3s ease,border-color .3s ease}
+.faq-item[open] summary::after{transform:translateY(-50%) rotate(45deg);background:var(--brand);color:#fff;border-color:var(--brand)}
+.faq-item summary:hover{color:var(--brand)}
+.faq-body{padding:0 0 24px;color:var(--ink-dim);line-height:2;font-size:14px;max-width:760px}
+
+/* Back-to-top floating button */
+.to-top{position:fixed;right:24px;bottom:24px;width:46px;height:46px;border-radius:50%;background:var(--ink);color:#fff;border:0;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(20px) scale(.9);transition:all .4s cubic-bezier(.2,.8,.2,1);z-index:70;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px -10px rgba(15,20,48,.4)}
+.to-top svg{width:18px;height:18px}
+.to-top.show{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.to-top:hover{background:var(--brand);transform:translateY(-4px) scale(1.05)}
+@media(max-width:640px){.to-top{right:16px;bottom:16px;width:42px;height:42px}}
+
+/* Hero parallax container */
+.hero-video{will-change:transform}
