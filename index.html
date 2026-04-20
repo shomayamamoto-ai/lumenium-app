@@ -11,10 +11,27 @@
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+  <!-- PRELOADER -->
+  <div class="preloader" aria-hidden="true">
+    <div class="preloader-logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z"
+              stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+        <circle cx="18" cy="28" r="2" fill="currentColor"/>
+        <circle cx="28" cy="28" r="2" fill="currentColor"/>
+        <circle cx="40" cy="28" r="2" fill="currentColor"/>
+        <circle cx="50" cy="28" r="2" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="preloader-bar"></div>
+    <div class="preloader-label">ADVOVISIONS</div>
+  </div>
+
+  <div class="scroll-progress" aria-hidden="true"></div>
+
   <header class="site-header on-hero">
     <a href="index.html" class="logo">
       <span class="logo-mark" aria-hidden="true">
-        <!-- theater masks mark (comedy/tragedy) -->
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z"
                 stroke="currentColor" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
@@ -31,10 +48,11 @@
     <nav class="nav" aria-label="Primary">
       <ul>
         <li><a href="index.html" class="active">Home</a></li>
-        <li><a href="index.html#services">Services</a></li>
-        <li><a href="index.html#works">Works</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#works">Works</a></li>
         <li><a href="members.html">Members</a></li>
-        <li><a href="index.html#contact">Contact</a></li>
+        <li><a href="#news">News</a></li>
+        <li><a href="#contact">Contact</a></li>
       </ul>
     </nav>
     <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
@@ -50,9 +68,9 @@
             <stop offset="100%" stop-color="#1a2aa0"/>
           </linearGradient>
         </defs>
-        <path fill="url(#heroBlob)" opacity="0.55"
+        <path fill="url(#heroBlob)" opacity="0.6"
               d="M140,30 C195,30 245,70 250,130 C255,190 210,240 150,245 C90,250 35,205 30,140 C25,75 85,30 140,30 Z"/>
-        <path fill="#ffffff" opacity="0.15"
+        <path fill="#ffffff" opacity="0.18"
               d="M90,100 C120,70 180,80 200,120 C215,155 195,195 160,210 C120,225 70,195 70,160 C70,135 75,115 90,100 Z"/>
       </svg>
     </div>
@@ -70,8 +88,43 @@
     </div>
   </section>
 
+  <!-- ABOUT / STATS -->
+  <section id="about" class="block">
+    <div class="container">
+      <div class="about-grid">
+        <div class="about-copy reveal">
+          <div class="eyebrow">ABOUT</div>
+          <h2>映像で、<em>Visionを世界へ</em><br>届けるチーム。</h2>
+          <p>AdvoVisions は、東京を拠点に映像・広告・人材育成を横断するクリエイティブ集団。
+          大手ブランドから新進気鋭のアーティスト、スタートアップまで ——
+          あらゆる規模の表現者のVisionに、映像という形で輪郭を与えます。</p>
+          <p>ディレクター・撮影・編集・デザイン・サウンドを抱える 150 名のメンバーが、
+          案件ごとに最適なチームを編成し、企画段階から完成・配信まで伴走します。</p>
+        </div>
+        <div class="stats stagger">
+          <div class="stat">
+            <div class="num"><span data-count="150">0</span></div>
+            <div class="label">CREATORS</div>
+          </div>
+          <div class="stat">
+            <div class="num"><span data-count="480">0</span><sup>+</sup></div>
+            <div class="label">PROJECTS</div>
+          </div>
+          <div class="stat">
+            <div class="num"><span data-count="12">0</span><sup>YRS</sup></div>
+            <div class="label">EXPERIENCE</div>
+          </div>
+          <div class="stat">
+            <div class="num"><span data-count="32">0</span></div>
+            <div class="label">AWARDS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- SERVICES (icon tiles) -->
-  <section id="services" class="block">
+  <section id="services" class="block alt">
     <div class="container">
       <div class="block-head reveal">
         <div class="eyebrow">SERVICES</div>
@@ -79,7 +132,7 @@
         <p class="block-desc">映像制作を核に、人材育成から広告・イベントまで。四つの柱でクライアントのVisionを形にします。</p>
       </div>
 
-      <div class="services-grid reveal">
+      <div class="services-grid stagger">
         <div class="service-tile">
           <div class="service-icon" aria-hidden="true">
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -146,18 +199,18 @@
   </section>
 
   <!-- WORKS -->
-  <section id="works" class="block alt">
+  <section id="works" class="block">
     <div class="container">
       <div class="block-head reveal">
         <div class="eyebrow">WORKS</div>
         <h2 class="block-title">制作実績</h2>
-        <p class="block-desc">ブランド・音楽・ドキュメンタリーを横断する代表的な制作物。クリックで詳細プレビューをご覧いただけます。</p>
+        <p class="block-desc">カードにホバーすると動画がプレビューされます。クリックで拡大再生。</p>
       </div>
 
       <div class="works-grid reveal">
         <article class="work-card wide">
           <div class="thumb">
-            <video muted loop playsinline poster="https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=1600&q=80&auto=format&fit=crop">
+            <video muted loop playsinline preload="metadata" poster="https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=1600&q=80&auto=format&fit=crop">
               <source src="https://videos.pexels.com/video-files/4763824/4763824-uhd_2560_1440_24fps.mp4" type="video/mp4">
             </video>
           </div>
@@ -173,7 +226,9 @@
 
         <article class="work-card third">
           <div class="thumb">
-            <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=1200&q=80&auto=format&fit=crop" alt="">
+            <video muted loop playsinline preload="metadata" poster="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=1200&q=80&auto=format&fit=crop">
+              <source src="https://videos.pexels.com/video-files/5752729/5752729-uhd_2560_1440_30fps.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="overlay">
             <span class="tag">Music Video</span>
@@ -187,7 +242,9 @@
 
         <article class="work-card half">
           <div class="thumb">
-            <img src="https://images.unsplash.com/photo-1518676590629-3dcba9c5a5c7?w=1600&q=80&auto=format&fit=crop" alt="">
+            <video muted loop playsinline preload="metadata" poster="https://images.unsplash.com/photo-1518676590629-3dcba9c5a5c7?w=1600&q=80&auto=format&fit=crop">
+              <source src="https://videos.pexels.com/video-files/3129671/3129671-uhd_2560_1440_30fps.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="overlay">
             <span class="tag">Commercial · 2024</span>
@@ -201,7 +258,9 @@
 
         <article class="work-card half">
           <div class="thumb">
-            <img src="https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1600&q=80&auto=format&fit=crop" alt="">
+            <video muted loop playsinline preload="metadata" poster="https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1600&q=80&auto=format&fit=crop">
+              <source src="https://videos.pexels.com/video-files/2022395/2022395-uhd_2560_1440_30fps.mp4" type="video/mp4">
+            </video>
           </div>
           <div class="overlay">
             <span class="tag">Documentary · 2024</span>
@@ -257,7 +316,7 @@
 
         <article class="work-card full">
           <div class="thumb">
-            <video muted loop playsinline poster="https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1920&q=80&auto=format&fit=crop">
+            <video muted loop playsinline preload="metadata" poster="https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1920&q=80&auto=format&fit=crop">
               <source src="https://videos.pexels.com/video-files/2022395/2022395-uhd_2560_1440_30fps.mp4" type="video/mp4">
             </video>
           </div>
@@ -275,7 +334,7 @@
   </section>
 
   <!-- MEMBERS PREVIEW -->
-  <section id="members-preview" class="block">
+  <section id="members-preview" class="block alt">
     <div class="container">
       <div class="block-head reveal">
         <div class="eyebrow">MEMBERS · 150</div>
@@ -283,10 +342,59 @@
         <p class="block-desc">150名のクリエイターが集うコレクティブ。役職・部門・撮影領域を横断し、案件ごとに最適なチームを組成します。</p>
       </div>
 
-      <div id="members-preview-grid" class="members-grid reveal"></div>
+      <div id="members-preview-grid" class="members-grid stagger"></div>
 
       <div style="text-align:center; margin-top: 48px;">
         <a href="members.html" class="btn-outline">150名すべてのメンバーを見る →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEWS -->
+  <section id="news" class="block">
+    <div class="container">
+      <div class="block-head reveal">
+        <div class="eyebrow">NEWS</div>
+        <h2 class="block-title">お知らせ</h2>
+        <p class="block-desc">AdvoVisions の最新のプロジェクト、受賞、ワークショップ情報をお届けします。</p>
+      </div>
+      <div class="news-grid stagger">
+        <a href="#" class="news-card">
+          <div class="news-thumb">
+            <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&q=80&auto=format&fit=crop" alt="">
+          </div>
+          <div class="news-body">
+            <div class="news-meta">
+              <span class="cat">PROJECT</span>
+              <span>2026.03.12</span>
+            </div>
+            <h3 class="news-title">新ブランドフィルム「Hours of Becoming」がカンヌ国際広告祭にてノミネートされました。</h3>
+          </div>
+        </a>
+        <a href="#" class="news-card">
+          <div class="news-thumb">
+            <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&q=80&auto=format&fit=crop" alt="">
+          </div>
+          <div class="news-body">
+            <div class="news-meta">
+              <span class="cat">WORKSHOP</span>
+              <span>2026.02.28</span>
+            </div>
+            <h3 class="news-title">第12期 映像ディレクター養成ワークショップ、エントリー受付を開始しました。</h3>
+          </div>
+        </a>
+        <a href="#" class="news-card">
+          <div class="news-thumb">
+            <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80&auto=format&fit=crop" alt="">
+          </div>
+          <div class="news-body">
+            <div class="news-meta">
+              <span class="cat">EVENT</span>
+              <span>2026.02.01</span>
+            </div>
+            <h3 class="news-title">東京ビエンナーレ2026パートナーに就任、オフィシャル映像制作を担当します。</h3>
+          </div>
+        </a>
       </div>
     </div>
   </section>
@@ -319,6 +427,7 @@
           <ul>
             <li><a href="#works">Works</a></li>
             <li><a href="members.html">Members</a></li>
+            <li><a href="#news">News</a></li>
             <li><a href="#contact">Contact</a></li>
           </ul>
         </div>
@@ -337,6 +446,18 @@
     </div>
   </footer>
 
+  <!-- VIDEO MODAL -->
+  <div class="modal" id="video-modal" role="dialog" aria-modal="true" aria-label="Video player">
+    <div class="modal-inner">
+      <button class="modal-close" aria-label="Close"></button>
+      <video controls playsinline></video>
+      <div class="modal-caption">
+        <div class="client"></div>
+        <div class="title"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="assets/js/members-data.js"></script>
   <script>
     (function () {
@@ -348,6 +469,11 @@
           <div class="member-avatar">
             <img src="${m.portrait}" alt="${m.name}" loading="lazy"
                  onerror="this.onerror=null;this.src='${m.fallback}'">
+            <div class="member-hover">
+              <span class="dept">${m.dept}</span>
+              ${m.expertise.join(" · ")}
+              <br><span class="view">View Profile →</span>
+            </div>
           </div>
           <div class="member-meta">
             <div class="member-name">${m.name}</div>
