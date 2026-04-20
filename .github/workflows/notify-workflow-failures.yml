@@ -92,3 +92,4 @@ jobs:
               labels: [label],
             })
             core.info(`Opened issue #${created.data.number}`)
+
