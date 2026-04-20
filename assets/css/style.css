@@ -82,10 +82,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   letter-spacing: 0.04em;
 }
 .logo-mark {
-  width: 28px; height: 28px;
+  width: 34px; height: 26px;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.logo-mark svg { width: 100%; height: 100%; }
+.logo-mark svg, .logo-mark img { width: 100%; height: 100%; object-fit: contain; }
+.site-header.on-hero .logo-mark .mark-blue { display: none; }
+.site-header.on-hero .logo-mark .mark-white { display: inline-block; }
+.logo-mark .mark-white { display: none; }
+.logo-mark .mark-blue { display: inline-block; }
 .logo-word { font-style: italic; }
 .logo-word b { font-style: normal; font-weight: 600; letter-spacing: 0.02em; }
 
@@ -1107,9 +1113,200 @@ section.block { padding: 110px 0; position: relative; }
 }
 .section-arc-top svg, .section-arc-bottom svg { width: 100%; height: 60px; display: block; }
 
+/* ========== Talents Grid (portrait cards) ========== */
+.talents-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+}
+.talent-card {
+  display: block;
+  background: var(--paper);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.45s var(--ease), box-shadow 0.45s var(--ease);
+  color: var(--ink);
+}
+.talent-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 44px rgba(19,30,122,0.12);
+  color: var(--ink);
+}
+.talent-photo {
+  position: relative;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: var(--brand-soft);
+}
+.talent-photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.8s var(--ease);
+}
+.talent-card:hover .talent-photo img { transform: scale(1.06); }
+.talent-badge {
+  position: absolute;
+  top: 12px; left: 12px;
+  padding: 5px 10px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  border-radius: 100px;
+  font-weight: 600;
+  z-index: 2;
+}
+.talent-hover {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 48px 14px 14px;
+  background: linear-gradient(to top, rgba(36,55,200,0.95), rgba(36,55,200,0));
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+  pointer-events: none;
+}
+.talent-card:hover .talent-hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+.talent-hover-skills { opacity: 0.9; margin-bottom: 6px; }
+.talent-hover-view {
+  display: inline-block;
+  background: #fff;
+  color: var(--brand);
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-weight: 600;
+  font-size: 10px;
+}
+.talent-meta {
+  padding: 16px 14px 20px;
+  text-align: center;
+}
+.talent-name {
+  font-family: "Noto Serif JP", var(--serif);
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+.talent-role {
+  font-size: 11px;
+  color: var(--brand);
+  letter-spacing: 0.15em;
+  font-weight: 500;
+}
+
+/* ========== Hero marquee (scrolling talent names) ========== */
+.hero-marquee {
+  position: absolute;
+  left: 0; right: 0; bottom: 110px;
+  overflow: hidden;
+  z-index: 2;
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+}
+.marquee-track {
+  display: inline-flex;
+  gap: 20px;
+  white-space: nowrap;
+  animation: marqueeX 90s linear infinite;
+  font-family: "Noto Serif JP", var(--serif);
+  font-size: 14px;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.15em;
+}
+.marquee-track .dot { color: rgba(255,255,255,0.3); font-size: 8px; align-self: center; }
+@keyframes marqueeX {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ========== Filmography ========== */
+.profile-filmography {
+  padding: 80px 0 40px;
+  background: var(--paper-soft);
+  border-top: 1px solid var(--line);
+}
+.profile-filmography h2, .profile-news h2, .profile-related h2 {
+  font-family: "Noto Serif JP", var(--serif);
+  font-weight: 500;
+  font-size: clamp(22px, 2.6vw, 30px);
+  margin-bottom: 32px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: var(--ink);
+}
+.profile-filmography h2::after,
+.profile-news h2::after,
+.profile-related h2::after {
+  content: "";
+  display: block;
+  width: 40px; height: 3px;
+  background: var(--brand);
+  margin: 14px auto 0;
+  border-radius: 2px;
+}
+.filmography-list {
+  list-style: none;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.filmography-list li {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+}
+.film-cat {
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  color: var(--brand);
+  font-weight: 600;
+}
+.film-work {
+  font-family: "Noto Serif JP", var(--serif);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+/* ========== Talent news list ========== */
+.profile-news { padding: 70px 0; }
+.talent-news-list {
+  list-style: none;
+  max-width: 780px;
+  margin: 0 auto;
+}
+.talent-news-list li {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+}
+.news-date {
+  font-size: 12px;
+  color: var(--brand);
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+.news-text { font-size: 14px; line-height: 1.8; }
+
+/* ========== Related talents section ========== */
+.profile-related { padding: 80px 0 100px; background: var(--paper-soft); }
+
+/* ========== Responsive (talents) ========== */
 @media (max-width: 1024px) {
   .about-grid { grid-template-columns: 1fr; gap: 40px; }
   .news-grid { grid-template-columns: 1fr 1fr; }
+  .talents-grid { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 720px) {
   .news-grid { grid-template-columns: 1fr; }
@@ -1117,5 +1314,11 @@ section.block { padding: 110px 0; position: relative; }
   .modal { padding: 16px; }
   .modal-caption { padding: 16px; }
   .modal-caption .title { font-size: 16px; }
+  .talents-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .filmography-list li, .talent-news-list li {
+    grid-template-columns: 1fr; gap: 4px;
+  }
+  .hero-marquee { bottom: 130px; }
+  .marquee-track { font-size: 12px; }
 }
 

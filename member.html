@@ -3,20 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>メンバー — 合同会社 AdvoVisions</title>
+  <title>Talent Profile — 合同会社 AdvoVisions</title>
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
   <div class="preloader" aria-hidden="true">
     <div class="preloader-logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
-        <circle cx="18" cy="28" r="2" fill="currentColor"/><circle cx="28" cy="28" r="2" fill="currentColor"/>
-        <circle cx="40" cy="28" r="2" fill="currentColor"/><circle cx="50" cy="28" r="2" fill="currentColor"/>
-      </svg>
+      <img src="assets/img/logo-white.svg" alt="" style="width:100%;height:100%;object-fit:contain;">
     </div>
     <div class="preloader-bar"></div>
     <div class="preloader-label">ADVOVISIONS</div>
@@ -26,16 +23,8 @@
   <header class="site-header">
     <a href="index.html" class="logo">
       <span class="logo-mark" aria-hidden="true">
-        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z"
-                stroke="currentColor" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
-          <circle cx="18" cy="28" r="2" fill="currentColor"/>
-          <circle cx="28" cy="28" r="2" fill="currentColor"/>
-          <circle cx="40" cy="28" r="2" fill="currentColor"/>
-          <circle cx="50" cy="28" r="2" fill="currentColor"/>
-          <path d="M16 36c2 3 5 5 7 5s5-2 7-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <path d="M38 37c2-3 5-5 7-5s5 2 7 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-        </svg>
+        <img class="mark-blue" src="assets/img/logo.svg" alt="">
+        <img class="mark-white" src="assets/img/logo-white.svg" alt="">
       </span>
       <span class="logo-word"><b>Advo</b>Visions</span>
     </a>
@@ -43,8 +32,9 @@
       <ul>
         <li><a href="index.html">Home</a></li>
         <li><a href="index.html#services">Services</a></li>
+        <li><a href="members.html" class="active">Talents</a></li>
         <li><a href="index.html#works">Works</a></li>
-        <li><a href="members.html" class="active">Members</a></li>
+        <li><a href="index.html#news">News</a></li>
         <li><a href="index.html#contact">Contact</a></li>
       </ul>
     </nav>
@@ -54,16 +44,19 @@
   <main id="profile-root"></main>
 
   <section class="cta reveal">
-    <h2>このチームと<br>プロジェクトを始めませんか？</h2>
-    <a href="mailto:contact@advovisions.com" class="btn-primary">お問い合わせ</a>
+    <h2>このタレントを<br>起用したお仕事のご相談</h2>
+    <a href="mailto:casting@advovisions.com" class="btn-primary">キャスティングのお問い合わせ</a>
   </section>
 
   <footer class="site-footer">
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="logo"><span class="logo-word"><b>Advo</b>Visions</span></div>
-          <p>合同会社 AdvoVisions<br>あなたのVisionを世界へ提言する映像クリエイティブ集団。</p>
+          <div class="logo">
+            <span class="logo-mark" aria-hidden="true"><img src="assets/img/logo-white.svg" alt=""></span>
+            <span class="logo-word"><b>Advo</b>Visions</span>
+          </div>
+          <p style="margin-top:14px;">合同会社 AdvoVisions<br>あなたのVisionを世界へ提言するタレント・アーティストマネジメント。</p>
         </div>
         <div class="footer-col">
           <h4>Services</h4>
@@ -77,8 +70,9 @@
         <div class="footer-col">
           <h4>Studio</h4>
           <ul>
+            <li><a href="members.html">Talents</a></li>
             <li><a href="index.html#works">Works</a></li>
-            <li><a href="members.html">Members</a></li>
+            <li><a href="index.html#news">News</a></li>
             <li><a href="index.html#contact">Contact</a></li>
           </ul>
         </div>
@@ -86,6 +80,7 @@
           <h4>Contact</h4>
           <ul>
             <li>contact@advovisions.com</li>
+            <li>casting@advovisions.com</li>
             <li>Tokyo, Japan</li>
           </ul>
         </div>

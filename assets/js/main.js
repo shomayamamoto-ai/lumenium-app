@@ -23,7 +23,7 @@
   window.addEventListener("scroll", update, { passive: true });
 })();
 
-// Header scroll state — transparent over hero, solid on scroll
+// Header scroll state
 (function () {
   const header = document.querySelector(".site-header");
   if (!header) return;
@@ -70,7 +70,7 @@
   els.forEach(el => io.observe(el));
 })();
 
-// Animated number counters
+// Animated counters
 (function () {
   const counters = document.querySelectorAll("[data-count]");
   if (!counters.length || !("IntersectionObserver" in window)) return;
@@ -94,7 +94,7 @@
   counters.forEach(c => io.observe(c));
 })();
 
-// Work card hover-play for videos, and click → modal
+// Video lightbox + hover-play
 (function () {
   const cards = document.querySelectorAll(".work-card");
   cards.forEach(card => {
@@ -103,9 +103,7 @@
       card.addEventListener("mouseenter", () => {
         try { v.currentTime = 0; v.play().catch(() => {}); } catch (_) {}
       });
-      card.addEventListener("mouseleave", () => {
-        try { v.pause(); } catch (_) {}
-      });
+      card.addEventListener("mouseleave", () => { try { v.pause(); } catch (_) {} });
     }
     card.addEventListener("click", () => openModal(card));
   });
@@ -160,7 +158,7 @@
   }
 })();
 
-// ============ Members grid renderer ============
+// ============ Talents grid (search / filter / paginate) ============
 (function () {
   const grid = document.getElementById("members-grid");
   if (!grid || !window.ADVO_MEMBERS) return;
@@ -183,9 +181,30 @@
         m.name.toLowerCase().includes(q) ||
         m.nameKana.toLowerCase().includes(q) ||
         m.role.toLowerCase().includes(q) ||
-        m.id.includes(q)
+        m.id.includes(q) ||
+        m.dept.includes(q)
       );
     });
+  }
+
+  function card(m) {
+    return `
+      <a class="talent-card" href="member.html?id=${m.id}">
+        <div class="talent-photo">
+          <img src="${m.portrait}" alt="${m.name}" loading="lazy"
+               onerror="this.onerror=null;this.src='${m.fallback}'">
+          <span class="talent-badge">${m.dept}</span>
+          <div class="talent-hover">
+            <div class="talent-hover-skills">${m.expertise.join(" · ")}</div>
+            <div class="talent-hover-view">View Profile →</div>
+          </div>
+        </div>
+        <div class="talent-meta">
+          <div class="talent-name">${m.name}</div>
+          <div class="talent-role">${m.role}</div>
+        </div>
+      </a>
+    `;
   }
 
   function render() {
@@ -196,27 +215,9 @@
     const pageItems = list.slice(start, start + PAGE_SIZE);
 
     if (countEl) {
-      countEl.innerHTML = `<strong>${list.length.toString().padStart(3, "0")}</strong> / ${all.length.toString().padStart(3, "0")} Members`;
+      countEl.innerHTML = `<strong>${list.length.toString().padStart(3, "0")}</strong> / ${all.length.toString().padStart(3, "0")} Talents`;
     }
-
-    grid.innerHTML = pageItems.map(m => `
-      <a class="member-card" href="member.html?id=${m.id}">
-        <div class="member-avatar">
-          <img src="${m.portrait}" alt="${m.name}" loading="lazy"
-               onerror="this.onerror=null;this.src='${m.fallback}'">
-          <div class="member-hover">
-            <span class="dept">${m.dept}</span>
-            ${m.expertise.join(" · ")}
-            <br><span class="view">View Profile →</span>
-          </div>
-        </div>
-        <div class="member-meta">
-          <div class="member-name">${m.name}</div>
-          <div class="member-role">${m.role}</div>
-        </div>
-      </a>
-    `).join("");
-
+    grid.innerHTML = pageItems.map(card).join("");
     if (pagerEl) renderPager(totalPages);
   }
 
@@ -253,7 +254,6 @@
       }, 120);
     });
   }
-
   chips.forEach(chip => {
     chip.addEventListener("click", () => {
       chips.forEach(c => c.classList.remove("active"));
@@ -267,93 +267,108 @@
   render();
 })();
 
-// ============ Member profile renderer ============
+// ============ Talent profile page ============
 (function () {
   const host = document.getElementById("profile-root");
   if (!host || !window.ADVO_MEMBERS) return;
 
   const params = new URLSearchParams(location.search);
   const id = params.get("id");
-  const member = window.ADVO_MEMBERS.find(m => m.id === id) || window.ADVO_MEMBERS[0];
-  document.title = `${member.name} — 合同会社 AdvoVisions`;
+  const t = window.ADVO_MEMBERS.find(m => m.id === id) || window.ADVO_MEMBERS[0];
+  document.title = `${t.name} — 合同会社 AdvoVisions`;
 
-  // pick a few "selected works" clients
-  const sampleProjects = [
-    { tag: "Brand Film · 2024", client: "Atelier Monochrome", title: "Reflections — SS24" },
-    { tag: "Music Video · 2023", client: "SAION", title: "Moonsick" },
-    { tag: "Commercial · 2023", client: "Nikkō Motors", title: "The Drive Beyond" }
-  ];
+  // related talents from same dept (up to 6, excl. self)
+  const related = window.ADVO_MEMBERS
+    .filter(m => m.dept === t.dept && m.id !== t.id)
+    .slice(0, 6);
 
   host.innerHTML = `
     <section class="profile-hero">
       <div class="container">
-        <a class="back-link" href="members.html">メンバー一覧に戻る</a>
+        <a class="back-link" href="members.html">所属タレント一覧に戻る</a>
         <div class="profile-grid">
           <div>
             <div class="profile-portrait">
-              <img src="${member.portrait}" alt="${member.name}"
-                   onerror="this.onerror=null;this.src='${member.fallback}'">
+              <img src="${t.portrait}" alt="${t.name}"
+                   onerror="this.onerror=null;this.src='${t.fallback}'">
             </div>
             <div class="profile-social" aria-label="Social links">
-              <a href="#" aria-label="Instagram">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="5"/>
-                  <circle cx="12" cy="12" r="4"/>
-                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-                </svg>
-              </a>
-              <a href="#" aria-label="Vimeo">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22 7c-.1 2-1.5 4.7-4.2 8.2-2.8 3.6-5.2 5.4-7.1 5.4-1.2 0-2.2-1.1-3-3.2-.5-1.9-1-3.8-1.5-5.7-.6-2.1-1.2-3.2-1.8-3.2-.1 0-.7.4-1.8 1.1L1.5 7.9c1.1-1 2.2-2 3.3-2.9C6.3 3.7 7.5 3 8.4 2.9c2.1-.2 3.4 1.2 3.9 4.4.5 3.3.8 5.4 1 6.1.5 2.2 1 3.2 1.6 3.2.5 0 1.2-.7 2.2-2.3 1-1.5 1.5-2.7 1.6-3.4.2-1.6-.5-2.4-1.9-2.4-.7 0-1.4.2-2.1.5C15.9 4.8 18.3 2.8 22 3c2.7.2 4 2 4 5.3-.4-.9-1.8-1.6-4-1.3z"/>
-                </svg>
-              </a>
-              <a href="#" aria-label="X">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.9 3H22l-7.6 8.7L23 21h-6.8l-5.3-6.7L4.7 21H1.6l8.1-9.3L1 3h7l4.8 6.2L18.9 3zm-1.2 16h1.7L6.4 5H4.6l13.1 14z"/>
-                </svg>
-              </a>
+              <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+              <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 7.7c-1.6 0-3-.9-3.8-2.2V15a5 5 0 1 1-5-5v2.7a2.3 2.3 0 1 0 2.3 2.3V2h2.5c.2 1.7 1.5 3 3.2 3.2v2.5z"/></svg></a>
+              <a href="#" aria-label="X"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.6 8.7L23 21h-6.8l-5.3-6.7L4.7 21H1.6l8.1-9.3L1 3h7l4.8 6.2L18.9 3zm-1.2 16h1.7L6.4 5H4.6l13.1 14z"/></svg></a>
+              <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.2c-.3-1-1-1.8-2-2C19.1 4.8 12 4.8 12 4.8s-7.1 0-9 .4c-1 .2-1.7 1-2 2C.7 9 .7 12 .7 12s0 3 .4 4.8c.3 1 1 1.8 2 2 1.9.4 9 .4 9 .4s7.1 0 9-.4c1-.2 1.7-1 2-2 .4-1.8.4-4.8.4-4.8s0-3-.4-4.8zM9.6 15.6V8.4L15.9 12l-6.3 3.6z"/></svg></a>
             </div>
           </div>
           <div>
-            <span class="profile-role">${member.role}</span>
-            <h1 class="profile-name">${member.name}</h1>
-            <div class="profile-name-kana">${member.nameKana}</div>
+            <span class="profile-role">${t.dept}</span>
+            <h1 class="profile-name">${t.name}</h1>
+            <div class="profile-name-kana">${t.nameKana}  ·  ${t.role}</div>
             <div class="profile-tags">
-              ${member.expertise.map(x => `<span class="profile-tag">${x}</span>`).join("")}
+              ${t.expertise.map(x => `<span class="profile-tag">${x}</span>`).join("")}
             </div>
-            <p class="profile-bio">${member.bio}</p>
+            <p class="profile-bio">${t.bio}</p>
             <dl class="profile-meta">
-              <dt>ID</dt><dd>ADV–${member.id}</dd>
-              <dt>DEPARTMENT</dt><dd>${member.dept}</dd>
-              <dt>JOINED</dt><dd>${member.joined}</dd>
-              <dt>CONTACT</dt><dd>${member.name.toLowerCase().replace(/\s+/g, ".")}@advovisions.com</dd>
+              <dt>ID</dt><dd>ADV–${t.id}</dd>
+              <dt>カテゴリ</dt><dd>${t.dept}</dd>
+              <dt>出身</dt><dd>${t.birthCity}</dd>
+              <dt>血液型</dt><dd>${t.blood}型</dd>
+              <dt>身長</dt><dd>${t.height} cm</dd>
+              <dt>デビュー</dt><dd>${t.joined}年</dd>
             </dl>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="profile-works">
+    <section class="profile-filmography">
       <div class="container">
-        <h2>Selected Works</h2>
-        <div class="profile-works-grid">
-          ${sampleProjects.map((p, n) => `
-            <article class="work-card">
-              <div class="thumb">
-                <img src="https://picsum.photos/seed/work-${member.id}-${n+1}/960/540" alt="${p.title}">
+        <h2>主な出演・参加作品</h2>
+        <ul class="filmography-list">
+          ${t.filmography.map(([cat, work]) => `
+            <li>
+              <span class="film-cat">${cat}</span>
+              <span class="film-work">${work}</span>
+            </li>
+          `).join("")}
+        </ul>
+      </div>
+    </section>
+
+    <section class="profile-news">
+      <div class="container">
+        <h2>最新情報</h2>
+        <ul class="talent-news-list">
+          ${t.news.map(n => `
+            <li>
+              <span class="news-date">${n.date}</span>
+              <span class="news-text">${n.text}</span>
+            </li>
+          `).join("")}
+        </ul>
+      </div>
+    </section>
+
+    ${related.length ? `
+    <section class="profile-related">
+      <div class="container">
+        <h2>同カテゴリのタレント</h2>
+        <div class="talents-grid">
+          ${related.map(r => `
+            <a class="talent-card" href="member.html?id=${r.id}">
+              <div class="talent-photo">
+                <img src="${r.portrait}" alt="${r.name}" loading="lazy"
+                     onerror="this.onerror=null;this.src='${r.fallback}'">
+                <span class="talent-badge">${r.dept}</span>
               </div>
-              <div class="overlay">
-                <span class="tag">${p.tag}</span>
-                <div class="info">
-                  <div class="client">${p.client}</div>
-                  <div class="title">${p.title}</div>
-                </div>
+              <div class="talent-meta">
+                <div class="talent-name">${r.name}</div>
+                <div class="talent-role">${r.role}</div>
               </div>
-              <div class="play" aria-hidden="true"></div>
-            </article>
+            </a>
           `).join("")}
         </div>
       </div>
     </section>
+    ` : ""}
   `;
 })();
