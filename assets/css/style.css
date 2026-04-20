@@ -189,3 +189,25 @@
 .preloader-exit-b{display:none !important}
 .preloader{transition:opacity .6s ease !important}
 .preloader.done{opacity:0;pointer-events:none}
+/* === v35: Fix content disappearing — force reveal elements visible === */
+/* The observer-based reveal was hiding content on first paint.
+   Remove initial hidden state so content is always rendered.  */
+.reveal,
+.reveal-left,
+.reveal-right,
+.stagger > *{
+  opacity: 1 !important;
+  transform: none !important;
+}
+.reveal.in,
+.reveal-left.in,
+.reveal-right.in{opacity:1;transform:none}
+
+/* Safety net for spotlight photo when JS fails to populate it */
+.spotlight-photo{background:linear-gradient(135deg,#eef1ff,#d6dcff);min-height:420px}
+.spotlight-photo img[src=""],
+.spotlight-photo img:not([src]){display:none}
+
+/* Lavender empty box shouldn't appear if src is missing */
+.spotlight-photo:has(img[src=""])::before,
+.spotlight-photo:empty::before{content:"Talent of the Month";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-dim);font-family:"Cormorant Garamond",serif;font-style:italic;font-size:22px;letter-spacing:.06em}
