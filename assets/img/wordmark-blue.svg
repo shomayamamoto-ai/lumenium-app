@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" aria-label="AdvoVisions">
+  <defs>
+    <linearGradient id="chromeB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b4bd4"/>
+      <stop offset="100%" stop-color="#0f1a70"/>
+    </linearGradient>
+  </defs>
+  <!-- thin baseline -->
+  <line x1="10" y1="95" x2="610" y2="95" stroke="#2437c8" stroke-width="1.2" opacity="0.55"/>
+  <!-- 'A' in bright blue outline -->
+  <text x="10" y="88"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-weight="300" font-size="104" letter-spacing="-3"
+        fill="none" stroke="#2437c8" stroke-width="1.8">A</text>
+  <!-- 'dvoVisions' in gradient blue outline -->
+  <text x="96" y="88"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-weight="300" font-size="104" letter-spacing="-3"
+        fill="none" stroke="url(#chromeB)" stroke-width="1.8">dvoVisions</text>
+</svg>

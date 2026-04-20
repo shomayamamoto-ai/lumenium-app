@@ -82,18 +82,31 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   letter-spacing: 0.04em;
 }
 .logo-mark {
-  width: 34px; height: 26px;
+  width: 34px; height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.logo-mark svg, .logo-mark img { width: 100%; height: 100%; object-fit: contain; }
+.logo-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.logo-mark .mark-blue, .logo-mark .mark-white { display: none; }
+.logo-mark .mark-blue { display: inline-block; }
 .site-header.on-hero .logo-mark .mark-blue { display: none; }
 .site-header.on-hero .logo-mark .mark-white { display: inline-block; }
-.logo-mark .mark-white { display: none; }
-.logo-mark .mark-blue { display: inline-block; }
-.logo-word { font-style: italic; }
-.logo-word b { font-style: normal; font-weight: 600; letter-spacing: 0.02em; }
+
+.logo-word {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+}
+.logo-word img { height: 100%; display: block; }
+.logo-word .word-blue, .logo-word .word-white { display: none; }
+.logo-word .word-blue { display: inline-block; }
+.site-header.on-hero .logo-word .word-blue { display: none; }
+.site-header.on-hero .logo-word .word-white { display: inline-block; }
+
+.site-footer .logo-mark .mark-blue, .site-footer .logo-word .word-blue { display: none !important; }
+.site-footer .logo-mark .mark-white, .site-footer .logo-word .word-white { display: inline-block !important; }
 
 .nav ul {
   list-style: none;
