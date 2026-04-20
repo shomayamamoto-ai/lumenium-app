@@ -3124,3 +3124,246 @@ html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
   font-size: 24px; font-weight: 500;
   letter-spacing: 0.06em;
 }
+
+/* ============================================================
+   v23: Tier C — content pages (audition, about, news, privacy, instagram)
+   ============================================================ */
+
+/* ---- Audition ---- */
+.audition-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 56px;
+  align-items: start;
+}
+.audition-card {
+  background: var(--paper);
+  padding: 36px 32px;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(19,30,122,0.08);
+}
+.audition-card h3 {
+  font-family: "Noto Serif JP", serif;
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  letter-spacing: 0.08em;
+}
+.audition-card ol {
+  list-style: none;
+  counter-reset: step;
+  padding: 0;
+}
+.audition-card ol li {
+  counter-increment: step;
+  padding: 14px 0 14px 48px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.audition-card ol li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0; top: 14px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 20px;
+  color: var(--brand);
+  font-weight: 500;
+}
+.audition-card ol li strong {
+  font-family: "Noto Serif JP", serif;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Voices */
+.voices-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.voice-card {
+  background: var(--paper);
+  padding: 32px 28px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  position: relative;
+}
+.voice-card::before {
+  content: "\201C";
+  position: absolute;
+  top: 6px; left: 18px;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 70px;
+  color: var(--brand);
+  opacity: 0.2;
+  line-height: 1;
+}
+.voice-card p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--ink);
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+.voice-card cite {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* ---- Company info dl ---- */
+.company-info, dl.company-info {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 14px 32px;
+  max-width: 820px;
+  font-size: 14px;
+}
+.company-info dt {
+  color: var(--brand);
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  font-size: 12px;
+  padding-top: 3px;
+  text-transform: uppercase;
+}
+.company-info dd {
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  line-height: 1.8;
+}
+
+/* ---- Timeline ---- */
+.timeline {
+  list-style: none;
+  padding: 0;
+  max-width: 820px;
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 88px; top: 6px; bottom: 6px;
+  width: 1px;
+  background: var(--brand-line);
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 28px;
+  padding: 18px 0;
+  align-items: baseline;
+  position: relative;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: 84px; top: 24px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 4px rgba(36,55,200,0.15);
+}
+.timeline .year {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 26px;
+  color: var(--brand);
+  font-weight: 500;
+}
+.timeline .event {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ink);
+  padding-left: 16px;
+}
+
+/* ---- Legal body (privacy, commerce) ---- */
+.legal-body h3 {
+  font-family: "Noto Serif JP", serif;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 32px 0 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+.legal-body p, .legal-body li {
+  font-size: 14px;
+  line-height: 2;
+  color: var(--ink);
+}
+.legal-body ul { padding-left: 20px; margin-bottom: 8px; }
+.legal-body ul li { list-style-type: disc; padding: 4px 0; }
+
+/* ---- News filter ---- */
+.news-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+/* ---- Instagram feed strip ---- */
+.insta-strip {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  overflow: hidden;
+}
+.insta-strip a {
+  aspect-ratio: 1/1;
+  display: block;
+  overflow: hidden;
+  position: relative;
+  background: var(--brand-soft);
+}
+.insta-strip img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s var(--ease), filter 0.4s var(--ease);
+  filter: saturate(0.9);
+}
+.insta-strip a:hover img { transform: scale(1.06); filter: saturate(1.1); }
+.insta-strip a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(36,55,200,0) 40%, rgba(36,55,200,0.35) 100%);
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+.insta-strip a:hover::after { opacity: 1; }
+.insta-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.insta-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--ink-dim);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+.insta-handle svg { width: 18px; height: 18px; }
+
+@media (max-width: 860px) {
+  .audition-grid { grid-template-columns: 1fr; }
+  .voices-grid { grid-template-columns: 1fr; }
+  .company-info { grid-template-columns: 1fr; gap: 6px 0; }
+  .company-info dt { padding-top: 16px; }
+  .company-info dd { padding-bottom: 0; border-bottom: none; margin-bottom: 10px; }
+  .timeline::before { left: 60px; }
+  .timeline li { grid-template-columns: 80px 1fr; gap: 16px; }
+  .timeline li::before { left: 56px; top: 22px; }
+  .insta-strip { grid-template-columns: repeat(4, 1fr); }
+}
