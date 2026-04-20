@@ -71,12 +71,6 @@ export default function ServiceDetail({ service, onClose }) {
               <span className="service-detail-meta-value">{service.price}</span>
             </div>
           )}
-          {service.lead && (
-            <div className="service-detail-meta-row">
-              <span className="service-detail-meta-label">納期目安</span>
-              <span className="service-detail-meta-value">{service.lead}</span>
-            </div>
-          )}
           {service.partner && (
             <div className="service-detail-meta-row">
               <span className="service-detail-meta-label">パートナー</span>
