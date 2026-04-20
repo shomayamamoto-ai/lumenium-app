@@ -424,3 +424,112 @@
 
 // Page transition curtain removed in v13 — was causing the screen to stay
 // covered with a dark-blue panel on pageshow.
+
+/* ============================================================
+   v21 — Tier A animations: letter split, tilt, particles, counter pop
+   ============================================================ */
+
+// A-2: Split hero title into per-letter spans
+(function () {
+  const h1 = document.querySelector(".hero-title");
+  if (!h1 || h1.dataset.split === "1") return;
+  h1.dataset.split = "1";
+  const out = [];
+  let i = 0;
+  const walk = (node) => {
+    if (node.nodeType === 3) {
+      for (const ch of node.textContent) {
+        if (ch === " " || ch === "\u3000") {
+          out.push(`<span class="letter space" style="--i:${i++}"> </span>`);
+        } else {
+          out.push(`<span class="letter" style="--i:${i++}">${ch}</span>`);
+        }
+      }
+    } else if (node.nodeType === 1) {
+      const tag = node.tagName.toLowerCase();
+      const attrs = Array.from(node.attributes).map(a => ` ${a.name}="${a.value}"`).join("");
+      out.push(`<${tag}${attrs}>`);
+      node.childNodes.forEach(walk);
+      out.push(`</${tag}>`);
+    }
+  };
+  h1.childNodes.forEach(walk);
+  h1.innerHTML = out.join("");
+})();
+
+// A-3: add .finish class to stat numbers when count animation completes
+(function () {
+  const counters = document.querySelectorAll("[data-count]");
+  if (!counters.length || !("IntersectionObserver" in window)) return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      if (el.dataset.done) return;
+      el.dataset.done = "1";
+      const target = parseInt(el.dataset.count, 10) || 0;
+      const duration = 1600;
+      const start = performance.now();
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(target * eased).toLocaleString();
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          // add .finish to the parent .num for the bounce pop
+          const num = el.closest(".num");
+          if (num) num.classList.add("finish");
+        }
+      };
+      requestAnimationFrame(step);
+      io.unobserve(el);
+    });
+  }, { threshold: 0.3 });
+  counters.forEach(c => io.observe(c));
+})();
+
+// A-4: Talent card 3D tilt (desktop-only)
+(function () {
+  const fine = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (!fine) return;
+  document.addEventListener("mousemove", (e) => {
+    const card = e.target.closest(".talent-card");
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const cx = (e.clientX - r.left) / r.width  - 0.5;
+    const cy = (e.clientY - r.top)  / r.height - 0.5;
+    card.style.setProperty("--tilt-x", (-cy * 8).toFixed(2) + "deg");
+    card.style.setProperty("--tilt-y", ( cx * 8).toFixed(2) + "deg");
+    card.classList.add("is-tilting");
+  });
+  document.addEventListener("mouseover", (e) => {
+    document.querySelectorAll(".talent-card.is-tilting").forEach(c => {
+      if (!c.contains(e.target)) {
+        c.classList.remove("is-tilting");
+        c.style.removeProperty("--tilt-x");
+        c.style.removeProperty("--tilt-y");
+      }
+    });
+  });
+})();
+
+// A-5: Inject floating particles into the hero
+(function () {
+  const hero = document.querySelector(".hero");
+  if (!hero || hero.querySelector(".hero-particles")) return;
+  const layer = document.createElement("div");
+  layer.className = "hero-particles";
+  const N = 22;
+  let html = "";
+  for (let k = 0; k < N; k++) {
+    const left = Math.floor(Math.random() * 100);
+    const size = 2 + Math.random() * 5;
+    const dur = 14 + Math.random() * 16;
+    const delay = Math.random() * 10;
+    const sway = (Math.random() * 120 - 60).toFixed(0);
+    const op = (0.3 + Math.random() * 0.5).toFixed(2);
+    html += `<i style="left:${left}%;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-duration:${dur.toFixed(1)}s;animation-delay:${delay.toFixed(1)}s;--sway:${sway}px;opacity:${op};"></i>`;
+  }
+  layer.innerHTML = html;
+  hero.appendChild(layer);
+})();
