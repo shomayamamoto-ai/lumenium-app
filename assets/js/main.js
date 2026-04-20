@@ -1,12 +1,19 @@
 /* AdvoVisions — shared behavior */
 
-// Preloader
+// Preloader — hold long enough for the multi-phase opening animation
+// (mark 0.2s + word 1.2s + tagline 2.0s + dwell → exit ≈ 2.9s)
 (function () {
   const pre = document.querySelector(".preloader");
   if (!pre) return;
-  const done = () => pre.classList.add("done");
-  if (document.readyState === "complete") setTimeout(done, 400);
-  else window.addEventListener("load", () => setTimeout(done, 500));
+  const MIN_HOLD_MS = 2900;
+  const t0 = performance.now();
+  const done = () => {
+    const elapsed = performance.now() - t0;
+    const wait = Math.max(0, MIN_HOLD_MS - elapsed);
+    setTimeout(() => pre.classList.add("done"), wait);
+  };
+  if (document.readyState === "complete") done();
+  else window.addEventListener("load", done);
 })();
 
 // Scroll progress bar
