@@ -1,19 +1,14 @@
 /* AdvoVisions — shared behavior */
 
-// Preloader — hold long enough for the multi-phase opening animation
-// (mark 0.6s + rings 1.0s + word 1.7s + tagline 2.4s + bar 2.7s + exit ≈ 4.1s)
+// Preloader — bulletproof: always dismiss after HOLD_MS, regardless of load
 (function () {
   const pre = document.querySelector(".preloader");
   if (!pre) return;
-  const MIN_HOLD_MS = 4100;
-  const t0 = performance.now();
-  const done = () => {
-    const elapsed = performance.now() - t0;
-    const wait = Math.max(0, MIN_HOLD_MS - elapsed);
-    setTimeout(() => pre.classList.add("done"), wait);
-  };
-  if (document.readyState === "complete") done();
-  else window.addEventListener("load", done);
+  const HOLD_MS = 3200;
+  // Hard safety fallback: dismiss after 6 s no matter what happens elsewhere
+  setTimeout(() => pre.classList.add("done"), 6000);
+  // Primary path: dismiss at HOLD_MS from script execution
+  setTimeout(() => pre.classList.add("done"), HOLD_MS);
 })();
 
 // Split hero title into per-letter spans for staggered reveal
@@ -536,34 +531,5 @@
   });
 })();
 
-// Page transition: intercept internal links → curtain up → navigate → curtain down on load
-(function () {
-  let curtain = document.querySelector(".page-curtain");
-  if (!curtain) {
-    curtain = document.createElement("div");
-    curtain.className = "page-curtain";
-    document.body.appendChild(curtain);
-  }
-  // play down on load (revealing the new page)
-  window.addEventListener("pageshow", () => {
-    curtain.classList.remove("up");
-    curtain.classList.add("down");
-    setTimeout(() => curtain.classList.remove("down"), 900);
-  });
-  document.addEventListener("click", (e) => {
-    const a = e.target.closest("a");
-    if (!a) return;
-    const href = a.getAttribute("href");
-    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
-    if (a.target === "_blank") return;
-    try {
-      const u = new URL(a.href, location.href);
-      if (u.origin !== location.origin) return;
-      // same page (just hash) — ignore
-      if (u.pathname === location.pathname && u.search === location.search) return;
-    } catch (_) { return; }
-    e.preventDefault();
-    curtain.classList.add("up");
-    setTimeout(() => { window.location = a.href; }, 600);
-  });
-})();
+// Page transition curtain removed in v13 — was causing the screen to stay
+// covered with a dark-blue panel on pageshow.

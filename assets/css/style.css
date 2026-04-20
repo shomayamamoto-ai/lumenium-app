@@ -2260,18 +2260,7 @@ section.block::after {
 }
 section.block.in-view::after { opacity: 1; }
 
-/* ===== Page transition curtain ===== */
-.page-curtain {
-  position: fixed;
-  inset: 0;
-  background: #0a1260;
-  z-index: 9990;
-  transform: translateY(100%);
-  transition: transform 0.75s cubic-bezier(0.77, 0, 0.18, 1);
-  pointer-events: none;
-}
-.page-curtain.up   { transform: translateY(0); }
-.page-curtain.down { transform: translateY(-100%); transition-delay: 0.1s; }
+/* ===== Page transition curtain removed in v13 ===== */
 
 /* ===== Click ripple ===== */
 .ripple {
