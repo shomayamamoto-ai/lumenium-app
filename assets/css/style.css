@@ -3496,3 +3496,173 @@ html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
   70%  { transform: scale(1.06) translateZ(0); opacity: 1; }
   100% { transform: scale(1.12) translateZ(0); opacity: 0.6; }
 }
+
+/* ============================================================
+   v26: CINEMATIC OPENING v2 — horizontal light beam, radial reveal,
+   chromatic aberration, text scramble, diagonal slash exit
+   ============================================================ */
+
+/* Deeper, moodier background with a subtle vignette */
+.preloader {
+  background:
+    radial-gradient(ellipse at 50% 50%,
+      rgba(36,55,200,0.25) 0%,
+      transparent 60%),
+    radial-gradient(1400px 700px at 50% 40%,
+      #2437c8 0%, #131e7a 40%, #0a1260 70%, #02062e 100%) !important;
+}
+
+/* Disable the zoom-out that was added in v25 */
+.preloader-inner {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Mark entrance: smooth ease, NO rotate, NO bounce overshoot */
+.preloader-mark {
+  animation:
+    markCinV26 1.1s 0.9s cubic-bezier(0.22, 1, 0.36, 1) both,
+    markGlowV25 3.8s 1.5s ease-in-out infinite !important;
+  clip-path: circle(0% at 50% 50%);
+}
+@keyframes markCinV26 {
+  0%   { opacity: 0; clip-path: circle(0% at 50% 50%); transform: scale(0.94); }
+  60%  { opacity: 1; clip-path: circle(75% at 50% 50%); transform: scale(1.02); }
+  100% { opacity: 1; clip-path: circle(140% at 50% 50%); transform: scale(1); }
+}
+
+/* Horizontal light beam: sweeps across the full width once */
+.preloader::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: clamp(60px, 18vh, 160px);
+  transform: translateY(-50%);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0) 18%,
+    rgba(120,180,255,0.6) 48%,
+    rgba(255,255,255,0.95) 50%,
+    rgba(120,180,255,0.6) 52%,
+    rgba(255,255,255,0) 82%,
+    transparent 100%);
+  filter: blur(12px);
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: beamV26 1.8s 0.2s cubic-bezier(0.77, 0, 0.18, 1);
+}
+@keyframes beamV26 {
+  0%   { transform: translate(-110vw, -50%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  50%  { transform: translate(0, -50%);    opacity: 1;  }
+  90%  { opacity: 0.4; }
+  100% { transform: translate(110vw, -50%); opacity: 0; }
+}
+
+/* Wordmark: text-based with chromatic-aberration settle */
+.preloader-brand {
+  position: relative;
+  color: transparent !important;
+  animation: none !important;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.preloader-brand.shown { opacity: 1; }
+.preloader-brand::before,
+.preloader-brand::after,
+.preloader-brand > .brand-glyph {
+  content: attr(data-text);
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  text-align: center;
+  font-family: inherit;
+  font-size: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+.preloader-brand > .brand-glyph {
+  position: relative;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(90,169,255,0.4);
+}
+.preloader-brand::before {
+  color: rgba(255, 48, 120, 0.65); /* magenta ghost */
+  transform: translateX(-6px);
+  mix-blend-mode: screen;
+  animation: chromaticL 1.6s 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.preloader-brand::after {
+  color: rgba(80, 220, 255, 0.7); /* cyan ghost */
+  transform: translateX(6px);
+  mix-blend-mode: screen;
+  animation: chromaticR 1.6s 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes chromaticL {
+  0%   { transform: translateX(-16px); opacity: 1; }
+  60%  { transform: translateX(-4px);  opacity: 0.5; }
+  100% { transform: translateX(0);     opacity: 0; }
+}
+@keyframes chromaticR {
+  0%   { transform: translateX(16px); opacity: 1; }
+  60%  { transform: translateX(4px);  opacity: 0.5; }
+  100% { transform: translateX(0);    opacity: 0; }
+}
+
+/* Tagline: letter-spacing expand + draw-in divider */
+.preloader-tagline {
+  position: relative;
+  padding-bottom: 18px !important;
+}
+.preloader-tagline::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: 0;
+  transform: translateX(-50%) scaleX(0);
+  width: 80px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent);
+  animation: lineDrawV26 0.9s 2.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  transform-origin: center;
+}
+@keyframes lineDrawV26 {
+  0%   { transform: translateX(-50%) scaleX(0); }
+  100% { transform: translateX(-50%) scaleX(1); }
+}
+
+/* Rings: faster, tighter spin, subtle light pulse on the outermost */
+.ring-2 {
+  animation:
+    ringAppear 0.7s 1.2s ease-out forwards,
+    ringSpinB 3.8s 1.5s linear infinite !important;
+}
+
+/* Exit: diagonal slash wipe — overrides v11 horizontal panel split */
+.preloader-exit-a {
+  top: 0 !important;
+  left: -5% !important; right: auto !important;
+  width: 58% !important;
+  height: 108% !important;
+  background: linear-gradient(100deg, #02062e 92%, transparent 92%) !important;
+  transform: translate(0, 0) !important;
+  transition: transform 1.0s cubic-bezier(0.77, 0, 0.18, 1) !important;
+}
+.preloader-exit-b {
+  top: 0 !important;
+  bottom: auto !important;
+  left: auto !important; right: -5% !important;
+  width: 58% !important;
+  height: 108% !important;
+  background: linear-gradient(-100deg, #02062e 92%, transparent 92%) !important;
+  transform: translate(0, 0) !important;
+  transition: transform 1.0s cubic-bezier(0.77, 0, 0.18, 1) !important;
+}
+.preloader.done .preloader-exit-a {
+  transform: translate(-110%, 0) !important;
+}
+.preloader.done .preloader-exit-b {
+  transform: translate(110%, 0) !important;
+}

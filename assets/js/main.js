@@ -720,3 +720,49 @@
     }
   });
 })();
+
+/* ============================================================
+   v26 — Wordmark text-scramble + chromatic wrap for preloader
+   ============================================================ */
+(function () {
+  const brand = document.querySelector(".preloader-brand");
+  if (!brand) return;
+  const FINAL = brand.textContent.trim();
+  brand.innerHTML = '';
+  // glyph layer
+  const glyph = document.createElement("span");
+  glyph.className = "brand-glyph";
+  glyph.textContent = "";
+  brand.appendChild(glyph);
+  brand.setAttribute("data-text", FINAL);
+  brand.classList.add("shown");
+
+  // scramble characters
+  const CHARS = "AVadviosnSKJQXZWY$@#*/0123456789";
+  const total = FINAL.length;
+  let frame = 0;
+  const FRAMES = 36;   // total frames
+  const FPS = 28;
+  const start = performance.now();
+  function step(now) {
+    const elapsed = now - start;
+    const t = Math.min(1, elapsed / (FRAMES * 1000 / FPS));
+    // progress: how many glyphs have settled
+    const settled = Math.floor(t * total);
+    let out = "";
+    for (let i = 0; i < total; i++) {
+      if (i < settled) out += FINAL[i];
+      else if (FINAL[i] === " ") out += " ";
+      else out += CHARS[Math.floor(Math.random() * CHARS.length)];
+    }
+    glyph.textContent = out;
+    brand.setAttribute("data-text", out);
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      glyph.textContent = FINAL;
+      brand.setAttribute("data-text", FINAL);
+    }
+  }
+  // delay start by ~1.8s so beam & mark have appeared
+  setTimeout(() => requestAnimationFrame(step), 1800);
+})();
