@@ -8,11 +8,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Talents — 合同会社 AdvoVisions</title>
   <meta name="description" content="合同会社AdvoVisionsに所属する150名のタレント・アーティスト・モデルのディレクトリ。カテゴリ・名前・役職から検索できます。">
-  <link rel="icon" type="image/png" href="assets/img/logo-original.png?v=13">
+  <link rel="icon" type="image/png" href="assets/img/logo-original.png?v=14">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=13">
+  <link rel="stylesheet" href="assets/css/style.css?v=14">
 </head>
 <body>
   <div class="preloader" aria-hidden="true">
@@ -23,34 +23,33 @@
         <span class="ring ring-2"></span>
         <span class="ring ring-3"></span>
         <div class="preloader-mark">
-          <img src="assets/img/logo-original.png" alt="">
+          <img src="assets/img/logo-original.png?v=14" alt="">
         </div>
       </div>
       <div class="preloader-word">
-        <img src="assets/img/logo.png" alt="AdvoVisions">
+        <img src="assets/img/wordmark-white.png?v=14" alt="AdvoVisions">
         <span class="preloader-sweep"></span>
       </div>
       <div class="preloader-tagline">あなたの Vision を世界へ提言する</div>
       <div class="preloader-bar"><span></span></div>
     </div>
     <div class="preloader-exit-a"></div>
-      <div class="preloader-exit-b"></div>
+    <div class="preloader-exit-b"></div>
   </div>
   <script>
-    // v13 hard fallback — ensure preloader always dismisses within 5s
+    // Hard dismissal fallback — preloader always exits within 4s
     (function(){
-      var t = setTimeout(function(){
+      setTimeout(function(){
         var p = document.querySelector('.preloader');
         if (p) p.classList.add('done');
-      }, 5000);
-      window.addEventListener('load', function(){ clearTimeout(t); });
+      }, 3500);
     })();
   </script>
   <div class="scroll-progress" aria-hidden="true"></div>
 
   <header class="site-header">
     <a href="index.html" class="logo">
-      <span class="logo-word"><img class="word-blue" src="assets/img/logo.png?v=13" alt="AdvoVisions"><img class="word-white" src="assets/img/logo.png?v=13" alt="AdvoVisions"></span>
+      <span class="logo-wrap"><img class="logo-icon" src="assets/img/logo-original.png?v=14" alt=""><img class="logo-text logo-text-blue" src="assets/img/wordmark.png?v=14" alt="AdvoVisions"><img class="logo-text logo-text-white" src="assets/img/wordmark-white.png?v=14" alt="AdvoVisions"></span>
     </a>
     <nav class="nav" aria-label="Primary">
       <ul>
@@ -99,7 +98,7 @@
       <div class="footer-grid">
         <div class="footer-col">
           <div class="logo">
-            <span class="logo-word"><img class="word-blue" src="assets/img/logo.png?v=13" alt="AdvoVisions"><img class="word-white" src="assets/img/logo.png?v=13" alt="AdvoVisions"></span>
+            <span class="logo-wrap"><img class="logo-icon" src="assets/img/logo-original.png?v=14" alt=""><img class="logo-text logo-text-blue" src="assets/img/wordmark.png?v=14" alt="AdvoVisions"><img class="logo-text logo-text-white" src="assets/img/wordmark-white.png?v=14" alt="AdvoVisions"></span>
           </div>
           <p style="margin-top:14px;">合同会社 AdvoVisions<br>あなたのVisionを世界へ提言するタレント・アーティストマネジメント。</p>
         </div>
@@ -137,7 +136,7 @@
     </div>
   </footer>
 
-  <script src="assets/js/members-data.js?v=13"></script>
-  <script src="assets/js/main.js?v=13"></script>
+  <script src="assets/js/members-data.js?v=14"></script>
+  <script src="assets/js/main.js?v=14"></script>
 </body>
 </html>
