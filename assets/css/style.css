@@ -2534,3 +2534,65 @@ section.block.in-view::after { opacity: 1; }
   color: #5aa9ff;
   font-weight: 500;
 }
+
+/* ============================================================
+   v16: transparent-over-hero header, no more white sticker
+   ============================================================ */
+
+/* Override the v15 forced-white header */
+.site-header {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  padding: 18px 32px !important;
+  transition: padding 0.3s var(--ease), background 0.3s var(--ease), box-shadow 0.3s var(--ease) !important;
+}
+.site-header.scrolled {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  box-shadow: 0 2px 18px rgba(19, 30, 122, 0.06) !important;
+  padding: 12px 32px !important;
+}
+
+/* Nav text: white over hero, dark when scrolled */
+.site-header.on-hero .nav a,
+.site-header.on-hero .nav-toggle span {
+  color: #ffffff !important;
+}
+.site-header.scrolled .nav a,
+.site-header.scrolled .nav-toggle span {
+  color: var(--ink) !important;
+}
+.site-header.on-hero .nav a::after { background: #fff; }
+.site-header.scrolled .nav a::after { background: var(--brand); }
+
+/* Logo variant swap — transparent over hero = white, white header = blue */
+.logo-wrap .logo-blue  { display: block; }
+.logo-wrap .logo-white { display: none; }
+.site-header.on-hero .logo-wrap .logo-blue  { display: none; }
+.site-header.on-hero .logo-wrap .logo-white { display: block; }
+
+/* Footer always uses white (sits on deep blue) */
+.site-footer .logo-wrap .logo-blue  { display: none !important; }
+.site-footer .logo-wrap .logo-white { display: block !important; }
+.site-footer .logo {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Make icon image + text fit neatly */
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+}
+.logo-icon { height: 100%; width: auto; display: block; }
+.logo-text { height: 100%; width: auto; display: block; }
+.site-footer .logo-wrap { height: 40px; }
+
+/* Restore hero padding-top */
+.hero { padding-top: 140px !important; }
