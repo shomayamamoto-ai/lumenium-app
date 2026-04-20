@@ -3367,3 +3367,44 @@ html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
   .timeline li::before { left: 56px; top: 22px; }
   .insta-strip { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ============================================================
+   v24: Tier D — accessibility focus styles + skip link
+   ============================================================ */
+
+/* Skip-to-content link — hidden until focused */
+.skip-link {
+  position: fixed;
+  top: -40px; left: 12px;
+  z-index: 10000;
+  background: var(--brand);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(19,30,122,0.3);
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 12px;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Visible focus ring for keyboard users, invisible for mouse */
+*:focus { outline: none; }
+*:focus-visible {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.site-header.on-hero *:focus-visible,
+.cta *:focus-visible,
+.preloader *:focus-visible {
+  outline-color: #fff;
+}
+/* Reasonable contrast target for footer links */
+.site-footer a:hover { color: #fff; text-decoration: underline; }
