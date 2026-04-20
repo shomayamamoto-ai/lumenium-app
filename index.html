@@ -3,22 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ADVO VISIONS — Film Production Studio</title>
-  <meta name="description" content="ADVO VISIONS は、広告・ブランド・音楽映像を横断する映像制作スタジオ。150名のクリエイターが集うコレクティブから、次代の映像表現を生み出します。">
+  <title>合同会社 AdvoVisions — あなたのVisionを世界へ提言する</title>
+  <meta name="description" content="合同会社AdvoVisionsは、映像コンテンツ制作・新人育成・広告制作・イベント企画を軸に、あなたのVisionを世界へ届ける映像クリエイティブ集団です。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Serif+JP:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-  <header class="site-header">
-    <a href="index.html" class="logo">ADVO<span>·</span>VISIONS</a>
+  <header class="site-header on-hero">
+    <a href="index.html" class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <!-- theater masks mark (comedy/tragedy) -->
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z"
+                stroke="currentColor" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+          <circle cx="18" cy="28" r="2" fill="currentColor"/>
+          <circle cx="28" cy="28" r="2" fill="currentColor"/>
+          <circle cx="40" cy="28" r="2" fill="currentColor"/>
+          <circle cx="50" cy="28" r="2" fill="currentColor"/>
+          <path d="M16 36c2 3 5 5 7 5s5-2 7-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M38 37c2-3 5-5 7-5s5 2 7 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </span>
+      <span class="logo-word"><b>Advo</b>Visions</span>
+    </a>
     <nav class="nav" aria-label="Primary">
       <ul>
         <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="index.html#services">Services</a></li>
         <li><a href="index.html#works">Works</a></li>
         <li><a href="members.html">Members</a></li>
-        <li><a href="index.html#services">Services</a></li>
         <li><a href="index.html#contact">Contact</a></li>
       </ul>
     </nav>
@@ -27,34 +42,119 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-media">
-      <video autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920&auto=format&fit=crop&q=80">
-        <source src="https://videos.pexels.com/video-files/3129671/3129671-uhd_2560_1440_30fps.mp4" type="video/mp4">
-      </video>
+    <div class="hero-shape" aria-hidden="true">
+      <svg viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="heroBlob" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#5a6cf0"/>
+            <stop offset="100%" stop-color="#1a2aa0"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#heroBlob)" opacity="0.55"
+              d="M140,30 C195,30 245,70 250,130 C255,190 210,240 150,245 C90,250 35,205 30,140 C25,75 85,30 140,30 Z"/>
+        <path fill="#ffffff" opacity="0.15"
+              d="M90,100 C120,70 180,80 200,120 C215,155 195,195 160,210 C120,225 70,195 70,160 C70,135 75,115 90,100 Z"/>
+      </svg>
     </div>
+
     <div class="hero-content">
-      <div class="hero-eyebrow">Film · Brand · Culture</div>
-      <h1 class="hero-title">Vision, <em>crafted</em><br>in moving light.</h1>
-      <p class="hero-sub">広告・ブランド・音楽領域で、映像の可能性を拡張するクリエイティブ集団。<br>ADVO VISIONS は 150 名の才能が集まるコレクティブです。</p>
+      <h1 class="hero-title">あなたの<span class="en">Vision</span>を世界へ提言する</h1>
+      <div class="hero-company">合同会社 <span class="en">AdvoVisions</span></div>
+      <p class="hero-sub">映像コンテンツ · 新人育成 · 広告制作 · イベント企画</p>
     </div>
-    <div class="hero-scroll">Scroll</div>
+
+    <div class="hero-wave" aria-hidden="true">
+      <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,60 C240,110 480,10 720,50 C960,90 1200,30 1440,70 L1440,120 L0,120 Z" fill="#ffffff"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- SERVICES (icon tiles) -->
+  <section id="services" class="block">
+    <div class="container">
+      <div class="block-head reveal">
+        <div class="eyebrow">SERVICES</div>
+        <h2 class="block-title">事業内容</h2>
+        <p class="block-desc">映像制作を核に、人材育成から広告・イベントまで。四つの柱でクライアントのVisionを形にします。</p>
+      </div>
+
+      <div class="services-grid reveal">
+        <div class="service-tile">
+          <div class="service-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2.5"/>
+              <circle cx="32" cy="32" r="6" fill="currentColor"/>
+              <circle cx="32" cy="12" r="4" fill="currentColor"/>
+              <circle cx="32" cy="52" r="4" fill="currentColor"/>
+              <circle cx="12" cy="32" r="4" fill="currentColor"/>
+              <circle cx="52" cy="32" r="4" fill="currentColor"/>
+              <circle cx="18" cy="18" r="3" fill="currentColor"/>
+              <circle cx="46" cy="18" r="3" fill="currentColor"/>
+              <circle cx="18" cy="46" r="3" fill="currentColor"/>
+              <circle cx="46" cy="46" r="3" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="service-label">映像コンテンツ</div>
+          <p>企画から撮影・編集・納品まで一貫。ブランドムービー、MV、ドキュメンタリーを制作します。</p>
+        </div>
+
+        <div class="service-tile">
+          <div class="service-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 22 L32 14 L54 22 L32 30 Z" fill="currentColor"/>
+              <path d="M18 26 V40 Q32 48 46 40 V26" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+              <line x1="54" y1="22" x2="54" y2="38" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="54" cy="40" r="2" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="service-label">新人育成・レッスン</div>
+          <p>俳優・映像クリエイター向けのワークショップ＆レッスン。現場で活きる実践力を育てます。</p>
+        </div>
+
+        <div class="service-tile">
+          <div class="service-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="14" width="44" height="36" rx="3" stroke="currentColor" stroke-width="2.5" fill="none"/>
+              <line x1="32" y1="14" x2="32" y2="50" stroke="currentColor" stroke-width="2.5"/>
+              <line x1="14" y1="22" x2="28" y2="22" stroke="currentColor" stroke-width="2"/>
+              <line x1="14" y1="28" x2="28" y2="28" stroke="currentColor" stroke-width="2"/>
+              <line x1="14" y1="34" x2="24" y2="34" stroke="currentColor" stroke-width="2"/>
+              <path d="M40 38 L46 32 L52 38" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M36 30 L42 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="service-label">広告制作</div>
+          <p>TVCM・WebCM・SNS広告まで、メディアの特性に合わせた広告クリエイティブを企画制作します。</p>
+        </div>
+
+        <div class="service-tile">
+          <div class="service-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="16" y="14" width="32" height="40" rx="2" stroke="currentColor" stroke-width="2.5" fill="none"/>
+              <rect x="24" y="10" width="16" height="8" rx="1" stroke="currentColor" stroke-width="2.5" fill="none"/>
+              <path d="M22 28 L28 34 L42 22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="22" y1="42" x2="42" y2="42" stroke="currentColor" stroke-width="2"/>
+              <line x1="22" y1="48" x2="36" y2="48" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="service-label">イベント企画・SNS</div>
+          <p>ブランドイベントの企画運営、SNSコンテンツ戦略まで。オン／オフ統合のプロモーションを。</p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- WORKS -->
-  <section id="works" class="block">
+  <section id="works" class="block alt">
     <div class="container">
       <div class="block-head reveal">
-        <div>
-          <div class="eyebrow">Selected Works</div>
-          <h2 class="block-title">映像で、<br>世界の輪郭を描く。</h2>
-        </div>
-        <p class="block-desc">
-          グローバルブランド、メジャーアーティスト、独立系スタートアップまで —
-          シーンを横断する制作実績のなかから、とくに反響の大きかったプロジェクトをご紹介します。
-        </p>
+        <div class="eyebrow">WORKS</div>
+        <h2 class="block-title">制作実績</h2>
+        <p class="block-desc">ブランド・音楽・ドキュメンタリーを横断する代表的な制作物。クリックで詳細プレビューをご覧いただけます。</p>
       </div>
 
-      <div class="works-featured reveal">
+      <div class="works-grid reveal">
         <article class="work-card wide">
           <div class="thumb">
             <video muted loop playsinline poster="https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=1600&q=80&auto=format&fit=crop">
@@ -164,8 +264,8 @@
           <div class="overlay">
             <span class="tag">Global Campaign · Feature</span>
             <div class="info">
-              <div class="client">KITO Watches × ADVO VISIONS</div>
-              <div class="title">Hours of Becoming — a 4-minute film</div>
+              <div class="client">KITO Watches × AdvoVisions</div>
+              <div class="title">Hours of Becoming — 4分のブランドフィルム</div>
             </div>
           </div>
           <div class="play" aria-hidden="true"></div>
@@ -174,70 +274,27 @@
     </div>
   </section>
 
-  <!-- SERVICES -->
-  <section id="services" class="block services">
-    <div class="container">
-      <div class="block-head reveal">
-        <div>
-          <div class="eyebrow">What We Do</div>
-          <h2 class="block-title">Services.</h2>
-        </div>
-        <p class="block-desc">
-          撮影・編集・仕上げまで一気通貫。企画段階から映像のエッセンスを共有し、
-          ブランドの文脈に寄り添うプロダクションをご提案します。
-        </p>
-      </div>
-      <div class="services-grid reveal">
-        <div class="service">
-          <div class="num">01</div>
-          <h3>Brand Film</h3>
-          <p>世界観の核となる映像を構築。ブランドのボイスを視覚化し、長く機能するフラッグシップを制作します。</p>
-        </div>
-        <div class="service">
-          <div class="num">02</div>
-          <h3>Commercial</h3>
-          <p>TV・デジタル広告を横断するコマーシャルフィルム。戦略から演出まで、部門横断のチームで伴走します。</p>
-        </div>
-        <div class="service">
-          <div class="num">03</div>
-          <h3>Music Video</h3>
-          <p>アーティストのビジョンを拡張するミュージックフィルム。国内外のレーベルと協働しています。</p>
-        </div>
-        <div class="service">
-          <div class="num">04</div>
-          <h3>Documentary</h3>
-          <p>長尺・短尺の両軸で、人と現場の温度を残すドキュメンタリー制作。企業ブランディングにも応用されます。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURED MEMBERS (preview) -->
+  <!-- MEMBERS PREVIEW -->
   <section id="members-preview" class="block">
     <div class="container">
       <div class="block-head reveal">
-        <div>
-          <div class="eyebrow">Members · 150</div>
-          <h2 class="block-title">才能が集う、<br>コレクティブ。</h2>
-        </div>
-        <p class="block-desc">
-          ディレクター、撮影、編集、カラー、サウンド、デザイン。
-          領域を越えて交差する 150 名のクリエイター全員の横顔を、ひとり分の情報量でフラットに並べました。
-        </p>
+        <div class="eyebrow">MEMBERS · 150</div>
+        <h2 class="block-title">メンバー紹介</h2>
+        <p class="block-desc">150名のクリエイターが集うコレクティブ。役職・部門・撮影領域を横断し、案件ごとに最適なチームを組成します。</p>
       </div>
+
       <div id="members-preview-grid" class="members-grid reveal"></div>
-      <div style="text-align:center; margin-top:56px;">
-        <a href="members.html" class="btn-primary">View all 150 members</a>
+
+      <div style="text-align:center; margin-top: 48px;">
+        <a href="members.html" class="btn-outline">150名すべてのメンバーを見る →</a>
       </div>
     </div>
   </section>
 
   <!-- CTA -->
   <section id="contact" class="cta reveal">
-    <div class="container">
-      <h2>Let's make <em>something</em><br>unforgettable.</h2>
-      <a href="mailto:contact@advovisions.com" class="btn-primary">Start a Project</a>
-    </div>
+    <h2>あなたのVisionを、<br>私たちと一緒に形にしませんか？</h2>
+    <a href="mailto:contact@advovisions.com" class="btn-primary">お問い合わせ</a>
   </section>
 
   <!-- FOOTER -->
@@ -245,44 +302,43 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="logo">ADVO<span>·</span>VISIONS</div>
-          <p>東京を拠点に、ブランド・音楽・ドキュメンタリーを横断する映像制作スタジオ。150名のコレクティブによる、自由と精度を両立させた制作体制。</p>
+          <div class="logo"><span class="logo-word"><b>Advo</b>Visions</span></div>
+          <p>合同会社 AdvoVisions<br>あなたのVisionを世界へ提言する映像クリエイティブ集団。</p>
+        </div>
+        <div class="footer-col">
+          <h4>Services</h4>
+          <ul>
+            <li><a href="#services">映像コンテンツ</a></li>
+            <li><a href="#services">新人育成・レッスン</a></li>
+            <li><a href="#services">広告制作</a></li>
+            <li><a href="#services">イベント企画・SNS</a></li>
+          </ul>
         </div>
         <div class="footer-col">
           <h4>Studio</h4>
           <ul>
-            <li><a href="index.html#works">Works</a></li>
+            <li><a href="#works">Works</a></li>
             <li><a href="members.html">Members</a></li>
-            <li><a href="index.html#services">Services</a></li>
+            <li><a href="#contact">Contact</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
           <ul>
             <li>contact@advovisions.com</li>
-            <li>+81 3-0000-0000</li>
-            <li>Jingumae, Shibuya-ku, Tokyo</li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Follow</h4>
-          <ul>
-            <li><a href="#">Instagram</a></li>
-            <li><a href="#">Vimeo</a></li>
-            <li><a href="#">YouTube</a></li>
+            <li>Tokyo, Japan</li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <div>© 2026 ADVO VISIONS INC.</div>
-        <div>All film stills © their respective clients.</div>
+        <div>© 2026 合同会社 AdvoVisions.</div>
+        <div>All rights reserved.</div>
       </div>
     </div>
   </footer>
 
   <script src="assets/js/members-data.js"></script>
   <script>
-    // Render a preview strip of 12 members on the homepage
     (function () {
       const host = document.getElementById("members-preview-grid");
       if (!host || !window.ADVO_MEMBERS) return;

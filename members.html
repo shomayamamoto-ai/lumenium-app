@@ -3,55 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Members — ADVO VISIONS</title>
-  <meta name="description" content="150名のクリエイターが集うADVO VISIONSのメンバーディレクトリ。部門・名前・役職から検索できます。">
+  <title>メンバー紹介 — 合同会社 AdvoVisions</title>
+  <meta name="description" content="合同会社AdvoVisionsに所属する150名のクリエイターディレクトリ。役職・部門・名前から検索できます。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Serif+JP:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
   <header class="site-header">
-    <a href="index.html" class="logo">ADVO<span>·</span>VISIONS</a>
+    <a href="index.html" class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 14c-5 0-9 4-9 9v10c0 9 7 16 16 16 6 0 11-3 14-8 3 5 8 8 14 8 9 0 16-7 16-16V23c0-5-4-9-9-9H16z"
+                stroke="currentColor" stroke-width="2.2" fill="none" stroke-linejoin="round"/>
+          <circle cx="18" cy="28" r="2" fill="currentColor"/>
+          <circle cx="28" cy="28" r="2" fill="currentColor"/>
+          <circle cx="40" cy="28" r="2" fill="currentColor"/>
+          <circle cx="50" cy="28" r="2" fill="currentColor"/>
+          <path d="M16 36c2 3 5 5 7 5s5-2 7-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M38 37c2-3 5-5 7-5s5 2 7 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </span>
+      <span class="logo-word"><b>Advo</b>Visions</span>
+    </a>
     <nav class="nav" aria-label="Primary">
       <ul>
         <li><a href="index.html">Home</a></li>
+        <li><a href="index.html#services">Services</a></li>
         <li><a href="index.html#works">Works</a></li>
         <li><a href="members.html" class="active">Members</a></li>
-        <li><a href="index.html#services">Services</a></li>
         <li><a href="index.html#contact">Contact</a></li>
       </ul>
     </nav>
     <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
   </header>
 
-  <section id="members" class="block" style="padding-top: 180px;">
+  <section id="members" class="block" style="padding-top: 150px;">
     <div class="container">
       <div class="block-head reveal">
-        <div>
-          <div class="eyebrow">Collective · 150</div>
-          <h1 class="block-title">Members.</h1>
-        </div>
-        <p class="block-desc">
-          肩書きよりも、固有の視点を。
-          ADVO VISIONS の全メンバーをフラットに並べ、
-          その人の制作物・専門領域・連絡先までをひとつの場所にまとめています。
-        </p>
+        <div class="eyebrow">MEMBERS</div>
+        <h1 class="block-title">メンバー紹介</h1>
+        <p class="block-desc">所属 150 名のクリエイター全員を均等に一覧化。検索・部門フィルタで、あなたの案件に合う人材を見つけてください。</p>
       </div>
 
       <div class="members-toolbar reveal">
         <div class="members-count" id="members-count"></div>
-        <input id="members-search" class="search-input" type="search" placeholder="Search by name, role, ID" autocomplete="off">
+        <input id="members-search" class="search-input" type="search" placeholder="名前・役職・IDで検索" autocomplete="off">
       </div>
 
-      <div class="filter-chips reveal" style="margin-bottom: 48px;">
-        <button class="chip active" data-dept="ALL">All</button>
-        <button class="chip" data-dept="Direction">Direction</button>
-        <button class="chip" data-dept="Cinematography">Cinematography</button>
-        <button class="chip" data-dept="Post Production">Post Production</button>
-        <button class="chip" data-dept="Design">Design</button>
-        <button class="chip" data-dept="Production">Production</button>
-        <button class="chip" data-dept="Sound &amp; Music">Sound &amp; Music</button>
+      <div class="filter-chips reveal">
+        <button class="chip active" data-dept="ALL">ALL</button>
+        <button class="chip" data-dept="Direction">Direction / 演出</button>
+        <button class="chip" data-dept="Cinematography">Cinematography / 撮影</button>
+        <button class="chip" data-dept="Post Production">Post / 編集・仕上げ</button>
+        <button class="chip" data-dept="Design">Design / 美術</button>
+        <button class="chip" data-dept="Production">Production / 制作</button>
+        <button class="chip" data-dept="Sound &amp; Music">Sound / 音響</button>
       </div>
 
       <div id="members-grid" class="members-grid reveal"></div>
@@ -63,34 +71,36 @@
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <div class="logo">ADVO<span>·</span>VISIONS</div>
-          <p>東京を拠点に、ブランド・音楽・ドキュメンタリーを横断する映像制作スタジオ。</p>
+          <div class="logo"><span class="logo-word"><b>Advo</b>Visions</span></div>
+          <p>合同会社 AdvoVisions<br>あなたのVisionを世界へ提言する映像クリエイティブ集団。</p>
+        </div>
+        <div class="footer-col">
+          <h4>Services</h4>
+          <ul>
+            <li><a href="index.html#services">映像コンテンツ</a></li>
+            <li><a href="index.html#services">新人育成・レッスン</a></li>
+            <li><a href="index.html#services">広告制作</a></li>
+            <li><a href="index.html#services">イベント企画・SNS</a></li>
+          </ul>
         </div>
         <div class="footer-col">
           <h4>Studio</h4>
           <ul>
             <li><a href="index.html#works">Works</a></li>
             <li><a href="members.html">Members</a></li>
-            <li><a href="index.html#services">Services</a></li>
+            <li><a href="index.html#contact">Contact</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
           <ul>
             <li>contact@advovisions.com</li>
-            <li>Jingumae, Shibuya-ku, Tokyo</li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h4>Follow</h4>
-          <ul>
-            <li><a href="#">Instagram</a></li>
-            <li><a href="#">Vimeo</a></li>
+            <li>Tokyo, Japan</li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <div>© 2026 ADVO VISIONS INC.</div>
+        <div>© 2026 合同会社 AdvoVisions.</div>
         <div>All rights reserved.</div>
       </div>
     </div>

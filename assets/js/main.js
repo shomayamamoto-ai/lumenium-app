@@ -1,10 +1,20 @@
 /* ADVO VISIONS - shared behavior */
 
-// Header scroll state
+// Header scroll state — on the home page the header sits over the blue hero
+// and we keep it transparent (white text) until scroll passes the hero.
 (function () {
   const header = document.querySelector(".site-header");
   if (!header) return;
-  const onScroll = () => header.classList.toggle("scrolled", window.scrollY > 40);
+  const hasHero = header.classList.contains("on-hero");
+  const onScroll = () => {
+    const y = window.scrollY;
+    header.classList.toggle("scrolled", y > 40);
+    if (hasHero) {
+      const hero = document.querySelector(".hero");
+      const threshold = hero ? hero.offsetHeight - 80 : 120;
+      header.classList.toggle("on-hero", y < threshold);
+    }
+  };
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
 })();
