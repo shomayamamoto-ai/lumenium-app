@@ -24,7 +24,7 @@ export default function Profile() {
             <p className="profile-role">Lumenium 代表</p>
 
             <div className="profile-desc">
-              <p>慶應義塾大学 文学部 卒業。在学中に独立。</p>
+              <p>慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。</p>
               <p>動画、AI、Web、SNSなど幅広く活動。</p>
               <p>企業向けAI研修の講師も歴任。</p>
               <p>企画から納品まで一括でサポートします。</p>
