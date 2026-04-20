@@ -161,6 +161,33 @@ async function sectionF() {
 }
 
 // -----------------------------------------------------------------------------
+// Section G: Vercel env var sensitivity audit
+// -----------------------------------------------------------------------------
+async function sectionG() {
+  const token = env('VERCEL_TOKEN');
+  const teamId = env('VERCEL_TEAM_ID');
+  const app = env('VERCEL_APP_NAME', 'lumenium-app');
+  const url = `https://api.vercel.com/v10/projects/${encodeURIComponent(app)}/env?teamId=${encodeURIComponent(teamId)}`;
+  const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  if (!res.ok) return { error: `Vercel env API ${res.status}: ${await res.text()}` };
+  const data = await res.json();
+  const envs = data?.envs ?? [];
+  // Vercel env types: system | secret | encrypted | plain | sensitive.
+  // "system" is auto-managed by Vercel, so it is excluded from the audit.
+  const userEnvs = envs.filter(e => e.type !== 'system');
+  const nonSensitive = userEnvs.filter(e => e.type !== 'sensitive');
+  return {
+    total: userEnvs.length,
+    nonSensitive: nonSensitive.map(e => ({
+      key: e.key,
+      type: e.type,
+      target: Array.isArray(e.target) ? e.target.join(',') : (e.target ?? ''),
+    })),
+    alert: nonSensitive.length > 0,
+  };
+}
+
+// -----------------------------------------------------------------------------
 // Section H: Notion report
 // -----------------------------------------------------------------------------
 function buildMarkdown(r) {
@@ -214,6 +241,21 @@ function buildMarkdown(r) {
     lines.push(`${icon} state=${f.state}`);
     if (f.url) lines.push(`url: ${f.url}`);
     if (f.createdAt) lines.push(`createdAt: ${f.createdAt}`);
+  }
+  lines.push('');
+
+  lines.push('## G. Vercel env var audit');
+  const g = r.G;
+  if (g.error) {
+    lines.push(`error: ${g.error}`);
+  } else if (g.alert) {
+    lines.push(`⚠️ ${g.nonSensitive.length}/${g.total} env vars are NOT marked Sensitive`);
+    lines.push('');
+    for (const e of g.nonSensitive) {
+      lines.push(`- \`${e.key}\` (type=${e.type}, target=${e.target})`);
+    }
+  } else {
+    lines.push(`OK — all ${g.total} env vars marked Sensitive`);
   }
   lines.push('');
 
@@ -312,6 +354,7 @@ results.C = await sectionC();
 results.D = await sectionD();
 results.E = await sectionE();
 results.F = await sectionF();
+results.G = await sectionG();
 
 const md = buildMarkdown(results);
 writeFileSync('nightly-report.md', md);

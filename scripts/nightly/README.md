@@ -12,10 +12,11 @@ Can also be triggered manually via `workflow_dispatch`.
 | D | Sum `dist/` bytes, compare with previous day from `nightly-data` branch, alert if > +10% | `run.mjs::sectionD` + `persist-history.sh` |
 | E | `git diff` of `src/` over last 7 days, send to Claude API for critical-issue review (skipped if > 5000 lines) | `run.mjs::sectionE` |
 | F | Check latest Vercel deployment state via REST API | `run.mjs::sectionF` |
+| G | List Vercel project env vars and flag any whose type is not `sensitive` | `run.mjs::sectionG` |
 | H | Post markdown report as a new Notion page under `NOTION_PARENT_PAGE_ID` | `run.mjs::sectionH` |
 
-Sections A and G (local stash/checkout) are intentionally omitted — Actions
-always starts from a clean checkout.
+Section A (local stash/checkout) is intentionally omitted — Actions always
+starts from a clean checkout.
 
 ## Required GitHub Secrets
 
