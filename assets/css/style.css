@@ -2719,3 +2719,43 @@ section.block.in-view::after { opacity: 1; }
 .hero-content {
   margin-top: clamp(80px, 12vh, 140px) !important;
 }
+
+/* ============================================================
+   v20: footer uses HTML text for AdvoVisions — no more white-bg PNG
+   ============================================================ */
+
+/* Footer logo: white ag icon + HTML text (pure CSS, no image bg) */
+.logo-wrap-footer {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 42px !important;
+}
+.logo-wrap-footer .logo-icon {
+  height: 100% !important;
+  width: auto !important;
+  display: block !important;
+}
+.logo-brandtext {
+  font-family: "Cormorant Garamond", "Noto Serif JP", serif;
+  font-size: 26px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  line-height: 1;
+}
+.logo-brandtext::first-letter {
+  color: #5aa9ff;
+  font-weight: 500;
+}
+
+/* Header logo (unchanged but make sure layout is consistent) */
+.logo-wrap-header {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  height: 48px !important;
+}
+.logo-wrap-header .logo-icon { height: 100% !important; width: auto !important; display: block !important; }
+.logo-wrap-header .logo-text { height: 88% !important; width: auto !important; display: block !important; }
