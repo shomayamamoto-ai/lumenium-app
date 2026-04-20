@@ -2150,3 +2150,150 @@ em.serif-italic,
     filter: none !important;
   }
 }
+
+/* ============================================================
+   v12: even more cinematic — particle storm, custom cursor,
+   tilt cards, hero parallax, scramble, and dramatic exit
+   ============================================================ */
+
+/* ===== PARTICLE STORM during preloader ===== */
+.preloader-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.particle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(90,169,255,0.8);
+  opacity: 0;
+  animation: particleFly 1.6s 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes particleFly {
+  0%   { opacity: 0; transform: translate(var(--sx, 0), var(--sy, 0)) scale(0.2); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+}
+
+/* MARK entrance gets a "land" shake */
+.preloader-mark {
+  /* keep existing animations and add subtle screen shake at impact */
+  animation:
+    markEnter 1.1s 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) both,
+    markBreathe 3.6s 1.8s ease-in-out infinite;
+}
+.preloader-mark-wrap {
+  animation: shakeOnImpact 0.4s 1.6s ease-out both;
+}
+@keyframes shakeOnImpact {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(0, 2px); }
+  50%      { transform: translate(0, -1px); }
+  80%      { transform: translate(0, 1px); }
+}
+
+/* ===== CUSTOM CURSOR GLOW (desktop only) ===== */
+@media (hover: hover) and (pointer: fine) {
+  .cursor-glow {
+    position: fixed;
+    top: 0; left: 0;
+    width: 380px; height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(36,55,200,0.18) 0%, rgba(90,169,255,0.05) 35%, transparent 65%);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 99;
+    transition: opacity 0.35s var(--ease), width 0.35s var(--ease), height 0.35s var(--ease);
+    mix-blend-mode: multiply;
+    will-change: transform;
+  }
+  /* on hero (dark), use a brighter version */
+  .hero ~ .cursor-glow,
+  body.on-hero-active .cursor-glow {
+    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(90,169,255,0.08) 40%, transparent 65%);
+    mix-blend-mode: screen;
+  }
+  .cursor-glow.hidden { opacity: 0; }
+  .cursor-glow.expand { width: 520px; height: 520px; }
+}
+
+/* ===== MAGNETIC / TILT TALENT CARD ===== */
+.talent-card {
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.talent-card.tilt {
+  transform: perspective(900px)
+             rotateX(var(--rx, 0deg))
+             rotateY(var(--ry, 0deg))
+             translateZ(8px);
+}
+
+/* ===== HERO PARALLAX layers ===== */
+.hero-content {
+  will-change: transform;
+}
+
+/* ===== Section block — aurora pulse on scroll ===== */
+section.block {
+  position: relative;
+  overflow: hidden;
+}
+section.block::after {
+  content: "";
+  position: absolute;
+  width: 70vw; height: 70vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(36,55,200,0.05), transparent 70%);
+  top: -30%; right: -30%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+}
+section.block.in-view::after { opacity: 1; }
+
+/* ===== Page transition curtain ===== */
+.page-curtain {
+  position: fixed;
+  inset: 0;
+  background: #0a1260;
+  z-index: 9990;
+  transform: translateY(100%);
+  transition: transform 0.75s cubic-bezier(0.77, 0, 0.18, 1);
+  pointer-events: none;
+}
+.page-curtain.up   { transform: translateY(0); }
+.page-curtain.down { transform: translateY(-100%); transition-delay: 0.1s; }
+
+/* ===== Click ripple ===== */
+.ripple {
+  position: fixed;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--brand);
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%, -50%) scale(0);
+  animation: rippleOut 0.7s ease-out forwards;
+}
+@keyframes rippleOut {
+  0%   { opacity: 0.7; transform: translate(-50%, -50%) scale(0); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(8); }
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .particle, .cursor-glow, .talent-card, .page-curtain, .ripple {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
