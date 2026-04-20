@@ -533,3 +533,190 @@
   layer.innerHTML = html;
   hero.appendChild(layer);
 })();
+
+/* ============================================================
+   v22 — Tier B features
+   ============================================================ */
+
+// B-1: Back-to-top button
+(function () {
+  if (document.querySelector(".back-to-top")) return;
+  const btn = document.createElement("button");
+  btn.className = "back-to-top";
+  btn.setAttribute("aria-label", "Back to top");
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+  document.body.appendChild(btn);
+  window.addEventListener("scroll", () => {
+    btn.classList.toggle("visible", window.scrollY > 400);
+  }, { passive: true });
+  btn.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+
+// B-2: Contact form modal (injected, intercepts mailto: contact links)
+(function () {
+  if (document.getElementById("contact-modal")) return;
+  const modal = document.createElement("div");
+  modal.id = "contact-modal";
+  modal.className = "contact-modal";
+  modal.innerHTML = `
+    <div class="contact-modal-inner">
+      <button class="contact-modal-close" aria-label="Close"></button>
+      <span class="eyebrow">CONTACT</span>
+      <h3 data-ja="お問い合わせ" data-en="Get in touch">お問い合わせ</h3>
+      <p data-ja="キャスティング・取材・採用のご相談は下記フォームよりご連絡ください。" data-en="For casting, press, or careers, please use the form below.">キャスティング・取材・採用のご相談は下記フォームよりご連絡ください。</p>
+      <form id="contact-form">
+        <label data-ja="お名前" data-en="Your name">お名前</label>
+        <input type="text" name="name" required>
+        <label data-ja="会社名" data-en="Company">会社名</label>
+        <input type="text" name="company">
+        <label data-ja="メールアドレス" data-en="Email">メールアドレス</label>
+        <input type="email" name="email" required>
+        <label data-ja="ご用件" data-en="Subject">ご用件</label>
+        <select name="subject">
+          <option value="キャスティング" data-en="Casting">キャスティング</option>
+          <option value="取材・広報" data-en="Press">取材・広報</option>
+          <option value="採用・オーディション" data-en="Audition / Careers">採用・オーディション</option>
+          <option value="その他" data-en="Other">その他</option>
+        </select>
+        <label data-ja="詳細・メッセージ" data-en="Message">詳細・メッセージ</label>
+        <textarea name="message" required></textarea>
+        <div class="contact-modal-actions">
+          <button type="submit" data-ja="送信" data-en="Send">送信</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const open = () => { modal.classList.add("open"); document.body.style.overflow = "hidden"; };
+  const close = () => { modal.classList.remove("open"); document.body.style.overflow = ""; };
+
+  // Intercept any link to casting/contact mailto or anchor #contact
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a) return;
+    const href = a.getAttribute("href") || "";
+    if (href.startsWith("mailto:") && (href.includes("contact@") || href.includes("casting@"))) {
+      e.preventDefault();
+      open();
+    } else if (href === "#contact" || href.endsWith("#contact")) {
+      // keep native scroll-to-contact, but also surface CTA buttons as modal opener
+      // leave default behavior
+    }
+  });
+
+  // Modal close handlers
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal || e.target.classList.contains("contact-modal-close")) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("open")) close();
+  });
+
+  // Form submit: open user's mail client as a fallback (no backend available)
+  modal.querySelector("#contact-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const data = Object.fromEntries(new FormData(f).entries());
+    const subjectLabel = f.querySelector('[name="subject"] option:checked')?.textContent || data.subject;
+    const body = encodeURIComponent(
+      `お名前: ${data.name}\n` +
+      `会社名: ${data.company || "-"}\n` +
+      `メール: ${data.email}\n` +
+      `ご用件: ${subjectLabel}\n\n` +
+      `${data.message}`
+    );
+    const to = data.subject === "キャスティング" ? "casting@advovisions.com" : "contact@advovisions.com";
+    window.location.href = `mailto:${to}?subject=${encodeURIComponent("[Web] " + subjectLabel)}&body=${body}`;
+    setTimeout(close, 300);
+  });
+})();
+
+// B-3: Language switcher (JP ⇄ EN)
+(function () {
+  // Inject the toggle into the nav
+  const nav = document.querySelector(".nav ul");
+  if (!nav || document.querySelector(".lang-switch")) return;
+  const wrap = document.createElement("li");
+  wrap.className = "lang-switch-wrap";
+  wrap.innerHTML = `
+    <span class="lang-switch">
+      <button data-lang="ja">JP</button>
+      <span class="sep">/</span>
+      <button data-lang="en">EN</button>
+    </span>
+  `;
+  nav.appendChild(wrap);
+
+  const html = document.documentElement;
+  const saved = localStorage.getItem("advo-lang") || html.lang || "ja";
+  setLang(saved);
+
+  function setLang(lang) {
+    html.lang = lang;
+    localStorage.setItem("advo-lang", lang);
+    document.querySelectorAll(".lang-switch button").forEach(b => {
+      b.classList.toggle("active", b.dataset.lang === lang);
+    });
+    // Swap data-ja / data-en text on any element with both
+    document.querySelectorAll("[data-ja][data-en]").forEach(el => {
+      const key = lang === "en" ? "en" : "ja";
+      if (el.dataset[key]) el.textContent = el.dataset[key];
+    });
+    // Swap placeholder for inputs that have data-ja-ph / data-en-ph
+    document.querySelectorAll("[data-ja-ph][data-en-ph]").forEach(el => {
+      el.placeholder = lang === "en" ? el.dataset.enPh : el.dataset.jaPh;
+    });
+  }
+
+  document.querySelectorAll(".lang-switch button").forEach(b => {
+    b.addEventListener("click", () => setLang(b.dataset.lang));
+  });
+})();
+
+// B-4: Mobile hamburger menu — body lock + auto-close on link click
+(function () {
+  const toggle = document.querySelector(".nav-toggle");
+  const nav = document.querySelector(".nav");
+  if (!toggle || !nav) return;
+  const setOpen = (open) => {
+    toggle.classList.toggle("open", open);
+    nav.classList.toggle("open", open);
+    document.body.classList.toggle("nav-open", open);
+  };
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(!nav.classList.contains("open"));
+  });
+  // close when a nav link is tapped (mobile UX)
+  nav.querySelectorAll("a").forEach(a => {
+    a.addEventListener("click", () => setOpen(false));
+  });
+  // close by clicking outside
+  document.addEventListener("click", (e) => {
+    if (nav.classList.contains("open") && !nav.contains(e.target) && !toggle.contains(e.target)) {
+      setOpen(false);
+    }
+  });
+  // esc to close
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && nav.classList.contains("open")) setOpen(false);
+  });
+})();
+
+// B-5: Video lightbox polish — add keyboard play/pause with spacebar
+(function () {
+  const modal = document.getElementById("video-modal");
+  if (!modal) return;
+  document.addEventListener("keydown", (e) => {
+    if (!modal.classList.contains("open")) return;
+    if (e.key === " ") {
+      e.preventDefault();
+      const v = modal.querySelector("video");
+      if (!v) return;
+      v.paused ? v.play().catch(() => {}) : v.pause();
+    }
+  });
+})();

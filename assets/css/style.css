@@ -2883,3 +2883,244 @@ section.block + section.block.alt::before {
   80%  { opacity: 0.6; }
   100% { transform: translateY(-120vh) translateX(var(--sway, 20px)) scale(1.1); opacity: 0; }
 }
+
+/* ============================================================
+   v22: Tier B UX features
+   ============================================================ */
+
+/* ========== B-1: Back-to-top floating button ========== */
+.back-to-top {
+  position: fixed;
+  right: 28px; bottom: 28px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0; transform: translateY(20px) scale(0.9);
+  pointer-events: none;
+  transition: all 0.35s var(--ease);
+  box-shadow: 0 10px 28px rgba(19,30,122,0.3), 0 4px 10px rgba(19,30,122,0.2);
+  z-index: 90;
+  border: none;
+}
+.back-to-top.visible {
+  opacity: 1; transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.back-to-top:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 16px 34px rgba(19,30,122,0.4), 0 4px 10px rgba(19,30,122,0.25);
+}
+.back-to-top svg { width: 20px; height: 20px; }
+
+/* ========== B-2: Contact form modal ========== */
+.contact-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 96, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+}
+.contact-modal.open { display: flex; opacity: 1; }
+.contact-modal-inner {
+  background: #fff;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 14px;
+  padding: 40px 40px 36px;
+  position: relative;
+  transform: scale(0.94) translateY(16px);
+  transition: transform 0.4s var(--ease);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+}
+.contact-modal.open .contact-modal-inner { transform: scale(1) translateY(0); }
+.contact-modal h3 {
+  font-family: "Noto Serif JP", serif;
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+}
+.contact-modal .eyebrow { margin-bottom: 8px; display: block; }
+.contact-modal p { font-size: 13px; color: var(--ink-dim); margin-bottom: 24px; }
+.contact-modal label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--ink-dim);
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.contact-modal input,
+.contact-modal select,
+.contact-modal textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-soft);
+  font-family: inherit;
+  color: var(--ink);
+  margin-bottom: 16px;
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+.contact-modal input:focus,
+.contact-modal select:focus,
+.contact-modal textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(36,55,200,0.12);
+  background: #fff;
+}
+.contact-modal textarea { resize: vertical; min-height: 100px; }
+.contact-modal-actions {
+  display: flex; gap: 10px; justify-content: flex-end;
+  margin-top: 8px;
+}
+.contact-modal button[type="submit"] {
+  background: var(--brand);
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: 100px;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: background 0.3s var(--ease);
+}
+.contact-modal button[type="submit"]:hover { background: var(--brand-dark); }
+.contact-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink-dim);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.contact-modal-close:hover { background: var(--line); color: var(--ink); }
+.contact-modal-close::before, .contact-modal-close::after {
+  content: ""; position: absolute;
+  width: 16px; height: 2px; background: currentColor; border-radius: 2px;
+}
+.contact-modal-close::before { transform: rotate(45deg); }
+.contact-modal-close::after  { transform: rotate(-45deg); }
+
+/* ========== B-3: Language switcher ========== */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 24px;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+}
+.lang-switch button {
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+  opacity: 0.5;
+}
+.lang-switch button.active { opacity: 1; border-color: currentColor; }
+.lang-switch button:hover { opacity: 0.85; }
+.lang-switch .sep { opacity: 0.4; }
+
+/* hide translated content by default */
+html[lang="en"] [data-ja]:not([data-en]) { display: none; }
+html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
+/* For elements with both text in data attrs, show appropriate via JS */
+
+/* ========== B-4: Mobile hamburger menu overlay ========== */
+@media (max-width: 860px) {
+  .nav-toggle { display: flex !important; }
+  .nav {
+    position: fixed !important;
+    top: 0 !important; right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 360px !important;
+    background: #fff !important;
+    padding: 110px 40px 40px !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.5s cubic-bezier(0.77, 0, 0.18, 1) !important;
+    box-shadow: -20px 0 60px rgba(19,30,122,0.2) !important;
+    display: block !important;
+    z-index: 90 !important;
+    overflow-y: auto !important;
+  }
+  .nav.open { transform: translateX(0) !important; }
+  .nav ul {
+    flex-direction: column !important;
+    gap: 28px !important;
+    font-size: 20px !important;
+  }
+  .nav ul li {
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.5s var(--ease);
+  }
+  .nav.open ul li { opacity: 1; transform: translateX(0); }
+  .nav.open ul li:nth-child(1) { transition-delay: 0.1s; }
+  .nav.open ul li:nth-child(2) { transition-delay: 0.18s; }
+  .nav.open ul li:nth-child(3) { transition-delay: 0.26s; }
+  .nav.open ul li:nth-child(4) { transition-delay: 0.34s; }
+  .nav.open ul li:nth-child(5) { transition-delay: 0.42s; }
+  .nav.open ul li:nth-child(6) { transition-delay: 0.5s; }
+  .nav-toggle { z-index: 95 !important; }
+  .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); background: var(--ink) !important; }
+  .nav-toggle.open span:nth-child(2) { opacity: 0; }
+  .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); background: var(--ink) !important; }
+  /* body lock when menu open */
+  body.nav-open { overflow: hidden; }
+  body.nav-open::after {
+    content: "";
+    position: fixed; inset: 0;
+    background: rgba(10, 18, 96, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 89;
+  }
+  .lang-switch { margin: 40px 0 0 !important; }
+}
+
+/* ========== B-5: Video lightbox enhancements ========== */
+.modal#video-modal {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(10, 15, 40, 0.94);
+}
+.modal#video-modal .modal-inner {
+  box-shadow: 0 40px 120px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+.modal#video-modal video { background: #000; }
+.modal#video-modal .modal-caption {
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  padding: 32px 32px 24px;
+}
+.modal#video-modal .modal-caption .client {
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase;
+  margin-bottom: 6px; opacity: 0.75;
+}
+.modal#video-modal .modal-caption .title {
+  font-family: "Noto Serif JP", serif;
+  font-size: 24px; font-weight: 500;
+  letter-spacing: 0.06em;
+}
