@@ -174,9 +174,14 @@
         } catch (e) {}
       }
 
-      // On-screen error diagnostic — show JS errors directly in the boot-splash
+      // Error diagnostic — log to console always; show on-screen only when ?debug=1.
+      // (The on-screen overlay was catching benign third-party rejections, e.g. LINE
+      // in-app browser's LIFF bridge, and flashing them to end-users.)
       (function() {
-        function showError(msg, src) {
+        var showOverlay = /[?&]debug=1\b/.test(location.search);
+        function report(msg, src) {
+          try { console.error('[diag]', msg, src || ''); } catch (_) {}
+          if (!showOverlay) return;
           var el = document.getElementById('boot-splash-error');
           if (!el) {
             el = document.createElement('div');
@@ -187,17 +192,19 @@
           el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + (src ? ' @ ' + src : '') + '\n';
         }
         window.addEventListener('error', function(e) {
-          showError(e.message || 'unknown error', e.filename ? (e.filename + ':' + e.lineno) : '');
+          report(e.message || 'unknown error', e.filename ? (e.filename + ':' + e.lineno) : '');
         });
         window.addEventListener('unhandledrejection', function(e) {
           var r = e.reason;
-          showError('UnhandledRejection: ' + (r && (r.message || r.toString()) || 'unknown'));
+          report('UnhandledRejection: ' + (r && (r.message || r.toString()) || 'unknown'));
         });
-        // If after 6s #root still has the boot-splash, React never mounted.
+        // If after 6s #root still has the boot-splash, React never mounted — always surface this one.
         setTimeout(function() {
           var root = document.getElementById('root');
           if (root && root.querySelector('#boot-splash')) {
-            showError('React did not mount within 6s. Bundle may have failed to execute.');
+            var prev = showOverlay; showOverlay = true;
+            report('React did not mount within 6s. Bundle may have failed to execute.');
+            showOverlay = prev;
           }
         }, 6000);
       })();
