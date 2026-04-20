@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Members — ADVO VISIONS</title>
+  <meta name="description" content="150名のクリエイターが集うADVO VISIONSのメンバーディレクトリ。部門・名前・役職から検索できます。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Serif+JP:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="index.html" class="logo">ADVO<span>·</span>VISIONS</a>
+    <nav class="nav" aria-label="Primary">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="index.html#works">Works</a></li>
+        <li><a href="members.html" class="active">Members</a></li>
+        <li><a href="index.html#services">Services</a></li>
+        <li><a href="index.html#contact">Contact</a></li>
+      </ul>
+    </nav>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+  </header>
+
+  <section id="members" class="block" style="padding-top: 180px;">
+    <div class="container">
+      <div class="block-head reveal">
+        <div>
+          <div class="eyebrow">Collective · 150</div>
+          <h1 class="block-title">Members.</h1>
+        </div>
+        <p class="block-desc">
+          肩書きよりも、固有の視点を。
+          ADVO VISIONS の全メンバーをフラットに並べ、
+          その人の制作物・専門領域・連絡先までをひとつの場所にまとめています。
+        </p>
+      </div>
+
+      <div class="members-toolbar reveal">
+        <div class="members-count" id="members-count"></div>
+        <input id="members-search" class="search-input" type="search" placeholder="Search by name, role, ID" autocomplete="off">
+      </div>
+
+      <div class="filter-chips reveal" style="margin-bottom: 48px;">
+        <button class="chip active" data-dept="ALL">All</button>
+        <button class="chip" data-dept="Direction">Direction</button>
+        <button class="chip" data-dept="Cinematography">Cinematography</button>
+        <button class="chip" data-dept="Post Production">Post Production</button>
+        <button class="chip" data-dept="Design">Design</button>
+        <button class="chip" data-dept="Production">Production</button>
+        <button class="chip" data-dept="Sound &amp; Music">Sound &amp; Music</button>
+      </div>
+
+      <div id="members-grid" class="members-grid reveal"></div>
+      <div id="members-pager" class="pagination"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="logo">ADVO<span>·</span>VISIONS</div>
+          <p>東京を拠点に、ブランド・音楽・ドキュメンタリーを横断する映像制作スタジオ。</p>
+        </div>
+        <div class="footer-col">
+          <h4>Studio</h4>
+          <ul>
+            <li><a href="index.html#works">Works</a></li>
+            <li><a href="members.html">Members</a></li>
+            <li><a href="index.html#services">Services</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <ul>
+            <li>contact@advovisions.com</li>
+            <li>Jingumae, Shibuya-ku, Tokyo</li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Follow</h4>
+          <ul>
+            <li><a href="#">Instagram</a></li>
+            <li><a href="#">Vimeo</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div>© 2026 ADVO VISIONS INC.</div>
+        <div>All rights reserved.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/members-data.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
