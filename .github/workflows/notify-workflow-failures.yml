@@ -1,0 +1,94 @@
+name: Workflow Failure Notifier
+
+# Watches scheduled routines and opens a GitHub issue when any of them fail.
+# One issue per workflow per UTC day; additional same-day failures just append
+# a comment. Uses only the default GITHUB_TOKEN — no external secrets required.
+
+on:
+  workflow_run:
+    workflows:
+      - Nightly
+      - Lumenium Uptime Monitor
+    types:
+      - completed
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update failure issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run
+            const wfName = run.name
+            const today = new Date().toISOString().slice(0, 10)
+            const label = 'workflow-failure'
+            const title = `⚠️ ${wfName} failed on ${today}`
+
+            const summary = [
+              `**Workflow:** ${wfName}`,
+              `**Run:** [#${run.run_number} / attempt ${run.run_attempt}](${run.html_url})`,
+              `**Event:** ${run.event}`,
+              `**Commit:** \`${run.head_sha.slice(0, 7)}\` (${run.head_branch})`,
+              `**Started:** ${run.run_started_at}`,
+              `**Conclusion:** ${run.conclusion}`,
+            ].join('\n')
+
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: label,
+              state: 'open',
+              per_page: 100,
+            })
+            const match = existing.find((i) => i.title === title)
+
+            if (match) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: `Another failure:\n\n${summary}`,
+              })
+              core.info(`Appended comment to existing issue #${match.number}`)
+              return
+            }
+
+            // Ensure the label exists (ignore 422 already-exists)
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+                color: 'd73a4a',
+                description: 'Auto-filed by notify-workflow-failures.yml',
+              })
+            } catch (e) {
+              if (e.status !== 422) throw e
+            }
+
+            const body = [
+              `Scheduled workflow **${wfName}** failed today.`,
+              '',
+              summary,
+              '',
+              'Close this issue once the root cause is fixed. If the workflow fails again today,',
+              'this issue will get a new comment instead of opening a duplicate.',
+              '',
+              '<sub>Filed automatically by `.github/workflows/notify-workflow-failures.yml`.</sub>',
+            ].join('\n')
+
+            const created = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: [label],
+            })
+            core.info(`Opened issue #${created.data.number}`)
