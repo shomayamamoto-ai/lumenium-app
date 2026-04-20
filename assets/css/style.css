@@ -3666,3 +3666,253 @@ html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
 .preloader.done .preloader-exit-b {
   transform: translate(110%, 0) !important;
 }
+
+/* ============================================================
+   v27: Hero video, clients marquee, CEO quote, awards, newsletter
+   ============================================================ */
+
+/* ---- Ambient hero video ---- */
+.hero { position: relative; overflow: hidden; }
+.hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  filter: contrast(1.1) saturate(1.1);
+  pointer-events: none;
+}
+.hero-content { position: relative; z-index: 2; }
+
+/* ---- Clients / media strip ---- */
+.clients-strip {
+  padding: 40px 0;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.clients-eyebrow {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  color: var(--ink-dim);
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+.clients-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.clients-track {
+  display: inline-flex;
+  gap: 56px;
+  white-space: nowrap;
+  animation: clientsRoll 50s linear infinite;
+}
+.clients-track span {
+  font-family: "Cormorant Garamond", "Noto Serif JP", serif;
+  font-size: 22px;
+  font-style: italic;
+  color: var(--ink-dim);
+  opacity: 0.7;
+  letter-spacing: 0.06em;
+  transition: opacity 0.3s var(--ease), color 0.3s var(--ease);
+}
+.clients-track span:hover { opacity: 1; color: var(--brand); }
+@keyframes clientsRoll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ---- CEO quote section ---- */
+.ceo-section { padding: 140px 0; }
+.ceo-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 72px;
+  align-items: center;
+}
+.ceo-portrait {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 4/5;
+  box-shadow: 0 30px 60px rgba(19,30,122,0.14);
+}
+.ceo-portrait::after {
+  content: "";
+  position: absolute;
+  left: -16px; right: 16px; top: 16px; bottom: -16px;
+  border: 1px solid var(--brand-line);
+  border-radius: 12px;
+  z-index: -1;
+}
+.ceo-portrait img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: grayscale(0.1) contrast(1.02);
+}
+.ceo-quote {
+  font-family: "Noto Serif JP", serif;
+  font-size: clamp(22px, 2.8vw, 34px);
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  position: relative;
+  padding-top: 38px;
+  margin-top: 16px;
+  quotes: none;
+}
+.ceo-quote::before {
+  content: "\201C";
+  position: absolute;
+  top: -18px; left: -10px;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 110px;
+  line-height: 1;
+  color: var(--brand);
+  opacity: 0.16;
+}
+.ceo-signature {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.ceo-name {
+  font-family: "Noto Serif JP", serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.ceo-role {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--ink-dim);
+  margin-top: 6px;
+}
+
+/* ---- Awards section ---- */
+.awards-section { padding-bottom: 140px; }
+.awards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.award-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 30px 28px;
+  position: relative;
+  transition: transform 0.4s var(--ease), border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+.award-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 28px; right: 28px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--ease);
+}
+.award-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--brand-line);
+  box-shadow: 0 20px 40px rgba(19,30,122,0.12);
+}
+.award-card:hover::before { transform: scaleX(1); }
+.award-year {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 30px;
+  color: var(--brand);
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.award-name {
+  font-family: "Noto Serif JP", serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  letter-spacing: 0.05em;
+}
+.award-desc {
+  font-size: 13px;
+  color: var(--ink-dim);
+  line-height: 1.75;
+}
+.award-desc em { font-style: italic; color: var(--ink); }
+
+/* ---- Newsletter in footer ---- */
+.newsletter {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 44px 0 48px;
+  margin-bottom: 48px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.newsletter-copy h3 {
+  font-family: "Noto Serif JP", serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.newsletter-form {
+  display: flex;
+  gap: 10px;
+}
+.newsletter-form input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.newsletter-form input::placeholder { color: rgba(255,255,255,0.5); }
+.newsletter-form input:focus {
+  border-color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.12);
+}
+.newsletter-form button {
+  padding: 14px 28px;
+  background: #fff;
+  color: var(--brand-dark);
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: transform 0.3s var(--ease);
+}
+.newsletter-form button:hover { transform: translateY(-2px); }
+
+/* ---- Responsive ---- */
+@media (max-width: 1024px) {
+  .ceo-grid { grid-template-columns: 1fr; gap: 40px; }
+  .ceo-portrait { max-width: 420px; margin: 0 auto; }
+  .awards-grid { grid-template-columns: 1fr 1fr; }
+  .newsletter { grid-template-columns: 1fr; gap: 20px; }
+}
+@media (max-width: 640px) {
+  .awards-grid { grid-template-columns: 1fr; }
+  .clients-track { gap: 36px; animation-duration: 40s; }
+  .clients-track span { font-size: 18px; }
+  .newsletter-form { flex-direction: column; }
+}
