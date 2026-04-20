@@ -3916,3 +3916,6 @@ html[lang="ja"] [data-en]:not([data-ja]) { display: none; }
   .clients-track span { font-size: 18px; }
   .newsletter-form { flex-direction: column; }
 }
+
+/* v28: hide clients strip (removed per feedback) */
+.clients-strip { display: none !important; }
