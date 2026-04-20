@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 220" aria-label="AdvoVisions mark">
+  <!--
+    AdvoVisions "ag" monogram mark.
+    Approximate trace — replace with the official vector export for
+    pixel-perfect fidelity.
+  -->
+  <g fill="#1e3afb">
+
+    <!-- ====== right 'g' ====== -->
+    <!-- top flat crossbar -->
+    <path d="M148 0
+             L272 0
+             Q280 0 280 8
+             L280 30
+             Q280 40 270 40
+             L148 40
+             Z" />
+    <!-- right stem going down from the crossbar -->
+    <path d="M244 20
+             L280 20
+             L280 176
+             Q280 200 256 200
+             L216 200
+             Q194 200 194 180
+             Q194 160 216 160
+             L238 160
+             Q244 160 244 152
+             Z" />
+    <!-- bowl of the 'g' -->
+    <path d="M138 78
+             Q138 32 186 26
+             Q244 20 266 62
+             Q278 94 262 130
+             Q246 156 212 158
+             Q168 160 148 130
+             Q138 104 138 78 Z" />
+    <!-- descender hook -->
+    <path d="M166 140
+             Q166 172 196 180
+             L226 180
+             Q248 178 252 162
+             L252 146
+             L192 146
+             Z" />
+    <!-- white crescent counter inside the 'g' -->
+    <path fill="#ffffff"
+          d="M178 46
+             Q218 40 236 70
+             Q240 98 214 112
+             Q188 118 176 98
+             Q170 74 178 46 Z" />
+
+    <!-- ====== left 'a' ====== -->
+    <!-- main body: bold rounded D -->
+    <path d="M6 98
+             Q6 46 52 30
+             Q78 20 104 22
+             L132 22
+             Q158 22 158 54
+             L158 180
+             Q158 200 138 200
+             L56 200
+             Q6 200 6 150
+             Z" />
+    <!-- white teardrop counter inside the 'a' -->
+    <path fill="#ffffff"
+          d="M40 48
+             Q78 34 114 52
+             Q128 90 108 112
+             Q80 122 58 108
+             Q40 86 40 48 Z" />
+    <!-- signature dot at the bottom-left -->
+    <circle cx="72" cy="184" r="18" fill="#ffffff" />
+    <circle cx="72" cy="184" r="12" fill="#1e3afb" />
+
+  </g>
+</svg>
