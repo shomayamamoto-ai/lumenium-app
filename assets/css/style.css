@@ -1281,3 +1281,317 @@ section.block { padding: 110px 0; position: relative; }
   }
 }
 
+
+/* ============================================================
+   v6: Elegance pass — typography, rhythm, textures, transitions
+   ============================================================ */
+
+/* Subtle paper grain overlay (CSS-generated, no external asset) */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  z-index: 1;
+  background-image:
+    radial-gradient(rgba(0,0,0,0.9) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.7) 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1.5px 1.5px;
+  mix-blend-mode: multiply;
+}
+
+/* Italic serif accent utility — used as inline HTML <em class="serif-italic"> */
+em.serif-italic,
+.serif-italic {
+  font-family: "Cormorant Garamond", "Noto Serif JP", serif;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--brand);
+  letter-spacing: 0.01em;
+}
+
+/* Hero: slow animated gradient + serif italic emphasis + ambient light */
+.hero {
+  background: linear-gradient(135deg, #1a2aa0 0%, #2437c8 35%, #3b4bd4 70%, #1a2aa0 100%);
+  background-size: 200% 200%;
+  animation: heroShift 16s ease-in-out infinite;
+  position: relative;
+}
+@keyframes heroShift {
+  0%, 100% { background-position: 0% 0%; }
+  50%      { background-position: 100% 100%; }
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px; height: 900px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+.hero-title { position: relative; z-index: 2; }
+.hero-title .en {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 400;
+  position: relative;
+  padding: 0 4px;
+}
+.hero-title .en::after {
+  content: "";
+  position: absolute;
+  left: 2px; right: 2px; bottom: 2px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+}
+.hero-company .en {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Eyebrow refinement: tiny dash prefix */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.eyebrow::before {
+  content: "";
+  width: 22px; height: 1px;
+  background: var(--brand);
+  display: inline-block;
+}
+
+/* Block title refinement: display numbers / serif italic tuning */
+.block-title {
+  font-feature-settings: "ss01", "ss02";
+  letter-spacing: 0.06em;
+}
+.block-title em.serif-italic { font-size: 1.05em; }
+
+/* Stats — bigger, more typographic */
+.stat .num {
+  font-size: clamp(44px, 6.4vw, 76px);
+  font-style: italic;
+  font-feature-settings: "lnum";
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.stat .num sup {
+  font-style: normal;
+  -webkit-text-fill-color: var(--ink-dim);
+  color: var(--ink-dim);
+}
+.stat::after {
+  content: "";
+  display: block;
+  width: 24px; height: 1px;
+  background: var(--brand);
+  margin: 16px auto 0;
+  opacity: 0.5;
+}
+.stat .label {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  font-size: 13px;
+  text-transform: none;
+}
+
+/* Section dividers — smooth blue→white arcs between sections */
+.block + .block.alt,
+.block.alt + .block {
+  position: relative;
+}
+.block + .block.alt::before,
+.block.alt + .block::before {
+  content: "";
+  position: absolute;
+  top: -1px; left: 0; right: 0;
+  height: 80px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 80' preserveAspectRatio='none'><path d='M0,40 C360,80 720,0 1080,40 C1260,60 1380,40 1440,30 L1440,0 L0,0 Z' fill='%23f6f8ff'/></svg>");
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+.block.alt + .block::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 80' preserveAspectRatio='none'><path d='M0,40 C360,80 720,0 1080,40 C1260,60 1380,40 1440,30 L1440,0 L0,0 Z' fill='%23ffffff'/></svg>");
+}
+
+/* Service tiles — more typographic with number + underline flourish */
+.service-tile {
+  position: relative;
+  padding-top: 56px;
+  overflow: hidden;
+}
+.service-tile::before {
+  content: counter(service-counter, decimal-leading-zero);
+  counter-increment: service-counter;
+  position: absolute;
+  top: 18px; right: 22px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--brand);
+  opacity: 0.35;
+  letter-spacing: 0.05em;
+}
+.services-grid { counter-reset: service-counter; }
+.service-tile .service-label {
+  font-family: "Noto Serif JP", serif;
+  font-weight: 500;
+}
+
+/* Buttons — refined outline with arrow slide */
+.btn-primary, .btn-outline {
+  position: relative;
+  overflow: hidden;
+}
+.btn-outline {
+  padding-right: 52px;
+}
+.btn-outline::after {
+  content: "→";
+  position: absolute;
+  right: 24px; top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.4s var(--ease);
+}
+.btn-outline:hover::after { transform: translate(6px, -50%); }
+
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,210,77,0.4) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.7s var(--ease);
+}
+.btn-primary:hover::before { transform: translateX(100%); }
+
+/* Talent card — softer shadow + serif name + accent line */
+.talent-card {
+  box-shadow: 0 1px 2px rgba(19,30,122,0.04);
+  border: 1px solid rgba(19,30,122,0.06);
+}
+.talent-card:hover { box-shadow: 0 24px 54px rgba(19,30,122,0.14); border-color: rgba(36,55,200,0.18); }
+.talent-name {
+  font-family: "Noto Serif JP", "Cormorant Garamond", serif;
+  font-weight: 500;
+}
+.talent-meta {
+  position: relative;
+}
+.talent-meta::before {
+  content: "";
+  display: block;
+  width: 20px; height: 1px;
+  background: var(--brand);
+  opacity: 0.4;
+  margin: 0 auto 10px;
+}
+
+/* Work card — elegant corner marks on hover */
+.work-card::before, .work-card::after {
+  content: "";
+  position: absolute;
+  width: 20px; height: 20px;
+  border: 1.5px solid rgba(255,255,255,0.85);
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.work-card::before {
+  top: 14px; left: 14px;
+  border-right: none; border-bottom: none;
+  transform: translate(-6px, -6px);
+}
+.work-card::after {
+  bottom: 14px; right: 14px;
+  border-left: none; border-top: none;
+  transform: translate(6px, 6px);
+}
+.work-card:hover::before,
+.work-card:hover::after {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+/* CTA — refined letter-spacing and italic accent */
+.cta h2 {
+  font-feature-settings: "ss01";
+}
+.cta h2 em, .cta h2 .serif-italic {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  color: #ffd24d;
+}
+
+/* Category chip — pill with underline-hover */
+.chip {
+  letter-spacing: 0.12em;
+  font-family: "Inter", "Noto Sans JP", sans-serif;
+}
+
+/* Filter chip active state refinement */
+.chip.active {
+  box-shadow: 0 6px 16px rgba(36,55,200,0.22);
+}
+
+/* News card — subtle frosted top border */
+.news-card {
+  position: relative;
+}
+.news-card::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand) 0%, #5a6cf0 100%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--ease);
+}
+.news-card:hover::after { transform: scaleX(1); }
+
+/* Profile page — bigger serif italic name */
+.profile-name {
+  font-family: "Cormorant Garamond", "Noto Serif JP", serif;
+  font-style: italic;
+  font-weight: 500;
+}
+.profile-portrait {
+  position: relative;
+}
+.profile-portrait::after {
+  content: "";
+  position: absolute;
+  left: -12px; right: 12px;
+  bottom: -12px; top: 12px;
+  border: 1px solid var(--brand-line);
+  z-index: -1;
+  border-radius: 12px;
+}
+
+/* Refined wave — taller, softer curve */
+.hero-wave svg {
+  height: 160px;
+}
+
+/* Nav — add subtle tracking underline style */
+.nav a {
+  font-feature-settings: "ss01";
+}
+
+/* Reduce motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .hero { animation: none; }
+  .marquee-track, .preloader-logo, .preloader-bar::before { animation: none !important; }
+}
