@@ -2456,3 +2456,81 @@ section.block.in-view::after { opacity: 1; }
 /* Disable particle and cursor features that were breaking things */
 .particle, .cursor-glow, .page-curtain { display: none !important; }
 .talent-card.tilt { transform: none !important; }
+
+/* ============================================================
+   v15: header stays white so logo.png neon-on-white reads correctly
+   ============================================================ */
+
+/* Header: always opaque white background (no more transparent-over-hero) */
+.site-header {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 18px rgba(19, 30, 122, 0.06);
+  padding: 12px 32px;
+}
+/* Text/link color always dark since bg is white */
+.site-header .nav a,
+.site-header .nav-toggle span,
+.site-header .logo-word {
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+.site-header .nav a::after { background: var(--brand); }
+
+/* Logo sizing for the icon + text row */
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+}
+.logo-icon {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+.logo-text {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+.site-footer .logo-wrap { height: 44px; }
+
+/* Footer: make a small white card around the logo so it reads naturally */
+.site-footer .logo {
+  background: #ffffff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Reset prior variant-swapping rules so they don't override */
+.logo-text-blue, .logo-text-white { display: none !important; }
+
+/* Hero padding-top bumped up since header is now opaque */
+.hero { padding-top: 100px !important; }
+
+/* Since header is white, its 'active' underline uses brand */
+.site-header .nav a.active::after { width: 100%; background: var(--brand); }
+
+/* ============================================================
+   Preloader — use white ag monogram + plain AdvoVisions text label
+   (avoids the white-bg neon wordmark on blue)
+   ============================================================ */
+.preloader-brand {
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(36px, 5.5vw, 68px);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: #fff;
+  opacity: 0;
+  animation: wordIn 0.9s 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  text-shadow: 0 0 20px rgba(90,169,255,0.4);
+}
+.preloader-brand::first-letter {
+  color: #5aa9ff;
+  font-weight: 500;
+}
