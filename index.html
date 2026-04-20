@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>合同会社 AdvoVisions — あなたのVisionを世界へ提言する</title>
   <meta name="description" content="合同会社AdvoVisionsは、150名の所属タレント・アーティストを擁する芸能事務所。俳優・女優・モデル・アーティスト・声優・タレント・パフォーマーのマネジメントから、映像制作・広告キャスティング・イベント企画まで。">
-  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+  <link rel="icon" type="image/svg+xml" href="assets/img/wordmark-blue.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=5">
+  <link rel="stylesheet" href="assets/css/style.css?v=6">
 </head>
 <body>
   <div class="preloader" aria-hidden="true">
     <div class="preloader-logo">
-      <img src="assets/img/logo-white.svg" alt="" style="width:100%;height:100%;object-fit:contain;">
+      <img src="assets/img/wordmark-white.svg" alt="AdvoVisions" style="max-width:260px;width:80%;height:auto;">
     </div>
     <div class="preloader-bar"></div>
     <div class="preloader-label">ADVOVISIONS</div>
@@ -23,10 +23,6 @@
 
   <header class="site-header on-hero">
     <a href="index.html" class="logo">
-      <span class="logo-mark" aria-hidden="true">
-        <img class="mark-blue" src="assets/img/logo.svg" alt="">
-        <img class="mark-white" src="assets/img/logo-white.svg" alt="">
-      </span>
       <span class="logo-word"><img class="word-blue" src="assets/img/wordmark-blue.svg" alt="AdvoVisions"><img class="word-white" src="assets/img/wordmark-white.svg" alt="AdvoVisions"></span>
     </a>
     <nav class="nav" aria-label="Primary">
@@ -44,9 +40,7 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-shape" aria-hidden="true">
-      <img src="assets/img/logo-white.svg" alt="" style="width:100%;height:100%;opacity:0.18;object-fit:contain;">
-    </div>
+    
 
     <div class="hero-content">
       <h1 class="hero-title">あなたの<span class="en">Vision</span>を世界へ提言する</h1>
@@ -125,7 +119,23 @@
       <div class="services-grid stagger">
         <div class="service-tile">
           <div class="service-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2.5"/><circle cx="32" cy="32" r="6" fill="currentColor"/><circle cx="32" cy="12" r="4" fill="currentColor"/><circle cx="32" cy="52" r="4" fill="currentColor"/><circle cx="12" cy="32" r="4" fill="currentColor"/><circle cx="52" cy="32" r="4" fill="currentColor"/><circle cx="18" cy="18" r="3" fill="currentColor"/><circle cx="46" cy="18" r="3" fill="currentColor"/><circle cx="18" cy="46" r="3" fill="currentColor"/><circle cx="46" cy="46" r="3" fill="currentColor"/></svg>
+            <!-- 映像コンテンツ: film reel with 3 holes + film strip tail -->
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g fill="currentColor">
+                <!-- main reel -->
+                <circle cx="26" cy="30" r="20"/>
+                <!-- cut-outs for 3 holes -->
+                <circle cx="26" cy="22" r="5" fill="#ffffff"/>
+                <circle cx="19" cy="34" r="5" fill="#ffffff"/>
+                <circle cx="33" cy="34" r="5" fill="#ffffff"/>
+                <!-- center hub -->
+                <circle cx="26" cy="30" r="2.2"/>
+                <!-- film strip curving to the right -->
+                <path d="M44 30 C54 28, 58 40, 52 48 L46 44 C50 40, 48 36, 42 36 Z"/>
+                <!-- strip sprocket holes -->
+                <rect x="47" y="39" width="2.2" height="3" rx="0.5" fill="#ffffff"/>
+              </g>
+            </svg>
           </div>
           <div class="service-label">映像コンテンツ</div>
           <p>所属タレントを起用した映画・ドラマ・MV・ブランドフィルムを企画から制作まで一貫プロデュースします。</p>
@@ -133,7 +143,23 @@
 
         <div class="service-tile">
           <div class="service-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64" fill="none"><path d="M10 22 L32 14 L54 22 L32 30 Z" fill="currentColor"/><path d="M18 26 V40 Q32 48 46 40 V26" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"/><line x1="54" y1="22" x2="54" y2="38" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="54" cy="40" r="2" fill="currentColor"/></svg>
+            <!-- 新人育成・レッスン: stack of 3 books -->
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g fill="currentColor">
+                <!-- top book -->
+                <rect x="14" y="17" width="32" height="10" rx="1"/>
+                <!-- little white detail on top book spine -->
+                <rect x="17" y="19" width="2" height="6" fill="#ffffff"/>
+                <!-- middle book -->
+                <rect x="12" y="29" width="36" height="10" rx="1"/>
+                <rect x="41" y="31" width="2" height="6" fill="#ffffff"/>
+                <!-- bottom book -->
+                <rect x="10" y="41" width="40" height="10" rx="1"/>
+                <rect x="13" y="43" width="2" height="6" fill="#ffffff"/>
+                <!-- bookmark ribbon on bottom book -->
+                <path d="M38 41 L38 52 L41 49 L44 52 L44 41 Z"/>
+              </g>
+            </svg>
           </div>
           <div class="service-label">新人育成・レッスン</div>
           <p>演技・ダンス・発声・立ち振る舞いまで、第一線の講師陣によるマンツーマンと集団のレッスンを提供します。</p>
@@ -141,7 +167,27 @@
 
         <div class="service-tile">
           <div class="service-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64" fill="none"><rect x="10" y="14" width="44" height="36" rx="3" stroke="currentColor" stroke-width="2.5" fill="none"/><line x1="32" y1="14" x2="32" y2="50" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="22" x2="28" y2="22" stroke="currentColor" stroke-width="2"/><line x1="14" y1="28" x2="28" y2="28" stroke="currentColor" stroke-width="2"/><line x1="14" y1="34" x2="24" y2="34" stroke="currentColor" stroke-width="2"/><path d="M40 38 L46 32 L52 38" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 30 L42 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <!-- 広告制作: open book + pencil -->
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g fill="currentColor">
+                <!-- left page -->
+                <path d="M6 22 L30 26 L30 50 L6 46 Z"/>
+                <!-- right page -->
+                <path d="M58 22 L34 26 L34 50 L58 46 Z"/>
+                <!-- page ruled lines -->
+                <line x1="11" y1="30" x2="25" y2="32" stroke="#ffffff" stroke-width="1.5"/>
+                <line x1="11" y1="36" x2="25" y2="38" stroke="#ffffff" stroke-width="1.5"/>
+                <line x1="11" y1="42" x2="22" y2="44" stroke="#ffffff" stroke-width="1.5"/>
+                <line x1="39" y1="32" x2="53" y2="30" stroke="#ffffff" stroke-width="1.5"/>
+                <line x1="39" y1="38" x2="53" y2="36" stroke="#ffffff" stroke-width="1.5"/>
+                <!-- pencil (rotated, top right) -->
+                <path d="M42 10 L54 22 L50 26 L38 14 Z"/>
+                <!-- pencil tip -->
+                <path d="M36 12 L38 14 L42 10 L40 8 Z"/>
+                <!-- pencil eraser tip -->
+                <path d="M54 22 L58 18 L60 20 L56 24 Z" fill="#ffffff" stroke="currentColor" stroke-width="1.5"/>
+              </g>
+            </svg>
           </div>
           <div class="service-label">広告制作</div>
           <p>TVCM・WebCM・SNS広告。所属タレントのキャスティングから広告クリエイティブまでワンストップで対応します。</p>
@@ -149,7 +195,22 @@
 
         <div class="service-tile">
           <div class="service-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64" fill="none"><rect x="16" y="14" width="32" height="40" rx="2" stroke="currentColor" stroke-width="2.5" fill="none"/><rect x="24" y="10" width="16" height="8" rx="1" stroke="currentColor" stroke-width="2.5" fill="none"/><path d="M22 28 L28 34 L42 22" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="22" y1="42" x2="42" y2="42" stroke="currentColor" stroke-width="2"/><line x1="22" y1="48" x2="36" y2="48" stroke="currentColor" stroke-width="2"/></svg>
+            <!-- イベント企画・SNS: clipboard with checkmark -->
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g fill="currentColor">
+                <!-- clipboard body -->
+                <rect x="14" y="14" width="36" height="44" rx="3"/>
+                <!-- inset white rectangle (paper area) -->
+                <rect x="18" y="20" width="28" height="34" rx="1" fill="#ffffff"/>
+                <!-- clip at top -->
+                <rect x="24" y="9" width="16" height="10" rx="2"/>
+                <rect x="27" y="12" width="10" height="3" fill="#ffffff"/>
+                <!-- checkmark inside -->
+                <path d="M22 33 L28 39 L42 25 L44 27 L28 43 L20 35 Z"/>
+                <!-- a ruled line beneath -->
+                <rect x="22" y="46" width="20" height="2" rx="1"/>
+              </g>
+            </svg>
           </div>
           <div class="service-label">イベント企画・SNS</div>
           <p>ブランドイベント、ファンミーティング、SNS施策まで。所属タレントと共にブランドの熱量を最大化します。</p>
@@ -306,7 +367,6 @@
       <div class="footer-grid">
         <div class="footer-col">
           <div class="logo">
-            <span class="logo-mark" aria-hidden="true"><img src="assets/img/logo-white.svg" alt=""></span>
             <span class="logo-word"><img class="word-blue" src="assets/img/wordmark-blue.svg" alt="AdvoVisions"><img class="word-white" src="assets/img/wordmark-white.svg" alt="AdvoVisions"></span>
           </div>
           <p style="margin-top:14px;">合同会社 AdvoVisions<br>あなたのVisionを世界へ提言するタレント・アーティストマネジメント。</p>
@@ -357,7 +417,7 @@
     </div>
   </div>
 
-  <script src="assets/js/members-data.js?v=5"></script>
+  <script src="assets/js/members-data.js?v=6"></script>
   <script>
     (function () {
       const host = document.getElementById("featured-talents-grid");
@@ -388,6 +448,6 @@
 
     })();
   </script>
-  <script src="assets/js/main.js?v=5"></script>
+  <script src="assets/js/main.js?v=6"></script>
 </body>
 </html>
