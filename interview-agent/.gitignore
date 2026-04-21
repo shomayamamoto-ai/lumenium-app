@@ -1,0 +1,11 @@
+# 候補者個人情報は Git に含めない（_example/ のみ許可）
+candidates/*
+!candidates/_example/
+!candidates/_example/**
+
+# 音声ファイル・文字起こし原本
+*.mp3
+*.m4a
+*.wav
+*.mp4
+transcript-raw-*.txt
