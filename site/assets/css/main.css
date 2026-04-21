@@ -51,123 +51,63 @@ a { color: inherit; text-decoration: none; }
 ::selection { background: var(--accent); color: var(--bg-0); }
 
 /* =========================================================
-   OPENING MOVIE (v6) — cinematic
-   Motion design principles used here:
-   • Emphasized easing (cubic-bezier(0.16, 1, 0.3, 1)) for a
-     "settling" feel that standard ease-out can't produce
-   • Character-level reveals with per-character delay via
-     CSS custom property --i
-   • Mask-image sweeps for typeset-style line wipes
-   • Slow, continuously animating background (gradients, orbs,
-     grain) so nothing is ever static — feels alive
-   • Parallax exits: each act translates upward as it leaves,
-     not just fades — gives sense of camera moving through
-   • GPU-only properties (transform, opacity, mask-position)
-   Timeline (~9.8s then 1s cross-fade):
-     0.0 – 3.2s   Act 1   慶 友 会 (char-by-char)
-     3.0 – 6.2s   Act 2   3-line philosophy + rule sweeps
-     5.9 – 9.8s   Act 3   社 会 学 ゼ ミ + motto
-     9.8 – 10.8s  crossfade to main site
+   OPENING MOVIE (v7) — Awwwards-grade kinetic typography
+
+   Motion design principles applied:
+   - "Mask-and-rise" glyph reveals (overflow:hidden container
+     + inner translateY(105%) → 0). No clip-path interpolation,
+     no background-position wipes. Pure GPU transforms.
+   - Emphasized easing cubic-bezier(0.22, 1, 0.36, 1)
+     (easeOutQuint) on type; (0.83, 0, 0.17, 1) on exits
+   - 55ms stagger between glyphs, 220ms between acts
+   - NO filter: blur(), NO box-shadow radius > 8px. Glow is
+     text-shadow with small radii, pre-rasterized by browser
+   - Canvas particles: 40 max, pre-baked glow sprite, DPR <= 2
+   - Animations gated on JS adding .is-ready to <body> after
+     document.fonts.ready so nothing runs under FOUT conditions
+   - will-change: transform only on in-flight glyphs; cleared
+     when timeline ends to free GPU layers
    ========================================================= */
 
-.opening {
+.op {
   position: fixed;
   inset: 0;
   z-index: 100;
   overflow: hidden;
-  background: #05070c;
+  background: #050811;
   color: #f5f1e6;
   -webkit-font-smoothing: antialiased;
-  animation: op-fade 1s cubic-bezier(0.4, 0, 0.2, 1) 9.8s forwards;
-}
-@keyframes op-fade {
-  0%   { opacity: 1; }
-  100% { opacity: 0; visibility: hidden; pointer-events: none; }
-}
-.opening.is-done {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  text-rendering: geometricPrecision;
+  contain: strict;
 }
 
-/* ============ BACKDROP (always animating) ============ */
-.op-backdrop {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-/* Two breathing gradient layers that slowly cross-shift */
-.op-grad {
-  position: absolute;
-  inset: -15%;
-  opacity: 0.85;
-  will-change: transform, opacity;
-}
-.op-grad-1 {
-  background:
-    radial-gradient(60% 50% at 30% 40%, rgba(30, 58, 107, 0.6) 0%, transparent 70%),
-    radial-gradient(50% 40% at 70% 60%, rgba(200, 169, 106, 0.25) 0%, transparent 70%);
-  animation: op-grad-drift 22s ease-in-out infinite alternate;
-}
-.op-grad-2 {
-  background:
-    radial-gradient(40% 30% at 80% 30%, rgba(111, 169, 255, 0.22) 0%, transparent 70%),
-    radial-gradient(55% 45% at 20% 80%, rgba(231, 212, 163, 0.18) 0%, transparent 70%);
-  animation: op-grad-drift 28s ease-in-out 4s infinite alternate-reverse;
-}
-@keyframes op-grad-drift {
-  0%   { transform: translate3d(0, 0, 0) scale(1);    opacity: 0.7; }
-  50%  { transform: translate3d(-3%, 2%, 0) scale(1.05); opacity: 1; }
-  100% { transform: translate3d(2%, -3%, 0) scale(1); opacity: 0.7; }
-}
-
-/* Three soft glow orbs pulsing at offset rates */
-.op-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
+.op.is-done {
   opacity: 0;
-  will-change: transform, opacity;
-}
-.op-orb-1 {
-  top: 18%; left: 12%;
-  width: 340px; height: 340px;
-  background: radial-gradient(circle, rgba(231, 212, 163, 0.7), transparent 70%);
-  animation: op-orb-pulse 7s cubic-bezier(0.4, 0, 0.6, 1) 0.2s infinite;
-}
-.op-orb-2 {
-  bottom: 14%; right: 10%;
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, rgba(111, 169, 255, 0.55), transparent 70%);
-  animation: op-orb-pulse 9s cubic-bezier(0.4, 0, 0.6, 1) 1.5s infinite;
-}
-.op-orb-3 {
-  top: 55%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, rgba(200, 169, 106, 0.55), transparent 70%);
-  animation: op-orb-center 10s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes op-orb-pulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.95); }
-  50%      { opacity: 0.9; transform: scale(1.12); }
-}
-@keyframes op-orb-center {
-  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
-  50%      { opacity: 0.8; transform: translate(-50%, -50%) scale(1.2); }
+  pointer-events: none;
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Film-grain overlay */
-.op-grain {
+/* ============ BACKDROP ============ */
+.op-bg {
   position: absolute;
   inset: 0;
-  mix-blend-mode: overlay;
-  opacity: 0.08;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   pointer-events: none;
+}
+.op-bg-a, .op-bg-b {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+}
+.op-bg-a {
+  background:
+    radial-gradient(55% 45% at 30% 40%, rgba(35, 62, 110, 0.55), transparent 70%),
+    radial-gradient(50% 40% at 70% 65%, rgba(200, 169, 106, 0.22), transparent 70%);
+}
+.op-bg-b {
+  background:
+    radial-gradient(45% 35% at 80% 25%, rgba(111, 169, 255, 0.18), transparent 72%),
+    radial-gradient(50% 40% at 20% 80%, rgba(231, 212, 163, 0.12), transparent 70%);
 }
 
 #op-particles {
@@ -175,18 +115,44 @@ a { color: inherit; text-decoration: none; }
   inset: 0;
   width: 100% !important;
   height: 100% !important;
-  pointer-events: none;
-  opacity: 0.9;
+  opacity: 0;
 }
 
-/* ============ STAGE & ACTS ============ */
+.is-ready .op-bg-a { animation: op-bg-in 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards; }
+.is-ready .op-bg-b { animation: op-bg-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards; }
+.is-ready #op-particles { animation: op-bg-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards; }
+@keyframes op-bg-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ============ HAIRLINE RULES (draw across) ============ */
+.op-rule {
+  position: absolute;
+  left: 6vw;
+  right: 6vw;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(200, 169, 106, 0.9) 20%, rgba(231, 212, 163, 1) 50%, rgba(200, 169, 106, 0.9) 80%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.op-rule-t { top: 8vh; }
+.op-rule-b { bottom: 8vh; transform-origin: right center; }
+
+.is-ready .op-rule-t { animation: op-rule-draw 1.6s cubic-bezier(0.77, 0, 0.175, 1) 0.25s forwards; }
+.is-ready .op-rule-b { animation: op-rule-draw 1.6s cubic-bezier(0.77, 0, 0.175, 1) 0.45s forwards; }
+@keyframes op-rule-draw {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+/* ============ STAGE ============ */
 .op-stage {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 0 clamp(1rem, 5vw, 4rem);
-  perspective: 1200px;
+  padding: 0 6vw;
 }
 
 .op-act {
@@ -194,281 +160,178 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   text-align: center;
   opacity: 0;
-  transform: translate3d(0, 40px, 0);
+  transform: translate3d(0, 0, 0);
   will-change: transform, opacity;
 }
 
-/* EMPHASIZED easing curve — feels premium, Material 3 style */
-.op-act-1 { animation: op-act-in-out 3.2s cubic-bezier(0.16, 1, 0.3, 1) 0s    both; }
-.op-act-2 { animation: op-act-in-out 3.2s cubic-bezier(0.16, 1, 0.3, 1) 3.0s  both; }
-.op-act-3 { animation: op-act-final 4.4s cubic-bezier(0.16, 1, 0.3, 1) 5.9s  both; }
+/* Act entries/exits orchestrated via ~body.is-ready selector
+   so nothing plays until JS has confirmed fonts + layout ready. */
+.is-ready .op-act[data-act="1"] { animation: op-act-enter 0.001s linear 0s forwards, op-act-exit 0.8s cubic-bezier(0.83, 0, 0.17, 1) 2.75s forwards; }
+.is-ready .op-act[data-act="2"] { animation: op-act-enter 0.001s linear 3.0s forwards, op-act-exit 0.8s cubic-bezier(0.83, 0, 0.17, 1) 5.7s forwards; }
+.is-ready .op-act[data-act="3"] { animation: op-act-enter 0.001s linear 6.0s forwards; }
 
-@keyframes op-act-in-out {
-  0%   { opacity: 0; transform: translate3d(0, 40px, 0); }
-  15%  { opacity: 1; transform: translate3d(0, 0, 0); }
-  80%  { opacity: 1; transform: translate3d(0, 0, 0); }
-  100% { opacity: 0; transform: translate3d(0, -40px, 0); }
+@keyframes op-act-enter {
+  to { opacity: 1; }
 }
-@keyframes op-act-final {
-  0%   { opacity: 0; transform: translate3d(0, 40px, 0); }
-  15%  { opacity: 1; transform: translate3d(0, 0, 0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+@keyframes op-act-exit {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0); }
+  100% { opacity: 0; transform: translate3d(0, -30px, 0); }
 }
 
-/* --- shared eyebrow --- */
+/* ============ MASK-AND-RISE PRIMITIVE ============ */
+.op-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  line-height: 1;
+  padding: 0.08em 0;  /* breathe for descenders */
+}
+.op-clip-in {
+  display: inline-block;
+  transform: translate3d(0, 110%, 0);
+  will-change: transform;
+}
+.is-ready .op-clip-in {
+  animation: op-rise 1.4s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0s) forwards;
+}
+@keyframes op-rise {
+  0%   { transform: translate3d(0, 110%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* Parent-level delay inheritance for glyphs */
+.op-big > .op-clip { margin: 0 0.03em; }
+.op-motto > .op-clip { display: inline-block; }
+
+/* ============ TYPOGRAPHY ============ */
 .op-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 1.2rem;
-  margin-bottom: 2rem;
   font-family: "Cormorant Garamond", "Shippori Mincho", serif;
   font-style: italic;
-  font-size: clamp(0.78rem, 1.1vw, 0.95rem);
-  letter-spacing: 0.5em;
-  color: #c8a96a;
+  font-size: clamp(0.78rem, 1.05vw, 0.95rem);
+  letter-spacing: 0.45em;
+  color: rgba(231, 212, 163, 0.92);
   text-transform: uppercase;
-}
-.op-hair {
-  display: block;
-  width: 44px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #c8a96a, transparent);
+  margin-bottom: 1.8rem;
 }
 
-/* ============ ACT 1: 慶 友 会 ============ */
-.op-kanji {
-  display: flex;
-  gap: 0.15em;
-  font-family: "Shippori Mincho", "Noto Serif JP", serif;
+.op-big {
+  font-family: "Shippori Mincho", "Noto Serif JP", "Hiragino Mincho ProN", serif;
   font-weight: 600;
-  font-size: clamp(4.5rem, 14vw, 11rem);
+  font-size: clamp(4.2rem, 13vw, 10.5rem);
   line-height: 1;
   color: #ffffff;
-}
-.op-k {
-  display: inline-block;
-  opacity: 0;
-  transform: translate3d(0, 60px, 0) rotateX(-40deg);
-  transform-origin: 50% 100%;
+  letter-spacing: 0.03em;
   text-shadow:
-    0 0 50px rgba(231, 212, 163, 0.6),
-    0 0 120px rgba(200, 169, 106, 0.35);
-  animation: op-k-in 1.5s cubic-bezier(0.16, 1, 0.3, 1) calc(0.3s + var(--i) * 0.18s) both;
-  will-change: transform, opacity;
+    0 0 30px rgba(231, 212, 163, 0.5),
+    0 0 70px rgba(200, 169, 106, 0.22);
 }
-@keyframes op-k-in {
-  0%   { opacity: 0; transform: translate3d(0, 60px, 0) rotateX(-40deg); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0); }
+.op-glyph {
+  display: inline-block;
 }
+.op-glyph-small {
+  font-size: 0.68em;
+  color: #e7d4a3;
+  vertical-align: 0.3em;
+}
+.op-small-wrap { vertical-align: baseline; }
 
-.op-sub-1 {
-  margin-top: 2rem;
+.op-sub {
+  margin-top: 1.8rem;
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
-  font-size: clamp(1rem, 1.7vw, 1.3rem);
-  color: #e7d4a3;
-  letter-spacing: 0.8em;
-  text-indent: 0.8em; /* compensate letter-spacing trailing */
-}
-.op-sub-1 span {
-  display: inline-block;
-  opacity: 0;
-  transform: translate3d(0, 16px, 0);
-  animation: op-letter-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.op-sub-1 span:nth-child(1) { animation-delay: 1.0s; }
-.op-sub-1 span:nth-child(2) { animation-delay: 1.08s; }
-.op-sub-1 span:nth-child(3) { animation-delay: 1.16s; }
-.op-sub-1 span:nth-child(4) { animation-delay: 1.24s; }
-.op-sub-1 span:nth-child(5) { animation-delay: 1.32s; }
-.op-sub-1 span:nth-child(6) { animation-delay: 1.40s; }
-.op-sub-1 span:nth-child(7) { animation-delay: 1.48s; }
-.op-sub-1 span:nth-child(8) { animation-delay: 1.56s; }
-@keyframes op-letter-in {
-  0%   { opacity: 0; transform: translate3d(0, 16px, 0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  letter-spacing: 0.38em;
+  color: rgba(231, 212, 163, 0.78);
+  text-transform: uppercase;
 }
 
-/* ============ ACT 2: philosophy lines ============ */
-.op-act-2 { gap: 1.6rem; }
-
-.op-line {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 1.4rem;
-}
-.op-line-text {
+.op-phrase {
   font-family: "Shippori Mincho", "Noto Serif JP", serif;
-  font-weight: 400;
-  font-size: clamp(1.9rem, 4.2vw, 3.2rem);
-  letter-spacing: 0.2em;
-  color: #d7d1c1;
-  /* linear-gradient mask wipes the text in left-to-right */
-  background-image: linear-gradient(90deg, #d7d1c1 50%, rgba(215, 209, 193, 0) 50.01%);
-  background-size: 220% 100%;
-  background-position: 100% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: op-text-wipe 1.4s cubic-bezier(0.16, 1, 0.3, 1) calc(3.1s + var(--i) * 0.4s) both;
-  will-change: background-position;
+  font-weight: 500;
+  font-size: clamp(1.9rem, 4.4vw, 3.3rem);
+  letter-spacing: 0.18em;
+  color: #e8e2d0;
+  line-height: 1.6;
 }
-.op-line-text em {
+.op-phrase em {
   font-style: normal;
   font-weight: 700;
   color: #e7d4a3;
-  background: linear-gradient(90deg, #e7d4a3 50%, rgba(231, 212, 163, 0) 50.01%);
-  background-size: 220% 100%;
-  background-position: 100% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-left: 0.3em;
+  margin-left: 0.35em;
   letter-spacing: 0.12em;
-  animation: op-text-wipe 1.4s cubic-bezier(0.16, 1, 0.3, 1) calc(3.3s + var(--i) * 0.4s) both;
-}
-@keyframes op-text-wipe {
-  0%   { background-position: 100% 0; }
-  100% { background-position: 0% 0; }
+  text-shadow: 0 0 18px rgba(200, 169, 106, 0.35);
 }
 
-.op-line-rule {
-  position: absolute;
-  bottom: -0.5rem;
-  left: 0;
-  height: 1px;
-  width: 100%;
-  background: linear-gradient(to right, transparent, #c8a96a 30%, #e7d4a3 50%, #c8a96a 70%, transparent);
-  transform: scaleX(0);
-  transform-origin: left center;
-  animation: op-rule-sweep 1.3s cubic-bezier(0.16, 1, 0.3, 1) calc(3.55s + var(--i) * 0.4s) both;
-  will-change: transform;
-}
-@keyframes op-rule-sweep {
-  0%   { transform: scaleX(0); transform-origin: left center; }
-  60%  { transform: scaleX(1); transform-origin: left center; }
-  100% { transform: scaleX(1); transform-origin: right center; }
-}
-
-/* ============ ACT 3: Grand title ============ */
-.op-act-3 { gap: 1.2rem; }
-
-.op-eyebrow-3 {
-  animation: op-letter-in 1s cubic-bezier(0.16, 1, 0.3, 1) 6.2s both;
-}
-
-.op-title-jp {
-  display: flex;
-  gap: 0.1em;
-  align-items: baseline;
-  margin: 0.4rem 0 0.3rem;
-  font-family: "Shippori Mincho", "Noto Serif JP", serif;
-  font-weight: 700;
-  font-size: clamp(3.5rem, 11vw, 8.5rem);
-  line-height: 1;
-  color: #ffffff;
-  letter-spacing: 0.05em;
-}
-.op-tw {
-  display: inline-block;
-  opacity: 0;
-  transform: translate3d(0, 50px, 0) scale(0.7);
-  transform-origin: 50% 60%;
-  text-shadow:
-    0 0 40px rgba(231, 212, 163, 0.55),
-    0 0 110px rgba(200, 169, 106, 0.3);
-  animation: op-tw-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) calc(6.45s + var(--i) * 0.14s) both;
-  will-change: transform, opacity;
-}
-.op-tw-small {
-  font-size: 0.7em;
-  color: #e7d4a3;
-}
-@keyframes op-tw-in {
-  0%   { opacity: 0; transform: translate3d(0, 50px, 0) scale(0.7); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-}
-
-.op-title-en {
+.op-en {
+  margin-top: 1.2rem;
   font-family: "Cormorant Garamond", serif;
   font-style: italic;
-  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
-  letter-spacing: 0.5em;
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  letter-spacing: 0.42em;
   color: #c8a96a;
   text-transform: uppercase;
-  opacity: 0;
-  transform: translate3d(0, 18px, 0);
-  animation: op-letter-in 1s cubic-bezier(0.16, 1, 0.3, 1) 7.7s both;
 }
 
-.op-divider-x {
+.op-divider {
   width: 0;
   height: 1px;
-  background: linear-gradient(to right, transparent, #c8a96a, transparent);
-  margin: 1rem 0 0.8rem;
-  animation: op-divider-grow 1.2s cubic-bezier(0.16, 1, 0.3, 1) 8.0s both;
-  will-change: width;
+  background: linear-gradient(to right, transparent, #c8a96a 30%, #e7d4a3 50%, #c8a96a 70%, transparent);
+  margin: 1.3rem 0 1rem;
+}
+.is-ready .op-act[data-act="3"] .op-divider {
+  animation: op-divider-grow 1.4s cubic-bezier(0.22, 1, 0.36, 1) 8.0s forwards;
 }
 @keyframes op-divider-grow {
-  0%   { width: 0; }
-  100% { width: 260px; }
+  0%   { width: 0; opacity: 0; }
+  100% { width: 280px; opacity: 1; }
 }
 
 .op-motto {
   font-family: "Shippori Mincho", serif;
-  font-size: clamp(0.85rem, 1.25vw, 1rem);
+  font-size: clamp(0.9rem, 1.3vw, 1.05rem);
   letter-spacing: 0.45em;
   color: #e7d4a3;
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 0.2em;
 }
-.op-tw-m {
+.op-motto-dash { display: inline-block; margin: 0 0.6em; color: #c8a96a; }
+.op-motto-jp {
   display: inline-block;
-  opacity: 0;
-  transform: translate3d(0, 12px, 0);
-  animation: op-letter-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(8.3s + var(--i) * 0.08s) both;
-}
-.op-motto-sep {
-  margin: 0 0.4rem;
-  color: #c8a96a;
-  opacity: 0;
-  animation: op-letter-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) 8.7s both;
-}
-.op-motto-sub {
-  opacity: 0;
-  color: #d7d1c1;
-  letter-spacing: 0.3em;
-  animation: op-letter-in 1s cubic-bezier(0.16, 1, 0.3, 1) 8.9s both;
+  letter-spacing: 0.28em;
+  color: rgba(215, 209, 193, 0.95);
+  font-weight: 500;
 }
 
 /* ============ HUD ============ */
 .op-hud {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  bottom: 2rem;
+  left: 2rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
+  gap: 0.6rem;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   letter-spacing: 0.3em;
-  color: rgba(245, 241, 230, 0.5);
+  color: rgba(245, 241, 230, 0.4);
   text-transform: uppercase;
   opacity: 0;
-  animation: op-letter-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
 }
+.is-ready .op-hud { animation: op-act-enter 0.001s linear 0.3s forwards, op-hud-fade 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; }
+@keyframes op-hud-fade {
+  0%   { opacity: 0; transform: translate3d(0, 10px, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
 .op-hud-bar {
-  width: 180px;
+  width: 160px;
   height: 1px;
   background: rgba(245, 241, 230, 0.1);
   overflow: hidden;
@@ -477,8 +340,9 @@ a { color: inherit; text-decoration: none; }
   width: 0;
   height: 100%;
   background: linear-gradient(to right, #c8a96a, #e7d4a3);
-  animation: op-hud-grow 9.8s linear 0s both;
-  will-change: width;
+}
+.is-ready .op-hud-fill {
+  animation: op-hud-grow 9.5s linear 0.3s forwards;
 }
 @keyframes op-hud-grow {
   0%   { width: 0; }
@@ -488,48 +352,58 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   gap: 1rem;
   font-size: 0.55rem;
-  color: rgba(245, 241, 230, 0.35);
+  color: rgba(245, 241, 230, 0.3);
 }
 
 /* ============ SKIP ============ */
 .op-skip {
   position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  bottom: 2rem;
+  right: 2rem;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.75rem 1.3rem;
+  padding: 0.8rem 1.3rem;
   background: transparent;
   border: 1px solid rgba(245, 241, 230, 0.18);
-  color: rgba(245, 241, 230, 0.7);
+  color: rgba(245, 241, 230, 0.75);
   font-family: ui-monospace, monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.3em;
+  font-size: 0.65rem;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   cursor: pointer;
   opacity: 0;
-  animation: op-letter-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
-  transition: color 0.3s, border-color 0.3s, background 0.3s;
+  transition: color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-ready .op-skip {
+  animation: op-hud-fade 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
 }
 .op-skip:hover {
   color: #e7d4a3;
   border-color: #c8a96a;
-  background: rgba(200, 169, 106, 0.08);
+  background: rgba(200, 169, 106, 0.06);
 }
-.op-skip-arrow { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.op-skip-arrow { transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
 .op-skip:hover .op-skip-arrow { transform: translateX(5px); }
 
 @media (max-width: 640px) {
-  .op-hud { font-size: 0.55rem; gap: 0.3rem; }
+  .op-rule-t { top: 6vh; }
+  .op-rule-b { bottom: 6vh; }
+  .op-hud { bottom: 1.2rem; left: 1.2rem; }
   .op-hud-bar { width: 120px; }
+  .op-skip { bottom: 1.2rem; right: 1.2rem; padding: 0.6rem 1rem; font-size: 0.6rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .opening *, .opening *::before, .opening *::after {
+  .op *, .op *::before, .op *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+  .op-clip-in { transform: none !important; }
+  .op-rule { transform: scaleX(1) !important; }
 }
 /* =========================================================
    SITE FRAME

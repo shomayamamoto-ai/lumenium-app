@@ -10,91 +10,88 @@
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Noto+Serif+JP:wght@300;400;500;600;700&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=6" />
+  <!-- Preload the two critical font files so the intro doesn't FOUT -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/main.css?v=7" />
 </head>
 <body>
 
-  <!-- ============ OPENING MOVIE (v6 — cinematic) ============ -->
-  <div id="opening" class="opening">
+  <!-- ============ OPENING (v7 — Awwwards-grade kinetic typography) ============ -->
+  <div id="opening" class="op">
 
-    <!-- Continuous background layers (always animating) -->
-    <div class="op-backdrop" aria-hidden="true">
-      <div class="op-grad op-grad-1"></div>
-      <div class="op-grad op-grad-2"></div>
-      <div class="op-orb op-orb-1"></div>
-      <div class="op-orb op-orb-2"></div>
-      <div class="op-orb op-orb-3"></div>
-      <div class="op-grain"></div>
+    <!-- Calm static backdrop + subtle canvas particles -->
+    <div class="op-bg" aria-hidden="true">
+      <div class="op-bg-a"></div>
+      <div class="op-bg-b"></div>
       <canvas id="op-particles"></canvas>
     </div>
 
-    <!-- Stage -->
+    <!-- Thin horizontal rules that draw before type -->
+    <div class="op-rule op-rule-t" aria-hidden="true"></div>
+    <div class="op-rule op-rule-b" aria-hidden="true"></div>
+
+    <!-- Stage: three stacked acts -->
     <div class="op-stage">
 
-      <!-- Act 1 — 慶友会, character-by-character -->
-      <div class="op-act op-act-1">
-        <div class="op-eyebrow op-eyebrow-1">
-          <span class="op-hair"></span>
-          <span>EST. 慶應義塾</span>
-          <span class="op-hair"></span>
+      <!-- ACT 1 -->
+      <div class="op-act" data-act="1">
+        <div class="op-eyebrow" style="--d:0.55s">
+          <span class="op-clip"><span class="op-clip-in">EST. 慶應義塾 · KEIYUKAI</span></span>
         </div>
-        <div class="op-kanji">
-          <span class="op-k" style="--i:0">慶</span>
-          <span class="op-k" style="--i:1">友</span>
-          <span class="op-k" style="--i:2">会</span>
+        <div class="op-big">
+          <span class="op-clip" style="--d:0.75s"><span class="op-clip-in op-glyph">慶</span></span><span class="op-clip" style="--d:0.82s"><span class="op-clip-in op-glyph">友</span></span><span class="op-clip" style="--d:0.89s"><span class="op-clip-in op-glyph">会</span></span>
         </div>
-        <div class="op-sub op-sub-1">
-          <span>K</span><span>E</span><span>I</span><span>Y</span><span>U</span><span>K</span><span>A</span><span>I</span>
+        <div class="op-sub" style="--d:1.5s">
+          <span class="op-clip"><span class="op-clip-in">Sociology Seminar · Since 慶應義塾</span></span>
         </div>
       </div>
 
-      <!-- Act 2 — three philosophical lines with underline sweeps -->
-      <div class="op-act op-act-2">
-        <div class="op-line" style="--i:0">
-          <span class="op-line-text">本質的<em>思考</em></span>
-          <span class="op-line-rule"></span>
+      <!-- ACT 2 -->
+      <div class="op-act" data-act="2">
+        <div class="op-phrase" style="--d:3.2s">
+          <span class="op-clip"><span class="op-clip-in">本質的<em>思考</em></span></span>
         </div>
-        <div class="op-line" style="--i:1">
-          <span class="op-line-text">本質的<em>学び</em></span>
-          <span class="op-line-rule"></span>
+        <div class="op-phrase" style="--d:3.42s">
+          <span class="op-clip"><span class="op-clip-in">本質的<em>学び</em></span></span>
         </div>
-        <div class="op-line" style="--i:2">
-          <span class="op-line-text">自立できる<em>ちから</em></span>
-          <span class="op-line-rule"></span>
+        <div class="op-phrase" style="--d:3.64s">
+          <span class="op-clip"><span class="op-clip-in">自立できる<em>ちから</em></span></span>
         </div>
       </div>
 
-      <!-- Act 3 — grand title -->
-      <div class="op-act op-act-3">
-        <div class="op-eyebrow op-eyebrow-3">
-          <span class="op-hair"></span>
-          <span>慶應義塾大学 通信教育課程</span>
-          <span class="op-hair"></span>
+      <!-- ACT 3 -->
+      <div class="op-act" data-act="3">
+        <div class="op-eyebrow" style="--d:6.3s">
+          <span class="op-clip"><span class="op-clip-in">慶應義塾大学 通信教育課程</span></span>
         </div>
-        <h1 class="op-title-jp">
-          <span class="op-tw" style="--i:0">社</span><span class="op-tw" style="--i:1">会</span><span class="op-tw" style="--i:2">学</span><span class="op-tw op-tw-small" style="--i:3">ゼ</span><span class="op-tw op-tw-small" style="--i:4">ミ</span>
-        </h1>
-        <div class="op-title-en">Sociology Seminar</div>
-        <div class="op-divider-x"></div>
+        <div class="op-big">
+          <span class="op-clip" style="--d:6.55s"><span class="op-clip-in op-glyph">社</span></span><span class="op-clip" style="--d:6.62s"><span class="op-clip-in op-glyph">会</span></span><span class="op-clip" style="--d:6.69s"><span class="op-clip-in op-glyph">学</span></span><span class="op-clip op-small-wrap" style="--d:6.78s"><span class="op-clip-in op-glyph op-glyph-small">ゼ</span></span><span class="op-clip op-small-wrap" style="--d:6.85s"><span class="op-clip-in op-glyph op-glyph-small">ミ</span></span>
+        </div>
+        <div class="op-en" style="--d:7.5s">
+          <span class="op-clip"><span class="op-clip-in">Sociology Seminar</span></span>
+        </div>
+        <div class="op-divider"></div>
         <div class="op-motto">
-          <span class="op-tw-m" style="--i:0">自</span><span class="op-tw-m" style="--i:1">我</span><span class="op-tw-m" style="--i:2">作</span><span class="op-tw-m" style="--i:3">古</span>
-          <span class="op-motto-sep">—</span>
-          <span class="op-motto-sub">われよりいにしえをなす</span>
+          <span class="op-clip" style="--d:8.25s"><span class="op-clip-in">自</span></span><span class="op-clip" style="--d:8.30s"><span class="op-clip-in">我</span></span><span class="op-clip" style="--d:8.35s"><span class="op-clip-in">作</span></span><span class="op-clip" style="--d:8.40s"><span class="op-clip-in">古</span></span>
+          <span class="op-motto-dash" style="--d:8.55s"><span class="op-clip"><span class="op-clip-in">—</span></span></span>
+          <span class="op-motto-jp" style="--d:8.65s"><span class="op-clip"><span class="op-clip-in">われよりいにしえをなす</span></span></span>
         </div>
       </div>
     </div>
 
     <!-- HUD -->
     <div class="op-hud" aria-hidden="true">
-      <div class="op-hud-label">SOCIOLOGY SEMINAR · OPENING</div>
       <div class="op-hud-bar"><div class="op-hud-fill"></div></div>
-      <div class="op-hud-meta"><span>BUILD v6</span><span>2026</span></div>
+      <div class="op-hud-meta">
+        <span>SOCIOLOGY SEMINAR</span>
+        <span>BUILD · 2026</span>
+      </div>
     </div>
 
     <!-- Skip -->
     <button type="button" class="op-skip" id="opening-skip">
-      <span>SKIP</span>
+      <span class="op-clip"><span class="op-clip-in">SKIP</span></span>
       <span class="op-skip-arrow" aria-hidden="true">→</span>
     </button>
   </div>
@@ -615,6 +612,6 @@
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=6"></script>
+  <script src="assets/js/main.js?v=7"></script>
 </body>
 </html>

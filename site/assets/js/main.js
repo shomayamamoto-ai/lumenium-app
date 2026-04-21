@@ -1,15 +1,14 @@
 (() => {
   'use strict';
+  console.log('[sociology-seminar] main.js v7 — Awwwards-grade motion');
 
-  console.log('[sociology-seminar] main.js v6 loaded');
-
-  /* ===================================================
-     OPENING — CSS drives choreography.
-     JS adds: smooth canvas particles, skip, site reveal.
-     =================================================== */
+  /* =========================================================
+     OPENING: fonts-gated, mask-and-rise CSS timeline
+     JS owns: fonts.ready gate, particle layer, skip/cleanup.
+     ========================================================= */
 
   const OPENING_DURATION = 9800;
-  const FADE_OUT_MS = 1000;
+  const FADE_OUT_MS = 900;
 
   const opening = document.getElementById('opening');
   const site = document.getElementById('site');
@@ -18,11 +17,26 @@
   let finished = false;
   let rafId = null;
 
-  /* ----- Smooth canvas particle layer ----- */
-  const ctx = canvas ? canvas.getContext('2d') : null;
+  /* ---------- Pre-baked glow sprite (fast particles) ---------- */
+  function makeGlowSprite(color) {
+    const s = document.createElement('canvas');
+    s.width = s.height = 48;
+    const g = s.getContext('2d');
+    const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+    grad.addColorStop(0.0, color);
+    grad.addColorStop(0.25, color.replace(/[\d.]+\)/, '0.5)'));
+    grad.addColorStop(1.0, color.replace(/[\d.]+\)/, '0)'));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 48, 48);
+    return s;
+  }
+
+  const glowGold = (typeof document !== 'undefined') ? makeGlowSprite('rgba(231, 212, 163, 0.95)') : null;
+  const glowBlue = (typeof document !== 'undefined') ? makeGlowSprite('rgba(111, 169, 255, 0.95)') : null;
+
+  const ctx = canvas ? canvas.getContext('2d', { alpha: true }) : null;
   let W = 0, H = 0, dpr = 1;
   let particles = [];
-  let last = 0;
 
   function resizeCanvas() {
     if (!canvas || !ctx) return;
@@ -35,27 +49,25 @@
   }
 
   function seedParticles() {
-    const count = Math.min(120, Math.floor((W * H) / 14000));
+    // Cap at 40 — research says 120 with shadowBlur kills frame rate
+    const count = Math.min(40, Math.floor((W * H) / 38000));
     particles = [];
     for (let i = 0; i < count; i++) {
       particles.push({
         x: Math.random() * W,
         y: Math.random() * H,
-        r: Math.random() * 1.2 + 0.4,
-        vx: (Math.random() - 0.5) * 0.12,
-        vy: -Math.random() * 0.25 - 0.04,
+        size: 14 + Math.random() * 18,   // visual size
+        vx: (Math.random() - 0.5) * 0.08,
+        vy: -0.08 - Math.random() * 0.14,
         life: Math.random(),
-        speedLife: 0.0015 + Math.random() * 0.004,
-        hue: Math.random() < 0.2 ? 'azure' : 'gold',
+        speedLife: 0.0012 + Math.random() * 0.002,
+        blue: Math.random() < 0.22,
       });
     }
   }
 
-  function renderFrame(ts) {
+  function renderFrame() {
     if (!ctx) return;
-    if (!last) last = ts;
-    last = ts;
-
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
 
@@ -64,26 +76,21 @@
       p.x += p.vx;
       p.y += p.vy;
       p.life += p.speedLife;
-      if (p.y < -20 || p.life > 1.3) {
+      if (p.y < -30 || p.life > 1.2) {
         p.x = Math.random() * W;
-        p.y = H + Math.random() * 40;
+        p.y = H + Math.random() * 30;
         p.life = 0;
       }
-      const fade = Math.max(0, Math.sin(p.life * Math.PI));
-      const alpha = fade * (p.hue === 'azure' ? 0.55 : 0.85);
-      const color = p.hue === 'azure'
-        ? `rgba(111, 169, 255, ${alpha})`
-        : `rgba(231, 212, 163, ${alpha})`;
-      ctx.beginPath();
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 18;
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
+      const fade = Math.sin(p.life * Math.PI);
+      if (fade <= 0) continue;
+      ctx.globalAlpha = fade * (p.blue ? 0.45 : 0.75);
+      const sprite = p.blue ? glowBlue : glowGold;
+      const size = p.size;
+      // drawImage is far cheaper than shadowBlur per frame
+      ctx.drawImage(sprite, p.x - size / 2, p.y - size / 2, size, size);
     }
-    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-
     rafId = requestAnimationFrame(renderFrame);
   }
 
@@ -95,7 +102,27 @@
     window.addEventListener('resize', () => { resizeCanvas(); seedParticles(); });
   }
 
-  /* ----- lifecycle ----- */
+  /* ---------- Gate on fonts ready, then arm .is-ready ---------- */
+  function armOpening() {
+    // Force a single paint before triggering, warms the GPU pipeline
+    if (ctx) ctx.fillRect(0, 0, 1, 1);
+    document.body.classList.add('is-ready');
+    console.log('[sociology-seminar] opening armed');
+    startParticles();
+    setTimeout(() => finishOpening(FADE_OUT_MS), OPENING_DURATION + FADE_OUT_MS);
+  }
+
+  async function bootOpening() {
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch (_) { /* ignore */ }
+    // Two raf cycles guarantees layout is settled
+    requestAnimationFrame(() => requestAnimationFrame(armOpening));
+  }
+
+  /* ---------- Lifecycle ---------- */
   function revealSite() {
     if (!site) return;
     site.setAttribute('aria-hidden', 'false');
@@ -107,6 +134,10 @@
     finished = true;
     if (opening) opening.classList.add('is-done');
     revealSite();
+    // Strip will-change from type to release GPU layers
+    opening && opening.querySelectorAll('.op-clip-in').forEach((el) => {
+      el.style.willChange = 'auto';
+    });
     setTimeout(() => {
       if (rafId) cancelAnimationFrame(rafId);
       if (opening && opening.parentNode) opening.parentNode.removeChild(opening);
@@ -114,7 +145,6 @@
   }
 
   if (skipBtn) skipBtn.addEventListener('click', () => finishOpening(400));
-
   document.addEventListener('keydown', (e) => {
     if (finished) return;
     if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
@@ -123,12 +153,18 @@
     }
   });
 
-  setTimeout(() => finishOpening(FADE_OUT_MS), OPENING_DURATION + FADE_OUT_MS);
-  setTimeout(() => { if (!finished) finishOpening(0); }, OPENING_DURATION + FADE_OUT_MS + 3000);
+  // Safety fallback: guarantee exit even if fonts.ready hangs
+  setTimeout(() => {
+    if (!document.body.classList.contains('is-ready')) {
+      console.warn('[sociology-seminar] forcing is-ready (fonts hang)');
+      armOpening();
+    }
+  }, 1500);
+  setTimeout(() => { if (!finished) finishOpening(0); }, OPENING_DURATION + FADE_OUT_MS + 4000);
 
-  /* ===================================================
-     Main site interactions
-     =================================================== */
+  /* =========================================================
+     Main-site interactions
+     ========================================================= */
   function setupReveal() {
     const targets = document.querySelectorAll(
       '.section, .hero__content, .book, .activity, .pillar, .about__card, .value, .section__header, .philosophy__quote, .creed__statement, .process__step, .faq__item'
@@ -198,6 +234,6 @@
     setupSmoothScroll();
     setupParallax();
     setupNavShrink();
-    startParticles();
+    bootOpening();
   });
 })();
