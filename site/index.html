@@ -11,45 +11,92 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Noto+Serif+JP:wght@300;400;500;600;700&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=5" />
+  <link rel="stylesheet" href="assets/css/main.css?v=6" />
 </head>
 <body>
 
-  <!-- ============ OPENING MOVIE (v5 — minimal, bulletproof) ============ -->
+  <!-- ============ OPENING MOVIE (v6 — cinematic) ============ -->
   <div id="opening" class="opening">
 
-    <!-- HUGE build badge so you instantly see if new version loaded -->
-    <div class="op-build" aria-hidden="true">
-      <strong>BUILD v5</strong>
-      <span>OPENING MOVIE LOADED</span>
+    <!-- Continuous background layers (always animating) -->
+    <div class="op-backdrop" aria-hidden="true">
+      <div class="op-grad op-grad-1"></div>
+      <div class="op-grad op-grad-2"></div>
+      <div class="op-orb op-orb-1"></div>
+      <div class="op-orb op-orb-2"></div>
+      <div class="op-orb op-orb-3"></div>
+      <div class="op-grain"></div>
+      <canvas id="op-particles"></canvas>
     </div>
 
-    <!-- Act 1: giant kanji "社 会 学" -->
-    <div class="op-act op-act-1">
-      <div class="op-kanji">社 会 学</div>
-      <div class="op-sub">SOCIOLOGY SEMINAR</div>
+    <!-- Stage -->
+    <div class="op-stage">
+
+      <!-- Act 1 — 慶友会, character-by-character -->
+      <div class="op-act op-act-1">
+        <div class="op-eyebrow op-eyebrow-1">
+          <span class="op-hair"></span>
+          <span>EST. 慶應義塾</span>
+          <span class="op-hair"></span>
+        </div>
+        <div class="op-kanji">
+          <span class="op-k" style="--i:0">慶</span>
+          <span class="op-k" style="--i:1">友</span>
+          <span class="op-k" style="--i:2">会</span>
+        </div>
+        <div class="op-sub op-sub-1">
+          <span>K</span><span>E</span><span>I</span><span>Y</span><span>U</span><span>K</span><span>A</span><span>I</span>
+        </div>
+      </div>
+
+      <!-- Act 2 — three philosophical lines with underline sweeps -->
+      <div class="op-act op-act-2">
+        <div class="op-line" style="--i:0">
+          <span class="op-line-text">本質的<em>思考</em></span>
+          <span class="op-line-rule"></span>
+        </div>
+        <div class="op-line" style="--i:1">
+          <span class="op-line-text">本質的<em>学び</em></span>
+          <span class="op-line-rule"></span>
+        </div>
+        <div class="op-line" style="--i:2">
+          <span class="op-line-text">自立できる<em>ちから</em></span>
+          <span class="op-line-rule"></span>
+        </div>
+      </div>
+
+      <!-- Act 3 — grand title -->
+      <div class="op-act op-act-3">
+        <div class="op-eyebrow op-eyebrow-3">
+          <span class="op-hair"></span>
+          <span>慶應義塾大学 通信教育課程</span>
+          <span class="op-hair"></span>
+        </div>
+        <h1 class="op-title-jp">
+          <span class="op-tw" style="--i:0">社</span><span class="op-tw" style="--i:1">会</span><span class="op-tw" style="--i:2">学</span><span class="op-tw op-tw-small" style="--i:3">ゼ</span><span class="op-tw op-tw-small" style="--i:4">ミ</span>
+        </h1>
+        <div class="op-title-en">Sociology Seminar</div>
+        <div class="op-divider-x"></div>
+        <div class="op-motto">
+          <span class="op-tw-m" style="--i:0">自</span><span class="op-tw-m" style="--i:1">我</span><span class="op-tw-m" style="--i:2">作</span><span class="op-tw-m" style="--i:3">古</span>
+          <span class="op-motto-sep">—</span>
+          <span class="op-motto-sub">われよりいにしえをなす</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Act 2: three philosophical lines -->
-    <div class="op-act op-act-2">
-      <div class="op-line op-line-a">本質的<strong>思考</strong></div>
-      <div class="op-line op-line-b">本質的<strong>学び</strong></div>
-      <div class="op-line op-line-c">自立できる<strong>ちから</strong></div>
+    <!-- HUD -->
+    <div class="op-hud" aria-hidden="true">
+      <div class="op-hud-label">SOCIOLOGY SEMINAR · OPENING</div>
+      <div class="op-hud-bar"><div class="op-hud-fill"></div></div>
+      <div class="op-hud-meta"><span>BUILD v6</span><span>2026</span></div>
     </div>
 
-    <!-- Act 3: final title reveal -->
-    <div class="op-act op-act-3">
-      <div class="op-tag">慶應義塾大学 通信教育課程</div>
-      <h1 class="op-title">慶友会 社会学ゼミ</h1>
-      <div class="op-motto">自我作古 — われよりいにしえをなす</div>
-    </div>
-
-    <!-- Glow rings as decorative pulses -->
-    <div class="op-ring op-ring-1"></div>
-    <div class="op-ring op-ring-2"></div>
-
-    <!-- Skip button -->
-    <button type="button" class="op-skip" id="opening-skip">SKIP →</button>
+    <!-- Skip -->
+    <button type="button" class="op-skip" id="opening-skip">
+      <span>SKIP</span>
+      <span class="op-skip-arrow" aria-hidden="true">→</span>
+    </button>
   </div>
 
   <!-- ============ MAIN SITE ============ -->
@@ -568,6 +615,6 @@
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=5"></script>
+  <script src="assets/js/main.js?v=6"></script>
 </body>
 </html>
