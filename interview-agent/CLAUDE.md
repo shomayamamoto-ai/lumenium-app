@@ -19,10 +19,17 @@
 - 候補者の SNS 情報は**面談を円滑に進めるための公的情報**として扱い、ゴシップ的記述はしない
 - 宗教・政治・病歴などセンシティブ情報は原則ブリーフに含めない
 
-## 主要コマンド
+## 主要コマンド（10 種、フロー順）
+- `/new` — 候補者フォルダ自動生成（スカウト初期）
+- `/dm` — 初回スカウト DM 文面 3 パターン
 - `/brief` — 候補者ブリーフ生成（面談前）
+- `/rehearse` — 面談ロールプレイ台本
 - `/minutes` — 議事録生成（面談直後）
 - `/classify` — 候補者タイプ分類（議事録から）
+- `/followup` — 面談後フォローメッセージ（LINE/メール）
+- `/today` — 今日のアクション優先度リスト（毎朝）
+- `/weekly` — 週次 KPI レポート（毎週月曜）
+- `/compare` — 候補者差分分析（月 1 PDCA）
 
 ## ディレクトリ構成
 ```
@@ -40,11 +47,18 @@ interview-agent/
 └── candidates/
     ├── _example/              # 構造の見本（コミット対象）
     └── <slug>/                # 候補者ごとのフォルダ（.gitignore）
-        ├── profile.md         # 基本情報・SNS URL
-        ├── brief.md           # /brief 出力
-        ├── raw-notes.md       # 面談中の生メモ
-        ├── minutes.md         # /minutes 出力
-        └── classification.md  # /classify 出力
+        ├── profile.md            # 基本情報・SNS URL（/new で生成）
+        ├── dm-drafts.md          # 初回 DM 文面（/dm 出力）
+        ├── brief.md              # 面談前ブリーフ（/brief 出力）
+        ├── rehearsal.md          # 面談練習台本（/rehearse 出力）
+        ├── raw-notes.md          # 面談中の生メモ（チェックリスト形式）
+        ├── minutes.md            # 構造化議事録（/minutes 出力）
+        ├── classification.md     # 分類＋フォロー計画（/classify 出力）
+        └── followup-messages.md  # 送信メッセージ（/followup 出力）
+
+reports/                          # 集計レポート（/weekly, /compare 出力先）
+├── weekly-YYYY-MM-DD.md
+└── compare-YYYY-MM-DD.md
 ```
 
 ## 候補者 slug 規則
@@ -61,12 +75,15 @@ interview-agent/
 | ブリーフ | 面談前の候補者サマリー |
 
 ## よくあるワークフロー
-1. 候補者の SNS URL を受け取ったら `candidates/<slug>/profile.md` に記録
-2. 面談直前に `/brief <slug>` でブリーフ生成
-3. 面談中は `candidates/<slug>/raw-notes.md` にメモ書き（または録音→文字起こし）
-4. 面談直後に `/minutes <slug>` で議事録化
-5. `/classify <slug>` で分類とフォロー計画を出力
-6. 7 日後・14 日後に `classification.md` の推奨フォローを実行
+1. `/new <氏名> <SNS URL...>` で候補者フォルダを自動生成
+2. `/dm <slug>` でスカウト DM 3 パターン生成 → 1 つ選んで送信
+3. 面談が決まったら `profile.md` に日時を追記 → `/brief <slug>`
+4. （任意）`/rehearse <slug>` で面談練習
+5. 面談中: `raw-notes.md`（チェックリスト）を埋める
+6. 面談直後: `/minutes` → `/classify` → `/followup`
+7. 毎朝 `/today` で当日のアクション確認
+8. 毎週月曜 `/weekly` で KPI ・改善仮説確認
+9. 月 1 で `/compare <成約> <未成約>` で勝ちパターン抽出
 
 ## 禁止事項
 - 候補者の個人情報を `_example/` 以外にコミットしない
