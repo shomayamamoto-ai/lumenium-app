@@ -1,5 +1,5 @@
 /* AdvoVisions — minimal service worker (offline-ready) */
-const VERSION = "v43";
+const VERSION = "v44";
 const CACHE = "advo-" + VERSION;
 const PRECACHE = [
   "./",
@@ -10,14 +10,14 @@ const PRECACHE = [
   "./audition.html",
   "./privacy.html",
   "./404.html",
-  "./assets/css/style.css?v=43",
-  "./assets/js/main.js?v=43",
-  "./assets/js/members-data.js?v=43",
-  "./assets/js/news-data.js?v=43",
-  "./assets/img/logo-original.png?v=43",
-  "./assets/img/logo-original-white.png?v=43",
-  "./assets/img/logo.png?v=43",
-  "./assets/img/wordmark-white.png?v=43",
+  "./assets/css/style.css?v=44",
+  "./assets/js/main.js?v=44",
+  "./assets/js/members-data.js?v=44",
+  "./assets/js/news-data.js?v=44",
+  "./assets/img/logo-original.png?v=44",
+  "./assets/img/logo-original-white.png?v=44",
+  "./assets/img/logo.png?v=44",
+  "./assets/img/wordmark-white.png?v=44",
   "./manifest.json"
 ];
 

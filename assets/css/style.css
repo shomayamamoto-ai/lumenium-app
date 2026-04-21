@@ -272,7 +272,7 @@
    above with a very high specificity, re-declare animation with the same
    !important to win the cascade for specific elements below. */
 @keyframes advoFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@keyframes advoBarFill{from{width:0}to{width:100%}}
+@keyframes advoBarFill{from{width:0}to{width:0}}to{width:100%}}
 
 .preloader-mark      {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) .15s forwards !important;transform:translateY(8px) !important}
 .preloader-brand     {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) .55s forwards !important;transform:translateY(8px) !important}
@@ -422,9 +422,9 @@
 .preloader-loading .preloader-bar span{
   display:block !important;
   height:100% !important;
-  width:0 !important;
   background:linear-gradient(90deg,#5aa9ff,#ffffff) !important;
-  animation:advoBarFill 1.2s cubic-bezier(.6,0,.4,1) 2.60s forwards !important;
+  animation:none !important;
+  transition:none !important;
 }
 @media(prefers-reduced-motion:reduce){
   .preloader-loading,
@@ -440,4 +440,12 @@
   animation: none !important;
   width: 0%;
   transition: none !important;
+}
+/* === v44: final bar-driver reset — JS owns the width === */
+.preloader-loading .preloader-bar span,
+.preloader .preloader-loading .preloader-bar span{
+  animation: none !important;
+  transition: none !important;
+  -webkit-animation: none !important;
+  -webkit-transition: none !important;
 }
