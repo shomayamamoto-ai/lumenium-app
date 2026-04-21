@@ -7,6 +7,23 @@ import { getArticleBySlug, getSortedArticles } from '../data/articles'
 const slugHeading = (s, i) =>
   `h-${i}-${s.replace(/\s+/g, '-').replace(/[^\w\-一-龠ぁ-んァ-ン]/g, '').slice(0, 40)}`
 
+// Convert **bold** markdown to <strong> nodes; pass other text through.
+function renderInline(text) {
+  if (!text.includes('**')) return text
+  const parts = []
+  const re = /\*\*(.+?)\*\*/g
+  let lastIndex = 0
+  let m
+  let i = 0
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index))
+    parts.push(<strong key={`b-${i++}`}>{m[1]}</strong>)
+    lastIndex = m.index + m[0].length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts
+}
+
 export default function BlogArticlePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -123,12 +140,12 @@ export default function BlogArticlePage() {
                   {article.content.split('\n').map((line, i) => {
                     if (line.startsWith('## ')) {
                       const text = line.replace('## ', '')
-                      return <h2 key={i} id={slugHeading(text, i)}>{text}</h2>
+                      return <h2 key={i} id={slugHeading(text, i)}>{renderInline(text)}</h2>
                     }
-                    if (line.startsWith('##')) return <h3 key={i}>{line.replace('##', '')}</h3>
-                    if (line.startsWith('- ')) return <li key={i}>{line.replace('- ', '')}</li>
+                    if (line.startsWith('##')) return <h3 key={i}>{renderInline(line.replace('##', ''))}</h3>
+                    if (line.startsWith('- ')) return <li key={i}>{renderInline(line.replace('- ', ''))}</li>
                     if (line.trim() === '') return <br key={i} />
-                    return <p key={i}>{line}</p>
+                    return <p key={i}>{renderInline(line)}</p>
                   })}
                 </div>
                 <div className="blog-article-cta">
