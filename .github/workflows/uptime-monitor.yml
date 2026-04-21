@@ -5,8 +5,11 @@ name: Lumenium Uptime Monitor
 #   NOTION_TOKEN            - Notion internal integration token with access to the state/alerts pages
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
+  # Schedule disabled: the job was failing every 10 minutes and flooding the
+  # repo owner's inbox with GitHub's default "Run failed" emails. Re-enable
+  # by uncommenting once the underlying failure is fixed.
+  # schedule:
+  #   - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -75,4 +78,3 @@ jobs:
             - UP→UP のときは Notion にアラートページを作成しない
             - 状態は必ず毎回更新する
             - 処理は60秒以内に完了する
-
