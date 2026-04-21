@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import { getArticleBySlug, getSortedArticles } from '../data/articles'
+import { getMetaBySlug, getArticlesMetaSorted } from '../data/articles-meta'
+import { getContentBySlug } from '../data/articles-content'
 
 const slugHeading = (s, i) =>
   `h-${i}-${s.replace(/\s+/g, '-').replace(/[^\w\-一-龠ぁ-んァ-ン]/g, '').slice(0, 40)}`
@@ -27,7 +28,12 @@ function renderInline(text) {
 export default function BlogArticlePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
-  const article = useMemo(() => getArticleBySlug(slug), [slug])
+  const article = useMemo(() => {
+    const meta = getMetaBySlug(slug)
+    if (!meta) return null
+    const content = getContentBySlug(slug)
+    return { ...meta, content: content || '' }
+  }, [slug])
 
   const articleRef = useRef(null)
   const [readProgress, setReadProgress] = useState(0)
@@ -47,7 +53,7 @@ export default function BlogArticlePage() {
 
   const related = useMemo(() => {
     if (!article) return []
-    return getSortedArticles()
+    return getArticlesMetaSorted()
       .filter((a) => a.id !== article.id && a.category === article.category)
       .slice(0, 3)
   }, [article])

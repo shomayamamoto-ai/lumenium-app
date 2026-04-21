@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { getSortedArticles } from '../data/articles'
+import { getArticlesMetaSorted } from '../data/articles-meta'
 
 export default function BlogTeaser() {
-  const latest = useMemo(() => getSortedArticles().slice(0, 3), [])
+  const latest = useMemo(() => getArticlesMetaSorted().slice(0, 3), [])
 
   return (
     <section className="section" id="blog">

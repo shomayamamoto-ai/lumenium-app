@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import { getSortedArticles, ALL_CATEGORY } from '../data/articles'
+import { getArticlesMetaSorted, ALL_CATEGORY } from '../data/articles-meta'
 
 export default function BlogListPage() {
   const [filter, setFilter] = useState(ALL_CATEGORY)
 
-  const sortedArticles = useMemo(() => getSortedArticles(), [])
+  const sortedArticles = useMemo(() => getArticlesMetaSorted(), [])
 
   const categories = useMemo(() => {
     const set = new Set(sortedArticles.map((a) => a.category))
