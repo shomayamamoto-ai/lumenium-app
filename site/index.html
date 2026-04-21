@@ -11,97 +11,45 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Noto+Serif+JP:wght@300;400;500;600;700&family=Shippori+Mincho:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=4" />
+  <link rel="stylesheet" href="assets/css/main.css?v=5" />
 </head>
 <body>
 
-  <!-- ============ OPENING MOVIE ============ -->
-  <div id="opening" class="opening" aria-hidden="false">
-    <div class="opening-version" aria-hidden="true">BUILD v4</div>
+  <!-- ============ OPENING MOVIE (v5 — minimal, bulletproof) ============ -->
+  <div id="opening" class="opening">
 
-    <!-- Background canvases (particles + rays) -->
-    <canvas id="opening-canvas" aria-hidden="true"></canvas>
-
-    <!-- Atmospheric overlays -->
-    <div class="opening-vignette" aria-hidden="true"></div>
-    <div class="opening-grid" aria-hidden="true"></div>
-    <div class="opening-noise" aria-hidden="true"></div>
-    <div class="opening-flash" aria-hidden="true"></div>
-
-    <!-- Scene 1: Void → single spark -->
-    <div class="scene scene-1">
-      <div class="spark"></div>
-      <div class="spark-ring"></div>
+    <!-- HUGE build badge so you instantly see if new version loaded -->
+    <div class="op-build" aria-hidden="true">
+      <strong>BUILD v5</strong>
+      <span>OPENING MOVIE LOADED</span>
     </div>
 
-    <!-- Scene 2: Vertical kanji column rising (縦書き) -->
-    <div class="scene scene-2">
-      <div class="vert-column">
-        <span>慶</span><span>友</span><span>会</span>
-        <span class="sep">—</span>
-        <span>社</span><span>会</span><span>学</span>
-      </div>
-      <div class="vert-rule"></div>
+    <!-- Act 1: giant kanji "社 会 学" -->
+    <div class="op-act op-act-1">
+      <div class="op-kanji">社 会 学</div>
+      <div class="op-sub">SOCIOLOGY SEMINAR</div>
     </div>
 
-    <!-- Scene 3: Philosophical phrase typeline -->
-    <div class="scene scene-3">
-      <div class="phrase-row"><span>本質的</span><em>思考。</em></div>
-      <div class="phrase-row"><span>本質的</span><em>学び。</em></div>
-      <div class="phrase-row"><span>自立できる</span><em>ちから。</em></div>
+    <!-- Act 2: three philosophical lines -->
+    <div class="op-act op-act-2">
+      <div class="op-line op-line-a">本質的<strong>思考</strong></div>
+      <div class="op-line op-line-b">本質的<strong>学び</strong></div>
+      <div class="op-line op-line-c">自立できる<strong>ちから</strong></div>
     </div>
 
-    <!-- Scene 4: Grand title reveal -->
-    <div class="scene scene-4">
-      <div class="title-line-top">
-        <span class="tag">KEIYUKAI</span>
-        <span class="divider"></span>
-        <span class="tag">EST. 慶應義塾</span>
-      </div>
-
-      <div class="title-kanji">
-        <span data-char>社</span>
-        <span data-char>会</span>
-        <span data-char>学</span>
-      </div>
-
-      <h1 class="title-main">
-        <span class="title-main__en">Sociology Seminar</span>
-        <span class="title-main__jp">慶友会 社会学ゼミ</span>
-      </h1>
-
-      <p class="title-tagline">
-        <span>本質的思考</span>
-        <span class="dot">・</span>
-        <span>本質的学び</span>
-        <span class="dot">・</span>
-        <span>自立できるちから</span>
-      </p>
-
-      <div class="title-motto">
-        <span>自我作古 — われよりいにしえをなす</span>
-      </div>
+    <!-- Act 3: final title reveal -->
+    <div class="op-act op-act-3">
+      <div class="op-tag">慶應義塾大学 通信教育課程</div>
+      <h1 class="op-title">慶友会 社会学ゼミ</h1>
+      <div class="op-motto">自我作古 — われよりいにしえをなす</div>
     </div>
 
-    <!-- Top-right progress -->
-    <div class="opening-hud" aria-hidden="true">
-      <div class="opening-hud__row">
-        <span class="opening-hud__label">SCENE</span>
-        <span class="opening-hud__value" id="opening-scene-indicator">01 / 04</span>
-      </div>
-      <div class="opening-hud__bar">
-        <div class="opening-hud__bar-fill" id="opening-bar-fill"></div>
-      </div>
-      <div class="opening-hud__meta">
-        <span>SOCIOLOGY SEMINAR</span>
-        <span>ver. 2026</span>
-      </div>
-    </div>
+    <!-- Glow rings as decorative pulses -->
+    <div class="op-ring op-ring-1"></div>
+    <div class="op-ring op-ring-2"></div>
 
-    <button type="button" class="opening-skip" id="opening-skip" aria-label="オープニングをスキップ">
-      <span>SKIP</span>
-      <span class="opening-skip__arrow" aria-hidden="true">→</span>
-    </button>
+    <!-- Skip button -->
+    <button type="button" class="op-skip" id="opening-skip">SKIP →</button>
   </div>
 
   <!-- ============ MAIN SITE ============ -->
@@ -620,6 +568,6 @@
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=4"></script>
+  <script src="assets/js/main.js?v=5"></script>
 </body>
 </html>
