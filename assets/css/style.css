@@ -376,3 +376,62 @@
   height: auto !important;
   filter: none !important;
 }
+/* === v41: Preloader loading UI === */
+.preloader-loading{
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:stretch !important;
+  width:min(280px,60vw) !important;
+  margin-top:28px !important;
+  gap:10px !important;
+  opacity:0;
+  animation:advoFade .6s cubic-bezier(.2,.8,.2,1) 2.40s forwards !important;
+}
+.loading-meta{
+  display:flex !important;
+  align-items:baseline !important;
+  justify-content:space-between !important;
+  font-family:"Inter",sans-serif !important;
+  color:#fff !important;
+}
+.loading-label{
+  font-size:10px !important;
+  letter-spacing:.3em !important;
+  color:rgba(255,255,255,.6) !important;
+  font-weight:500 !important;
+}
+.loading-percent{
+  font-family:"Cormorant Garamond",serif !important;
+  font-style:italic !important;
+  font-size:22px !important;
+  letter-spacing:.02em !important;
+  color:#fff !important;
+  font-variant-numeric:tabular-nums !important;
+  min-width:3.5ch !important;
+  text-align:right !important;
+}
+.preloader-loading .preloader-bar{
+  width:100% !important;
+  height:1px !important;
+  background:rgba(255,255,255,.18) !important;
+  overflow:hidden !important;
+  margin:0 !important;
+  opacity:1 !important;
+  animation:none !important;
+}
+.preloader-loading .preloader-bar span{
+  display:block !important;
+  height:100% !important;
+  width:0 !important;
+  background:linear-gradient(90deg,#5aa9ff,#ffffff) !important;
+  animation:advoBarFill 1.2s cubic-bezier(.6,0,.4,1) 2.60s forwards !important;
+}
+@media(prefers-reduced-motion:reduce){
+  .preloader-loading,
+  .preloader-loading .preloader-bar span{
+    animation:none !important;
+    opacity:1 !important;
+  }
+  .preloader-loading .preloader-bar span{width:100% !important}
+  .loading-percent{opacity:1}
+}
