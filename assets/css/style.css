@@ -246,3 +246,9 @@
 .site-header.scrolled .nav a{color:var(--ink) !important}
 .site-header.scrolled .nav-toggle span{background:var(--ink) !important}
 .site-header.scrolled .nav a::after{background:var(--brand) !important}
+/* === v36b: Footer wordmark — match header exactly === */
+.logo-wrap-footer{display:inline-flex !important;align-items:center !important;gap:12px !important;height:42px !important}
+.logo-wrap-footer .logo-icon,
+.logo-wrap-footer .logo-text{height:100% !important;width:auto !important;display:block !important;filter:none !important}
+.logo-wrap-footer .logo-text{height:75% !important}
+/* first-letter color override from old .logo-brandtext no longer applies since we use <img> now */
