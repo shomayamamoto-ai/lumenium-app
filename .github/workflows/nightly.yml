@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -30,30 +29,11 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies (B)
+      - name: Install dependencies
         run: npm ci > /tmp/npm-ci.log 2>&1
 
-      - name: Build (B)
+      - name: Build
         run: npm run build > /tmp/build.log 2>&1
-
-      - name: Detect & remove safe debug artifacts (B)
-        id: cleanup
-        run: node scripts/nightly/cleanup.mjs
-
-      - name: Open cleanup PR
-        if: steps.cleanup.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: nightly/cleanup-${{ github.run_id }}
-          base: main
-          title: 'chore(nightly): remove safe debug artifacts'
-          commit-message: 'chore(nightly): remove safe console.log/debugger/TODO'
-          body: |
-            Automated nightly cleanup of debug artifacts that appear safe to remove.
-
-            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            - Removed items: ${{ steps.cleanup.outputs.summary }}
-          delete-branch: true
 
       - name: Fetch previous bundle history (D)
         continue-on-error: true

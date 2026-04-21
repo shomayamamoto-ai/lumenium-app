@@ -7,15 +7,20 @@ Can also be triggered manually via `workflow_dispatch`.
 
 | Section | What it does | Implementation |
 |---|---|---|
-| B | `npm ci` → `npm run build` → detect & remove safe `console.log`/`debugger`; report `TODO` count; open cleanup PR if anything was removed | workflow + `cleanup.mjs` + `peter-evans/create-pull-request` |
 | C | `npm audit --json`, flag if critical+high > 0 | `run.mjs::sectionC` |
 | D | Sum `dist/` bytes, compare with previous day from `nightly-data` branch, alert if > +10% | `run.mjs::sectionD` + `persist-history.sh` |
 | E | `git diff` of `src/` over last 7 days, send to Claude API for critical-issue review (skipped if > 5000 lines) | `run.mjs::sectionE` |
 | F | Check latest Vercel deployment state via REST API | `run.mjs::sectionF` |
 | H | Post markdown report as a new Notion page under `NOTION_PARENT_PAGE_ID` | `run.mjs::sectionH` |
 
-Sections A and G (local stash/checkout) are intentionally omitted — Actions
-always starts from a clean checkout.
+The workflow runs `npm ci` + `npm run build` before these sections so that
+`dist/` exists for section D.
+
+Sections A, B, and G are intentionally omitted:
+- A/G (local stash/checkout) — Actions always starts from a clean checkout.
+- B (auto-cleanup PR) — removed to stop the daily auto-fix PR and its
+  notification side-effects. Debug-artifact cleanup should go through
+  normal code review instead.
 
 ## Required GitHub Secrets
 
