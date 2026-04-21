@@ -173,34 +173,6 @@
           }
         } catch (e) {}
       }
-
-      // On-screen error diagnostic — show JS errors directly in the boot-splash
-      (function() {
-        function showError(msg, src) {
-          var el = document.getElementById('boot-splash-error');
-          if (!el) {
-            el = document.createElement('div');
-            el.id = 'boot-splash-error';
-            el.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;z-index:999999;background:rgba(239,68,68,0.95);color:#fff;padding:14px 18px;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-all;line-height:1.5;';
-            document.body.appendChild(el);
-          }
-          el.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + (src ? ' @ ' + src : '') + '\n';
-        }
-        window.addEventListener('error', function(e) {
-          showError(e.message || 'unknown error', e.filename ? (e.filename + ':' + e.lineno) : '');
-        });
-        window.addEventListener('unhandledrejection', function(e) {
-          var r = e.reason;
-          showError('UnhandledRejection: ' + (r && (r.message || r.toString()) || 'unknown'));
-        });
-        // If after 6s #root still has the boot-splash, React never mounted.
-        setTimeout(function() {
-          var root = document.getElementById('root');
-          if (root && root.querySelector('#boot-splash')) {
-            showError('React did not mount within 6s. Bundle may have failed to execute.');
-          }
-        }, 6000);
-      })();
     </script>
   </body>
 </html>
