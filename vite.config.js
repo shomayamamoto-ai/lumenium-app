@@ -62,7 +62,6 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('react') || id.includes('scheduler')) return 'react-vendor'
             if (id.includes('@vercel/speed-insights')) return 'speed-insights'
-            return 'vendor'
           }
         },
       },
