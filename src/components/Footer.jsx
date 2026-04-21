@@ -20,7 +20,7 @@ export default function Footer({ onPrivacy }) {
         <div className="footer-top">
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
-              <img src="/lumenium-logo.svg?v=2" alt="Lumenium" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
+              <img src="/lumenium-logo.svg?v=4" alt="Lumenium" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
               <span>Lumenium</span>
             </Link>
             <p className="footer-tagline">散文化した目的に、焦点を当てる。</p>
