@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageLoader from './components/PageLoader'
@@ -10,10 +10,16 @@ const BlogArticlePage = lazy(() => import('./pages/BlogArticlePage'))
 
 function NavigationLoader() {
   const location = useLocation()
+  const firstRenderRef = useRef(true)
   const [visible, setVisible] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
 
   useEffect(() => {
+    // Skip initial mount — the homepage splash/intro video handles the first entry.
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false
+      return
+    }
     setVisible(true)
     setFadeOut(false)
     const fadeTimer = setTimeout(() => setFadeOut(true), 550)
