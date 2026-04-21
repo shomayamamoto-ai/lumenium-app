@@ -6,7 +6,7 @@ export default function PageLoader({ fadeOut = false }) {
         <div className="page-loader-ring page-loader-ring--outer" aria-hidden="true" />
         <div className="page-loader-glow" aria-hidden="true" />
         <img
-          src="/lumenium-logo.svg?v=2"
+          src="/lumenium-logo.svg?v=5"
           alt=""
           className="page-loader-logo"
           width="96"

@@ -81,7 +81,7 @@ export default function Navbar() {
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} aria-label="メインナビゲーション">
       <div className="nav-container">
         <Link to="/" className="nav-logo" aria-label="Lumenium ホーム">
-          <img src="/lumenium-logo.svg?v=4" alt="Lumenium" className="nav-logo-img" width="40" height="40" />
+          <img src="/lumenium-logo.svg?v=5" alt="Lumenium" className="nav-logo-img" width="40" height="40" />
           <span>Lumenium</span>
         </Link>
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
