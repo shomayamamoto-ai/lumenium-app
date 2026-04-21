@@ -115,13 +115,13 @@
         </span>
       </a>
       <nav class="nav__links" aria-label="メインナビゲーション">
-        <a href="#about">About</a>
         <a href="#creed">Creed</a>
         <a href="#philosophy">Philosophy</a>
         <a href="#activities">Activities</a>
+        <a href="#process">Process</a>
         <a href="#readings">Readings</a>
-        <a href="membership.html">Membership</a>
-        <a href="#contact">Contact</a>
+        <a href="#faq">FAQ</a>
+        <a href="membership.html">Join</a>
       </nav>
     </header>
 
@@ -337,39 +337,125 @@
       <ul class="activities__list">
         <li class="activity">
           <span class="activity__index">01</span>
-          <div>
+          <div class="activity__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="10" width="36" height="26" rx="2" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M6 16 L42 16" stroke="currentColor" stroke-width="1"/>
+              <circle cx="11" cy="13" r="1" fill="currentColor"/>
+              <circle cx="15" cy="13" r="1" fill="currentColor"/>
+              <path d="M14 24 L34 24 M14 28 L28 28" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+              <circle cx="24" cy="42" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+          </div>
+          <div class="activity__body">
             <h5>講師派遣ゼミ</h5>
             <p>慶應義塾の専任教員をお招きし、対話形式で社会学の核心に迫ります。</p>
+            <span class="activity__tag">Online × Lecture</span>
           </div>
         </li>
         <li class="activity">
           <span class="activity__index">02</span>
-          <div>
+          <div class="activity__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 12 Q24 6 40 12 L40 38 Q24 32 8 38 Z" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M24 9 L24 35" stroke="currentColor" stroke-width="1"/>
+              <path d="M13 18 L20 20 M28 20 L35 18" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+              <path d="M13 25 L20 27 M28 27 L35 25" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="activity__body">
             <h5>輪読会・勉強会</h5>
-            <p>指定書籍を丁寧に読み込み、参加者同士で論点を交換します。</p>
+            <p>指定書籍を丁寧に読み込み、参加者同士で論点を交換します。図解資料で本質を可視化。</p>
+            <span class="activity__tag">Reading Circle</span>
           </div>
         </li>
         <li class="activity">
           <span class="activity__index">03</span>
-          <div>
+          <div class="activity__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="12" width="36" height="22" rx="3" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M20 22 L28 26 L20 30 Z" fill="currentColor"/>
+              <path d="M18 38 L30 38" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <circle cx="38" cy="18" r="1.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="activity__body">
             <h5>オンライン配信</h5>
-            <p>Zoom＋スライドで遠方・多忙の方も参加可能。録画の共有も行います。</p>
+            <p>Zoom＋スライドで遠方・多忙の方も参加可能。録画の共有で非同期学習にも対応。</p>
+            <span class="activity__tag">Zoom × Slide</span>
           </div>
         </li>
         <li class="activity">
           <span class="activity__index">04</span>
-          <div>
+          <div class="activity__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="18" r="5" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="32" cy="18" r="5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M7 36 Q7 28 16 28 Q25 28 25 36" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M23 36 Q23 28 32 28 Q41 28 41 36" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="activity__body">
             <h5>交流・情報交換</h5>
-            <p>通信課程で孤独になりがちな学びを、仲間と共有し励まし合います。</p>
+            <p>通信課程で孤独になりがちな学びを、仲間と共有し励まし合います。卒論相談も活発。</p>
+            <span class="activity__tag">Community</span>
           </div>
         </li>
       </ul>
     </section>
 
+    <!-- PROCESS / 学びの流れ -->
+    <section id="process" class="section section--process">
+      <div class="section__header">
+        <span class="section__num">05</span>
+        <h3 class="section__title">How We Learn</h3>
+        <p class="section__subtitle">学びの流れ</p>
+      </div>
+
+      <ol class="process__timeline">
+        <li class="process__step">
+          <div class="process__dot" aria-hidden="true">
+            <span>1</span>
+          </div>
+          <div class="process__card">
+            <h5>テーマ設定</h5>
+            <p>社会学の古典・現代理論から、参加者の問題意識に響くテーマを選定します。</p>
+          </div>
+        </li>
+        <li class="process__step">
+          <div class="process__dot" aria-hidden="true">
+            <span>2</span>
+          </div>
+          <div class="process__card">
+            <h5>図解資料の作成</h5>
+            <p>難解な概念もかみくだいた図解資料で、誰もが本質にアクセスできるよう準備します。</p>
+          </div>
+        </li>
+        <li class="process__step">
+          <div class="process__dot" aria-hidden="true">
+            <span>3</span>
+          </div>
+          <div class="process__card">
+            <h5>ゼミ形式での対話</h5>
+            <p>講師を囲み、Zoomで全国の仲間と対話。問いを重ねることで理解が深まります。</p>
+          </div>
+        </li>
+        <li class="process__step">
+          <div class="process__dot" aria-hidden="true">
+            <span>4</span>
+          </div>
+          <div class="process__card">
+            <h5>省察と応用</h5>
+            <p>自分自身の生活・仕事に引き寄せて省察し、卒論や日々の実践へとつなげます。</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
     <!-- READINGS -->
     <section id="readings" class="section section--readings">
       <div class="section__header">
-        <span class="section__num">05</span>
+        <span class="section__num">06</span>
         <h3 class="section__title">Core Readings</h3>
         <p class="section__subtitle">指定書籍</p>
       </div>
@@ -399,10 +485,87 @@
       </div>
     </section>
 
+    <!-- FAQ -->
+    <section id="faq" class="section section--faq">
+      <div class="section__header">
+        <span class="section__num">07</span>
+        <h3 class="section__title">FAQ</h3>
+        <p class="section__subtitle">よくあるご質問</p>
+      </div>
+
+      <div class="faq__list">
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">社会学の予備知識がなくても参加できますか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>はい、まったく問題ありません。指定書籍『大学４年間の社会学が10時間でざっと学べる』から丁寧に土台を築きます。「本質をかみくだいた図解資料」で、初学者でも迷わず学べる設計です。</p>
+          </div>
+        </details>
+
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">会費はかかりますか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>詳細は入会申込時にご案内いたします。まずはお気軽にお問い合わせください。</p>
+          </div>
+        </details>
+
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">通信教育課程の入学前でも参加できますか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>ご出願予定の方も歓迎します。慶應通信での学び方や、卒論までの道のりなども、先輩メンバーから直接お話を聞いていただけます。</p>
+          </div>
+        </details>
+
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">遠方に住んでいますが参加可能ですか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>ゼミはZoomでのオンライン開催が中心です。全国どこからでも、また海外にお住まいの方でも、時差が合えばご参加いただけます。録画共有もあるため、後からの視聴も可能です。</p>
+          </div>
+        </details>
+
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">多忙でも続けられますか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>お仕事や家庭との両立を大切にしています。参加頻度は柔軟に調整可能、配信録画・図解資料で非同期での学習もサポートしています。寄り添う姿勢を何より大切に運営しています。</p>
+          </div>
+        </details>
+
+        <details class="faq__item">
+          <summary>
+            <span class="faq__q">Q</span>
+            <span class="faq__question">卒業論文の相談はできますか？</span>
+            <span class="faq__arrow" aria-hidden="true">+</span>
+          </summary>
+          <div class="faq__answer">
+            <p>もちろん可能です。社会学領域で卒論を執筆される方はもちろん、他分野の方でも、社会学的な視座から助言を得られます。職業背景を共有する仲間がいることが、テーマ選定でも大きな力になります。</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
     <!-- JOIN -->
     <section id="join" class="section section--join">
       <div class="section__header">
-        <span class="section__num">06</span>
+        <span class="section__num">08</span>
         <h3 class="section__title">Join Us</h3>
         <p class="section__subtitle">参加をお考えの方へ</p>
       </div>
@@ -427,7 +590,7 @@
     <!-- CONTACT -->
     <section id="contact" class="section section--contact">
       <div class="section__header">
-        <span class="section__num">07</span>
+        <span class="section__num">09</span>
         <h3 class="section__title">Contact</h3>
         <p class="section__subtitle">お問い合わせ</p>
       </div>
