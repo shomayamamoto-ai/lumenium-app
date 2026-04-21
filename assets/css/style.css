@@ -295,3 +295,84 @@
   }
   .preloader-bar span{width:100% !important}
 }
+/* === v40: Keep ORIGINAL logo assets everywhere, fix header bg instead ===
+   Don't swap to white variants. Don't apply filters/drop-shadow.
+   Make the header a consistent light glass so the dark logo is always
+   clearly legible against it — both over the hero and when scrolled. */
+
+/* 1) Disable every previous white-logo swap and filter (win via specificity + !important) */
+.site-header .logo-icon,
+.site-header .logo-text,
+.site-header.on-hero .logo-icon,
+.site-header.on-hero .logo-text,
+.site-header.on-hero.scrolled .logo-icon,
+.site-header.on-hero.scrolled .logo-text,
+.site-header.scrolled .logo-icon,
+.site-header.scrolled .logo-text{
+  content: normal !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* 2) Unified header look: frosted white glass that reads over any bg */
+.site-header,
+.site-header.on-hero,
+.site-header.on-hero.scrolled,
+.site-header.scrolled{
+  background: rgba(255,255,255,0.92) !important;
+  backdrop-filter: blur(14px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+  box-shadow: 0 1px 0 rgba(19,30,122,0.06), 0 10px 30px rgba(19,30,122,0.06) !important;
+  border-bottom: 1px solid rgba(19,30,122,0.05) !important;
+}
+
+/* Nav text always dark ink so it stays readable on the white header */
+.site-header .nav a,
+.site-header.on-hero .nav a,
+.site-header.scrolled .nav a{
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+.site-header .nav a::after,
+.site-header.on-hero .nav a::after,
+.site-header.scrolled .nav a::after{background: var(--brand) !important}
+.site-header .nav-toggle span,
+.site-header.on-hero .nav-toggle span{background: var(--ink) !important}
+
+/* Active link underline (keeps subtle brand cue) */
+.site-header .nav a.active,
+.site-header .nav a[aria-current="page"]{color:var(--brand) !important}
+/* Footer — capsule behind original dark logo so no alteration is needed */
+.site-footer .logo{display:inline-block}
+.site-footer .logo-wrap-footer{
+  background: rgba(255,255,255,0.96) !important;
+  padding: 10px 18px !important;
+  border-radius: 100px !important;
+  height: auto !important;
+  gap: 10px !important;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.25);
+}
+.site-footer .logo-wrap-footer .logo-icon,
+.site-footer .logo-wrap-footer .logo-text{
+  height: 28px !important;
+  width: auto !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Preloader — same principle: the dark logo sits on a white capsule on the deep blue preloader bg */
+.preloader-mark-wrap{
+  background: rgba(255,255,255,0.96) !important;
+  border-radius: 28px !important;
+  padding: 14px 22px !important;
+  width: auto !important;
+  height: auto !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.preloader-mark img{
+  /* Use original dark logo on the preloader too */
+  content: url('../img/logo-original.png?v=40') !important;
+  width: clamp(64px,10vw,92px) !important;
+  height: auto !important;
+  filter: none !important;
+}
