@@ -3,12 +3,20 @@ candidates/*
 !candidates/_example/
 !candidates/_example/**
 
-# 音声ファイル・文字起こし原本
+# 音声ファイル（センシティブ・サイズ大）
 *.mp3
 *.m4a
 *.wav
 *.mp4
+*.webm
+*.ogg
+
+# 文字起こし原本（PII 除去前）
 transcript-raw-*.txt
+*.md.raw
+
+# Whisper のモデル・キャッシュ
+.whisper-cache/
 
 # Notion 個人設定（workspace 固有の情報）
 .notion-config
