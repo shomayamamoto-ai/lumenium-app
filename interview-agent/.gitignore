@@ -9,3 +9,6 @@ candidates/*
 *.wav
 *.mp4
 transcript-raw-*.txt
+
+# Notion 個人設定（workspace 固有の情報）
+.notion-config

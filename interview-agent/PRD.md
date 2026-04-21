@@ -42,12 +42,21 @@
 | `/weekly` | 全 candidates | KPI + 改善仮説レポート | 30 秒 |
 | `/compare` | 複数 candidates | 勝ちパターン言語化レポート | 30 秒 |
 
-## スコープ外（v3 以降）
-- Googleカレンダー MCP 連携（面談枠自動提案）
-- Gmail / LINE 公式アカウント MCP 連携（文面自動送信）
+## v3 で追加済み（MCP 連携）
+| コマンド | MCP | 効果 |
+|---------|-----|------|
+| `/schedule` | Google Calendar | 面談予約＋Meet URL 発行の自動化 |
+| `/remind` | Google Calendar | フォロー TODO の取りこぼし防止 |
+| `/email-draft` | Gmail | 送信メール文面のワンクリック下書き化 |
+| `/notion-sync` | Notion | チーム共有可能な CRM ダッシュボード |
+
+## スコープ外（v4 以降）
+- LINE 公式アカウント MCP 連携（DM 送信の主戦場）
 - 音声→文字起こしフック（m4a 配置で自動実行）
 - A/B テスト自動記録（どの DM パターンを使ったか、返信の有無を学習）
 - 成約/失注ラベル化と自動再分析
+- Gmail スレッド追跡（返信自動検知）
+- Notion データベース自動セットアップ
 
 ## 成果指標（KPI）
 | 指標 | 現状 | 1 ヶ月後目標 | 3 ヶ月後目標 |

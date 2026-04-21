@@ -72,6 +72,15 @@ argument-hint: <candidate-slug>
 - `candidates/$1/followup-messages.md` に全パターンを Write
 - ユーザーには **即送信メッセージの LINE 版だけ** を表示 + 「他のパターンは `followup-messages.md` 参照」
 
+### Step 6: Gmail 下書き作成の提案（MCP 接続時のみ、任意）
+Gmail MCP が接続されている場合、ユーザーに以下を問う:
+```
+即送信メッセージを Gmail 下書きとして作成しますか? (Y/n)
+※ 自動送信はしません、下書き保存のみ
+```
+Y なら `/email-draft $1 immediate` を内部的に実行。
+N またはスキップ時は「必要なら `/email-draft <slug>` でいつでも下書き作成できます」と案内のみ。
+
 ## 出力例
 ```
 📬 フォローメッセージ生成: candidates/2026-05-01-tanaka-yuki/followup-messages.md
