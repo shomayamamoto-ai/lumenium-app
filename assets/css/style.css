@@ -153,42 +153,7 @@
   .hero-wave svg{height:54px !important}
   .press-strip{padding:24px 0 40px !important}
 }
-/* === v34: Preloader — disable all movement, keep static logo === */
-.preloader,
-.preloader *,
-.preloader *::before,
-.preloader *::after{
-  animation: none !important;
-  transform: none !important;
-  filter: none !important;
-  clip-path: none !important;
-  transition: opacity .5s ease !important;
-}
-.preloader-mark,
-.preloader-brand,
-.preloader-tagline,
-.preloader-bar,
-.preloader-bar span,
-.preloader-word,
-.preloader-sweep,
-.preloader-stars,
-.ring,.ring-1,.ring-2,.ring-3{opacity:1 !important}
-/* Remove scene effects that imply motion */
-.preloader-sweep,
-.preloader-stars,
-.preloader::before,
-.preloader::after,
-.preloader-mark-wrap::before,
-.preloader-mark-wrap::after{display:none !important}
-/* Hide the chromatic split duplicates on brand text */
-.preloader-brand::before,
-.preloader-brand::after{display:none !important;content:none !important}
-.preloader-brand{color:#fff !important}
-/* Simple fade-out on dismiss (no panel slide) */
-.preloader-exit-a,
-.preloader-exit-b{display:none !important}
-.preloader{transition:opacity .6s ease !important}
-.preloader.done{opacity:0;pointer-events:none}
+
 /* === v35: Fix content disappearing — force reveal elements visible === */
 /* The observer-based reveal was hiding content on first paint.
    Remove initial hidden state so content is always rendered.  */
@@ -252,3 +217,81 @@
 .logo-wrap-footer .logo-text{height:100% !important;width:auto !important;display:block !important;filter:none !important}
 .logo-wrap-footer .logo-text{height:75% !important}
 /* first-letter color override from old .logo-brandtext no longer applies since we use <img> now */
+/* === v39: Opening movie — clean vertical-only fade sequence ===
+   Concept: "新しい才能を生み出す。出口のあるレッスン。"
+   No shake, no horizontal slide, no rotation, no blur. Just opacity
+   and a gentle translateY(8px) rise. */
+
+.preloader,
+.preloader *,
+.preloader *::before,
+.preloader *::after{
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  transition: opacity .5s ease !important;
+}
+
+/* hide decorative scene effects that suggest motion */
+.preloader-stars,
+.preloader-sweep,
+.preloader::before,
+.preloader::after,
+.preloader-mark-wrap::before,
+.preloader-mark-wrap::after,
+.preloader-brand::before,
+.preloader-brand::after,
+.preloader-exit-a,
+.preloader-exit-b{display:none !important;content:none !important}
+.ring,.ring-1,.ring-2,.ring-3{display:none !important}
+
+/* Background: solid brand-deep */
+.preloader{background:#0a1260 !important;display:flex !important;align-items:center !important;justify-content:center !important}
+.preloader-inner{display:flex !important;flex-direction:column !important;align-items:center !important;gap:18px !important;padding:0 24px !important;max-width:720px !important;text-align:center !important}
+
+/* Sizing */
+.preloader-mark-wrap{width:clamp(92px,14vw,132px) !important;height:clamp(92px,14vw,132px) !important;position:relative !important;display:flex !important;align-items:center !important;justify-content:center !important;margin-bottom:6px !important}
+.preloader-mark{width:100% !important;height:auto !important}
+.preloader-mark img{width:100% !important;height:auto !important;display:block !important}
+.preloader-brand{font-family:"Cormorant Garamond",serif !important;font-style:italic !important;font-weight:400 !important;font-size:clamp(32px,5vw,56px) !important;letter-spacing:.06em !important;color:#fff !important;line-height:1 !important;text-shadow:none !important}
+.preloader-tagline{font-family:"Noto Serif JP",serif !important;font-size:clamp(11px,1.3vw,13px) !important;letter-spacing:.4em !important;color:rgba(255,255,255,.75) !important;padding-left:.4em !important;text-align:center !important}
+
+/* Concept block — the new core of the opening movie */
+.preloader-concept{display:flex !important;flex-direction:column !important;align-items:center !important;gap:8px !important;margin-top:24px !important}
+.concept-divider{display:block !important;width:40px !important;height:1px !important;background:rgba(255,255,255,.35) !important;margin-bottom:14px !important}
+.concept-line{font-family:"Noto Serif JP",serif !important;font-weight:500 !important;font-size:clamp(14px,1.7vw,18px) !important;letter-spacing:.14em !important;color:#fff !important;line-height:1.7 !important}
+.concept-line-2{color:rgba(255,255,255,.82) !important}
+
+/* Loading bar — subtle, never bouncy */
+.preloader-bar{width:120px !important;height:1px !important;background:rgba(255,255,255,.15) !important;overflow:hidden !important;margin-top:28px !important}
+.preloader-bar span{display:block !important;height:100% !important;width:0 !important;background:#fff !important}
+
+/* Clean sequential fade-in — opacity + tiny translateY only.
+   Use cascading animation-delays. Because we forced `animation:none !important`
+   above with a very high specificity, re-declare animation with the same
+   !important to win the cascade for specific elements below. */
+@keyframes advoFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes advoBarFill{from{width:0}to{width:100%}}
+
+.preloader-mark      {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) .15s forwards !important;transform:translateY(8px) !important}
+.preloader-brand     {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) .55s forwards !important;transform:translateY(8px) !important}
+.preloader-tagline   {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) .95s forwards !important;transform:translateY(8px) !important}
+.concept-divider     {opacity:0;animation:advoFade .7s cubic-bezier(.2,.8,.2,1) 1.30s forwards !important;transform:none !important}
+.concept-line-1      {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) 1.50s forwards !important;transform:translateY(8px) !important}
+.concept-line-2      {opacity:0;animation:advoFade .8s cubic-bezier(.2,.8,.2,1) 1.90s forwards !important;transform:translateY(8px) !important}
+.preloader-bar       {opacity:0;animation:advoFade .6s cubic-bezier(.2,.8,.2,1) 2.40s forwards !important}
+.preloader-bar span  {animation:advoBarFill 1.2s cubic-bezier(.6,0,.4,1) 2.60s forwards !important}
+
+/* End state: whole overlay fades out (no slide) */
+.preloader{transition:opacity .7s ease !important}
+.preloader.done{opacity:0 !important;pointer-events:none !important}
+
+/* Respect reduced motion: skip all animation, show final state instantly */
+@media(prefers-reduced-motion:reduce){
+  .preloader-mark,.preloader-brand,.preloader-tagline,.concept-divider,
+  .concept-line-1,.concept-line-2,.preloader-bar,.preloader-bar span{
+    animation:none !important;opacity:1 !important;transform:none !important
+  }
+  .preloader-bar span{width:100% !important}
+}
