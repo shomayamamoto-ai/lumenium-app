@@ -7306,3 +7306,135 @@ html[data-theme="dark"] .company-card {
   .lx-content, .lx-logo, .lx-name, .lx-tag { opacity: 1 !important; transform: none !important; filter: none !important; }
 }
 
+
+/* ============================================================
+   Page Loader — Lumenium logo transition animation
+   Shown during route transitions (react-router) + Suspense fallbacks.
+   ============================================================ */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: radial-gradient(ellipse at center, #0a0a14 0%, #010104 70%);
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 360ms ease;
+}
+.page-loader.page-loader--fade { opacity: 0; pointer-events: none; }
+
+.page-loader-stage {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-loader-logo {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 0 18px rgba(129, 140, 248, 0.55));
+  animation: page-loader-breathe 1.6s ease-in-out infinite;
+}
+
+.page-loader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: #818cf8;
+  border-right-color: rgba(168, 85, 247, 0.6);
+  animation: page-loader-spin 1.2s linear infinite;
+}
+
+.page-loader-ring--outer {
+  inset: -14px;
+  border-width: 1px;
+  border-top-color: rgba(99, 102, 241, 0.4);
+  border-right-color: transparent;
+  border-bottom-color: rgba(168, 85, 247, 0.25);
+  animation: page-loader-spin 2.4s linear infinite reverse;
+}
+
+.page-loader-glow {
+  position: absolute;
+  inset: -30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.25) 0%, transparent 60%);
+  animation: page-loader-pulse 2.2s ease-in-out infinite;
+}
+
+.page-loader-label {
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(199, 210, 254, 0.85);
+  margin: 0;
+  animation: page-loader-fade 1.6s ease-in-out infinite;
+}
+
+@keyframes page-loader-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes page-loader-breathe {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(129, 140, 248, 0.45)); }
+  50% { transform: scale(1.06); filter: drop-shadow(0 0 26px rgba(168, 85, 247, 0.65)); }
+}
+@keyframes page-loader-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes page-loader-fade {
+  0%, 100% { opacity: 0.5; letter-spacing: 0.32em; }
+  50% { opacity: 1; letter-spacing: 0.42em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loader-logo, .page-loader-ring, .page-loader-ring--outer,
+  .page-loader-glow, .page-loader-label { animation: none !important; }
+}
+
+/* ============================================================
+   Blog page chrome — /blog and /blog/:slug standalone pages
+   ============================================================ */
+.blog-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, #010104);
+}
+.blog-page-main { flex: 1; padding-top: 80px; }
+
+.section--blog-hero { padding-top: 60px; padding-bottom: 40px; }
+.section--blog-hero .section-title { margin: 12px 0 16px; }
+.section--blog-list { padding-top: 20px; padding-bottom: 80px; }
+.section--article { padding-top: 40px; padding-bottom: 80px; }
+
+.blog-teaser-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+
+.blog-related {
+  margin-top: 72px;
+  padding-top: 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.blog-related-title {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  margin: 0 0 24px;
+  color: rgba(224, 231, 255, 0.92);
+}
+
+/* Ensure .blog-card Link works the same as old div */
+a.blog-card { text-decoration: none; color: inherit; cursor: pointer; display: flex; flex-direction: column; }

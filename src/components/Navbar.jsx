@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useFocusTrap } from '../lib/focusTrap'
 
 export default function Navbar() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const isHome = location.pathname === '/'
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -41,6 +45,11 @@ export default function Navbar() {
   const handleLinkClick = (e, href) => {
     e.preventDefault()
     setMenuOpen(false)
+    if (!isHome) {
+      // Navigate to home with hash; HomePage mount will scroll after layout settles.
+      navigate('/' + href)
+      return
+    }
     const target = document.querySelector(href)
     if (target) {
       const top = target.getBoundingClientRect().top + window.scrollY - 80
@@ -48,21 +57,41 @@ export default function Navbar() {
     }
   }
 
+  // When arriving on "/" with a hash (e.g. /#contact-form), scroll to the target after mount.
+  useEffect(() => {
+    if (!isHome) return
+    if (!location.hash) return
+    const id = location.hash
+    const tryScroll = () => {
+      const el = document.querySelector(id)
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - 80
+        window.scrollTo({ top, behavior: 'smooth' })
+        return true
+      }
+      return false
+    }
+    if (!tryScroll()) {
+      const t = setTimeout(() => tryScroll(), 300)
+      return () => clearTimeout(t)
+    }
+  }, [isHome, location.hash])
+
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} aria-label="メインナビゲーション">
       <div className="nav-container">
-        <a href="#" className="nav-logo" aria-label="Lumenium ホーム">
+        <Link to="/" className="nav-logo" aria-label="Lumenium ホーム">
           <img src="/lumenium-logo.svg?v=2" alt="Lumenium" className="nav-logo-img" width="40" height="40" />
           <span>Lumenium</span>
-        </a>
+        </Link>
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
-          <a href="#pain" onClick={(e) => handleLinkClick(e, '#pain')}>お困りごと</a>
-          <a href="#services" onClick={(e) => handleLinkClick(e, '#services')}>サービス</a>
-          <a href="#pricing" onClick={(e) => handleLinkClick(e, '#pricing')}>料金</a>
-          <a href="#results" onClick={(e) => handleLinkClick(e, '#results')}>実績</a>
-          <a href="#flow" onClick={(e) => handleLinkClick(e, '#flow')}>ご依頼の流れ</a>
-          <a href="#blog" onClick={(e) => handleLinkClick(e, '#blog')}>ブログ</a>
-          <a href="#about" onClick={(e) => handleLinkClick(e, '#about')}>代表紹介</a>
+          <a href="/#pain" onClick={(e) => handleLinkClick(e, '#pain')}>お困りごと</a>
+          <a href="/#services" onClick={(e) => handleLinkClick(e, '#services')}>サービス</a>
+          <a href="/#pricing" onClick={(e) => handleLinkClick(e, '#pricing')}>料金</a>
+          <a href="/#results" onClick={(e) => handleLinkClick(e, '#results')}>実績</a>
+          <a href="/#flow" onClick={(e) => handleLinkClick(e, '#flow')}>ご依頼の流れ</a>
+          <Link to="/blog" onClick={() => setMenuOpen(false)}>ブログ</Link>
+          <a href="/#about" onClick={(e) => handleLinkClick(e, '#about')}>代表紹介</a>
           <div className="nav-dropdown">
             <span
               className="nav-dropdown-trigger"
@@ -77,7 +106,7 @@ export default function Navbar() {
               <a href="/racing.html">🏰 ディフェンス</a>
             </div>
           </div>
-          <a href="#contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#contact-form')} data-cta="nav-consult">
+          <a href="/#contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#contact-form')} data-cta="nav-consult">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5l7 5 7-5M3 5v10h14V5M3 5h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             無料相談
           </a>
