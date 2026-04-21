@@ -95,3 +95,32 @@
 @media(prefers-reduced-motion:reduce){
   .preloader-chapter, .preloader-signature{animation:none !important;opacity:1 !important}
 }
+/* === v48b: header wordmark — fix mobile overlap + blend away white PNG bg === */
+/* The logo.png asset has a near-white opaque background. On the frosted
+   white glass header it reads as a pasted rectangle. mix-blend-mode:multiply
+   blends the white pixels into the header while keeping the dark glyphs. */
+.site-header .logo-wrap-header .logo-text{
+  mix-blend-mode: multiply;
+  -webkit-mix-blend-mode: multiply;
+}
+
+/* Safer: shrink the wordmark a touch so it sits comfortably next to nav */
+.site-header .logo-wrap-header{max-width: 60vw}
+.site-header .logo-wrap-header .logo-text{max-width: 100%;height: 80%}
+
+/* Mobile: hide the wordmark image entirely (mark alone communicates brand),
+   guaranteeing no overlap with the nav-toggle hamburger. */
+@media (max-width: 900px){
+  .site-header .logo-wrap-header .logo-text{display: none !important}
+  .site-header .logo-wrap-header{gap: 0 !important}
+  .site-header .nav-toggle{margin-left: auto}
+}
+
+/* Tablet fallback: if wordmark shown, keep clear space from hamburger */
+@media (min-width: 901px) and (max-width: 1024px){
+  .site-header .logo-wrap-header .logo-text{height: 70%}
+}
+
+/* Extra safety — z-index stacking so nav-toggle is always above */
+.site-header .nav-toggle{position: relative;z-index: 101}
+.site-header .logo-wrap-header{position: relative;z-index: 1}
