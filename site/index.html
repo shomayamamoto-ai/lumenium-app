@@ -16,44 +16,90 @@
 <body>
 
   <!-- ============ OPENING MOVIE ============ -->
-  <div id="opening" class="opening" aria-hidden="false">
+  <div id="opening" class="opening" aria-hidden="false" data-scene="1">
+
+    <!-- Background canvases (particles + rays) -->
     <canvas id="opening-canvas" aria-hidden="true"></canvas>
 
+    <!-- Atmospheric overlays -->
     <div class="opening-vignette" aria-hidden="true"></div>
     <div class="opening-grid" aria-hidden="true"></div>
+    <div class="opening-noise" aria-hidden="true"></div>
+    <div class="opening-flash" aria-hidden="true"></div>
 
-    <div class="opening-stage">
-      <div class="opening-line opening-line--top">
+    <!-- Scene 1: Void → single spark -->
+    <div class="scene scene-1" data-scene-id="1" aria-hidden="true">
+      <div class="spark"></div>
+      <div class="spark-ring"></div>
+    </div>
+
+    <!-- Scene 2: Vertical kanji column rising (縦書き) -->
+    <div class="scene scene-2" data-scene-id="2" aria-hidden="true">
+      <div class="vert-column">
+        <span>慶</span><span>友</span><span>会</span>
+        <span class="sep">—</span>
+        <span>社</span><span>会</span><span>学</span>
+      </div>
+      <div class="vert-rule"></div>
+    </div>
+
+    <!-- Scene 3: Philosophical phrase typeline -->
+    <div class="scene scene-3" data-scene-id="3" aria-hidden="true">
+      <div class="phrase-row"><span>本質的</span><em>思考。</em></div>
+      <div class="phrase-row"><span>本質的</span><em>学び。</em></div>
+      <div class="phrase-row"><span>自立できる</span><em>ちから。</em></div>
+    </div>
+
+    <!-- Scene 4: Grand title reveal -->
+    <div class="scene scene-4" data-scene-id="4" aria-hidden="true">
+      <div class="title-line-top">
         <span class="tag">KEIYUKAI</span>
         <span class="divider"></span>
         <span class="tag">EST. 慶應義塾</span>
       </div>
 
-      <div class="opening-kanji" aria-hidden="true">
+      <div class="title-kanji">
         <span data-char>社</span>
         <span data-char>会</span>
         <span data-char>学</span>
       </div>
 
-      <h1 class="opening-title">
-        <span class="opening-title__en">Sociology Seminar</span>
-        <span class="opening-title__jp">慶友会 社会学ゼミ</span>
+      <h1 class="title-main">
+        <span class="title-main__en">Sociology Seminar</span>
+        <span class="title-main__jp">慶友会 社会学ゼミ</span>
       </h1>
 
-      <p class="opening-tagline">
-        <span>本質的思考。</span>
-        <span>本質的学び。</span>
-        <span>自立できるちから。</span>
+      <p class="title-tagline">
+        <span>本質的思考</span>
+        <span class="dot">・</span>
+        <span>本質的学び</span>
+        <span class="dot">・</span>
+        <span>自立できるちから</span>
       </p>
 
-      <div class="opening-progress" aria-hidden="true">
-        <div class="opening-progress__bar"></div>
-        <div class="opening-progress__label">LOADING — 自我作古</div>
+      <div class="title-motto">
+        <span>自我作古 — われよりいにしえをなす</span>
+      </div>
+    </div>
+
+    <!-- Top-right progress -->
+    <div class="opening-hud" aria-hidden="true">
+      <div class="opening-hud__row">
+        <span class="opening-hud__label">SCENE</span>
+        <span class="opening-hud__value" id="opening-scene-indicator">01 / 04</span>
+      </div>
+      <div class="opening-hud__bar">
+        <div class="opening-hud__bar-fill" id="opening-bar-fill"></div>
+      </div>
+      <div class="opening-hud__meta">
+        <span>SOCIOLOGY SEMINAR</span>
+        <span>ver. 2026</span>
       </div>
     </div>
 
     <button type="button" class="opening-skip" id="opening-skip" aria-label="オープニングをスキップ">
-      SKIP <span aria-hidden="true">→</span>
+      <span>SKIP</span>
+      <span class="opening-skip__arrow" aria-hidden="true">→</span>
     </button>
   </div>
 
@@ -82,25 +128,73 @@
     <!-- HERO -->
     <section id="top" class="hero">
       <div class="hero__bg" aria-hidden="true">
-        <div class="hero__gradient"></div>
-        <div class="hero__stars"></div>
+        <div class="hero__gradient" data-parallax="0.15"></div>
+        <div class="hero__stars" data-parallax="0.25"></div>
+        <div class="hero__glow-1"></div>
+        <div class="hero__glow-2"></div>
+      </div>
+
+      <div class="hero__ornament hero__ornament--left" aria-hidden="true">
+        <svg viewBox="0 0 80 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="40" y1="0" x2="40" y2="400" stroke="currentColor" stroke-width="1" stroke-opacity="0.4"/>
+          <circle cx="40" cy="60" r="3" fill="currentColor" fill-opacity="0.8"/>
+          <circle cx="40" cy="200" r="2" fill="currentColor" fill-opacity="0.5"/>
+          <circle cx="40" cy="340" r="3" fill="currentColor" fill-opacity="0.8"/>
+        </svg>
+      </div>
+      <div class="hero__ornament hero__ornament--right" aria-hidden="true">
+        <svg viewBox="0 0 80 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="40" y1="0" x2="40" y2="400" stroke="currentColor" stroke-width="1" stroke-opacity="0.4"/>
+          <circle cx="40" cy="60" r="3" fill="currentColor" fill-opacity="0.8"/>
+          <circle cx="40" cy="200" r="2" fill="currentColor" fill-opacity="0.5"/>
+          <circle cx="40" cy="340" r="3" fill="currentColor" fill-opacity="0.8"/>
+        </svg>
       </div>
 
       <div class="hero__content">
-        <p class="hero__eyebrow">慶應義塾大学 通信教育課程 — 公認学生団体</p>
+        <p class="hero__eyebrow">
+          <span class="hero__eyebrow-line"></span>
+          慶應義塾大学 通信教育課程 — 公認学生団体
+          <span class="hero__eyebrow-line"></span>
+        </p>
         <h2 class="hero__title">
           <span>学びの本質に、</span>
           <span>ワクワクする。</span>
-          <span>自立するちからを、共に。</span>
+          <span class="hero__title--accent">自立するちからを、共に。</span>
         </h2>
         <p class="hero__lead">
-          真の教育とは、人間の尊厳を守り、自己と他者を理解し、互いを支え合いながら、<br />
-          「自立できるちから」をはぐくむこと——。
-          私たちは、難解な内容もわかりやすくかみくだき、寄り添う姿勢で、社会学の本質にワクワクする時間を共有していきます。
+          真の教育とは、人間の尊厳を守り、自己と他者を理解し、<br />
+          互いを支え合いながら、<em>「自立できるちから」</em>をはぐくむこと——。
+        </p>
+        <p class="hero__lead hero__lead--soft">
+          私たちは、難解な内容もわかりやすくかみくだき、寄り添う姿勢で、<br />
+          社会学の本質にワクワクする時間を共有していきます。
         </p>
         <div class="hero__actions">
-          <a href="#about" class="btn btn--primary">ゼミについて知る</a>
-          <a href="#join" class="btn btn--ghost">入会を検討する</a>
+          <a href="#about" class="btn btn--primary">
+            <span>ゼミについて知る</span>
+            <span class="btn__arrow" aria-hidden="true">→</span>
+          </a>
+          <a href="membership.html" class="btn btn--ghost">
+            <span>入会を検討する</span>
+          </a>
+        </div>
+
+        <div class="hero__metrics" aria-hidden="true">
+          <div class="metric">
+            <span class="metric__num">慶應</span>
+            <span class="metric__label">通信教育課程</span>
+          </div>
+          <div class="metric__divider"></div>
+          <div class="metric">
+            <span class="metric__num">Online</span>
+            <span class="metric__label">Zoom × スライド</span>
+          </div>
+          <div class="metric__divider"></div>
+          <div class="metric">
+            <span class="metric__num">全国</span>
+            <span class="metric__label">どこからでも参加可</span>
+          </div>
         </div>
       </div>
 
