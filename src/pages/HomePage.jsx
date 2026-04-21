@@ -33,13 +33,13 @@ import { initWebVitals } from '../lib/webVitals'
 const ChatWidget = lazy(() => import('../components/ChatWidget'))
 const Privacy = lazy(() => import('../components/Privacy'))
 
-const hasSeenSplash = () => {
-  try { return typeof window !== 'undefined' && sessionStorage.getItem('lumenium-seen') === '1' } catch { return false }
-}
+// Module-level flag: splash + intro video plays on full page load; if the user
+// navigates away within the SPA (e.g. to /blog) and comes back, we skip it.
+// A real page refresh (F5 / ⌘R) resets the module and replays splash + video.
+let splashAlreadyPlayed = false
 
 export default function HomePage() {
-  // Show splash only on the first visit of a session; subsequent navigations go straight to content.
-  const [phase, setPhase] = useState(() => (hasSeenSplash() ? 2 : 0))
+  const [phase, setPhase] = useState(() => (splashAlreadyPlayed ? 2 : 0))
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
@@ -53,14 +53,14 @@ export default function HomePage() {
   const handleVideoEnd = useCallback(() => {
     setPhase(2) // Show main page
     setTimeout(() => setPageReady(true), 50)
-    try { sessionStorage.setItem('lumenium-seen', '1') } catch {}
+    splashAlreadyPlayed = true
   }, [])
 
   useEffect(() => {
     if (phase === 2) {
-      // Entered directly from a subsequent in-session navigation — skip splash/video
+      // Returned to home via internal navigation — skip directly to content.
       setPageReady(true)
-      try { sessionStorage.setItem('lumenium-seen', '1') } catch {}
+      splashAlreadyPlayed = true
     } else {
       document.body.classList.add('splash-active')
     }
