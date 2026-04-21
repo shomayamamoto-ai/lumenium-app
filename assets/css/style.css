@@ -435,3 +435,9 @@
   .preloader-loading .preloader-bar span{width:100% !important}
   .loading-percent{opacity:1}
 }
+/* === v42: Let JS drive the bar width so it syncs 1:1 with the % counter === */
+.preloader-loading .preloader-bar span{
+  animation: none !important;
+  width: 0%;
+  transition: none !important;
+}
