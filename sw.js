@@ -1,64 +1,54 @@
-/* AdvoVisions — minimal service worker (offline-ready) */
-const VERSION = "v51";
+/* AdvoVisions — service worker (network-first HTML, cache-first static) */
+const VERSION = "v52";
 const CACHE = "advo-" + VERSION;
-const PRECACHE = [
-  "./",
-  "./index.html",
-  "./members.html",
-  "./news.html",
-  "./about.html",
-  "./audition.html",
-  "./privacy.html",
-  "./404.html",
-  "./assets/css/style.css?v=51",
-  "./assets/js/main.js?v=51",
-  "./assets/js/members-data.js?v=51",
-  "./assets/js/news-data.js?v=51",
-  "./assets/img/logo-original.png?v=51",
-  "./assets/img/logo-original-white.png?v=51",
-  "./assets/img/logo.png?v=51",
-  "./assets/img/wordmark-white.png?v=51",
+const STATIC_PRECACHE = [
   "./manifest.json"
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(PRECACHE).catch(() => {}))
-  );
+  // Activate immediately on install, bypassing the "waiting" state
   self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then((c) => c.addAll(STATIC_PRECACHE).catch(() => {}))
+  );
 });
 
 self.addEventListener("activate", (e) => {
+  // Delete EVERY old cache so stale HTML from previous SWs can never serve
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+      // Tell all open pages to reload — picks up the new HTML immediately
+      const clients = await self.clients.matchAll({ type: "window" });
+      clients.forEach((c) => c.navigate(c.url).catch(() => {}));
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
-  const url = new URL(req.url);
-  // Network-first for HTML, cache-first for everything else
-  if (req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html")) {
+
+  const accept = req.headers.get("accept") || "";
+  const isHTML = req.mode === "navigate" || accept.includes("text/html");
+
+  if (isHTML) {
+    // Always fresh HTML. Never serve HTML from cache so content updates are visible immediately.
     e.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-          return res;
-        })
-        .catch(() => caches.match(req).then((r) => r || caches.match("./404.html")))
+      fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
     );
     return;
   }
+
+  // Static assets: cache-first, but fall back to network if missing
   e.respondWith(
     caches.match(req).then(
       (r) =>
         r ||
         fetch(req).then((res) => {
+          const url = new URL(req.url);
           if (url.origin === location.origin && res.status === 200) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
