@@ -223,6 +223,80 @@
     onScroll();
   }
 
+  function setupMobileDrawer() {
+    const burger = document.getElementById('nav-burger');
+    const drawer = document.getElementById('nav-drawer');
+    const closeBtn = document.getElementById('nav-drawer-close');
+    if (!burger || !drawer) return;
+
+    function open() {
+      drawer.classList.add('is-open');
+      drawer.setAttribute('aria-hidden', 'false');
+      burger.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      drawer.classList.remove('is-open');
+      drawer.setAttribute('aria-hidden', 'true');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    burger.addEventListener('click', () => {
+      drawer.classList.contains('is-open') ? close() : open();
+    });
+    closeBtn && closeBtn.addEventListener('click', close);
+    drawer.querySelector('.nav-drawer__backdrop').addEventListener('click', close);
+    drawer.querySelectorAll('a').forEach((a) => a.addEventListener('click', close));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && drawer.classList.contains('is-open')) close();
+    });
+  }
+
+  function setupMagneticButtons() {
+    const buttons = document.querySelectorAll('.btn');
+    if (!buttons.length || !window.matchMedia('(hover: hover)').matches) return;
+    buttons.forEach((btn) => {
+      btn.setAttribute('data-magnetic', '');
+      btn.addEventListener('pointermove', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const mx = e.clientX - rect.left - rect.width / 2;
+        const my = e.clientY - rect.top - rect.height / 2;
+        btn.style.transform = `translate3d(${mx * 0.25}px, ${my * 0.35}px, 0)`;
+      });
+      btn.addEventListener('pointerleave', () => {
+        btn.style.transform = '';
+      });
+    });
+  }
+
+  function setupCountUp() {
+    const els = document.querySelectorAll('[data-count-to]');
+    if (!els.length || !('IntersectionObserver' in window)) return;
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        const target = parseInt(el.getAttribute('data-count-to'), 10);
+        const suffix = el.getAttribute('data-count-suffix') || '';
+        const duration = 1400;
+        const start = performance.now();
+        function frame(now) {
+          const p = Math.min(1, (now - start) / duration);
+          // easeOutExpo
+          const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+          const v = Math.round(target * eased);
+          el.innerHTML = v + (suffix ? '<sup>' + suffix + '</sup>' : '');
+          if (p < 1) requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+        io.unobserve(el);
+      });
+    }, { threshold: 0.5 });
+
+    els.forEach((el) => io.observe(el));
+  }
+
   function setupScrollProgress() {
     const bar = document.getElementById('scroll-progress');
     if (!bar) return;
@@ -252,6 +326,9 @@
     setupParallax();
     setupNavShrink();
     setupScrollProgress();
+    setupMobileDrawer();
+    setupMagneticButtons();
+    setupCountUp();
     bootOpening();
   });
 })();

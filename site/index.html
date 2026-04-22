@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=8" />
+  <link rel="stylesheet" href="assets/css/main.css?v=9" />
 </head>
 <body>
 
@@ -123,7 +123,38 @@
         <a href="#faq">FAQ</a>
         <a href="membership.html" class="nav__cta">Join</a>
       </nav>
+
+      <button type="button" class="nav__burger" id="nav-burger" aria-label="メニューを開く" aria-expanded="false" aria-controls="nav-drawer">
+        <span></span><span></span><span></span>
+      </button>
     </header>
+
+    <!-- Mobile drawer -->
+    <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
+      <div class="nav-drawer__backdrop"></div>
+      <aside class="nav-drawer__panel" role="dialog" aria-label="モバイルメニュー">
+        <div class="nav-drawer__header">
+          <span class="nav-drawer__title">慶友会 社会学ゼミ</span>
+          <button type="button" class="nav-drawer__close" id="nav-drawer-close" aria-label="メニューを閉じる">✕</button>
+        </div>
+        <nav class="nav-drawer__links">
+          <a href="#about" data-drawer-link>About</a>
+          <a href="#creed" data-drawer-link>Creed</a>
+          <a href="#philosophy" data-drawer-link>Philosophy</a>
+          <a href="#activities" data-drawer-link>Activities</a>
+          <a href="#process" data-drawer-link>Process</a>
+          <a href="#voices" data-drawer-link>Voices</a>
+          <a href="#readings" data-drawer-link>Readings</a>
+          <a href="#faq" data-drawer-link>FAQ</a>
+          <a href="#contact" data-drawer-link>Contact</a>
+          <a href="membership.html" class="nav-drawer__cta">入会申込へ</a>
+        </nav>
+        <div class="nav-drawer__foot">
+          <p>sociology.semi.kk@gmail.com</p>
+          <p>自我作古</p>
+        </div>
+      </aside>
+    </div>
 
     <!-- HERO -->
     <section id="top" class="hero">
@@ -149,6 +180,16 @@
           <circle cx="40" cy="200" r="2" fill="currentColor" fill-opacity="0.5"/>
           <circle cx="40" cy="340" r="3" fill="currentColor" fill-opacity="0.8"/>
         </svg>
+      </div>
+
+      <!-- Giant vertical kanji signature (decorative) -->
+      <div class="hero__signature" aria-hidden="true">
+        <span>社</span><span>会</span><span>学</span>
+      </div>
+
+      <!-- Red seal stamp (inkan) -->
+      <div class="hero__seal" aria-hidden="true">
+        <span>慶</span>
       </div>
 
       <div class="hero__content">
@@ -251,7 +292,7 @@
         </div>
         <div class="facts__divider"></div>
         <div class="facts__item">
-          <span class="facts__num">100<sup>+</sup></span>
+          <span class="facts__num" data-count-to="100" data-count-suffix="+">0<sup>+</sup></span>
           <span class="facts__label">オリジナル図解資料</span>
         </div>
         <div class="facts__divider"></div>
@@ -321,6 +362,13 @@
         <span class="section__num">03</span>
         <h3 class="section__title">Philosophy</h3>
         <p class="section__subtitle">社会学という視座</p>
+      </div>
+
+      <div class="philosophy__aside" aria-hidden="true">
+        <div class="philosophy__asterism">⁂</div>
+        <div class="philosophy__vert">
+          <span>秩</span><span>序</span><span>と</span><span>進</span><span>歩</span>
+        </div>
       </div>
 
       <div class="philosophy__body">
@@ -730,6 +778,6 @@
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=8"></script>
+  <script src="assets/js/main.js?v=9"></script>
 </body>
 </html>
