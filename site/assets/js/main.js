@@ -223,6 +223,23 @@
     onScroll();
   }
 
+  function setupScrollProgress() {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    let ticking = false;
+    function update() {
+      const h = document.documentElement;
+      const total = h.scrollHeight - h.clientHeight;
+      const ratio = total > 0 ? (h.scrollTop || window.scrollY) / total : 0;
+      bar.style.width = (Math.max(0, Math.min(1, ratio)) * 100).toFixed(2) + '%';
+      ticking = false;
+    }
+    window.addEventListener('scroll', () => {
+      if (!ticking) { requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    update();
+  }
+
   function setYear() {
     const y = document.getElementById('year');
     if (y) y.textContent = String(new Date().getFullYear());
@@ -234,6 +251,7 @@
     setupSmoothScroll();
     setupParallax();
     setupNavShrink();
+    setupScrollProgress();
     bootOpening();
   });
 })();

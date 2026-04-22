@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>慶友会 社会学ゼミ — Sociology Seminar</title>
   <meta name="description" content="慶友会 社会学ゼミは、慶應義塾大学通信教育課程の学生による学習サークルです。本質的な思考と本質的な学びを掲げ、ゼミ形式で社会学を探究します。" />
+  <meta name="theme-color" content="#05060a" />
   <meta property="og:title" content="慶友会 社会学ゼミ" />
   <meta property="og:description" content="本質的思考・本質的学び — 慶應義塾大学 通信教育課程の社会学ゼミ" />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://shomayamamoto-ai.github.io/keiyukai-sociology/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="慶友会 社会学ゼミ" />
+  <meta name="twitter:description" content="本質的思考・本質的学び — 慶應義塾大学 通信教育課程の社会学ゼミ" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- Preload the two critical font files so the intro doesn't FOUT -->
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=7" />
+  <link rel="stylesheet" href="assets/css/main.css?v=8" />
 </head>
 <body>
 
@@ -96,6 +100,9 @@
     </button>
   </div>
 
+  <!-- Scroll progress indicator -->
+  <div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
   <!-- ============ MAIN SITE ============ -->
   <div id="site" class="site" aria-hidden="true">
 
@@ -109,12 +116,12 @@
       </a>
       <nav class="nav__links" aria-label="メインナビゲーション">
         <a href="#creed">Creed</a>
-        <a href="#philosophy">Philosophy</a>
         <a href="#activities">Activities</a>
         <a href="#process">Process</a>
+        <a href="#voices">Voices</a>
         <a href="#readings">Readings</a>
         <a href="#faq">FAQ</a>
-        <a href="membership.html">Join</a>
+        <a href="membership.html" class="nav__cta">Join</a>
       </nav>
     </header>
 
@@ -226,6 +233,31 @@
             時間の制約や遠方にお住まいの方にも学びが届くよう、
             Zoomによる中継とスライド共有を活用しています（教員・大学の許可のもと運営）。
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FACTS / 数字で見る -->
+    <section id="facts" class="facts">
+      <div class="facts__inner">
+        <div class="facts__item">
+          <span class="facts__num">慶應</span>
+          <span class="facts__label">義塾公認団体</span>
+        </div>
+        <div class="facts__divider"></div>
+        <div class="facts__item">
+          <span class="facts__num">Monthly</span>
+          <span class="facts__label">ゼミ・勉強会開催</span>
+        </div>
+        <div class="facts__divider"></div>
+        <div class="facts__item">
+          <span class="facts__num">100<sup>+</sup></span>
+          <span class="facts__label">オリジナル図解資料</span>
+        </div>
+        <div class="facts__divider"></div>
+        <div class="facts__item">
+          <span class="facts__num">全国</span>
+          <span class="facts__label">Zoomで遠隔参加可</span>
         </div>
       </div>
     </section>
@@ -445,10 +477,60 @@
       </ol>
     </section>
 
+    <!-- VOICES / メンバーの声 -->
+    <section id="voices" class="section section--voices">
+      <div class="section__header">
+        <span class="section__num">06</span>
+        <h3 class="section__title">Voices</h3>
+        <p class="section__subtitle">メンバーの声</p>
+      </div>
+
+      <div class="voices__grid">
+        <article class="voice">
+          <div class="voice__mark" aria-hidden="true">"</div>
+          <p class="voice__quote">
+            通信で学びはじめて、一人で読み解くのが難しい章でも、
+            図解資料と仲間の言葉で一気に視界が開けました。
+            「本質的に学ぶ」とはこういう時間のことか、と毎回実感します。
+          </p>
+          <footer class="voice__foot">
+            <span class="voice__who">A. M.</span>
+            <span class="voice__meta">文学部 III類 / 教育業</span>
+          </footer>
+        </article>
+
+        <article class="voice">
+          <div class="voice__mark" aria-hidden="true">"</div>
+          <p class="voice__quote">
+            仕事と子育てで対面参加は難しかったのですが、
+            Zoom中心の運営と録画共有のおかげで、
+            自分のペースで深く考える時間が持てています。
+          </p>
+          <footer class="voice__foot">
+            <span class="voice__who">H. T.</span>
+            <span class="voice__meta">経済学部 / 医療職</span>
+          </footer>
+        </article>
+
+        <article class="voice">
+          <div class="voice__mark" aria-hidden="true">"</div>
+          <p class="voice__quote">
+            卒論のテーマ選びで迷っていたとき、
+            先輩方が自分の職業経験と社会学の視座を結びつける議論を聞いて、
+            一気に方向性が定まりました。
+          </p>
+          <footer class="voice__foot">
+            <span class="voice__who">K. S.</span>
+            <span class="voice__meta">法学部 甲類 / 行政職</span>
+          </footer>
+        </article>
+      </div>
+    </section>
+
     <!-- READINGS -->
     <section id="readings" class="section section--readings">
       <div class="section__header">
-        <span class="section__num">06</span>
+        <span class="section__num">07</span>
         <h3 class="section__title">Core Readings</h3>
         <p class="section__subtitle">指定書籍</p>
       </div>
@@ -481,7 +563,7 @@
     <!-- FAQ -->
     <section id="faq" class="section section--faq">
       <div class="section__header">
-        <span class="section__num">07</span>
+        <span class="section__num">08</span>
         <h3 class="section__title">FAQ</h3>
         <p class="section__subtitle">よくあるご質問</p>
       </div>
@@ -558,7 +640,7 @@
     <!-- JOIN -->
     <section id="join" class="section section--join">
       <div class="section__header">
-        <span class="section__num">08</span>
+        <span class="section__num">09</span>
         <h3 class="section__title">Join Us</h3>
         <p class="section__subtitle">参加をお考えの方へ</p>
       </div>
@@ -583,7 +665,7 @@
     <!-- CONTACT -->
     <section id="contact" class="section section--contact">
       <div class="section__header">
-        <span class="section__num">09</span>
+        <span class="section__num">10</span>
         <h3 class="section__title">Contact</h3>
         <p class="section__subtitle">お問い合わせ</p>
       </div>
@@ -602,16 +684,52 @@
 
     <footer class="footer">
       <div class="footer__inner">
-        <div class="footer__brand">
-          <span class="footer__brand-jp">慶友会 社会学ゼミ</span>
-          <span class="footer__brand-en">Sociology Seminar, Keio Keiyukai</span>
+        <div class="footer__top">
+          <div class="footer__brand-block">
+            <span class="footer__brand-mark" aria-hidden="true"></span>
+            <div class="footer__brand">
+              <span class="footer__brand-jp">慶友会 社会学ゼミ</span>
+              <span class="footer__brand-en">Sociology Seminar, Keio Keiyukai</span>
+            </div>
+            <p class="footer__motto">自我作古 — われよりいにしえをなす</p>
+          </div>
+
+          <nav class="footer__nav" aria-label="サイト内リンク">
+            <div class="footer__col">
+              <h6>About</h6>
+              <a href="#about">ゼミについて</a>
+              <a href="#creed">理念</a>
+              <a href="#philosophy">社会学の視座</a>
+            </div>
+            <div class="footer__col">
+              <h6>Learn</h6>
+              <a href="#activities">活動内容</a>
+              <a href="#process">学びの流れ</a>
+              <a href="#readings">指定書籍</a>
+              <a href="#voices">メンバーの声</a>
+            </div>
+            <div class="footer__col">
+              <h6>Join</h6>
+              <a href="membership.html">入会申込</a>
+              <a href="#faq">よくあるご質問</a>
+              <a href="#contact">お問い合わせ</a>
+            </div>
+            <div class="footer__col">
+              <h6>Contact</h6>
+              <a class="footer__mail" href="mailto:sociology.semi.kk@gmail.com">sociology.semi.kk@gmail.com</a>
+              <p class="footer__note">慶應義塾大学 通信教育課程 公認学生団体</p>
+            </div>
+          </nav>
         </div>
-        <p class="footer__motto">自我作古 — われよりいにしえをなす</p>
-        <p class="footer__copy">© <span id="year"></span> Sociology Seminar. All rights reserved.</p>
+
+        <div class="footer__bottom">
+          <p class="footer__copy">© <span id="year"></span> 慶友会 社会学ゼミ. All rights reserved.</p>
+          <p class="footer__credit">Crafted with care in 2026.</p>
+        </div>
       </div>
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=7"></script>
+  <script src="assets/js/main.js?v=8"></script>
 </body>
 </html>
