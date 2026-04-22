@@ -17,9 +17,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/main.css?v=9" />
+  <link rel="stylesheet" href="assets/css/main.css?v=10" />
 </head>
 <body>
+
+  <!-- Custom cursor (desktop only) -->
+  <div class="cursor" id="cursor" aria-hidden="true">
+    <div class="cursor__dot"></div>
+    <div class="cursor__ring"></div>
+  </div>
 
   <!-- ============ OPENING (v7 — Awwwards-grade kinetic typography) ============ -->
   <div id="opening" class="op">
@@ -117,7 +123,7 @@
       <nav class="nav__links" aria-label="メインナビゲーション">
         <a href="#creed">Creed</a>
         <a href="#activities">Activities</a>
-        <a href="#process">Process</a>
+        <a href="#themes">Themes</a>
         <a href="#voices">Voices</a>
         <a href="#readings">Readings</a>
         <a href="#faq">FAQ</a>
@@ -142,6 +148,7 @@
           <a href="#creed" data-drawer-link>Creed</a>
           <a href="#philosophy" data-drawer-link>Philosophy</a>
           <a href="#activities" data-drawer-link>Activities</a>
+          <a href="#themes" data-drawer-link>Themes</a>
           <a href="#process" data-drawer-link>Process</a>
           <a href="#voices" data-drawer-link>Voices</a>
           <a href="#readings" data-drawer-link>Readings</a>
@@ -477,10 +484,96 @@
       </ul>
     </section>
 
+    <!-- THEMES / 現在探究中のテーマ -->
+    <section id="themes" class="section section--themes">
+      <div class="section__header">
+        <span class="section__num">05</span>
+        <h3 class="section__title">Current Themes</h3>
+        <p class="section__subtitle">いま探究しているテーマ</p>
+      </div>
+
+      <div class="themes__intro">
+        <p>
+          毎期、参加者の関心と社会的問題意識を起点に、社会学の核となる主題を選定して掘り下げます。<br />
+          ここでは現在進行中の探究テーマをご紹介します。
+        </p>
+      </div>
+
+      <div class="themes__grid">
+        <article class="theme">
+          <div class="theme__num">No.01</div>
+          <h4 class="theme__title">ハビトゥスと社会階層の再生産</h4>
+          <p class="theme__desc">
+            ピエール・ブルデューの理論を出発点に、教育・文化・職業選択の中で
+            「階層」がいかに静かに継承されるかを読み解きます。
+          </p>
+          <div class="theme__meta">
+            <span class="theme__tag">社会階層</span>
+            <span class="theme__tag">文化資本</span>
+          </div>
+        </article>
+
+        <article class="theme">
+          <div class="theme__num">No.02</div>
+          <h4 class="theme__title">監視社会と「自由」の再定義</h4>
+          <p class="theme__desc">
+            フーコーのパノプティコンから現代のプラットフォーム監視まで。
+            可視化される個人の中で、私たちが守るべき「自由」とは何かを問います。
+          </p>
+          <div class="theme__meta">
+            <span class="theme__tag">権力</span>
+            <span class="theme__tag">プライバシー</span>
+          </div>
+        </article>
+
+        <article class="theme">
+          <div class="theme__num">No.03</div>
+          <h4 class="theme__title">AI時代の労働と人間の尊厳</h4>
+          <p class="theme__desc">
+            自動化が進む社会で、仕事を通じた自己実現はどう変わるのか。
+            マルクスの疎外論と現代の知識労働を接続して考えます。
+          </p>
+          <div class="theme__meta">
+            <span class="theme__tag">労働社会学</span>
+            <span class="theme__tag">技術</span>
+          </div>
+        </article>
+
+        <article class="theme">
+          <div class="theme__num">No.04</div>
+          <h4 class="theme__title">共同体と「弱い紐帯」の力</h4>
+          <p class="theme__desc">
+            グラノヴェッターの理論を手がかりに、強い絆だけでなく
+            「弱い結びつき」が人生・キャリア・社会に果たす役割を再評価します。
+          </p>
+          <div class="theme__meta">
+            <span class="theme__tag">ネットワーク</span>
+            <span class="theme__tag">共同体</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- MANIFESTO callout -->
+    <section class="manifesto" aria-label="Manifesto">
+      <div class="manifesto__inner">
+        <p class="manifesto__small">— Our Manifesto</p>
+        <h2 class="manifesto__big">
+          <span>学びは、</span>
+          <span>急がず。</span>
+          <span>本質に、近づく。</span>
+        </h2>
+        <p class="manifesto__sub">
+          わかった気になる速さよりも、本当に腑に落ちる深さを。<br />
+          一人ひとりが、自分の問いを持って帰れる時間を大切にしています。
+        </p>
+      </div>
+    </section>
+
     <!-- PROCESS / 学びの流れ -->
     <section id="process" class="section section--process">
       <div class="section__header">
-        <span class="section__num">05</span>
+        <span class="section__num">06</span>
         <h3 class="section__title">How We Learn</h3>
         <p class="section__subtitle">学びの流れ</p>
       </div>
@@ -528,7 +621,7 @@
     <!-- VOICES / メンバーの声 -->
     <section id="voices" class="section section--voices">
       <div class="section__header">
-        <span class="section__num">06</span>
+        <span class="section__num">07</span>
         <h3 class="section__title">Voices</h3>
         <p class="section__subtitle">メンバーの声</p>
       </div>
@@ -578,7 +671,7 @@
     <!-- READINGS -->
     <section id="readings" class="section section--readings">
       <div class="section__header">
-        <span class="section__num">07</span>
+        <span class="section__num">08</span>
         <h3 class="section__title">Core Readings</h3>
         <p class="section__subtitle">指定書籍</p>
       </div>
@@ -611,7 +704,7 @@
     <!-- FAQ -->
     <section id="faq" class="section section--faq">
       <div class="section__header">
-        <span class="section__num">08</span>
+        <span class="section__num">09</span>
         <h3 class="section__title">FAQ</h3>
         <p class="section__subtitle">よくあるご質問</p>
       </div>
@@ -688,7 +781,7 @@
     <!-- JOIN -->
     <section id="join" class="section section--join">
       <div class="section__header">
-        <span class="section__num">09</span>
+        <span class="section__num">10</span>
         <h3 class="section__title">Join Us</h3>
         <p class="section__subtitle">参加をお考えの方へ</p>
       </div>
@@ -713,7 +806,7 @@
     <!-- CONTACT -->
     <section id="contact" class="section section--contact">
       <div class="section__header">
-        <span class="section__num">10</span>
+        <span class="section__num">11</span>
         <h3 class="section__title">Contact</h3>
         <p class="section__subtitle">お問い合わせ</p>
       </div>
@@ -778,6 +871,6 @@
     </footer>
   </div>
 
-  <script src="assets/js/main.js?v=9"></script>
+  <script src="assets/js/main.js?v=10"></script>
 </body>
 </html>

@@ -223,6 +223,43 @@
     onScroll();
   }
 
+  function setupCustomCursor() {
+    const cursor = document.getElementById('cursor');
+    if (!cursor) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    document.body.classList.add('has-cursor');
+    const dot = cursor.querySelector('.cursor__dot');
+    const ring = cursor.querySelector('.cursor__ring');
+
+    let mx = window.innerWidth / 2, my = window.innerHeight / 2;
+    let rx = mx, ry = my;
+
+    document.addEventListener('mousemove', (e) => {
+      mx = e.clientX; my = e.clientY;
+      dot.style.transform = `translate3d(${mx}px, ${my}px, 0) translate3d(-50%, -50%, 0)`;
+    }, { passive: true });
+
+    function frame() {
+      // Ring lerps for smooth trail
+      rx += (mx - rx) * 0.18;
+      ry += (my - ry) * 0.18;
+      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0) translate3d(-50%, -50%, 0)`;
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    // Hover state on interactive elements
+    const hoverSel = 'a, button, [role="button"], .voice, .theme, .activity, .book, .faq__item, .pillar, .about__card, .value, .process__step';
+    document.querySelectorAll(hoverSel).forEach((el) => {
+      el.addEventListener('pointerenter', () => cursor.classList.add('is-hover'));
+      el.addEventListener('pointerleave', () => cursor.classList.remove('is-hover'));
+    });
+
+    document.addEventListener('mouseleave', () => cursor.classList.add('is-hidden'));
+    document.addEventListener('mouseenter', () => cursor.classList.remove('is-hidden'));
+  }
+
   function setupMobileDrawer() {
     const burger = document.getElementById('nav-burger');
     const drawer = document.getElementById('nav-drawer');
@@ -329,6 +366,7 @@
     setupMobileDrawer();
     setupMagneticButtons();
     setupCountUp();
+    setupCustomCursor();
     bootOpening();
   });
 })();
