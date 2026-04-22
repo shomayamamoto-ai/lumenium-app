@@ -20,9 +20,22 @@ jobs:
       - name: Stage site
         run: |
           mkdir -p _site
-          cp -r index.html members.html member.html assets _site/
-          # ensure a root 404 redirects back to index for SPA-ish behavior
-          cp _site/index.html _site/404.html
+          # HTML pages
+          cp index.html       _site/
+          cp members.html     _site/
+          cp member.html      _site/
+          cp about.html       _site/
+          cp audition.html    _site/
+          cp news.html        _site/
+          cp privacy.html     _site/
+          cp 404.html         _site/
+          # Static assets
+          cp -r assets        _site/
+          # PWA + SEO support files
+          cp manifest.json    _site/
+          cp sw.js            _site/
+          cp sitemap.xml      _site/
+          cp robots.txt       _site/
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
