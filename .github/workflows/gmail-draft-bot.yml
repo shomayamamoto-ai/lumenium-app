@@ -1,0 +1,42 @@
+name: Gmail Draft Bot
+
+on:
+  schedule:
+    # 23:00 UTC = 08:00 JST — runs every morning.
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip Gmail draft creation; only log to Notion'
+        type: boolean
+        default: false
+
+concurrency:
+  group: gmail-draft-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Gmail draft bot
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_GMAIL_LOG_DB_ID: ${{ secrets.NOTION_GMAIL_LOG_DB_ID }}
+          USER_EMAIL: ${{ secrets.GMAIL_USER_EMAIL }}
+          CLAUDE_MODEL: claude-sonnet-4-6
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: node scripts/gmail-draft-bot/run.mjs
