@@ -1,0 +1,38 @@
+name: AI News Morning Digest
+
+on:
+  schedule:
+    # 00:25 UTC = 09:25 JST — runs 20 minutes after the collector so new items
+    # from the same day are guaranteed to be in place.
+    - cron: '25 0 * * *'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['AI News Collector']
+    types: [completed]
+
+concurrency:
+  group: ai-news-morning-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    # When triggered via workflow_run, only proceed if the collector succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run morning digest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_AI_NEWS_DB_ID: ${{ secrets.NOTION_AI_NEWS_DB_ID }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+        run: node scripts/ai-news/morning-digest.mjs
