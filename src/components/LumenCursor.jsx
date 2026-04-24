@@ -23,9 +23,9 @@ export default function LumenCursor() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const isTouch = window.matchMedia('(pointer: coarse)').matches
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    // Run on any non-touch device with pointer support; skip reduced-motion.
-    if (isTouch || reduce) return
+    // Touch devices only are skipped. Reduced-motion users still get the
+    // cursor — the CSS disables the spin/pulse animations for them.
+    if (isTouch) return
 
     const glow = glowRef.current
     const ring = ringRef.current

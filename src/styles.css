@@ -482,12 +482,14 @@ body.lumen-cursor-active [contenteditable="true"] { cursor: text !important; }
   100% { transform: translate(-50%, -50%) rotate(90deg) scale(1.6); opacity: 0; }
 }
 
-/* Hide on true touch devices and when user prefers reduced motion. */
+/* Hide on true touch devices only. For reduced-motion we still SHOW the
+   cursor (it's an essential brand affordance), but stop animating it. */
 @media (pointer: coarse) {
   .lumen-glow, .lumen-ring, .lumen-dot, .lumen-bursts { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lumen-glow, .lumen-ring, .lumen-dot, .lumen-bursts { display: none !important; }
+  .lumen-ring svg, .lumen-dot { animation: none !important; }
+  .lumen-burst--ring, .lumen-burst--spark { animation-duration: 0.001s !important; }
 }
 
 
