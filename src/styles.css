@@ -6024,12 +6024,20 @@ html[data-theme="dark"] .article-read-progress { background: rgba(255,255,255,0.
   color: #4f46e5;
 }
 
-@media (max-width: 600px) {
-  .blog-article-title { font-size: 20px; line-height: 1.36; }
-  .blog-article-body h2 { font-size: 16.5px; }
-  .blog-article-body h3 { font-size: 14px; }
-  .blog-article-body p { font-size: 13.5px; line-height: 1.88; }
-  .blog-article-body li { font-size: 13px; }
+@media (max-width: 720px) {
+  .blog-article-title { font-size: 18px; line-height: 1.4; margin-bottom: 22px; letter-spacing: -0.01em; }
+  .blog-article-body h2 { font-size: 15px; margin: 26px 0 8px; padding-left: 12px; }
+  .blog-article-body h2::before { width: 3px; top: 4px; bottom: 4px; }
+  .blog-article-body h3 { font-size: 13.5px; margin: 18px 0 6px; }
+  .blog-article-body p { font-size: 12.5px; line-height: 1.92; margin-bottom: 10px; }
+  .blog-article-body li { font-size: 12px; line-height: 1.82; }
+  .blog-article-body ul, .blog-article-body ol { padding-left: 18px; margin-bottom: 14px; }
+  .blog-article-body strong { font-size: inherit; }
+}
+@media (max-width: 380px) {
+  .blog-article-title { font-size: 17px; }
+  .blog-article-body p { font-size: 12px; }
+  .blog-article-body h2 { font-size: 14px; }
 }
 
 .blog-article-cta {
@@ -7323,3 +7331,25 @@ html[data-theme="dark"] .company-card {
 
 /* Ensure .blog-card Link works the same as old div */
 a.blog-card { text-decoration: none; color: inherit; cursor: pointer; display: flex; flex-direction: column; }
+
+/* ============================================================
+   Japanese phrase-aware wrapping (BudouX + inline-block)
+   Each .jp-phrase becomes atomic: the browser can ONLY break
+   between phrases, never inside. Works in every browser.
+   ============================================================ */
+.jp-phrase {
+  display: inline-block;
+  white-space: nowrap;
+}
+/* Paragraphs that use .jp-phrase children still need to allow the
+   spans themselves to wrap relative to each other. */
+.blog-article-body p,
+.blog-article-body h2,
+.blog-article-body h3,
+.blog-article-body li,
+.blog-article-title,
+.jp-wrap {
+  word-break: normal;
+  overflow-wrap: normal;
+  line-break: strict;
+}

@@ -1,32 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { loadDefaultJapaneseParser } from 'budoux'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { getMetaBySlug, getArticlesMetaSorted } from '../data/articles-meta'
 import { getContentBySlug } from '../data/articles-content'
+import { wrapJp } from '../lib/jpBreak'
 
 const slugHeading = (s, i) =>
   `h-${i}-${s.replace(/\s+/g, '-').replace(/[^\w\-一-龠ぁ-んァ-ン]/g, '').slice(0, 40)}`
 
-// BudouX: ML-based Japanese phrase segmentation — works in every browser.
-// Outputs <wbr> between 文節 so line wraps happen at natural boundaries.
-const jpParser = loadDefaultJapaneseParser()
-
-function withPhraseBreaks(text, keyPrefix) {
-  if (!text) return text
-  const segments = jpParser.parse(text)
-  if (segments.length <= 1) return text
-  const out = []
-  segments.forEach((seg, i) => {
-    out.push(seg)
-    if (i < segments.length - 1) out.push(<wbr key={`${keyPrefix}-w-${i}`} />)
-  })
-  return out
-}
-
-// Convert **bold** markdown to <strong> nodes; each text span gets BudouX
-// phrase-break <wbr> injection so the browser can wrap at natural points.
+// Convert **bold** markdown to <strong> nodes; each text span is further
+// segmented by BudouX into inline-block 文節 spans so lines break only
+// between natural phrase boundaries.
 function renderInline(text, keyPrefix = 'x') {
   const result = []
   const re = /\*\*(.+?)\*\*/g
@@ -36,19 +21,19 @@ function renderInline(text, keyPrefix = 'x') {
   while ((m = re.exec(text)) !== null) {
     if (m.index > lastIndex) {
       const before = text.slice(lastIndex, m.index)
-      result.push(<span key={`${keyPrefix}-t-${i}`}>{withPhraseBreaks(before, `${keyPrefix}-t-${i}`)}</span>)
+      result.push(<span key={`${keyPrefix}-t-${i}`}>{wrapJp(before, `${keyPrefix}-t-${i}`)}</span>)
     }
     result.push(
-      <strong key={`${keyPrefix}-b-${i}`}>{withPhraseBreaks(m[1], `${keyPrefix}-b-${i}`)}</strong>
+      <strong key={`${keyPrefix}-b-${i}`}>{wrapJp(m[1], `${keyPrefix}-b-${i}`)}</strong>
     )
     lastIndex = m.index + m[0].length
     i++
   }
   if (lastIndex < text.length) {
     const rest = text.slice(lastIndex)
-    result.push(<span key={`${keyPrefix}-t-end`}>{withPhraseBreaks(rest, `${keyPrefix}-t-end`)}</span>)
+    result.push(<span key={`${keyPrefix}-t-end`}>{wrapJp(rest, `${keyPrefix}-t-end`)}</span>)
   }
-  return result.length > 0 ? result : withPhraseBreaks(text, keyPrefix)
+  return result.length > 0 ? result : wrapJp(text, keyPrefix)
 }
 
 // Parse article content into semantic blocks. Consecutive `- ` lines become
