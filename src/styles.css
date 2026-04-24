@@ -2785,7 +2785,6 @@ body {
   letter-spacing: 0.01em;
   font-feature-settings: "palt" 1, "pkna" 1;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
@@ -7458,85 +7457,14 @@ html[data-theme="dark"] .company-card {
   background-position: -40% 0;
 }
 
-/* --- 4) Hero ambient aurora --------------------------------------------- */
-/* Two soft, slowly drifting colored blobs behind the hero content.
-   Low alpha so it complements (not competes with) the existing particles.
-   overflow: hidden is REQUIRED — the blur'd blobs extend beyond .hero and
-   would otherwise create horizontal scroll, pushing the hero content off
-   screen. */
-.hero {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.hero::before,
-.hero::after {
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
-  border-radius: 50%;
-  filter: blur(90px);
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-}
-.hero::before {
-  top: 10%; left: 10%;
-  width: 40vw; height: 40vw;
-  max-width: 560px; max-height: 560px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 70%);
-  animation: auroraDriftA 22s ease-in-out infinite alternate;
-}
-.hero::after {
-  bottom: 10%; right: 10%;
-  width: 40vw; height: 40vw;
-  max-width: 560px; max-height: 560px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.22) 0%, transparent 70%);
-  animation: auroraDriftB 28s ease-in-out infinite alternate;
-}
-@keyframes auroraDriftA {
-  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
-  50%  { transform: translate3d(4%, 3%, 0) scale(1.05); opacity: 1; }
-  100% { transform: translate3d(-3%, 5%, 0) scale(0.95); opacity: 0.75; }
-}
-@keyframes auroraDriftB {
-  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
-  50%  { transform: translate3d(-4%, -4%, 0) scale(1.06); opacity: 0.9; }
-  100% { transform: translate3d(3%, 2%, 0) scale(0.92); opacity: 0.65; }
-}
-
-/* Make sure the hero content stacks above the aurora blobs. */
-.hero .hero-content,
-.hero .hero__content,
-.hero > .container,
-.hero canvas,
-.hero video { position: relative; z-index: 1; }
-
-/* --- 5) CTA section enhanced gradient glow ------------------------------ */
-.section--cta {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.section--cta::before {
-  content: '';
-  position: absolute;
-  top: 10%; right: 5%;
-  width: 40vw; height: 40vw;
-  max-width: 640px; max-height: 640px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 65%);
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-  animation: auroraDriftA 26s ease-in-out infinite alternate;
-}
-.section--cta > .container { position: relative; z-index: 1; }
+/* NOTE: Hero & CTA ambient aurora were REMOVED — they duplicated the
+   existing .hero::before conic-gradient background and caused layout
+   breakage. The other polish effects (magnetic buttons, card shine,
+   title shimmer) remain. */
 
 /* --- Reduced-motion: disable the heavy animations ----------------------- */
 @media (prefers-reduced-motion: reduce) {
   .section-title { transition: none !important; background-position: -40% 0 !important; }
   .card--service::after { transition: none !important; }
-  .hero::before, .hero::after, .section--cta::before { animation: none !important; }
 }
 
