@@ -2573,12 +2573,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
-  /* CJK-safe wrapping. BudouX injects <span class="jp-phrase"> into Japanese
-     text nodes at 文節 boundaries; keep-all stops the browser from breaking
-     inside a phrase. Long URL-like ASCII strings still break via
-     overflow-wrap to avoid horizontal overflow. */
-  word-break: keep-all;
+  /* Default Japanese wrapping — lets the browser break anywhere so content
+     never overflows. BudouX-processed elements opt in to phrase-only breaks
+     via the [data-jp-wrapped] selector below. */
+  word-break: normal;
   overflow-wrap: break-word;
+  line-break: strict;
+}
+
+/* Elements that BudouX has fully segmented into <span class="jp-phrase">
+   children can safely use keep-all because real break opportunities (the
+   boundaries between inline-block phrase spans) are now in the DOM. */
+[data-jp-wrapped] {
+  word-break: keep-all;
+  overflow-wrap: normal;
   line-break: strict;
 }
 
@@ -7347,22 +7355,4 @@ a.blog-card { text-decoration: none; color: inherit; cursor: pointer; display: f
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
-}
-/* Paragraphs that use .jp-phrase children: enforce CJK-safe wrapping.
-   word-break: keep-all prevents browsers from breaking Japanese text at
-   arbitrary character boundaries when body default is break-word. */
-.blog-article-body,
-.blog-article-body p,
-.blog-article-body h2,
-.blog-article-body h3,
-.blog-article-body li,
-.blog-article-title,
-.blog-card-title,
-.blog-card-summary,
-.blog-card-link,
-.blog-teaser .blog-card h3,
-.jp-wrap {
-  word-break: keep-all;
-  overflow-wrap: normal;
-  line-break: strict;
 }
