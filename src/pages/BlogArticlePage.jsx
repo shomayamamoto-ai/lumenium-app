@@ -25,6 +25,55 @@ function renderInline(text) {
   return parts
 }
 
+// Parse article content into semantic blocks. Consecutive `- ` lines become
+// a single <ul>; paragraphs are <p>; empty lines are paragraph separators
+// (no stray <br> tags that double up vertical spacing).
+function renderArticleBody(content) {
+  const lines = content.split('\n')
+  const blocks = []
+  let listBuffer = null
+
+  const flushList = () => {
+    if (listBuffer) {
+      blocks.push(listBuffer)
+      listBuffer = null
+    }
+  }
+
+  lines.forEach((raw, i) => {
+    const line = raw
+    if (line.startsWith('## ')) {
+      flushList()
+      const text = line.replace('## ', '')
+      blocks.push(<h2 key={`h2-${i}`} id={slugHeading(text, i)}>{renderInline(text)}</h2>)
+      return
+    }
+    if (line.startsWith('##')) {
+      flushList()
+      blocks.push(<h3 key={`h3-${i}`}>{renderInline(line.replace('##', ''))}</h3>)
+      return
+    }
+    if (line.startsWith('- ')) {
+      const item = <li key={`li-${i}`}>{renderInline(line.replace('- ', ''))}</li>
+      if (!listBuffer) {
+        listBuffer = <ul key={`ul-${i}`}>{[item]}</ul>
+      } else {
+        const items = [...listBuffer.props.children, item]
+        listBuffer = <ul key={listBuffer.key}>{items}</ul>
+      }
+      return
+    }
+    if (line.trim() === '') {
+      flushList()
+      return // paragraph margin handles spacing; no <br>
+    }
+    flushList()
+    blocks.push(<p key={`p-${i}`}>{renderInline(line)}</p>)
+  })
+  flushList()
+  return blocks
+}
+
 export default function BlogArticlePage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -143,16 +192,7 @@ export default function BlogArticlePage() {
                 </div>
                 <h1 className="blog-article-title">{article.title}</h1>
                 <div className="blog-article-body">
-                  {article.content.split('\n').map((line, i) => {
-                    if (line.startsWith('## ')) {
-                      const text = line.replace('## ', '')
-                      return <h2 key={i} id={slugHeading(text, i)}>{renderInline(text)}</h2>
-                    }
-                    if (line.startsWith('##')) return <h3 key={i}>{renderInline(line.replace('##', ''))}</h3>
-                    if (line.startsWith('- ')) return <li key={i}>{renderInline(line.replace('- ', ''))}</li>
-                    if (line.trim() === '') return <br key={i} />
-                    return <p key={i}>{renderInline(line)}</p>
-                  })}
+                  {renderArticleBody(article.content)}
                 </div>
                 <div className="blog-article-cta">
                   <p>この記事に関するご相談や、サービスについてのお問い合わせはお気軽にどうぞ。</p>

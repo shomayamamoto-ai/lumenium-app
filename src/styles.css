@@ -5938,57 +5938,98 @@ html[data-theme="dark"] .article-read-progress { background: rgba(255,255,255,0.
 }
 
 .blog-article-title {
-  font-size: clamp(26px, 4.4vw, 40px);
+  font-size: clamp(22px, 3.8vw, 32px);
   font-weight: 700;
-  line-height: 1.26;
-  margin-bottom: 40px;
-  letter-spacing: -0.024em;
+  line-height: 1.32;
+  margin-bottom: 32px;
+  letter-spacing: -0.018em;
   font-feature-settings: "palt" 1;
+  /* Japanese phrase-aware wrapping prevents awkward mid-word breaks */
+  word-break: auto-phrase;
+  text-wrap: pretty;
+  hanging-punctuation: allow-end;
 }
 
 .blog-article-body h2 {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 1.4;
-  letter-spacing: -0.012em;
-  margin: 44px 0 16px;
-  padding-left: 16px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  margin: 36px 0 12px;
+  padding-left: 14px;
   position: relative;
+  word-break: auto-phrase;
+  text-wrap: pretty;
 }
 .blog-article-body h2::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
   border-radius: 2px;
   background: linear-gradient(180deg, #4f46e5, #06b6d4);
 }
 
+.blog-article-body h3 {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 22px 0 8px;
+  color: var(--text-main);
+  word-break: auto-phrase;
+  text-wrap: pretty;
+}
+
 .blog-article-body p {
-  font-size: 15.5px;
+  font-size: 14px;
   color: var(--text-sub);
-  line-height: 1.95;
-  letter-spacing: 0.012em;
-  margin-bottom: 14px;
+  line-height: 1.9;
+  letter-spacing: 0.008em;
+  margin-bottom: 12px;
+  /*
+   * Japanese web-article wrapping recipe:
+   *  word-break: auto-phrase  -> break between natural phrase units (文節)
+   *  line-break: strict       -> enforce JIS X 4051 Japanese rules
+   *  overflow-wrap: normal    -> don't break mid-word when avoidable
+   *  text-wrap: pretty        -> browser balances line lengths
+   *  hanging-punctuation      -> let 。、 hang into the margin
+   */
+  word-break: auto-phrase;
+  line-break: strict;
+  overflow-wrap: normal;
+  text-wrap: pretty;
+  hanging-punctuation: allow-end;
 }
 
 .blog-article-body ul,
 .blog-article-body ol {
-  margin: 8px 0 20px 4px;
-  padding-left: 24px;
+  margin: 6px 0 18px 4px;
+  padding-left: 22px;
 }
 
 .blog-article-body li {
-  font-size: 15px;
+  font-size: 13.5px;
   color: var(--text-sub);
   line-height: 1.85;
-  letter-spacing: 0.012em;
-  margin-bottom: 6px;
+  letter-spacing: 0.006em;
+  margin-bottom: 4px;
+  word-break: auto-phrase;
+  line-break: strict;
+  overflow-wrap: normal;
+  text-wrap: pretty;
 }
 .blog-article-body li::marker {
   color: #4f46e5;
+}
+
+@media (max-width: 600px) {
+  .blog-article-title { font-size: 20px; line-height: 1.36; }
+  .blog-article-body h2 { font-size: 16.5px; }
+  .blog-article-body h3 { font-size: 14px; }
+  .blog-article-body p { font-size: 13.5px; line-height: 1.88; }
+  .blog-article-body li { font-size: 13px; }
 }
 
 .blog-article-cta {
