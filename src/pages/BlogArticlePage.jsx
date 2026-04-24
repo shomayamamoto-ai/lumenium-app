@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { loadDefaultJapaneseParser } from 'budoux'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { getMetaBySlug, getArticlesMetaSorted } from '../data/articles-meta'
@@ -8,21 +9,46 @@ import { getContentBySlug } from '../data/articles-content'
 const slugHeading = (s, i) =>
   `h-${i}-${s.replace(/\s+/g, '-').replace(/[^\w\-一-龠ぁ-んァ-ン]/g, '').slice(0, 40)}`
 
-// Convert **bold** markdown to <strong> nodes; pass other text through.
-function renderInline(text) {
-  if (!text.includes('**')) return text
-  const parts = []
+// BudouX: ML-based Japanese phrase segmentation — works in every browser.
+// Outputs <wbr> between 文節 so line wraps happen at natural boundaries.
+const jpParser = loadDefaultJapaneseParser()
+
+function withPhraseBreaks(text, keyPrefix) {
+  if (!text) return text
+  const segments = jpParser.parse(text)
+  if (segments.length <= 1) return text
+  const out = []
+  segments.forEach((seg, i) => {
+    out.push(seg)
+    if (i < segments.length - 1) out.push(<wbr key={`${keyPrefix}-w-${i}`} />)
+  })
+  return out
+}
+
+// Convert **bold** markdown to <strong> nodes; each text span gets BudouX
+// phrase-break <wbr> injection so the browser can wrap at natural points.
+function renderInline(text, keyPrefix = 'x') {
+  const result = []
   const re = /\*\*(.+?)\*\*/g
   let lastIndex = 0
   let m
   let i = 0
   while ((m = re.exec(text)) !== null) {
-    if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index))
-    parts.push(<strong key={`b-${i++}`}>{m[1]}</strong>)
+    if (m.index > lastIndex) {
+      const before = text.slice(lastIndex, m.index)
+      result.push(<span key={`${keyPrefix}-t-${i}`}>{withPhraseBreaks(before, `${keyPrefix}-t-${i}`)}</span>)
+    }
+    result.push(
+      <strong key={`${keyPrefix}-b-${i}`}>{withPhraseBreaks(m[1], `${keyPrefix}-b-${i}`)}</strong>
+    )
     lastIndex = m.index + m[0].length
+    i++
   }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
-  return parts
+  if (lastIndex < text.length) {
+    const rest = text.slice(lastIndex)
+    result.push(<span key={`${keyPrefix}-t-end`}>{withPhraseBreaks(rest, `${keyPrefix}-t-end`)}</span>)
+  }
+  return result.length > 0 ? result : withPhraseBreaks(text, keyPrefix)
 }
 
 // Parse article content into semantic blocks. Consecutive `- ` lines become
@@ -45,16 +71,16 @@ function renderArticleBody(content) {
     if (line.startsWith('## ')) {
       flushList()
       const text = line.replace('## ', '')
-      blocks.push(<h2 key={`h2-${i}`} id={slugHeading(text, i)}>{renderInline(text)}</h2>)
+      blocks.push(<h2 key={`h2-${i}`} id={slugHeading(text, i)}>{renderInline(text, `h2-${i}`)}</h2>)
       return
     }
     if (line.startsWith('##')) {
       flushList()
-      blocks.push(<h3 key={`h3-${i}`}>{renderInline(line.replace('##', ''))}</h3>)
+      blocks.push(<h3 key={`h3-${i}`}>{renderInline(line.replace('##', ''), `h3-${i}`)}</h3>)
       return
     }
     if (line.startsWith('- ')) {
-      const item = <li key={`li-${i}`}>{renderInline(line.replace('- ', ''))}</li>
+      const item = <li key={`li-${i}`}>{renderInline(line.replace('- ', ''), `li-${i}`)}</li>
       if (!listBuffer) {
         listBuffer = <ul key={`ul-${i}`}>{[item]}</ul>
       } else {
@@ -68,7 +94,7 @@ function renderArticleBody(content) {
       return // paragraph margin handles spacing; no <br>
     }
     flushList()
-    blocks.push(<p key={`p-${i}`}>{renderInline(line)}</p>)
+    blocks.push(<p key={`p-${i}`}>{renderInline(line, `p-${i}`)}</p>)
   })
   flushList()
   return blocks
