@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { replyTo } from '../lib/chatbot'
+
+const API_URL = import.meta.env.PROD
+  ? 'https://line-bot-omega-liard.vercel.app/api/chat'
+  : 'http://localhost:3002/api/chat'
 
 const INITIAL_MESSAGE = {
   type: 'bot',
@@ -35,11 +38,22 @@ export default function ChatWidget() {
     setInput('')
     setIsLoading(true)
 
-    const response = replyTo(text)
-    // Small delay so the typing indicator is perceptible
-    await new Promise((r) => setTimeout(r, 450))
-    setMessages((prev) => [...prev, { type: 'bot', text: response }])
-    setIsLoading(false)
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      })
+      const data = await res.json()
+      setMessages((prev) => [...prev, { type: 'bot', text: data.response }])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { type: 'bot', text: '申し訳ございません。接続エラーが発生しました。\n\nページ下部の「メールで無料相談する」ボタンからお問い合わせください。' },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   function handleSubmit(e) {
