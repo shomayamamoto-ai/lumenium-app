@@ -7340,16 +7340,24 @@ a.blog-card { text-decoration: none; color: inherit; cursor: pointer; display: f
 .jp-phrase {
   display: inline-block;
   white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
-/* Paragraphs that use .jp-phrase children still need to allow the
-   spans themselves to wrap relative to each other. */
+/* Paragraphs that use .jp-phrase children: enforce CJK-safe wrapping.
+   word-break: keep-all prevents browsers from breaking Japanese text at
+   arbitrary character boundaries when body default is break-word. */
+.blog-article-body,
 .blog-article-body p,
 .blog-article-body h2,
 .blog-article-body h3,
 .blog-article-body li,
 .blog-article-title,
+.blog-card-title,
+.blog-card-summary,
+.blog-card-link,
+.blog-teaser .blog-card h3,
 .jp-wrap {
-  word-break: normal;
+  word-break: keep-all;
   overflow-wrap: normal;
   line-break: strict;
 }
