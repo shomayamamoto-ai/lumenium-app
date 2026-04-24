@@ -8,6 +8,7 @@
     { "source": "/runner.html", "destination": "/runner.html" },
     { "source": "/specified-commerce.html", "destination": "/specified-commerce.html" },
     { "source": "/404.html", "destination": "/404.html" },
+    { "source": "/fix.html", "destination": "/fix.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -34,9 +35,9 @@
       ]
     },
     {
-      "source": "/(404|game|racing|runner|specified-commerce)\\.html",
+      "source": "/(404|game|racing|runner|specified-commerce|fix)\\.html",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store" }
       ]
     },
     {
