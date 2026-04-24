@@ -2573,8 +2573,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
-  word-break: normal;
+  /* CJK-safe wrapping. BudouX injects <span class="jp-phrase"> into Japanese
+     text nodes at 文節 boundaries; keep-all stops the browser from breaking
+     inside a phrase. Long URL-like ASCII strings still break via
+     overflow-wrap to avoid horizontal overflow. */
+  word-break: keep-all;
   overflow-wrap: break-word;
+  line-break: strict;
 }
 
 p, .card-text, .hero-desc, .section-desc, .cta-desc, .banner-desc, .testimonial-text, .profile-desc p {

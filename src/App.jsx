@@ -4,9 +4,33 @@ import ErrorBoundary from './components/ErrorBoundary'
 import PageLoader from './components/PageLoader'
 import HomePage from './pages/HomePage'
 import { SpeedInsights } from '@vercel/speed-insights/react'
+import { applyJpBreaks } from './lib/jpBreak'
 
 const BlogListPage = lazy(() => import('./pages/BlogListPage'))
 const BlogArticlePage = lazy(() => import('./pages/BlogArticlePage'))
+
+function JpBreaksManager() {
+  const location = useLocation()
+  useEffect(() => {
+    // Apply BudouX to every content element whenever the URL changes.
+    // Debounced so it happens after React paints the new page.
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 300))
+    const id = ric(() => applyJpBreaks(document.body), { timeout: 1000 })
+    // Also observe for future DOM mutations (content that mounts later,
+    // e.g., after splash/video completes) and re-process.
+    const observer = new MutationObserver(() => {
+      const id2 = ric(() => applyJpBreaks(document.body), { timeout: 1000 })
+      // no-op: best-effort, each idle-callback is self-cancelling
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => {
+      observer.disconnect()
+      const cic = window.cancelIdleCallback || clearTimeout
+      cic(id)
+    }
+  }, [location.pathname])
+  return null
+}
 
 function NavigationLoader() {
   const location = useLocation()
@@ -39,6 +63,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <NavigationLoader />
+        <JpBreaksManager />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
