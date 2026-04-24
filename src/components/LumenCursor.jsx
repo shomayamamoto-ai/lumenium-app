@@ -3,14 +3,14 @@ import { useEffect, useRef } from 'react'
 /**
  * Lumen Cursor — Lumenium brand cursor.
  *
- * Layered, hardware-accelerated mouse cursor that replaces the OS pointer on
- * desktop browsers:
- *   - Soft trailing aura (`.lumen-glow`) that lags slightly behind the pointer.
- *   - Slowly-rotating hexagonal aperture (`.lumen-ring`) — the brand mark.
- *   - Bright pulsing core (`.lumen-dot`).
- *   - Click burst — expanding ring + 4-point sparkle.
+ *  Layered, hardware-accelerated desktop cursor:
+ *   - Trailing aura (.lumen-glow)
+ *   - Rotating hexagonal aperture (.lumen-ring)
+ *   - Pulsing glowing core (.lumen-dot)
+ *   - Click burst: expanding ring + four-point sparkle
  *
- * Hidden on touch / reduced-motion / small viewports.
+ * Disabled only on true touch devices or prefers-reduced-motion. Runs on
+ * any pointer-capable viewport, including narrow desktop windows.
  */
 export default function LumenCursor() {
   const glowRef = useRef(null)
@@ -18,14 +18,14 @@ export default function LumenCursor() {
   const dotRef = useRef(null)
   const rippleHost = useRef(null)
   const frameRef = useRef(null)
-  const posRef = useRef({ x: -200, y: -200, tx: -200, ty: -200 })
+  const posRef = useRef({ x: -300, y: -300, tx: -300, ty: -300 })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     const isTouch = window.matchMedia('(pointer: coarse)').matches
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const small = window.innerWidth < 769
-    if (isTouch || reduce || small) return
+    // Run on any non-touch device with pointer support; skip reduced-motion.
+    if (isTouch || reduce) return
 
     const glow = glowRef.current
     const ring = ringRef.current
@@ -33,38 +33,23 @@ export default function LumenCursor() {
     const host = rippleHost.current
     if (!glow || !ring || !dot || !host) return
 
-    // Hide the OS cursor while the Lumen cursor is mounted.
+    // Hide the OS cursor while this one is mounted.
     document.body.classList.add('lumen-cursor-active')
-
-    const show = () => {
-      glow.style.opacity = '1'
-      ring.style.opacity = '1'
-      dot.style.opacity = '1'
-    }
-    const hide = () => {
-      glow.style.opacity = '0'
-      ring.style.opacity = '0'
-      dot.style.opacity = '0'
-    }
-    show()
 
     const onMove = (e) => {
       posRef.current.tx = e.clientX
       posRef.current.ty = e.clientY
     }
 
-    // Intensify on interactive targets
+    const setHover = (on) => {
+      ring.classList.toggle('is-hover', on)
+      dot.classList.toggle('is-hover', on)
+    }
     const onOver = (e) => {
       const t = e.target
       const interactive =
         t && t.closest && t.closest('a, button, [role="button"], input, textarea, select, label, summary, .card, [data-cta]')
-      if (interactive) {
-        ring.classList.add('is-hover')
-        dot.classList.add('is-hover')
-      } else {
-        ring.classList.remove('is-hover')
-        dot.classList.remove('is-hover')
-      }
+      setHover(!!interactive)
     }
 
     const onClick = (e) => {
@@ -73,33 +58,26 @@ export default function LumenCursor() {
       ringEl.style.left = e.clientX + 'px'
       ringEl.style.top = e.clientY + 'px'
       host.appendChild(ringEl)
-
       const sparkEl = document.createElement('span')
       sparkEl.className = 'lumen-burst lumen-burst--spark'
       sparkEl.style.left = e.clientX + 'px'
       sparkEl.style.top = e.clientY + 'px'
       host.appendChild(sparkEl)
-
-      setTimeout(() => {
-        ringEl.remove()
-        sparkEl.remove()
-      }, 720)
+      setTimeout(() => { ringEl.remove(); sparkEl.remove() }, 720)
     }
 
     window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseleave', hide)
-    window.addEventListener('mouseenter', show)
     document.addEventListener('mouseover', onOver)
     document.addEventListener('click', onClick)
 
     const tick = () => {
       const p = posRef.current
-      // Aura lags for a trailing feel; ring/dot pin tightly to the pointer.
+      // Aura lags; ring & dot track tightly.
       p.x += (p.tx - p.x) * 0.18
       p.y += (p.ty - p.y) * 0.18
-      glow.style.transform = `translate3d(${p.x - 140}px, ${p.y - 140}px, 0)`
-      ring.style.transform = `translate3d(${p.tx - 18}px, ${p.ty - 18}px, 0)`
-      dot.style.transform = `translate3d(${p.tx - 4}px, ${p.ty - 4}px, 0)`
+      glow.style.transform = `translate3d(${p.x - 160}px, ${p.y - 160}px, 0)`
+      ring.style.transform = `translate3d(${p.tx - 22}px, ${p.ty - 22}px, 0)`
+      dot.style.transform  = `translate3d(${p.tx - 5}px,  ${p.ty - 5}px,  0)`
       frameRef.current = requestAnimationFrame(tick)
     }
     frameRef.current = requestAnimationFrame(tick)
@@ -107,8 +85,6 @@ export default function LumenCursor() {
     return () => {
       document.body.classList.remove('lumen-cursor-active')
       window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseleave', hide)
-      window.removeEventListener('mouseenter', show)
       document.removeEventListener('mouseover', onOver)
       document.removeEventListener('click', onClick)
       if (frameRef.current) cancelAnimationFrame(frameRef.current)
@@ -119,20 +95,30 @@ export default function LumenCursor() {
     <>
       <div ref={glowRef} className="lumen-glow" aria-hidden="true" />
       <div ref={ringRef} className="lumen-ring" aria-hidden="true">
-        <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <svg viewBox="0 0 44 44" fill="none" aria-hidden="true">
+          {/* Outer hexagonal aperture */}
           <polygon
-            points="18,2 32,10 32,26 18,34 4,26 4,10"
+            points="22,3 39,12 39,32 22,41 5,32 5,12"
             stroke="currentColor"
-            strokeWidth="1.2"
+            strokeWidth="1.4"
             strokeLinejoin="round"
             fill="none"
           />
+          {/* Cross-hair tick marks at the hexagon's axes */}
           <path
-            d="M18 2 L18 10 M18 26 L18 34 M4 18 L10 18 M26 18 L32 18"
+            d="M22 3 L22 10 M22 34 L22 41 M5 22 L12 22 M32 22 L39 22"
             stroke="currentColor"
-            strokeWidth="0.8"
+            strokeWidth="1"
             strokeLinecap="round"
-            opacity="0.55"
+            opacity="0.6"
+          />
+          {/* Inner second ring for depth */}
+          <polygon
+            points="22,11 31,16 31,28 22,33 13,28 13,16"
+            stroke="currentColor"
+            strokeWidth="0.6"
+            opacity="0.35"
+            fill="none"
           />
         </svg>
       </div>

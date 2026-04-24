@@ -364,94 +364,90 @@ html[data-theme="dark"] .ba-card-headline { color: var(--text); }
    Trailing aura + hexagonal aperture + glowing core + click burst
    ------------------------------------------------------------------------- */
 
-/* Hide the OS cursor while the Lumen cursor is mounted (desktop only). Keep
-   native caret for text inputs so typing UX is preserved. */
-@media (hover: hover) and (pointer: fine) {
-  body.lumen-cursor-active,
-  body.lumen-cursor-active a,
-  body.lumen-cursor-active button,
-  body.lumen-cursor-active [role="button"],
-  body.lumen-cursor-active label,
-  body.lumen-cursor-active summary,
-  body.lumen-cursor-active .card { cursor: none; }
-  body.lumen-cursor-active input,
-  body.lumen-cursor-active textarea,
-  body.lumen-cursor-active select,
-  body.lumen-cursor-active [contenteditable="true"] { cursor: text; }
+/* Hide the OS cursor while the Lumen cursor is mounted. Keep native caret
+   for text inputs so typing UX is preserved. */
+body.lumen-cursor-active,
+body.lumen-cursor-active * { cursor: none !important; }
+body.lumen-cursor-active input,
+body.lumen-cursor-active textarea,
+body.lumen-cursor-active select,
+body.lumen-cursor-active [contenteditable="true"] { cursor: text !important; }
+
+/* Shared defaults — start off-screen so nothing flashes at (0,0) before JS
+   positions the cursor. Opacity is 1 so the cursor is visible immediately. */
+.lumen-glow,
+.lumen-ring,
+.lumen-dot {
+  position: fixed;
+  left: 0; top: 0;
+  pointer-events: none;
+  opacity: 1;
+  transform: translate3d(-400px, -400px, 0);
+  will-change: transform;
 }
 
 /* Trailing aura — lags behind the pointer */
 .lumen-glow {
-  position: fixed; left: 0; top: 0;
-  width: 280px; height: 280px;
-  pointer-events: none; z-index: 9997;
-  opacity: 0;
-  will-change: transform, opacity;
-  transition: opacity 0.4s ease;
+  width: 320px; height: 320px;
+  z-index: 9997;
   background: radial-gradient(circle at center,
-    rgba(99,102,241,0.22) 0%,
-    rgba(59,130,246,0.14) 22%,
-    rgba(6,182,212,0.08) 45%,
+    rgba(99,102,241,0.28) 0%,
+    rgba(79,70,229,0.18) 20%,
+    rgba(6,182,212,0.10) 45%,
     transparent 70%);
   mix-blend-mode: screen;
-  filter: blur(6px);
+  filter: blur(8px);
 }
 
 /* Hexagonal aperture ring (rotates) */
 .lumen-ring {
-  position: fixed; left: 0; top: 0;
-  width: 36px; height: 36px;
-  pointer-events: none; z-index: 9998;
-  opacity: 0;
-  color: rgba(199, 210, 254, 0.88);
-  transition: opacity 0.3s ease, color 0.3s ease, filter 0.3s ease;
-  filter: drop-shadow(0 0 6px rgba(99,102,241,0.5));
-  will-change: transform, opacity;
+  width: 44px; height: 44px;
+  z-index: 9998;
+  color: #c7d2fe;
+  filter: drop-shadow(0 0 8px rgba(99,102,241,0.7));
+  transition: color 0.3s ease, filter 0.3s ease;
 }
 .lumen-ring svg {
   width: 100%; height: 100%;
   animation: lumenRingSpin 8s linear infinite;
+  transform-origin: 50% 50%;
 }
 .lumen-ring.is-hover {
   color: #67e8f9;
-  filter: drop-shadow(0 0 10px rgba(103,232,249,0.8)) drop-shadow(0 0 18px rgba(79,70,229,0.5));
+  filter: drop-shadow(0 0 12px rgba(103,232,249,0.95)) drop-shadow(0 0 22px rgba(79,70,229,0.55));
 }
 .lumen-ring.is-hover svg { animation-duration: 2.2s; }
 
 /* Glowing central core (pulses) */
 .lumen-dot {
-  position: fixed; left: 0; top: 0;
-  width: 8px; height: 8px;
+  width: 10px; height: 10px;
   border-radius: 50%;
-  pointer-events: none; z-index: 9999;
-  opacity: 0;
+  z-index: 9999;
   background: radial-gradient(circle at 35% 35%, #ffffff 0%, #c7d2fe 55%, #6366f1 100%);
   box-shadow:
-    0 0 8px rgba(165,180,252,0.9),
-    0 0 18px rgba(99,102,241,0.65),
-    0 0 36px rgba(6,182,212,0.35);
-  transition: opacity 0.25s ease,
-              width 0.25s cubic-bezier(0.22,1,0.36,1),
+    0 0 10px rgba(165,180,252,1),
+    0 0 22px rgba(99,102,241,0.75),
+    0 0 40px rgba(6,182,212,0.4);
+  transition: width 0.25s cubic-bezier(0.22,1,0.36,1),
               height 0.25s cubic-bezier(0.22,1,0.36,1),
               background 0.3s ease, box-shadow 0.3s ease, margin 0.25s ease;
-  will-change: transform, opacity;
   animation: lumenCorePulse 2.4s ease-in-out infinite;
 }
 .lumen-dot.is-hover {
-  width: 14px; height: 14px;
+  width: 16px; height: 16px;
   margin: -3px 0 0 -3px;
   background: radial-gradient(circle at 35% 35%, #ffffff 0%, #a5f3fc 55%, #06b6d4 100%);
   box-shadow:
-    0 0 10px rgba(165,243,252,1),
-    0 0 24px rgba(6,182,212,0.8),
-    0 0 48px rgba(99,102,241,0.55);
+    0 0 12px rgba(165,243,252,1),
+    0 0 28px rgba(6,182,212,0.9),
+    0 0 54px rgba(99,102,241,0.6);
   animation-duration: 1.2s;
 }
 
 @keyframes lumenRingSpin { to { transform: rotate(360deg); } }
 @keyframes lumenCorePulse {
   0%, 100% { filter: brightness(1); }
-  50%      { filter: brightness(1.25); }
+  50%      { filter: brightness(1.3); }
 }
 
 /* Click burst: expanding ring + four-point sparkle */
@@ -464,30 +460,30 @@ html[data-theme="dark"] .ba-card-headline { color: var(--text); }
 .lumen-burst--ring {
   width: 0; height: 0;
   border-radius: 50%;
-  border: 2px solid rgba(99,102,241,0.6);
-  box-shadow: 0 0 22px rgba(99,102,241,0.45), inset 0 0 14px rgba(6,182,212,0.4);
+  border: 2px solid rgba(99,102,241,0.7);
+  box-shadow: 0 0 22px rgba(99,102,241,0.5), inset 0 0 14px rgba(6,182,212,0.45);
   animation: lumenBurstRing 0.7s cubic-bezier(0.2,0.8,0.3,1) forwards;
 }
 .lumen-burst--spark {
-  width: 48px; height: 48px;
+  width: 52px; height: 52px;
   background:
-    linear-gradient(to right, transparent 47%, rgba(165,243,252,0.9) 50%, transparent 53%),
-    linear-gradient(to bottom, transparent 47%, rgba(165,243,252,0.9) 50%, transparent 53%);
-  filter: drop-shadow(0 0 10px rgba(103,232,249,0.8));
+    linear-gradient(to right, transparent 47%, rgba(165,243,252,0.95) 50%, transparent 53%),
+    linear-gradient(to bottom, transparent 47%, rgba(165,243,252,0.95) 50%, transparent 53%);
+  filter: drop-shadow(0 0 12px rgba(103,232,249,0.9));
   animation: lumenBurstSpark 0.55s cubic-bezier(0.2,0.8,0.3,1) forwards;
 }
 @keyframes lumenBurstRing {
   0%   { width: 0; height: 0; opacity: 0.95; border-width: 2px; }
-  60%  { width: 130px; height: 130px; opacity: 0.45; border-width: 1.4px; }
-  100% { width: 210px; height: 210px; opacity: 0; border-width: 0.8px; }
+  60%  { width: 140px; height: 140px; opacity: 0.45; border-width: 1.4px; }
+  100% { width: 220px; height: 220px; opacity: 0; border-width: 0.8px; }
 }
 @keyframes lumenBurstSpark {
   0%   { transform: translate(-50%, -50%) rotate(0deg) scale(0.2); opacity: 0.95; }
   100% { transform: translate(-50%, -50%) rotate(90deg) scale(1.6); opacity: 0; }
 }
 
-/* Hide entirely on touch / small screens / reduced-motion */
-@media (pointer: coarse), (max-width: 768px) {
+/* Hide on true touch devices and when user prefers reduced motion. */
+@media (pointer: coarse) {
   .lumen-glow, .lumen-ring, .lumen-dot, .lumen-bursts { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
