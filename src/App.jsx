@@ -27,8 +27,6 @@ import LumenCursor from './components/LumenCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import NetworkStatus from './components/NetworkStatus'
 import SkeletonSection from './components/Skeleton'
-import DotNav from './components/DotNav'
-import SectionDivider from './components/SectionDivider'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { events } from './lib/analytics'
 import { initWebVitals } from './lib/webVitals'
@@ -347,16 +345,13 @@ export default function App() {
           <Marquee />
           <TrustStrip />
           <Stats />
-          <SectionDivider label="Why Lumenium" />
           <Why />
           <BrandStory />
           <Banner />
-          <SectionDivider label="What We Do" />
           <ServicesIntro />
           <Services />
           <Results />
           <PricingSimulator />
-          <SectionDivider label="Voices" />
           <Testimonials />
           <Flow />
           <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
@@ -365,14 +360,12 @@ export default function App() {
           <FAQ />
           <Profile />
           <Company />
-          <SectionDivider label="Get in Touch" />
           <ContactForm />
           <CTA />
           <div className="container"><SocialShare /></div>
           <Footer onPrivacy={() => setShowPrivacy(true)} />
         </div>
       )}
-      {phase === 2 && <DotNav />}
       {phase === 2 && <LumenCursor />}
       {chatReady && (
         <Suspense fallback={null}>
