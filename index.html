@@ -9,7 +9,7 @@
     <!-- Cache-buster version (bumped on every deploy). If this differs from
          the version the browser last saw, we treat the shell as stale and
          self-repair (unregister SW + clear caches + reload once). -->
-    <meta name="app-version" content="2026-04-24-polish-v6" />
+    <meta name="app-version" content="2026-04-24-hero-fix-v7" />
     <!-- EARLY CACHE KILL-SWITCH — runs before any other script/module.
          Fixes users stuck on a stale index.html whose bundle hashes no longer
          exist on the server after a fresh deploy (they were seeing the root
@@ -17,7 +17,7 @@
     <script>
       (function(){
         try {
-          var VERSION = '2026-04-24-polish-v6';
+          var VERSION = '2026-04-24-hero-fix-v7';
           var KEY = 'lumenium_shell_v';
           var RELOAD_KEY = 'lumenium_shell_reloaded_at';
           var seen = null;
