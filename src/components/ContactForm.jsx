@@ -62,23 +62,24 @@ export default function ContactForm() {
 
     setSending(true)
     events.formSubmit('contact')
-    // Submit to LINE Bot chat endpoint (no mailto exposure)
-    const text = `【Webフォーム】\nお名前: ${form.name}\nメール: ${form.email}\n\n${form.message}`
-    fetch('https://line-bot-omega-liard.vercel.app/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
-    })
-      .catch(() => null)
-      .finally(() => {
-        setSending(false)
-        setSent(true)
-        showToast('success', 'お問い合わせありがとうございます。48時間以内にご返信いたします。')
-        setForm({ name: '', email: '', message: '' })
-        setTouched({})
-        setErrors({})
-        setTimeout(() => setSent(false), 8000)
-      })
+
+    // Open the user's mail client with a prefilled message so the inquiry
+    // actually reaches us. (The previous external chat endpoint rejects every
+    // browser origin with 403 "Host not in allowlist".)
+    const subject = `【お問い合わせ】${form.name}様より`
+    const body = `お名前: ${form.name}\nメール: ${form.email}\n\n${form.message}`
+    const mailto = `mailto:contact@lumenium.net?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailto
+
+    setTimeout(() => {
+      setSending(false)
+      setSent(true)
+      showToast('success', 'メールアプリを起動しました。送信後、48時間以内にご返信いたします。')
+      setForm({ name: '', email: '', message: '' })
+      setTouched({})
+      setErrors({})
+      setTimeout(() => setSent(false), 8000)
+    }, 300)
   }
 
   const fieldState = (key) => {
