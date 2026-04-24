@@ -242,7 +242,7 @@ export default function Hero() {
           DIGITAL CREATIVE STUDIO · TOKYO
         </p>
         <h1 className="hero-title animate-fade-up delay-1">
-          {'散文化した目的に、'.split('').map((ch, i) => (
+          {'散文化した目的に'.split('').map((ch, i) => (
             <span key={i} className="char-reveal" style={{ animationDelay: `${0.3 + i * 0.04}s` }}>{ch}</span>
           ))}
           <br />
@@ -254,7 +254,7 @@ export default function Hero() {
         </h1>
         <p className="hero-desc animate-fade-up delay-2">
           ぼんやりした"やりたい"を、<strong>動画・AI・Web</strong>で最短ルートの成果に。<br />
-          企画から納品・運用まで <strong>ワンストップ</strong> で、あなたの事業に光を当てます。
+          企画から納品・運用まで<strong>ワンストップ</strong>で、あなたの事業に光を当てます。
         </p>
         <div className="hero-typing animate-fade-up delay-2">
           <span className="typing-label">対応領域</span>

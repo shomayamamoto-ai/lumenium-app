@@ -4,7 +4,7 @@ export default function CTA() {
       <div className="container">
         <div className="cta-inner" data-animate>
           <p className="section-label" style={{ color: '#fff' }}>LET'S TALK</p>
-          <h2 className="cta-title">あなたの"やりたい"を、<br />光ある形に。</h2>
+          <h2 className="cta-title">あなたの"やりたい"を<br />光ある形に。</h2>
           <p className="cta-desc">
             「何から始めればいいかわからない」——まずはそこからで大丈夫です。<br />
             Lumeniumが一緒に整理し、最短ルートの解決策までご提案します。

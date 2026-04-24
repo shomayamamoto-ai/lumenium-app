@@ -81,9 +81,9 @@ export default function PricingSimulator() {
       <div className="container">
         <div className="section-header" data-animate>
           <p className="section-label">PRICING SIMULATOR</p>
-          <h2 className="section-title">見積もりの目安を、<br />その場でシミュレーション。</h2>
+          <h2 className="section-title">見積もりの目安を<br />その場でシミュレーション。</h2>
           <p className="section-desc">
-            必要なサービスを選ぶと、概算レンジが表示されます。<br />
+            必要なサービスを選ぶと概算レンジが表示されます。<br />
             ※ 実際のお見積りは無料。内容を伺った上で正確にご提案します。
           </p>
         </div>
