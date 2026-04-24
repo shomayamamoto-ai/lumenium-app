@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import LumenCursor from '../components/LumenCursor'
 import { getArticlesMetaSorted, ALL_CATEGORY } from '../data/articles-meta'
 
 export default function BlogListPage() {
@@ -77,6 +78,7 @@ export default function BlogListPage() {
         </section>
       </main>
       <Footer />
+      <LumenCursor />
     </div>
   )
 }

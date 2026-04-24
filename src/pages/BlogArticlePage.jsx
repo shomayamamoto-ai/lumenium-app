@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import LumenCursor from '../components/LumenCursor'
 import { getMetaBySlug, getArticlesMetaSorted } from '../data/articles-meta'
 import { getContentBySlug } from '../data/articles-content'
 import { wrapJp } from '../lib/jpBreak'
@@ -181,6 +182,7 @@ export default function BlogArticlePage() {
           </section>
         </main>
         <Footer />
+        <LumenCursor />
       </div>
     )
   }
@@ -258,6 +260,7 @@ export default function BlogArticlePage() {
         </section>
       </main>
       <Footer />
+      <LumenCursor />
     </div>
   )
 }

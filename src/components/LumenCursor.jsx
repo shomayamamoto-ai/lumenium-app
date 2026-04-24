@@ -43,14 +43,12 @@ export default function LumenCursor() {
       dot.style.opacity = '1'
     }
 
-    // Pointer on clickable targets → intensify dot
+    // Pointer on clickable targets → intensify both ring and dot
     const onOver = (e) => {
       const t = e.target
-      if (t && t.closest && t.closest('a, button, [role="button"], input, textarea, .card')) {
-        dot.classList.add('is-active')
-      } else {
-        dot.classList.remove('is-active')
-      }
+      const active = !!(t && t.closest && t.closest('a, button, [role="button"], input, textarea, .card'))
+      dot.classList.toggle('is-active', active)
+      glow.classList.toggle('is-active', active)
     }
 
     const onClick = (e) => {
@@ -71,11 +69,14 @@ export default function LumenCursor() {
 
     const tick = () => {
       const p = posRef.current
-      // Ease toward target — glow lags slightly, dot follows tightly
-      p.x += (p.tx - p.x) * 0.18
-      p.y += (p.ty - p.y) * 0.18
-      glow.style.transform = `translate3d(${p.x - 150}px, ${p.y - 150}px, 0)`
-      dot.style.transform = `translate3d(${p.tx - 6}px, ${p.ty - 6}px, 0)`
+      // Ring eases behind the pointer; dot sticks to it exactly.
+      p.x += (p.tx - p.x) * 0.22
+      p.y += (p.ty - p.y) * 0.22
+      // Centre the ring on the eased position (56px -> -28, 72px when active -> -36)
+      const ringActive = glow.classList.contains('is-active')
+      const ringHalf = ringActive ? 36 : 28
+      glow.style.transform = `translate3d(${p.x - ringHalf}px, ${p.y - ringHalf}px, 0)`
+      dot.style.transform = `translate3d(${p.tx - 4}px, ${p.ty - 4}px, 0)`
       frameRef.current = requestAnimationFrame(tick)
     }
     frameRef.current = requestAnimationFrame(tick)
