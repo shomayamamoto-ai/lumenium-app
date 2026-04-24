@@ -7374,3 +7374,157 @@ html[data-theme="dark"] .company-card {
   .lx-content, .lx-logo, .lx-name, .lx-tag { opacity: 1 !important; transform: none !important; filter: none !important; }
 }
 
+/* =========================================================================
+   Premium micro-interactions
+   Magnetic buttons · card shine · title shimmer · hero aurora
+   ------------------------------------------------------------------------- */
+
+/* --- 1) Magnetic buttons ------------------------------------------------- */
+/* Buttons the App.jsx magnetic handler tagged with `.is-magnetic` get a
+   custom property-driven offset. We layer it on TOP of whatever transform
+   the button already has by using an extra pseudo element for visuals and
+   keeping the transform on the element itself. Works for all four button
+   variants we apply the class to. */
+.btn.is-magnetic {
+  transform: translate3d(var(--mag-x, 0), var(--mag-y, 0), 0);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s var(--ease),
+              border-color 0.35s var(--ease),
+              background 0.35s var(--ease),
+              color 0.35s var(--ease);
+}
+/* While the pointer is inside (non-zero offset), shorten the transition so
+   it feels responsive; on mouseleave we restore the soft ease-back. */
+.btn.is-magnetic:hover {
+  transition-duration: 0.12s, 0.35s, 0.35s, 0.35s, 0.35s;
+}
+
+/* --- 2) Service card shine sweep ---------------------------------------- */
+.card--service { position: relative; overflow: hidden; }
+.card--service::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -120%;
+  width: 70%; height: 100%;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(165, 180, 252, 0.10) 48%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(165, 180, 252, 0.10) 52%,
+    transparent 70%
+  );
+  transform: skewX(-18deg);
+  transition: left 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+.card--service:hover::after { left: 140%; }
+
+/* Subtle indigo→cyan border glow while hovered. */
+.card--service { transition: border-color 0.35s var(--ease), box-shadow 0.5s var(--ease); }
+.card--service:hover {
+  box-shadow:
+    0 10px 32px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(99, 102, 241, 0.35),
+    0 0 28px rgba(99, 102, 241, 0.18),
+    0 0 60px rgba(6, 182, 212, 0.10);
+}
+
+/* --- 3) Section title gradient shimmer ---------------------------------- */
+/* Light, diagonal highlight sweeps across each section-title on enter.
+   Uses background-clip: text for a crisp shimmer without artifacts. */
+.section-title {
+  background-image: linear-gradient(
+    110deg,
+    currentColor 0%,
+    currentColor 40%,
+    rgba(165, 180, 252, 0.95) 48%,
+    rgba(103, 232, 249, 0.95) 52%,
+    currentColor 60%,
+    currentColor 100%
+  );
+  background-size: 240% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+          background-clip: text;
+  transition: background-position 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.section-header.visible .section-title,
+[data-animate].visible .section-title {
+  background-position: -40% 0;
+}
+
+/* --- 4) Hero ambient aurora --------------------------------------------- */
+/* Two soft, slowly drifting colored blobs behind the hero content.
+   Low alpha so it complements (not competes with) the existing particles. */
+.hero { position: relative; }
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(90px);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+.hero::before {
+  top: -10%; left: -10%;
+  width: 55vw; height: 55vw;
+  max-width: 720px; max-height: 720px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.32) 0%, transparent 70%);
+  animation: auroraDriftA 22s ease-in-out infinite alternate;
+}
+.hero::after {
+  bottom: -15%; right: -10%;
+  width: 55vw; height: 55vw;
+  max-width: 720px; max-height: 720px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.26) 0%, transparent 70%);
+  animation: auroraDriftB 28s ease-in-out infinite alternate;
+}
+@keyframes auroraDriftA {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
+  50%  { transform: translate3d(6%, 4%, 0) scale(1.08); opacity: 1; }
+  100% { transform: translate3d(-4%, 8%, 0) scale(0.95); opacity: 0.75; }
+}
+@keyframes auroraDriftB {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
+  50%  { transform: translate3d(-5%, -6%, 0) scale(1.1); opacity: 0.95; }
+  100% { transform: translate3d(4%, 2%, 0) scale(0.9); opacity: 0.65; }
+}
+
+/* Make sure the hero content stacks above the aurora blobs. */
+.hero .hero-content,
+.hero .hero__content,
+.hero > .container,
+.hero canvas,
+.hero video { position: relative; z-index: 1; }
+
+/* --- 5) CTA section enhanced gradient glow ------------------------------ */
+.section--cta { position: relative; overflow: hidden; }
+.section--cta::before {
+  content: '';
+  position: absolute;
+  inset: -20% -10% auto auto;
+  width: 70vw; height: 70vw;
+  max-width: 900px; max-height: 900px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.32) 0%, transparent 65%);
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  animation: auroraDriftA 26s ease-in-out infinite alternate;
+}
+.section--cta > .container { position: relative; z-index: 1; }
+
+/* --- Reduced-motion: disable the heavy animations ----------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .section-title { transition: none !important; background-position: -40% 0 !important; }
+  .card--service::after { transition: none !important; }
+  .hero::before, .hero::after, .section--cta::before { animation: none !important; }
+}
+

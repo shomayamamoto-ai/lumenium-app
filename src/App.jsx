@@ -133,6 +133,29 @@ export default function App() {
     }
     btns.forEach(b => b.addEventListener('click', handleBtnClick))
 
+    // --- Magnetic buttons (desktop only, respects reduced-motion) ---
+    // Primary CTAs subtly follow the cursor when the pointer is near them.
+    const magneticBtns = hasFinePointer && !prefersReduced
+      ? document.querySelectorAll('.btn-accent, .btn-primary, .btn-white, .btn-ghost-w')
+      : []
+    const onMagneticMove = (e) => {
+      const btn = e.currentTarget
+      const rect = btn.getBoundingClientRect()
+      const x = e.clientX - rect.left - rect.width / 2
+      const y = e.clientY - rect.top - rect.height / 2
+      btn.style.setProperty('--mag-x', `${x * 0.18}px`)
+      btn.style.setProperty('--mag-y', `${y * 0.35}px`)
+    }
+    const onMagneticLeave = (e) => {
+      e.currentTarget.style.setProperty('--mag-x', '0px')
+      e.currentTarget.style.setProperty('--mag-y', '0px')
+    }
+    magneticBtns.forEach(b => {
+      b.classList.add('is-magnetic')
+      b.addEventListener('mousemove', onMagneticMove)
+      b.addEventListener('mouseleave', onMagneticLeave)
+    })
+
     // --- Image lazy fade-in ---
     document.querySelectorAll('img[loading="lazy"]').forEach((img) => {
       if (img.complete) { img.classList.add('loaded') }
@@ -308,6 +331,13 @@ export default function App() {
       window.removeEventListener('resize', recalcOffsets)
       if (scrollRaf) cancelAnimationFrame(scrollRaf)
       btns.forEach(b => b.removeEventListener('click', handleBtnClick))
+      magneticBtns.forEach(b => {
+        b.classList.remove('is-magnetic')
+        b.removeEventListener('mousemove', onMagneticMove)
+        b.removeEventListener('mouseleave', onMagneticLeave)
+        b.style.removeProperty('--mag-x')
+        b.style.removeProperty('--mag-y')
+      })
       document.removeEventListener('click', onAnchorClick)
       document.removeEventListener('click', onCtaDelegatedClick, { capture: true })
       document.removeEventListener('click', onOutboundClick, { capture: true })
