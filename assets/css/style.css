@@ -169,3 +169,5 @@
   [data-el]{animation:none !important;opacity:1 !important;transform:none !important}
   .pl-bar span{transform:scaleX(1)}
 }
+/* v54 preloader-kill */
+.preloader{display:none !important;visibility:hidden !important;pointer-events:none !important;opacity:0 !important;height:0 !important;overflow:hidden !important}
