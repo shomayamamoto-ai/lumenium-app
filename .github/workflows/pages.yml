@@ -29,6 +29,7 @@ jobs:
           cp news.html        _site/
           cp privacy.html     _site/
           cp 404.html         _site/
+          cp reset.html       _site/
           # Static assets
           cp -r assets        _site/
           # PWA + SEO support files
