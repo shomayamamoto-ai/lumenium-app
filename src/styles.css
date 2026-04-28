@@ -7784,3 +7784,254 @@ html[data-theme="dark"] p.lead {
   color: var(--text-sub);
 }
 
+/* =========================================================================
+   Visual polish pass v2 — high-impact section-level upgrades
+   Hero · Service cards · Testimonials · Pricing · FAQ · CTAs
+   ========================================================================= */
+
+/* --- HERO: stronger lead badge + scroll cue refinement ----------------- */
+.hero-lead {
+  /* Glassier badge with subtle inner highlight */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent),
+    linear-gradient(135deg, rgba(99,102,241,0.14), rgba(6,182,212,0.10));
+  border: 1px solid rgba(99,102,241,0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 4px 16px rgba(99,102,241,0.18);
+}
+.hero-lead-dot {
+  /* Add a soft pulse around the green status dot */
+  position: relative;
+}
+.hero-lead-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.35);
+  animation: heroLeadPulse 2.4s ease-out infinite;
+  z-index: -1;
+}
+@keyframes heroLeadPulse {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Hero typing line (対応領域 → ...) — more confident */
+.hero-typing {
+  border: 1px solid rgba(99,102,241,0.18);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent),
+    rgba(15, 19, 37, 0.4);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 6px 14px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --- SERVICE CARD ICONS: gradient halo container ----------------------- */
+.card--service .card-icon-lg {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(99,102,241,0.18), rgba(6,182,212,0.10));
+  border: 1px solid rgba(99,102,241,0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 6px 18px -4px rgba(99,102,241,0.18);
+  margin-bottom: 18px;
+  transition: transform 0.5s cubic-bezier(0.22,1,0.36,1),
+              box-shadow 0.5s var(--ease),
+              border-color 0.5s var(--ease);
+}
+.card--service:hover .card-icon-lg {
+  transform: translateY(-2px) rotate(-3deg) scale(1.06);
+  border-color: rgba(103,232,249,0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 28px -6px rgba(99,102,241,0.45),
+    0 0 24px rgba(6,182,212,0.25);
+}
+.card--service .card-icon-lg svg,
+.card--service .card-icon-lg img {
+  width: 32px;
+  height: 32px;
+  color: #c7d2fe;
+  transition: color 0.5s var(--ease);
+}
+.card--service:hover .card-icon-lg svg { color: #a5f3fc; }
+
+/* --- WHY (pain cards): more distinctive frame + subtle accent edge ---- */
+.card--pain {
+  position: relative;
+  overflow: hidden;
+}
+.card--pain::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: linear-gradient(180deg, transparent 0%, #6366f1 30%, #06b6d4 70%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.card--pain:hover::before { opacity: 1; }
+
+/* --- TESTIMONIALS: decorative quote mark + premium feel --------------- */
+.testimonial-card,
+.voice {
+  position: relative;
+  overflow: visible;
+}
+.testimonial-card::before,
+.voice::before {
+  content: '"';
+  position: absolute;
+  top: -28px; left: 18px;
+  font-family: 'Georgia', 'Hiragino Mincho ProN', serif;
+  font-size: 110px;
+  line-height: 1;
+  font-weight: 700;
+  color: rgba(99,102,241,0.18);
+  pointer-events: none;
+  z-index: 0;
+}
+.testimonial-card > *,
+.voice > * { position: relative; z-index: 1; }
+
+/* --- PRICING SIMULATOR: option pills get a premium feel ---------------- */
+.pricing-sim-grid button,
+.pricing-option {
+  position: relative;
+  transition: transform 0.35s var(--ease),
+              border-color 0.35s var(--ease),
+              box-shadow 0.35s var(--ease),
+              background 0.35s var(--ease);
+}
+.pricing-sim-grid button:hover,
+.pricing-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99,102,241,0.45);
+  box-shadow:
+    0 10px 28px -8px rgba(99,102,241,0.3),
+    0 0 18px rgba(99,102,241,0.12);
+}
+.pricing-sim-grid button[aria-pressed="true"],
+.pricing-sim-grid button.is-active,
+.pricing-option--active {
+  background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(6,182,212,0.12));
+  border-color: rgba(103,232,249,0.55);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 12px 28px -6px rgba(99,102,241,0.4);
+}
+
+/* --- FAQ: smoother expand + accent line on open ---------------------- */
+.faq-item {
+  position: relative;
+  transition: border-color 0.35s var(--ease), background 0.35s var(--ease);
+}
+.faq-item--open {
+  border-color: rgba(99,102,241,0.35) !important;
+  background: linear-gradient(180deg, rgba(99,102,241,0.04), transparent) !important;
+}
+.faq-item--open .faq-question {
+  color: #c7d2fe;
+}
+.faq-icon {
+  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1),
+              background 0.35s var(--ease),
+              color 0.35s var(--ease);
+}
+.faq-item--open .faq-icon {
+  background: linear-gradient(135deg, #6366f1, #06b6d4) !important;
+  color: #fff !important;
+  transform: rotate(180deg);
+}
+
+/* --- CTA buttons: animated arrow that nudges forward ------------------ */
+.btn-accent svg,
+.btn-primary svg,
+.btn-white svg,
+.btn-ghost-w svg {
+  transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+}
+.btn-accent:hover svg,
+.btn-primary:hover svg,
+.btn-white:hover svg,
+.btn-ghost-w:hover svg {
+  transform: translateX(6px);
+}
+
+/* --- Trust strip / partner logos: subtle hover shimmer --------------- */
+.trust-strip img,
+.partner-logo {
+  filter: grayscale(0.3) brightness(0.95);
+  transition: filter 0.5s ease, transform 0.5s var(--ease);
+}
+.trust-strip img:hover,
+.partner-logo:hover {
+  filter: grayscale(0) brightness(1.1);
+  transform: scale(1.05);
+}
+
+/* --- Blog cards: lift + thumb zoom + accent edge --------------------- */
+.blog-card {
+  position: relative;
+  overflow: hidden;
+}
+.blog-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.22,1,0.36,1);
+}
+.blog-card:hover::after { transform: scaleX(1); }
+
+/* --- ContactForm: more confident submit button ----------------------- */
+.btn-form {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  transition: background-position 0.6s var(--ease),
+              box-shadow 0.45s var(--ease),
+              transform 0.35s var(--ease);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 8px 24px -4px rgba(99,102,241,0.45);
+}
+.btn-form:hover {
+  background-position: 100% 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    0 12px 32px -4px rgba(99,102,241,0.6),
+    0 0 24px rgba(6,182,212,0.2);
+}
+
+/* --- Footer brand row: indigo accent on hover for social/footer links - */
+.footer a {
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+.footer a:hover {
+  color: #a5b4fc;
+}
+
+/* --- Reduced motion: tone down the new motion --------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-lead-dot::after { animation: none !important; }
+  .card--service:hover .card-icon-lg { transform: none !important; }
+  .pricing-sim-grid button:hover, .pricing-option:hover { transform: none !important; }
+  .blog-card::after { transition: none !important; transform: scaleX(1); }
+}
+
