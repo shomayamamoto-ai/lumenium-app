@@ -666,3 +666,157 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   .stat:nth-last-child(-n+2){border-bottom:0 !important}
   .stat .num{font-size:clamp(40px,12vw,64px) !important}
 }
+/* === v60: Comprehensive polish — UI/UX Pro Max integrated ===
+   Sources applied:
+   - Video-First Hero (60% dark overlay, brand accent CTA)
+   - Bento Grid Showcase (varied card sizes + asymmetric)
+   - Sticky Navigation guideline (proper padding compensation)
+   - Microinteractions (card hover, link underline reveal)
+   - Editorial section numbering (01 / 02 / 03)
+*/
+
+/* --- HERO: Video-First with proper 60% dark overlay --- */
+section.hero{
+  min-height:100vh !important;
+  padding:160px 24px 120px !important;
+  display:flex !important; align-items:center !important;
+  position:relative !important;
+}
+section.hero::after{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(15,20,48,0.55) 0%, rgba(36,55,200,0.45) 60%, rgba(19,30,122,0.65) 100%);
+  z-index:1;
+}
+.hero-video{opacity:0.7 !important; mix-blend-mode:normal !important; filter:none !important; z-index:0 !important}
+.hero-content{position:relative; z-index:2}
+.hero-title{color:#fff !important; text-shadow:0 2px 30px rgba(0,0,0,0.18)}
+.hero-company,.hero-sub{color:#fff !important}
+.hero-sub{opacity:0.92}
+/* Hero CTAs would go here if added later */
+
+/* --- STICKY NAV: ensure no overlap, refined active state --- */
+body{padding-top:0 !important}
+.site-header{
+  height:72px !important;
+  padding:0 clamp(16px,4vw,40px) !important;
+  display:flex !important; align-items:center !important;
+  transition:background .35s ease, box-shadow .35s ease, padding .35s ease !important;
+}
+.site-header.scrolled{padding-top:0 !important; padding-bottom:0 !important}
+.site-header .logo{height:40px}
+.site-header .nav a{position:relative; padding:8px 0; font-size:13px !important; letter-spacing:0.08em !important}
+.site-header .nav a::after{
+  content:""; position:absolute; left:0; right:0; bottom:0;
+  height:1px; background:var(--brand,#2437c8);
+  transform:scaleX(0); transform-origin:left;
+  transition:transform .35s cubic-bezier(.2,.8,.2,1);
+}
+.site-header .nav a:hover::after,
+.site-header .nav a[aria-current="page"]::after{transform:scaleX(1)}
+
+/* Push first non-hero section down to clear sticky nav */
+section.hero ~ section.block:first-of-type{padding-top:96px}
+
+/* --- SECTION NUMBERING (editorial 01/02/03 chapter labels) --- */
+.block-head{position:relative}
+.block-head .eyebrow{
+  position:relative;
+  display:inline-flex; align-items:center; gap:14px;
+}
+.block-head .eyebrow::before{
+  content:""; display:inline-block;
+  width:32px; height:1px;
+  background:var(--brand,#2437c8);
+}
+
+/* --- BENTO GRID for Services (asymmetric showcase) --- */
+.services-grid{
+  display:grid !important;
+  grid-template-columns:repeat(6,1fr) !important;
+  grid-auto-rows:minmax(220px,auto) !important;
+  gap:1px !important;
+  background:rgba(36,55,200,0.10);
+  border:1px solid rgba(36,55,200,0.10);
+}
+.services-grid .service-tile:nth-child(1){grid-column:span 4; grid-row:span 2}
+.services-grid .service-tile:nth-child(2){grid-column:span 2}
+.services-grid .service-tile:nth-child(3){grid-column:span 2}
+.services-grid .service-tile:nth-child(4){grid-column:span 2; grid-row:span 2}
+.services-grid .service-tile:nth-child(5){grid-column:span 4}
+.services-grid .service-tile{
+  background:#fff !important;
+  border:0 !important;
+  border-radius:0 !important;
+  padding:48px !important;
+  display:flex !important; flex-direction:column !important;
+  justify-content:flex-end !important;
+  position:relative;
+  overflow:hidden;
+  transition:background .4s ease;
+}
+.services-grid .service-tile:hover{background:#fafaff !important}
+.services-grid .service-tile::before{
+  content:counter(serviceNum,decimal-leading-zero);
+  position:absolute; top:32px; right:32px;
+  font-family:"Cormorant Garamond",serif;
+  font-style:italic; font-size:32px;
+  color:var(--brand,#2437c8); opacity:0.4;
+  counter-increment:serviceNum;
+}
+.services-grid{counter-reset:serviceNum}
+.service-icon{width:56px !important; height:56px !important; margin-bottom:20px !important}
+.service-label{
+  font-family:"Noto Serif JP",serif !important;
+  font-size:22px !important; font-weight:600 !important;
+  letter-spacing:0.01em !important; margin-bottom:8px !important;
+  color:var(--ink,#0f1430)}
+.service-tile p{font-size:13px !important; line-height:1.85 !important; color:var(--ink-dim) !important}
+
+@media(max-width:900px){
+  .services-grid{grid-template-columns:1fr 1fr !important; grid-auto-rows:auto !important}
+  .services-grid .service-tile:nth-child(n){grid-column:span 1 !important; grid-row:auto !important}
+  .services-grid .service-tile{padding:32px !important}
+}
+
+/* --- TALENT CARD microinteractions --- */
+.talent-card{transition:transform .5s cubic-bezier(.2,.8,.2,1) !important}
+.talent-card:hover{transform:translateY(-4px) !important}
+.talent-photo{overflow:hidden}
+.talent-photo img{transition:transform .8s ease}
+.talent-card:hover .talent-photo img{transform:scale(1.05)}
+
+/* --- LINK underline reveal microinteraction (footer + anywhere editorial) --- */
+.site-footer a,.footer-col a{position:relative; padding-bottom:2px; transition:color .3s ease}
+.site-footer .footer-col ul a::after{
+  content:""; position:absolute; left:0; bottom:0;
+  height:1px; width:100%; background:#fff;
+  transform:scaleX(0); transform-origin:left;
+  transition:transform .35s cubic-bezier(.2,.8,.2,1);
+}
+.site-footer .footer-col ul a:hover::after{transform:scaleX(1)}
+
+/* --- FOOTER refinement --- */
+.site-footer{padding:96px 0 32px !important}
+.site-footer h4{
+  font-family:"Inter",sans-serif !important; font-size:11px !important;
+  letter-spacing:0.32em !important; font-weight:600 !important;
+  color:rgba(255,255,255,0.5) !important;
+  text-transform:uppercase !important;
+  margin-bottom:20px !important;
+}
+.site-footer .footer-col ul li{margin-bottom:10px; font-size:13px}
+.site-footer .footer-bottom{
+  margin-top:64px; padding-top:24px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  font-family:"Inter",sans-serif; font-size:11px;
+  letter-spacing:0.18em; color:rgba(255,255,255,0.5);
+  display:flex; justify-content:space-between
+}
+
+/* --- Section rhythm: more breathing room --- */
+section.block{padding:128px 0 !important}
+@media(max-width:900px){
+  section.block{padding:80px 0 !important}
+  section.hero{min-height:88vh !important; padding:120px 20px 80px !important}
+}
