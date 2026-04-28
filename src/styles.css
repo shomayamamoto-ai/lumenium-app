@@ -7468,3 +7468,249 @@ html[data-theme="dark"] .company-card {
   .card--service::after { transition: none !important; }
 }
 
+/* =========================================================================
+   UI/UX Pro Max — Creative Studio polish pass
+   Storytelling × Motion-Driven × Premium card-lift × Bold typography
+   ========================================================================= */
+
+/* --- Typography: more confident, expressive headlines ------------------- */
+.section-label {
+  /* Tighten + brighten the small SECTION eyebrow caps */
+  letter-spacing: 0.32em;
+  font-size: 11px;
+  background: linear-gradient(90deg, #818cf8, #22d3ee);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  padding-left: 32px;
+}
+.section-label::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 24px; height: 1px;
+  background: linear-gradient(90deg, transparent, #818cf8 30%, #22d3ee 100%);
+}
+.section-title {
+  /* Beef up display weight for stronger statement */
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+.hero-title {
+  letter-spacing: -0.03em;
+  text-shadow: 0 1px 60px rgba(99,102,241,0.18);
+}
+
+/* --- Card lift premium: deeper shadow + indigo rim on hover ------------- */
+.card,
+.testimonial-card,
+.blog-card,
+.theme,
+.book {
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card:hover,
+.testimonial-card:hover,
+.blog-card:hover,
+.theme:hover {
+  border-color: rgba(99,102,241,0.35);
+  box-shadow:
+    0 16px 40px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(99,102,241,0.28),
+    0 0 32px rgba(99,102,241,0.16),
+    0 0 70px rgba(6,182,212,0.10);
+}
+/* Card title gets a subtle indigo lift on hover — UI Pro Max's "spotlight" pattern. */
+.card:hover .card-title,
+.testimonial-card:hover .voice__quote,
+.blog-card:hover .blog-card-title {
+  background: linear-gradient(120deg, var(--text) 30%, #c7d2fe 60%, var(--text) 100%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: cardTitleShimmer 1.2s ease-out forwards;
+}
+@keyframes cardTitleShimmer {
+  to { background-position: 0% 0; }
+}
+
+/* --- Button polish: premium inner glow on hover ------------------------- */
+.btn-accent,
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.btn-accent::before,
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px circle at var(--btn-glow-x, 50%) var(--btn-glow-y, 50%),
+    rgba(255,255,255,0.18),
+    transparent 50%
+  );
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-accent:hover::before,
+.btn-primary:hover::before { opacity: 1; }
+.btn-accent > *,
+.btn-primary > * { position: relative; z-index: 1; }
+
+/* Tertiary button (.btn-ghost-w) — give it a stronger hover -------------- */
+.btn-ghost-w {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ghost-w::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg,
+    transparent 30%,
+    rgba(99,102,241,0.10) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.btn-ghost-w:hover::after { transform: translateX(100%); }
+
+/* --- Stats counter glow: numbers feel cinematic when they tick --------- */
+[data-count].counter-done,
+.stat-num {
+  background: linear-gradient(180deg, #ffffff 0%, #c7d2fe 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(99,102,241,0.35);
+  animation: statGlow 3s ease-in-out infinite alternate;
+}
+@keyframes statGlow {
+  0%   { filter: brightness(1) drop-shadow(0 0 8px rgba(99,102,241,0.18)); }
+  100% { filter: brightness(1.08) drop-shadow(0 0 16px rgba(99,102,241,0.35)); }
+}
+
+/* --- Section reveal: clip-path mask wipe instead of plain fade --------- */
+[data-animate]:not(.visible) .section-title,
+[data-animate]:not(.visible) .section-header > * {
+  clip-path: inset(0 100% 0 0);
+}
+[data-animate].visible .section-title,
+[data-animate].visible .section-header > * {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.05s,
+              opacity 0.6s ease 0.1s,
+              transform 0.6s ease 0.1s;
+}
+
+/* --- Marquee: refine speed and gradient mask for premium feel ---------- */
+.marquee-section,
+.marquee {
+  position: relative;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* --- Flow / Process timeline: subtle pulse on the connector dot -------- */
+.flow-step .step-num,
+.process__dot {
+  position: relative;
+  isolation: isolate;
+}
+.flow-step .step-num::before,
+.process__dot::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(99,102,241,0.5), transparent 65%);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.4s ease;
+}
+[data-animate].visible .flow-step .step-num::before,
+[data-animate].visible .process__dot::before { opacity: 1; }
+
+/* --- Footer: subtle premium gradient + brand tint ---------------------- */
+.footer {
+  position: relative;
+  overflow: hidden;
+}
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: auto -10% -50% 30%;
+  width: 60%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(99,102,241,0.10) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+.footer > * { position: relative; z-index: 1; }
+
+/* --- Navbar polish: refined shadow + sticky scroll feedback ------------ */
+.navbar.scrolled {
+  box-shadow:
+    0 1px 0 rgba(99,102,241,0.10),
+    0 12px 40px -12px rgba(5,8,15,0.6),
+    0 0 0 1px rgba(99,102,241,0.04);
+}
+
+/* --- Tag / chip pill: subtle hover feel -------------------------------- */
+.tag,
+.activity__tag,
+.theme__tag {
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+.card:hover .tag,
+.card:hover .activity__tag {
+  border-color: rgba(99,102,241,0.45);
+  color: #c7d2fe;
+}
+
+/* --- Sticky-CTA / floating pulse cue ----------------------------------- */
+.scroll-top-btn--show {
+  animation: scrollTopBreathe 2.4s ease-in-out infinite;
+}
+@keyframes scrollTopBreathe {
+  0%, 100% { box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+  50%      { box-shadow: 0 12px 36px rgba(99,102,241,0.55), 0 0 0 6px rgba(99,102,241,0.08); }
+}
+
+/* --- Image hover (Ken Burns subtle zoom) for thumbnails ---------------- */
+.blog-card-thumb,
+.hero-video-card-thumb {
+  overflow: hidden;
+}
+.blog-card-thumb img,
+.hero-video-card-thumb img {
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.blog-card:hover .blog-card-thumb img,
+.hero-video-card:hover .hero-video-card-thumb img {
+  transform: scale(1.06);
+}
+
+/* --- Reduced-motion: defang the heavier additions ---------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .card:hover, .testimonial-card:hover, .blog-card:hover, .theme:hover { transition: none !important; }
+  [data-count].counter-done, .stat-num { animation: none !important; }
+  .scroll-top-btn--show { animation: none !important; }
+  [data-animate]:not(.visible) .section-title,
+  [data-animate]:not(.visible) .section-header > * { clip-path: none !important; }
+}
+
