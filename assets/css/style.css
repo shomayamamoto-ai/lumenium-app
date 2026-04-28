@@ -250,3 +250,110 @@
 
 /* Force visibility — bypass any leftover .reveal opacity:0 (defensive) */
 .works-list,.works-block,.works-list *{opacity:1 !important;transform:none !important;filter:none !important;visibility:visible !important}
+/* === v56: UI/UX Pro Max design system applied (brand blue preserved) ===
+   Style:    Swiss Modernism 2.0 + Editorial Grid / Magazine
+   Type:     Japanese Elegant (Noto Serif JP + Noto Sans JP)
+   Color:    Original brand blue #2437c8 (per user requirement)
+   Spacing:  8px mathematical base unit
+*/
+:root{
+  --base:8px;
+  --space-1:8px;--space-2:16px;--space-3:24px;--space-4:32px;
+  --space-5:48px;--space-6:64px;--space-7:96px;--space-8:128px;
+  --rule:1px solid #1c1917;
+  --hairline:1px solid rgba(15,20,48,0.10);
+}
+
+/* Typographic hierarchy — mathematical scale */
+h1,.block-title{font-family:"Noto Serif JP",serif;font-weight:600;letter-spacing:-0.015em;line-height:1.1}
+h2{font-family:"Noto Serif JP",serif;font-weight:600;letter-spacing:-0.012em;line-height:1.15}
+h3{font-family:"Noto Serif JP",serif;font-weight:500;letter-spacing:-0.005em;line-height:1.25}
+p,li,dd{font-family:"Noto Sans JP",sans-serif;letter-spacing:0.015em}
+.eyebrow{font-family:"Inter",sans-serif;font-size:11px;letter-spacing:0.32em;text-transform:uppercase;font-weight:500;color:var(--brand)}
+
+/* Editorial first-paragraph drop cap on About + Philosophy intro */
+.about-copy>p:first-of-type::first-letter,
+#ceo-profile .ceo-copy>p:first-of-type::first-letter{
+  font-family:"Cormorant Garamond","Noto Serif JP",serif;
+  font-style:italic;
+  font-size:4em;
+  line-height:0.85;
+  float:left;
+  margin:6px 14px 0 0;
+  color:var(--brand);
+  font-weight:500;
+}
+
+/* Pull-quote treatment for CEO quote (editorial style) */
+.ceo-quote{
+  font-family:"Noto Serif JP",serif !important;
+  font-size:clamp(20px,2.4vw,30px) !important;
+  line-height:1.7 !important;
+  font-weight:500 !important;
+  border-left:3px solid var(--brand) !important;
+  padding:8px 0 8px 28px !important;
+  margin:24px 0 !important;
+  color:var(--ink) !important;
+  letter-spacing:0.02em !important;
+}
+.ceo-quote::before{content:"\201C";font-family:"Cormorant Garamond",serif;font-size:64px;line-height:0;color:var(--brand);opacity:0.3;display:inline-block;margin-right:8px;vertical-align:-20px}
+
+/* Editorial hairline section dividers (Swiss style) */
+section.block + section.block{border-top:var(--hairline)}
+section.block.alt + section.block.alt{border-top:var(--hairline)}
+
+/* Tighten container max-width to editorial 1200px and add side rails */
+.container{max-width:1200px;padding-left:var(--space-4);padding-right:var(--space-4)}
+
+/* Block heads — bigger, more confident */
+.block-head{margin-bottom:var(--space-6)}
+.block-title{font-size:clamp(32px,4.5vw,56px) !important}
+.block-desc{font-size:15px !important;line-height:1.9 !important;color:var(--ink-dim) !important;max-width:720px;margin:var(--space-2) auto 0}
+.block-head.left{text-align:left}
+.block-head.left .block-desc{margin-left:0}
+
+/* Refined philosophy cards — bigger numbers, cleaner */
+.philo-num{font-family:"Cormorant Garamond","Noto Serif JP",serif !important;font-size:64px !important;color:var(--brand) !important;opacity:0.7 !important;font-style:italic !important;line-height:1}
+.philo-title{font-size:22px !important;letter-spacing:0.01em !important;margin-top:var(--space-2) !important}
+.philo-card{padding:48px 32px 36px !important;border:var(--hairline) !important;border-top:3px solid var(--brand) !important;border-radius:0 !important;background:#fff !important}
+.philo-card:hover{box-shadow:0 30px 80px -40px rgba(36,55,200,0.25) !important}
+.philo-points li{font-size:13px !important;color:var(--ink) !important}
+.philo-points li::before{color:var(--brand) !important;font-weight:700 !important}
+
+/* About section — editorial hero copy */
+.about-grid{gap:var(--space-7) !important;align-items:start}
+.about-copy h2{font-size:clamp(40px,5vw,72px) !important;margin-bottom:var(--space-4)}
+.about-copy p{font-size:16px;line-height:2;color:var(--ink);margin-bottom:var(--space-3)}
+
+/* Stats — Swiss numeric hierarchy */
+.stats{gap:0 !important}
+.stat{padding:var(--space-3) var(--space-2);border-right:var(--hairline);text-align:left}
+.stat:last-child{border-right:0}
+.stat .num{font-family:"Cormorant Garamond","Noto Serif JP",serif !important;font-style:italic !important;font-weight:500 !important;font-size:clamp(48px,5vw,72px) !important;color:var(--ink) !important;line-height:1}
+.stat .label{font-family:"Inter",sans-serif !important;font-size:10px !important;letter-spacing:0.25em !important;color:var(--ink-dim) !important;margin-top:var(--space-1) !important}
+
+/* Hero refinements while preserving blue */
+.hero-title{font-family:"Noto Serif JP",serif !important;font-weight:600 !important;font-size:clamp(36px,5.5vw,72px) !important;line-height:1.15 !important;letter-spacing:-0.01em !important}
+.hero-title .en{font-family:"Cormorant Garamond","Noto Serif JP",serif;font-style:italic;font-weight:500}
+.hero-company{font-family:"Cormorant Garamond","Noto Serif JP",serif !important;font-style:italic !important;font-size:clamp(18px,2vw,26px) !important;letter-spacing:0.04em !important;opacity:0.92}
+.hero-sub{font-family:"Noto Sans JP",sans-serif !important;font-size:14px !important;line-height:1.95 !important;letter-spacing:0.08em !important;max-width:560px}
+
+/* Buttons — Swiss modernism precision */
+.btn-primary,.btn-outline{font-family:"Inter",sans-serif !important;font-size:12px !important;letter-spacing:0.22em !important;font-weight:600 !important;padding:16px 40px !important;border-radius:0 !important}
+.btn-outline{border-width:1px !important;padding-right:64px !important}
+.btn-primary{background:var(--brand) !important;color:#fff !important;border:1px solid var(--brand) !important}
+.btn-primary:hover{background:var(--brand-dark) !important;border-color:var(--brand-dark) !important}
+
+/* Section spacing rhythm */
+section.block{padding:var(--space-7) 0 !important}
+section.cta{padding:var(--space-7) var(--space-4) !important}
+
+@media(max-width:900px){
+  .about-grid{gap:var(--space-4) !important}
+  .stats{flex-wrap:wrap}
+  .stat{flex:1 1 50%;border-right:var(--hairline);border-bottom:var(--hairline)}
+  .stat:nth-child(2n){border-right:0}
+  .stat:nth-last-child(-n+2){border-bottom:0}
+  .about-copy>p:first-of-type::first-letter{font-size:3.2em}
+  section.block{padding:var(--space-6) 0 !important}
+}
