@@ -74,15 +74,18 @@ html[data-theme="dark"] {
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0b0d18;
-  --bg-gray: #12141e;
-  --bg-card: #171a26;
-  --border: #2d3042;
-  --border-light: #3a3e52;
-  --text: #f1f5f9;
-  --text-sub: #cdd3e0;
-  --text-muted: #9ba4bb;
-  --accent-light: rgba(79,70,229,0.14);
+  /* Lift the palette out of pitch black — give it a deep-night-sky feel
+     with a subtle blue/violet undertone. Better readability + premium
+     atmosphere without losing the dark aesthetic. */
+  --bg: #0f1325;
+  --bg-gray: #161b2e;
+  --bg-card: #1d2238;
+  --border: #363c54;
+  --border-light: #4b5274;
+  --text: #f5f7fb;
+  --text-sub: #d6dceb;
+  --text-muted: #abb5cb;
+  --accent-light: rgba(99, 102, 241, 0.16);
 }
 
 /* Dark adjustments shared by both auto and manual */
@@ -7712,5 +7715,72 @@ html[data-theme="dark"] .company-card {
   .scroll-top-btn--show { animation: none !important; }
   [data-animate]:not(.visible) .section-title,
   [data-animate]:not(.visible) .section-header > * { clip-path: none !important; }
+}
+
+/* =========================================================================
+   Dark-mode atmosphere — depth without darkness
+   Adds a soft global tint and lifted card surfaces so the page reads as
+   "deep night sky" rather than "pitch black".
+   ========================================================================= */
+
+/* Whole-page atmospheric depth. A single huge fixed radial behind everything,
+   tinted indigo/cyan, so any dark expanse still has perceptible color. */
+html[data-theme="dark"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(99, 102, 241, 0.10), transparent 55%),
+    radial-gradient(ellipse 70% 60% at 100% 30%, rgba(6, 182, 212, 0.07), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(124, 58, 237, 0.06), transparent 55%);
+}
+
+/* Lift card surfaces with a soft inner gradient so they read as
+   "translucent panels of glass" rather than flat dark boxes. */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .testimonial-card,
+html[data-theme="dark"] .blog-card,
+html[data-theme="dark"] .store-card,
+html[data-theme="dark"] .company-table,
+html[data-theme="dark"] .achievements,
+html[data-theme="dark"] .contact-form,
+html[data-theme="dark"] .pricing-sim {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)),
+    var(--bg-card);
+  border-color: var(--border);
+}
+
+/* Bring the gray section subtly forward — make the alternation visible. */
+html[data-theme="dark"] .section--gray {
+  background:
+    linear-gradient(180deg, rgba(99,102,241,0.04), rgba(6,182,212,0.03)),
+    var(--bg-gray);
+}
+
+/* Form inputs shouldn't feel like holes — soft border + subtle inner panel. */
+html[data-theme="dark"] .form-group input,
+html[data-theme="dark"] .form-group textarea {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--border-light);
+}
+html[data-theme="dark"] .form-group input:focus,
+html[data-theme="dark"] .form-group textarea:focus {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(99,102,241,0.55);
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+}
+
+/* Better text contrast for body copy — currently --text-muted at #abb5cb
+   already AA-compliant but reinforce small print / metadata. */
+html[data-theme="dark"] .section-desc,
+html[data-theme="dark"] .card-text,
+html[data-theme="dark"] .blog-card-excerpt,
+html[data-theme="dark"] .voice__quote,
+html[data-theme="dark"] .testimonial-text,
+html[data-theme="dark"] p.lead {
+  color: var(--text-sub);
 }
 
