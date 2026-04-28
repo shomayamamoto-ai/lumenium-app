@@ -357,3 +357,123 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   .about-copy>p:first-of-type::first-letter{font-size:3.2em}
   section.block{padding:var(--space-6) 0 !important}
 }
+/* === v57: Swiss editorial opener + blue/white discipline === */
+/* Opening movie — white BG, blue typography, framed margins */
+.opener{
+  position:fixed; inset:0; z-index:99999;
+  background:#fff;
+  display:grid; place-items:center;
+  padding:0;
+  cursor:pointer;
+  transition:opacity .8s ease, visibility 0s .8s;
+  opacity:1; visibility:visible;
+}
+.opener.done{opacity:0; visibility:hidden}
+.opener-frame{
+  width:100%; height:100%;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  padding:clamp(24px, 5vw, 56px);
+  border:1px solid var(--brand,#2437c8);
+  margin:clamp(16px, 3vw, 32px);
+  box-sizing:border-box;
+  width:calc(100% - clamp(32px, 6vw, 64px));
+  height:calc(100% - clamp(32px, 6vw, 64px));
+}
+/* Top: brand line + region tag */
+.opener-top{
+  display:flex; justify-content:space-between; align-items:flex-start;
+  font-family:"Inter",sans-serif;
+  font-size:11px; letter-spacing:.32em; font-weight:600;
+  color:var(--brand,#2437c8);
+  text-transform:uppercase;
+  opacity:0; animation:opFade .8s .1s ease forwards;
+}
+.opener-mark-en{font-weight:400; opacity:.65; letter-spacing:.22em}
+
+/* Mid: rule + huge headline */
+.opener-mid{display:flex; flex-direction:column; justify-content:center; gap:24px}
+.opener-rule{
+  width:64px; height:1px; background:rgba(36,55,200,.18);
+  overflow:hidden;
+  opacity:0; animation:opFade .8s .35s ease forwards;
+}
+.opener-rule-fill{
+  display:block; width:100%; height:100%;
+  background:var(--brand,#2437c8);
+  transform:scaleX(0); transform-origin:left center;
+}
+.opener-headline{
+  margin:0;
+  font-family:"Noto Serif JP",serif;
+  font-weight:700;
+  font-size:clamp(40px, 9vw, 128px);
+  line-height:1.02;
+  letter-spacing:-0.02em;
+  color:var(--ink,#0f1430);
+  opacity:0; animation:opFade .9s .55s ease forwards;
+}
+.opener-headline em{
+  font-style:italic; font-weight:500;
+  font-family:"Cormorant Garamond","Noto Serif JP",serif;
+  color:var(--brand,#2437c8);
+}
+.opener-sub{
+  margin:0;
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:clamp(13px,1.5vw,16px);
+  letter-spacing:.16em;
+  color:var(--ink-dim,#5a6078);
+  opacity:0; animation:opFade .8s 1.2s ease forwards;
+}
+
+/* Bot: LOADING ___ 000 */
+.opener-bot{
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-family:"Inter",sans-serif;
+  opacity:0; animation:opFade .6s 1.7s ease forwards;
+}
+.opener-state{font-size:10px; letter-spacing:.4em; color:var(--ink-dim,#5a6078); font-weight:500}
+.opener-pct{
+  font-family:"Cormorant Garamond","Noto Serif JP",serif;
+  font-style:italic;
+  font-size:clamp(36px, 5vw, 56px);
+  color:var(--brand,#2437c8);
+  font-variant-numeric:tabular-nums;
+  line-height:1;
+  font-weight:500;
+}
+
+@keyframes opFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  .opener-top,.opener-rule,.opener-headline,.opener-sub,.opener-bot{animation:none !important;opacity:1 !important;transform:none !important}
+  .opener-rule-fill{transform:scaleX(1)}
+}
+
+/* === Blue/white discipline overrides — purge any other accent color === */
+:root{--accent:var(--brand)}
+.preloader{display:none !important}
+/* Footer: stay deep blue (brand-deep) since logo capsule reads white */
+.site-footer{background:var(--brand-deep) !important;color:#fff}
+/* Press strip — quiet white with hairline */
+.press-strip{background:#fff !important;border-top:1px solid rgba(36,55,200,.08) !important;border-bottom:1px solid rgba(36,55,200,.08) !important}
+.press-item{color:var(--ink) !important;opacity:.65}
+/* CEO section background to white */
+.ceo-section{background:#fff !important}
+.ceo-section.alt{background:#fafaff !important}
+/* Awards / testimonials neutral */
+.awards-section,.testimonials{background:#fafaff !important}
+.award-card,.testimonial-card{background:#fff !important;border:1px solid rgba(36,55,200,.10) !important;border-radius:0 !important;box-shadow:none !important}
+.award-card:hover,.testimonial-card:hover{border-color:var(--brand) !important}
+/* Service tiles flat white with blue hairline */
+.service-tile{background:#fff !important;border:1px solid rgba(36,55,200,.10) !important;border-radius:0 !important;padding:48px 32px !important}
+.service-tile:hover{border-color:var(--brand) !important;transform:translateY(-2px)}
+.service-icon{color:var(--brand) !important}
+/* News card */
+.news-card{background:#fff !important;border:1px solid rgba(36,55,200,.10) !important;border-radius:0 !important}
+.news-card:hover{border-color:var(--brand) !important}
+.news-card .cat{color:var(--brand) !important;font-weight:700 !important;letter-spacing:.18em !important}
+/* CTA */
+.cta{background:var(--brand) !important;color:#fff !important}
+.cta .btn-primary{background:#fff !important;color:var(--brand) !important;border-color:#fff !important}
+.cta .btn-primary:hover{background:var(--brand-deep) !important;color:#fff !important;border-color:#fff !important}
