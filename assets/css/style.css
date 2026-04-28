@@ -588,3 +588,81 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   #opener .act-2{opacity:1}
   #opener .act-1{opacity:0}
 }
+/* === v59: Stats rebuilt — fix invisible numbers + editorial precision === */
+.stats{
+  display:grid !important;
+  grid-template-columns:repeat(4,1fr) !important;
+  gap:0 !important;
+  margin-top:48px;
+  border-top:1px solid rgba(36,55,200,0.12);
+  border-bottom:1px solid rgba(36,55,200,0.12);
+}
+.stat{
+  padding:40px 24px !important;
+  border-right:1px solid rgba(36,55,200,0.12) !important;
+  border-bottom:0 !important;
+  text-align:left !important;
+  background:transparent !important;
+  position:relative;
+}
+.stat:last-child{border-right:0 !important}
+.stat::before{
+  content:"";
+  position:absolute;
+  top:0; left:0;
+  width:24px; height:2px;
+  background:var(--brand,#2437c8);
+}
+.stat .num{
+  font-family:"Cormorant Garamond","Noto Serif JP",serif !important;
+  font-style:italic !important;
+  font-weight:500 !important;
+  font-size:clamp(56px, 7vw, 96px) !important;
+  letter-spacing:-0.02em !important;
+  line-height:1 !important;
+  color:var(--brand,#2437c8) !important;
+  -webkit-text-fill-color:var(--brand,#2437c8) !important;
+  background:none !important;
+  background-clip:initial !important;
+  -webkit-background-clip:initial !important;
+  display:flex !important;
+  align-items:baseline !important;
+  gap:4px !important;
+  margin:0 0 12px !important;
+}
+.stat .num span{
+  display:inline-block !important;
+  color:inherit !important;
+  -webkit-text-fill-color:inherit !important;
+  font-variant-numeric:tabular-nums !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  transform:none !important;
+  animation:none !important;
+}
+.stat .num sup{
+  font-family:"Inter",sans-serif !important;
+  font-style:normal !important;
+  font-weight:600 !important;
+  font-size:0.28em !important;
+  letter-spacing:0.16em !important;
+  color:var(--ink-dim,#5a6078) !important;
+  -webkit-text-fill-color:var(--ink-dim,#5a6078) !important;
+  margin-left:6px !important;
+}
+.stat .label{
+  font-family:"Inter",sans-serif !important;
+  font-size:10px !important;
+  letter-spacing:0.32em !important;
+  font-weight:600 !important;
+  color:var(--ink,#0f1430) !important;
+  text-transform:uppercase !important;
+}
+
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr) !important}
+  .stat{border-bottom:1px solid rgba(36,55,200,0.12) !important}
+  .stat:nth-child(2n){border-right:0 !important}
+  .stat:nth-last-child(-n+2){border-bottom:0 !important}
+  .stat .num{font-size:clamp(40px,12vw,64px) !important}
+}
