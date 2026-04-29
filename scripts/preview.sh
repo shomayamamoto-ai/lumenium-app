@@ -41,6 +41,7 @@ echo "      Filmography  : $(grep -c "ぞくり\|ゆとりフォーム\|CH.UNKNO
 echo "      Talents      : $(grep -o "data-count=\"[0-9]*\"" index.html | head -1)"
 echo "      Distribution : $(grep -o "SEQ=\[[^]]\{0,30\}" assets/js/members-data.js | head -1)..."
 echo "      CSS version  : $(grep -o "style.css?v=[0-9]*" index.html | head -1)"
+echo "      Members grid : $(grep -c "render()" members.html) inline render hooks"
 
 # 4) Start server + open browser
 echo ""
