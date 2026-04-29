@@ -1803,3 +1803,13 @@ html{scroll-padding-top:90px;}
   .faq-q-text{font-size:14px;}
   .faq-a{padding:0 12px 20px 70px; font-size:13px;}
 }
+
+/* v72: pin testimonial track scroll + page so smooth-scroll doesn't bubble */
+.testimonial-track{
+  overscroll-behavior:contain !important;
+  overscroll-behavior-x:contain !important;
+}
+html, body{
+  overscroll-behavior-x:none;
+  overflow-x:hidden;
+}
