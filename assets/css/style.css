@@ -1637,3 +1637,169 @@ html{scroll-padding-top:90px;}
   pointer-events:none;
 }
 .btn-primary:hover::before{transform:translateX(100%);}
+
+/* ============ v71: Hero CTAs ============ */
+.hero-ctas{
+  display:flex; gap:14px; flex-wrap:wrap; justify-content:center;
+  margin-top:36px;
+}
+.hero-cta-btn{
+  font-size:14px !important; letter-spacing:0.06em !important;
+  padding:14px 26px !important; min-width:200px; text-align:center;
+}
+.hero-cta-outline{border-color:#fff !important; color:#fff !important;}
+.hero-cta-outline:hover{background:rgba(255,255,255,0.1) !important;}
+
+/* ============ v71: MANIFESTO section ============ */
+.manifesto-section{
+  background:linear-gradient(180deg, #0f1430 0%, #131e7a 100%);
+  color:#fff; padding:140px 0; position:relative; overflow:hidden;
+}
+.manifesto-section::before{
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(circle at 20% 50%, rgba(36,55,200,0.4), transparent 50%);
+  pointer-events:none;
+}
+.manifesto-section .container{position:relative; z-index:1;}
+.manifesto-eyebrow{
+  font-family:"Inter", sans-serif; font-size:12px;
+  letter-spacing:0.32em; text-transform:uppercase;
+  color:rgba(255,255,255,0.5); margin-bottom:32px;
+}
+.manifesto-headline{
+  font-family:"Noto Serif JP", serif; font-weight:600;
+  font-size:clamp(48px, 8vw, 128px); line-height:1.05;
+  margin:0 0 80px; letter-spacing:-0.02em; color:#fff;
+}
+.m-line{display:block;}
+.manifesto-headline em{
+  font-family:"Cormorant Garamond", serif; font-style:italic;
+  font-weight:500; color:#fff;
+  background:linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.65) 100%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  padding:0 6px;
+}
+.manifesto-grid{
+  display:grid; grid-template-columns:repeat(3, 1fr);
+  gap:48px; padding-top:60px;
+  border-top:1px solid rgba(255,255,255,0.18);
+}
+@media (max-width: 900px){
+  .manifesto-grid{grid-template-columns:1fr; gap:48px;}
+  .manifesto-headline{margin-bottom:48px;}
+}
+.manifesto-num{
+  font-family:"Cormorant Garamond", serif; font-style:italic;
+  font-size:24px; color:rgba(255,255,255,0.5);
+  margin-bottom:18px;
+}
+.manifesto-col h3{
+  font-family:"Noto Serif JP", serif; font-weight:600;
+  font-size:22px; line-height:1.5; margin:0 0 16px; color:#fff;
+}
+.manifesto-col p{
+  font-size:14px; line-height:1.85;
+  color:rgba(255,255,255,0.75); margin:0;
+}
+
+/* ============ v71: Specialty / Categories explorer ============ */
+.specialties-section{padding:120px 0; background:#fafbff;}
+.specialty-grid{
+  display:grid; grid-template-columns:repeat(4, 1fr);
+  gap:14px; margin-top:48px;
+}
+@media (max-width: 900px){
+  .specialty-grid{grid-template-columns:repeat(2, 1fr);}
+}
+@media (max-width: 500px){
+  .specialty-grid{grid-template-columns:1fr; gap:10px;}
+}
+.specialty-tile{
+  position:relative; aspect-ratio:1/1.15; overflow:hidden;
+  border-radius:6px; display:block; text-decoration:none; color:#fff;
+  background-image:var(--bg);
+  background-size:cover; background-position:center;
+  transition:transform .5s cubic-bezier(.22,1,.36,1);
+}
+.specialty-tile::before{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(15,20,48,0.2) 0%, rgba(15,20,48,0.85) 100%);
+  transition:opacity .35s ease;
+}
+.specialty-tile:hover{transform:translateY(-4px);}
+.specialty-tile:hover::before{opacity:0.7;}
+.specialty-tile-inner{
+  position:absolute; bottom:0; left:0; right:0;
+  padding:24px 22px; z-index:1;
+}
+.specialty-en{
+  font-family:"Inter", sans-serif; font-size:11px;
+  letter-spacing:0.26em; text-transform:uppercase;
+  color:rgba(255,255,255,0.7); margin-bottom:6px;
+}
+.specialty-jp{
+  font-family:"Noto Serif JP", serif; font-weight:600;
+  font-size:22px; color:#fff; line-height:1.3; margin-bottom:8px;
+}
+.specialty-count{
+  font-family:"Cormorant Garamond", serif; font-style:italic;
+  font-size:18px; color:rgba(255,255,255,0.85);
+}
+
+/* ============ v71: FAQ accordion ============ */
+.faq-section{padding:120px 0; background:#fff;}
+.faq-list{
+  max-width:880px; margin:48px auto 0;
+  border-top:1px solid #eef0f7;
+}
+.faq-item{
+  border-bottom:1px solid #eef0f7;
+  transition:background .25s ease;
+}
+.faq-item[open]{background:rgba(36,55,200,0.02);}
+.faq-item summary{
+  list-style:none; cursor:none;
+  display:grid; grid-template-columns:80px 1fr 40px;
+  align-items:center; gap:20px;
+  padding:28px 24px; transition:padding .25s ease;
+}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-item:hover summary{padding-left:32px;}
+.faq-q-num{
+  font-family:"Cormorant Garamond", serif; font-style:italic;
+  font-weight:500; font-size:24px;
+  color:var(--brand, #2437c8);
+}
+.faq-q-text{
+  font-family:"Noto Serif JP", serif; font-weight:500;
+  font-size:17px; line-height:1.5; color:var(--ink, #0f1430);
+}
+.faq-q-icon{
+  display:block; width:28px; height:28px; position:relative;
+  border:1px solid rgba(36,55,200,0.3); border-radius:50%;
+  transition:transform .25s ease, border-color .2s ease;
+}
+.faq-q-icon::before, .faq-q-icon::after{
+  content:""; position:absolute; top:50%; left:50%;
+  width:11px; height:1.5px; background:var(--brand, #2437c8);
+  transform:translate(-50%, -50%); transition:transform .25s ease;
+}
+.faq-q-icon::after{transform:translate(-50%, -50%) rotate(90deg);}
+.faq-item[open] .faq-q-icon{
+  background:var(--brand, #2437c8); border-color:var(--brand, #2437c8);
+}
+.faq-item[open] .faq-q-icon::before,
+.faq-item[open] .faq-q-icon::after{background:#fff;}
+.faq-item[open] .faq-q-icon::after{transform:translate(-50%, -50%) rotate(0deg);}
+.faq-a{
+  padding:0 24px 28px 124px;
+  font-size:15px; line-height:1.85; color:#2b3252;
+}
+.faq-a a{color:var(--brand, #2437c8); text-decoration:underline;}
+@media (max-width:700px){
+  .faq-item summary{grid-template-columns:50px 1fr 32px; padding:20px 12px;}
+  .faq-q-num{font-size:18px;}
+  .faq-q-text{font-size:14px;}
+  .faq-a{padding:0 12px 20px 70px; font-size:13px;}
+}
