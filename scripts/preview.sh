@@ -42,6 +42,8 @@ echo "      Talents      : $(grep -o "data-count=\"[0-9]*\"" index.html | head -
 echo "      Distribution : $(grep -o "SEQ=\[[^]]\{0,30\}" assets/js/members-data.js | head -1)..."
 echo "      CSS version  : $(grep -o "style.css?v=[0-9]*" index.html | head -1)"
 echo "      Members grid : $(grep -c "render()" members.html) inline render hooks"
+echo "      Profile v2   : $(grep -c "casting-cta" assets/js/main.js) casting-cta hits  ·  $(grep -c "profile-hero-v2" assets/css/style.css) hero-v2 css rules"
+echo "      Sample SNS   : $(grep -o "instagram.com/adv_001" assets/js/members-data.js | head -1)"
 
 # 4) Start server + open browser
 echo ""
