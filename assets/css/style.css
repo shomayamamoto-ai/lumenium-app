@@ -1033,3 +1033,199 @@ html{scroll-behavior:smooth; scroll-padding-top:96px}
   overflow:hidden;
 }
 .btn-primary:hover{background:#fff !important; color:var(--brand) !important}
+/* === v62: Scroll-Triggered Storytelling — chapter progress + hero scroll cue === */
+
+/* HERO SCROLL CUE */
+.hero-cue{
+  position:absolute; left:50%; bottom:48px;
+  transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  text-decoration:none;
+  z-index:3;
+}
+.hc-label{
+  font-family:"Inter",sans-serif;
+  font-size:9px; letter-spacing:0.4em; font-weight:600;
+  color:rgba(255,255,255,0.78);
+  text-transform:uppercase;
+}
+.hc-line{
+  width:1px; height:48px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%);
+  position:relative; overflow:hidden;
+}
+.hc-line::after{
+  content:""; position:absolute; top:0; left:0;
+  width:100%; height:30%;
+  background:#fff;
+  animation:scrollPulse 2s ease-in-out infinite;
+}
+@keyframes scrollPulse{
+  0%{transform:translateY(-100%); opacity:0}
+  20%{opacity:1}
+  100%{transform:translateY(220%); opacity:0}
+}
+
+/* CHAPTER PROGRESS — fixed left rail */
+.chapter-progress{
+  position:fixed; left:32px; top:50%;
+  transform:translateY(-50%);
+  z-index:50;
+  pointer-events:auto;
+}
+.chapter-progress ul{
+  list-style:none; padding:0; margin:0;
+  display:flex; flex-direction:column; gap:14px;
+}
+.chapter-progress a{
+  display:flex; align-items:center; gap:14px;
+  text-decoration:none;
+  font-family:"Inter",sans-serif;
+  color:rgba(15,20,48,0.30);
+  transition:color .35s ease, gap .35s ease;
+  position:relative;
+}
+.chapter-progress .cp-num{
+  font-family:"Cormorant Garamond","Noto Serif JP",serif;
+  font-style:italic;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  font-weight:500;
+  width:24px;
+}
+.chapter-progress .cp-label{
+  font-size:10px; letter-spacing:0.18em;
+  text-transform:uppercase; font-weight:600;
+  opacity:0; transform:translateX(-6px);
+  transition:opacity .35s ease, transform .35s ease;
+}
+.chapter-progress a:hover,
+.chapter-progress a.active{
+  color:var(--brand,#2437c8);
+}
+.chapter-progress a.active{font-weight:600}
+.chapter-progress a:hover .cp-label,
+.chapter-progress a.active .cp-label{
+  opacity:1; transform:translateX(0);
+}
+.chapter-progress a::before{
+  content:""; position:absolute; left:6px;
+  width:3px; height:3px; border-radius:50%;
+  background:transparent;
+  transition:background .35s ease, transform .35s ease;
+}
+.chapter-progress a.active::before{
+  background:var(--brand,#2437c8);
+  transform:scale(2);
+}
+
+/* When the side rail crosses dark hero, flip its tones */
+@media(min-width:1100px){
+  body.on-hero-section .chapter-progress a{color:rgba(255,255,255,0.4)}
+  body.on-hero-section .chapter-progress a.active{color:#fff}
+  body.on-hero-section .chapter-progress a.active::before{background:#fff}
+}
+
+@media(max-width:1100px){
+  .chapter-progress{display:none}
+}
+
+/* HERO TYPOGRAPHY enhancement */
+.hero-content{max-width:920px}
+.hero-title{
+  font-size:clamp(40px, 6vw, 88px) !important;
+  line-height:1.1 !important;
+}
+.hero-title .en{
+  display:inline-block;
+  padding:0 0.06em;
+}
+.hero-company{margin:32px 0 28px !important}
+.hero-sub{
+  max-width:560px; margin:0 auto !important;
+  position:relative; padding-top:24px;
+}
+.hero-sub::before{
+  content:""; display:block;
+  width:32px; height:1px;
+  background:rgba(255,255,255,0.6);
+  margin:0 auto 24px;
+}
+
+/* TALENT CARD — editorial overlay refinement */
+.talent-card{
+  background:#fff !important;
+  border-radius:0 !important;
+  overflow:hidden;
+  position:relative;
+  border:0 !important;
+}
+.talent-photo{
+  position:relative;
+  aspect-ratio:3/4;
+  background:#fafaff;
+  overflow:hidden;
+}
+.talent-photo::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(180deg, transparent 50%, rgba(15,20,48,0.5) 100%);
+  opacity:0; transition:opacity .4s ease;
+  pointer-events:none;
+}
+.talent-card:hover .talent-photo::after{opacity:1}
+.talent-badge{
+  position:absolute !important;
+  top:12px; left:12px !important;
+  font-family:"Inter",sans-serif !important;
+  font-size:10px !important; letter-spacing:0.18em !important;
+  font-weight:600 !important; text-transform:uppercase !important;
+  background:rgba(255,255,255,0.92) !important;
+  color:var(--brand,#2437c8) !important;
+  padding:6px 10px !important;
+  border-radius:0 !important;
+}
+.talent-meta{
+  padding:18px 4px 0 !important;
+  border-top:0 !important;
+}
+.talent-name{
+  font-family:"Noto Serif JP",serif !important;
+  font-size:16px !important; font-weight:600 !important;
+  color:var(--ink,#0f1430) !important;
+  margin-bottom:4px !important;
+}
+.talent-role{
+  font-family:"Inter",sans-serif !important;
+  font-size:11px !important; letter-spacing:0.18em !important;
+  text-transform:uppercase !important;
+  color:var(--ink-dim,#5a6078) !important;
+}
+
+/* WORKS card overlay refinement */
+.work-card{border-radius:0 !important; overflow:hidden}
+.work-card .overlay{
+  background:linear-gradient(180deg, transparent 30%, rgba(15,20,48,0.85) 100%) !important;
+}
+.work-card .tag{
+  font-family:"Inter",sans-serif !important;
+  font-size:9px !important; letter-spacing:0.32em !important;
+  font-weight:700 !important; text-transform:uppercase !important;
+  color:#fff !important;
+  padding:6px 12px !important;
+  background:var(--brand,#2437c8) !important;
+  display:inline-block; margin-bottom:14px !important;
+}
+.work-card .title{
+  font-family:"Noto Serif JP",serif !important;
+  font-size:18px !important; font-weight:600 !important;
+  letter-spacing:0.005em;
+  color:#fff !important;
+  margin-top:6px !important;
+  line-height:1.4 !important;
+}
+.work-card .client{
+  font-family:"Inter",sans-serif !important;
+  font-size:10px !important; letter-spacing:0.22em !important;
+  text-transform:uppercase !important;
+  color:rgba(255,255,255,0.75) !important;
+}
