@@ -588,24 +588,26 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   #opener .act-2{opacity:1}
   #opener .act-1{opacity:0}
 }
-/* === v59: Stats rebuilt — fix invisible numbers + editorial precision === */
+/* === v68: Stats rebuilt — 2x2 to fit inside about-grid column === */
 .stats{
   display:grid !important;
-  grid-template-columns:repeat(4,1fr) !important;
+  grid-template-columns:repeat(2,1fr) !important;
   gap:0 !important;
   margin-top:48px;
   border-top:1px solid rgba(36,55,200,0.12);
   border-bottom:1px solid rgba(36,55,200,0.12);
 }
 .stat{
-  padding:40px 24px !important;
+  padding:32px 22px !important;
   border-right:1px solid rgba(36,55,200,0.12) !important;
-  border-bottom:0 !important;
+  border-bottom:1px solid rgba(36,55,200,0.12) !important;
   text-align:left !important;
   background:transparent !important;
   position:relative;
+  min-width:0;
 }
-.stat:last-child{border-right:0 !important}
+.stat:nth-child(2n){border-right:0 !important}
+.stat:nth-last-child(-n+2){border-bottom:0 !important}
 .stat::before{
   content:"";
   position:absolute;
@@ -617,7 +619,7 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   font-family:"Cormorant Garamond","Noto Serif JP",serif !important;
   font-style:italic !important;
   font-weight:500 !important;
-  font-size:clamp(56px, 7vw, 96px) !important;
+  font-size:clamp(44px, 5vw, 72px) !important;
   letter-spacing:-0.02em !important;
   line-height:1 !important;
   color:var(--brand,#2437c8) !important;
@@ -628,7 +630,9 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
   display:flex !important;
   align-items:baseline !important;
   gap:4px !important;
-  margin:0 0 12px !important;
+  margin:0 0 10px !important;
+  white-space:nowrap;
+  overflow:hidden;
 }
 .stat .num span{
   display:inline-block !important;
@@ -661,10 +665,8 @@ section.cta{padding:var(--space-7) var(--space-4) !important}
 
 @media(max-width:900px){
   .stats{grid-template-columns:repeat(2,1fr) !important}
-  .stat{border-bottom:1px solid rgba(36,55,200,0.12) !important}
-  .stat:nth-child(2n){border-right:0 !important}
-  .stat:nth-last-child(-n+2){border-bottom:0 !important}
-  .stat .num{font-size:clamp(40px,12vw,64px) !important}
+  .stat{padding:24px 18px !important}
+  .stat .num{font-size:clamp(36px,9vw,56px) !important}
 }
 /* === v60: Comprehensive polish — UI/UX Pro Max integrated ===
    Sources applied:
@@ -1445,3 +1447,55 @@ html{scroll-behavior:smooth; scroll-padding-top:96px}
 .casting-cta-btn.btn-outline:hover{background:rgba(255,255,255,0.1); color:#fff;}
 
 .profile-related-section{background:#f5f6fb;}
+
+/* ============ Custom Cursor (v68) ============ */
+@media (hover:hover) and (pointer:fine){
+  html, body{cursor:none;}
+  a, button, .talent-card, .work-card, .news-card, .chip, .filter-chips .chip,
+  .service-tile, .insta-strip a, .testimonial-card, input, textarea, select,
+  [role="button"], .nav a, .lang-switch button, .to-top, .back-to-top,
+  .play, .modal-close, .nav-toggle, .profile-social-v2 a,
+  .profile-gallery-item, .casting-cta-btn{
+    cursor:none;
+  }
+  .cursor-dot, .cursor-ring{
+    position:fixed; top:0; left:0;
+    pointer-events:none; z-index:99999;
+    transform:translate3d(-50%,-50%,0);
+    will-change:transform;
+    mix-blend-mode:difference;
+  }
+  .cursor-dot{
+    width:8px; height:8px; border-radius:50%;
+    background:#fff;
+    transition:width .25s var(--ease,cubic-bezier(.22,1,.36,1)),
+               height .25s var(--ease,cubic-bezier(.22,1,.36,1)),
+               opacity .25s ease;
+  }
+  .cursor-ring{
+    width:38px; height:38px; border-radius:50%;
+    border:1.5px solid #fff;
+    transition:width .35s var(--ease,cubic-bezier(.22,1,.36,1)),
+               height .35s var(--ease,cubic-bezier(.22,1,.36,1)),
+               border-color .25s ease,
+               background .25s ease,
+               opacity .25s ease;
+  }
+  body.cursor-hover .cursor-dot{width:0; height:0;}
+  body.cursor-hover .cursor-ring{
+    width:62px; height:62px;
+    background:rgba(255,255,255,0.08);
+    border-color:#fff;
+  }
+  body.cursor-text .cursor-dot{
+    width:2px; height:24px; border-radius:1px;
+    background:#fff;
+  }
+  body.cursor-text .cursor-ring{opacity:0;}
+  body.cursor-press .cursor-ring{width:24px; height:24px;}
+  body.cursor-hidden .cursor-dot,
+  body.cursor-hidden .cursor-ring{opacity:0;}
+}
+@media (hover:none) or (pointer:coarse){
+  .cursor-dot, .cursor-ring{display:none !important;}
+}
