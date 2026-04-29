@@ -1512,3 +1512,128 @@ html{scroll-padding-top:90px;}
 .btn-outline:hover{transform:translateY(-2px);}
 .talent-card{transition:transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease;}
 .talent-card:hover{transform:translateY(-4px); box-shadow:0 20px 40px -16px rgba(15,20,48,0.18);}
+
+/* ============ v70: Process timeline section ============ */
+.process-section{
+  background:linear-gradient(180deg, #f5f6fb 0%, #ffffff 100%);
+  padding:120px 0;
+}
+.process-timeline{
+  list-style:none; padding:0; margin:0;
+  display:grid; grid-template-columns:repeat(4, 1fr); gap:0;
+  position:relative; counter-reset:proc;
+}
+@media (max-width: 1024px){
+  .process-timeline{grid-template-columns:repeat(2, 1fr); gap:48px 24px;}
+}
+@media (max-width: 600px){
+  .process-timeline{grid-template-columns:1fr; gap:40px;}
+}
+.process-step{
+  position:relative; padding:0 28px 0 0;
+  border-left:1px solid rgba(36,55,200,0.15);
+  padding-left:32px;
+}
+.process-step:first-child{border-left:none; padding-left:0;}
+@media (max-width: 1024px){
+  .process-step{border-left:none; padding-left:0;}
+  .process-step:nth-child(2n){padding-left:32px; border-left:1px solid rgba(36,55,200,0.15);}
+}
+@media (max-width: 600px){
+  .process-step:nth-child(2n){border-left:none; padding-left:0;}
+}
+.process-num{
+  font-family:"Cormorant Garamond", serif; font-style:italic;
+  font-size:64px; font-weight:500; line-height:1;
+  color:var(--brand, #2437c8);
+  margin-bottom:24px; letter-spacing:-0.02em;
+  position:relative; display:inline-block;
+}
+.process-num::before{
+  content:""; position:absolute;
+  top:50%; left:-32px; width:18px; height:1px;
+  background:var(--brand, #2437c8); opacity:.4;
+}
+.process-step:first-child .process-num::before{display:none;}
+.process-line{display:none;}
+.process-title{
+  font-family:"Inter", sans-serif; font-size:13px;
+  letter-spacing:0.22em; text-transform:uppercase;
+  color:var(--ink, #0f1430); font-weight:600;
+  margin:0 0 6px;
+}
+.process-jp{
+  font-family:"Noto Serif JP", serif; font-weight:600;
+  font-size:20px; color:var(--ink, #0f1430);
+  margin-bottom:14px;
+}
+.process-step p{
+  font-size:14px; line-height:1.85; color:#5a6078; margin:0;
+}
+.process-step p strong{
+  display:inline-block; margin-top:10px;
+  font-family:"Inter", sans-serif; font-size:11px;
+  letter-spacing:0.18em; color:var(--brand, #2437c8);
+  font-weight:600; text-transform:uppercase;
+}
+
+/* ============ v70: Image Lightbox ============ */
+.lightbox{
+  position:fixed; inset:0; z-index:9998;
+  background:rgba(8,11,32,0.94);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  display:none; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .35s ease;
+}
+.lightbox.open{display:flex; opacity:1;}
+.lightbox-content{
+  position:relative; max-width:90vw; max-height:88vh;
+  display:flex; align-items:center; justify-content:center;
+}
+.lightbox-img{
+  max-width:100%; max-height:88vh;
+  width:auto; height:auto;
+  object-fit:contain; border-radius:4px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.6);
+  display:block;
+}
+.lightbox-close{
+  position:absolute; top:32px; right:32px;
+  width:48px; height:48px; border-radius:50%;
+  background:rgba(255,255,255,0.1); color:#fff;
+  border:1px solid rgba(255,255,255,0.2);
+  cursor:none; transition:all .2s;
+  display:flex; align-items:center; justify-content:center;
+}
+.lightbox-close:hover{background:rgba(255,255,255,0.2);}
+.lightbox-close svg{width:18px; height:18px;}
+.lightbox-prev, .lightbox-next{
+  position:absolute; top:50%; transform:translateY(-50%);
+  width:56px; height:56px; border-radius:50%;
+  background:rgba(255,255,255,0.08); color:#fff;
+  border:1px solid rgba(255,255,255,0.18);
+  cursor:none; transition:all .2s;
+  display:flex; align-items:center; justify-content:center;
+}
+.lightbox-prev{left:32px;}
+.lightbox-next{right:32px;}
+.lightbox-prev:hover, .lightbox-next:hover{background:rgba(255,255,255,0.18);}
+.lightbox-prev svg, .lightbox-next svg{width:22px; height:22px;}
+.lightbox-counter{
+  position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+  color:rgba(255,255,255,0.7); font-family:"Cormorant Garamond", serif;
+  font-style:italic; font-size:18px; letter-spacing:0.08em;
+}
+
+/* ============ v70: Magnetic button feel ============ */
+.btn-primary, .btn-outline{
+  display:inline-block; will-change:transform;
+}
+.btn-primary{position:relative; overflow:hidden;}
+.btn-primary::before{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+  transform:translateX(-100%); transition:transform .9s ease;
+  pointer-events:none;
+}
+.btn-primary:hover::before{transform:translateX(100%);}
