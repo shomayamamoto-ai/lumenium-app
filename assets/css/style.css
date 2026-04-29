@@ -1499,3 +1499,16 @@ html{scroll-behavior:smooth; scroll-padding-top:96px}
 @media (hover:none) or (pointer:coarse){
   .cursor-dot, .cursor-ring{display:none !important;}
 }
+
+/* v69: Hide JP/EN switcher (removed; bilingual is out of scope for now) */
+.lang-switch, .lang-switch-wrap{display:none !important;}
+
+/* v69: Misc polish */
+:focus-visible{outline:2px solid var(--brand,#2437c8); outline-offset:3px; border-radius:2px;}
+::selection{background:rgba(36,55,200,0.18); color:var(--ink,#0f1430);}
+html{scroll-padding-top:90px;}
+.btn-primary, .btn-outline{transition:all .25s cubic-bezier(.22,1,.36,1);}
+.btn-primary:hover{transform:translateY(-2px); box-shadow:0 14px 30px -10px rgba(36,55,200,0.45);}
+.btn-outline:hover{transform:translateY(-2px);}
+.talent-card{transition:transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease;}
+.talent-card:hover{transform:translateY(-4px); box-shadow:0 20px 40px -16px rgba(15,20,48,0.18);}
