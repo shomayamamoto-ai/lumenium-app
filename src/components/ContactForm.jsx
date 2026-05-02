@@ -63,13 +63,10 @@ export default function ContactForm() {
     setSending(true)
     events.formSubmit('contact')
 
-    // Open the user's mail client with a prefilled message so the inquiry
-    // actually reaches us. (The previous external chat endpoint rejects every
-    // browser origin with 403 "Host not in allowlist".)
     const subject = `【お問い合わせ】${form.name}様より`
     const body = `お名前: ${form.name}\nメール: ${form.email}\n\n${form.message}`
     const mailto = `mailto:shoma.yamamoto@lumenium.net?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.location.href = mailto
+    window.open(mailto, '_blank', 'noopener,noreferrer')
 
     setTimeout(() => {
       setSending(false)
