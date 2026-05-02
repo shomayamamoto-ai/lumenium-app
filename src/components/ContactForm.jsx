@@ -47,7 +47,7 @@ export default function ContactForm() {
     setErrors(validate(form))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const nextErrors = validate(form)
     setErrors(nextErrors)
@@ -63,20 +63,25 @@ export default function ContactForm() {
     setSending(true)
     events.formSubmit('contact')
 
-    const subject = `【お問い合わせ】${form.name}様より`
-    const body = `お名前: ${form.name}\nメール: ${form.email}\n\n${form.message}`
-    const mailto = `mailto:shoma.yamamoto@lumenium.net?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(mailto, '_blank', 'noopener,noreferrer')
-
-    setTimeout(() => {
-      setSending(false)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, email: form.email, message: form.message }),
+      })
+      if (!res.ok) throw new Error(`status ${res.status}`)
       setSent(true)
-      showToast('success', 'メールアプリを起動しました。送信後、48時間以内にご返信いたします。')
+      showToast('success', 'お問い合わせを送信しました。48時間以内にご返信いたします。')
       setForm({ name: '', email: '', message: '' })
       setTouched({})
       setErrors({})
       setTimeout(() => setSent(false), 8000)
-    }, 300)
+    } catch (err) {
+      console.error('[contact] submit failed', err)
+      showToast('error', '送信に失敗しました。お手数ですが shoma.yamamoto@lumenium.net まで直接ご連絡ください。')
+    } finally {
+      setSending(false)
+    }
   }
 
   const fieldState = (key) => {
@@ -184,7 +189,7 @@ export default function ContactForm() {
                   <span className="btn-spinner" aria-hidden="true" />
                   送信中...
                 </span>
-              ) : sent ? '✓ メールアプリが開きました' : '送信する →'}
+              ) : sent ? '✓ 送信しました' : '送信する →'}
             </button>
             <p className="form-note">✓ 48時間以内に返信 ✓ 見積り無料 ✓ 秘密厳守</p>
           </div>
