@@ -68,7 +68,7 @@ export default function ContactForm() {
     // browser origin with 403 "Host not in allowlist".)
     const subject = `【お問い合わせ】${form.name}様より`
     const body = `お名前: ${form.name}\nメール: ${form.email}\n\n${form.message}`
-    const mailto = `mailto:contact@lumenium.net?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    const mailto = `mailto:shoma.yamamoto@lumenium.net?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.location.href = mailto
 
     setTimeout(() => {
