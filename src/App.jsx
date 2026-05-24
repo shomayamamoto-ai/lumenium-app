@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import Splash from './components/Splash'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
-import Marquee from './components/Marquee'
 import TrustStrip from './components/TrustStrip'
 import Stats from './components/Stats'
 import ServicesIntro from './components/ServicesIntro'
@@ -322,7 +321,6 @@ export default function App() {
         <div id="main" className={pageReady ? 'page-enter' : ''}>
           <Navbar />
           <Hero />
-          <Marquee />
           <TrustStrip />
           <Stats />
           <Why />
