@@ -866,6 +866,16 @@ html[data-theme="dark"] .testimonial-arrow {
 }
 .trust-strip-track:hover .trust-strip-content { animation-play-state: paused; }
 
+/* Static layout: only a few industries, shown centered without scrolling. */
+.trust-strip-static {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 16px;
+}
+
 @keyframes trustStripScroll {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
