@@ -1,5 +1,5 @@
 const info = [
-  { label: '会社名', value: 'Lumenium（ルミニウム）' },
+  { label: '会社名', value: 'Lumenium（ルメニウム）' },
   { label: '代表者', value: '山本 捷真' },
   { label: '設立', value: '2026年' },
   { label: '事業内容', value: '動画制作 / AI研修 / SNS運用 / LINE Bot / Web開発 / キャスト手配 他' },
