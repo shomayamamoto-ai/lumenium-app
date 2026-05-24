@@ -17,16 +17,6 @@ export default function Marquee() {
           ))}
         </div>
       </div>
-      <div className="marquee-track reverse">
-        <div className="marquee-content">
-          {[...skills.slice().reverse(), ...skills.slice().reverse()].map((skill, i) => (
-            <span key={i} className="marquee-item">
-              {skill}
-              <span className="marquee-dot" />
-            </span>
-          ))}
-        </div>
-      </div>
     </section>
   )
 }

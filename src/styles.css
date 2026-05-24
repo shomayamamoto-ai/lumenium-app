@@ -679,7 +679,9 @@ html[data-theme="dark"] .testimonial-arrow {
   line-height: 1;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  background: linear-gradient(135deg, #4f46e5, #06b6d4);
+  /* Brighter, higher-contrast accent so the headline figures clearly read as
+     the important numbers (was a muted indigo→cyan). */
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 60%, #22d3ee 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -3830,59 +3832,8 @@ html[data-theme="dark"] .hero-video {
   background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
   color: #fff;
   border-color: transparent;
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.04);
   box-shadow: 0 6px 16px -4px rgba(79,70,229,0.35);
-}
-
-/* ===== PR Video Fullscreen ===== */
-.pr-video-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 8000;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.5s ease;
-}
-
-.pr-video-player {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.pr-video-skip {
-  position: absolute;
-  bottom: 40px;
-  right: 40px;
-  padding: 10px 24px;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pr-video-note {
-  position: absolute;
-  bottom: 44px;
-  left: 40px;
-  color: rgba(255,255,255,0.85);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 6px 14px;
-  background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(8px);
-  border-radius: 6px;
-}
-
-.pr-video-skip:hover {
-  background: rgba(255,255,255,0.2);
 }
 
 @keyframes fadeIn {
@@ -5059,26 +5010,9 @@ img[loading="lazy"]:not([data-src]) {
   transition: transform 0.1s linear;
 }
 
-/* ===== Icon Float ===== */
-.card-icon, .card-icon-lg {
-  animation: iconFloat 3s ease-in-out infinite;
-}
-
-.card:nth-child(2) .card-icon,
-.card:nth-child(2) .card-icon-lg { animation-delay: 0.5s; }
-.card:nth-child(3) .card-icon,
-.card:nth-child(3) .card-icon-lg { animation-delay: 1s; }
-.card:nth-child(4) .card-icon,
-.card:nth-child(4) .card-icon-lg { animation-delay: 1.5s; }
-.card:nth-child(5) .card-icon,
-.card:nth-child(5) .card-icon-lg { animation-delay: 2s; }
-.card:nth-child(6) .card-icon,
-.card:nth-child(6) .card-icon-lg { animation-delay: 2.5s; }
-
-@keyframes iconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
+/* ===== Icon Float =====
+   Removed: the perpetual floating made the pain/service icons feel jittery.
+   Icons now only respond on hover (see .card:hover .card-icon-lg). */
 
 /* ===== Section Title Line Flow ===== */
 /* Line flow animation removed for shadcn style */
@@ -5092,18 +5026,8 @@ img[loading="lazy"]:not([data-src]) {
   100% { background-position: 0% 50%; }
 }
 
-/* ===== Achievement Chip Hover ===== */
-.achievement-chip:hover {
-  animation: chipWiggle 0.4s ease;
-}
-
-@keyframes chipWiggle {
-  0% { transform: rotate(0); }
-  25% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
-  75% { transform: rotate(-1deg); }
-  100% { transform: rotate(0); }
-}
+/* ===== Achievement Chip Hover =====
+   Wobble removed — a gentle lift + scale reads as intentional, not shaky. */
 
 /* ===== Footer Logo Breathe ===== */
 .footer-logo img, .nav-logo-img {
@@ -7852,7 +7776,9 @@ html[data-theme="dark"] p.lead {
               border-color 0.5s var(--ease);
 }
 .card--service:hover .card-icon-lg {
-  transform: translateY(-2px) rotate(-3deg) scale(1.06);
+  /* No rotate/scale — the side-panel detail already does the heavy lifting;
+     a calm lift + glow is enough to signal interactivity. */
+  transform: translateY(-2px);
   border-color: rgba(103,232,249,0.5);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.08),

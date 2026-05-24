@@ -6,7 +6,6 @@ import Marquee from './components/Marquee'
 import TrustStrip from './components/TrustStrip'
 import Stats from './components/Stats'
 import ServicesIntro from './components/ServicesIntro'
-import IntroVideo from './components/IntroVideo'
 import Why from './components/Why'
 import Banner from './components/Banner'
 import BrandStory from './components/BrandStory'
@@ -37,20 +36,17 @@ const ChatWidget = lazy(() => import('./components/ChatWidget'))
 const Privacy = lazy(() => import('./components/Privacy'))
 
 export default function App() {
-  // Always start from phase 0 so every visit sees the intro splash + PR video
+  // phase 0 = light-convergence splash, phase 2 = main page.
+  // The PR video is no longer a forced full-screen interstitial; it lives in the
+  // Hero as a clickable showcase, so the splash hands straight off to the page.
   const [phase, setPhase] = useState(0)
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
-  const showSplash = phase === 0
 
   const handleSplashComplete = useCallback(() => {
-    setPhase(1) // Show PR video
+    setPhase(2) // Skip the old PR-video interstitial — go straight to the page
     document.body.classList.remove('splash-active')
-  }, [])
-
-  const handleVideoEnd = useCallback(() => {
-    setPhase(2) // Show main page
     setTimeout(() => setPageReady(true), 50)
   }, [])
 
@@ -211,33 +207,6 @@ export default function App() {
     progressBar.setAttribute('aria-hidden', 'true')
     document.body.appendChild(progressBar)
 
-    // --- 3D tilt on cards (desktop only, opt-out with reduced motion) ---
-    let tiltRaf = 0
-    let tiltTarget = null
-    let tiltX = 0
-    let tiltY = 0
-    const applyTilt = () => {
-      tiltRaf = 0
-      if (!tiltTarget) return
-      tiltTarget.style.transform = `perspective(600px) rotateY(${tiltX * 6}deg) rotateX(${-tiltY * 6}deg) translateY(-4px)`
-    }
-    const handleTiltMove = (e) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      tiltTarget = e.currentTarget
-      tiltX = (e.clientX - rect.left) / rect.width - 0.5
-      tiltY = (e.clientY - rect.top) / rect.height - 0.5
-      if (!tiltRaf) tiltRaf = requestAnimationFrame(applyTilt)
-    }
-    const handleTiltLeave = (e) => {
-      if (tiltTarget === e.currentTarget) tiltTarget = null
-      e.currentTarget.style.transform = ''
-    }
-    const tiltCards = (hasFinePointer && !prefersReduced) ? document.querySelectorAll('.card') : []
-    tiltCards.forEach((c) => {
-      c.addEventListener('mousemove', handleTiltMove)
-      c.addEventListener('mouseleave', handleTiltLeave)
-    })
-
     // --- Unified scroll pipeline: top-btn, flow lines, depth tracking, progress, active nav ---
     const flowConnectors = document.querySelectorAll('.flow-connector')
     const sections = document.querySelectorAll('section[id]')
@@ -325,8 +294,6 @@ export default function App() {
 
     return () => {
       observer.disconnect(); counterObserver.disconnect(); painObserver.disconnect()
-      tiltCards.forEach((c) => { c.removeEventListener('mousemove', handleTiltMove); c.removeEventListener('mouseleave', handleTiltLeave) })
-      if (tiltRaf) cancelAnimationFrame(tiltRaf)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', recalcOffsets)
       if (scrollRaf) cancelAnimationFrame(scrollRaf)
@@ -349,23 +316,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       {phase === 0 && <Splash onComplete={handleSplashComplete} />}
-      {phase === 1 && (
-        <div className="pr-video-fullscreen">
-          <video
-            className="pr-video-player"
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            onEnded={handleVideoEnd}
-            onError={handleVideoEnd}
-          >
-            <source src="/intro.mp4" type="video/mp4" />
-          </video>
-          <span className="pr-video-note">＊AIで作成した動画です</span>
-          <button className="pr-video-skip" onClick={handleVideoEnd}>スキップ →</button>
-        </div>
-      )}
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
       <GlobalParticles show={pageReady} />
       {phase === 2 && (

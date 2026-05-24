@@ -50,25 +50,30 @@ export default function Testimonials() {
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const maxIndex = Math.max(0, testimonials.length - perView)
-  const safeIndex = Math.min(index, maxIndex)
+  // Paginate by full pages so the dots and the slide motion stay in sync:
+  // one dot per page, and each step advances a whole page (not one card).
+  const pageCount = Math.ceil(testimonials.length / perView)
+  const maxPage = pageCount - 1
+  const safePage = Math.min(index, maxPage)
   const step = 100 / perView
+  // Clamp the last page to the end so it never leaves a large empty gap.
+  const slideOffset = Math.min(safePage * perView, Math.max(0, testimonials.length - perView))
 
-  // Reset index when perView changes
+  // Reset page when perView changes
   useEffect(() => {
-    if (index > maxIndex) setIndex(maxIndex)
-  }, [perView, maxIndex, index])
+    if (index > maxPage) setIndex(maxPage)
+  }, [perView, maxPage, index])
 
   const go = (dir) => {
     setIndex((prev) => {
       const next = prev + dir
-      if (next < 0) return maxIndex
-      if (next > maxIndex) return 0
+      if (next < 0) return maxPage
+      if (next > maxPage) return 0
       return next
     })
   }
 
-  const jumpTo = (i) => setIndex(Math.min(Math.max(i, 0), maxIndex))
+  const jumpTo = (i) => setIndex(Math.min(Math.max(i, 0), maxPage))
 
   return (
     <section className="section section--gray" id="testimonials">
@@ -84,7 +89,7 @@ export default function Testimonials() {
             <div
               className="testimonial-track"
               ref={trackRef}
-              style={{ transform: `translateX(-${safeIndex * step}%)` }}
+              style={{ transform: `translateX(-${slideOffset * step}%)` }}
             >
               {testimonials.map((t, i) => (
                 <div key={i} className="testimonial-slide" style={{ flex: `0 0 ${step}%` }}>
@@ -108,15 +113,15 @@ export default function Testimonials() {
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16 10H4M4 10L9 5M4 10L9 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <div className="testimonial-dots" role="tablist" aria-label="お客様の声の切り替え">
-              {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+              {Array.from({ length: pageCount }).map((_, i) => (
                 <button
                   key={i}
                   type="button"
                   role="tab"
-                  aria-selected={i === safeIndex}
-                  className={`testimonial-dot ${i === safeIndex ? 'is-active' : ''}`}
+                  aria-selected={i === safePage}
+                  className={`testimonial-dot ${i === safePage ? 'is-active' : ''}`}
                   onClick={() => jumpTo(i)}
-                  aria-label={`${i + 1}番目に切り替え`}
+                  aria-label={`${i + 1}ページ目に切り替え`}
                 />
               ))}
             </div>

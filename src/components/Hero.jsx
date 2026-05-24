@@ -44,34 +44,23 @@ function HeroParticles() {
     const ctx = canvas.getContext('2d')
     let w = canvas.width = canvas.parentElement.offsetWidth
     let h = canvas.height = canvas.parentElement.offsetHeight
-    const mouse = { x: w / 2, y: h / 2, active: false }
 
-    const pts = Array.from({ length: 50 }, () => ({
+    // Calm ambient drift only — fewer, slower particles, no cursor chasing.
+    const pts = Array.from({ length: 22 }, () => ({
       x: Math.random() * w, y: Math.random() * h,
-      ox: 0, oy: 0, // original velocity
       r: 1 + Math.random() * 2,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      opacity: 0.08 + Math.random() * 0.18,
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      opacity: 0.08 + Math.random() * 0.16,
       hue: 230 + Math.random() * 30,
     }))
-    pts.forEach(p => { p.ox = p.vx; p.oy = p.vy })
 
     const onResize = () => {
       w = canvas.width = canvas.parentElement.offsetWidth
       h = canvas.height = canvas.parentElement.offsetHeight
     }
-    const onMouse = (e) => {
-      const rect = canvas.getBoundingClientRect()
-      mouse.x = e.clientX - rect.left
-      mouse.y = e.clientY - rect.top
-      mouse.active = true
-    }
-    const onMouseLeave = () => { mouse.active = false }
 
     window.addEventListener('resize', onResize)
-    canvas.addEventListener('mousemove', onMouse)
-    canvas.addEventListener('mouseleave', onMouseLeave)
 
     let raf
     let running = false
@@ -102,23 +91,6 @@ function HeroParticles() {
       ctx.clearRect(0, 0, w, h)
 
       pts.forEach(p => {
-        if (mouse.active) {
-          // Attract toward mouse
-          const dx = mouse.x - p.x
-          const dy = mouse.y - p.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          const maxDist = 250
-          if (dist < maxDist) {
-            const force = (1 - dist / maxDist) * 0.03
-            p.vx += dx * force
-            p.vy += dy * force
-          }
-        }
-
-        // Damping — slowly return to natural drift
-        p.vx = p.vx * 0.97 + p.ox * 0.03
-        p.vy = p.vy * 0.97 + p.oy * 0.03
-
         p.x += p.vx
         p.y += p.vy
 
@@ -169,8 +141,6 @@ function HeroParticles() {
       stop()
       io.disconnect()
       window.removeEventListener('resize', onResize)
-      canvas.removeEventListener('mousemove', onMouse)
-      canvas.removeEventListener('mouseleave', onMouseLeave)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
@@ -282,22 +252,8 @@ export default function Hero() {
             data-cta="hero-video"
           >
             <span className="hero-video-card-thumb" aria-hidden="true">
-              {/* Mobile: static poster (no video preload). Desktop: autoplay preview */}
+              {/* Static poster — preview no longer autoplays (motion felt busy) */}
               <img className="hero-video-card-poster" src="/intro-poster.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" />
-              {typeof window !== 'undefined' && window.innerWidth > 768 && (
-                <video
-                  className="hero-video-card-preview"
-                  src="/intro.mp4"
-                  muted
-                  loop
-                  playsInline
-                  autoPlay
-                  preload="none"
-                  poster="/intro-poster.jpg"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                />
-              )}
               <span className="hero-video-card-play">
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M5 3.5v9l7-4.5z" />
