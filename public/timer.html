@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>進行タイマー｜Lumenium</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root{
+    --bg:#0f1217; --panel:rgba(22,26,33,.92); --panel-solid:#161a21;
+    --line:rgba(255,255,255,.10); --text:#f2f5fa; --muted:#8a93a3;
+    --green:#3ddc84; --cyan:#46b6ff; --amber:#ffb340; --red:#ff5d6c;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #1b2230 0%, transparent 55%),
+      radial-gradient(1000px 700px at 110% 120%, #161d2b 0%, transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",
+      "Yu Gothic","Meiryo",system-ui,sans-serif;
+    min-height:100%;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ============ Floating widget ============ */
+  .widget{
+    position:fixed; top:24px; right:24px; z-index:1000;
+    width:300px; background:var(--panel);
+    -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+    border:1px solid var(--line); border-radius:16px;
+    box-shadow:var(--shadow); overflow:hidden;
+    user-select:none;
+  }
+  .w-head{
+    display:flex; align-items:flex-start; gap:8px;
+    padding:12px 12px 8px; cursor:grab;
+  }
+  .w-head:active{cursor:grabbing}
+  .w-title{flex:1; min-width:0; font-weight:700; font-size:15px; line-height:1.35;
+    display:flex; align-items:flex-start; gap:6px}
+  .w-title .pin{flex:none}
+  .w-title .t{word-break:break-word}
+  .badge{
+    flex:none; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px;
+    white-space:nowrap; align-self:flex-start;
+  }
+  .badge.ontime{background:rgba(61,220,132,.16); color:var(--green)}
+  .badge.ahead {background:rgba(70,182,255,.16); color:var(--cyan)}
+  .badge.behind{background:rgba(255,93,108,.18); color:var(--red)}
+  .w-ctrls{display:flex; gap:4px; align-self:flex-start}
+  .icon-btn{
+    flex:none; width:22px; height:22px; border:0; border-radius:6px; cursor:pointer;
+    background:transparent; color:var(--muted); font-size:14px; line-height:1;
+    display:grid; place-items:center;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,.08); color:var(--text)}
+
+  .w-body{padding:0 14px 12px}
+  .row{display:flex; align-items:baseline; gap:10px; margin:4px 0; font-variant-numeric:tabular-nums}
+  .row .lbl{width:38px; font-size:13px; font-weight:700}
+  .row .val{font-size:18px; font-weight:700; letter-spacing:.3px}
+  .row.ideal .lbl{color:var(--green)} .row.ideal .val{color:var(--green)}
+  .row.now   .lbl{color:var(--cyan)}  .row.now   .val{color:var(--cyan)}
+  .detail{color:var(--muted); font-size:13px; line-height:1.4; margin:8px 0 10px;
+    word-break:break-word; min-height:1.4em}
+  .bar{height:8px; border-radius:999px; background:rgba(255,255,255,.10); overflow:hidden}
+  .bar > i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--green),var(--cyan)); border-radius:999px;
+    transition:width .4s ease, background .3s ease}
+  .bar.over > i{background:linear-gradient(90deg,var(--amber),var(--red))}
+
+  .w-foot{
+    display:flex; align-items:center; gap:6px; padding:10px 12px;
+    border-top:1px solid var(--line); background:rgba(0,0,0,.18);
+  }
+  .w-foot .seg{flex:none; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .w-foot .spacer{flex:1}
+  .nav-btn{
+    border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--text);
+    font-size:13px; font-weight:700; padding:6px 12px; border-radius:9px; cursor:pointer;
+  }
+  .nav-btn:hover{background:rgba(255,255,255,.10)}
+  .nav-btn:disabled{opacity:.35; cursor:default}
+  .nav-btn.primary{background:linear-gradient(90deg,var(--green),var(--cyan)); color:#06121a; border:0}
+
+  /* minimized */
+  .widget.min .w-body,.widget.min .w-foot{display:none}
+  .widget.min{width:auto; min-width:200px}
+
+  /* ============ Editor ============ */
+  .editor{
+    max-width:760px; margin:0 auto; padding:80px 18px 80px;
+  }
+  .editor h1{font-size:22px; font-weight:800; margin-bottom:4px}
+  .editor .sub{color:var(--muted); font-size:14px; margin-bottom:24px}
+  .card{
+    background:var(--panel-solid); border:1px solid var(--line); border-radius:14px;
+    padding:18px; margin-bottom:18px;
+  }
+  .card h2{font-size:14px; color:var(--muted); font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; margin-bottom:14px}
+  .field{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .field label{font-size:14px; color:var(--muted)}
+  input[type=time],input[type=text],input[type=number]{
+    background:#0e1116; border:1px solid var(--line); color:var(--text);
+    border-radius:9px; padding:9px 11px; font-size:14px; font-family:inherit;
+  }
+  input:focus{outline:2px solid rgba(70,182,255,.5); outline-offset:0}
+  .btn{
+    border:0; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn.ghost{background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line)}
+  .btn.ghost:hover{background:rgba(255,255,255,.12)}
+  .btn.go{background:linear-gradient(90deg,var(--green),var(--cyan)); color:#06121a}
+
+  table{width:100%; border-collapse:collapse}
+  th{font-size:12px; color:var(--muted); text-align:left; font-weight:700; padding:6px 8px}
+  td{padding:5px 8px; vertical-align:middle}
+  td input[type=text]{width:100%}
+  td.num input{width:74px}
+  .sec-time{font-size:12px; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .mini-btn{
+    width:28px; height:28px; border:1px solid var(--line); background:rgba(255,255,255,.04);
+    color:var(--muted); border-radius:7px; cursor:pointer; font-size:13px;
+  }
+  .mini-btn:hover{background:rgba(255,255,255,.10); color:var(--text)}
+  .mini-btn:disabled{opacity:.3; cursor:default}
+  .rowactions{display:flex; gap:4px}
+  .editor-foot{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:6px}
+  .hint{color:var(--muted); font-size:12.5px; line-height:1.6}
+  .hint kbd{background:#0e1116; border:1px solid var(--line); border-radius:5px;
+    padding:1px 6px; font-size:11px; font-family:inherit}
+  .total{margin-left:auto; color:var(--muted); font-size:13px}
+  @media(max-width:560px){
+    .widget{right:12px; left:12px; top:12px; width:auto}
+    td.title-cell{min-width:120px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== Floating widget ====== -->
+<div class="widget" id="widget">
+  <div class="w-head" id="dragHandle">
+    <div class="w-title"><span class="pin">📍</span><span class="t" id="wTitle">—</span></div>
+    <div class="badge ontime" id="wBadge">—</div>
+    <div class="w-ctrls">
+      <button class="icon-btn" id="btnMin" title="最小化">▭</button>
+    </div>
+  </div>
+  <div class="w-body">
+    <div class="row ideal"><span class="lbl">理想</span><span class="val" id="wIdeal">—</span></div>
+    <div class="row now"><span class="lbl">現在</span><span class="val" id="wNow">—</span></div>
+    <div class="detail" id="wDetail"></div>
+    <div class="bar" id="wBar"><i id="wBarFill"></i></div>
+  </div>
+  <div class="w-foot">
+    <span class="seg" id="wSeg">– / –</span>
+    <span class="spacer"></span>
+    <button class="nav-btn" id="btnPrev">◀ 前へ</button>
+    <button class="nav-btn primary" id="btnNext">次へ ▶</button>
+  </div>
+</div>
+
+<!-- ====== Editor ====== -->
+<div class="editor">
+  <h1>進行タイマー</h1>
+  <p class="sub">プレゼンの進行を管理する小さなオーバーレイ。右上の窓をドラッグで移動、<b>▭</b> で最小化できます。</p>
+
+  <div class="card">
+    <h2>開始時刻</h2>
+    <div class="field">
+      <label>開始</label>
+      <input type="time" id="startTime" step="60" />
+      <button class="btn ghost" id="btnNow">今すぐ開始</button>
+      <span class="hint" style="margin-left:auto">理想スケジュールはこの時刻からの積み上げで自動計算されます。</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>セクション</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:28px">#</th>
+          <th class="title-cell">タイトル（部・章）</th>
+          <th>詳細（任意）</th>
+          <th style="width:84px">長さ(分)</th>
+          <th style="width:120px">理想時刻</th>
+          <th style="width:110px"></th>
+        </tr>
+      </thead>
+      <tbody id="secBody"></tbody>
+    </table>
+    <div class="editor-foot">
+      <button class="btn ghost" id="btnAdd">＋ セクション追加</button>
+      <span class="total" id="totalLbl"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="editor-foot">
+      <button class="btn go" id="btnApply">スケジュールを反映</button>
+      <button class="btn ghost" id="btnReset">サンプルに戻す</button>
+      <span class="hint" style="margin-left:auto">
+        ショートカット：<kbd>→</kbd>/<kbd>Space</kbd> 次へ・<kbd>←</kbd> 前へ・<kbd>M</kbd> 最小化
+      </span>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (s,r=document)=>r.querySelector(s);
+
+const STORE_KEY = "lumenium_timer_v1";
+const SAMPLE = {
+  start: "16:00",
+  sections: [
+    { title:"第1部 はじめに",            detail:"会社紹介・本日のゴール",            min:12 },
+    { title:"第2部 活用事例・前半",       detail:"活用事例 章1〜3",                 min:30 },
+    { title:"第3部 活用事例・後半",       detail:"活用事例 章4：並列で大量処理する武器", min:14 },
+    { title:"第4部 まとめ（クライマックス）", detail:"導入ステップとQ&A",                min:14 },
+  ],
+};
+
+// ---- state ----
+let state = load();
+let current = 0;
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ const d = JSON.parse(raw); if(d && Array.isArray(d.sections) && d.sections.length) return d; }
+  }catch(e){}
+  return structuredClone(SAMPLE);
+}
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+
+// ---- time helpers ----
+function parseHM(hm){ const [h,m] = (hm||"0:0").split(":").map(Number); return (h*60+m)*60*1000; }
+function todayAt(hm){ const d = new Date(); const [h,m]=(hm||"0:0").split(":").map(Number);
+  d.setHours(h||0, m||0, 0, 0); return d; }
+function fmtClock(d){ return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function fmtSignedMin(ms){
+  const sign = ms<0?"-":"+"; const t=Math.abs(ms); const m=Math.floor(t/60000); const s=Math.floor(t%60000/1000);
+  return sign + (m>0? m+"分"+ (s>0? String(s).padStart(2,"0")+"秒":"") : s+"秒");
+}
+
+// compute ideal [start,end] Date for each section from state.start
+function schedule(){
+  const base = todayAt(state.start).getTime();
+  let t = base; const out=[];
+  for(const s of state.sections){
+    const start=t; const end=t + (Number(s.min)||0)*60000;
+    out.push({ ...s, start:new Date(start), end:new Date(end) });
+    t=end;
+  }
+  return out;
+}
+
+// ============ Editor rendering ============
+function renderEditor(){
+  $("#startTime").value = state.start;
+  const sch = schedule();
+  const body = $("#secBody");
+  body.innerHTML = "";
+  state.sections.forEach((s,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td class="title-cell"><input type="text" data-k="title" data-i="${i}" value="${escapeAttr(s.title)}" placeholder="第◯部 …"></td>
+      <td><input type="text" data-k="detail" data-i="${i}" value="${escapeAttr(s.detail||"")}" placeholder="章タイトルなど"></td>
+      <td class="num"><input type="number" min="0" step="1" data-k="min" data-i="${i}" value="${Number(s.min)||0}"></td>
+      <td class="sec-time">${fmtClock(sch[i].start)}〜${fmtClock(sch[i].end)}</td>
+      <td><div class="rowactions">
+        <button class="mini-btn" data-act="up"   data-i="${i}" ${i===0?"disabled":""}>↑</button>
+        <button class="mini-btn" data-act="down" data-i="${i}" ${i===state.sections.length-1?"disabled":""}>↓</button>
+        <button class="mini-btn" data-act="del"  data-i="${i}" ${state.sections.length<=1?"disabled":""}>✕</button>
+      </div></td>`;
+    body.appendChild(tr);
+  });
+  const total = state.sections.reduce((a,s)=>a+(Number(s.min)||0),0);
+  const end = sch.length? fmtClock(sch[sch.length-1].end) : "—";
+  $("#totalLbl").textContent = `合計 ${total} 分（${state.start} 〜 ${end}）`;
+}
+function escapeAttr(s){ return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+
+// editor events (delegated)
+$("#secBody").addEventListener("input",(e)=>{
+  const t=e.target; const i=+t.dataset.i, k=t.dataset.k;
+  if(k==null) return;
+  state.sections[i][k] = (k==="min") ? Math.max(0, +t.value||0) : t.value;
+  save();
+  if(k==="min"){ refreshTimes(); }
+});
+$("#secBody").addEventListener("click",(e)=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const i=+b.dataset.i, act=b.dataset.act;
+  if(act==="del") state.sections.splice(i,1);
+  else if(act==="up" && i>0) [state.sections[i-1],state.sections[i]]=[state.sections[i],state.sections[i-1]];
+  else if(act==="down" && i<state.sections.length-1) [state.sections[i+1],state.sections[i]]=[state.sections[i],state.sections[i+1]];
+  save(); renderEditor();
+});
+function refreshTimes(){
+  const sch=schedule();
+  document.querySelectorAll("#secBody tr").forEach((tr,i)=>{
+    tr.querySelector(".sec-time").textContent = `${fmtClock(sch[i].start)}〜${fmtClock(sch[i].end)}`;
+  });
+  const total = state.sections.reduce((a,s)=>a+(Number(s.min)||0),0);
+  const end = sch.length? fmtClock(sch[sch.length-1].end):"—";
+  $("#totalLbl").textContent = `合計 ${total} 分（${state.start} 〜 ${end}）`;
+}
+
+$("#startTime").addEventListener("input",(e)=>{ state.start=e.target.value||"00:00"; save(); refreshTimes(); });
+$("#btnNow").addEventListener("click",()=>{ state.start=fmtClock(new Date()); save(); renderEditor(); });
+$("#btnAdd").addEventListener("click",()=>{
+  state.sections.push({title:"新しいセクション",detail:"",min:10}); save(); renderEditor();
+});
+$("#btnApply").addEventListener("click",()=>{ current=autoIndex(); tick(); flash($("#btnApply")); });
+$("#btnReset").addEventListener("click",()=>{
+  if(confirm("サンプルのスケジュールに戻します。よろしいですか？")){
+    state=structuredClone(SAMPLE); current=0; save(); renderEditor(); tick();
+  }
+});
+function flash(btn){ const o=btn.textContent; btn.textContent="反映しました ✓"; setTimeout(()=>btn.textContent=o,1200); }
+
+// which section "should" be active for current real time
+function autoIndex(){
+  const sch=schedule(); const now=Date.now();
+  if(!sch.length) return 0;
+  if(now < sch[0].start.getTime()) return 0;
+  for(let i=0;i<sch.length;i++){ if(now < sch[i].end.getTime()) return i; }
+  return sch.length-1;
+}
+
+// ============ Widget update ============
+function tick(){
+  const sch=schedule(); const now=new Date();
+  $("#wNow").textContent = fmtClock(now) + ":" + String(now.getSeconds()).padStart(2,"0");
+  if(!sch.length) return;
+  current = Math.min(current, sch.length-1);
+  const s = sch[current];
+
+  $("#wTitle").textContent = s.title || "（無題）";
+  $("#wIdeal").textContent = `${fmtClock(s.start)}〜${fmtClock(s.end)}`;
+  $("#wDetail").textContent = s.detail || "";
+  $("#wSeg").textContent = `${current+1} / ${sch.length}`;
+
+  const startMs=s.start.getTime(), endMs=s.end.getTime(), nowMs=now.getTime();
+  const dur=Math.max(1, endMs-startMs);
+  let frac=(nowMs-startMs)/dur;
+  const bar=$("#wBar"), fill=$("#wBarFill"), badge=$("#wBadge");
+
+  if(nowMs < startMs){
+    badge.className="badge ahead"; badge.textContent="巻き " + fmtSignedMin(nowMs-startMs);
+    bar.classList.remove("over"); fill.style.width="0%";
+  } else if(nowMs > endMs){
+    badge.className="badge behind"; badge.textContent="押し " + fmtSignedMin(nowMs-endMs);
+    bar.classList.add("over"); fill.style.width="100%";
+  } else {
+    badge.className="badge ontime"; badge.textContent="オンタイム";
+    bar.classList.remove("over"); fill.style.width=(Math.max(0,Math.min(1,frac))*100).toFixed(1)+"%";
+  }
+
+  $("#btnPrev").disabled = current<=0;
+  $("#btnNext").disabled = current>=sch.length-1;
+}
+
+// nav
+$("#btnPrev").addEventListener("click",()=>{ if(current>0){current--; tick();} });
+$("#btnNext").addEventListener("click",()=>{ const n=state.sections.length; if(current<n-1){current++; tick();} });
+$("#btnMin").addEventListener("click",()=> $("#widget").classList.toggle("min"));
+
+// keyboard (ignore while typing in editor inputs)
+document.addEventListener("keydown",(e)=>{
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea") return;
+  if(e.key==="ArrowRight"||e.key===" "){ e.preventDefault(); $("#btnNext").click(); }
+  else if(e.key==="ArrowLeft"){ e.preventDefault(); $("#btnPrev").click(); }
+  else if(e.key.toLowerCase()==="m"){ $("#btnMin").click(); }
+});
+
+// ---- dragging the widget ----
+(function(){
+  const w=$("#widget"), h=$("#dragHandle"); let dx=0,dy=0,drag=false;
+  function down(e){
+    if(e.target.closest(".icon-btn")) return;
+    drag=true; const p=point(e); const r=w.getBoundingClientRect();
+    dx=p.x-r.left; dy=p.y-r.top;
+    w.style.right="auto"; w.style.left=r.left+"px"; w.style.top=r.top+"px";
+    e.preventDefault();
+  }
+  function move(e){
+    if(!drag) return; const p=point(e);
+    let x=p.x-dx, y=p.y-dy;
+    x=Math.max(4,Math.min(window.innerWidth-w.offsetWidth-4,x));
+    y=Math.max(4,Math.min(window.innerHeight-40,y));
+    w.style.left=x+"px"; w.style.top=y+"px";
+  }
+  function up(){ drag=false; }
+  function point(e){ return e.touches? {x:e.touches[0].clientX,y:e.touches[0].clientY} : {x:e.clientX,y:e.clientY}; }
+  h.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
+  h.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
+})();
+
+// ---- boot ----
+renderEditor();
+current = autoIndex();
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
