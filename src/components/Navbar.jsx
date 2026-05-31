@@ -53,7 +53,10 @@ export default function Navbar() {
       <div className="nav-container">
         <a href="#" className="nav-logo" aria-label="Lumenium ホーム">
           <img src="/lumenium-logo.svg?v=2" alt="Lumenium" className="nav-logo-img" width="40" height="40" />
-          <span>Lumenium</span>
+          <span className="nav-logo-stack">
+            <span className="nav-logo-name">Lumenium</span>
+            <span className="nav-logo-tag">散文化した目的に焦点を当てる</span>
+          </span>
         </a>
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
           <a href="#pain" onClick={(e) => handleLinkClick(e, '#pain')}>お困りごと</a>
