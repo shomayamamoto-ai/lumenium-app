@@ -4712,8 +4712,8 @@ html[data-theme="dark"] .client-chip {
   .footer-top { flex-direction: column; }
 }
 
-@media (max-width: 768px) {
-  /* Drawer-style slide-in mobile menu */
+/* Drawer-style slide-in menu — global so the hamburger nav works on every
+   breakpoint (desktop included), not just on mobile. */
   .nav-links {
     display: flex !important;
     position: fixed;
@@ -4836,6 +4836,7 @@ html[data-theme="dark"] .client-chip {
     z-index: 1001;
   }
 
+@media (max-width: 768px) {
   .hero { min-height: auto; padding: 104px 0 56px; }
   .hero-title {
     font-size: clamp(28px, 8vw, 44px);

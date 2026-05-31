@@ -5,19 +5,9 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
-  // Only active when menu is open AND we are on mobile (< 768)
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
-  )
-  useFocusTrap(menuRef, menuOpen && isMobile)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)')
-    const update = () => setIsMobile(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
+  // The drawer is now used on every breakpoint (hamburger-only nav), so trap
+  // focus whenever it is open regardless of viewport width.
+  useFocusTrap(menuRef, menuOpen)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)
