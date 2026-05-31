@@ -217,7 +217,7 @@ export default function Hero() {
           ))}
           <br />
           <span className="text-accent">
-            {'焦点を当てる。'.split('').map((ch, i) => (
+            {'焦点を当てる'.split('').map((ch, i) => (
               <span key={i} className="char-reveal" style={{ animationDelay: `${0.7 + i * 0.04}s` }}>{ch}</span>
             ))}
           </span>
