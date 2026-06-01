@@ -1169,7 +1169,9 @@ html[data-theme="dark"] .blog-filter {
   line-height: 2;
   letter-spacing: 0.02em;
   color: var(--text-sub);
-  text-align: justify;
+  /* `justify` stretched character spacing on narrow widths in Safari/iOS;
+     left-align reads naturally in Japanese without the spread-out gaps. */
+  text-align: left;
   text-wrap: pretty;
 }
 
