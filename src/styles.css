@@ -3458,8 +3458,10 @@ html[data-theme="dark"] .hero-video {
 .hero-scroll {
   position: absolute;
   bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -5227,8 +5229,13 @@ img[loading="lazy"]:not([data-src]) {
 .hero-scroll {
   position: absolute;
   bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Center without `transform: translateX(-50%)`, because the entrance
+     `.animate-fade-up` animation also sets `transform`, which would override
+     the horizontal centering and push the element to the right. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: max-content;
   display: flex;
   flex-direction: column;
   align-items: center;
