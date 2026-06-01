@@ -60,9 +60,13 @@ export default function Why() {
           <p className="section-label">YOUR PAIN POINTS</p>
           <h2 className="section-title">こんなお困りごと、ありませんか？</h2>
           <p className="section-desc">
-            「何から手をつければいいか分からない」「やりたいことはあるのに、時間も人手も足りない」——
-            事業の"次の一手"は、たいてい<strong>言葉にならないモヤモヤ</strong>から始まります。<br />
-            その曖昧な想いを一緒に<strong>言語化</strong>し、動画・AI・Webという最適な打ち手に翻訳するのが、Lumeniumの仕事です。
+            「何から手をつければいいか分からない」<br />
+            「やりたいことはあるのに、時間も人手も足りない」<br />
+            —— 事業の"次の一手"は、<br />
+            たいてい<strong>言葉にならないモヤモヤ</strong>から始まります。<br />
+            その曖昧な想いを一緒に<strong>言語化</strong>し、<br />
+            動画・AI・Webという最適な打ち手に翻訳するのが、<br />
+            Lumeniumの仕事です。
           </p>
         </div>
         <div className="pain-grid" ref={gridRef}>
