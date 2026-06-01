@@ -2675,7 +2675,14 @@ html[data-theme="dark"] .newsletter-input {
   .net-banner { bottom: auto; top: 76px; font-size: 12.5px; padding: 8px 16px 8px 12px; }
 }
 
-html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  /* Always reserve scrollbar space so the layout never shifts when we
+     toggle `overflow:hidden` on <body> for the menu drawer. Affects both
+     normal content and position:fixed elements (chat widget, navbar, etc.). */
+  scrollbar-gutter: stable;
+}
 
 /* ===== Accessibility: focus rings (focus-visible only, not mouse) ===== */
 /* WCAG 2.2 "Focus Appearance" — 2px solid ring with 2px offset,

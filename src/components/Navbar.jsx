@@ -16,21 +16,17 @@ export default function Navbar() {
   }, [])
 
   // Lock body scroll when menu is open + close on Escape.
-  // Hiding overflow on <body> removes the scrollbar, which widens the layout
-  // and shifts centered content to the right. Compensate with padding-right
-  // equal to the scrollbar width so the page stays put while the drawer opens.
+  // No padding compensation needed — `scrollbar-gutter: stable` on <html>
+  // keeps the scrollbar's space reserved at all times, so toggling overflow
+  // never shifts the layout (fixed elements included).
   useEffect(() => {
     if (menuOpen) {
-      const scrollbarW = window.innerWidth - document.documentElement.clientWidth
       const prevOverflow = document.body.style.overflow
-      const prevPad = document.body.style.paddingRight
       document.body.style.overflow = 'hidden'
-      if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`
       const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false) }
       window.addEventListener('keydown', onKey)
       return () => {
         document.body.style.overflow = prevOverflow
-        document.body.style.paddingRight = prevPad
         window.removeEventListener('keydown', onKey)
       }
     }
