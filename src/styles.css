@@ -2912,25 +2912,10 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
 
 .section--gray {
   position: relative;
-}
-
-.section--gray::before {
-  content: '';
-  position: absolute;
-  top: -30px; left: 0; right: 0;
-  height: 30px;
-  background: var(--bg-gray);
-  clip-path: ellipse(55% 100% at 50% 100%);
-}
-
-.section--gray::after {
-  content: '';
-  position: absolute;
-  bottom: -30px; left: 0; right: 0;
-  height: 30px;
-  background: var(--bg-gray);
-  clip-path: ellipse(55% 100% at 50% 0%);
-  z-index: 1;
+  /* Clean, editorial section seams: straight edges with a hairline rule
+     (the previous elliptical clip-path bulges read as dated/gimmicky). */
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 /* ===== Buttons ===== */
@@ -7489,7 +7474,9 @@ html[data-theme="dark"] .company-card {
 
 /* --- Typography: more confident, expressive headlines ------------------- */
 .section-label {
-  /* Tighten + brighten the small SECTION eyebrow caps */
+  /* Tighten + brighten the small SECTION eyebrow caps.
+     Symmetric side rules — the header is centered, so the decoration must be
+     balanced on both sides or the label looks visually off-center. */
   letter-spacing: 0.32em;
   font-size: 11px;
   background: linear-gradient(90deg, #818cf8, #22d3ee);
@@ -7497,14 +7484,22 @@ html[data-theme="dark"] .company-card {
           background-clip: text;
   -webkit-text-fill-color: transparent;
   position: relative;
-  padding-left: 32px;
+  padding-inline: 36px;
 }
-.section-label::before {
+.section-label::before,
+.section-label::after {
   content: '';
   position: absolute;
-  left: 0; top: 50%;
+  top: 50%;
   width: 24px; height: 1px;
-  background: linear-gradient(90deg, transparent, #818cf8 30%, #22d3ee 100%);
+}
+.section-label::before {
+  left: 0;
+  background: linear-gradient(90deg, transparent, #818cf8 60%, #22d3ee 100%);
+}
+.section-label::after {
+  right: 4px; /* optical balance for the trailing letter-spacing gap */
+  background: linear-gradient(90deg, #22d3ee 0%, #818cf8 40%, transparent);
 }
 .section-title {
   /* Beef up display weight for stronger statement */
@@ -7532,27 +7527,12 @@ html[data-theme="dark"] .company-card {
 .testimonial-card:hover,
 .blog-card:hover,
 .theme:hover {
-  border-color: rgba(99,102,241,0.35);
+  /* Restrained, premium lift: one soft ambient shadow + a quiet indigo rim.
+     (The previous 4-layer neon glow + title shimmer read as over-designed.) */
+  border-color: rgba(129,140,248,0.32);
   box-shadow:
-    0 16px 40px rgba(0,0,0,0.45),
-    0 0 0 1px rgba(99,102,241,0.28),
-    0 0 32px rgba(99,102,241,0.16),
-    0 0 70px rgba(6,182,212,0.10);
-}
-/* Card title gets a subtle indigo lift on hover — UI Pro Max's "spotlight" pattern. */
-.card:hover .card-title,
-.testimonial-card:hover .voice__quote,
-.blog-card:hover .blog-card-title {
-  background: linear-gradient(120deg, var(--text) 30%, #c7d2fe 60%, var(--text) 100%);
-  background-size: 200% 100%;
-  background-position: 100% 0;
-  -webkit-background-clip: text;
-          background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: cardTitleShimmer 1.2s ease-out forwards;
-}
-@keyframes cardTitleShimmer {
-  to { background-position: 0% 0; }
+    0 20px 44px -16px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(99,102,241,0.18);
 }
 
 /* --- Button polish: premium inner glow on hover ------------------------- */
@@ -8048,3 +8028,78 @@ html[data-theme="dark"] p.lead {
   .blog-card::after { transition: none !important; transform: scaleX(1); }
 }
 
+
+/* =========================================================================
+   REFINEMENT LAYER — designer polish pass (typography, rhythm, restraint)
+   Single source of final-say overrides; later rules win the cascade.
+   ========================================================================= */
+
+/* --- 1) Unified geometry: one radius language across the system -------- */
+.btn { border-radius: 10px; }
+.card { border-radius: 16px; }
+.testimonial-card, .blog-card { border-radius: 16px; }
+
+/* --- 2) Refined text selection + scrollbar (small details that read
+       "designed" the moment anyone interacts with the page) ------------- */
+::selection {
+  background: rgba(99,102,241,0.35);
+  color: #f5f7fb;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #363c54 transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: #363c54;
+  border-radius: 8px;
+  border: 2px solid #0f1325;
+}
+*::-webkit-scrollbar-thumb:hover { background: #4b5274; }
+
+/* --- 3) Typography micro-tuning ---------------------------------------- */
+/* Optical kerning for Japanese display text everywhere, not only titles. */
+h1, h2, h3, h4 { font-feature-settings: "palt" 1; text-wrap: balance; }
+.section-desc { text-wrap: pretty; }
+
+/* Hero: quieter supporting elements let the headline own the viewport. */
+.hero-badges span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* --- 4) Calmer link affordance in footer columns ----------------------- */
+.footer-col a {
+  opacity: 0.85;
+}
+.footer-col a:hover { opacity: 1; }
+
+/* --- 5) Tags: quiet, glassy chips that sit naturally on dark cards ----- */
+html[data-theme="dark"] .tag {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.10);
+  color: var(--text-muted);
+}
+
+/* --- 6) Section CTA strip: align with the refined card language -------- */
+.section-cta {
+  border-radius: 16px;
+}
+
+/* --- 7) Navbar: hairline + tighter blur when scrolled ------------------ */
+html[data-theme="dark"] .navbar.scrolled {
+  background: rgba(15,19,37,0.78);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* --- 8) Forms: focused field gets a precise, single-color ring --------- */
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: rgba(129,140,248,0.65);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+}
