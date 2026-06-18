@@ -8,6 +8,7 @@ import ServicesIntro from './components/ServicesIntro'
 import Why from './components/Why'
 import Banner from './components/Banner'
 import BrandStory from './components/BrandStory'
+import Positioning from './components/Positioning'
 import Services from './components/Services'
 import Results from './components/Results'
 import PricingSimulator from './components/PricingSimulator'
@@ -325,6 +326,7 @@ export default function App() {
           <Stats />
           <Why />
           <BrandStory />
+          <Positioning />
           <Banner />
           <ServicesIntro />
           <Services />
