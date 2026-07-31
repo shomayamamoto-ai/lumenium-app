@@ -11,6 +11,7 @@
     { "source": "/404.html", "destination": "/404.html" },
     { "source": "/fix.html", "destination": "/fix.html" },
     { "source": "/login.html", "destination": "/login.html" },
+    { "source": "/register.html", "destination": "/register.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -37,7 +38,7 @@
       ]
     },
     {
-      "source": "/(404|game|racing|runner|specified-commerce|fix|login)\\.html",
+      "source": "/(404|game|racing|runner|specified-commerce|fix|login|register)\\.html",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store" }
       ]

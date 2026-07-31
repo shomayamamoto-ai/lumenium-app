@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>会員ログイン | Lumenium</title>
+<title>新規会員登録 | Lumenium</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,12 +46,13 @@
   }
   h1 { font-size: 19px; font-weight: 700; text-align: center; margin-bottom: 6px; }
   .desc { font-size: 13px; color: var(--sub); text-align: center; line-height: 1.8; margin-bottom: 26px; }
-  label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
-  input[type="password"], input[type="text"] {
+  label { display: block; font-size: 12.5px; font-weight: 700; margin: 14px 0 8px; }
+  label:first-of-type { margin-top: 0; }
+  input[type="text"], input[type="email"] {
     width: 100%; padding: 13px 14px;
     background: #12162a; color: var(--text);
     border: 1px solid var(--border); border-radius: 10px;
-    font-size: 15px; letter-spacing: 0.08em;
+    font-size: 15px;
     transition: border-color 0.25s, box-shadow 0.25s;
   }
   input:focus {
@@ -59,14 +60,8 @@
     border-color: rgba(129,140,248,0.65);
     box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
   }
-  .remember {
-    display: flex; align-items: center; gap: 8px;
-    margin: 14px 0 20px; font-size: 12.5px; color: var(--sub);
-    cursor: pointer; user-select: none;
-  }
-  .remember input { accent-color: #4f46e5; width: 15px; height: 15px; cursor: pointer; }
   button[type="submit"] {
-    width: 100%; padding: 14px;
+    width: 100%; padding: 14px; margin-top: 22px;
     background: var(--grad); color: #fff;
     border: none; border-radius: 10px;
     font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em;
@@ -76,6 +71,7 @@
   }
   button[type="submit"]:hover { transform: translateY(-1px); }
   button[type="submit"]:disabled { opacity: 0.55; cursor: default; transform: none; }
+  .note { margin-top: 12px; font-size: 11.5px; color: var(--sub); line-height: 1.7; text-align: center; }
   .error {
     display: none;
     margin-top: 14px; padding: 11px 14px;
@@ -88,7 +84,7 @@
   .foot { margin-top: 24px; text-align: center; font-size: 12px; color: var(--sub); line-height: 1.8; }
   .foot a { color: #93c5fd; text-decoration: none; }
   .foot a:hover { text-decoration: underline; }
-  .back { display: block; text-align: center; margin-top: 18px; font-size: 12.5px; color: var(--sub); text-decoration: none; }
+  .back { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--sub); text-decoration: none; }
   .back:hover { color: var(--text); }
 </style>
 </head>
@@ -98,30 +94,26 @@
       <img src="/favicon.svg" alt="">
       <span>Lumenium</span>
     </div>
-    <p class="eyebrow">MEMBERS ONLY</p>
-    <h1>会員ログイン</h1>
-    <p class="desc">ミニゲームは会員限定コンテンツです。<br>会員コードを入力してください。</p>
+    <p class="eyebrow">SIGN UP</p>
+    <h1>新規会員登録</h1>
+    <p class="desc">登録するとすぐにミニゲームで遊べます。<br>会員コードをメールでお送りします。</p>
 
-    <form id="login-form" novalidate>
-      <label for="code">会員コード</label>
-      <input type="password" id="code" name="code" autocomplete="current-password"
-             maxlength="64" required autofocus>
-      <label class="remember">
-        <input type="checkbox" id="remember">
-        30日間ログイン状態を保持する
-      </label>
-      <button type="submit" id="submit-btn">ログインして遊ぶ →</button>
-      <p class="error" id="error" role="alert">コードが正しくないか、現在ログインできません。しばらく待ってからお試しください。</p>
+    <form id="register-form" novalidate>
+      <label for="name">お名前</label>
+      <input type="text" id="name" name="name" autocomplete="name" maxlength="50" required>
+      <label for="email">メールアドレス</label>
+      <input type="email" id="email" name="email" autocomplete="email" inputmode="email" maxlength="100" required>
+      <button type="submit" id="submit-btn">登録して遊ぶ →</button>
+      <p class="note">登録により、会員コードのご案内メールをお送りすることに同意いただいたものとします。</p>
+      <p class="error" id="error" role="alert">登録できませんでした。入力内容をご確認のうえ、しばらく待ってからお試しください。</p>
     </form>
 
-    <p class="foot">会員コードをお持ちでない方は<br><a href="/register.html" id="register-link">新規会員登録</a>へ</p>
+    <p class="foot">すでに会員コードをお持ちの方は<br><a href="/login.html" id="login-link">ログイン</a>へ</p>
     <a class="back" href="/">← トップページに戻る</a>
   </main>
 
 <script>
 (function () {
-  // Redirect allow-list — mirrors the spec's safeNext principle: only known
-  // keys resolve; anything else falls back to the members arena.
   var NEXT = {
     game: '/game.html',
     runner: '/runner.html',
@@ -131,31 +123,33 @@
   var key = new URLSearchParams(location.search).get('next');
   var dest = Object.prototype.hasOwnProperty.call(NEXT, key) ? NEXT[key] : NEXT.arena;
 
-  // Carry ?next= through to the register link
-  document.getElementById('register-link').href = '/register.html' + location.search;
+  // Carry ?next= through to the login link
+  document.getElementById('login-link').href = '/login.html' + location.search;
 
-  // Already a member? Skip the form entirely.
+  // Already a member? Straight to the game.
   if (document.cookie.split('; ').indexOf('lum_member=1') !== -1) {
     location.replace(dest);
     return;
   }
 
-  var form = document.getElementById('login-form');
+  var form = document.getElementById('register-form');
   var btn = document.getElementById('submit-btn');
   var err = document.getElementById('error');
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     err.classList.remove('show');
-    var code = document.getElementById('code').value;
-    if (!code) { err.classList.add('show'); return; }
+    var name = document.getElementById('name').value.trim();
+    var email = document.getElementById('email').value.trim();
+    if (!name || !email || !EMAIL_RE.test(email)) { err.classList.add('show'); return; }
     btn.disabled = true;
-    btn.textContent = '確認中…';
+    btn.textContent = '登録中…';
     try {
-      var res = await fetch('/api/auth', {
+      var res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code, remember: document.getElementById('remember').checked === true })
+        body: JSON.stringify({ name: name, email: email })
       });
       var data = await res.json().catch(function () { return {}; });
       if (res.ok && data.ok === true) {
@@ -167,7 +161,7 @@
       err.classList.add('show');
     }
     btn.disabled = false;
-    btn.textContent = 'ログインして遊ぶ →';
+    btn.textContent = '登録して遊ぶ →';
   });
 })();
 </script>
