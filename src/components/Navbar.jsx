@@ -84,22 +84,15 @@ export default function Navbar() {
               aria-haspopup="true"
             >ミニゲーム ▾</span>
             <div className="nav-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+              {/* The 3 standard games are free for everyone; only the
+                  breaker stays members-only behind the login gate. */}
+              <a href="/game.html">🚀 シューティング</a>
+              <a href="/runner.html">🏃 ランナー</a>
+              <a href="/racing.html">🏰 ディフェンス</a>
               {isMember ? (
-                <>
-                  {/* Logged in: all games unlock as direct links */}
-                  <a href="/game.html">🚀 シューティング</a>
-                  <a href="/runner.html">🏃 ランナー</a>
-                  <a href="/racing.html">🏰 ディフェンス</a>
-                  <a href="/members/arena">⭐ 会員限定ブレイカー</a>
-                </>
+                <a href="/members/arena">⭐ 会員限定ブレイカー</a>
               ) : (
-                <>
-                  {/* Locked until login — visibly untouchable */}
-                  <span className="nav-game-locked" aria-disabled="true">🔒 シューティング</span>
-                  <span className="nav-game-locked" aria-disabled="true">🔒 ランナー</span>
-                  <span className="nav-game-locked" aria-disabled="true">🔒 ディフェンス</span>
-                  <a href="/login.html?next=arena" className="nav-game-login">🔑 会員ログインして遊ぶ</a>
-                </>
+                <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
               )}
             </div>
           </div>
