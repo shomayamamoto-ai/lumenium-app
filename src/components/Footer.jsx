@@ -62,7 +62,7 @@ export default function Footer({ onPrivacy }) {
               <a href="https://advovisions.com/bcd31-home/" target="_blank" rel="noopener noreferrer">
                 AdvoVisions<span aria-hidden="true"> ↗</span>
               </a>
-              <a href="/game.html">ミニゲーム</a>
+              <a href="/login.html?next=game">ミニゲーム（会員限定）</a>
             </div>
           </div>
         </div>

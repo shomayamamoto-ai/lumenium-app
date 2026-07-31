@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>会員ログイン | Lumenium</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1325; --card: #1d2238; --border: #363c54;
+    --text: #f5f7fb; --sub: #abb5cb;
+    --grad: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
+  }
+  body {
+    min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse 70% 50% at 20% 15%, rgba(79,70,229,0.18), transparent 60%),
+      radial-gradient(ellipse 55% 45% at 80% 80%, rgba(6,182,212,0.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', system-ui, -apple-system, sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 36px 32px;
+    box-shadow: 0 24px 64px -24px rgba(0,0,0,0.6);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 8px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand span {
+    font-size: 21px; font-weight: 700; letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #a5b4fc, #93c5fd, #67e8f9);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .eyebrow {
+    text-align: center; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.3em; color: #818cf8; margin-bottom: 26px;
+  }
+  h1 { font-size: 19px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .desc { font-size: 13px; color: var(--sub); text-align: center; line-height: 1.8; margin-bottom: 26px; }
+  label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+  input[type="password"], input[type="text"] {
+    width: 100%; padding: 13px 14px;
+    background: #12162a; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 15px; letter-spacing: 0.08em;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  input:focus {
+    outline: none;
+    border-color: rgba(129,140,248,0.65);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+  }
+  .remember {
+    display: flex; align-items: center; gap: 8px;
+    margin: 14px 0 20px; font-size: 12.5px; color: var(--sub);
+    cursor: pointer; user-select: none;
+  }
+  .remember input { accent-color: #4f46e5; width: 15px; height: 15px; cursor: pointer; }
+  button[type="submit"] {
+    width: 100%; padding: 14px;
+    background: var(--grad); color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 14.5px; font-weight: 700; letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: opacity 0.25s, transform 0.25s;
+    font-family: inherit;
+  }
+  button[type="submit"]:hover { transform: translateY(-1px); }
+  button[type="submit"]:disabled { opacity: 0.55; cursor: default; transform: none; }
+  .error {
+    display: none;
+    margin-top: 14px; padding: 11px 14px;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.35);
+    border-radius: 10px;
+    color: #fca5a5; font-size: 12.5px; line-height: 1.6;
+  }
+  .error.show { display: block; }
+  .foot { margin-top: 24px; text-align: center; font-size: 12px; color: var(--sub); line-height: 1.8; }
+  .foot a { color: #93c5fd; text-decoration: none; }
+  .foot a:hover { text-decoration: underline; }
+  .back { display: block; text-align: center; margin-top: 18px; font-size: 12.5px; color: var(--sub); text-decoration: none; }
+  .back:hover { color: var(--text); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <img src="/favicon.svg" alt="">
+      <span>Lumenium</span>
+    </div>
+    <p class="eyebrow">MEMBERS ONLY</p>
+    <h1>会員ログイン</h1>
+    <p class="desc">ミニゲームは会員限定コンテンツです。<br>会員コードを入力してください。</p>
+
+    <form id="login-form" novalidate>
+      <label for="code">会員コード</label>
+      <input type="password" id="code" name="code" autocomplete="current-password"
+             maxlength="64" required autofocus>
+      <label class="remember">
+        <input type="checkbox" id="remember">
+        30日間ログイン状態を保持する
+      </label>
+      <button type="submit" id="submit-btn">ログインして遊ぶ →</button>
+      <p class="error" id="error" role="alert">コードが正しくないか、現在ログインできません。しばらく待ってからお試しください。</p>
+    </form>
+
+    <p class="foot">会員コードをお持ちでない方は<br><a href="/#contact-form">お問い合わせ</a>よりご連絡ください。</p>
+    <a class="back" href="/">← トップページに戻る</a>
+  </main>
+
+<script>
+(function () {
+  // Redirect allow-list — mirrors the spec's safeNext principle: only known
+  // keys resolve; anything else falls back to the members arena.
+  var NEXT = {
+    game: '/game.html',
+    runner: '/runner.html',
+    racing: '/racing.html',
+    arena: '/members/arena'
+  };
+  var key = new URLSearchParams(location.search).get('next');
+  var dest = Object.prototype.hasOwnProperty.call(NEXT, key) ? NEXT[key] : NEXT.arena;
+
+  // Already a member? Skip the form entirely.
+  if (document.cookie.split('; ').indexOf('lum_member=1') !== -1) {
+    location.replace(dest);
+    return;
+  }
+
+  var form = document.getElementById('login-form');
+  var btn = document.getElementById('submit-btn');
+  var err = document.getElementById('error');
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    err.classList.remove('show');
+    var code = document.getElementById('code').value;
+    if (!code) { err.classList.add('show'); return; }
+    btn.disabled = true;
+    btn.textContent = '確認中…';
+    try {
+      var res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, remember: document.getElementById('remember').checked === true })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.ok === true) {
+        location.replace(dest);
+        return;
+      }
+      err.classList.add('show');
+    } catch (_) {
+      err.classList.add('show');
+    }
+    btn.disabled = false;
+    btn.textContent = 'ログインして遊ぶ →';
+  });
+})();
+</script>
+</body>
+</html>

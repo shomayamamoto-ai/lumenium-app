@@ -69,9 +69,12 @@ export default function Navbar() {
               aria-haspopup="true"
             >ミニゲーム ▾</span>
             <div className="nav-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-              <a href="/game.html">🚀 シューティング</a>
-              <a href="/runner.html">🏃 ランナー</a>
-              <a href="/racing.html">🏰 ディフェンス</a>
+              {/* All game entries route through the members login page.
+                  login.html auto-forwards visitors who already hold a session. */}
+              <a href="/login.html?next=game">🚀 シューティング</a>
+              <a href="/login.html?next=runner">🏃 ランナー</a>
+              <a href="/login.html?next=racing">🏰 ディフェンス</a>
+              <a href="/login.html?next=arena">⭐ 会員限定ブレイカー</a>
             </div>
           </div>
           <a href="#contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#contact-form')} data-cta="nav-consult">
