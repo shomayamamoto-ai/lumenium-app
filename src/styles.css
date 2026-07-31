@@ -8276,3 +8276,26 @@ html[data-theme="dark"] .navbar.scrolled {
   .paxis-name--y { bottom: 6px; }
   .positioning-notes { grid-template-columns: 1fr; }
 }
+
+/* =========================================================================
+   NAV — locked game items (pre-login) in the mini-game dropdown
+   ========================================================================= */
+.nav-dropdown-menu .nav-game-locked {
+  display: block;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-radius: 8px;
+  user-select: none;
+}
+.nav-dropdown-menu .nav-game-login {
+  font-weight: 700;
+  color: #93c5fd !important;
+}
+/* Drawer (mobile/global) variant inherits the same look */
+.nav-links .nav-dropdown-menu .nav-game-locked {
+  padding: 10px 12px;
+  font-size: 14px;
+}

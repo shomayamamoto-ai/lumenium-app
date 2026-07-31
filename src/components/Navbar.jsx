@@ -4,6 +4,21 @@ import { useFocusTrap } from '../lib/focusTrap'
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Member state comes from the JS-readable lum_member flag cookie (UI only —
+  // real authority lives in the HttpOnly session cookie checked server-side).
+  const [isMember, setIsMember] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMember(document.cookie.split('; ').includes('lum_member=1'))
+    check()
+    // Re-check when the tab regains focus (e.g. after logging in on login.html)
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+    }
+  }, [])
   const menuRef = useRef(null)
   // The drawer is now used on every breakpoint (hamburger-only nav), so trap
   // focus whenever it is open regardless of viewport width.
@@ -69,12 +84,23 @@ export default function Navbar() {
               aria-haspopup="true"
             >ミニゲーム ▾</span>
             <div className="nav-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-              {/* All game entries route through the members login page.
-                  login.html auto-forwards visitors who already hold a session. */}
-              <a href="/login.html?next=game">🚀 シューティング</a>
-              <a href="/login.html?next=runner">🏃 ランナー</a>
-              <a href="/login.html?next=racing">🏰 ディフェンス</a>
-              <a href="/login.html?next=arena">⭐ 会員限定ブレイカー</a>
+              {isMember ? (
+                <>
+                  {/* Logged in: all games unlock as direct links */}
+                  <a href="/game.html">🚀 シューティング</a>
+                  <a href="/runner.html">🏃 ランナー</a>
+                  <a href="/racing.html">🏰 ディフェンス</a>
+                  <a href="/members/arena">⭐ 会員限定ブレイカー</a>
+                </>
+              ) : (
+                <>
+                  {/* Locked until login — visibly untouchable */}
+                  <span className="nav-game-locked" aria-disabled="true">🔒 シューティング</span>
+                  <span className="nav-game-locked" aria-disabled="true">🔒 ランナー</span>
+                  <span className="nav-game-locked" aria-disabled="true">🔒 ディフェンス</span>
+                  <a href="/login.html?next=arena" className="nav-game-login">🔑 会員ログインして遊ぶ</a>
+                </>
+              )}
             </div>
           </div>
           <a href="#contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#contact-form')} data-cta="nav-consult">
