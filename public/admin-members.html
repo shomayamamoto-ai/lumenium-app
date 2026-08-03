@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>会員リスト | Lumenium 管理</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f1325; --card: #1d2238; --border: #363c54;
+    --text: #f5f7fb; --sub: #abb5cb;
+    --grad: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
+  }
+  body {
+    min-height: 100dvh;
+    background: var(--bg); color: var(--text);
+    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', system-ui, -apple-system, sans-serif;
+    padding: 32px 20px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  header img { width: 30px; height: 30px; }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header .tag {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.18em;
+    background: var(--grad); color: #fff;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  header a { margin-left: auto; color: var(--sub); font-size: 12.5px; text-decoration: none; }
+  header a:hover { color: var(--text); }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+  }
+  /* key form */
+  #key-form { display: flex; gap: 10px; flex-wrap: wrap; }
+  #key-form label { flex-basis: 100%; font-size: 12.5px; font-weight: 700; }
+  #admin-key {
+    flex: 1; min-width: 220px; padding: 12px 14px;
+    background: #12162a; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
+  }
+  #admin-key:focus { outline: none; border-color: rgba(129,140,248,0.65); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+  button {
+    padding: 12px 22px; border: none; border-radius: 10px;
+    background: var(--grad); color: #fff;
+    font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  button.ghost { background: #12162a; border: 1px solid var(--border); color: var(--sub); }
+  button:disabled { opacity: 0.55; cursor: default; }
+  .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #fca5a5; display: none; }
+  .msg.show { display: block; }
+  .msg.info { color: var(--sub); }
+  /* list */
+  #list-view { display: none; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  #search {
+    flex: 1; min-width: 200px; padding: 10px 14px;
+    background: #12162a; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 13.5px;
+  }
+  #count { font-size: 12.5px; color: var(--sub); white-space: nowrap; }
+  .tbl { width: 100%; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { font-size: 11px; letter-spacing: 0.1em; color: var(--sub); font-weight: 700; }
+  td.email { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+  .unsub { color: #f87171; font-size: 11px; }
+  .empty { padding: 28px; text-align: center; color: var(--sub); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="/favicon.svg" alt="">
+      <h1>会員リスト</h1>
+      <span class="tag">ADMIN</span>
+      <a href="/">← lumenium.net</a>
+    </header>
+
+    <div class="panel" id="key-panel">
+      <form id="key-form">
+        <label for="admin-key">管理キー（Vercel の ADMIN_KEY）</label>
+        <input type="password" id="admin-key" autocomplete="off" required>
+        <button type="submit" id="key-btn">表示する</button>
+      </form>
+      <p class="msg" id="key-msg"></p>
+    </div>
+
+    <div class="panel" id="list-view">
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="名前・メールで絞り込み">
+        <span id="count"></span>
+        <button class="ghost" id="csv-btn" type="button">CSV</button>
+        <button class="ghost" id="reload-btn" type="button">更新</button>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>お名前</th><th>メールアドレス</th><th>登録日時</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty" style="display:none">まだ登録がありません。</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var keyPanel = document.getElementById('key-panel');
+  var listView = document.getElementById('list-view');
+  var keyForm = document.getElementById('key-form');
+  var keyBtn = document.getElementById('key-btn');
+  var keyMsg = document.getElementById('key-msg');
+  var rowsEl = document.getElementById('rows');
+  var emptyEl = document.getElementById('empty');
+  var countEl = document.getElementById('count');
+  var searchEl = document.getElementById('search');
+  var members = [];
+
+  function showMsg(text, isInfo) {
+    keyMsg.textContent = text;
+    keyMsg.classList.add('show');
+    keyMsg.classList.toggle('info', !!isInfo);
+  }
+
+  async function load(key) {
+    var res, data;
+    try {
+      res = await fetch('/api/members-list', { headers: { Authorization: 'Bearer ' + key } });
+      data = await res.json();
+    } catch (_) {
+      showMsg('通信に失敗しました。時間をおいて再度お試しください。');
+      return false;
+    }
+    if (res.status === 503) {
+      showMsg('未設定です。Vercel の環境変数に ADMIN_KEY を設定し、再デプロイしてください。', true);
+      return false;
+    }
+    if (!res.ok || data.ok !== true) {
+      showMsg('管理キーが正しくないか、現在表示できません。');
+      return false;
+    }
+    members = data.members || [];
+    render();
+    sessionStorage.setItem('lum_admin_key', key);
+    keyPanel.style.display = 'none';
+    listView.style.display = 'block';
+    return true;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function render() {
+    var q = (searchEl.value || '').toLowerCase();
+    var shown = members.filter(function (m) {
+      return !q || (m.name || '').toLowerCase().indexOf(q) !== -1 || (m.email || '').toLowerCase().indexOf(q) !== -1;
+    });
+    rowsEl.textContent = '';
+    shown.forEach(function (m) {
+      var tr = document.createElement('tr');
+      var tdN = document.createElement('td'); tdN.textContent = m.name || '—';
+      var tdE = document.createElement('td'); tdE.className = 'email'; tdE.textContent = m.email;
+      var tdD = document.createElement('td'); tdD.textContent = fmtDate(m.created);
+      var tdU = document.createElement('td');
+      if (m.unsubscribed) { tdU.textContent = '配信停止'; tdU.className = 'unsub'; }
+      tr.appendChild(tdN); tr.appendChild(tdE); tr.appendChild(tdD); tr.appendChild(tdU);
+      rowsEl.appendChild(tr);
+    });
+    emptyEl.style.display = shown.length ? 'none' : 'block';
+    countEl.textContent = shown.length + ' / ' + members.length + ' 件';
+  }
+
+  keyForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    keyMsg.classList.remove('show');
+    keyBtn.disabled = true;
+    await load(document.getElementById('admin-key').value);
+    keyBtn.disabled = false;
+  });
+
+  searchEl.addEventListener('input', render);
+
+  document.getElementById('reload-btn').addEventListener('click', function () {
+    var key = sessionStorage.getItem('lum_admin_key');
+    if (key) load(key);
+  });
+
+  document.getElementById('csv-btn').addEventListener('click', function () {
+    var lines = ['name,email,created,unsubscribed'];
+    members.forEach(function (m) {
+      var esc = function (v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; };
+      lines.push([esc(m.name), esc(m.email), esc(m.created), m.unsubscribed ? '1' : '0'].join(','));
+    });
+    var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lumenium-members.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // Auto-restore within the same tab session
+  var saved = sessionStorage.getItem('lum_admin_key');
+  if (saved) load(saved);
+})();
+</script>
+</body>
+</html>
