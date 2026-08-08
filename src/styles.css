@@ -8540,3 +8540,12 @@ html[data-theme="dark"] .navbar.scrolled {
 @media (prefers-reduced-motion: reduce) {
   .search-home-assist { animation: none; }
 }
+
+/* --- PR movie card on the search home (below the action buttons) -------- */
+.search-home-video {
+  margin-top: 28px;
+  max-width: 100%;
+}
+@media (max-width: 480px) {
+  .search-home-video { padding: 10px 16px 10px 10px; gap: 12px; }
+}

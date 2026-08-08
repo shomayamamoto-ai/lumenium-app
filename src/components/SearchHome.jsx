@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import VideoModal from './VideoModal'
 import { events } from '../lib/analytics'
 
 // Google-style minimal home: a big logo and one search box.
@@ -210,6 +211,7 @@ export default function SearchHome() {
   const [q, setQ] = useState('')
   const [assistOpen, setAssistOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
+  const [videoOpen, setVideoOpen] = useState(false)
   const inputRef = useRef(null)
   const formRef = useRef(null)
 
@@ -374,12 +376,44 @@ export default function SearchHome() {
           </div>
         </form>
 
+        {/* PR movie card — relocated from the old hero so it gets seen */}
+        <button
+          type="button"
+          className="hero-video-card search-home-video"
+          onClick={() => { events.ctaClick('home-video', 'PR動画を見る'); setVideoOpen(true) }}
+          aria-label="PR動画を再生する"
+          data-cta="home-video"
+        >
+          <span className="hero-video-card-thumb" aria-hidden="true">
+            <img className="hero-video-card-poster" src="/intro-poster.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+            <span className="hero-video-card-play">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M5 3.5v9l7-4.5z" />
+              </svg>
+            </span>
+          </span>
+          <span className="hero-video-card-body">
+            <span className="hero-video-card-label">LUMENIUM · PR MOVIE</span>
+            <span className="hero-video-card-title">
+              10秒で知る、Lumeniumの世界観
+              <svg className="hero-video-card-arrow" width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="hero-video-card-meta">
+              <span className="hero-video-card-dot" aria-hidden="true" /> AI生成 · 約10秒
+            </span>
+          </span>
+        </button>
+
         <div className="search-home-chips" aria-label="よく見られるページ">
           {CHIPS.map((c) => (
             <a key={c.label} href={c.hash} className="search-home-chip">{c.label}</a>
           ))}
         </div>
       </div>
+
+      {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}
 
       <footer className="search-home-footer">
         <a href="#/info">サービス案内</a>
