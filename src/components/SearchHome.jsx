@@ -487,7 +487,6 @@ export default function SearchHome() {
       <footer className="search-home-footer">
         <a href="#/info">サービス案内</a>
         <a href="#/info/company">会社概要</a>
-        <a href="#/info/contact-form">お問い合わせ</a>
         <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
       </footer>
     </main>

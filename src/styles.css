@@ -8549,3 +8549,26 @@ html[data-theme="dark"] .navbar.scrolled {
 @media (max-width: 480px) {
   .search-home-video { padding: 10px 16px 10px 10px; gap: 12px; }
 }
+
+/* --- Search home footer: normal flow, single parallel row ---------------
+   The absolutely-anchored footer overlapped the chips on phones (content
+   taller than 100dvh). It now flows after the content; margin-top:auto
+   keeps it at the bottom on tall screens, and the inner block re-centers
+   via margin-block:auto. --------------------------------------------- */
+.search-home-inner { margin-block: auto; }
+.search-home-footer {
+  position: static;
+  margin-top: auto;
+  width: 100%;
+  padding: 44px 12px 0;
+  border-top: none;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 28px;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .search-home-footer { gap: 16px; }
+  .search-home-footer a { font-size: 11px; }
+}
