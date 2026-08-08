@@ -82,8 +82,13 @@ function StarCanvas() {
     const COUNT = Math.max(60, Math.min(130, Math.floor((w * h) / 9000)))
     const stars = Array.from({ length: COUNT }, () => {
       const depth = 0.25 + Math.random() * 0.75
+      const ang = Math.random() * Math.PI * 2
+      // Ambient drift: deeper (bigger) stars glide faster — parallax field
+      const spd = (0.00002 + Math.random() * 0.00006) * depth
       return {
         nx: Math.random(), ny: Math.random(), // normalized home (survives resize)
+        dnx: Math.cos(ang) * spd,             // drift per frame (normalized)
+        dny: Math.sin(ang) * spd,
         ox: 0, oy: 0,                         // eased offset toward the cursor
         r: (0.6 + Math.random() * 1.9) * depth,
         depth,
@@ -93,6 +98,58 @@ function StarCanvas() {
         hue: 215 + Math.random() * 45,
       }
     })
+
+    // Shooting stars (流れ星) — spawn every few seconds, streak with a trail
+    const meteors = []
+    let nextMeteorAt = performance.now() + 2500 + Math.random() * 3000
+    const spawnMeteor = () => {
+      if (meteors.length >= 2) return
+      const fromLeft = Math.random() < 0.5
+      meteors.push({
+        x: fromLeft ? -40 : Math.random() * w * 0.8,
+        y: fromLeft ? Math.random() * h * 0.45 : -40,
+        vx: 7 + Math.random() * 5,
+        vy: 3 + Math.random() * 2.5,
+        life: 1,
+        decay: 0.008 + Math.random() * 0.006,
+        len: 90 + Math.random() * 70,
+        hue: 210 + Math.random() * 50,
+      })
+    }
+    const drawMeteors = (now) => {
+      if (now >= nextMeteorAt) {
+        spawnMeteor()
+        nextMeteorAt = now + 3500 + Math.random() * 5000
+      }
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i]
+        m.x += m.vx
+        m.y += m.vy
+        m.life -= m.decay
+        if (m.life <= 0 || m.x > w + m.len || m.y > h + m.len) {
+          meteors.splice(i, 1)
+          continue
+        }
+        const mag = Math.hypot(m.vx, m.vy)
+        const tx = m.x - (m.vx / mag) * m.len
+        const ty = m.y - (m.vy / mag) * m.len
+        const grad = ctx.createLinearGradient(m.x, m.y, tx, ty)
+        grad.addColorStop(0, `hsla(${m.hue}, 90%, 85%, ${0.85 * m.life})`)
+        grad.addColorStop(1, 'transparent')
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 1.6
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(m.x, m.y)
+        ctx.lineTo(tx, ty)
+        ctx.stroke()
+        // bright head
+        ctx.fillStyle = `hsla(${m.hue}, 95%, 92%, ${m.life})`
+        ctx.beginPath()
+        ctx.arc(m.x, m.y, 1.8, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
 
     const mouse = { x: w / 2, y: h / 2, active: false }
     const onMove = (e) => {
@@ -110,6 +167,15 @@ function StarCanvas() {
     let running = false
 
     const drawStar = (s, now) => {
+      // Ambient drift with edge wrap (skipped for the reduced-motion frame)
+      if (!prefersReduced) {
+        s.nx += s.dnx
+        s.ny += s.dny
+        if (s.nx < -0.03) s.nx = 1.03
+        if (s.nx > 1.03) s.nx = -0.03
+        if (s.ny < -0.03) s.ny = 1.03
+        if (s.ny > 1.03) s.ny = -0.03
+      }
       const hx = s.nx * w
       const hy = s.ny * h
 
@@ -170,6 +236,7 @@ function StarCanvas() {
       if (!running) return
       ctx.clearRect(0, 0, w, h)
       for (const s of stars) drawStar(s, now)
+      drawMeteors(now)
       raf = requestAnimationFrame(draw)
     }
     const start = () => {
