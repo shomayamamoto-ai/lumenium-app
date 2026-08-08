@@ -8464,3 +8464,79 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 /* footer keeps its absolute anchoring — only stack it above the stars */
 .search-home-footer { position: absolute; }
+
+/* --- Search assist dropdown (magnifier press / focus) ------------------- */
+.search-home-form { position: relative; }
+.search-home-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -6px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.search-home-icon-btn:hover,
+.search-home-icon-btn[aria-expanded="true"] {
+  color: #a5b4fc;
+  background: rgba(99,102,241,0.12);
+}
+.search-home-assist {
+  position: absolute;
+  top: 62px; /* right under the 52px pill (form-relative), Google-style */
+  left: 0;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 24px 56px -16px rgba(0,0,0,0.65), 0 0 0 1px rgba(99,102,241,0.08);
+  z-index: 6;
+  overflow: hidden;
+  animation: assistIn 0.18s var(--ease);
+}
+@keyframes assistIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.search-home-assist li + li { border-top: 1px solid rgba(255,255,255,0.05); }
+.search-home-assist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-sub);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.search-home-assist-ico {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-size: 13px;
+  display: inline-flex;
+}
+.search-home-assist-item:hover,
+.search-home-assist-item.is-active {
+  background: rgba(99,102,241,0.12);
+  color: var(--text);
+}
+.search-home-assist-item:hover .search-home-assist-ico,
+.search-home-assist-item.is-active .search-home-assist-ico { color: #a5b4fc; }
+@media (prefers-reduced-motion: reduce) {
+  .search-home-assist { animation: none; }
+}

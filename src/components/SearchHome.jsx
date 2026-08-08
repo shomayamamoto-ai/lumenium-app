@@ -28,6 +28,19 @@ const TOPIC_ROUTES = [
   { re: /サービス|動画|映像|AI|SNS|LINE|Web|HP|LP|アプリ|ロゴ|キャスト|制作|研修/i, hash: '#/info/services' },
 ]
 
+// Search-assist suggestions (shown when the magnifier is pressed / the box
+// is focused). `service` opens that service's detail panel; `hash` jumps to
+// a section; `ai` hands the label to the chat.
+const SUGGESTIONS = [
+  { label: '採用動画・PR動画を作ってみよう', service: 'video' },
+  { label: '生成AI研修で社内を強化しよう', service: 'ai' },
+  { label: 'SNS・LINEで集客を仕組み化しよう', service: 'sns' },
+  { label: 'HP・LPをリニューアルしよう', service: 'web' },
+  { label: '料金をシミュレーションしてみよう', hash: '#/info/pricing' },
+  { label: '実績を見てみよう', hash: '#/info/results' },
+  { label: 'まずは無料で相談してみよう', hash: '#/info/contact-form' },
+]
+
 const CHIPS = [
   { label: 'サービス', hash: '#/info/services' },
   { label: '料金', hash: '#/info/pricing' },
@@ -195,11 +208,73 @@ function StarCanvas() {
 
 export default function SearchHome() {
   const [q, setQ] = useState('')
+  const [assistOpen, setAssistOpen] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
   const inputRef = useRef(null)
+  const formRef = useRef(null)
 
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  // Close the assist panel on outside click / Escape
+  useEffect(() => {
+    if (!assistOpen) return
+    const onDown = (e) => {
+      if (formRef.current && !formRef.current.contains(e.target)) setAssistOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setAssistOpen(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [assistOpen])
+
+  // Typed text filters the suggestions; an "ask AI" row is appended when
+  // there is a query so there is always a way forward.
+  const query = q.trim()
+  const filtered = query
+    ? SUGGESTIONS.filter((s) => s.label.toLowerCase().includes(query.toLowerCase()))
+    : SUGGESTIONS
+  const rows = query ? [...filtered, { label: `「${query}」をAIに聞く`, ai: true }] : filtered
+
+  const jump = (s) => {
+    setAssistOpen(false)
+    setActiveIdx(-1)
+    events.ctaClick('home-assist', s.label.slice(0, 60))
+    if (s.ai) {
+      askAI(query || 'Lumeniumについて教えて')
+      return
+    }
+    if (s.service) {
+      sessionStorage.setItem('lum_open_service', s.service)
+      window.location.hash = '#/info/services'
+      return
+    }
+    if (s.hash) window.location.hash = s.hash
+  }
+
+  const onInputKeyDown = (e) => {
+    if (!assistOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      setAssistOpen(true)
+      setActiveIdx(0)
+      e.preventDefault()
+      return
+    }
+    if (!assistOpen) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx((i) => (i + 1) % rows.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx((i) => (i - 1 + rows.length) % rows.length)
+    } else if (e.key === 'Enter' && activeIdx >= 0 && rows[activeIdx]) {
+      e.preventDefault()
+      jump(rows[activeIdx])
+    }
+  }
 
   const onSearch = (e) => {
     e.preventDefault()
@@ -239,24 +314,60 @@ export default function SearchHome() {
           <p className="search-home-tag">散文化した目的に焦点を当てる</p>
         </div>
 
-        <form className="search-home-form" onSubmit={onSearch} role="search">
+        <form className="search-home-form" onSubmit={onSearch} role="search" ref={formRef}>
           <div className="search-home-box">
-            <svg className="search-home-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M14 14L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+            <button
+              type="button"
+              className="search-home-icon-btn"
+              onClick={() => { setAssistOpen((v) => !v); setActiveIdx(-1); inputRef.current?.focus() }}
+              aria-label="検索アシストを開く"
+              aria-expanded={assistOpen}
+              aria-controls="search-assist"
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M14 14L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
             <input
               ref={inputRef}
               type="text"
               inputMode="search"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => { setQ(e.target.value); setAssistOpen(true); setActiveIdx(-1) }}
+              onFocus={() => setAssistOpen(true)}
+              onKeyDown={onInputKeyDown}
               placeholder="何をお探しですか？ 例：採用動画・AI研修・LP制作…"
               aria-label="サイト内検索・AIへの質問"
+              aria-autocomplete="list"
               maxLength={200}
               enterKeyHint="search"
             />
           </div>
+          {assistOpen && rows.length > 0 && (
+            <ul className="search-home-assist" id="search-assist" role="listbox" aria-label="検索候補">
+              {rows.map((s, i) => (
+                <li key={s.label} role="option" aria-selected={i === activeIdx}>
+                  <button
+                    type="button"
+                    className={`search-home-assist-item ${i === activeIdx ? 'is-active' : ''}`}
+                    onClick={() => jump(s)}
+                    onMouseEnter={() => setActiveIdx(i)}
+                  >
+                    {s.ai ? (
+                      <span className="search-home-assist-ico" aria-hidden="true">💬</span>
+                    ) : (
+                      <svg className="search-home-assist-ico" width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.6" />
+                        <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    )}
+                    <span>{s.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="search-home-actions">
             <button type="submit" className="search-home-btn">検索</button>
             <button type="button" className="search-home-btn" onClick={onAsk}>AIに相談する</button>
