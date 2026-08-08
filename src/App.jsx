@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import Splash from './components/Splash'
 import Navbar from './components/Navbar'
+import SearchHome from './components/SearchHome'
 import Hero from './components/Hero'
 import TrustStrip from './components/TrustStrip'
 import Stats from './components/Stats'
@@ -43,6 +44,36 @@ export default function App() {
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
+
+  // Hash routing: '' / '#' → Google-style search home, '#/info(/<section>)'
+  // → the full content page all former top-page sections moved to.
+  const [route, setRoute] = useState(() =>
+    typeof window !== 'undefined' ? window.location.hash : ''
+  )
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const infoMatch = route.match(/^#\/info(?:\/([a-z-]+))?$/)
+  const isInfo = !!infoMatch
+  const infoSection = infoMatch?.[1] || ''
+
+  // On route change: jump to the requested section (info) or back to top (home)
+  useEffect(() => {
+    if (phase !== 2) return
+    if (isInfo && infoSection) {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(infoSection)
+        if (el) {
+          const y = el.getBoundingClientRect().top + window.scrollY - 80
+          window.scrollTo({ top: y, behavior: 'smooth' })
+        }
+      })
+    } else {
+      window.scrollTo({ top: 0 })
+    }
+  }, [route, phase, isInfo, infoSection])
 
   const handleSplashComplete = useCallback(() => {
     setPhase(2) // Skip the old PR-video interstitial — go straight to the page
@@ -163,8 +194,10 @@ export default function App() {
       const link = e.target.closest('a[href^="#"]')
       if (!link) return
       const href = link.getAttribute('href')
-      if (!href || href === '#') return
-      const target = document.querySelector(href)
+      // '#/...' are hash-router links — let the browser update the hash
+      if (!href || href === '#' || href.startsWith('#/')) return
+      let target = null
+      try { target = document.querySelector(href) } catch { return }
       if (!target) return
       e.preventDefault()
       const y = target.getBoundingClientRect().top + window.scrollY - 80
@@ -261,7 +294,8 @@ export default function App() {
       if (current !== activeNavId) {
         activeNavId = current
         navLinks.forEach((link) => {
-          link.classList.toggle('nav-active', link.getAttribute('href') === '#' + current)
+          const href = link.getAttribute('href')
+          link.classList.toggle('nav-active', href === '#' + current || href === '#/info/' + current)
         })
       }
     }
@@ -311,7 +345,8 @@ export default function App() {
       progressBar.remove()
       topBtn.remove()
     }
-  }, [pageReady])
+    // Re-run when the view switches so observers rebind to the new DOM
+  }, [pageReady, isInfo])
 
   return (
     <ErrorBoundary>
@@ -321,29 +356,37 @@ export default function App() {
       {phase === 2 && (
         <div id="main" className={pageReady ? 'page-enter' : ''}>
           <Navbar />
-          <Hero />
-          <TrustStrip />
-          <Stats />
-          <Why />
-          <BrandStory />
-          <Positioning />
-          <Banner />
-          <ServicesIntro />
-          <Services />
-          <Results />
-          <PricingSimulator />
-          <Testimonials />
-          <Flow />
-          <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
-            <Blog />
-          </Suspense>
-          <FAQ />
-          <Profile />
-          <Company />
-          <ContactForm />
-          <CTA />
-          <div className="container"><SocialShare /></div>
-          <Footer onPrivacy={() => setShowPrivacy(true)} />
+          {isInfo ? (
+            // サービス案内 — everything that used to live on the top page
+            <>
+              <Hero />
+              <TrustStrip />
+              <Stats />
+              <Why />
+              <BrandStory />
+              <Positioning />
+              <Banner />
+              <ServicesIntro />
+              <Services />
+              <Results />
+              <PricingSimulator />
+              <Testimonials />
+              <Flow />
+              <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
+                <Blog />
+              </Suspense>
+              <FAQ />
+              <Profile />
+              <Company />
+              <ContactForm />
+              <CTA />
+              <div className="container"><SocialShare /></div>
+              <Footer onPrivacy={() => setShowPrivacy(true)} />
+            </>
+          ) : (
+            // Google-style minimal home
+            <SearchHome />
+          )}
         </div>
       )}
       {phase === 2 && <LumenCursor />}

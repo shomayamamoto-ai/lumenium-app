@@ -8284,3 +8284,148 @@ html[data-theme="dark"] .navbar.scrolled {
   font-weight: 700;
   color: #93c5fd !important;
 }
+
+/* =========================================================================
+   SEARCH HOME — Google-style minimal top page
+   ========================================================================= */
+.search-home {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 20px 64px;
+  position: relative;
+}
+.search-home-inner {
+  width: 100%;
+  max-width: 584px; /* Google's classic search width */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.search-home-brand { text-align: center; margin-bottom: 34px; }
+.search-home-mark {
+  width: clamp(56px, 9vw, 76px);
+  height: auto;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 6px 24px rgba(99,102,241,0.35));
+}
+.search-home-logo {
+  font-size: clamp(40px, 8vw, 58px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.search-home-tag {
+  margin-top: 8px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.search-home-form { width: 100%; }
+.search-home-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 20px;
+  height: 52px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
+}
+.search-home-box:focus-within {
+  border-color: rgba(129,140,248,0.6);
+  box-shadow: 0 8px 30px -8px rgba(99,102,241,0.4), 0 0 0 3px rgba(99,102,241,0.14);
+  background: #1f2440;
+}
+.search-home-icon { color: var(--text-muted); flex-shrink: 0; }
+.search-home-box input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 15.5px;
+  font-family: inherit;
+  height: 100%;
+}
+.search-home-box input::placeholder { color: var(--text-muted); opacity: 0.75; }
+.search-home-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.search-home-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 22px;
+}
+.search-home-btn {
+  padding: 11px 22px;
+  background: var(--bg-card);
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease), transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.search-home-btn:hover {
+  border-color: rgba(129,140,248,0.5);
+  color: var(--text);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px rgba(99,102,241,0.4);
+}
+.search-home-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 30px;
+}
+.search-home-chip {
+  padding: 7px 15px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.search-home-chip:hover {
+  color: #a5b4fc;
+  border-color: rgba(129,140,248,0.45);
+  background: rgba(99,102,241,0.08);
+}
+.search-home-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 28px;
+  padding: 18px 20px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.search-home-footer a {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.search-home-footer a:hover { color: var(--text-sub); }
+@media (max-width: 480px) {
+  .search-home { padding-top: 84px; }
+  .search-home-actions { flex-direction: column; align-items: stretch; }
+  .search-home-btn { width: 100%; }
+}

@@ -28,6 +28,18 @@ export default function ChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Home search box hands off queries via this event: open + answer.
+  const askRef = useRef(null)
+  askRef.current = (text) => {
+    setIsOpen(true)
+    if (text) sendMessage(text)
+  }
+  useEffect(() => {
+    const onAsk = (e) => askRef.current?.(String(e.detail || '').slice(0, 200))
+    window.addEventListener('lumenium:ask', onAsk)
+    return () => window.removeEventListener('lumenium:ask', onAsk)
+  }, [])
+
   async function sendMessage(text) {
     if (!text.trim()) return
 

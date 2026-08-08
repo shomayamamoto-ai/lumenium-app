@@ -50,6 +50,21 @@ export default function Navbar() {
   const handleLinkClick = (e, href) => {
     e.preventDefault()
     setMenuOpen(false)
+    // Hash-router links ('#/info/...'): navigate; if the hash is already
+    // current (same item clicked again), scroll to the section manually.
+    if (href.startsWith('#/')) {
+      if (window.location.hash === href) {
+        const section = href.split('/')[2]
+        const el = section && document.getElementById(section)
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.scrollY - 80
+          window.scrollTo({ top, behavior: 'smooth' })
+        }
+      } else {
+        window.location.hash = href
+      }
+      return
+    }
     const target = document.querySelector(href)
     if (target) {
       const top = target.getBoundingClientRect().top + window.scrollY - 80
@@ -68,13 +83,14 @@ export default function Navbar() {
           </span>
         </a>
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
-          <a href="#pain" onClick={(e) => handleLinkClick(e, '#pain')}>お困りごと</a>
-          <a href="#services" onClick={(e) => handleLinkClick(e, '#services')}>サービス</a>
-          <a href="#pricing" onClick={(e) => handleLinkClick(e, '#pricing')}>料金</a>
-          <a href="#results" onClick={(e) => handleLinkClick(e, '#results')}>実績</a>
-          <a href="#flow" onClick={(e) => handleLinkClick(e, '#flow')}>ご依頼の流れ</a>
-          <a href="#blog" onClick={(e) => handleLinkClick(e, '#blog')}>ブログ</a>
-          <a href="#about" onClick={(e) => handleLinkClick(e, '#about')}>代表紹介</a>
+          <a href="#/info" onClick={(e) => handleLinkClick(e, '#/info')}>サービス案内</a>
+          <a href="#/info/pain" onClick={(e) => handleLinkClick(e, '#/info/pain')}>お困りごと</a>
+          <a href="#/info/services" onClick={(e) => handleLinkClick(e, '#/info/services')}>サービス</a>
+          <a href="#/info/pricing" onClick={(e) => handleLinkClick(e, '#/info/pricing')}>料金</a>
+          <a href="#/info/results" onClick={(e) => handleLinkClick(e, '#/info/results')}>実績</a>
+          <a href="#/info/flow" onClick={(e) => handleLinkClick(e, '#/info/flow')}>ご依頼の流れ</a>
+          <a href="#/info/blog" onClick={(e) => handleLinkClick(e, '#/info/blog')}>ブログ</a>
+          <a href="#/info/about" onClick={(e) => handleLinkClick(e, '#/info/about')}>代表紹介</a>
           <div className="nav-dropdown">
             <span
               className="nav-dropdown-trigger"
@@ -96,7 +112,7 @@ export default function Navbar() {
               )}
             </div>
           </div>
-          <a href="#contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#contact-form')} data-cta="nav-consult">
+          <a href="#/info/contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#/info/contact-form')} data-cta="nav-consult">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5l7 5 7-5M3 5v10h14V5M3 5h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             無料相談
           </a>
