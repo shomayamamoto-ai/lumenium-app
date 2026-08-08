@@ -404,7 +404,9 @@ export default function SearchHome() {
               inputMode="search"
               value={q}
               onChange={(e) => { setQ(e.target.value); setAssistOpen(true); setActiveIdx(-1) }}
-              onFocus={() => setAssistOpen(true)}
+              // Open on an actual press — NOT on focus, or the mount-time
+              // autofocus would pop the panel right after the splash.
+              onPointerDown={() => setAssistOpen(true)}
               onKeyDown={onInputKeyDown}
               placeholder="何をお探しですか？ 例：採用動画・AI研修・LP制作…"
               aria-label="サイト内検索・AIへの質問"
