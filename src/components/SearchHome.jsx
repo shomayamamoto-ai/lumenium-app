@@ -94,7 +94,8 @@ export default function SearchHome() {
             </svg>
             <input
               ref={inputRef}
-              type="search"
+              type="text"
+              inputMode="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="何をお探しですか？ 例：採用動画・AI研修・LP制作…"

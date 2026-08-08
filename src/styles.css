@@ -8300,6 +8300,11 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-inner {
   width: 100%;
   max-width: 584px; /* Google's classic search width */
+  /* min-width:0 everywhere in this chain: flex items default to
+     min-width:auto, which lets the input's long placeholder push the
+     pill wider than the viewport on phones (the "search box vanished"
+     overflow bug). */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8327,12 +8332,14 @@ html[data-theme="dark"] .navbar.scrolled {
   letter-spacing: 0.06em;
   color: var(--text-muted);
 }
-.search-home-form { width: 100%; }
+.search-home-form { width: 100%; min-width: 0; max-width: 100%; }
 .search-home-box {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 20px;
   height: 52px;
   background: var(--bg-card);
@@ -8348,6 +8355,7 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-icon { color: var(--text-muted); flex-shrink: 0; }
 .search-home-box input {
   flex: 1;
+  width: 100%;
   min-width: 0;
   background: none;
   border: none;
@@ -8356,7 +8364,15 @@ html[data-theme="dark"] .navbar.scrolled {
   font-size: 15.5px;
   font-family: inherit;
   height: 100%;
+  /* Kill Safari's searchfield chrome (white UA styling can make the
+     field look broken/invisible on iOS) */
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
 }
+/* The pill itself glows via :focus-within — suppress the inner UA ring */
+.search-home-box input:focus,
+.search-home-box input:focus-visible { outline: none; box-shadow: none; }
 .search-home-box input::placeholder { color: var(--text-muted); opacity: 0.75; }
 .search-home-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .search-home-actions {
@@ -8389,6 +8405,8 @@ html[data-theme="dark"] .navbar.scrolled {
   justify-content: center;
   gap: 8px;
   margin-top: 30px;
+  min-width: 0;
+  max-width: 100%;
 }
 .search-home-chip {
   padding: 7px 15px;
