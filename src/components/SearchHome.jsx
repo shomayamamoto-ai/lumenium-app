@@ -5,6 +5,17 @@ import { events } from '../lib/analytics'
 // Known topics route straight to the info page section; anything else is
 // handed to the AI chat widget via the `lumenium:ask` custom event.
 
+// Service-specific keywords open that service's detail panel directly
+// (checked before the generic topic routes below).
+const SERVICE_MAP = [
+  { re: /SNS|LINE|ライン|インスタ|Instagram|運用代行|Bot|ボット|集客/i, id: 'sns' },
+  { re: /動画|映像|採用動画|PR動画|ムービー|YouTube|ユーチューブ|編集|撮影/i, id: 'video' },
+  { re: /AI|研修|ChatGPT|生成AI|講師|教材|DX/i, id: 'ai' },
+  { re: /Web|HP|ホームページ|LP|ランディング|サイト制作|アプリ/i, id: 'web' },
+  { re: /キャスト|モデル|MC|司会|イベント|アイドル|配信者/i, id: 'cast' },
+  { re: /ロゴ|バナー|ポスター|イラスト|デザイン|作詞|作曲|ライター/i, id: 'creative' },
+]
+
 const TOPIC_ROUTES = [
   { re: /料金|価格|費用|いくら|見積/i, hash: '#/info/pricing' },
   { re: /実績|事例|ポートフォリオ/i, hash: '#/info/results' },
@@ -43,12 +54,21 @@ export default function SearchHome() {
     const query = q.trim()
     if (!query) return
     events.ctaClick('home-search', query.slice(0, 60))
+    // 1) Service match → jump to services AND open that service's detail panel
+    const service = SERVICE_MAP.find((s) => s.re.test(query))
+    if (service) {
+      sessionStorage.setItem('lum_open_service', service.id)
+      window.location.hash = '#/info/services'
+      return
+    }
+    // 2) Generic topic → jump to the matching section
     const topic = TOPIC_ROUTES.find((t) => t.re.test(query))
     if (topic) {
       window.location.hash = topic.hash
-    } else {
-      askAI(query)
+      return
     }
+    // 3) Anything else → ask the AI
+    askAI(query)
   }
 
   const onAsk = () => {

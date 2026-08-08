@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { IconVideo, IconAI, IconSNS, IconWeb, IconCast, IconCreative } from './Icons'
 import ServiceDetail from './ServiceDetail'
 import { events } from '../lib/analytics'
@@ -126,6 +126,18 @@ export default function Services() {
     events.ctaClick('service-card', s.title)
     setActive(s)
   }
+
+  // The home search box can deep-link into a specific service's detail
+  // panel: it stores the service id, navigates to #/info/services, and this
+  // consumes the handoff on mount.
+  useEffect(() => {
+    const pending = sessionStorage.getItem('lum_open_service')
+    if (pending) {
+      sessionStorage.removeItem('lum_open_service')
+      const s = services.find((x) => x.id === pending)
+      if (s) setActive(s)
+    }
+  }, [])
 
   return (
     <section className="section" id="services">
