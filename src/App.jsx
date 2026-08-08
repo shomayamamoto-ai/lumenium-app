@@ -47,9 +47,17 @@ export default function App() {
 
   // Hash routing: '' / '#' → Google-style search home, '#/info(/<section>)'
   // → the full content page all former top-page sections moved to.
-  const [route, setRoute] = useState(() =>
-    typeof window !== 'undefined' ? window.location.hash : ''
-  )
+  // A reload / direct visit ALWAYS starts on the search home: any leftover
+  // router hash is stripped before the first render (replaceState, so no
+  // extra history entry). In-session navigation is untouched.
+  const [route, setRoute] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    if (window.location.hash.startsWith('#/')) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      return ''
+    }
+    return window.location.hash
+  })
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash)
     window.addEventListener('hashchange', onHash)
