@@ -41,6 +41,158 @@ function askAI(query) {
   window.dispatchEvent(new CustomEvent('lumenium:ask', { detail: query }))
 }
 
+// Twinkling starfield that follows the cursor: every star parallax-shifts
+// toward the pointer (deeper stars move more), and stars near the cursor are
+// gently pulled in, springing home when it leaves.
+function StarCanvas() {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    let w = 0
+    let h = 0
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      w = canvas.parentElement.offsetWidth
+      h = canvas.parentElement.offsetHeight
+      canvas.width = w * dpr
+      canvas.height = h * dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+    resize()
+
+    const COUNT = Math.max(60, Math.min(130, Math.floor((w * h) / 9000)))
+    const stars = Array.from({ length: COUNT }, () => {
+      const depth = 0.25 + Math.random() * 0.75
+      return {
+        nx: Math.random(), ny: Math.random(), // normalized home (survives resize)
+        ox: 0, oy: 0,                         // eased offset toward the cursor
+        r: (0.6 + Math.random() * 1.9) * depth,
+        depth,
+        tw: Math.random() * Math.PI * 2,      // twinkle phase
+        ts: 0.02 + Math.random() * 0.035,     // twinkle speed
+        flare: Math.random() < 0.14,          // bright star with a cross flare
+        hue: 215 + Math.random() * 45,
+      }
+    })
+
+    const mouse = { x: w / 2, y: h / 2, active: false }
+    const onMove = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      mouse.x = e.clientX - rect.left
+      mouse.y = e.clientY - rect.top
+      mouse.active = true
+    }
+    const onLeave = () => { mouse.active = false }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    document.documentElement.addEventListener('mouseleave', onLeave)
+    window.addEventListener('resize', resize)
+
+    let raf = 0
+    let running = false
+
+    const drawStar = (s, now) => {
+      const hx = s.nx * w
+      const hy = s.ny * h
+
+      // Target offset: whole-field parallax toward the cursor + local pull
+      let tx = 0
+      let ty = 0
+      if (mouse.active && !prefersReduced) {
+        tx = (mouse.x - w / 2) * 0.06 * s.depth
+        ty = (mouse.y - h / 2) * 0.06 * s.depth
+        const dx = mouse.x - hx
+        const dy = mouse.y - hy
+        const dist = Math.hypot(dx, dy)
+        const R = 190
+        if (dist < R && dist > 0.01) {
+          const pull = (1 - dist / R) * 30 * s.depth
+          tx += (dx / dist) * pull
+          ty += (dy / dist) * pull
+        }
+      }
+      s.ox += (tx - s.ox) * 0.07
+      s.oy += (ty - s.oy) * 0.07
+      const x = hx + s.ox
+      const y = hy + s.oy
+
+      s.tw += s.ts
+      const sparkle = 0.5 + 0.5 * Math.sin(s.tw + now * 0)
+      const alpha = 0.25 + 0.75 * sparkle
+
+      // Glow
+      const glowR = s.r * (s.flare ? 7 : 4.5)
+      const g = ctx.createRadialGradient(x, y, 0, x, y, glowR)
+      g.addColorStop(0, `hsla(${s.hue}, 85%, 78%, ${alpha * 0.5})`)
+      g.addColorStop(1, 'transparent')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(x, y, glowR, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Core
+      ctx.fillStyle = `hsla(${s.hue}, 90%, 88%, ${alpha})`
+      ctx.beginPath()
+      ctx.arc(x, y, s.r, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Cross flare for the bright ones
+      if (s.flare) {
+        const len = s.r * (4 + 3 * sparkle)
+        ctx.strokeStyle = `hsla(${s.hue}, 90%, 88%, ${alpha * 0.55})`
+        ctx.lineWidth = 0.8
+        ctx.beginPath()
+        ctx.moveTo(x - len, y); ctx.lineTo(x + len, y)
+        ctx.moveTo(x, y - len); ctx.lineTo(x, y + len)
+        ctx.stroke()
+      }
+    }
+
+    const draw = (now) => {
+      if (!running) return
+      ctx.clearRect(0, 0, w, h)
+      for (const s of stars) drawStar(s, now)
+      raf = requestAnimationFrame(draw)
+    }
+    const start = () => {
+      if (running || document.visibilityState === 'hidden') return
+      running = true
+      raf = requestAnimationFrame(draw)
+    }
+    const stop = () => {
+      running = false
+      if (raf) cancelAnimationFrame(raf)
+      raf = 0
+    }
+    const onVis = () => { document.visibilityState === 'hidden' ? stop() : start() }
+    document.addEventListener('visibilitychange', onVis)
+
+    if (prefersReduced) {
+      // Static sky: one frame, no animation loop
+      running = true
+      ctx.clearRect(0, 0, w, h)
+      for (const s of stars) drawStar(s, 0)
+      running = false
+    } else {
+      start()
+    }
+
+    return () => {
+      stop()
+      window.removeEventListener('pointermove', onMove)
+      document.documentElement.removeEventListener('mouseleave', onLeave)
+      window.removeEventListener('resize', resize)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
+
+  return <canvas ref={ref} className="search-home-stars" aria-hidden="true" />
+}
+
 export default function SearchHome() {
   const [q, setQ] = useState('')
   const inputRef = useRef(null)
@@ -79,6 +231,7 @@ export default function SearchHome() {
 
   return (
     <main className="search-home" id="top">
+      <StarCanvas />
       <div className="search-home-inner">
         <div className="search-home-brand">
           <img src="/favicon.svg" alt="" width="72" height="72" className="search-home-mark" />
