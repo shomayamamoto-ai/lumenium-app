@@ -83,8 +83,9 @@ function StarCanvas() {
     const stars = Array.from({ length: COUNT }, () => {
       const depth = 0.25 + Math.random() * 0.75
       const ang = Math.random() * Math.PI * 2
-      // Ambient drift: deeper (bigger) stars glide faster — parallax field
-      const spd = (0.00002 + Math.random() * 0.00006) * depth
+      // Ambient drift: deeper (bigger) stars glide faster — parallax field.
+      // Tuned to be clearly visible (~8-30px/s on desktop widths).
+      const spd = (0.00008 + Math.random() * 0.00024) * depth
       return {
         nx: Math.random(), ny: Math.random(), // normalized home (survives resize)
         dnx: Math.cos(ang) * spd,             // drift per frame (normalized)
@@ -101,7 +102,7 @@ function StarCanvas() {
 
     // Shooting stars (流れ星) — spawn every few seconds, streak with a trail
     const meteors = []
-    let nextMeteorAt = performance.now() + 2500 + Math.random() * 3000
+    let nextMeteorAt = performance.now() + 1500 + Math.random() * 2500
     const spawnMeteor = () => {
       if (meteors.length >= 2) return
       const fromLeft = Math.random() < 0.5
@@ -119,7 +120,7 @@ function StarCanvas() {
     const drawMeteors = (now) => {
       if (now >= nextMeteorAt) {
         spawnMeteor()
-        nextMeteorAt = now + 3500 + Math.random() * 5000
+        nextMeteorAt = now + 2500 + Math.random() * 4000
       }
       for (let i = meteors.length - 1; i >= 0; i--) {
         const m = meteors[i]
@@ -200,7 +201,9 @@ function StarCanvas() {
       const x = hx + s.ox
       const y = hy + s.oy
 
-      s.tw += s.ts
+      // Reduced-motion: positions stay put but a gentle half-speed twinkle
+      // keeps the sky alive (many users have the OS toggle on unknowingly).
+      s.tw += s.ts * (prefersReduced ? 0.5 : 1)
       const sparkle = 0.5 + 0.5 * Math.sin(s.tw + now * 0)
       const alpha = 0.25 + 0.75 * sparkle
 
@@ -236,7 +239,7 @@ function StarCanvas() {
       if (!running) return
       ctx.clearRect(0, 0, w, h)
       for (const s of stars) drawStar(s, now)
-      drawMeteors(now)
+      if (!prefersReduced) drawMeteors(now)
       raf = requestAnimationFrame(draw)
     }
     const start = () => {
@@ -252,15 +255,9 @@ function StarCanvas() {
     const onVis = () => { document.visibilityState === 'hidden' ? stop() : start() }
     document.addEventListener('visibilitychange', onVis)
 
-    if (prefersReduced) {
-      // Static sky: one frame, no animation loop
-      running = true
-      ctx.clearRect(0, 0, w, h)
-      for (const s of stars) drawStar(s, 0)
-      running = false
-    } else {
-      start()
-    }
+    // Always animate: full drift + meteors normally; under reduced motion
+    // drawStar skips positional movement and only twinkles at half speed.
+    start()
 
     return () => {
       stop()
