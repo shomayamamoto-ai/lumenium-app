@@ -71,6 +71,24 @@
   tr:hover td { background: rgba(99,102,241,0.05); }
   .unsub { color: #f87171; font-size: 11px; }
   .empty { padding: 28px; text-align: center; color: var(--sub); font-size: 13px; }
+  .share {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 8px; padding: 12px 14px;
+    background: #1a2038; border: 1px solid var(--border); border-radius: 12px;
+  }
+  .share-label { font-size: 11.5px; font-weight: 700; color: #93c5fd; white-space: nowrap; }
+  #share-url {
+    flex: 1; min-width: 180px; padding: 8px 10px;
+    background: var(--card); color: var(--sub);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  .share button { padding: 8px 14px; font-size: 12px; }
+  .share-open {
+    padding: 8px 14px; font-size: 12px; font-weight: 700;
+    background: var(--grad); color: #fff; border-radius: 10px; text-decoration: none;
+  }
+  .share-note { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 16px; }
 </style>
 </head>
 <body>
@@ -92,6 +110,13 @@
     </div>
 
     <div class="panel" id="list-view">
+      <div class="share">
+        <span class="share-label">📊 Excel直リンク（常に最新）</span>
+        <input type="text" id="share-url" readonly>
+        <button class="ghost" id="copy-btn" type="button">コピー</button>
+        <a id="open-xlsx" class="share-open" href="#">開く</a>
+      </div>
+      <p class="share-note">このリンクを開くと、その時点の<strong>最新の会員リストがExcel（.xlsx）でダウンロード</strong>されます。ブックマーク可。リンクを知っている人は誰でも取得できるため取り扱いにご注意ください（Vercel の ADMIN_KEY を変更すると無効化されます）。</p>
       <div class="toolbar">
         <input type="search" id="search" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
@@ -244,6 +269,10 @@ function buildXlsx(rows) {
     members = data.members || [];
     render();
     sessionStorage.setItem('lum_admin_key', key);
+    // Permalink that always serves the freshest Excel
+    var shareUrl = location.origin + '/api/members-xlsx?key=' + encodeURIComponent(key);
+    document.getElementById('share-url').value = shareUrl;
+    document.getElementById('open-xlsx').href = shareUrl;
     keyPanel.style.display = 'none';
     listView.style.display = 'block';
     return true;
@@ -320,6 +349,18 @@ function buildXlsx(rows) {
     a.download = 'lumenium-members.xlsx';
     a.click();
     URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById('copy-btn').addEventListener('click', function () {
+    var url = document.getElementById('share-url').value;
+    var btn = this;
+    navigator.clipboard.writeText(url).then(function () {
+      btn.textContent = '✓ コピー済み';
+      setTimeout(function () { btn.textContent = 'コピー'; }, 2000);
+    }).catch(function () {
+      document.getElementById('share-url').select();
+      document.execCommand('copy');
+    });
   });
 
   // Auto-restore within the same tab session
