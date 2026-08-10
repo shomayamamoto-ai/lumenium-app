@@ -42,12 +42,19 @@ export async function ensureAudienceId(apiKey) {
   return null
 }
 
-export async function addContact(apiKey, { name, email }) {
+export async function addContact(apiKey, { name, email, company }) {
   const audienceId = await ensureAudienceId(apiKey)
   if (!audienceId) return false
+  // Resend contacts have no custom-field slot, so 会社名 rides in last_name
+  // (shown as part of the contact name in the Resend dashboard too).
   const res = await resend(apiKey, `/audiences/${audienceId}/contacts`, {
     method: 'POST',
-    body: JSON.stringify({ email, first_name: name, unsubscribed: false }),
+    body: JSON.stringify({
+      email,
+      first_name: name,
+      last_name: company || '',
+      unsubscribed: false,
+    }),
   })
   return res.ok
 }
@@ -58,7 +65,8 @@ export async function listContacts(apiKey) {
   const res = await resend(apiKey, `/audiences/${audienceId}/contacts`)
   if (!res.ok || !Array.isArray(res.body?.data)) return null
   return res.body.data.map((c) => ({
-    name: [c.first_name, c.last_name].filter(Boolean).join(' '),
+    name: c.first_name || '',
+    company: c.last_name || '',
     email: c.email || '',
     created: c.created_at || '',
     unsubscribed: c.unsubscribed === true,

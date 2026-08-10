@@ -95,12 +95,13 @@
       <div class="toolbar">
         <input type="search" id="search" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
+        <button id="xlsx-btn" type="button">Excel</button>
         <button class="ghost" id="csv-btn" type="button">CSV</button>
         <button class="ghost" id="reload-btn" type="button">更新</button>
       </div>
       <div class="tbl">
         <table>
-          <thead><tr><th>お名前</th><th>メールアドレス</th><th>登録日時</th><th></th></tr></thead>
+          <thead><tr><th>お名前</th><th>会社名・所属</th><th>メールアドレス</th><th>登録日時</th><th></th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
         <div class="empty" id="empty" style="display:none">まだ登録がありません。</div>
@@ -108,6 +109,102 @@
     </div>
   </div>
 
+<script>
+// Dependency-free .xlsx writer (real Excel file: ZIP/STORE + SpreadsheetML
+// with inline strings). Kept DOM-free so it can be unit-tested in Node.
+function buildXlsx(rows) {
+  var enc = new TextEncoder();
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  var sheetRows = rows.map(function (r) {
+    return '<row>' + r.map(function (v) {
+      return '<c t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+    }).join('') + '</row>';
+  }).join('');
+  var files = [
+    ['[Content_Types].xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+      '</Types>'],
+    ['_rels/.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>'],
+    ['xl/workbook.xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheets><sheet name="会員リスト" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+      '</Relationships>'],
+    ['xl/worksheets/sheet1.xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/>' +
+      '<col min="3" max="3" width="32" customWidth="1"/><col min="4" max="4" width="20" customWidth="1"/>' +
+      '<col min="5" max="5" width="10" customWidth="1"/></cols>' +
+      '<sheetData>' + sheetRows + '</sheetData></worksheet>'],
+  ];
+  // CRC32
+  var TBL = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(u8) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < u8.length; i++) c = TBL[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function le16(v) { return [v & 255, (v >>> 8) & 255]; }
+  function le32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+  var DOS_DATE = ((2026 - 1980) << 9) | (1 << 5) | 1; // fixed timestamp
+  var chunks = [], central = [], offset = 0;
+  files.forEach(function (f) {
+    var nameU8 = enc.encode(f[0]);
+    var dataU8 = enc.encode(f[1]);
+    var crc = crc32(dataU8);
+    var head = [].concat(
+      le32(0x04034b50), le16(20), le16(0x0800), le16(0), le16(0), le16(DOS_DATE),
+      le32(crc), le32(dataU8.length), le32(dataU8.length), le16(nameU8.length), le16(0)
+    );
+    chunks.push(new Uint8Array(head), nameU8, dataU8);
+    central.push([].concat(
+      le32(0x02014b50), le16(20), le16(20), le16(0x0800), le16(0), le16(0), le16(DOS_DATE),
+      le32(crc), le32(dataU8.length), le32(dataU8.length), le16(nameU8.length),
+      le16(0), le16(0), le16(0), le16(0), le32(0), le32(offset)
+    ), nameU8);
+    offset += head.length + nameU8.length + dataU8.length;
+  });
+  var centralStart = offset, centralSize = 0;
+  central.forEach(function (part) {
+    var u8 = part instanceof Uint8Array ? part : new Uint8Array(part);
+    chunks.push(u8);
+    centralSize += u8.length;
+  });
+  chunks.push(new Uint8Array([].concat(
+    le32(0x06054b50), le16(0), le16(0), le16(files.length), le16(files.length),
+    le32(centralSize), le32(centralStart), le16(0)
+  )));
+  var total = chunks.reduce(function (s, c) { return s + c.length; }, 0);
+  var out = new Uint8Array(total), pos = 0;
+  chunks.forEach(function (c) { out.set(c, pos); pos += c.length; });
+  return out;
+}
+</script>
 <script>
 (function () {
   var keyPanel = document.getElementById('key-panel');
@@ -162,17 +259,20 @@
   function render() {
     var q = (searchEl.value || '').toLowerCase();
     var shown = members.filter(function (m) {
-      return !q || (m.name || '').toLowerCase().indexOf(q) !== -1 || (m.email || '').toLowerCase().indexOf(q) !== -1;
+      return !q || (m.name || '').toLowerCase().indexOf(q) !== -1 ||
+        (m.email || '').toLowerCase().indexOf(q) !== -1 ||
+        (m.company || '').toLowerCase().indexOf(q) !== -1;
     });
     rowsEl.textContent = '';
     shown.forEach(function (m) {
       var tr = document.createElement('tr');
       var tdN = document.createElement('td'); tdN.textContent = m.name || '—';
+      var tdC = document.createElement('td'); tdC.textContent = m.company || '—';
       var tdE = document.createElement('td'); tdE.className = 'email'; tdE.textContent = m.email;
       var tdD = document.createElement('td'); tdD.textContent = fmtDate(m.created);
       var tdU = document.createElement('td');
       if (m.unsubscribed) { tdU.textContent = '配信停止'; tdU.className = 'unsub'; }
-      tr.appendChild(tdN); tr.appendChild(tdE); tr.appendChild(tdD); tr.appendChild(tdU);
+      tr.appendChild(tdN); tr.appendChild(tdC); tr.appendChild(tdE); tr.appendChild(tdD); tr.appendChild(tdU);
       rowsEl.appendChild(tr);
     });
     emptyEl.style.display = shown.length ? 'none' : 'block';
@@ -195,15 +295,29 @@
   });
 
   document.getElementById('csv-btn').addEventListener('click', function () {
-    var lines = ['name,email,created,unsubscribed'];
+    var lines = ['name,company,email,created,unsubscribed'];
     members.forEach(function (m) {
       var esc = function (v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; };
-      lines.push([esc(m.name), esc(m.email), esc(m.created), m.unsubscribed ? '1' : '0'].join(','));
+      lines.push([esc(m.name), esc(m.company), esc(m.email), esc(m.created), m.unsubscribed ? '1' : '0'].join(','));
     });
     var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'lumenium-members.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById('xlsx-btn').addEventListener('click', function () {
+    var rows = [['お名前', '会社名・所属', 'メールアドレス', '登録日時', '配信状態']];
+    members.forEach(function (m) {
+      rows.push([m.name || '', m.company || '', m.email || '', fmtDate(m.created), m.unsubscribed ? '配信停止' : '']);
+    });
+    var xlsx = buildXlsx(rows);
+    var blob = new Blob([xlsx], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lumenium-members.xlsx';
     a.click();
     URL.revokeObjectURL(a.href);
   });

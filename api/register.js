@@ -39,10 +39,12 @@ export async function POST(req) {
 
   const name = String(payload?.name ?? '').trim()
   const email = String(payload?.email ?? '').trim()
+  const company = String(payload?.company ?? '').trim()
 
   if (limited(ip)) return json(FAIL, 429)
   if (!name || name.length > 50) return json(FAIL, 400)
   if (!email || !EMAIL_RE.test(email) || email.length > 100) return json(FAIL, 400)
+  if (company.length > 80) return json(FAIL, 400)
 
   // Registration = instant membership (12h session; the emailed code covers
   // longer-term / cross-device access).
@@ -52,7 +54,7 @@ export async function POST(req) {
   const apiKey = process.env.RESEND_API_KEY
   if (apiKey) {
     // Persist the lead into the Resend audience (member list page reads this).
-    await addContact(apiKey, { name, email }).catch((err) =>
+    await addContact(apiKey, { name, email, company }).catch((err) =>
       console.error('[api/register] addContact failed', err)
     )
     const memberCode = process.env.MEMBER_CODE || 'LUMEN2026'
@@ -83,7 +85,7 @@ export async function POST(req) {
       to: [owner],
       reply_to: email,
       subject: `【会員登録】${name} 様が登録しました`,
-      text: `新規会員登録がありました。\n\nお名前: ${name}\nメール: ${email}\nIP: ${ip}`,
+      text: `新規会員登録がありました。\n\nお名前: ${name}\n会社名: ${company || '（未入力）'}\nメール: ${email}\nIP: ${ip}`,
     })
   } else {
     console.error('[api/register] RESEND_API_KEY not set — skipped code email')
