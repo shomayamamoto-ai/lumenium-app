@@ -77,11 +77,11 @@ html[data-theme="dark"] {
   /* Lift the palette out of pitch black — give it a deep-night-sky feel
      with a subtle blue/violet undertone. Better readability + premium
      atmosphere without losing the dark aesthetic. */
-  --bg: #0f1325;
-  --bg-gray: #161b2e;
-  --bg-card: #1d2238;
-  --border: #363c54;
-  --border-light: #4b5274;
+  --bg: #171c33;
+  --bg-gray: #1e2440;
+  --bg-card: #262c4a;
+  --border: #424a6b;
+  --border-light: #5a628a;
   --text: #f5f7fb;
   --text-sub: #d6dceb;
   --text-muted: #abb5cb;
@@ -8047,16 +8047,16 @@ html[data-theme="dark"] p.lead {
 }
 * {
   scrollbar-width: thin;
-  scrollbar-color: #363c54 transparent;
+  scrollbar-color: #424a6b transparent;
 }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: #363c54;
+  background: #424a6b;
   border-radius: 8px;
-  border: 2px solid #0f1325;
+  border: 2px solid #171c33;
 }
-*::-webkit-scrollbar-thumb:hover { background: #4b5274; }
+*::-webkit-scrollbar-thumb:hover { background: #5a628a; }
 
 /* --- 3) Typography micro-tuning ---------------------------------------- */
 /* Optical kerning for Japanese display text everywhere, not only titles. */
@@ -8090,7 +8090,7 @@ html[data-theme="dark"] .tag {
 
 /* --- 7) Navbar: hairline + tighter blur when scrolled ------------------ */
 html[data-theme="dark"] .navbar.scrolled {
-  background: rgba(15,19,37,0.78);
+  background: rgba(23,28,51,0.78);
   backdrop-filter: saturate(160%) blur(18px);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
   box-shadow: 0 1px 0 rgba(255,255,255,0.04);
@@ -8184,7 +8184,7 @@ html[data-theme="dark"] .navbar.scrolled {
 /* --- Axis tick chips (高い / 低い) on the axis lines ------------------- */
 .paxis-chip {
   position: absolute;
-  background: #0f1325;
+  background: #171c33;
   color: #f5f7fb;
   font-size: 11.5px;
   font-weight: 700;
@@ -8350,7 +8350,7 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-box:focus-within {
   border-color: rgba(129,140,248,0.6);
   box-shadow: 0 8px 30px -8px rgba(99,102,241,0.4), 0 0 0 3px rgba(99,102,241,0.14);
-  background: #1f2440;
+  background: #283055;
 }
 .search-home-icon { color: var(--text-muted); flex-shrink: 0; }
 .search-home-box input {
@@ -8571,4 +8571,22 @@ html[data-theme="dark"] .navbar.scrolled {
 @media (max-width: 480px) {
   .search-home-footer { gap: 16px; }
   .search-home-footer a { font-size: 11px; }
+}
+
+/* =========================================================================
+   GLOBAL BRIGHTNESS LIFT
+   The <body> carries a near-black inline background (#010104) for a
+   seamless splash handoff — but it also showed through every transparent
+   section, dragging the whole site darker than the design tokens intend.
+   #main paints the real background over it, with soft ambient glows so
+   the page reads luminous rather than pitch dark.
+   ========================================================================= */
+#main {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 75% 55% at 22% 12%, rgba(99,102,241,0.14), transparent 62%),
+    radial-gradient(ellipse 60% 45% at 80% 30%, rgba(124,58,237,0.10), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 50% 85%, rgba(6,182,212,0.08), transparent 62%),
+    var(--bg);
 }
