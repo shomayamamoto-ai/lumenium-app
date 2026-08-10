@@ -4,6 +4,7 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/members/arena", "destination": "/api/members-game" },
+    { "source": "/members/puzzle", "destination": "/api/members-puzzle" },
     { "source": "/game.html", "destination": "/game.html" },
     { "source": "/racing.html", "destination": "/racing.html" },
     { "source": "/runner.html", "destination": "/runner.html" },

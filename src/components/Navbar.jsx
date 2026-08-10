@@ -106,9 +106,15 @@ export default function Navbar() {
               <a href="/runner.html">🏃 ランナー</a>
               <a href="/racing.html">🏰 ディフェンス</a>
               {isMember ? (
-                <a href="/members/arena">⭐ 会員限定ブレイカー</a>
+                <>
+                  <a href="/members/arena">⭐ 会員限定ブレイカー</a>
+                  <a href="/members/puzzle">🧩 会員限定2048</a>
+                </>
               ) : (
-                <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
+                <>
+                  <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
+                  <a href="/login.html?next=puzzle" className="nav-game-login">🧩 会員限定2048 🔒</a>
+                </>
               )}
             </div>
           </div>

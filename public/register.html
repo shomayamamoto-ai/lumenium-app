@@ -120,7 +120,8 @@
     game: '/game.html',
     runner: '/runner.html',
     racing: '/racing.html',
-    arena: '/members/arena'
+    arena: '/members/arena',
+    puzzle: '/members/puzzle'
   };
   var key = new URLSearchParams(location.search).get('next');
   var dest = Object.prototype.hasOwnProperty.call(NEXT, key) ? NEXT[key] : NEXT.arena;
