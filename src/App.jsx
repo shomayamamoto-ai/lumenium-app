@@ -273,8 +273,17 @@ export default function App() {
         topBtn.classList.toggle('scroll-top-btn--show', showTop)
       }
 
-      // progress bar
-      progressBar.style.transform = `scaleX(${h > 0 ? y / h : 0})`
+      // progress bar — only meaningful on genuinely scrollable pages.
+      // On the near-unscrollable search home, y/h exploded to ~60% from a
+      // few px of drag (and iOS rubber-banding pushed it out of range),
+      // leaving the bar stuck at a bogus position.
+      const scrollable = h > 160
+      const shown = scrollable ? '1' : '0'
+      if (progressBar.dataset.show !== shown) {
+        progressBar.dataset.show = shown
+        progressBar.style.opacity = scrollable ? '1' : '0'
+      }
+      progressBar.style.transform = `scaleX(${scrollable ? Math.min(1, Math.max(0, y / h)) : 0})`
 
       // flow connectors
       flowConnectors.forEach((line) => {
