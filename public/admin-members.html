@@ -312,7 +312,8 @@ function buildXlsx(rows) {
     e.preventDefault();
     keyMsg.classList.remove('show');
     keyBtn.disabled = true;
-    await load(document.getElementById('admin-key').value);
+    // trim: pasted keys often carry an invisible trailing space/newline
+    await load(document.getElementById('admin-key').value.trim());
     keyBtn.disabled = false;
   });
 

@@ -57,12 +57,12 @@ function fmtDate(iso) {
 export async function GET(req) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
-  const adminKey = process.env.ADMIN_KEY
+  const adminKey = (process.env.ADMIN_KEY || '').trim()
   if (!adminKey) return text('ADMIN_KEY が未設定です。Vercel の環境変数に設定してください。', 503)
 
   const url = new URL(req.url)
   const auth = req.headers.get('authorization') || ''
-  const submitted = url.searchParams.get('key') || (auth.startsWith('Bearer ') ? auth.slice(7) : '')
+  const submitted = (url.searchParams.get('key') || (auth.startsWith('Bearer ') ? auth.slice(7) : '')).trim()
 
   if (limited(ip) || !submitted || !(await keyMatches(submitted, adminKey))) {
     recordFail(ip)

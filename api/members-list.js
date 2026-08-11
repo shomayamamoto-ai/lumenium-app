@@ -46,11 +46,13 @@ function recordFail(ip) {
 export async function GET(req) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
-  const adminKey = process.env.ADMIN_KEY
+  // trim both sides: stray whitespace/newlines from copy-paste (either in
+  // the Vercel value or the typed key) must never cause a mismatch
+  const adminKey = (process.env.ADMIN_KEY || '').trim()
   if (!adminKey) return json({ ok: false, code: 'NOT_CONFIGURED' }, 503)
 
   const auth = req.headers.get('authorization') || ''
-  const submitted = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  const submitted = (auth.startsWith('Bearer ') ? auth.slice(7) : '').trim()
 
   if (limited(ip) || !submitted || !(await keyMatches(submitted, adminKey))) {
     recordFail(ip)
