@@ -1,0 +1,29 @@
+# video-subtitle: terminology glossary
+#
+# One term per line. Lines starting with # are comments.
+# Used by:
+#   - transcribe.py as Whisper's `initial_prompt` (improves recognition)
+#   - proofread.py as a Claude system-prompt block (corrects misrecognitions)
+#
+# Add proper nouns, brand names, technical terms, anything Whisper tends to
+# mishear. Edit freely; the file is cached by Claude so updates trigger one
+# extra cache write then settle back to ~0.1x cost per chunk.
+
+# Internal
+Lumenium
+
+# Stack
+Next.js
+Vercel
+TypeScript
+React
+PostgreSQL
+Tailwind CSS
+
+# Tools mentioned in production
+Premiere Pro
+Adobe
+Whisper
+ffmpeg
+Claude
+Claude Code
