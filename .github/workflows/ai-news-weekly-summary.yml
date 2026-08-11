@@ -1,0 +1,28 @@
+name: AI News Weekly Summary
+
+on:
+  schedule:
+    # 09:07 UTC Friday = 18:07 JST Friday
+    - cron: '7 9 * * 5'
+  workflow_dispatch:
+
+concurrency:
+  group: ai-news-weekly-summary
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run weekly summary
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_AI_NEWS_DB_ID: ${{ secrets.NOTION_AI_NEWS_DB_ID }}
+          NOTION_WEEKLY_PARENT_PAGE_ID: ${{ secrets.NOTION_WEEKLY_PARENT_PAGE_ID }}
+        run: node scripts/ai-news/weekly-summary.mjs
