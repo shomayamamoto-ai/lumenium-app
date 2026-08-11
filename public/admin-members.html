@@ -111,12 +111,18 @@
 
     <div class="panel" id="list-view">
       <div class="share">
+        <span class="share-label">📺 ライブ表示リンク（開くだけで最新）</span>
+        <input type="text" id="share-url-view" readonly>
+        <button class="ghost" id="copy-btn-view" type="button">コピー</button>
+        <a id="open-view" class="share-open" href="#">開く</a>
+      </div>
+      <div class="share">
         <span class="share-label">📊 Excel直リンク（常に最新）</span>
         <input type="text" id="share-url" readonly>
         <button class="ghost" id="copy-btn" type="button">コピー</button>
         <a id="open-xlsx" class="share-open" href="#">開く</a>
       </div>
-      <p class="share-note">このリンクを開くと、その時点の<strong>最新の会員リストがExcel（.xlsx）でダウンロード</strong>されます。ブックマーク可。リンクを知っている人は誰でも取得できるため取り扱いにご注意ください（Vercel の ADMIN_KEY を変更すると無効化されます）。</p>
+      <p class="share-note">ライブ表示はダウンロード不要で、開くだけで最新一覧が見られます（60秒ごと自動更新・ブックマーク可）。Excel直リンクは開くたびに最新の .xlsx をダウンロードします。いずれもリンクを知っている人は誰でも閲覧できるため取り扱いにご注意ください（Vercel の ADMIN_KEY を変更すると無効化されます）。</p>
       <div class="toolbar">
         <input type="search" id="search" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
@@ -269,10 +275,13 @@ function buildXlsx(rows) {
     members = data.members || [];
     render();
     sessionStorage.setItem('lum_admin_key', key);
-    // Permalink that always serves the freshest Excel
+    // Permalinks: live HTML view + always-fresh Excel
     var shareUrl = location.origin + '/api/members-xlsx?key=' + encodeURIComponent(key);
     document.getElementById('share-url').value = shareUrl;
     document.getElementById('open-xlsx').href = shareUrl;
+    var viewUrl = location.origin + '/api/members-view?key=' + encodeURIComponent(key);
+    document.getElementById('share-url-view').value = viewUrl;
+    document.getElementById('open-view').href = viewUrl;
     keyPanel.style.display = 'none';
     listView.style.display = 'block';
     return true;
@@ -352,17 +361,21 @@ function buildXlsx(rows) {
     URL.revokeObjectURL(a.href);
   });
 
-  document.getElementById('copy-btn').addEventListener('click', function () {
-    var url = document.getElementById('share-url').value;
-    var btn = this;
-    navigator.clipboard.writeText(url).then(function () {
-      btn.textContent = '✓ コピー済み';
-      setTimeout(function () { btn.textContent = 'コピー'; }, 2000);
-    }).catch(function () {
-      document.getElementById('share-url').select();
-      document.execCommand('copy');
+  function wireCopy(btnId, inputId) {
+    document.getElementById(btnId).addEventListener('click', function () {
+      var input = document.getElementById(inputId);
+      var btn = this;
+      navigator.clipboard.writeText(input.value).then(function () {
+        btn.textContent = '✓ コピー済み';
+        setTimeout(function () { btn.textContent = 'コピー'; }, 2000);
+      }).catch(function () {
+        input.select();
+        document.execCommand('copy');
+      });
     });
-  });
+  }
+  wireCopy('copy-btn', 'share-url');
+  wireCopy('copy-btn-view', 'share-url-view');
 
   // Auto-restore within the same tab session
   var saved = sessionStorage.getItem('lum_admin_key');
