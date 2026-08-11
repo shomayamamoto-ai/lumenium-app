@@ -58,13 +58,15 @@ body{
 .board-wrap{position:relative;width:100%}
 #board{position:relative;width:100%;aspect-ratio:1/1;background:var(--board);border-radius:14px;border:1px solid rgba(79,70,229,.25);box-shadow:0 0 60px rgba(79,70,229,.12),0 20px 60px rgba(0,0,0,.5),inset 0 0 30px rgba(0,0,0,.3);touch-action:none;overflow:hidden;user-select:none;-webkit-user-select:none;transition:box-shadow .3s ease}
 #board.glow{box-shadow:0 0 90px rgba(139,92,246,.5),0 0 40px rgba(34,211,238,.4),0 20px 60px rgba(0,0,0,.5)}
+#board.shake{animation:boardShake .28s ease}
+@keyframes boardShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-3px)}}
 .cell{position:absolute;top:0;left:0;background:var(--cellbg);border-radius:10px}
-.tile{position:absolute;top:0;left:0;z-index:2;transition:transform .12s ease-out;will-change:transform}
+.tile{position:absolute;top:0;left:0;z-index:2;transition:transform .11s ease-out;will-change:transform}
 .tv{width:100%;height:100%;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:var(--fs,32px);text-shadow:0 1px 4px rgba(0,0,0,.35);font-variant-numeric:tabular-nums;line-height:1}
 .tile.d3 .tv{font-size:calc(var(--fs,32px)*.8)}
 .tile.d4 .tv{font-size:calc(var(--fs,32px)*.62)}
 .tile.d5 .tv{font-size:calc(var(--fs,32px)*.5)}
-.tile.new .tv{animation:spawn .2s cubic-bezier(.22,1,.36,1) .05s backwards}
+.tile.new .tv{animation:spawn .2s cubic-bezier(.22,1,.36,1) .04s backwards}
 @keyframes spawn{0%{transform:scale(0);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
 .tile.pop .tv{animation:mergePop .24s cubic-bezier(.22,1,.36,1)}
 @keyframes mergePop{0%{transform:scale(1)}45%{transform:scale(1.22)}100%{transform:scale(1)}}
@@ -97,6 +99,32 @@ body{
 #burst-layer{position:absolute;inset:0;z-index:30;pointer-events:none;overflow:hidden;border-radius:14px}
 .cf{position:absolute;left:50%;top:55%;width:9px;height:9px;border-radius:2px;opacity:0;animation:cfFly .9s cubic-bezier(.16,.8,.4,1) forwards}
 @keyframes cfFly{0%{opacity:1;transform:translate(0,0) rotate(0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(540deg) scale(.5)}}
+/* ---- onboarding tutorial ---- */
+#tut{position:absolute;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;background:rgba(10,14,26,.72);backdrop-filter:blur(2px);border-radius:14px;padding:20px;pointer-events:none;animation:ovIn .4s ease}
+#tut.show{display:flex}
+.tut-goal{font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--text)}
+.tut-goal b{color:var(--cyan-light)}
+.tut-arrows{display:flex;flex-direction:column;align-items:center;gap:2px}
+.tut-arrows .mid{display:flex;gap:52px}
+.ta{font-size:22px;color:var(--cyan-light);text-shadow:0 0 14px rgba(34,211,238,.8);animation:taPulse 1.4s ease-in-out infinite;line-height:1.2}
+.ta.a-l{animation-delay:.35s}.ta.a-d{animation-delay:.7s}.ta.a-r{animation-delay:1.05s}
+@keyframes taPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:1;transform:scale(1.25)}}
+.tut-demo{position:relative;width:150px;height:44px}
+.td{position:absolute;top:0;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff}
+.td-a{left:8px;background:linear-gradient(135deg,#3d3a8f,#4f46e5);animation:tdA 2.2s ease-in-out infinite}
+.td-b{right:8px;background:linear-gradient(135deg,#3d3a8f,#4f46e5);animation:tdB 2.2s ease-in-out infinite}
+.td-m{left:55px;background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 0 18px rgba(99,102,241,.7);opacity:0;animation:tdM 2.2s ease-in-out infinite}
+@keyframes tdA{0%,25%{transform:translateX(0);opacity:1}55%,70%{transform:translateX(47px);opacity:1}71%,100%{transform:translateX(47px);opacity:0}}
+@keyframes tdB{0%,25%{transform:translateX(0);opacity:1}55%,70%{transform:translateX(-47px);opacity:1}71%,100%{transform:translateX(-47px);opacity:0}}
+@keyframes tdM{0%,69%{opacity:0;transform:scale(.5)}78%{opacity:1;transform:scale(1.2)}88%,94%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+.tut-msg{font-size:12px;letter-spacing:.14em;color:var(--text-secondary)}
+/* ---- invalid-move hint ---- */
+#move-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:16;padding:6px 16px;font-size:11px;letter-spacing:.12em;color:var(--text);background:rgba(10,14,26,.85);border:1px solid rgba(248,250,252,.18);border-radius:999px;opacity:0;pointer-events:none;transition:opacity .25s ease;white-space:nowrap}
+#move-hint.show{opacity:1}
+/* ---- milestone banner ---- */
+#milestone{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:25;pointer-events:none;padding:12px 30px;border-radius:12px;background:rgba(10,14,26,.88);border:1px solid rgba(139,92,246,.6);box-shadow:0 0 46px rgba(139,92,246,.5);font-weight:800;font-size:clamp(18px,5vw,26px);letter-spacing:.08em;white-space:nowrap;opacity:0}
+#milestone.show{animation:msIn 1.5s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes msIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}20%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-62%) scale(.95)}}
 .hints{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:10px;color:var(--text-muted);letter-spacing:.1em}
 .hints kbd{display:inline-block;padding:2px 7px;margin-right:5px;background:rgba(248,250,252,.08);border:1px solid rgba(248,250,252,.2);border-bottom-width:2px;color:var(--text);font-size:10px;border-radius:4px}
 .back-link-bottom{display:inline-flex;align-items:center;gap:6px;margin:26px auto 0;color:var(--text-muted);text-decoration:none;font-size:13px;transition:color .3s}
@@ -153,6 +181,22 @@ body{
     </div>
     <div class="board-wrap">
       <div id="board" aria-label="LUMEN 2048 盤面"></div>
+      <div id="tut">
+        <p class="tut-goal">同じ数字をぶつけて合体 → <b>2048</b>を目指せ</p>
+        <div class="tut-arrows">
+          <span class="ta a-u">▲</span>
+          <div class="mid"><span class="ta a-l">◀</span><span class="ta a-r">▶</span></div>
+          <span class="ta a-d">▼</span>
+        </div>
+        <div class="tut-demo">
+          <span class="td td-a">2</span>
+          <span class="td td-b">2</span>
+          <span class="td td-m">4</span>
+        </div>
+        <p class="tut-msg">矢印キー / スワイプでタイルを移動</p>
+      </div>
+      <div id="move-hint">その方向へは動かせません</div>
+      <div id="milestone"></div>
       <div class="overlay" id="over-overlay">
         <p class="sub">NO MORE MOVES</p>
         <h2 class="gradient-text">GAME OVER</h2>
@@ -186,11 +230,19 @@ body{
 (function () {
 'use strict';
 /* ============================================================
-   LUMEN 2048 — Lumenium mini game
-   Single-file, no external assets. WebAudio-synthesized SFX.
+   LUMEN 2048 — Lumenium mini game (full rewrite)
+   - State logic is fully synchronous & pure-data (board = 4x4
+     ints); the DOM layer only animates recorded deltas.
+   - A new tile spawns ONLY when a move actually changes the
+     board. Ineffective moves: no spawn, no slide sound.
+   - Test hook: window.__lumen2048 (same code path as keyboard).
    ============================================================ */
 var SIZE = 4;
-var SLIDE_MS = 120;
+var SLIDE_MS = 110;
+var LS_BEST = 'lumen_2048_best';
+var LS_MUTE = 'lumen_2048_mute';
+var LS_TUT = 'lumen_2048_tut';
+
 var boardEl = document.getElementById('board');
 var scoreEl = document.getElementById('score');
 var bestEl = document.getElementById('best');
@@ -201,10 +253,16 @@ var flashEl = document.getElementById('flash');
 var overOverlay = document.getElementById('over-overlay');
 var winOverlay = document.getElementById('win-overlay');
 var burstLayer = document.getElementById('burst-layer');
+var tutEl = document.getElementById('tut');
+var moveHintEl = document.getElementById('move-hint');
+var milestoneEl = document.getElementById('milestone');
 
-/* ---------- Audio (WebAudio, synthesized, no files) ---------- */
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
+
+/* ---------- Audio (WebAudio, synthesized, zero external requests) ---------- */
 var actx = null;
-var muted = localStorage.getItem('lumen_2048_mute') === '1';
+var muted = lsGet(LS_MUTE) === '1';
 function initAudio() {
   if (!actx) {
     try {
@@ -214,7 +272,6 @@ function initAudio() {
   }
   if (actx && actx.state === 'suspended') { actx.resume().catch(function () {}); }
 }
-/* AudioContext only after first user interaction */
 window.addEventListener('pointerdown', initAudio, { passive: true });
 window.addEventListener('keydown', initAudio);
 
@@ -251,6 +308,7 @@ function noise(dur, vol, cutoff) {
 var sfx = {
   slide: function () { noise(0.07, 0.035, 1200); },
   merge: function (v) {
+    /* pitch rises with tile value */
     var st = Math.log2(v);
     var f = 200 * Math.pow(2, st / 12 + 0.8);
     tone(f, 0.1, 'triangle', 0.07, f * 1.5);
@@ -261,6 +319,11 @@ var sfx = {
     setTimeout(function () { tone(523, 0.12, 'triangle', 0.07); }, 70);
     setTimeout(function () { tone(784, 0.2, 'triangle', 0.08); }, 140);
     noise(0.25, 0.05, 1500);
+  },
+  thud: function () {
+    /* soft invalid-move thud */
+    tone(110, 0.09, 'sine', 0.05, 70);
+    noise(0.05, 0.02, 400);
   },
   over: function () {
     tone(330, 0.25, 'sawtooth', 0.06, 165);
@@ -276,24 +339,143 @@ var sfx = {
 function renderMute() { muteBtn.textContent = muted ? '🔇' : '🔊'; }
 muteBtn.addEventListener('click', function () {
   muted = !muted;
-  localStorage.setItem('lumen_2048_mute', muted ? '1' : '0');
+  lsSet(LS_MUTE, muted ? '1' : '0');
   renderMute();
   if (!muted) { initAudio(); tone(660, 0.06, 'sine', 0.05); }
 });
 renderMute();
 
-/* ---------- State ---------- */
-var grid, tiles, nextId, score, over, won, keepPlaying, lock, history;
-var best = parseInt(localStorage.getItem('lumen_2048_best') || '0', 10) || 0;
+/* ---------- Pure game state ---------- */
+var board;        /* 4x4 array of ints, 0 = empty */
+var score = 0;
+var best = parseInt(lsGet(LS_BEST) || '0', 10) || 0;
+var over = false;
+var won = false;
+var winShowing = false;
+var maxTile = 0;
+var undoState = null;
 
-function emptyGrid() {
-  var g = [];
-  for (var r = 0; r < SIZE; r++) g.push([null, null, null, null]);
-  return g;
+var DIRS = { up: 1, down: 1, left: 1, right: 1 };
+
+function emptyBoard() {
+  var b = [];
+  for (var r = 0; r < SIZE; r++) {
+    var row = [];
+    for (var c = 0; c < SIZE; c++) row.push(0);
+    b.push(row);
+  }
+  return b;
+}
+function copyBoard(b) { return b.map(function (row) { return row.slice(); }); }
+
+/* Cells of line i, ordered from the edge tiles slide toward. */
+function lineCells(dir, i) {
+  var out = [];
+  for (var j = 0; j < SIZE; j++) {
+    if (dir === 'left') out.push([i, j]);
+    else if (dir === 'right') out.push([i, SIZE - 1 - j]);
+    else if (dir === 'up') out.push([j, i]);
+    else out.push([SIZE - 1 - j, i]);
+  }
+  return out;
 }
 
-/* ---------- Layout / metrics ---------- */
+/*
+ * Compute the result of sliding `board` toward `dir`.
+ * Standard 2048 rule: tiles compact toward the edge; a pair of equal
+ * neighbours merges exactly once per move (nearest-the-edge first).
+ * Returns { board, actions, gained, maxMerged, changed } without
+ * mutating anything.
+ */
+function computeMove(dir) {
+  var nb = emptyBoard();
+  var actions = []; /* {fr,fc,tr,tc,merge,value} value = value AFTER move */
+  var gained = 0, maxMerged = 0, changed = false;
+  for (var i = 0; i < SIZE; i++) {
+    var cells = lineCells(dir, i);
+    var outPos = 0;   /* next free slot index within `cells` */
+    var lastVal = 0;  /* value in previous slot, 0 if it already merged */
+    for (var j = 0; j < SIZE; j++) {
+      var p = cells[j];
+      var val = board[p[0]][p[1]];
+      if (!val) continue;
+      if (val === lastVal) {
+        /* merge into the previous output slot (once per move) */
+        var tp = cells[outPos - 1];
+        nb[tp[0]][tp[1]] = val * 2;
+        gained += val * 2;
+        if (val * 2 > maxMerged) maxMerged = val * 2;
+        actions.push({ fr: p[0], fc: p[1], tr: tp[0], tc: tp[1], merge: true, value: val * 2 });
+        lastVal = 0;
+        changed = true;
+      } else {
+        var sp = cells[outPos];
+        nb[sp[0]][sp[1]] = val;
+        actions.push({ fr: p[0], fc: p[1], tr: sp[0], tc: sp[1], merge: false, value: val });
+        if (sp[0] !== p[0] || sp[1] !== p[1]) changed = true;
+        lastVal = val;
+        outPos++;
+      }
+    }
+  }
+  return { board: nb, actions: actions, gained: gained, maxMerged: maxMerged, changed: changed };
+}
+
+function spawnRandom(b) {
+  var free = [];
+  for (var r = 0; r < SIZE; r++) {
+    for (var c = 0; c < SIZE; c++) {
+      if (!b[r][c]) free.push([r, c]);
+    }
+  }
+  if (!free.length) return null;
+  var p = free[Math.floor(Math.random() * free.length)];
+  var v = Math.random() < 0.9 ? 2 : 4;
+  b[p[0]][p[1]] = v;
+  return { r: p[0], c: p[1], value: v };
+}
+
+/* Game over ONLY when full AND no adjacent equal pair exists. */
+function isGameOver(b) {
+  for (var r = 0; r < SIZE; r++) {
+    for (var c = 0; c < SIZE; c++) {
+      var v = b[r][c];
+      if (!v) return false;
+      if (c < SIZE - 1 && b[r][c + 1] === v) return false;
+      if (r < SIZE - 1 && b[r + 1][c] === v) return false;
+    }
+  }
+  return true;
+}
+
+/* ---------- Timers ----------
+   pending  = animation finalizers; flushed instantly when the next
+              move begins so state & DOM never drift apart.
+   gameTimers = overlay/banner timeouts; cancelled on reset/undo.  */
+var pending = [];
+function later(fn, ms) {
+  var entry = { fn: fn, id: 0 };
+  entry.id = setTimeout(function () {
+    pending = pending.filter(function (p) { return p !== entry; });
+    fn();
+  }, ms);
+  pending.push(entry);
+}
+function finishPending() {
+  var list = pending;
+  pending = [];
+  list.forEach(function (p) { clearTimeout(p.id); p.fn(); });
+}
+var gameTimers = [];
+function gt(fn, ms) { gameTimers.push(setTimeout(fn, ms)); }
+function clearGameTimers() {
+  gameTimers.forEach(function (id) { clearTimeout(id); });
+  gameTimers = [];
+}
+
+/* ---------- Board layout / DOM tiles ---------- */
 var cellEls = [];
+var elGrid = null; /* 4x4 of tile DOM nodes (or null), mirrors `board` */
 var met = { pad: 0, gap: 0, cell: 0 };
 function buildCells() {
   for (var i = 0; i < SIZE * SIZE; i++) {
@@ -304,7 +486,7 @@ function buildCells() {
   }
 }
 function coord(i) { return met.pad + i * (met.cell + met.gap); }
-function place(el, r, c) {
+function placeEl(el, r, c) {
   el.style.width = met.cell + 'px';
   el.style.height = met.cell + 'px';
   el.style.transform = 'translate(' + coord(c) + 'px,' + coord(r) + 'px)';
@@ -316,53 +498,52 @@ function layout() {
   met.gap = w * 0.033;
   met.cell = (w - met.pad * 2 - met.gap * (SIZE - 1)) / SIZE;
   boardEl.style.setProperty('--fs', Math.round(met.cell * 0.42) + 'px');
-  cellEls.forEach(function (d, i) { place(d, Math.floor(i / SIZE), i % SIZE); });
-  if (tiles) tiles.forEach(function (t) { place(t.el, t.r, t.c); });
+  cellEls.forEach(function (d, i) { placeEl(d, Math.floor(i / SIZE), i % SIZE); });
+  if (elGrid) {
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        if (elGrid[r][c]) placeEl(elGrid[r][c], r, c);
+      }
+    }
+  }
 }
 window.addEventListener('resize', layout);
 
-/* ---------- Tiles ---------- */
-function valueClass(v) { return v <= 2048 ? 'v' + v : 'vsuper'; }
-function digitClass(v) {
+function faceClasses(v) {
+  var vc = v <= 2048 ? 'v' + v : 'vsuper';
   var d = String(v).length;
-  return d >= 5 ? 'd5' : d === 4 ? 'd4' : d === 3 ? 'd3' : '';
+  var dc = d >= 5 ? ' d5' : d === 4 ? ' d4' : d === 3 ? ' d3' : '';
+  return 'tile ' + vc + dc;
 }
-function setTileFace(t) {
-  t.el.className = ('tile ' + valueClass(t.value) + ' ' + digitClass(t.value)).trim();
-  t.inner.textContent = t.value;
+function setFace(el, v) {
+  el.className = faceClasses(v);
+  el.firstChild.textContent = v;
 }
-function makeTile(r, c, v, isNew) {
+function makeTileEl(r, c, v, isNew) {
   var el = document.createElement('div');
   var inner = document.createElement('div');
   inner.className = 'tv';
   el.appendChild(inner);
-  var t = { id: nextId++, r: r, c: c, value: v, merged: false, el: el, inner: inner };
-  setTileFace(t);
-  place(el, r, c);
+  setFace(el, v);
   if (isNew) el.classList.add('new');
+  placeEl(el, r, c);
   boardEl.appendChild(el);
-  grid[r][c] = t;
-  tiles.set(t.id, t);
-  return t;
+  return el;
 }
-function clearTiles() {
-  if (tiles) tiles.forEach(function (t) { t.el.remove(); });
-  tiles = new Map();
-  grid = emptyGrid();
-}
-function randomSpawn() {
-  var free = [];
+function rebuildEls() {
+  var olds = boardEl.querySelectorAll('.tile');
+  for (var i = 0; i < olds.length; i++) olds[i].remove();
+  elGrid = [];
   for (var r = 0; r < SIZE; r++) {
+    var row = [];
     for (var c = 0; c < SIZE; c++) {
-      if (!grid[r][c]) free.push({ r: r, c: c });
+      row.push(board[r][c] ? makeTileEl(r, c, board[r][c], false) : null);
     }
+    elGrid.push(row);
   }
-  if (!free.length) return null;
-  var p = free[Math.floor(Math.random() * free.length)];
-  return makeTile(p.r, p.c, Math.random() < 0.9 ? 2 : 4, true);
 }
 
-/* ---------- HUD ---------- */
+/* ---------- HUD / effects ---------- */
 function updateHud() {
   scoreEl.textContent = score.toLocaleString();
   bestEl.textContent = best.toLocaleString();
@@ -381,135 +562,13 @@ function bigGlow() {
   boardEl.classList.add('glow');
   setTimeout(function () { boardEl.classList.remove('glow'); }, 600);
 }
-
-/* ---------- Snapshot / undo (1 step) ---------- */
-function snapshot() {
-  var cells = [];
-  for (var r = 0; r < SIZE; r++) {
-    cells.push(grid[r].map(function (t) { return t ? t.value : 0; }));
-  }
-  return { cells: cells, score: score };
+function showMilestone(v) {
+  milestoneEl.textContent = '✦ ' + v.toLocaleString() + ' 達成！';
+  milestoneEl.classList.remove('show');
+  void milestoneEl.offsetWidth;
+  milestoneEl.classList.add('show');
+  gt(function () { milestoneEl.classList.remove('show'); }, 1500);
 }
-function restore(s) {
-  clearTiles();
-  for (var r = 0; r < SIZE; r++) {
-    for (var c = 0; c < SIZE; c++) {
-      if (s.cells[r][c]) makeTile(r, c, s.cells[r][c], false);
-    }
-  }
-  score = s.score;
-  over = false;
-  lock = false;
-  hideOverlays();
-  layout();
-  updateHud();
-}
-function undo() {
-  if (!history.length || lock) return;
-  restore(history.pop());
-  undoBtn.disabled = true;
-}
-undoBtn.addEventListener('click', undo);
-
-function hideOverlays() {
-  overOverlay.classList.remove('show');
-  winOverlay.classList.remove('show');
-}
-
-/* ---------- Moves ---------- */
-var VEC = [{ r: -1, c: 0 }, { r: 0, c: 1 }, { r: 1, c: 0 }, { r: 0, c: -1 }]; /* up right down left */
-function movesAvailable() {
-  for (var r = 0; r < SIZE; r++) {
-    for (var c = 0; c < SIZE; c++) {
-      var t = grid[r][c];
-      if (!t) return true;
-      if (c < SIZE - 1 && grid[r][c + 1] && grid[r][c + 1].value === t.value) return true;
-      if (r < SIZE - 1 && grid[r + 1][c] && grid[r + 1][c].value === t.value) return true;
-    }
-  }
-  return false;
-}
-function move(dir) {
-  if (lock || over) return;
-  if (won && !keepPlaying && winOverlay.classList.contains('show')) return;
-  var vec = VEC[dir];
-  var prev = snapshot();
-  var moved = false, gained = 0, maxMerge = 0;
-  var mergePairs = [];
-  tiles.forEach(function (t) { t.merged = false; });
-  var rows = [0, 1, 2, 3], cols = [0, 1, 2, 3];
-  if (dir === 2) rows.reverse();
-  if (dir === 1) cols.reverse();
-  for (var ri = 0; ri < rows.length; ri++) {
-    for (var ci = 0; ci < cols.length; ci++) {
-      var r = rows[ri], c = cols[ci];
-      var t = grid[r][c];
-      if (!t) continue;
-      var nr = r, nc = c;
-      for (;;) {
-        var rr = nr + vec.r, cc = nc + vec.c;
-        if (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE || grid[rr][cc]) break;
-        nr = rr; nc = cc;
-      }
-      var ar = nr + vec.r, ac = nc + vec.c;
-      var next = (ar >= 0 && ar < SIZE && ac >= 0 && ac < SIZE) ? grid[ar][ac] : null;
-      if (next && next.value === t.value && !next.merged) {
-        /* merge: t slides onto next, next doubles */
-        grid[r][c] = null;
-        next.merged = true;
-        next.value *= 2;
-        gained += next.value;
-        if (next.value > maxMerge) maxMerge = next.value;
-        t.r = next.r; t.c = next.c;
-        place(t.el, t.r, t.c);
-        t.el.style.zIndex = '1';
-        mergePairs.push({ loser: t, winner: next });
-        tiles.delete(t.id);
-        moved = true;
-      } else if (nr !== r || nc !== c) {
-        grid[r][c] = null;
-        grid[nr][nc] = t;
-        t.r = nr; t.c = nc;
-        place(t.el, t.r, t.c);
-        moved = true;
-      }
-    }
-  }
-  if (!moved) return;
-  lock = true;
-  history = [prev]; /* keep exactly one undo step */
-  undoBtn.disabled = false;
-  sfx.slide();
-  setTimeout(function () {
-    mergePairs.forEach(function (p) {
-      p.loser.el.remove();
-      setTileFace(p.winner);
-      void p.winner.el.offsetWidth;
-      p.winner.el.classList.add('pop');
-    });
-    if (gained > 0) {
-      score += gained;
-      if (score > best) {
-        best = score;
-        localStorage.setItem('lumen_2048_best', String(best));
-      }
-      popup('+' + gained);
-      if (maxMerge >= 256) { sfx.big(); bigGlow(); }
-      else { sfx.merge(maxMerge); }
-    }
-    randomSpawn();
-    updateHud();
-    if (maxMerge >= 2048 && !won) {
-      won = true;
-      celebrate();
-    } else if (!movesAvailable()) {
-      gameOver();
-    }
-    lock = false;
-  }, SLIDE_MS);
-}
-
-/* ---------- Win / lose ---------- */
 function confetti() {
   var colors = ['#4f46e5', '#3b82f6', '#06b6d4', '#8b5cf6', '#22d3ee', '#a78bfa', '#ffffff'];
   for (var i = 0; i < 70; i++) {
@@ -526,55 +585,179 @@ function confetti() {
     (function (el) { setTimeout(function () { el.remove(); }, 1700); })(s);
   }
 }
-function celebrate() {
-  sfx.win();
-  bigGlow();
-  confetti();
-  setTimeout(function () { winOverlay.classList.add('show'); }, 350);
+function hideOverlays() {
+  overOverlay.classList.remove('show');
+  winOverlay.classList.remove('show');
 }
-function gameOver() {
+
+/* ---------- Onboarding tutorial ---------- */
+var tutVisible = lsGet(LS_TUT) !== '1';
+if (tutVisible) tutEl.classList.add('show');
+function dismissTut() {
+  tutVisible = false;
+  tutEl.classList.remove('show');
+  lsSet(LS_TUT, '1');
+}
+
+/* ---------- Invalid-move feedback (throttled) ---------- */
+var lastInvalid = 0;
+var hintTimer = 0;
+function invalidFeedback() {
+  var now = Date.now();
+  if (now - lastInvalid < 450) return;
+  lastInvalid = now;
+  sfx.thud();
+  boardEl.classList.remove('shake');
+  void boardEl.offsetWidth;
+  boardEl.classList.add('shake');
+  moveHintEl.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(function () { moveHintEl.classList.remove('show'); }, 1300);
+}
+
+/* ---------- Animation of a computed move ---------- */
+function animateMove(res, sp) {
+  var old = elGrid;
+  var neu = [];
+  var r, c;
+  for (r = 0; r < SIZE; r++) { neu.push([null, null, null, null]); }
+  var losers = [], winners = [];
+  res.actions.forEach(function (a) {
+    var el = old[a.fr][a.fc];
+    placeEl(el, a.tr, a.tc);
+    if (a.merge) {
+      el.style.zIndex = '1';
+      losers.push(el);
+      winners.push({ r: a.tr, c: a.tc, v: a.value });
+    } else {
+      neu[a.tr][a.tc] = el;
+    }
+  });
+  elGrid = neu;
+  var gained = res.gained, maxMerged = res.maxMerged;
+  later(function () {
+    losers.forEach(function (el) { el.remove(); });
+    winners.forEach(function (w) {
+      var el = neu[w.r][w.c];
+      if (!el) return;
+      setFace(el, w.v);
+      void el.offsetWidth;
+      el.classList.add('pop');
+    });
+    if (sp) neu[sp.r][sp.c] = makeTileEl(sp.r, sp.c, sp.value, true);
+    if (gained > 0) {
+      popup('+' + gained);
+      if (maxMerged >= 256) sfx.big(); else sfx.merge(maxMerged);
+      if (maxMerged >= 128) bigGlow();
+    }
+  }, SLIDE_MS);
+}
+
+/* ---------- The one move entry point (keyboard, swipe, hook) ---------- */
+function attemptMove(dir) {
+  if (!DIRS[dir] || over || winShowing) return false;
+  var res = computeMove(dir);
+  if (!res.changed) {
+    invalidFeedback();
+    return false; /* ineffective move: no spawn, no slide sound */
+  }
+  finishPending(); /* snap any in-flight animation to its final state */
+  undoState = { board: copyBoard(board), score: score };
+  undoBtn.disabled = false;
+  board = res.board;
+  var sp = spawnRandom(board); /* mutates board; always succeeds after an effective move */
+  score += res.gained;
+  if (score > best) {
+    best = score;
+    lsSet(LS_BEST, String(best));
+  }
+  updateHud();
+  sfx.slide();
+  animateMove(res, sp);
+  if (tutVisible) dismissTut();
+  if (res.maxMerged >= 2048 && !won) {
+    won = true;
+    winShowing = true;
+    celebrate();
+  } else if (res.maxMerged >= 256 && res.maxMerged > maxTile) {
+    showMilestone(res.maxMerged);
+  }
+  if (res.maxMerged > maxTile) maxTile = res.maxMerged;
+  if (isGameOver(board)) triggerGameOver();
+  return true;
+}
+
+function celebrate() {
+  gt(function () {
+    sfx.win();
+    bigGlow();
+    confetti();
+  }, SLIDE_MS);
+  gt(function () { winOverlay.classList.add('show'); }, 500);
+}
+function triggerGameOver() {
   over = true;
-  sfx.over();
   document.getElementById('over-score').textContent = score.toLocaleString();
   document.getElementById('over-best').textContent = best.toLocaleString();
-  setTimeout(function () { overOverlay.classList.add('show'); }, 300);
+  gt(function () { sfx.over(); }, SLIDE_MS + 60);
+  gt(function () { overOverlay.classList.add('show'); }, 420);
 }
+
+/* ---------- Undo (1 step) ---------- */
+function undo() {
+  if (!undoState) return;
+  finishPending();
+  clearGameTimers();
+  board = copyBoard(undoState.board);
+  score = undoState.score;
+  undoState = null;
+  undoBtn.disabled = true;
+  over = false;
+  winShowing = false;
+  hideOverlays();
+  rebuildEls();
+  updateHud();
+}
+undoBtn.addEventListener('click', undo);
 
 /* ---------- New game ---------- */
 function newGame() {
-  clearTiles();
+  finishPending();
+  clearGameTimers();
+  hideOverlays();
+  board = emptyBoard();
   score = 0;
   over = false;
   won = false;
-  keepPlaying = false;
-  lock = false;
-  history = [];
+  winShowing = false;
+  maxTile = 0;
+  undoState = null;
   undoBtn.disabled = true;
-  hideOverlays();
+  spawnRandom(board);
+  spawnRandom(board);
   layout();
-  randomSpawn();
-  randomSpawn();
+  rebuildEls();
   updateHud();
 }
 document.getElementById('restart-btn').addEventListener('click', newGame);
 document.getElementById('retry-btn').addEventListener('click', newGame);
 document.getElementById('win-restart-btn').addEventListener('click', newGame);
 document.getElementById('continue-btn').addEventListener('click', function () {
-  keepPlaying = true;
+  winShowing = false;
   winOverlay.classList.remove('show');
 });
 
 /* ---------- Input: keyboard ---------- */
 var KEYMAP = {
-  ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3,
-  w: 0, W: 0, d: 1, D: 1, s: 2, S: 2, a: 3, A: 3
+  ArrowUp: 'up', ArrowRight: 'right', ArrowDown: 'down', ArrowLeft: 'left',
+  w: 'up', W: 'up', d: 'right', D: 'right', s: 'down', S: 'down', a: 'left', A: 'left'
 };
 window.addEventListener('keydown', function (e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   var dir = KEYMAP[e.key];
-  if (dir !== undefined) {
+  if (dir) {
     e.preventDefault();
-    move(dir);
+    attemptMove(dir);
   } else if (e.key === 'u' || e.key === 'U') {
     undo();
   } else if (e.key === 'r' || e.key === 'R') {
@@ -582,7 +765,7 @@ window.addEventListener('keydown', function (e) {
   }
 });
 
-/* ---------- Input: touch swipe ---------- */
+/* ---------- Input: touch / pointer swipe ---------- */
 var swipe = null;
 boardEl.addEventListener('pointerdown', function (e) {
   swipe = { x: e.clientX, y: e.clientY, id: e.pointerId };
@@ -592,10 +775,18 @@ window.addEventListener('pointerup', function (e) {
   var dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
   swipe = null;
   var ax = Math.abs(dx), ay = Math.abs(dy);
-  if (Math.max(ax, ay) < 24) return;
-  move(ax > ay ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0));
+  if (Math.max(ax, ay) < 20) return;
+  attemptMove(ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
 });
 window.addEventListener('pointercancel', function () { swipe = null; });
+
+/* ---------- Test hook (state logic identical to player input) ---------- */
+window.__lumen2048 = {
+  grid: function () { return board.map(function (row) { return row.slice(); }); },
+  move: function (dir) { return attemptMove(dir); },
+  score: function () { return score; },
+  reset: function () { newGame(); }
+};
 
 /* ---------- Boot ---------- */
 buildCells();
