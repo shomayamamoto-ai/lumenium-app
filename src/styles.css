@@ -4784,7 +4784,10 @@ html[data-theme="dark"] .client-chip {
     pointer-events: auto;
   }
 
-  /* Menu item styling */
+  /* Menu item styling.
+     No per-item staggered slide-in: under load the choreography stretched
+     for seconds, showing items at mismatched indents until they settled.
+     Items are always in place — the drawer's own slide is the animation. */
   .nav-links a:not(.nav-cta) {
     display: block;
     padding: 14px 16px;
@@ -4792,32 +4795,15 @@ html[data-theme="dark"] .client-chip {
     font-size: 15px;
     font-weight: 500;
     color: var(--text);
-    transition: background 0.3s var(--ease), color 0.3s var(--ease), transform 0.4s var(--ease);
-    opacity: 0;
-    transform: translateX(20px);
+    transition: background 0.3s var(--ease), color 0.3s var(--ease);
   }
   .nav-links a:not(.nav-cta)::after { display: none; }
   .nav-links a:not(.nav-cta):hover,
   .nav-links a.nav-active {
     background: linear-gradient(90deg, rgba(79,70,229,0.08), transparent);
-    color: #4f46e5;
+    color: #a5b4fc;
   }
-  /* Staggered entrance */
-  .nav-links.active a,
-  .nav-links.active .nav-dropdown {
-    opacity: 1;
-    transform: translateX(0);
-    transition-delay: calc(var(--i, 0) * 50ms + 150ms);
-  }
-  .nav-links a:nth-of-type(1) { --i: 1; }
-  .nav-links a:nth-of-type(2) { --i: 2; }
-  .nav-links a:nth-of-type(3) { --i: 3; }
-  .nav-links a:nth-of-type(4) { --i: 4; }
-  .nav-links a:nth-of-type(5) { --i: 5; }
-  .nav-links a:nth-of-type(6) { --i: 6; }
-  .nav-links a:nth-of-type(7) { --i: 7; }
-  .nav-links .nav-dropdown { --i: 8; opacity: 0; transform: translateX(20px); transition: opacity 0.4s var(--ease), transform 0.5s var(--ease); display: flex; flex-direction: column; width: 100%; }
-  .nav-links a:nth-of-type(9) { --i: 9; }
+  .nav-links .nav-dropdown { display: flex; flex-direction: column; width: 100%; }
 
   /* Mobile: dropdown expands inline inside the drawer (not floating overlay) */
   .nav-links .nav-dropdown-trigger {
