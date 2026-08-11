@@ -82,6 +82,11 @@ export default function Navbar() {
             <span className="nav-logo-tag">散文化した目的に焦点を当てる</span>
           </span>
         </a>
+        <div
+          className={`nav-backdrop ${menuOpen ? 'show' : ''}`}
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
           <a href="#/info" onClick={(e) => handleLinkClick(e, '#/info')}>サービス案内</a>
           <a href="#/info/pain" onClick={(e) => handleLinkClick(e, '#/info/pain')}>お困りごと</a>
