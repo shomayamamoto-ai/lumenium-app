@@ -15,18 +15,16 @@ export default function Positioning() {
 
         <div className="positioning" data-animate data-delay="1">
           <div className="positioning-frame" role="img" aria-label="Lumeniumのポジショニング: 高クオリティ・高コストパフォーマンスの領域に位置する">
-            {/* Axes (SVG for crisp lines + arrowheads) */}
-            <svg className="positioning-axes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              {/* horizontal axis */}
-              <line x1="3" y1="50" x2="97" y2="50" stroke="currentColor" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
-              {/* vertical axis */}
-              <line x1="50" y1="3" x2="50" y2="97" stroke="currentColor" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
-              {/* arrowheads */}
-              <polygon points="97,50 93,47.5 93,52.5" fill="currentColor" />
-              <polygon points="3,50 7,47.5 7,52.5" fill="currentColor" />
-              <polygon points="50,3 47.5,7 52.5,7" fill="currentColor" />
-              <polygon points="50,97 47.5,93 52.5,93" fill="currentColor" />
-            </svg>
+            {/* Axes — CSS lines + fixed-size triangle arrowheads. (The old
+                stretched-SVG polygons distorted and clipped at the edges.) */}
+            <div className="positioning-axes" aria-hidden="true">
+              <span className="paxis-line paxis-line--h" />
+              <span className="paxis-line paxis-line--v" />
+              <span className="paxis-arrow paxis-arrow--left" />
+              <span className="paxis-arrow paxis-arrow--right" />
+              <span className="paxis-arrow paxis-arrow--up" />
+              <span className="paxis-arrow paxis-arrow--down" />
+            </div>
 
             {/* Quadrant: top-left — big agency / production house */}
             <div className="pq pq--tl">

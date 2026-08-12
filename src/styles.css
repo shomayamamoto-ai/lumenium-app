@@ -8120,11 +8120,26 @@ html[data-theme="dark"] .navbar.scrolled {
 .positioning-axes {
   position: absolute;
   inset: clamp(28px, 4.5vw, 56px);
-  width: auto;
-  height: auto;
   pointer-events: none;
   opacity: 0.65;
 }
+.paxis-line {
+  position: absolute;
+  background: currentColor;
+}
+.paxis-line--h { left: 6px; right: 6px; top: 50%; height: 1px; }
+.paxis-line--v { top: 6px; bottom: 6px; left: 50%; width: 1px; }
+/* Crisp fixed-size arrowheads at the four axis ends — never stretched */
+.paxis-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: 6px solid transparent;
+}
+.paxis-arrow--left  { left: -3px;  top: 50%;  transform: translateY(-50%); border-right-color: currentColor; border-left-width: 0; }
+.paxis-arrow--right { right: -3px; top: 50%;  transform: translateY(-50%); border-left-color: currentColor;  border-right-width: 0; }
+.paxis-arrow--up    { top: -3px;   left: 50%; transform: translateX(-50%); border-bottom-color: currentColor; border-top-width: 0; }
+.paxis-arrow--down  { bottom: -3px; left: 50%; transform: translateX(-50%); border-top-color: currentColor;   border-bottom-width: 0; }
 
 /* --- Quadrant cards ---------------------------------------------------- */
 .pq {
