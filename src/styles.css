@@ -8216,14 +8216,17 @@ html[data-theme="dark"] .navbar.scrolled {
   color: var(--text-sub);
   text-transform: none;
 }
+/* Axis names hug their own axis: the X name sits right under the
+   horizontal axis at its 高い end; the Y name runs vertically alongside
+   the vertical axis (writing-mode), textbook chart labeling. */
 .paxis-name--x {
-  bottom: clamp(20px, 3vw, 30px);
-  left: clamp(28px, 4.5vw, 56px);
+  top: calc(50% + 14px);
+  right: clamp(28px, 4.5vw, 56px);
 }
 .paxis-name--y {
-  bottom: clamp(20px, 3vw, 30px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: calc(50% + 34px);
+  top: calc(clamp(48px, 7vw, 78px) + 12px);
+  transform: translateY(-50%);
 }
 
 /* --- Supporting notes below the chart ---------------------------------- */
@@ -8280,8 +8283,8 @@ html[data-theme="dark"] .navbar.scrolled {
   .paxis-chip--left   { left: clamp(22px, 6vw, 32px); }
   .paxis-chip--right  { right: clamp(22px, 6vw, 32px); }
   .paxis-name { font-size: 10.5px; }
-  .paxis-name--x { bottom: 6px; left: 14px; }
-  .paxis-name--y { bottom: 6px; }
+  .paxis-name--x { top: calc(50% + 10px); right: clamp(22px, 6vw, 32px); }
+  .paxis-name--y { right: calc(50% + 26px); top: calc(clamp(22px, 6vw, 32px) + 10px); }
   .positioning-notes { grid-template-columns: 1fr; }
 }
 
