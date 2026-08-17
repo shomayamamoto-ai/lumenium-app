@@ -521,6 +521,46 @@ function shadeCol(hex,amt){
   else { r*=1+amt; g*=1+amt; b*=1+amt; }
   return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
 }
+// vanishing point for pseudo-3D extrusion: field center, slightly above
+var VPX=W/2, VPY=H*0.42;
+function extrudeOff(cx,cy){
+  var dx=cx-VPX, dy=cy-VPY, d=Math.sqrt(dx*dx+dy*dy)||1;
+  var m=Math.max(3,Math.min(8,d*0.03));
+  return {x:dx/d*m, y:dy/d*m};
+}
+// draw the extruded body (back face + visible side/top/bottom quads) of a box
+// whose front face occupies (0,0,w,h) in the CURRENT transform. Front face is
+// drawn by the caller on top of this.
+function extrudeBox(w,h,r,col,o){
+  ctx.fillStyle=shadeCol(col,-0.62);
+  ctx.beginPath(); ctx.roundRect(o.x,o.y,w,h,r); ctx.fill();
+  if(o.x>0.4){ // right side face visible
+    ctx.fillStyle=shadeCol(col,-0.46);
+    ctx.beginPath();
+    ctx.moveTo(w,1); ctx.lineTo(w,h-1);
+    ctx.lineTo(w+o.x,h-1+o.y); ctx.lineTo(w+o.x,1+o.y);
+    ctx.closePath(); ctx.fill();
+  } else if(o.x<-0.4){ // left side face visible
+    ctx.fillStyle=shadeCol(col,-0.40);
+    ctx.beginPath();
+    ctx.moveTo(0,1); ctx.lineTo(0,h-1);
+    ctx.lineTo(o.x,h-1+o.y); ctx.lineTo(o.x,1+o.y);
+    ctx.closePath(); ctx.fill();
+  }
+  if(o.y>0.4){ // bottom face visible (darkest — faces away from light)
+    ctx.fillStyle=shadeCol(col,-0.58);
+    ctx.beginPath();
+    ctx.moveTo(1,h); ctx.lineTo(w-1,h);
+    ctx.lineTo(w-1+o.x,h+o.y); ctx.lineTo(1+o.x,h+o.y);
+    ctx.closePath(); ctx.fill();
+  } else if(o.y<-0.4){ // top face visible (catches light)
+    ctx.fillStyle=shadeCol(col,0.12);
+    ctx.beginPath();
+    ctx.moveTo(1,0); ctx.lineTo(w-1,0);
+    ctx.lineTo(w-1+o.x,o.y); ctx.lineTo(1+o.x,o.y);
+    ctx.closePath(); ctx.fill();
+  }
+}
 var gradCache={};
 function faceGrad(col,h){
   var k=col+'|'+h, g=gradCache[k];
@@ -544,10 +584,13 @@ function drawBrick(br){
   ctx.save();
   ctx.translate(br.x,br.y);
   var w=br.w,h=br.h;
+  var off=extrudeOff(br.x+w/2,br.y+h/2);
   if(br.boss){
     // drop shadow beneath
     ctx.fillStyle='rgba(0,0,0,0.42)';
-    ctx.beginPath(); ctx.roundRect(3,5,w,h,10); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(3+off.x,7+off.y,w,h,10); ctx.fill();
+    // extruded box body toward the vanishing point
+    extrudeBox(w,h,10,'#c22550',off);
     var bg=ctx.createLinearGradient(0,0,w,h);
     bg.addColorStop(0,'#f43f5e'); bg.addColorStop(1,'#a855f7');
     ctx.shadowColor='#f43f5e'; ctx.shadowBlur=18+Math.sin(tick*0.1)*6;
@@ -578,9 +621,11 @@ function drawBrick(br){
     return;
   }
   ctx.globalAlpha=0.35+0.65*(br.hp/br.max);
-  // soft drop shadow for depth
-  ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.roundRect(1.5,3,w,h,5); ctx.fill();
+  // soft drop shadow displaced along the extrusion for grounded depth
+  ctx.fillStyle='rgba(0,0,0,0.32)';
+  ctx.beginPath(); ctx.roundRect(off.x*1.35,off.y*1.35+2,w,h,5); ctx.fill();
+  // extruded box body: side/top faces receding from the vanishing point
+  extrudeBox(w,h,5,br.type==='a'?'#8b95ad':(br.type==='x'?'#fb923c':br.col),off);
   if(br.type==='x'){
     // explosive: keep orange glow pulse, add shaded gradient face
     ctx.shadowColor='#fb923c'; ctx.shadowBlur=9+Math.sin(tick*0.16+br.x*0.05)*5;
@@ -645,6 +690,19 @@ function draw(){
     ctx.moveTo(0,gy); ctx.lineTo(W,gy);
   }
   ctx.stroke();
+  // side walls: subtle 3D rails, wider at the top so the corridor converges upward
+  var railGrad=ctx.createLinearGradient(0,0,0,H);
+  railGrad.addColorStop(0,'rgba(99,102,241,0.30)');
+  railGrad.addColorStop(0.6,'rgba(79,70,229,0.16)');
+  railGrad.addColorStop(1,'rgba(6,182,212,0.08)');
+  ctx.fillStyle=railGrad;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(9,0); ctx.lineTo(4,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W-9,0); ctx.lineTo(W-4,H); ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(165,180,252,0.32)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(9,0); ctx.lineTo(4,H);
+  ctx.moveTo(W-9,0); ctx.lineTo(W-4,H);
+  ctx.stroke();
   // bricks
   bricks.forEach(drawBrick);
   // laser bolts
@@ -654,6 +712,26 @@ function draw(){
     ctx.fillRect(bo.x-2,bo.y,4,16);
     ctx.shadowBlur=0;
   });
+  // faint floor reflection: mirrored paddle + balls below the paddle line
+  var floorY=paddle.y+paddle.h;
+  var prg=ctx.createLinearGradient(0,floorY+3,0,floorY+3+paddle.h*2.2);
+  prg.addColorStop(0,'rgba(99,131,235,0.15)');
+  prg.addColorStop(1,'rgba(99,131,235,0)');
+  ctx.fillStyle=prg;
+  ctx.beginPath();
+  ctx.roundRect(paddle.x-paddle.w/2,floorY+3,paddle.w,paddle.h*2.2,7);
+  ctx.fill();
+  balls.forEach(function(b){
+    if(b.y>=floorY) return;
+    var ry=2*floorY-b.y+6;
+    var fa=Math.max(0,1-(ry-floorY)/70)*0.11;
+    if(fa<=0.006||ry>H+10) return;
+    var brg=ctx.createRadialGradient(b.x,ry,0,b.x,ry,b.r*1.25);
+    brg.addColorStop(0,'rgba(190,229,255,'+fa.toFixed(3)+')');
+    brg.addColorStop(1,'rgba(190,229,255,0)');
+    ctx.fillStyle=brg;
+    ctx.beginPath(); ctx.arc(b.x,ry,b.r*1.25,0,Math.PI*2); ctx.fill();
+  });
   // paddle: soft shadow below, metallic body, top highlight strip
   ctx.save();
   ctx.translate(paddle.x,paddle.y+paddle.h+9); ctx.scale(1,0.28);
@@ -661,6 +739,11 @@ function draw(){
   psg.addColorStop(0,'rgba(0,0,0,0.5)'); psg.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=psg;
   ctx.beginPath(); ctx.arc(0,0,paddle.w*0.62,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // extruded slab: dark back face + visible front-bottom face
+  ctx.save();
+  ctx.translate(paddle.x-paddle.w/2,paddle.y);
+  extrudeBox(paddle.w,paddle.h,7,'#4358cc',extrudeOff(paddle.x,paddle.y+paddle.h/2));
   ctx.restore();
   var pg=ctx.createLinearGradient(paddle.x-paddle.w/2,0,paddle.x+paddle.w/2,0);
   pg.addColorStop(0,'#4f46e5'); pg.addColorStop(1,'#06b6d4');
@@ -725,6 +808,19 @@ function draw(){
     ctx.shadowBlur=0;
     ctx.fillStyle='rgba(255,255,255,0.85)';
     ctx.beginPath(); ctx.arc(b.x-b.r*0.35,b.y-b.r*0.42,b.r*0.22,0,Math.PI*2); ctx.fill();
+    // brighter moving specular streak sweeping across the upper hemisphere
+    ctx.save();
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.clip();
+    var sa=tick*0.16+b.x*0.04;
+    ctx.globalAlpha=0.5+0.3*Math.sin(tick*0.27+b.y*0.03);
+    ctx.translate(b.x+Math.cos(sa)*b.r*0.34,b.y-b.r*0.18);
+    ctx.rotate(-0.55);
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(0,0,b.r*0.58,b.r*0.15,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha=1;
   });
   // caps (beveled pill with gloss)
   caps.forEach(function(c){
