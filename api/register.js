@@ -51,13 +51,14 @@ export async function POST(req) {
   const { token, maxAge } = await issueSession(false)
 
   // Best-effort side effects — registration must succeed even if these fail.
+  const memberCode = process.env.MEMBER_CODE || 'LUMEN2026'
+  let mailed = false
   const apiKey = process.env.RESEND_API_KEY
   if (apiKey) {
     // Persist the lead into the Resend audience (member list page reads this).
     await addContact(apiKey, { name, email, company }).catch((err) =>
       console.error('[api/register] addContact failed', err)
     )
-    const memberCode = process.env.MEMBER_CODE || 'LUMEN2026'
     const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
     const owner = process.env.CONTACT_TO_EMAIL || 'shoma.yamamoto@lumenium.net'
     const send = (body) =>
@@ -66,8 +67,10 @@ export async function POST(req) {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }).catch((err) => console.error('[api/register] mail error', err))
-    // Welcome mail with the member code (to the registrant)
-    await send({
+    // Welcome mail with the member code (to the registrant).
+    // NOTE: with the resend.dev sandbox sender this only delivers to the
+    // Resend account owner — track success so the page can show the code.
+    const wRes = await send({
       from,
       to: [email],
       subject: '【Lumenium】会員登録が完了しました',
@@ -79,6 +82,8 @@ export async function POST(req) {
         `※このメールに心当たりがない場合は破棄してください。\n\n` +
         `Lumenium — 散文化した目的に、焦点を当てる。\nhttps://lumenium.net`,
     })
+    mailed = !!(wRes && wRes.ok)
+    if (!mailed) console.error('[api/register] welcome mail failed', wRes && wRes.status)
     // Lead notification (to the owner)
     await send({
       from,
@@ -95,7 +100,9 @@ export async function POST(req) {
   const base = `Path=/; Max-Age=${maxAge}; SameSite=Lax; Secure`
   headers.append('Set-Cookie', `lum_session=${token}; ${base}; HttpOnly`)
   headers.append('Set-Cookie', `lum_member=1; ${base}`)
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
+  // Return the code so the page can ALWAYS hand it to the registrant
+  // on-screen — email is a best-effort second channel.
+  return new Response(JSON.stringify({ ok: true, mailed, code: memberCode }), { status: 200, headers })
 }
 
 function json(body, status) {

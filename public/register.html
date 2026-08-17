@@ -158,6 +158,21 @@
       });
       var data = await res.json().catch(function () { return {}; });
       if (res.ok && data.ok === true) {
+        // Always hand the member code over ON-SCREEN — the email is only a
+        // second channel and may not deliver (e.g. sandbox sender limits).
+        if (data.code) {
+          document.querySelector('h1').textContent = '登録完了！';
+          document.querySelector('.desc').textContent = 'ようこそ、Lumenium会員へ！';
+          var mailNote = data.mailed
+            ? '同じ内容を確認メールでもお送りしました。'
+            : '※確認メールを送信できなかったため、必ずこのコードをお控えください。';
+          form.outerHTML = '<div style="text-align:center">' +
+            '<p style="font-size:13px;color:#abb5cb;margin-bottom:10px">次回ログイン用の会員コード</p>' +
+            '<div style="font-size:22px;font-weight:800;letter-spacing:0.06em;background:#1a2038;border:1px dashed #5a628a;border-radius:12px;padding:14px;margin-bottom:10px;color:#67e8f9">' + data.code + '</div>' +
+            '<p style="font-size:11.5px;color:#abb5cb;line-height:1.7;margin-bottom:18px">' + mailNote + '</p>' +
+            '<a href="' + dest + '" style="display:block;background:linear-gradient(135deg,#4f46e5,#3b82f6,#06b6d4);color:#fff;border-radius:10px;padding:14px;font-weight:700;text-decoration:none">ゲームで遊ぶ →</a></div>';
+          return;
+        }
         location.replace(dest);
         return;
       }
