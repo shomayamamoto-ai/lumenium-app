@@ -2,37 +2,18 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import Splash from './components/Splash'
 import Navbar from './components/Navbar'
 import SearchHome from './components/SearchHome'
-import Hero from './components/Hero'
-import TrustStrip from './components/TrustStrip'
-import Stats from './components/Stats'
-import ServicesIntro from './components/ServicesIntro'
-import Why from './components/Why'
-import Banner from './components/Banner'
-import BrandStory from './components/BrandStory'
-import Positioning from './components/Positioning'
-import Services from './components/Services'
-import Results from './components/Results'
-import PricingSimulator from './components/PricingSimulator'
-import Testimonials from './components/Testimonials'
-import Flow from './components/Flow'
-import FAQ from './components/FAQ'
-import Profile from './components/Profile'
-import ContactForm from './components/ContactForm'
-import SocialShare from './components/SocialShare'
-import Company from './components/Company'
-import CTA from './components/CTA'
-import Footer from './components/Footer'
 import GlobalParticles from './components/GlobalParticles'
 import LumenCursor from './components/LumenCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import NetworkStatus from './components/NetworkStatus'
-import SkeletonSection from './components/Skeleton'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { events } from './lib/analytics'
 import { initWebVitals } from './lib/webVitals'
 
-// Lazy-loaded: heavy + below-the-fold or on-demand components
-const Blog = lazy(() => import('./components/Blog'))
+// Lazy-loaded: the whole サービス案内 page ships as its own chunk so the
+// search home stays light; it is prefetched on idle below so navigating
+// to it is still instant. ChatWidget/Privacy stay on-demand.
+const InfoPage = lazy(() => import('./components/InfoPage'))
 const ChatWidget = lazy(() => import('./components/ChatWidget'))
 const Privacy = lazy(() => import('./components/Privacy'))
 
@@ -67,9 +48,27 @@ export default function App() {
   const isInfo = !!infoMatch
   const infoSection = infoMatch?.[1] || ''
 
+  // Set when the lazy InfoPage chunk has actually mounted — observers and
+  // section-scrolling must wait for the real DOM, not the Suspense fallback.
+  const [infoMounted, setInfoMounted] = useState(false)
+  useEffect(() => {
+    if (!isInfo) setInfoMounted(false)
+  }, [isInfo])
+
+  // Prefetch the info chunk while the browser is idle so the first
+  // navigation to サービス案内 is instant despite the code split.
+  useEffect(() => {
+    if (phase !== 2) return
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 1200))
+    const cic = window.cancelIdleCallback || clearTimeout
+    const id = ric(() => import('./components/InfoPage'), { timeout: 4000 })
+    return () => cic(id)
+  }, [phase])
+
   // On route change: jump to the requested section (info) or back to top (home)
   useEffect(() => {
     if (phase !== 2) return
+    if (isInfo && !infoMounted) return // wait for the lazy chunk's DOM
     if (isInfo && infoSection) {
       requestAnimationFrame(() => {
         const el = document.getElementById(infoSection)
@@ -81,7 +80,7 @@ export default function App() {
     } else {
       window.scrollTo({ top: 0 })
     }
-  }, [route, phase, isInfo, infoSection])
+  }, [route, phase, isInfo, infoSection, infoMounted])
 
   const handleSplashComplete = useCallback(() => {
     setPhase(2) // Skip the old PR-video interstitial — go straight to the page
@@ -362,8 +361,9 @@ export default function App() {
       progressBar.remove()
       topBtn.remove()
     }
-    // Re-run when the view switches so observers rebind to the new DOM
-  }, [pageReady, isInfo])
+    // Re-run when the view switches (and once the lazy info DOM exists)
+    // so observers rebind to the new DOM
+  }, [pageReady, isInfo, infoMounted])
 
   return (
     <ErrorBoundary>
@@ -374,32 +374,12 @@ export default function App() {
         <div id="main" className={pageReady ? 'page-enter' : ''}>
           <Navbar />
           {isInfo ? (
-            // サービス案内 — everything that used to live on the top page
-            <>
-              <Hero />
-              <TrustStrip />
-              <Stats />
-              <Why />
-              <BrandStory />
-              <Positioning />
-              <Banner />
-              <ServicesIntro />
-              <Services />
-              <Results />
-              <PricingSimulator />
-              <Testimonials />
-              <Flow />
-              <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
-                <Blog />
-              </Suspense>
-              <FAQ />
-              <Profile />
-              <Company />
-              <ContactForm />
-              <CTA />
-              <div className="container"><SocialShare /></div>
-              <Footer onPrivacy={() => setShowPrivacy(true)} />
-            </>
+            <Suspense fallback={<div className="info-loading" aria-label="読み込み中" />}>
+              <InfoPage
+                onPrivacy={() => setShowPrivacy(true)}
+                onMounted={() => setInfoMounted(true)}
+              />
+            </Suspense>
           ) : (
             // Google-style minimal home
             <SearchHome />
