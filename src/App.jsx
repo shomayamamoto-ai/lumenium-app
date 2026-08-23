@@ -205,7 +205,13 @@ export default function App() {
       if (!href || href === '#' || href.startsWith('#/')) return
       let target = null
       try { target = document.querySelector(href) } catch { return }
-      if (!target) return
+      if (!target) {
+        // Legacy in-page anchor whose section isn't on this (solo) page:
+        // route to it instead of dying silently.
+        e.preventDefault()
+        window.location.hash = href === '#top' ? '' : '#/info/' + href.slice(1)
+        return
+      }
       e.preventDefault()
       const y = target.getBoundingClientRect().top + window.scrollY - 80
       window.scrollTo({ top: y, behavior: 'smooth' })
@@ -361,9 +367,9 @@ export default function App() {
       progressBar.remove()
       topBtn.remove()
     }
-    // Re-run when the view switches (and once the lazy info DOM exists)
-    // so observers rebind to the new DOM
-  }, [pageReady, isInfo, infoMounted])
+    // Re-run when the view or the solo section switches (and once the lazy
+    // info DOM exists) so observers rebind to the new DOM
+  }, [pageReady, isInfo, infoMounted, infoSection])
 
   return (
     <ErrorBoundary>
@@ -376,6 +382,7 @@ export default function App() {
           {isInfo ? (
             <Suspense fallback={<div className="info-loading" aria-label="読み込み中" />}>
               <InfoPage
+                section={infoSection}
                 onPrivacy={() => setShowPrivacy(true)}
                 onMounted={() => setInfoMounted(true)}
               />

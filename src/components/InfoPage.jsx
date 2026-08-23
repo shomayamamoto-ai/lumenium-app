@@ -24,14 +24,47 @@ import SkeletonSection from './Skeleton'
 
 const Blog = lazy(() => import('./Blog'))
 
-// サービス案内 — everything that used to live on the top page.
-// Split into its own chunk so the search home ships a much smaller bundle;
-// App prefetches this chunk on idle, keeping the transition instant.
-export default function InfoPage({ onPrivacy, onMounted }) {
+// サービス案内 — split into its own chunk (App prefetches it on idle).
+// With a `section`, ONLY that section renders as a standalone page —
+// menu picks show just the chosen content, nothing above or below.
+// Without one (#/info), the full overview page renders as before.
+export default function InfoPage({ section = '', onPrivacy, onMounted }) {
   // Signal App that the lazy chunk has mounted so scroll observers rebind
   useEffect(() => {
     onMounted?.()
   }, [onMounted])
+
+  const blog = (
+    <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
+      <Blog />
+    </Suspense>
+  )
+
+  const SOLO = {
+    news: <News />,
+    pain: <Why />,
+    story: <BrandStory />,
+    positioning: <Positioning />,
+    services: <><ServicesIntro /><Services /></>,
+    results: <Results />,
+    pricing: <PricingSimulator />,
+    testimonials: <Testimonials />,
+    flow: <Flow />,
+    blog,
+    faq: <FAQ />,
+    about: <Profile />,
+    company: <Company />,
+    'contact-form': <ContactForm />,
+  }
+
+  if (section && SOLO[section]) {
+    return (
+      <>
+        <div className="solo-page">{SOLO[section]}</div>
+        <Footer onPrivacy={onPrivacy} />
+      </>
+    )
+  }
 
   return (
     <>

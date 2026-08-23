@@ -8442,3 +8442,6 @@ html[data-theme="dark"] .navbar.scrolled {
   .news-item { flex-direction: column; gap: 4px; }
   .news-date { width: auto; }
 }
+
+/* Solo section pages (hamburger picks): clear the fixed navbar */
+.solo-page { padding-top: 72px; min-height: 60vh; }
