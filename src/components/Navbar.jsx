@@ -89,6 +89,7 @@ export default function Navbar() {
         />
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
           <a href="#/info" onClick={(e) => handleLinkClick(e, '#/info')}>サービス案内</a>
+          <a href="#/info/news" onClick={(e) => handleLinkClick(e, '#/info/news')}>お知らせ</a>
           <a href="#/info/pain" onClick={(e) => handleLinkClick(e, '#/info/pain')}>お困りごと</a>
           <a href="#/info/services" onClick={(e) => handleLinkClick(e, '#/info/services')}>サービス</a>
           <a href="#/info/pricing" onClick={(e) => handleLinkClick(e, '#/info/pricing')}>料金</a>

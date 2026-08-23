@@ -46,6 +46,12 @@
       ]
     },
     {
+      "source": "/news.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store" }
+      ]
+    },
+    {
       "source": "/intro.mp4",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=604800" }

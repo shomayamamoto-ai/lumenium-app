@@ -139,6 +139,28 @@
         <div class="empty" id="empty" style="display:none">まだ登録がありません。</div>
       </div>
     </div>
+
+    <div class="panel" id="news-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📰 お知らせ投稿</h2>
+      <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。</p>
+      <form id="news-form">
+        <label for="news-title" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">タイトル（必須・80文字まで）</label>
+        <input type="text" id="news-title" maxlength="80" required
+          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px">
+        <label for="news-body" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">本文（任意・600文字まで）</label>
+        <textarea id="news-body" maxlength="600" rows="3"
+          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px"></textarea>
+        <label for="news-link" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">リンク（任意・https://〜 または /〜）</label>
+        <input type="text" id="news-link" maxlength="300"
+          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:14px">
+        <button type="submit" id="news-btn">投稿する</button>
+      </form>
+      <p class="msg" id="news-msg" style="margin-top:12px"></p>
+      <div style="margin-top:18px">
+        <h3 style="font-size:12px;letter-spacing:0.1em;color:var(--sub);font-weight:700;margin-bottom:8px">掲載中のお知らせ</h3>
+        <ul id="news-items" style="list-style:none;margin:0;padding:0"></ul>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -285,8 +307,92 @@ function buildXlsx(rows) {
     document.getElementById('open-view').href = viewUrl;
     keyPanel.style.display = 'none';
     listView.style.display = 'block';
+    document.getElementById('news-admin').style.display = 'block';
+    loadNews();
     return true;
   }
+
+  /* ---- News admin ---- */
+  var newsMsg = document.getElementById('news-msg');
+  function newsSay(text, isInfo) {
+    newsMsg.textContent = text;
+    newsMsg.classList.add('show');
+    newsMsg.classList.toggle('info', !!isInfo);
+  }
+  function renderNews(items) {
+    var ul = document.getElementById('news-items');
+    ul.textContent = '';
+    if (!items.length) {
+      var li0 = document.createElement('li');
+      li0.style.cssText = 'font-size:12.5px;color:var(--sub);padding:8px 0';
+      li0.textContent = 'まだお知らせはありません。';
+      ul.appendChild(li0);
+      return;
+    }
+    items.forEach(function (n) {
+      var li = document.createElement('li');
+      li.style.cssText = 'display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
+      var d = document.createElement('span');
+      d.style.cssText = 'color:#93c5fd;flex-shrink:0;font-size:12px';
+      d.textContent = n.date || '';
+      var t = document.createElement('span');
+      t.style.cssText = 'flex:1;color:var(--text)';
+      t.textContent = n.title || '';
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'ghost';
+      del.style.cssText = 'padding:5px 10px;font-size:11.5px';
+      del.textContent = '削除';
+      del.onclick = function () {
+        if (!confirm('「' + (n.title || '') + '」を削除しますか？')) return;
+        newsPost({ action: 'delete', id: n.id }, del);
+      };
+      li.appendChild(d); li.appendChild(t); li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
+  function loadNews() {
+    fetch('/news.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (d) { renderNews(Array.isArray(d) ? d : []); })
+      .catch(function () { renderNews([]); });
+  }
+  function newsPost(payload, btn) {
+    var key = sessionStorage.getItem('lum_admin_key') || '';
+    if (btn) btn.disabled = true;
+    newsMsg.classList.remove('show');
+    fetch('/api/news-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { r: r, d: d }; }); })
+      .then(function (x) {
+        if (x.r.ok && x.d.ok === true) {
+          newsSay(x.d.message || '保存しました。', true);
+          renderNews(x.d.items || []);
+          if (payload.action === 'add') {
+            document.getElementById('news-title').value = '';
+            document.getElementById('news-body').value = '';
+            document.getElementById('news-link').value = '';
+          }
+        } else {
+          newsSay(x.d.message || '保存に失敗しました。');
+        }
+        if (btn) btn.disabled = false;
+      })
+      .catch(function () { newsSay('通信に失敗しました。'); if (btn) btn.disabled = false; });
+  }
+  document.getElementById('news-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = document.getElementById('news-title').value.trim();
+    if (!title) { newsSay('タイトルを入力してください。'); return; }
+    newsPost({
+      action: 'add',
+      title: title,
+      body: document.getElementById('news-body').value.trim(),
+      link: document.getElementById('news-link').value.trim()
+    }, document.getElementById('news-btn'));
+  });
 
   function fmtDate(iso) {
     if (!iso) return '';

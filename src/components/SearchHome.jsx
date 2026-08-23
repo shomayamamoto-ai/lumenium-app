@@ -26,6 +26,7 @@ const TOPIC_ROUTES = [
   { re: /会社|概要|運営|代表/i, hash: '#/info/company' },
   { re: /問い合わせ|相談|連絡|コンタクト/i, hash: '#/info/contact-form' },
   { re: /ブログ|記事|コラム/i, hash: '#/info/blog' },
+  { re: /お知らせ|ニュース|新着/i, hash: '#/info/news' },
   { re: /サービス|動画|映像|AI|SNS|LINE|Web|HP|LP|アプリ|ロゴ|キャスト|制作|研修/i, hash: '#/info/services' },
 ]
 

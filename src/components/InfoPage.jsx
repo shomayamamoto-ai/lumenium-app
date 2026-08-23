@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense } from 'react'
 import Hero from './Hero'
+import News from './News'
 import TrustStrip from './TrustStrip'
 import Stats from './Stats'
 import ServicesIntro from './ServicesIntro'
@@ -35,6 +36,7 @@ export default function InfoPage({ onPrivacy, onMounted }) {
   return (
     <>
       <Hero />
+      <News />
       <TrustStrip />
       <Stats />
       <Why />
