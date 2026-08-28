@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNS動画の「最初の3秒」で離脱を防ぐ設計 | Lumenium ブログ</title>
+<meta name="description" content="スマホ縦型動画で視聴維持率を上げるフック設計のコツ。">
+<link rel="canonical" href="https://lumenium.net/blog/post-8.html">
+<meta property="og:title" content="SNS動画の「最初の3秒」で離脱を防ぐ設計 | Lumenium ブログ">
+<meta property="og:description" content="スマホ縦型動画で視聴維持率を上げるフック設計のコツ。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://lumenium.net/blog/post-8.html">
+<meta property="og:image" content="https://lumenium.net/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"SNS動画の「最初の3秒」で離脱を防ぐ設計","description":"スマホ縦型動画で視聴維持率を上げるフック設計のコツ。","datePublished":"2026-04-15","inLanguage":"ja-JP","author":{"@type":"Organization","name":"Lumenium","url":"https://lumenium.net"},"publisher":{"@id":"https://lumenium.net/#organization"},"mainEntityOfPage":"https://lumenium.net/blog/post-8.html"}</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#171c33; --card:#262c4a; --border:#424a6b; --text:#f5f7fb; --sub:#abb5cb;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#3b82f6 50%,#06b6d4 100%); }
+body { background:
+  radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
+  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  line-height:2; }
+.wrap { max-width:720px; margin:0 auto; padding:48px 22px 64px; }
+header a { color:var(--sub); text-decoration:none; font-size:13px; }
+header a:hover { color:var(--text); }
+.eyebrow { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.3em; color:#818cf8; }
+h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.015em; line-height:1.45; margin:10px 0 8px;
+  background:linear-gradient(135deg,#f5f7fb 30%,#a5b4fc 70%,#67e8f9 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.meta { font-size:12.5px; color:#93c5fd; margin-bottom:30px; }
+article h2 { font-size:18px; font-weight:700; margin:34px 0 12px; padding-left:12px; border-left:3px solid #4f46e5; }
+article h3 { font-size:15.5px; font-weight:700; margin:24px 0 10px; color:#c7d2fe; }
+article p { font-size:14.5px; color:var(--sub); margin-bottom:14px; }
+article ul { list-style:none; margin:0 0 16px; }
+article li { padding:7px 0 7px 24px; position:relative; font-size:14px; color:var(--sub); }
+article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.cta { display:flex; gap:12px; flex-wrap:wrap; margin:40px 0 8px; }
+.cta a { flex:1; min-width:200px; text-align:center; padding:15px 20px; border-radius:12px;
+  font-weight:700; font-size:14.5px; text-decoration:none; }
+.cta .primary { background:var(--grad); color:#fff; }
+.cta .ghost { border:1px solid var(--border); color:var(--sub); }
+.cta .ghost:hover { color:var(--text); border-color:#5a628a; }
+.list { list-style:none; }
+.list li { padding:14px 4px; border-bottom:1px solid rgba(255,255,255,.07); }
+.list time { font-size:12px; color:#93c5fd; display:block; margin-bottom:2px; }
+.list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
+.list a:hover { color:#a5b4fc; }
+.list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.qa { margin-bottom:8px; }
+.qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
+.qa dd { font-size:14px; color:var(--sub); }
+.group { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.25em; color:#818cf8; }
+footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
+  font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
+footer a { color:var(--sub); text-decoration:none; }
+footer a:hover { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="/">← Lumenium トップへ</a></header>
+  <p class="eyebrow">LUMENIUM BLOG</p>
+
+  <h1>SNS動画の「最初の3秒」で離脱を防ぐ設計</h1>
+  <p class="meta"><time datetime="2026-04-15">2026.04.15</time> ・ 動画制作</p>
+  <article>
+<h2>はじめに</h2>
+<p>TikTokやInstagramリール、YouTube Shortsなど、縦型動画のフィードは指一本でどこまでもスクロールできてしまいます。最初の3秒で「続きが気になる」と思わせられなければ、あとから何を見せても読んでもらえません。</p>
+<p>Lumeniumで制作している動画案件でも、冒頭の設計に一番時間をかけています。この記事では、実際に意識しているフック設計のポイントを共有します。</p>
+<h2>1. 「結論を見せる」か「疑問を投げる」かを選ぶ</h2>
+<p>冒頭の型は大きく2パターンあります。</p>
+<ul>
+<li>**結論先出し型**:「このやり方で月商が2倍になりました」など、成果を最初に見せる</li>
+<li>**疑問提示型**:「なぜ、開店3ヶ月の店が満席なのか?」と問いを投げる</li>
+</ul>
+<p>サービスや店舗の信頼感を伝えたいなら結論先出し、コンテンツ系で引き込みたいなら疑問提示が向いています。</p>
+<h2>2. 動きは「画面の大きな変化」を1秒以内に</h2>
+<p>スクロール中の視聴者の目は、色・輪郭・動きの「変化量」に反応します。</p>
+<ul>
+<li>カメラワークで人物が大きく寄る</li>
+<li>テロップが画面いっぱいに現れる</li>
+<li>シーンが2〜3回短く切り替わる</li>
+</ul>
+<p>このどれかが1秒以内に起きるだけで、スクロールが止まる確率は大きく上がります。</p>
+<h2>3. 音声より「テロップ」で先に伝える</h2>
+<p>スマホのフィードは音声オフで見られることがほとんどです。</p>
+<p>冒頭のセリフは、必ず大きめのテロップで補強します。テロップのフォントサイズ・色・位置も「3秒で読める量」に制限し、情報を詰めすぎないのがコツです。</p>
+<h2>4. フォーマット化して量産する</h2>
+<p>一度うまくいった冒頭の型は、テンプレート化して別動画でも使い回せます。</p>
+<p>「冒頭5秒は型、中盤10秒で本題、ラスト5秒でCTA」という骨組みを決めておくだけで、企画のブレや無駄なリテイクが減ります。</p>
+<h2>まとめ</h2>
+<p>最初の3秒は、動画の命綱です。</p>
+<p>Lumeniumでは、企画から撮影・編集・投稿まで一気通貫で支援しています。「うちのサービスならどう設計するか」と気になった方は、お気軽にご相談ください。</p>
+
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/services/video.html">関連サービスを見る</a>
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
+  <ul class="list">
+    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
+    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
+    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
+    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+  </ul>
+  <footer>
+    <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
+    <a href="/">lumenium.net</a>
+    <a href="/blog/index.html">ブログ</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+  </footer>
+</div>
+</body>
+</html>

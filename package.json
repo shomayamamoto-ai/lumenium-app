@@ -10,7 +10,7 @@
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
     "deploy:logs": "vercel logs --follow",
-    "prebuild": "node scripts/build-service-pages.mjs"
+    "prebuild": "node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs"
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0",

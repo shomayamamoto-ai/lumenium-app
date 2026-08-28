@@ -3,65 +3,149 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/members/arena", "destination": "/api/members-game" },
-    { "source": "/members/puzzle", "destination": "/api/members-puzzle" },
-    { "source": "/game.html", "destination": "/game.html" },
-    { "source": "/racing.html", "destination": "/racing.html" },
-    { "source": "/runner.html", "destination": "/runner.html" },
-    { "source": "/specified-commerce.html", "destination": "/specified-commerce.html" },
-    { "source": "/404.html", "destination": "/404.html" },
-    { "source": "/fix.html", "destination": "/fix.html" },
-    { "source": "/services/(.*)", "destination": "/services/$1" },
-    { "source": "/login.html", "destination": "/login.html" },
-    { "source": "/register.html", "destination": "/register.html" },
-    { "source": "/admin-members.html", "destination": "/admin-members.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/members/arena",
+      "destination": "/api/members-game"
+    },
+    {
+      "source": "/members/puzzle",
+      "destination": "/api/members-puzzle"
+    },
+    {
+      "source": "/game.html",
+      "destination": "/game.html"
+    },
+    {
+      "source": "/racing.html",
+      "destination": "/racing.html"
+    },
+    {
+      "source": "/runner.html",
+      "destination": "/runner.html"
+    },
+    {
+      "source": "/specified-commerce.html",
+      "destination": "/specified-commerce.html"
+    },
+    {
+      "source": "/404.html",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/fix.html",
+      "destination": "/fix.html"
+    },
+    {
+      "source": "/services/(.*)",
+      "destination": "/services/$1"
+    },
+    {
+      "source": "/login.html",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/register.html",
+      "destination": "/register.html"
+    },
+    {
+      "source": "/admin-members.html",
+      "destination": "/admin-members.html"
+    },
+    {
+      "source": "/blog/(.*)",
+      "destination": "/blog/$1"
+    },
+    {
+      "source": "/news.html",
+      "destination": "/news.html"
+    },
+    {
+      "source": "/faq.html",
+      "destination": "/faq.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
       ]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/(index\\.html)?",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=0, must-revalidate"
+        }
       ]
     },
     {
       "source": "/(404|game|racing|runner|specified-commerce|fix|login|register|admin-members)\\.html",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store"
+        }
       ]
     },
     {
       "source": "/news.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store"
+        }
       ]
     },
     {
       "source": "/intro.mp4",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=604800" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
       ]
     },
     {
       "source": "/favicon.svg",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=604800" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
       ]
     }
   ]

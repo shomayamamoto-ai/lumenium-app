@@ -39,3 +39,5 @@ User-agent: MJ12bot
 Disallow: /
 
 Sitemap: https://lumenium.net/sitemap.xml
+
+Sitemap: https://lumenium.net/sitemap-content.xml

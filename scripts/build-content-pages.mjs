@@ -1,0 +1,279 @@
+// Generates statically indexable content pages:
+//   /blog/post-<id>.html  (Article JSON-LD, one per article)
+//   /blog/index.html      (article hub)
+//   /news.html            (from public/news.json — refreshes every build,
+//                          so each news post republishes it automatically)
+//   /faq.html             (FAQPage JSON-LD)
+//   /sitemap-content.xml  (all of the above; referenced from robots.txt)
+// Run via `npm run build` (prebuild) or directly.
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { articles } from '../src/data/articles.js'
+import { FAQ_GROUPS } from '../src/data/faq.js'
+
+const SITE = 'https://lumenium.net'
+const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const isoDate = (d) => String(d || '').replace(/\./g, '-')
+
+// Category → related service page
+const SVC = { 'AI活用': 'ai', 'SNS運用': 'sns', '動画制作': 'video', 'Web制作': 'web', 'LINE活用': 'sns' }
+
+// Tiny markdown-lite → HTML (##, ###, "- " lists, paragraphs)
+function md(src) {
+  const lines = String(src).split('\n')
+  let html = ''
+  let inList = false
+  const closeList = () => { if (inList) { html += '</ul>\n'; inList = false } }
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) { closeList(); continue }
+    if (line.startsWith('### ')) { closeList(); html += `<h3>${esc(line.slice(4))}</h3>\n`; continue }
+    if (line.startsWith('## ')) { closeList(); html += `<h2>${esc(line.slice(3))}</h2>\n`; continue }
+    if (line.startsWith('- ')) {
+      if (!inList) { html += '<ul>\n'; inList = true }
+      html += `<li>${esc(line.slice(2))}</li>\n`
+      continue
+    }
+    closeList()
+    html += `<p>${esc(line)}</p>\n`
+  }
+  closeList()
+  return html
+}
+
+const STYLE = `
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#171c33; --card:#262c4a; --border:#424a6b; --text:#f5f7fb; --sub:#abb5cb;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#3b82f6 50%,#06b6d4 100%); }
+body { background:
+  radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
+  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  line-height:2; }
+.wrap { max-width:720px; margin:0 auto; padding:48px 22px 64px; }
+header a { color:var(--sub); text-decoration:none; font-size:13px; }
+header a:hover { color:var(--text); }
+.eyebrow { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.3em; color:#818cf8; }
+h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.015em; line-height:1.45; margin:10px 0 8px;
+  background:linear-gradient(135deg,#f5f7fb 30%,#a5b4fc 70%,#67e8f9 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.meta { font-size:12.5px; color:#93c5fd; margin-bottom:30px; }
+article h2 { font-size:18px; font-weight:700; margin:34px 0 12px; padding-left:12px; border-left:3px solid #4f46e5; }
+article h3 { font-size:15.5px; font-weight:700; margin:24px 0 10px; color:#c7d2fe; }
+article p { font-size:14.5px; color:var(--sub); margin-bottom:14px; }
+article ul { list-style:none; margin:0 0 16px; }
+article li { padding:7px 0 7px 24px; position:relative; font-size:14px; color:var(--sub); }
+article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.cta { display:flex; gap:12px; flex-wrap:wrap; margin:40px 0 8px; }
+.cta a { flex:1; min-width:200px; text-align:center; padding:15px 20px; border-radius:12px;
+  font-weight:700; font-size:14.5px; text-decoration:none; }
+.cta .primary { background:var(--grad); color:#fff; }
+.cta .ghost { border:1px solid var(--border); color:var(--sub); }
+.cta .ghost:hover { color:var(--text); border-color:#5a628a; }
+.list { list-style:none; }
+.list li { padding:14px 4px; border-bottom:1px solid rgba(255,255,255,.07); }
+.list time { font-size:12px; color:#93c5fd; display:block; margin-bottom:2px; }
+.list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
+.list a:hover { color:#a5b4fc; }
+.list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.qa { margin-bottom:8px; }
+.qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
+.qa dd { font-size:14px; color:var(--sub); }
+.group { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.25em; color:#818cf8; }
+footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
+  font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
+footer a { color:var(--sub); text-decoration:none; }
+footer a:hover { color:var(--text); }
+`
+
+function shell({ title, desc, canonical, ld, eyebrow, body }) {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="canonical" href="${canonical}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="${canonical}">
+<meta property="og:image" content="${SITE}/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">${JSON.stringify(ld)}</script>
+<style>${STYLE}</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="/">← Lumenium トップへ</a></header>
+  <p class="eyebrow">${esc(eyebrow)}</p>
+${body}
+  <footer>
+    <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
+    <a href="/">lumenium.net</a>
+    <a href="/blog/index.html">ブログ</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+  </footer>
+</div>
+</body>
+</html>
+`
+}
+
+mkdirSync('public/blog', { recursive: true })
+const urls = []
+
+/* ---- Blog articles ---- */
+for (const a of articles) {
+  const path = `/blog/post-${a.id}.html`
+  const url = SITE + path
+  const others = articles.filter((o) => o.id !== a.id).slice(0, 4)
+  const svc = SVC[a.category]
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: a.title,
+    description: a.summary,
+    datePublished: isoDate(a.date),
+    inLanguage: 'ja-JP',
+    author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
+    publisher: { '@id': `${SITE}/#organization` },
+    mainEntityOfPage: url,
+  }
+  const body = `
+  <h1>${esc(a.title)}</h1>
+  <p class="meta"><time datetime="${isoDate(a.date)}">${esc(a.date)}</time> ・ ${esc(a.category)}</p>
+  <article>
+${md(a.content)}
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    ${svc ? `<a class="ghost" href="/services/${svc}.html">関連サービスを見る</a>` : `<a class="ghost" href="/#/info/services">サービス一覧を見る</a>`}
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
+  <ul class="list">
+    ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="/blog/post-${o.id}.html">${esc(o.title)}</a></li>`).join('\n    ')}
+  </ul>`
+  writeFileSync('public' + path, shell({
+    title: `${a.title} | Lumenium ブログ`,
+    desc: a.summary,
+    canonical: url,
+    ld,
+    eyebrow: 'LUMENIUM BLOG',
+    body,
+  }))
+  urls.push({ loc: url, lastmod: isoDate(a.date) })
+}
+
+/* ---- Blog index ---- */
+{
+  const url = `${SITE}/blog/index.html`
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: 'Lumenium ブログ',
+    url,
+    publisher: { '@id': `${SITE}/#organization` },
+  }
+  const body = `
+  <h1>ブログ</h1>
+  <p class="meta">動画・AI・SNS・Webの実務ノウハウをお届けします。</p>
+  <ul class="list">
+    ${articles.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="/blog/post-${a.id}.html">${esc(a.title)}</a><p>${esc(a.summary)}</p></li>`).join('\n    ')}
+  </ul>
+  <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
+  writeFileSync('public/blog/index.html', shell({
+    title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium',
+    desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを発信するLumeniumのブログ。',
+    canonical: url,
+    ld,
+    eyebrow: 'LUMENIUM BLOG',
+    body,
+  }))
+  urls.push({ loc: url, lastmod: TODAY })
+}
+
+/* ---- News ---- */
+{
+  let news = []
+  try { news = JSON.parse(readFileSync('public/news.json', 'utf8')) } catch {}
+  const url = `${SITE}/news.html`
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Lumenium お知らせ',
+    itemListElement: news.slice(0, 20).map((n, i) => ({
+      '@type': 'ListItem', position: i + 1, name: n.title,
+    })),
+  }
+  const body = `
+  <h1>お知らせ</h1>
+  <p class="meta">Lumeniumからの最新のお知らせです。</p>
+  <ul class="list">
+    ${news.map((n) => `<li><time datetime="${esc(n.date)}">${esc(n.date)}</time>${n.link ? `<a href="${esc(n.link)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`).join('\n    ')}
+  </ul>
+  <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
+  writeFileSync('public/news.html', shell({
+    title: 'お知らせ | Lumenium',
+    desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。',
+    canonical: url,
+    ld,
+    eyebrow: 'LUMENIUM NEWS',
+    body,
+  }))
+  urls.push({ loc: url, lastmod: news[0]?.date || TODAY })
+}
+
+/* ---- FAQ ---- */
+{
+  const url = `${SITE}/faq.html`
+  const all = FAQ_GROUPS.flatMap((g) => g.items)
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: all.map((i) => ({
+      '@type': 'Question', name: i.q,
+      acceptedAnswer: { '@type': 'Answer', text: i.a },
+    })),
+  }
+  const body = `
+  <h1>よくある質問</h1>
+  <p class="meta">ご相談・進行・料金についてよくいただく質問をまとめました。</p>
+  ${FAQ_GROUPS.map((g) => `
+  <p class="group">${esc(g.label)}</p>
+  <dl class="qa">
+    ${g.items.map((i) => `<dt>${esc(i.q)}</dt><dd>${esc(i.a)}</dd>`).join('\n    ')}
+  </dl>`).join('\n')}
+  <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
+  writeFileSync('public/faq.html', shell({
+    title: 'よくある質問（料金・納期・進め方）| Lumenium',
+    desc: 'Lumeniumへのご依頼に関するよくある質問。料金目安・納期・修正対応・NDA・オンライン対応などにお答えします。',
+    canonical: url,
+    ld,
+    eyebrow: 'LUMENIUM FAQ',
+    body,
+  }))
+  urls.push({ loc: url, lastmod: TODAY })
+}
+
+/* ---- Content sitemap ---- */
+{
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${u.lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`).join('\n')}
+</urlset>
+`
+  writeFileSync('public/sitemap-content.xml', xml)
+}
+
+console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq)`)

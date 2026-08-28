@@ -38,12 +38,12 @@ export default function Footer({ onPrivacy }) {
           <div className="footer-links">
             <div className="footer-col">
               <h4>サービス</h4>
-              <a href="#services">動画制作・映像編集</a>
-              <a href="#services">AI導入・研修</a>
-              <a href="#services">SNS運用・LINE構築</a>
-              <a href="#services">Web制作・アプリ開発</a>
-              <a href="#services">キャスト手配・イベント</a>
-              <a href="#services">クリエイティブ制作</a>
+              <a href="/services/video.html">動画制作・映像編集</a>
+              <a href="/services/ai.html">AI導入・研修</a>
+              <a href="/services/sns.html">SNS運用・LINE構築</a>
+              <a href="/services/web.html">Web制作・アプリ開発</a>
+              <a href="/services/cast.html">キャスト手配・イベント</a>
+              <a href="/services/creative.html">クリエイティブ制作</a>
             </div>
             <div className="footer-col">
               <h4>情報</h4>
@@ -51,8 +51,8 @@ export default function Footer({ onPrivacy }) {
               <a href="#results">実績</a>
               <a href="#testimonials">お客様の声</a>
               <a href="#flow">ご依頼の流れ</a>
-              <a href="#faq">よくある質問</a>
-              <a href="#blog">ブログ</a>
+              <a href="/faq.html">よくある質問</a>
+              <a href="/blog/index.html">ブログ</a>
               <a href="#about">代表紹介</a>
               <a href="#company">会社概要</a>
             </div>

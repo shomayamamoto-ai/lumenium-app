@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatGPT業務利用の注意点5選 | Lumenium ブログ</title>
+<meta name="description" content="業務利用時のセキュリティと品質管理。">
+<link rel="canonical" href="https://lumenium.net/blog/post-2.html">
+<meta property="og:title" content="ChatGPT業務利用の注意点5選 | Lumenium ブログ">
+<meta property="og:description" content="業務利用時のセキュリティと品質管理。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://lumenium.net/blog/post-2.html">
+<meta property="og:image" content="https://lumenium.net/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"ChatGPT業務利用の注意点5選","description":"業務利用時のセキュリティと品質管理。","datePublished":"2026-04-01","inLanguage":"ja-JP","author":{"@type":"Organization","name":"Lumenium","url":"https://lumenium.net"},"publisher":{"@id":"https://lumenium.net/#organization"},"mainEntityOfPage":"https://lumenium.net/blog/post-2.html"}</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#171c33; --card:#262c4a; --border:#424a6b; --text:#f5f7fb; --sub:#abb5cb;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#3b82f6 50%,#06b6d4 100%); }
+body { background:
+  radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
+  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  line-height:2; }
+.wrap { max-width:720px; margin:0 auto; padding:48px 22px 64px; }
+header a { color:var(--sub); text-decoration:none; font-size:13px; }
+header a:hover { color:var(--text); }
+.eyebrow { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.3em; color:#818cf8; }
+h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.015em; line-height:1.45; margin:10px 0 8px;
+  background:linear-gradient(135deg,#f5f7fb 30%,#a5b4fc 70%,#67e8f9 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.meta { font-size:12.5px; color:#93c5fd; margin-bottom:30px; }
+article h2 { font-size:18px; font-weight:700; margin:34px 0 12px; padding-left:12px; border-left:3px solid #4f46e5; }
+article h3 { font-size:15.5px; font-weight:700; margin:24px 0 10px; color:#c7d2fe; }
+article p { font-size:14.5px; color:var(--sub); margin-bottom:14px; }
+article ul { list-style:none; margin:0 0 16px; }
+article li { padding:7px 0 7px 24px; position:relative; font-size:14px; color:var(--sub); }
+article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.cta { display:flex; gap:12px; flex-wrap:wrap; margin:40px 0 8px; }
+.cta a { flex:1; min-width:200px; text-align:center; padding:15px 20px; border-radius:12px;
+  font-weight:700; font-size:14.5px; text-decoration:none; }
+.cta .primary { background:var(--grad); color:#fff; }
+.cta .ghost { border:1px solid var(--border); color:var(--sub); }
+.cta .ghost:hover { color:var(--text); border-color:#5a628a; }
+.list { list-style:none; }
+.list li { padding:14px 4px; border-bottom:1px solid rgba(255,255,255,.07); }
+.list time { font-size:12px; color:#93c5fd; display:block; margin-bottom:2px; }
+.list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
+.list a:hover { color:#a5b4fc; }
+.list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.qa { margin-bottom:8px; }
+.qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
+.qa dd { font-size:14px; color:var(--sub); }
+.group { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.25em; color:#818cf8; }
+footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
+  font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
+footer a { color:var(--sub); text-decoration:none; }
+footer a:hover { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="/">← Lumenium トップへ</a></header>
+  <p class="eyebrow">LUMENIUM BLOG</p>
+
+  <h1>ChatGPT業務利用の注意点5選</h1>
+  <p class="meta"><time datetime="2026-04-01">2026.04.01</time> ・ AI活用</p>
+  <article>
+<h2>はじめに</h2>
+<p>ChatGPTを業務に導入する企業が急増しています。しかし、便利だからといって無制限に使うのは危険です。</p>
+<p>情報漏洩、著作権の問題、品質管理の不備——使い方を間違えると、ビジネス上のリスクにつながります。</p>
+<p>この記事では、業務でChatGPTを安全に活用するための5つの注意点をお伝えします。</p>
+<h2>1. 機密情報・個人情報を入力しない</h2>
+<p>ChatGPTに入力した内容は、サービス改善のために利用される可能性があります。</p>
+<p>絶対に入力してはいけない情報：</p>
+<ul>
+<li>顧客の個人情報（氏名、住所、電話番号など）</li>
+<li>社外秘の売上データや戦略情報</li>
+<li>未発表の製品・サービス情報</li>
+<li>契約書や法的文書の内容</li>
+</ul>
+<p>対策として、ChatGPT Team版やAPI経由での利用なら、入力データが学習に使われない設定が可能です。</p>
+<h2>2. AIの回答を「そのまま」使わない</h2>
+<p>ChatGPTの回答は、必ずしも正確ではありません。もっともらしい嘘（ハルシネーション）を生成することがあります。</p>
+<p>必ず確認すべきポイント：</p>
+<ul>
+<li>数字やデータの正確性</li>
+<li>法律や規制に関する情報</li>
+<li>固有名詞（人名、社名、地名）</li>
+<li>URLやリンク先の存在</li>
+</ul>
+<p>「AIが言っていたから」は、ビジネスでは通用しません。最終チェックは必ず人の目で行いましょう。</p>
+<h2>3. プロンプト（指示）を具体的に書く</h2>
+<p>ChatGPTの出力品質は、入力の質に大きく左右されます。</p>
+<p>悪い例：「マーケティングについて教えて」</p>
+<p>良い例：「BtoB SaaS企業がSNSで認知を広げるための施策を3つ、それぞれメリットとデメリットを含めて提案してください」</p>
+<p>具体的な指示のコツ：</p>
+<ul>
+<li>「誰に」「何を」「どんな形式で」を明示する</li>
+<li>文字数や項目数を指定する</li>
+<li>参考にしてほしいトーンや文体を伝える</li>
+<li>役割を設定する（「あなたはマーケティングの専門家です」）</li>
+</ul>
+<h2>4. 社内ルール（ガイドライン）を作る</h2>
+<p>個人の判断に任せると、使い方がバラバラになります。</p>
+<p>ガイドラインに含めるべき項目：</p>
+<ul>
+<li>使ってよい業務と使ってはいけない業務</li>
+<li>入力してはいけない情報の具体例</li>
+<li>出力結果の確認フロー</li>
+<li>トラブル発生時の報告先</li>
+</ul>
+<p>ルールは最初からカンペキを目指さなくてOKです。運用しながら改善していきましょう。</p>
+<h2>5. 定期的にアップデート情報を追う</h2>
+<p>AIツールは進化のスピードが速く、数ヶ月で機能が大きく変わることもあります。</p>
+<p>おすすめの情報収集方法：</p>
+<ul>
+<li>OpenAI公式ブログをチェック</li>
+<li>月1回「AI活用共有会」を社内で開催</li>
+<li>業界のAI活用事例を収集・共有</li>
+</ul>
+<p>知識をアップデートし続けることで、活用の幅が広がります。</p>
+<h2>まとめ</h2>
+<p>ChatGPTは正しく使えば、業務効率を大幅に向上させる強力なツールです。</p>
+<p>大切なのは「ルールを整備して、安全に活用する」こと。まずは社内ガイドラインの作成から始めてみてください。</p>
+<p>Lumeniumでは企業向けのAI活用研修も行っています。「社内ルールの作り方がわからない」「社員にAIの使い方を教えたい」という方は、お気軽にご相談ください。</p>
+
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/services/ai.html">関連サービスを見る</a>
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
+  <ul class="list">
+    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
+    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
+    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-5.html">SNS運用の外注ガイド</a></li>
+  </ul>
+  <footer>
+    <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
+    <a href="/">lumenium.net</a>
+    <a href="/blog/index.html">ブログ</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+  </footer>
+</div>
+</body>
+</html>

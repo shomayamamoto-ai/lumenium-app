@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公式LINEが「ただの通知」にならない配信設計 | Lumenium ブログ</title>
+<meta name="description" content="購読解除を抑えつつ反応率を上げるシナリオ配信の考え方。">
+<link rel="canonical" href="https://lumenium.net/blog/post-9.html">
+<meta property="og:title" content="公式LINEが「ただの通知」にならない配信設計 | Lumenium ブログ">
+<meta property="og:description" content="購読解除を抑えつつ反応率を上げるシナリオ配信の考え方。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://lumenium.net/blog/post-9.html">
+<meta property="og:image" content="https://lumenium.net/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"公式LINEが「ただの通知」にならない配信設計","description":"購読解除を抑えつつ反応率を上げるシナリオ配信の考え方。","datePublished":"2026-04-12","inLanguage":"ja-JP","author":{"@type":"Organization","name":"Lumenium","url":"https://lumenium.net"},"publisher":{"@id":"https://lumenium.net/#organization"},"mainEntityOfPage":"https://lumenium.net/blog/post-9.html"}</script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root { --bg:#171c33; --card:#262c4a; --border:#424a6b; --text:#f5f7fb; --sub:#abb5cb;
+  --grad:linear-gradient(135deg,#4f46e5 0%,#3b82f6 50%,#06b6d4 100%); }
+body { background:
+  radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
+  radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
+  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  line-height:2; }
+.wrap { max-width:720px; margin:0 auto; padding:48px 22px 64px; }
+header a { color:var(--sub); text-decoration:none; font-size:13px; }
+header a:hover { color:var(--text); }
+.eyebrow { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.3em; color:#818cf8; }
+h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.015em; line-height:1.45; margin:10px 0 8px;
+  background:linear-gradient(135deg,#f5f7fb 30%,#a5b4fc 70%,#67e8f9 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.meta { font-size:12.5px; color:#93c5fd; margin-bottom:30px; }
+article h2 { font-size:18px; font-weight:700; margin:34px 0 12px; padding-left:12px; border-left:3px solid #4f46e5; }
+article h3 { font-size:15.5px; font-weight:700; margin:24px 0 10px; color:#c7d2fe; }
+article p { font-size:14.5px; color:var(--sub); margin-bottom:14px; }
+article ul { list-style:none; margin:0 0 16px; }
+article li { padding:7px 0 7px 24px; position:relative; font-size:14px; color:var(--sub); }
+article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.cta { display:flex; gap:12px; flex-wrap:wrap; margin:40px 0 8px; }
+.cta a { flex:1; min-width:200px; text-align:center; padding:15px 20px; border-radius:12px;
+  font-weight:700; font-size:14.5px; text-decoration:none; }
+.cta .primary { background:var(--grad); color:#fff; }
+.cta .ghost { border:1px solid var(--border); color:var(--sub); }
+.cta .ghost:hover { color:var(--text); border-color:#5a628a; }
+.list { list-style:none; }
+.list li { padding:14px 4px; border-bottom:1px solid rgba(255,255,255,.07); }
+.list time { font-size:12px; color:#93c5fd; display:block; margin-bottom:2px; }
+.list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
+.list a:hover { color:#a5b4fc; }
+.list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.qa { margin-bottom:8px; }
+.qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
+.qa dd { font-size:14px; color:var(--sub); }
+.group { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.25em; color:#818cf8; }
+footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
+  font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
+footer a { color:var(--sub); text-decoration:none; }
+footer a:hover { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="/">← Lumenium トップへ</a></header>
+  <p class="eyebrow">LUMENIUM BLOG</p>
+
+  <h1>公式LINEが「ただの通知」にならない配信設計</h1>
+  <p class="meta"><time datetime="2026-04-12">2026.04.12</time> ・ LINE運用</p>
+  <article>
+<h2>はじめに</h2>
+<p>公式LINEを導入したものの、「登録はされるけど反応がない」「配信するとブロック率が上がる」という相談をよく受けます。</p>
+<p>原因のほとんどは配信内容ではなく、**設計段階の想定**にあります。この記事では、配信ルートを作るときに押さえておきたい考え方を整理します。</p>
+<h2>1. 「いつ・何を送るか」より「なぜ登録したか」を先に考える</h2>
+<p>多くの配信設計は、いきなり「週1で何を送るか」から始まってしまいます。</p>
+<p>ですが、本質的に大事なのは登録動機です。</p>
+<ul>
+<li>クーポン目当てで登録した人</li>
+<li>情報収集目的で登録した人</li>
+<li>セミナー申込のフローで自動登録された人</li>
+</ul>
+<p>この3者では、最適な1通目も、配信頻度も、配信内容もまったく違います。登録時のタグ付けは最初の段階で仕込んでおくのが鉄則です。</p>
+<h2>2. ステップ配信と定期配信を分ける</h2>
+<p>この2つをごちゃ混ぜにすると、メッセージが多すぎてブロック率が跳ね上がります。</p>
+<ul>
+<li>**ステップ配信**: 登録直後から順に1→2→3と届く、1回限りのシナリオ</li>
+<li>**定期配信**: 全員に同じ内容を定期的に届ける</li>
+</ul>
+<p>まずステップ配信だけで「サービス理解」を済ませてから、定期配信に合流させるのが基本形です。</p>
+<h2>3. CTAは「1通1つ」に絞る</h2>
+<p>LINEの1通に複数ボタンを詰め込むと、「迷って押さない」が起きます。</p>
+<p>「詳しく見る」「今すぐ予約」「無料で試す」を同時に並べるより、その時に一番押してほしい1つだけにする方が結果的に反応率は上がります。</p>
+<h2>4. ブロック率より「リッチメニュータップ率」を見る</h2>
+<p>配信の直後だけブロック率を気にする運用者が多いのですが、安定しているアカウントは**リッチメニューからのタップ回数**を指標にしています。</p>
+<p>配信で関心を持った人が、リッチメニューから該当サービスに辿り着く。この回遊が設計できていれば、配信頻度を抑えてもCVは落ちません。</p>
+<h2>まとめ</h2>
+<p>公式LINEは配信ツールではなく、顧客との関係設計ツールです。</p>
+<p>Lumeniumでは、シナリオ設計・Bot実装・リッチメニュー制作までワンストップで支援しています。登録者数が伸び悩んでいる・反応率が落ちているなど、いつでもご相談ください。</p>
+
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
+  <ul class="list">
+    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
+    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
+    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
+    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+  </ul>
+  <footer>
+    <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
+    <a href="/">lumenium.net</a>
+    <a href="/blog/index.html">ブログ</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+  </footer>
+</div>
+</body>
+</html>
