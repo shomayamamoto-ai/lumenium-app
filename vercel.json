@@ -11,6 +11,7 @@
     { "source": "/specified-commerce.html", "destination": "/specified-commerce.html" },
     { "source": "/404.html", "destination": "/404.html" },
     { "source": "/fix.html", "destination": "/fix.html" },
+    { "source": "/services/(.*)", "destination": "/services/$1" },
     { "source": "/login.html", "destination": "/login.html" },
     { "source": "/register.html", "destination": "/register.html" },
     { "source": "/admin-members.html", "destination": "/admin-members.html" },
