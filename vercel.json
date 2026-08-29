@@ -68,6 +68,26 @@
       "destination": "/about.html"
     },
     {
+      "source": "/pricing.html",
+      "destination": "/pricing.html"
+    },
+    {
+      "source": "/works.html",
+      "destination": "/works.html"
+    },
+    {
+      "source": "/voice.html",
+      "destination": "/voice.html"
+    },
+    {
+      "source": "/flow.html",
+      "destination": "/flow.html"
+    },
+    {
+      "source": "/contact.html",
+      "destination": "/contact.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

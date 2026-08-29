@@ -5,11 +5,15 @@
 //                          so each news post republishes it automatically)
 //   /faq.html             (FAQPage JSON-LD)
 //   /about.html           (brand/entity page — disambiguates the Lumenium name)
+//   /pricing|works|voice|flow|contact.html
+//                         (brand-qualified topic pages, so a search for the
+//                          brand can surface several of our URLs, not just one)
 //   /sitemap-content.xml  (all of the above; referenced from robots.txt)
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
+import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS } from '../src/data/site.js'
 
 const SITE = 'https://lumenium.net'
 const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
@@ -122,9 +126,15 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 ${body}
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
-    <a href="/">lumenium.net</a>
+    <a href="/about.html">Lumeniumとは</a>
+    <a href="/pricing.html">料金</a>
+    <a href="/works.html">実績</a>
+    <a href="/voice.html">お客様の声</a>
+    <a href="/flow.html">ご依頼の流れ</a>
     <a href="/blog/index.html">ブログ</a>
-    <a href="/faq.html">FAQ</a>
+    <a href="/faq.html">よくある質問</a>
+    <a href="/news.html">お知らせ</a>
+    <a href="/contact.html">お問い合わせ</a>
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>
@@ -168,7 +178,7 @@ ${md(a.content)}
     ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="/blog/post-${o.id}.html">${esc(o.title)}</a></li>`).join('\n    ')}
   </ul>`
   writeFileSync('public' + path, shell({
-    title: `${a.title} | Lumenium ブログ`,
+    title: `${a.title} | Lumenium（ルメニウム）ブログ`,
     desc: a.summary,
     canonical: url,
     ld,
@@ -196,7 +206,7 @@ ${md(a.content)}
   </ul>
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/blog/index.html', shell({
-    title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium',
+    title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium（ルメニウム）',
     desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを発信するLumeniumのブログ。',
     canonical: url,
     ld,
@@ -227,7 +237,7 @@ ${md(a.content)}
   </ul>
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/news.html', shell({
-    title: 'お知らせ | Lumenium',
+    title: 'お知らせ | Lumenium（ルメニウム）',
     desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。',
     canonical: url,
     ld,
@@ -259,7 +269,7 @@ ${md(a.content)}
   </dl>`).join('\n')}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/faq.html', shell({
-    title: 'よくある質問（料金・納期・進め方）| Lumenium',
+    title: 'よくある質問（料金・納期・進め方）| Lumenium（ルメニウム）',
     desc: 'Lumeniumへのご依頼に関するよくある質問。料金目安・納期・修正対応・NDA・オンライン対応などにお答えします。',
     canonical: url,
     ld,
@@ -371,6 +381,200 @@ ${md(a.content)}
   urls.push({ loc: url, lastmod: TODAY })
 }
 
+/* ---- Brand-qualified topic pages ----
+   One indexable URL per thing people search alongside the brand name
+   (「ルメニウム 料金」「ルメニウム 実績」…), each with the brand in its
+   <title>, so the first page of a brand search can hold several of our URLs
+   rather than a single one. */
+const yen = (n) => '¥' + n.toLocaleString('ja-JP')
+const priceMin = PRICE_OPTIONS.reduce((a, o) => a + o.min, 0)
+
+const TOPIC_PAGES = [
+  {
+    file: 'pricing.html',
+    eyebrow: 'LUMENIUM PRICING',
+    title: '料金・費用の目安 | Lumenium（ルメニウム）',
+    h1: 'Lumenium（ルメニウム）の料金・費用の目安',
+    desc: 'ルメニウム（Lumenium）の料金目安。動画制作3万円〜、AI導入・研修10万円〜、SNS/LINE構築20万円〜、Web制作30万円〜、キャスト手配5,000円〜。お見積りは無料です。',
+    lead: '内容と規模によって変わるため、まずは下の目安レンジをご覧ください。お見積りは無料で、内容を伺った上で正確にご提案します。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'OfferCatalog',
+      name: 'Lumenium 料金の目安',
+      itemListElement: PRICE_OPTIONS.map((o) => ({
+        '@type': 'Offer',
+        itemOffered: { '@type': 'Service', name: o.label, description: o.sub },
+        priceCurrency: 'JPY',
+        priceSpecification: {
+          '@type': 'PriceSpecification',
+          minPrice: o.min, maxPrice: o.max, priceCurrency: 'JPY',
+        },
+      })),
+    }),
+    body: () => `
+    <h2>サービス別の料金レンジ</h2>
+    <dl class="facts">
+      ${PRICE_OPTIONS.map((o) => `<div><dt>${esc(o.label)}</dt><dd>${yen(o.min)} 〜 ${yen(o.max)}<br><span style="font-size:12.5px;opacity:.75">${esc(o.sub)}</span></dd></div>`).join('\n      ')}
+    </dl>
+    <p class="note">複数サービスをまとめてご依頼の場合、全部入りでも最小構成なら ${yen(priceMin)} 前後から組めます。ご予算を先に伺って、その中で優先順位をつけたプランを作ることも可能です。</p>
+    <h2>料金について、よくいただく質問</h2>
+    <ul>
+      <li>お見積りは無料です。他社比較・社内稟議用の概算だけでも承ります</li>
+      <li>見積り段階での強引な営業は一切いたしません</li>
+      <li>通常2〜3回の修正は見積りに含まれています</li>
+      <li>着手前のキャンセルは無償です</li>
+    </ul>`,
+  },
+  {
+    file: 'works.html',
+    eyebrow: 'LUMENIUM WORKS',
+    title: '実績・制作事例 | Lumenium（ルメニウム）',
+    h1: 'Lumenium（ルメニウム）の実績・制作事例',
+    desc: 'ルメニウム（Lumenium）の制作実績。塾教材4万ページを1ヶ月で制作、登録者数十万人規模チャンネルの動画制作、企業公式LINE構築、AI研修など12業界以上で対応しています。',
+    lead: '規模やジャンルを問わず、案件ごとに最適なチーム体制を組んで対応してきました。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumenium 制作実績',
+      itemListElement: [...CASE_STUDIES.map((c) => c.title), ...ACHIEVEMENTS]
+        .map((name, i) => ({ '@type': 'ListItem', position: i + 1, name })),
+    }),
+    body: () => `
+    <h2>主な事例</h2>
+    ${CASE_STUDIES.map((c) => `<h3>${esc(c.title)}（${esc(c.tag)}）</h3>\n    <p>${esc(c.desc)}${c.metric ? `　<strong>${c.metric.toLocaleString('ja-JP')} ${esc(c.metricLabel)}</strong>` : ''}</p>`).join('\n    ')}
+    <h2>その他の実績</h2>
+    <ul>
+      ${ACHIEVEMENTS.map((a) => `<li>${esc(a)}</li>`).join('\n      ')}
+    </ul>
+    <p class="note">飲食・IT・美容・教育・広告・士業など12以上の業界で実績があります。同業種の実績がない領域でも、リサーチから入るため支援可能です。</p>`,
+  },
+  {
+    file: 'voice.html',
+    eyebrow: 'LUMENIUM VOICE',
+    title: 'お客様の声・評判 | Lumenium（ルメニウム）',
+    h1: 'Lumenium（ルメニウム）をご利用いただいたお客様の声',
+    desc: 'ルメニウム（Lumenium）にご依頼いただいたお客様の声。飲食店、IT企業、美容サロン、教育系企業、士業事務所などから寄せられた評価をご紹介します。',
+    lead: '実際にご依頼いただいた方からいただいた言葉です。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumenium お客様の声',
+      itemListElement: TESTIMONIALS.map((t, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        item: {
+          '@type': 'Review',
+          reviewBody: t.text,
+          author: { '@type': 'Person', name: t.name },
+          itemReviewed: { '@id': `${SITE}/#organization` },
+        },
+      })),
+    }),
+    body: () => `
+    ${TESTIMONIALS.map((t) => `<h3>${esc(t.name)}</h3>\n    <p>「${esc(t.text)}」</p>\n    <p style="font-size:12.5px;opacity:.7">${esc(t.detail)}</p>`).join('\n    ')}`,
+  },
+  {
+    file: 'flow.html',
+    eyebrow: 'LUMENIUM FLOW',
+    title: 'ご依頼の流れ・進め方 | Lumenium（ルメニウム）',
+    h1: 'Lumenium（ルメニウム）へのご依頼の流れ',
+    desc: 'ルメニウム（Lumenium）へのご依頼の流れ。ご相談から、ヒアリング・お見積り、ご契約、制作、納品・運用サポートまでの5ステップと、各段階の所要時間をご説明します。',
+    lead: 'ご相談から納品・運用まで、5つのステップで進めます。所要時間の目安も合わせてご覧ください。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'HowTo',
+      name: 'Lumeniumへのご依頼の流れ',
+      step: FLOW_STEPS.map((s, i) => ({
+        '@type': 'HowToStep', position: i + 1, name: s.title, text: s.desc,
+      })),
+    }),
+    body: () => FLOW_STEPS.map((s, i) => `
+    <h2>STEP ${i + 1}｜${esc(s.title)}</h2>
+    <p>${esc(s.desc)}</p>
+    <p style="font-size:12.5px;opacity:.75">目安: ${esc(s.meta.time)}　／　ご準備: ${esc(s.meta.prep)}</p>
+    <ul>
+      ${s.checks.map((c) => `<li>${esc(c)}</li>`).join('\n      ')}
+    </ul>`).join('\n'),
+  },
+  {
+    file: 'contact.html',
+    eyebrow: 'LUMENIUM CONTACT',
+    title: 'お問い合わせ・無料相談 | Lumenium（ルメニウム）',
+    h1: 'Lumenium（ルメニウム）へのお問い合わせ',
+    desc: 'ルメニウム（Lumenium）へのご相談・お見積りは無料です。動画制作、AI導入・研修、SNS運用、LINE構築、Web制作のご相談は48時間以内にご返信します。',
+    lead: 'まずは30分のオンライン相談から。「何から手をつければいいか分からない」段階のご相談も歓迎です。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ContactPage',
+      name: 'Lumenium お問い合わせ',
+      mainEntity: {
+        '@id': `${SITE}/#organization`,
+      },
+    }),
+    body: () => `
+    <h2>ご相談の前に知っておいていただきたいこと</h2>
+    <ul>
+      <li>初回相談・お見積りは無料です</li>
+      <li>お問い合わせから48時間以内にご返信します</li>
+      <li>秘密厳守。NDAは貴社フォーマットでの締結にも対応します</li>
+      <li>個人・個人事業主の方からのご依頼も歓迎しています</li>
+      <li>打ち合わせはオンライン対応のため、全国どこからでもご依頼いただけます</li>
+    </ul>
+    <h2>ご相談内容の例</h2>
+    <ul>
+      <li>採用動画・PR動画を作りたい（<a href="/services/video.html">動画制作</a>）</li>
+      <li>社内に生成AIを導入したい・研修を頼みたい（<a href="/services/ai.html">AI導入・研修</a>）</li>
+      <li>SNSやLINEで集客を仕組み化したい（<a href="/services/sns.html">SNS運用・LINE構築</a>）</li>
+      <li>ホームページやLPをリニューアルしたい（<a href="/services/web.html">Web制作</a>）</li>
+      <li>イベントのキャスト・MCを手配したい（<a href="/services/cast.html">キャスト手配</a>）</li>
+    </ul>
+    <p class="note">下のボタンからお問い合わせフォームに移動できます。料金の目安は<a href="/pricing.html">料金ページ</a>、進め方は<a href="/flow.html">ご依頼の流れ</a>をご覧ください。</p>`,
+  },
+]
+
+for (const t of TOPIC_PAGES) {
+  const url = `${SITE}/${t.file}`
+  const body = `
+  <h1>${esc(t.h1)}</h1>
+  <p class="meta">${esc(t.lead)}</p>
+  <article>
+${t.body()}
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/about.html">Lumeniumとは</a>
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">Lumeniumの他のページ</h2>
+  <ul class="list">
+    ${TOPIC_PAGES.filter((o) => o.file !== t.file).map((o) => `<li><a href="/${o.file}">${esc(o.h1)}</a></li>`).join('\n    ')}
+    <li><a href="/faq.html">よくある質問 | Lumenium（ルメニウム）</a></li>
+    <li><a href="/blog/index.html">ブログ | Lumenium（ルメニウム）</a></li>
+  </ul>`
+  const ld = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${url}#webpage`,
+        url, name: t.h1, description: t.desc, inLanguage: 'ja-JP',
+        isPartOf: { '@id': `${SITE}/#website` },
+        about: { '@id': `${SITE}/#organization` },
+      },
+      t.ld(),
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'ホーム', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: t.h1, item: url },
+        ],
+      },
+    ],
+  }
+  writeFileSync('public/' + t.file, shell({
+    title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body,
+  }))
+  urls.push({ loc: url, lastmod: TODAY })
+}
+
 /* ---- Content sitemap ---- */
 {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -386,4 +590,4 @@ ${urls.map((u) => `  <url>
   writeFileSync('public/sitemap-content.xml', xml)
 }
 
-console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq + about)`)
+console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq + about + ${TOPIC_PAGES.length} topic)`)

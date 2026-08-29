@@ -1,3 +1,5 @@
+import { FLOW_STEPS } from '../data/site'
+
 const FlowGrad = ({ id }) => (
   <linearGradient id={id} x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
     <stop offset="0" stopColor="#4f46e5" />
@@ -54,63 +56,8 @@ const StepIcon5 = () => (
   </svg>
 )
 
-const steps = [
-  {
-    title: 'ご相談・お問い合わせ',
-    desc: 'まずはメールやフォームから、困っていることを教えてください。抽象的な内容でも大丈夫です。',
-    icon: <StepIcon1 />,
-    meta: { time: '即時', prep: '連絡手段のみ' },
-    checks: [
-      'お名前・ご連絡先だけでOK',
-      '相談内容が決まっていなくても歓迎',
-      '48時間以内にご返信',
-    ],
-  },
-  {
-    title: 'ヒアリング・お見積り',
-    desc: 'オンライン or 対面で現状と目標をお伺いし、最適なプランと概算をご提案します。',
-    icon: <StepIcon2 />,
-    meta: { time: '30〜60分', prep: '現状の課題メモ' },
-    checks: [
-      '参考資料があれば共有ください',
-      'ご予算・希望スケジュールを確認',
-      '24h以内に概算レンジをお伝え',
-    ],
-  },
-  {
-    title: 'ご契約・キックオフ',
-    desc: '内容にご納得いただけたら契約へ。必要に応じてNDAを交わし、制作スケジュールを確定します。',
-    icon: <StepIcon5 />,
-    meta: { time: '1〜3営業日', prep: 'NDA要否' },
-    checks: [
-      '仕様書と工程表を共有',
-      '担当窓口を一本化',
-      '着手金のご相談も対応',
-    ],
-  },
-  {
-    title: '制作・実行',
-    desc: '企画→制作→レビューをサイクルで進行。中間共有で認識ズレを最小化します。',
-    icon: <StepIcon3 />,
-    meta: { time: '2週間〜2ヶ月', prep: '定例1本分の時間' },
-    checks: [
-      'Slack / Chatwork / メールどれでも',
-      '週1の進捗共有 + 随時レビュー',
-      '修正回数は案件ごとに合意',
-    ],
-  },
-  {
-    title: '納品・運用サポート',
-    desc: '納品後も、必要に応じて改善・運用代行・追加制作まで伴走します。',
-    icon: <StepIcon4 />,
-    meta: { time: '継続可', prep: '—' },
-    checks: [
-      '納品データ一式をお渡し',
-      '運用KPIのレビュー会も可',
-      '追加のご相談はいつでも',
-    ],
-  },
-]
+const STEP_ICONS = [<StepIcon1 />, <StepIcon2 />, <StepIcon5 />, <StepIcon3 />, <StepIcon4 />]
+const steps = FLOW_STEPS.map((s, i) => ({ ...s, icon: STEP_ICONS[i] }))
 
 export default function Flow() {
   return (

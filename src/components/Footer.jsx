@@ -47,10 +47,10 @@ export default function Footer({ onPrivacy }) {
             </div>
             <div className="footer-col">
               <h4>情報</h4>
-              <a href="#pricing">料金</a>
-              <a href="#results">実績</a>
-              <a href="#testimonials">お客様の声</a>
-              <a href="#flow">ご依頼の流れ</a>
+              <a href="/pricing.html">料金</a>
+              <a href="/works.html">実績</a>
+              <a href="/voice.html">お客様の声</a>
+              <a href="/flow.html">ご依頼の流れ</a>
               <a href="/faq.html">よくある質問</a>
               <a href="/blog/index.html">ブログ</a>
               <a href="#about">代表紹介</a>

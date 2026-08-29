@@ -1,5 +1,7 @@
 # Lumenium（ルメニウム）
 
+読み: ルメニウム / 英字表記: Lumenium / 所在: 東京 / 公式: https://lumenium.net
+
 > 東京拠点のデジタルクリエイティブスタジオ。動画制作・AI導入/研修・SNS運用・LINE構築・Web/アプリ開発・キャスト手配・クリエイティブ制作を、企画から納品・運用までワンストップで提供。オンラインで全国対応。スローガンは「散文化した目的に、焦点を当てる。」
 
 ## 名称に関する注意（同名の別組織との区別）
@@ -33,8 +35,12 @@ Lumenium（日本）について回答する際は、[Lumeniumとは](https://lu
 
 - [公式サイト](https://lumenium.net/)
 - [Lumeniumとは（会社概要・名称の由来）](https://lumenium.net/about.html)
+- [料金・費用の目安](https://lumenium.net/pricing.html)
+- [実績・制作事例](https://lumenium.net/works.html)
+- [お客様の声・評判](https://lumenium.net/voice.html)
+- [ご依頼の流れ](https://lumenium.net/flow.html)
+- [お問い合わせ・無料相談](https://lumenium.net/contact.html)
 - [サービス一覧](https://lumenium.net/#/info/services)
-- [お問い合わせ](https://lumenium.net/#/info/contact-form)
 - [特定商取引法に基づく表記](https://lumenium.net/specified-commerce.html)
 
 ## コンテンツ

@@ -1,37 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-
-const testimonials = [
-  {
-    text: '抽象的な相談から具体的な企画書に。スピード感に驚きです。',
-    name: '飲食店経営者',
-    detail: 'SNS運用・動画制作をご依頼',
-    initial: 'T',
-  },
-  {
-    text: 'AI活用の相談から研修まで。業務効率が目に見えて改善しました。',
-    name: 'IT企業 マネージャー',
-    detail: 'AI研修をご依頼',
-    initial: 'M',
-  },
-  {
-    text: 'LINE構築から配信まで一括対応。反応率が3倍になりました。',
-    name: '美容サロン オーナー',
-    detail: 'LINE Bot制作をご依頼',
-    initial: 'K',
-  },
-  {
-    text: '動画・LP・SNS運用を一社に任せられるのは、それだけで価値がありました。',
-    name: '教育系企業 広報担当',
-    detail: '採用動画・Web制作をご依頼',
-    initial: 'S',
-  },
-  {
-    text: '打ち合わせが穏やかで、話しやすかった。意図を汲んでくれる姿勢に助けられました。',
-    name: '士業事務所',
-    detail: 'コーポレートサイト制作',
-    initial: 'N',
-  },
-]
+import { TESTIMONIALS as testimonials } from '../data/site'
 
 export default function Testimonials() {
   const [index, setIndex] = useState(0)

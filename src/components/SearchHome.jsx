@@ -284,6 +284,25 @@ export default function SearchHome() {
     inputRef.current?.focus()
   }, [])
 
+  // `/?q=...` entry point — this is what the WebSite SearchAction in the
+  // markup promises, so deep links (and Google's sitelinks searchbox) land
+  // on the same destination a typed search would.
+  const ranQuery = useRef(false)
+  useEffect(() => {
+    if (ranQuery.current) return
+    ranQuery.current = true
+    const incoming = new URLSearchParams(window.location.search).get('q')
+    const query = (incoming || '').trim().slice(0, 120)
+    if (!query) return
+    setQ(query)
+    // Drop `q` from the URL so a later reload returns to the clean home.
+    const url = new URL(window.location.href)
+    url.searchParams.delete('q')
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+    const id = setTimeout(() => runSearchRef.current?.(query, 'home-search-url'), 0)
+    return () => clearTimeout(id)
+  }, [])
+
   // Close the assist panel on outside click / Escape
   useEffect(() => {
     if (!assistOpen) return
@@ -343,11 +362,9 @@ export default function SearchHome() {
     }
   }
 
-  const onSearch = (e) => {
-    e.preventDefault()
-    const query = q.trim()
+  const runSearch = (query, source) => {
     if (!query) return
-    events.ctaClick('home-search', query.slice(0, 60))
+    events.ctaClick(source, query.slice(0, 60))
     // 1) Service match → jump to services AND open that service's detail panel
     const service = SERVICE_MAP.find((s) => s.re.test(query))
     if (service) {
@@ -365,6 +382,14 @@ export default function SearchHome() {
     askAI(query)
   }
 
+  const runSearchRef = useRef(runSearch)
+  runSearchRef.current = runSearch
+
+  const onSearch = (e) => {
+    e.preventDefault()
+    runSearch(q.trim(), 'home-search')
+  }
+
   const onAsk = () => {
     const query = q.trim()
     events.ctaClick('home-ask-ai', query.slice(0, 60) || '(empty)')
@@ -378,6 +403,7 @@ export default function SearchHome() {
         <div className="search-home-brand">
           <img src="/favicon.svg" alt="" width="72" height="72" className="search-home-mark" />
           <h1 className="search-home-logo">Lumenium</h1>
+          <p className="search-home-yomi">ルメニウム</p>
           <p className="search-home-tag">散文化した目的に焦点を当てる</p>
         </div>
 

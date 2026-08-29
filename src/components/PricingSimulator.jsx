@@ -1,57 +1,6 @@
 import { useState, useMemo } from 'react'
 import { events } from '../lib/analytics'
-
-// Rough price ranges (minimum baseline). User can toggle to get a ballpark total.
-const OPTIONS = [
-  {
-    key: 'video',
-    label: '動画制作',
-    sub: 'PR・SNS・企業紹介など',
-    min: 30000,
-    max: 300000,
-    icon: '🎬',
-  },
-  {
-    key: 'ai',
-    label: 'AI導入・研修',
-    sub: '講師1回+教材ベース',
-    min: 100000,
-    max: 300000,
-    icon: '🤖',
-  },
-  {
-    key: 'sns',
-    label: 'SNS・LINE構築',
-    sub: '初期+月額想定',
-    min: 200000,
-    max: 500000,
-    icon: '💬',
-  },
-  {
-    key: 'web',
-    label: 'Web / LP 制作',
-    sub: 'HP・LP・Webアプリ',
-    min: 300000,
-    max: 2000000,
-    icon: '💻',
-  },
-  {
-    key: 'cast',
-    label: 'キャスト手配',
-    sub: 'モデル・MC・イベント',
-    min: 5000,
-    max: 100000,
-    icon: '🎭',
-  },
-  {
-    key: 'creative',
-    label: 'クリエイティブ',
-    sub: 'ロゴ・バナー・ポスター他',
-    min: 30000,
-    max: 500000,
-    icon: '🎨',
-  },
-]
+import { PRICE_OPTIONS as OPTIONS } from '../data/site'
 
 function formatYen(n) {
   return '¥' + n.toLocaleString('ja-JP')
