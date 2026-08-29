@@ -4,6 +4,7 @@
 //   /news.html            (from public/news.json — refreshes every build,
 //                          so each news post republishes it automatically)
 //   /faq.html             (FAQPage JSON-LD)
+//   /about.html           (brand/entity page — disambiguates the Lumenium name)
 //   /sitemap-content.xml  (all of the above; referenced from robots.txt)
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
@@ -81,6 +82,13 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
 .group { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.25em; color:#818cf8; }
+.facts { border:1px solid var(--border); border-radius:14px; overflow:hidden; margin:8px 0 4px; background:var(--card); }
+.facts div { display:flex; gap:14px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px; }
+.facts div:last-child { border-bottom:0; }
+.facts dt { flex:0 0 92px; color:#93c5fd; font-size:12.5px; font-weight:700; }
+.facts dd { color:var(--sub); min-width:0; }
+.facts a { color:#a5b4fc; }
+.note { border-left:3px solid #06b6d4; padding:2px 0 2px 14px; margin:16px 0; font-size:13.5px; color:var(--sub); }
 footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
   font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
 footer a { color:var(--sub); text-decoration:none; }
@@ -261,6 +269,108 @@ ${md(a.content)}
   urls.push({ loc: url, lastmod: TODAY })
 }
 
+/* ---- About / brand entity page ----
+   Search engines and AI answer engines currently mix this Lumenium up with
+   same-named organisations abroad. This page is the canonical, machine-readable
+   statement of which Lumenium lumenium.net is. */
+{
+  const url = `${SITE}/about.html`
+  const DESC = 'Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用/LINE構築・Web制作・キャスト手配を企画から運用までワンストップで手がける日本のクリエイティブ&DXパートナーです。'
+  const facts = [
+    ['会社名', 'Lumenium（ルメニウム）'],
+    ['代表者', '山本 捷真'],
+    ['設立', '2026年'],
+    ['拠点', '東京・オンライン（全国対応）'],
+    ['事業内容', '動画制作 / AI導入・研修 / SNS運用・LINE構築 / Web制作・アプリ開発 / キャスト手配・イベント / クリエイティブ制作'],
+    ['パートナー', '<a href="https://advovisions.com/bcd31-home/" rel="noopener">合同会社 AdvoVisions</a>'],
+    ['サイト', '<a href="https://lumenium.net/">lumenium.net</a>'],
+  ]
+  const ld = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'AboutPage',
+        '@id': `${url}#webpage`,
+        url,
+        name: 'Lumenium（ルメニウム）とは',
+        description: DESC,
+        inLanguage: 'ja-JP',
+        mainEntity: { '@id': `${SITE}/#organization` },
+      },
+      {
+        '@type': 'Organization',
+        '@id': `${SITE}/#organization`,
+        name: 'Lumenium',
+        alternateName: ['ルメニウム', 'Lumenium（ルメニウム）', 'ルメニウム 東京'],
+        url: SITE,
+        mainEntityOfPage: url,
+        description: DESC,
+        disambiguatingDescription:
+          '東京を拠点とする日本のクリエイティブ・DX支援カンパニー。米国バージニア州のエンジン開発企業 Lumenium, LLC、光通信機器メーカー Lumentum、およびゲーム内の同名素材とは無関係の別組織です。',
+        foundingDate: '2026',
+        founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
+        address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
+        areaServed: { '@type': 'Country', name: 'Japan' },
+        knowsLanguage: ['ja', 'en'],
+        logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'ホーム', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: 'Lumeniumとは', item: url },
+        ],
+      },
+    ],
+  }
+  const body = `
+  <h1>Lumenium（ルメニウム）とは</h1>
+  <p class="meta">東京発のクリエイティブ &amp; DX パートナー</p>
+  <article>
+    <p>${esc(DESC)}</p>
+    <h2>会社概要</h2>
+    <dl class="facts">
+      ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v.startsWith('<a') ? v : esc(v)}</dd></div>`).join('\n      ')}
+    </dl>
+    <h2>できること</h2>
+    <ul>
+      <li>動画制作・映像編集 — PR動画、採用動画、SNS縦型動画、AI動画</li>
+      <li>AI導入・研修 — 生成AIの社内導入支援、企業研修、教材制作</li>
+      <li>SNS運用・LINE構築 — 運用代行、企画構成、LINE公式アカウント / Bot制作</li>
+      <li>Web制作・アプリ開発 — コーポレートサイト、LP、Webアプリ、スマホアプリ</li>
+      <li>キャスト手配・イベント — モデル・アクター手配、MC、イベント企画運営</li>
+      <li>クリエイティブ制作 — ロゴ、バナー、ポスター、イラスト、作詞作曲</li>
+    </ul>
+    <h2>「Lumenium」という名前について</h2>
+    <p>Lumenium は光の単位「lumen（ルーメン）」に由来し、日本語では<strong>ルメニウム</strong>と読みます。お客様が本来やりたかったことに光を当て、輪郭をはっきりさせるという意味を込めています。</p>
+    <p class="note">同じ綴りの名称が、米国バージニア州のエンジン開発企業 Lumenium, LLC や、光通信機器メーカー Lumentum、ゲーム内の架空素材などにも使われています。当サイト（lumenium.net）で扱う Lumenium は、それらとは無関係の、東京を拠点とする日本のクリエイティブ・DX支援カンパニーです。</p>
+    <h2>ご相談の進め方</h2>
+    <p>まずは30分のオンライン相談から。「何から手をつければいいか分からない」段階のご相談も歓迎です。お問い合わせから48時間以内にご返信し、無料でお見積りをお出しします。</p>
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
+  </div>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">サービス詳細</h2>
+  <ul class="list">
+    <li><a href="/services/video.html">動画制作・映像編集</a></li>
+    <li><a href="/services/ai.html">AI導入・研修</a></li>
+    <li><a href="/services/sns.html">SNS運用・LINE構築</a></li>
+    <li><a href="/services/web.html">Web制作・アプリ開発</a></li>
+    <li><a href="/services/cast.html">キャスト手配・イベント</a></li>
+    <li><a href="/services/creative.html">クリエイティブ制作</a></li>
+  </ul>`
+  writeFileSync('public/about.html', shell({
+    title: 'Lumenium（ルメニウム）とは | 東京の動画制作・AI導入・Web制作',
+    desc: DESC,
+    canonical: url,
+    ld,
+    eyebrow: 'ABOUT LUMENIUM',
+    body,
+  }))
+  urls.push({ loc: url, lastmod: TODAY })
+}
+
 /* ---- Content sitemap ---- */
 {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -276,4 +386,4 @@ ${urls.map((u) => `  <url>
   writeFileSync('public/sitemap-content.xml', xml)
 }
 
-console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq)`)
+console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq + about)`)

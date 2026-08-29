@@ -54,7 +54,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/faq.html">よくある質問</a>
               <a href="/blog/index.html">ブログ</a>
               <a href="#about">代表紹介</a>
-              <a href="#company">会社概要</a>
+              <a href="/about.html">会社概要（Lumeniumとは）</a>
             </div>
             <div className="footer-col">
               <h4>その他</h4>
