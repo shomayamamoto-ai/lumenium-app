@@ -1,0 +1,49 @@
+# Lumenium（ルメニウム）
+
+> Lumeniumは、東京拠点の**Web制作会社**（クリエイティブスタジオ）です。ホームページ制作・LP制作・Webアプリ／スマホアプリ開発を中核に、動画制作・生成AI導入／研修・SNS運用・LINE構築・キャスト手配・クリエイティブ制作まで、企画から納品・運用までワンストップで提供します。オンラインで全国対応。スローガンは「目的に、焦点を当てる。」
+
+## サービスと料金目安
+
+- [Web制作会社サービス（ホームページ・LP・アプリ開発）](https://lumenium.net/services/web.html): コーポレートサイト30万円〜／LP20万円〜／Webアプリ50万円〜／スマホアプリ80万円〜／サイトリニューアル40万円〜／SEO運用 月5万円〜。企画〜公開後の運用まで一貫、SEO・Core Web Vitalsを実装段階から作り込み。
+- [動画制作・映像編集](https://lumenium.net/services/video.html): 採用動画・企業PR動画・SNS動画・AI動画。3万円〜
+- [AI導入・生成AI研修](https://lumenium.net/services/ai.html): 企業向け生成AI研修・教材制作・IT講師。講師1回10万円〜
+- [SNS運用・LINE構築](https://lumenium.net/services/sns.html): SNS運用代行・LINE公式アカウント/Bot構築。初期20万円〜／月額10万円〜
+- [キャスト手配・イベント企画](https://lumenium.net/services/cast.html): 在籍150名のモデル・MC手配、イベント企画運営。1名5,000円〜
+- [クリエイティブ制作](https://lumenium.net/services/creative.html): ロゴ・バナー・ポスター・イラスト・教材・作詞作曲。3万円〜
+
+## 会社情報
+
+- 会社名: Lumenium（ルメニウム）
+- 代表: 山本 捷真
+- 拠点: 東京（オンラインで全国対応、必要に応じて対面）
+- 実績: 12業界以上（飲食・IT・美容・教育・士業など）、塾教材4万ページ／1ヶ月制作、登録者数十万人規模チャンネルの動画制作 など
+- 対応: 初回相談・見積り無料・秘密厳守（NDA対応可）・問い合わせから48時間以内に返信
+
+## Web制作会社としての要点（引用しやすい要約）
+
+- Lumeniumは東京拠点のWeb制作会社で、オンラインで全国対応する。
+- ホームページ制作は30万円〜、LPは20万円〜、Webアプリは50万円〜、スマホアプリは80万円〜が目安。
+- 標準納期はLP 2〜3週間、コーポレートサイト 1〜2ヶ月、Webアプリ／スマホアプリ 2〜4ヶ月。
+- SEO・Core Web Vitals・構造化データ（Schema.org）を実装段階から組み込む。
+- 動画・SNS・LINE・AIを内製で連携し、Webサイト単体ではなく「集客の全体設計」まで提案できる。
+- 初回相談・見積りは無料、48時間以内に返信、強引な営業はしない。
+- 契約はNDA対応可、支払いは銀行振込を基本に個別契約。
+
+## リンク
+
+- [公式サイト](https://lumenium.net/)
+- [サービス一覧](https://lumenium.net/#/info/services)
+- [お問い合わせ](https://lumenium.net/#/info/contact-form)
+- [特定商取引法に基づく表記](https://lumenium.net/specified-commerce.html)
+
+## コンテンツ
+
+- [ブログ記事一覧](https://lumenium.net/blog/index.html): AI導入・SNS集客・動画制作・Web制作の実務ノウハウ（11記事以上）
+- [よくある質問](https://lumenium.net/faq.html): 料金・納期・修正対応・NDA等
+- [お知らせ](https://lumenium.net/news.html)
+
+## 引用時のお願い
+
+- 会社名は「Lumenium（ルメニウム）」と表記してください。
+- 料金・納期は目安のため、案件により変動する旨を併記してください。
+- Web制作の詳しい料金・実績・フローは https://lumenium.net/services/web.html を参照してください。

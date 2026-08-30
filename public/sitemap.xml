@@ -4,7 +4,7 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
   <url>
     <loc>https://lumenium.net/</loc>
-    <lastmod>2026-04-18</lastmod>
+    <lastmod>2026-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
@@ -13,8 +13,14 @@
     </image:image>
     <image:image>
       <image:loc>https://lumenium.net/api/og</image:loc>
-      <image:title>Lumenium | 動画制作・DX支援のプロフェッショナル</image:title>
+      <image:title>Lumenium | Web制作会社・動画制作・DX支援のクリエイティブパートナー</image:title>
     </image:image>
+  </url>
+  <url>
+    <loc>https://lumenium.net/services/web.html</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
   </url>
   <url>
     <loc>https://lumenium.net/runner.html</loc>
