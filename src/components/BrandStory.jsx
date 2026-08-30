@@ -1,37 +1,6 @@
 // Editorial-style brand narrative.
 // Designed as a 3-chapter reading experience — not a sales block.
-const CHAPTERS = [
-  {
-    no: '01',
-    eyebrow: 'NAME',
-    title: '社名について',
-    body: [
-      'Lumenium（ルメニウム）は、ラテン語で「光」を意味する Lumen から取りました。',
-      'お客様の中でまだ輪郭のない目的に、光を当てて形にしていく。',
-      'それが、私たちの役割だと考えています。',
-    ],
-  },
-  {
-    no: '02',
-    eyebrow: 'APPROACH',
-    title: '対応領域',
-    body: [
-      '動画・AI・Web・SNS・キャスト手配・クリエイティブの6領域を扱っています。',
-      '実際のプロジェクトでは、これらは一つの目的のもとで絡み合うことがほとんどです。',
-      '複数社をまたぐ調整をお客様側で抱え込まずに済むよう、窓口を一本化しています。',
-    ],
-  },
-  {
-    no: '03',
-    eyebrow: 'STANCE',
-    title: '制作後の伴走',
-    body: [
-      '動画もサイトも LINE も、公開した時点では成果が出揃いません。',
-      '数字が動き始めるまでには、運用とチューニングに時間がかかります。',
-      '制作だけで終わらせず、運用フェーズまでご一緒できる体制を前提にしています。',
-    ],
-  },
-]
+import { BRAND_CHAPTERS as CHAPTERS } from '../data/site'
 
 export default function BrandStory() {
   return (

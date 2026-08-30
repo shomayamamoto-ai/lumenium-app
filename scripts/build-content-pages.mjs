@@ -13,7 +13,8 @@
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
-import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS } from '../src/data/site.js'
+import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
+  PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS } from '../src/data/site.js'
 
 const SITE = 'https://lumenium.net'
 const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
@@ -598,6 +599,101 @@ const TOPIC_PAGES = [
   },
 ]
 
+TOPIC_PAGES.push(
+  {
+    file: 'pain.html',
+    eyebrow: 'LUMENIUM PAIN POINTS',
+    title: 'こんなお困りごとはありませんか | Lumenium（ルメニウム）',
+    h1: 'こんなお困りごと、ありませんか？',
+    desc: 'SNS集客が進まない、動画を作る時間がない、公式LINEの始め方が分からない。ルメニウム（Lumenium）は、言葉にならないモヤモヤを一緒に言語化し、動画・AI・Webという打ち手に翻訳します。',
+    lead: '「何から手をつければいいか分からない」「やりたいことはあるのに、時間も人手も足りない」——事業の次の一手は、たいてい言葉にならないモヤモヤから始まります。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumeniumが解決するお困りごと',
+      itemListElement: PAIN_POINTS.map((x, i) => ({ '@type': 'ListItem', position: i + 1, name: x.title })),
+    }),
+    body: () => `
+    <p>その曖昧な想いを一緒に<strong>言語化</strong>し、動画・AI・Webという最適な打ち手に翻訳するのが、ルメニウム（Lumenium）の仕事です。</p>
+    ${PAIN_POINTS.map((x) => `
+    <h2>${esc(x.num)}｜${esc(x.title)}</h2>
+    <p><strong>お困りごと:</strong> ${esc(x.pain)}</p>
+    <p><strong>ルメニウムの対応:</strong> ${esc(x.solution)}</p>`).join('\n')}
+    <p class="note">上のどれにも当てはまらないご相談も歓迎です。抽象的な段階からご一緒します。</p>`,
+  },
+  {
+    file: 'positioning.html',
+    eyebrow: 'LUMENIUM POSITIONING',
+    title: 'ルメニウムの立ち位置（他社との違い）| Lumenium（ルメニウム）',
+    h1: 'ルメニウム（Lumenium）はどんな会社か — 他社との違い',
+    desc: '大手制作会社・広告代理店とも、クラウドソーシング・フリーランスとも違う、ルメニウム（Lumenium）の立ち位置。クオリティ・対応力とコストパフォーマンスの両立について説明します。',
+    lead: '大手制作会社・広告代理店、クラウドソーシング——どれとも違う、ルメニウムの立ち位置を整理しました。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumeniumのポジショニング',
+      itemListElement: POSITIONING_NOTES.map((n, i) => ({ '@type': 'ListItem', position: i + 1, name: n.k, description: n.v })),
+    }),
+    body: () => `
+    <p>ルメニウムは、<strong>クオリティ・対応力が高く、かつコストパフォーマンスも高い</strong>領域に立つことを狙っています。同じ課題を頼める先を並べると、違いは次のようになります。</p>
+    <dl class="facts">
+      ${POSITIONING_NOTES.map((n) => `<div><dt style="flex:0 0 178px">${esc(n.k)}</dt><dd>${esc(n.v)}</dd></div>`).join('\n      ')}
+    </dl>
+    <h2>なぜワンストップにこだわるのか</h2>
+    <p>動画・AI・Web・SNSは、実際のプロジェクトでは一つの目的のもとで絡み合います。複数社に分けて発注すると、その調整をお客様側が抱えることになります。ルメニウムは窓口を一本化し、企画から納品・運用までを一貫して担当します。</p>
+    <h2>必要な規模だけで頼める</h2>
+    <p>大手のような最低発注額・最低契約期間を設けていません。動画1本、LP1枚といった単位からご依頼いただけます。</p>`,
+  },
+  {
+    file: 'story.html',
+    eyebrow: 'LUMENIUM STORY',
+    title: '社名の由来と考え方 | Lumenium（ルメニウム）',
+    h1: 'ルメニウム（Lumenium）という社名と、その考え方',
+    desc: 'ルメニウム（Lumenium）という社名の由来、対応領域の考え方、制作後の伴走姿勢について。社名はラテン語で光を意味する Lumen に由来します。',
+    lead: '社名の由来、事業の考え方、取り組み方をご紹介します。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: 'ルメニウム（Lumenium）という社名と、その考え方',
+      inLanguage: 'ja-JP',
+      author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
+      publisher: { '@id': `${SITE}/#organization` },
+    }),
+    body: () => BRAND_CHAPTERS.map((c) => `
+    <h2>${esc(c.no)}｜${esc(c.title)}</h2>
+    ${c.body.map((line) => `<p>${esc(line)}</p>`).join('\n    ')}`).join('\n'),
+  },
+  {
+    file: 'profile.html',
+    eyebrow: 'LUMENIUM FOUNDER',
+    title: '代表紹介 山本捷真 | Lumenium（ルメニウム）',
+    h1: 'ルメニウム（Lumenium）代表 山本 捷真',
+    desc: 'ルメニウム（Lumenium）代表・山本捷真の経歴と得意領域。慶應義塾大学文学部卒業、在学中から個人事業主として動画・AI・Web・SNSを横断し、企業向けAI研修の講師も歴任。',
+    lead: '慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。動画、AI、Web、SNSなど幅広く活動し、企業向けAI研修の講師も歴任しています。',
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      name: '山本 捷真',
+      alternateName: 'Shoma Yamamoto',
+      jobTitle: 'Lumenium（ルメニウム）代表',
+      worksFor: { '@id': `${SITE}/#organization` },
+      alumniOf: { '@type': 'CollegeOrUniversity', name: '慶應義塾大学' },
+      knowsAbout: ['AI研修', '動画制作', 'LINE Bot開発', 'Webアプリ開発', 'キャスト手配', '作詞作曲'],
+    }),
+    body: () => `
+    ${PROFILE_BRICKS.map((k) => `
+    <h2>${esc(k.title)}</h2>
+    <p>${esc(k.text)}</p>
+    <ul>
+      ${k.list.map((i) => `<li>${esc(i)}</li>`).join('\n      ')}
+    </ul>`).join('\n')}
+    <h2>経歴</h2>
+    <dl class="facts">
+      ${CAREER.map((c) => `<div><dt>${esc(c.year)}</dt><dd>${esc(c.detail)}${c.sub ? `<br><span style="font-size:12.5px;opacity:.75">${esc(c.sub)}</span>` : ''}</dd></div>`).join('\n      ')}
+    </dl>`,
+  },
+)
+
 for (const t of TOPIC_PAGES) {
   const url = `${SITE}/${t.file}`
   const body = `
@@ -638,6 +734,82 @@ ${t.body()}
   }
   writeFileSync('public/' + t.file, shell({
     title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body,
+  }))
+  urls.push({ loc: url, lastmod: TODAY })
+}
+
+/* ---- Human-readable site index ----
+   One page that links every sub-page. Readers use it to find things; a
+   crawler uses it as a single hub that reaches the whole site in one hop. */
+{
+  const url = `${SITE}/sitemap.html`
+  const SECTIONS = [
+    ['事業内容', [
+      ['/services/video.html', '動画制作・映像編集'],
+      ['/services/ai.html', 'AI導入・生成AI研修'],
+      ['/services/sns.html', 'SNS運用・LINE構築'],
+      ['/services/web.html', 'Web制作・アプリ開発'],
+      ['/services/cast.html', 'キャスト手配・イベント'],
+      ['/services/creative.html', 'クリエイティブ制作'],
+    ]],
+    ['ご検討の方へ', [
+      ['/pain.html', 'こんなお困りごと、ありませんか？'],
+      ['/pricing.html', '料金・費用の目安'],
+      ['/works.html', '実績・制作事例'],
+      ['/voice.html', 'お客様の声・評判'],
+      ['/flow.html', 'ご依頼の流れ・進め方'],
+      ['/faq.html', 'よくある質問'],
+      ['/contact.html', 'お問い合わせ・無料相談'],
+    ]],
+    ['Lumeniumについて', [
+      ['/about.html', 'ルメニウム（Lumenium）とは'],
+      ['/story.html', '社名の由来と考え方'],
+      ['/positioning.html', 'ルメニウムの立ち位置（他社との違い）'],
+      ['/profile.html', '代表紹介 山本 捷真'],
+      ['/specified-commerce.html', '特定商取引法に基づく表記'],
+    ]],
+    ['読みもの', [
+      ['/blog/index.html', 'ブログ記事一覧'],
+      ['/news.html', 'お知らせ'],
+      ...articles.map((a) => [`/blog/post-${a.id}.html`, a.title]),
+    ]],
+    ['ミニゲーム', [
+      ['/game.html', 'シューティング'],
+      ['/runner.html', 'ランナー'],
+      ['/racing.html', 'ディフェンス'],
+    ]],
+  ]
+  const total = SECTIONS.reduce((n, [, items]) => n + items.length, 0)
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'サイトマップ | Lumenium（ルメニウム）',
+    url,
+    inLanguage: 'ja-JP',
+    isPartOf: { '@id': `${SITE}/#website` },
+    hasPart: SECTIONS.flatMap(([, items]) =>
+      items.map(([href, label]) => ({ '@type': 'WebPage', name: label, url: SITE + href }))),
+  }
+  const body = `
+  <h1>サイトマップ</h1>
+  <p class="meta">Lumenium（ルメニウム）のページ一覧（全${total}ページ）</p>
+  <article>
+${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
+    <ul class="list">
+      ${items.map(([href, text]) => `<li><a href="${href}">${esc(text)}</a></li>`).join('\n      ')}
+    </ul>`).join('\n')}
+  </article>
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/">トップページへ</a>
+  </div>`
+  writeFileSync('public/sitemap.html', shell({
+    title: 'サイトマップ | Lumenium（ルメニウム）',
+    desc: 'Lumenium（ルメニウム）のページ一覧。サービス、料金、実績、お客様の声、ご依頼の流れ、会社情報、ブログ記事へのリンクをまとめています。',
+    canonical: url,
+    ld,
+    eyebrow: 'LUMENIUM SITEMAP',
+    body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
 }

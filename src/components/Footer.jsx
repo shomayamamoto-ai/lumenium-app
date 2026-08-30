@@ -63,6 +63,7 @@ export default function Footer({ onPrivacy }) {
                 AdvoVisions<span aria-hidden="true"> ↗</span>
               </a>
               <a href="/game.html">ミニゲーム</a>
+              <a href="/sitemap.html">サイトマップ</a>
             </div>
           </div>
         </div>

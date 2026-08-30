@@ -47,6 +47,17 @@ const NAV_GROUPS = [
   },
 ]
 
+// Standalone pages, each on its own real URL (the in-app '#/…' sections share
+// one URL as far as a search engine is concerned, so these are what actually
+// get indexed). Plain links — they leave the app on purpose.
+const NAV_PAGES = [
+  { label: 'ルメニウムとは', href: '/about.html' },
+  { label: '料金・費用の目安', href: '/pricing.html' },
+  { label: '実績・制作事例', href: '/works.html' },
+  { label: 'よくある質問', href: '/faq.html' },
+  { label: 'サイトマップ（全ページ一覧）', href: '/sitemap.html' },
+]
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -167,6 +178,13 @@ export default function Navbar() {
               )}
             </div>
           ))}
+
+          <div className="nav-group">
+            <p className="nav-group-label">詳しいページ</p>
+            {NAV_PAGES.map((item) => (
+              <a key={item.href} href={item.href}>{item.label}</a>
+            ))}
+          </div>
 
           <div className="nav-group">
             <p className="nav-group-label">ミニゲーム</p>

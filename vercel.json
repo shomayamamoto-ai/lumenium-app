@@ -88,6 +88,26 @@
       "destination": "/contact.html"
     },
     {
+      "source": "/pain.html",
+      "destination": "/pain.html"
+    },
+    {
+      "source": "/positioning.html",
+      "destination": "/positioning.html"
+    },
+    {
+      "source": "/story.html",
+      "destination": "/story.html"
+    },
+    {
+      "source": "/profile.html",
+      "destination": "/profile.html"
+    },
+    {
+      "source": "/sitemap.html",
+      "destination": "/sitemap.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -1,13 +1,6 @@
-export default function Profile() {
-  const career = [
-    { year: '2019.4', detail: '慶應義塾大学 文学部 入学', sub: '経済新人会マーケ研 / 早稲田AI研究会' },
-    { year: '在学中', detail: 'ADKビジコン・Microsoftビジコン入賞多数', sub: '' },
-    { year: '2020.3〜', detail: '個人事業主として活動開始', sub: '動画 / SNS / AI開発' },
-    { year: '2024.1', detail: '株式会社Link AI（業務委託）', sub: 'AIメディア事業部 PM / メルマガライター' },
-    { year: '2026.3', detail: '慶應義塾大学 文学部 卒業', sub: '' },
-    { year: '現在', detail: 'Lumenium（ルメニウム）設立', sub: '動画制作・DX支援・AI研修を軸に事業展開' },
-  ]
+import { CAREER as career } from '../data/site'
 
+export default function Profile() {
   return (
     <section className="section" id="about">
       <div className="container">

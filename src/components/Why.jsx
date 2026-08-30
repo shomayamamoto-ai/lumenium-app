@@ -1,31 +1,8 @@
 import { IconSNSPain, IconVideoPain, IconLINEPain } from './Icons'
+import { PAIN_POINTS } from '../data/site'
 
-const painPoints = [
-  {
-    num: '01',
-    icon: <IconSNSPain />,
-    title: 'SNSに弱い…',
-    pain: 'SNSで集客したいけど何から始めればいいかわからない。',
-    solution: '企画〜運用まで全てお任せ。',
-    accent: '#2563eb',
-  },
-  {
-    num: '02',
-    icon: <IconVideoPain />,
-    title: '動画を作る時間がない…',
-    pain: '動画を作りたいけど時間を割けない。',
-    solution: '企画から納品まで一貫対応します。',
-    accent: '#7c3aed',
-  },
-  {
-    num: '03',
-    icon: <IconLINEPain />,
-    title: 'LINEで発信したい…',
-    pain: '公式LINEで発信したいがやり方がわからない。',
-    solution: 'Bot制作から配信設計まで対応します。',
-    accent: '#0891b2',
-  },
-]
+const PAIN_ICONS = [<IconSNSPain />, <IconVideoPain />, <IconLINEPain />]
+const painPoints = PAIN_POINTS.map((p, i) => ({ ...p, icon: PAIN_ICONS[i] }))
 
 import { useEffect, useRef } from 'react'
 
