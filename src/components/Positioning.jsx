@@ -7,14 +7,14 @@ export default function Positioning() {
       <div className="container">
         <div className="section-header" data-animate>
           <p className="section-label">POSITIONING</p>
-          <h2 className="section-title">Lumeniumってどんな会社？</h2>
+          <h2 className="section-title">Lumenium（ルメニウム）ってどんな会社？</h2>
           <p className="section-desc">
-            大手制作会社・クラウドソーシング——どれとも違う、Lumeniumの立ち位置です。
+            大手制作会社・クラウドソーシング——どれとも違う、ルメニウムの立ち位置です。
           </p>
         </div>
 
         <div className="positioning" data-animate data-delay="1">
-          <div className="positioning-frame" role="img" aria-label="Lumeniumのポジショニング: 高クオリティ・高コストパフォーマンスの領域に位置する">
+          <div className="positioning-frame" role="img" aria-label="Lumenium（ルメニウム）のポジショニング: 高クオリティ・高コストパフォーマンスの領域に位置する">
             {/* Axes — CSS lines + fixed-size triangle arrowheads. (The old
                 stretched-SVG polygons distorted and clipped at the edges.) */}
             <div className="positioning-axes" aria-hidden="true">

@@ -3,7 +3,7 @@ import { replyTo } from '../lib/chatbot'
 
 const INITIAL_MESSAGE = {
   type: 'bot',
-  text: 'こんにちは！Lumeniumです 💡\n\nぼんやりした悩みに、光を当てる会社。\n企画から運用まで一括で解決します！\n\n下のボタンから知りたい情報を選んでください👇',
+  text: 'こんにちは！Lumenium（ルメニウム）です 💡\n\nぼんやりした悩みに、光を当てる会社。\n企画から運用まで一括で解決します！\n\n下のボタンから知りたい情報を選んでください👇',
 }
 
 const QUICK_REPLIES = [
@@ -77,7 +77,7 @@ export default function ChatWidget() {
             <div className="chat-widget-header-info">
               <div className="chat-widget-avatar">L</div>
               <div>
-                <div className="chat-widget-name">Lumenium</div>
+                <div className="chat-widget-name">Lumenium（ルメニウム）</div>
                 <div className="chat-widget-status">オンライン</div>
               </div>
             </div>

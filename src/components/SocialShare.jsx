@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const SITE = {
   url: 'https://lumenium.net',
-  title: 'Lumenium | 動画制作・DX支援のプロフェッショナル',
+  title: 'Lumenium（ルメニウム）| 動画制作・AI導入・Web制作',
 }
 
 const shareTargets = [

@@ -3112,6 +3112,19 @@ html[data-theme="dark"] .nav-logo span {
   .nav-logo .nav-logo-tag { display: none; }
 }
 
+/* Katakana reading under the footer wordmark — opted out of the gradient
+   text-clip its parent applies. */
+.footer-logo .footer-logo-yomi {
+  display: block;
+  margin-top: 1px;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
 .footer-logo span {
   background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
   -webkit-background-clip: text;

@@ -11,8 +11,8 @@ const SERVICES = [
     id: 'video',
     name: '動画制作・映像編集',
     keyword: '動画制作',
-    title: '動画制作・映像編集（採用動画・企業PR動画・SNS動画）| Lumenium',
-    desc: '採用動画・企業PR動画・SNS向け短尺動画・AI動画を、企画から撮影・編集・納品までワンストップで制作。東京拠点・オンライン全国対応。料金は3万円〜。',
+    title: '動画制作・映像編集（採用動画・企業PR動画・SNS動画）| Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜採用動画・企業PR動画・SNS向け短尺動画・AI動画を、企画から撮影・編集・納品までワンストップで制作。東京拠点・オンライン全国対応。料金は3万円〜。',
     lead: '採用動画・企業PR動画・SNSの短尺動画・AI動画まで。企画構成から撮影・編集・納品後の運用まで、一貫してお任せいただけます。',
     highlights: ['社内に映像チームがなく外注先を探している', 'SNS向けの短尺動画を量産したい', '企業紹介・採用動画を丁寧に作りたい'],
     examples: ['登録者数十万人規模のYouTubeチャンネル動画制作', '有名飲食店での企画・映像制作', 'AI企業PR動画', '就業支援・研修動画'],
@@ -22,8 +22,8 @@ const SERVICES = [
     id: 'ai',
     name: 'AI導入・生成AI研修',
     keyword: '生成AI研修',
-    title: '生成AI研修・AI導入支援（企業向け・IT講師派遣）| Lumenium',
-    desc: '企業向け生成AI研修・AIリテラシー教育・教材制作・IT講師派遣。現場目線でChatGPT等の業務活用を指導。講師1回10万円〜、オンライン対応。',
+    title: '生成AI研修・AI導入支援（企業向け・IT講師派遣）| Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜企業向け生成AI研修・AIリテラシー教育・教材制作・IT講師派遣。現場目線でChatGPT等の業務活用を指導。講師1回10万円〜、オンライン対応。',
     lead: '「AIを業務に取り入れたいが何から始めるか分からない」に、現場目線で伴走します。社員研修・教材制作・導入コンサルティングまで対応。',
     highlights: ['AIを業務に取り入れたいが何から始めるか迷っている', '社員向けAIリテラシー研修を検討している', 'AI教材・メルマガを内製化したい'],
     examples: ['企業向けAI活用メルマガ制作', 'AI教材制作', '研修・就業支援動画のAI活用'],
@@ -33,8 +33,8 @@ const SERVICES = [
     id: 'sns',
     name: 'SNS運用・LINE構築',
     keyword: 'SNS運用代行',
-    title: 'SNS運用代行・LINE公式アカウント構築（Bot制作）| Lumenium',
-    desc: 'SNS運用代行・企画構成・LINE公式アカウント構築・シナリオ型Bot制作。集客の仕組み化を初期20万円〜、月額10万円〜で支援します。',
+    title: 'SNS運用代行・LINE公式アカウント構築（Bot制作）| Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜SNS運用代行・企画構成・LINE公式アカウント構築・シナリオ型Bot制作。集客の仕組み化を初期20万円〜、月額10万円〜で支援します。',
     lead: '「何を投稿すればいいか分からない」「公式LINEを作りたいがやり方が不明」——集客の仕組み化を企画から運用まで代行します。',
     highlights: ['公式LINEで配信したいがやり方がわからない', 'SNSで集客したいが何を投稿すべきか分からない', 'シナリオ配信・セグメント配信を設計したい'],
     examples: ['企業公式LINE構築', 'シナリオ型Bot制作', 'SNS運用代行（月数十本投稿）'],
@@ -44,8 +44,8 @@ const SERVICES = [
     id: 'web',
     name: 'Web制作・アプリ開発',
     keyword: 'ホームページ制作',
-    title: 'ホームページ制作・LP制作・アプリ開発 | Lumenium',
-    desc: '企業ホームページ・LP・Webアプリ・スマホアプリの開発。リニューアルから短納期LPまで30万円〜。東京・オンライン全国対応。',
+    title: 'ホームページ制作・LP制作・アプリ開発 | Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜企業ホームページ・LP・Webアプリ・スマホアプリの開発。リニューアルから短納期LPまで30万円〜。東京・オンライン全国対応。',
     lead: '古いHPのリニューアル、キャンペーンLPの短納期制作、業務効率化のWebアプリまで。設計から公開後の運用まで伴走します。',
     highlights: ['古いホームページをリニューアルしたい', 'キャンペーン用LPを短納期で作りたい', '業務効率化のための社内ツールを開発したい'],
     examples: ['企業ホームページ制作', '業務用Webアプリ開発', 'スマートフォンアプリ開発'],
@@ -55,8 +55,8 @@ const SERVICES = [
     id: 'cast',
     name: 'キャスト手配・イベント企画',
     keyword: 'キャスト手配',
-    title: 'モデル・MC・キャスト手配、イベント企画運営 | Lumenium',
-    desc: '在籍150名のモデル・アクター・MCの手配、イベントの企画運営、配信者・アイドルのプロデュース。キャスト1名5,000円〜。',
+    title: 'モデル・MC・キャスト手配、イベント企画運営 | Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜在籍150名のモデル・アクター・MCの手配、イベントの企画運営、配信者・アイドルのプロデュース。キャスト1名5,000円〜。',
     lead: '撮影・配信・イベントに必要なキャストを、在籍150名のネットワークからスピーディに手配。企画運営ごとお任せいただけます。',
     highlights: ['撮影や配信にキャストを手配したい', 'MC・司会付きのイベントを企画している', '配信者・アイドルのプロデュースを相談したい'],
     examples: ['アイドルイベント主催', '配信者のプロデュース', '企業イベントのキャスト手配・MC'],
@@ -66,8 +66,8 @@ const SERVICES = [
     id: 'creative',
     name: 'クリエイティブ制作',
     keyword: 'ロゴ制作',
-    title: 'ロゴ・バナー・ポスター・イラスト・教材制作 | Lumenium',
-    desc: 'ロゴ・バナー・ポスター・イラスト・教材制作・ライティング・作詞作曲まで、クリエイティブ全般を3万円〜で制作します。',
+    title: 'ロゴ・バナー・ポスター・イラスト・教材制作 | Lumenium（ルメニウム）',
+    desc: 'ルメニウム（Lumenium）｜ロゴ・バナー・ポスター・イラスト・教材制作・ライティング・作詞作曲まで、クリエイティブ全般を3万円〜で制作します。',
     lead: 'ブランドの顔となるロゴから、バナー・ポスター・イラスト・教材・楽曲まで。「作りたい」をかたちにします。',
     highlights: ['新ブランドのロゴ・アイデンティティを作りたい', '書籍・ブログ用のライターを探している', 'イベント用の作詞・作曲を依頼したい'],
     examples: ['企業ロゴ・バナー・ポスター制作', '塾教材4万ページ制作（1ヶ月）', '作詞作曲・楽曲提供'],
@@ -110,6 +110,7 @@ function page(s) {
 <title>${esc(s.title)}</title>
 <meta name="description" content="${esc(s.desc)}">
 <link rel="canonical" href="${SITE}/services/${s.id}.html">
+<meta property="og:site_name" content="Lumenium（ルメニウム）">
 <meta property="og:title" content="${esc(s.title)}">
 <meta property="og:description" content="${esc(s.desc)}">
 <meta property="og:type" content="website">
@@ -161,10 +162,11 @@ footer a:hover { color:var(--text); }
 </head>
 <body>
 <div class="wrap">
-  <header><a href="/">← Lumenium トップへ</a></header>
+  <header><a href="/">← Lumenium（ルメニウム）トップへ</a></header>
   <p class="eyebrow">LUMENIUM SERVICE</p>
-  <h1>${esc(s.name)}</h1>
+  <h1>${esc(s.name)}｜Lumenium（ルメニウム）</h1>
   <p class="lead">${esc(s.lead)}</p>
+  <p class="lead">東京拠点のクリエイティブ&amp;DXパートナー Lumenium（ルメニウム）が、オンラインで全国のご依頼に対応します。</p>
 
   <h2>こんな方におすすめ</h2>
   <ul>
@@ -189,9 +191,17 @@ footer a:hover { color:var(--text); }
     ${others.map((o) => `<a href="/services/${o.id}.html">${esc(o.name)}</a>`).join('\n    ')}
   </div>
 
+  <p class="lead" style="margin-top:34px;font-size:13px;opacity:.8">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を手がけています。米国のエンジン開発企業 Lumenium, LLC や Lumentum とは無関係の別組織です。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/">lumenium.net</a>
+    <a href="/about.html">Lumeniumとは</a>
+    <a href="/pricing.html">料金</a>
+    <a href="/works.html">実績</a>
+    <a href="/voice.html">お客様の声</a>
+    <a href="/flow.html">ご依頼の流れ</a>
+    <a href="/faq.html">よくある質問</a>
+    <a href="/contact.html">お問い合わせ</a>
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>

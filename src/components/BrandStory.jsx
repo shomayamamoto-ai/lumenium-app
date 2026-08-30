@@ -6,7 +6,7 @@ const CHAPTERS = [
     eyebrow: 'NAME',
     title: '社名について',
     body: [
-      'Lumenium は、ラテン語で「光」を意味する Lumen から取りました。',
+      'Lumenium（ルメニウム）は、ラテン語で「光」を意味する Lumen から取りました。',
       'お客様の中でまだ輪郭のない目的に、光を当てて形にしていく。',
       'それが、私たちの役割だと考えています。',
     ],
@@ -39,8 +39,8 @@ export default function BrandStory() {
       <div className="container">
         <div className="section-header" data-animate>
           <p className="section-label">ABOUT</p>
-          <h2 className="section-title">Lumenium について</h2>
-          <p className="section-desc">社名の由来、事業の考え方、取り組み方をご紹介します。</p>
+          <h2 className="section-title">Lumenium（ルメニウム）について</h2>
+          <p className="section-desc">ルメニウムという社名の由来、事業の考え方、取り組み方をご紹介します。</p>
         </div>
 
         <div className="story">

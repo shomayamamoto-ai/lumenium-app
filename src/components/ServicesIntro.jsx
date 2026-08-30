@@ -9,7 +9,7 @@ export default function ServicesIntro() {
         <div className="services-intro-copy">
           <p className="services-intro-label">NEXT · SERVICES</p>
           <h2 className="services-intro-title">
-            Lumenium が<br />お手伝いできる領域。
+            Lumenium（ルメニウム）が<br />お手伝いできる領域。
           </h2>
           <p className="services-intro-lead">
             動画制作からAI導入、Web開発まで。一つひとつの領域に、専門チームが伴走します。

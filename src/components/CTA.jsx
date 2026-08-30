@@ -7,7 +7,7 @@ export default function CTA() {
           <h2 className="cta-title">あなたの"やりたい"を<br />光ある形に。</h2>
           <p className="cta-desc">
             「何から始めればいいかわからない」——まずはそこからで大丈夫です。<br />
-            Lumeniumが一緒に整理し、最短ルートの解決策までご提案します。
+            Lumenium（ルメニウム）が一緒に整理し、最短ルートの解決策までご提案します。
           </p>
           <div className="cta-reassure" data-animate>
             <span className="cta-reassure-item">

@@ -155,7 +155,7 @@ export default function Splash({ onComplete }) {
 
       {/* Content */}
       <div className="lx-content">
-        <img src="/favicon.svg" alt="Lumenium" className="lx-logo" width="260" height="260" />
+        <img src="/favicon.svg" alt="Lumenium（ルメニウム）" className="lx-logo" width="260" height="260" />
         <h1 className="lx-name">LUMENIUM</h1>
         <p className="lx-tag">目的に、焦点を当てる。</p>
       </div>

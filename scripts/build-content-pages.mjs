@@ -108,6 +108,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${canonical}">
+<meta property="og:site_name" content="Lumenium（ルメニウム）">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="article">
@@ -121,9 +122,10 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 </head>
 <body>
 <div class="wrap">
-  <header><a href="/">← Lumenium トップへ</a></header>
+  <header><a href="/">← Lumenium（ルメニウム）トップへ</a></header>
   <p class="eyebrow">${esc(eyebrow)}</p>
 ${body}
+  <p style="margin-top:34px;font-size:13px;line-height:1.9;color:var(--sub);opacity:.85">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を、企画から運用までワンストップで手がけています。米国のエンジン開発企業 Lumenium, LLC や光通信機器メーカー Lumentum とは無関係の別組織です。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/about.html">Lumeniumとは</a>

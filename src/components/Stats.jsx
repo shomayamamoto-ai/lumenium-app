@@ -30,7 +30,7 @@ const STATS = [
 
 export default function Stats() {
   return (
-    <section className="stats-section" aria-label="Lumeniumの数字">
+    <section className="stats-section" aria-label="Lumenium（ルメニウム）の数字">
       <div className="container">
         <div className="stats-grid">
           {STATS.map((s, i) => (

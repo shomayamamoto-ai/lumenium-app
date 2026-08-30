@@ -145,7 +145,7 @@ export default function Services() {
         <div className="section-header" data-animate data-stroke="SERVICES">
           <p className="section-label">SERVICES</p>
           <h2 className="section-title">動画・AI・Webまで<br />6領域をワンストップで。</h2>
-          <p className="section-desc">複数の制作会社に発注する手間を1社に集約。企画から納品・運用までLumeniumが一貫して伴走します。</p>
+          <p className="section-desc">複数の制作会社に発注する手間を1社に集約。企画から納品・運用までLumenium（ルメニウム）が一貫して伴走します。</p>
         </div>
         <div className="services-grid">
           {services.map((s, i) => (

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
 
-export default function VideoModal({ src = '/intro.mp4', title = 'Lumenium PR動画', onClose }) {
+export default function VideoModal({ src = '/intro.mp4', title = 'Lumenium（ルメニウム）PR動画', onClose }) {
   const overlayRef = useRef(null)
   const videoRef = useRef(null)
   useFocusTrap(overlayRef, true)

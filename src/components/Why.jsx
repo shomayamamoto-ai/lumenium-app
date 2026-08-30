@@ -66,7 +66,7 @@ export default function Why() {
             たいてい<strong>言葉にならないモヤモヤ</strong>から始まります。<br />
             その曖昧な想いを一緒に<strong>言語化</strong>し、<br />
             動画・AI・Webという最適な打ち手に翻訳するのが、<br />
-            Lumeniumの仕事です。
+            ルメニウムの仕事です。
           </p>
         </div>
         <div className="pain-grid" ref={gridRef}>

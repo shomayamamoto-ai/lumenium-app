@@ -20,7 +20,7 @@ export default function Company() {
         <div className="company-card" data-animate data-delay="1">
           {/* Letterhead */}
           <header className="company-card-head">
-            <img src="/favicon.svg" alt="Lumenium" className="company-card-logo" width="48" height="48" loading="lazy" />
+            <img src="/favicon.svg" alt="Lumenium（ルメニウム）" className="company-card-logo" width="48" height="48" loading="lazy" />
             <div className="company-card-head-text">
               <p className="company-card-eyebrow">LUMENIUM · TOKYO</p>
               <p className="company-card-tagline">散文化した目的に、焦点を当てる。</p>
@@ -51,7 +51,7 @@ export default function Company() {
           {/* Foil / signature */}
           <footer className="company-card-foot">
             <span className="company-card-foil" aria-hidden="true" />
-            <span className="company-card-signature">Lumenium, 2026</span>
+            <span className="company-card-signature">Lumenium（ルメニウム）, 2026</span>
           </footer>
         </div>
       </div>

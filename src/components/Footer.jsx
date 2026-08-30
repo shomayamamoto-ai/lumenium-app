@@ -18,8 +18,8 @@ export default function Footer({ onPrivacy }) {
         <div className="footer-top">
           <div className="footer-brand">
             <a href="#top" className="footer-logo">
-              <img src="/lumenium-logo.svg?v=2" alt="Lumenium" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
-              <span>Lumenium</span>
+              <img src="/lumenium-logo.svg?v=2" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
+              <span>Lumenium<small className="footer-logo-yomi">ルメニウム</small></span>
             </a>
             <p className="footer-tagline">散文化した目的に、焦点を当てる。</p>
             <p className="footer-sub">動画・AI・Webを中心に、企画から運用までを一緒に走りながら、お客様の想いをかたちにしています。</p>
@@ -69,7 +69,7 @@ export default function Footer({ onPrivacy }) {
 
         <div className="footer-bottom">
           <p className="footer-copy">
-            <span aria-hidden="true">©</span> 2026 Lumenium. All rights reserved.
+            <span aria-hidden="true">©</span> 2026 Lumenium（ルメニウム）. All rights reserved.
           </p>
           <div className="footer-legal">
             <button type="button" className="footer-privacy" onClick={onPrivacy}>プライバシーポリシー</button>
