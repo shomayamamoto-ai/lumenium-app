@@ -508,11 +508,20 @@ export default function SearchHome() {
 
       {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}
 
-      <footer className="search-home-footer">
-        <a href="#/info">サービス案内</a>
-        <a href="#/info/company">会社概要</a>
-        <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
-      </footer>
+      <div className="search-home-bottom">
+        {/* One crawlable definition sentence on the page that actually ranks —
+            answer engines lift the passage, not the whole site. */}
+        <p className="search-home-def">
+          ルメニウム（Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。
+          <a href="/about.html">ルメニウムとは →</a>
+        </p>
+
+        <footer className="search-home-footer">
+          <a href="#/info">サービス案内</a>
+          <a href="/about.html">会社概要</a>
+          <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+        </footer>
+      </div>
     </main>
   )
 }

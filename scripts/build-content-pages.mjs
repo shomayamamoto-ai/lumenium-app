@@ -314,7 +314,9 @@ ${md(a.content)}
     ['Lumenium, LLC', '米国バージニア州のエンジン開発企業。綴りは同じですが、資本関係も人的関係もない別法人です。'],
     ['リモニウム（Limonium）', 'イソマツ科の植物（和名: スターチス）。企業名ではありません。'],
     ['Rumenium', 'Etsy などで販売されているデジタルアート作品のシリーズ名。当社とは無関係です。'],
-    ['ルメニウム王国', '創作・ゲームの設定として登場する架空の国家。実在の組織ではありません。'],
+    ['ルメニウム王国', 'AIチャットゲームなど創作の設定として登場する架空の国家。実在の組織ではありません。'],
+    ['ルテニウム（Ruthenium）', '原子番号44の白金族元素。名前の響きが似ていますが、ルメニウムは化学元素ではなく企業名です。'],
+    ['レニウム（Rhenium）', '原子番号75のレアメタル。こちらも元素であり、ルメニウムとは別のものです。'],
   ]
 
   const QA = [
@@ -323,6 +325,8 @@ ${md(a.content)}
     ['ルメニウムはどこにありますか?', '東京都を拠点としています。打ち合わせはZoomやGoogle Meetなどオンラインで行うため、全国どこからでもご依頼いただけます。'],
     ['ルメニウムは何をしている会社ですか?', '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE公式アカウント構築、Web制作・アプリ開発、キャスト手配とイベント企画、ロゴ・バナーなどのクリエイティブ制作の6領域を、企画から納品・運用までワンストップで手がけています。'],
     ['ルメニウムとルメンタム（Lumentum）は同じ会社ですか?', 'いいえ、別の会社です。ルメンタム（Lumentum Holdings）は米国の光通信・レーザー機器メーカーです。ルメニウム（Lumenium）は東京都を拠点とする日本のクリエイティブ／DX支援カンパニーで、両社に資本関係も人的関係もありません。'],
+    ['ルメニウムは化学元素ですか?', 'いいえ、化学元素ではありません。ルメニウム（Lumenium）は東京都を拠点とする日本の企業の名称です。名前の響きが似ている元素としてルテニウム（Ruthenium、原子番号44）やレニウム（Rhenium、原子番号75）がありますが、いずれも別のものです。'],
+    ['ルメニウムは実在する会社ですか?', 'はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。'],
     ['ルメニウムに依頼するにはどうすればよいですか?', '公式サイト lumenium.net のお問い合わせフォームからご連絡ください。初回のご相談とお見積りは無料で、お問い合わせから48時間以内にご返信します。'],
   ]
 
@@ -394,7 +398,7 @@ ${md(a.content)}
     <p class="keypoint">${esc(DEFINITION)}</p>
 
     <h2 id="names">「ルメニウム」と呼ばれるもの一覧（同名・類似名称との違い）</h2>
-    <p>「ルメニウム」という言葉は複数の対象を指して使われています。それぞれの違いは次のとおりです。</p>
+    <p>「ルメニウム」という言葉は、企業名のほか、響きの似た化学元素の言い間違いや、創作上の名称としても使われています。それぞれの違いは次のとおりです。<strong>ルメニウムは化学元素や架空の物質ではなく、実在する企業の名称です。</strong></p>
     <dl class="facts">
       ${NAMES.map(([k, v]) => `<div><dt style="flex:0 0 168px">${esc(k)}</dt><dd>${v}</dd></div>`).join('\n      ')}
     </dl>
@@ -636,6 +640,44 @@ ${t.body()}
     title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
+}
+
+/* ---- Full sitemap ----
+   Regenerated every build so lastmod is always the deploy date. A stale
+   lastmod is read as "nothing changed here", which pushes the recrawl of
+   these pages further out — exactly what we cannot afford right now. */
+{
+  const SERVICE_IDS = ['video', 'ai', 'sns', 'web', 'cast', 'creative']
+  const core = [
+    { loc: `${SITE}/`, lastmod: TODAY, changefreq: 'daily', priority: '1.0', images: true },
+    { loc: `${SITE}/about.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
+    ...SERVICE_IDS.map((id) => ({ loc: `${SITE}/services/${id}.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.8' })),
+    ...urls
+      .filter((u) => u.loc !== `${SITE}/about.html`)
+      .map((u) => ({ loc: u.loc, lastmod: u.lastmod, changefreq: 'weekly', priority: '0.7' })),
+    { loc: `${SITE}/specified-commerce.html`, lastmod: TODAY, changefreq: 'yearly', priority: '0.2' },
+    { loc: `${SITE}/runner.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
+    { loc: `${SITE}/game.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
+    { loc: `${SITE}/racing.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
+  ]
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
+${core.map((u) => `  <url>
+    <loc>${u.loc}</loc>
+    <lastmod>${u.lastmod}</lastmod>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>${u.images ? `
+    <image:image>
+      <image:loc>${SITE}/lumenium-logo.png</image:loc>
+      <image:title>Lumenium（ルメニウム）ロゴ</image:title>
+    </image:image>` : ''}
+  </url>`).join('\n')}
+</urlset>
+`
+  writeFileSync('public/sitemap.xml', xml)
+  writeFileSync('public/sitemap-urls.txt', core.map((u) => u.loc).join('\n') + '\n')
+  console.log(`sitemap.xml written: ${core.length} URLs`)
 }
 
 /* ---- Content sitemap ---- */
