@@ -603,7 +603,7 @@ TOPIC_PAGES.push(
   {
     file: 'pain.html',
     eyebrow: 'LUMENIUM PAIN POINTS',
-    title: 'こんなお困りごとはありませんか | Lumenium（ルメニウム）',
+    title: 'お困りごと｜SNS・動画・LINEの悩み | Lumenium（ルメニウム）',
     h1: 'こんなお困りごと、ありませんか？',
     desc: 'SNS集客が進まない、動画を作る時間がない、公式LINEの始め方が分からない。ルメニウム（Lumenium）は、言葉にならないモヤモヤを一緒に言語化し、動画・AI・Webという打ち手に翻訳します。',
     lead: '「何から手をつければいいか分からない」「やりたいことはあるのに、時間も人手も足りない」——事業の次の一手は、たいてい言葉にならないモヤモヤから始まります。',
@@ -624,7 +624,7 @@ TOPIC_PAGES.push(
   {
     file: 'positioning.html',
     eyebrow: 'LUMENIUM POSITIONING',
-    title: 'ルメニウムの立ち位置（他社との違い）| Lumenium（ルメニウム）',
+    title: '他社との違い・立ち位置 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）はどんな会社か — 他社との違い',
     desc: '大手制作会社・広告代理店とも、クラウドソーシング・フリーランスとも違う、ルメニウム（Lumenium）の立ち位置。クオリティ・対応力とコストパフォーマンスの両立について説明します。',
     lead: '大手制作会社・広告代理店、クラウドソーシング——どれとも違う、ルメニウムの立ち位置を整理しました。',
@@ -745,6 +745,7 @@ ${t.body()}
   const url = `${SITE}/sitemap.html`
   const SECTIONS = [
     ['事業内容', [
+      ['/services/index.html', 'サービス一覧'],
       ['/services/video.html', '動画制作・映像編集'],
       ['/services/ai.html', 'AI導入・生成AI研修'],
       ['/services/sns.html', 'SNS運用・LINE構築'],
@@ -823,6 +824,7 @@ ${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
   const core = [
     { loc: `${SITE}/`, lastmod: TODAY, changefreq: 'daily', priority: '1.0', images: true },
     { loc: `${SITE}/about.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
+    { loc: `${SITE}/services/index.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
     ...SERVICE_IDS.map((id) => ({ loc: `${SITE}/services/${id}.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.8' })),
     ...urls
       .filter((u) => u.loc !== `${SITE}/about.html`)

@@ -12,7 +12,7 @@ const SERVICES = [
     name: '動画制作・映像編集',
     keyword: '動画制作',
     title: '動画制作・映像編集（採用動画・企業PR動画・SNS動画）| Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜採用動画・企業PR動画・SNS向け短尺動画・AI動画を、企画から撮影・編集・納品までワンストップで制作。東京拠点・オンライン全国対応。料金は3万円〜。',
+    desc: '採用動画・企業PR動画・SNS向け短尺動画・AI動画を、企画から撮影・編集・納品までワンストップで制作。料金は3万円〜。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '採用動画・企業PR動画・SNSの短尺動画・AI動画まで。企画構成から撮影・編集・納品後の運用まで、一貫してお任せいただけます。',
     highlights: ['社内に映像チームがなく外注先を探している', 'SNS向けの短尺動画を量産したい', '企業紹介・採用動画を丁寧に作りたい'],
     examples: ['登録者数十万人規模のYouTubeチャンネル動画制作', '有名飲食店での企画・映像制作', 'AI企業PR動画', '就業支援・研修動画'],
@@ -23,7 +23,7 @@ const SERVICES = [
     name: 'AI導入・生成AI研修',
     keyword: '生成AI研修',
     title: '生成AI研修・AI導入支援（企業向け・IT講師派遣）| Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜企業向け生成AI研修・AIリテラシー教育・教材制作・IT講師派遣。現場目線でChatGPT等の業務活用を指導。講師1回10万円〜、オンライン対応。',
+    desc: '企業向け生成AI研修・AIリテラシー教育・教材制作・IT講師派遣。現場目線でChatGPT等の業務活用を指導。講師1回10万円〜。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '「AIを業務に取り入れたいが何から始めるか分からない」に、現場目線で伴走します。社員研修・教材制作・導入コンサルティングまで対応。',
     highlights: ['AIを業務に取り入れたいが何から始めるか迷っている', '社員向けAIリテラシー研修を検討している', 'AI教材・メルマガを内製化したい'],
     examples: ['企業向けAI活用メルマガ制作', 'AI教材制作', '研修・就業支援動画のAI活用'],
@@ -34,7 +34,7 @@ const SERVICES = [
     name: 'SNS運用・LINE構築',
     keyword: 'SNS運用代行',
     title: 'SNS運用代行・LINE公式アカウント構築（Bot制作）| Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜SNS運用代行・企画構成・LINE公式アカウント構築・シナリオ型Bot制作。集客の仕組み化を初期20万円〜、月額10万円〜で支援します。',
+    desc: 'SNS運用代行・企画構成・LINE公式アカウント構築・シナリオ型Bot制作。集客の仕組み化を初期20万円〜、月額10万円〜で支援します。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '「何を投稿すればいいか分からない」「公式LINEを作りたいがやり方が不明」——集客の仕組み化を企画から運用まで代行します。',
     highlights: ['公式LINEで配信したいがやり方がわからない', 'SNSで集客したいが何を投稿すべきか分からない', 'シナリオ配信・セグメント配信を設計したい'],
     examples: ['企業公式LINE構築', 'シナリオ型Bot制作', 'SNS運用代行（月数十本投稿）'],
@@ -45,7 +45,7 @@ const SERVICES = [
     name: 'Web制作・アプリ開発',
     keyword: 'ホームページ制作',
     title: 'ホームページ制作・LP制作・アプリ開発 | Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜企業ホームページ・LP・Webアプリ・スマホアプリの開発。リニューアルから短納期LPまで30万円〜。東京・オンライン全国対応。',
+    desc: '企業ホームページ・LP・Webアプリ・スマホアプリの開発。リニューアルから短納期LPまで30万円〜。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '古いHPのリニューアル、キャンペーンLPの短納期制作、業務効率化のWebアプリまで。設計から公開後の運用まで伴走します。',
     highlights: ['古いホームページをリニューアルしたい', 'キャンペーン用LPを短納期で作りたい', '業務効率化のための社内ツールを開発したい'],
     examples: ['企業ホームページ制作', '業務用Webアプリ開発', 'スマートフォンアプリ開発'],
@@ -56,7 +56,7 @@ const SERVICES = [
     name: 'キャスト手配・イベント企画',
     keyword: 'キャスト手配',
     title: 'モデル・MC・キャスト手配、イベント企画運営 | Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜在籍150名のモデル・アクター・MCの手配、イベントの企画運営、配信者・アイドルのプロデュース。キャスト1名5,000円〜。',
+    desc: '在籍150名のモデル・アクター・MCの手配、イベントの企画運営、配信者・アイドルのプロデュース。キャスト1名5,000円〜。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '撮影・配信・イベントに必要なキャストを、在籍150名のネットワークからスピーディに手配。企画運営ごとお任せいただけます。',
     highlights: ['撮影や配信にキャストを手配したい', 'MC・司会付きのイベントを企画している', '配信者・アイドルのプロデュースを相談したい'],
     examples: ['アイドルイベント主催', '配信者のプロデュース', '企業イベントのキャスト手配・MC'],
@@ -67,7 +67,7 @@ const SERVICES = [
     name: 'クリエイティブ制作',
     keyword: 'ロゴ制作',
     title: 'ロゴ・バナー・ポスター・イラスト・教材制作 | Lumenium（ルメニウム）',
-    desc: 'ルメニウム（Lumenium）｜ロゴ・バナー・ポスター・イラスト・教材制作・ライティング・作詞作曲まで、クリエイティブ全般を3万円〜で制作します。',
+    desc: 'ロゴ・バナー・ポスター・イラスト・教材制作・ライティング・作詞作曲まで、クリエイティブ全般を3万円〜で制作します。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: 'ブランドの顔となるロゴから、バナー・ポスター・イラスト・教材・楽曲まで。「作りたい」をかたちにします。',
     highlights: ['新ブランドのロゴ・アイデンティティを作りたい', '書籍・ブログ用のライターを探している', 'イベント用の作詞・作曲を依頼したい'],
     examples: ['企業ロゴ・バナー・ポスター制作', '塾教材4万ページ制作（1ヶ月）', '作詞作曲・楽曲提供'],
@@ -77,50 +77,7 @@ const SERVICES = [
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-function page(s) {
-  const others = SERVICES.filter((o) => o.id !== s.id)
-  const ld = {
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'Service',
-        '@id': `${SITE}/services/${s.id}.html#service`,
-        name: s.name,
-        description: s.desc,
-        provider: { '@id': `${SITE}/#organization` },
-        areaServed: { '@type': 'Country', name: 'Japan' },
-        offers: { '@type': 'Offer', description: s.price, priceCurrency: 'JPY' },
-        url: `${SITE}/services/${s.id}.html`,
-      },
-      {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE },
-          { '@type': 'ListItem', position: 2, name: 'サービス', item: `${SITE}/#/info/services` },
-          { '@type': 'ListItem', position: 3, name: s.name, item: `${SITE}/services/${s.id}.html` },
-        ],
-      },
-    ],
-  }
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(s.title)}</title>
-<meta name="description" content="${esc(s.desc)}">
-<link rel="canonical" href="${SITE}/services/${s.id}.html">
-<meta property="og:site_name" content="Lumenium（ルメニウム）">
-<meta property="og:title" content="${esc(s.title)}">
-<meta property="og:description" content="${esc(s.desc)}">
-<meta property="og:type" content="website">
-<meta property="og:url" content="${SITE}/services/${s.id}.html">
-<meta property="og:image" content="${SITE}/api/og">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="robots" content="index, follow">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script type="application/ld+json">${JSON.stringify(ld)}</script>
-<style>
+const STYLE = `
 * { margin:0; padding:0; box-sizing:border-box; }
 :root { --bg:#171c33; --card:#262c4a; --border:#424a6b; --text:#f5f7fb; --sub:#abb5cb;
   --grad:linear-gradient(135deg,#4f46e5 0%,#3b82f6 50%,#06b6d4 100%); }
@@ -158,7 +115,52 @@ footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,25
   font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
 footer a { color:var(--sub); text-decoration:none; }
 footer a:hover { color:var(--text); }
-</style>
+`
+
+function page(s) {
+  const others = SERVICES.filter((o) => o.id !== s.id)
+  const ld = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Service',
+        '@id': `${SITE}/services/${s.id}.html#service`,
+        name: s.name,
+        description: s.desc,
+        provider: { '@id': `${SITE}/#organization` },
+        areaServed: { '@type': 'Country', name: 'Japan' },
+        offers: { '@type': 'Offer', description: s.price, priceCurrency: 'JPY' },
+        url: `${SITE}/services/${s.id}.html`,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE },
+          { '@type': 'ListItem', position: 2, name: 'サービス', item: `${SITE}/services/index.html` },
+          { '@type': 'ListItem', position: 3, name: s.name, item: `${SITE}/services/${s.id}.html` },
+        ],
+      },
+    ],
+  }
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(s.title)}</title>
+<meta name="description" content="${esc(s.desc)}">
+<link rel="canonical" href="${SITE}/services/${s.id}.html">
+<meta property="og:site_name" content="Lumenium（ルメニウム）">
+<meta property="og:title" content="${esc(s.title)}">
+<meta property="og:description" content="${esc(s.desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${SITE}/services/${s.id}.html">
+<meta property="og:image" content="${SITE}/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">${JSON.stringify(ld)}</script>
+<style>${STYLE}</style>
 </head>
 <body>
 <div class="wrap">
@@ -210,8 +212,106 @@ footer a:hover { color:var(--text); }
 `
 }
 
+// Hub page for the six services. Also the middle level of every service
+// page's breadcrumb — that used to point at a '#/…' hash, which is not a
+// page a crawler can visit, so the hierarchy stopped at one level.
+function hub() {
+  const DESC = '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、クリエイティブ制作の6領域。ルメニウム（Lumenium）が企画から納品・運用までワンストップで対応します。'
+  const ld = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        '@id': `${SITE}/services/index.html#webpage`,
+        url: `${SITE}/services/index.html`,
+        name: 'サービス一覧',
+        description: DESC,
+        inLanguage: 'ja-JP',
+        isPartOf: { '@id': `${SITE}/#website` },
+      },
+      {
+        '@type': 'ItemList',
+        name: 'Lumeniumのサービス',
+        itemListElement: SERVICES.map((s, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: s.name,
+          url: `${SITE}/services/${s.id}.html`,
+        })),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE },
+          { '@type': 'ListItem', position: 2, name: 'サービス', item: `${SITE}/services/index.html` },
+        ],
+      },
+    ],
+  }
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サービス一覧（動画・AI・SNS・Web・キャスト・クリエイティブ）| Lumenium（ルメニウム）</title>
+<meta name="description" content="${esc(DESC)}">
+<link rel="canonical" href="${SITE}/services/index.html">
+<meta property="og:site_name" content="Lumenium（ルメニウム）">
+<meta property="og:title" content="サービス一覧 | Lumenium（ルメニウム）">
+<meta property="og:description" content="${esc(DESC)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${SITE}/services/index.html">
+<meta property="og:image" content="${SITE}/api/og">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="application/ld+json">${JSON.stringify(ld)}</script>
+<style>${STYLE}</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a href="/">← Lumenium（ルメニウム）トップへ</a></header>
+  <p class="eyebrow">LUMENIUM SERVICES</p>
+  <h1>サービス一覧</h1>
+  <p class="lead">${esc(DESC)}</p>
+
+${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inherit;text-decoration:none">${esc(s.name)}</a></h2>
+  <p>${esc(s.lead)}</p>
+  <p class="price">${esc(s.price)}</p>
+  <p><a href="/services/${s.id}.html" style="color:#a5b4fc">${esc(s.name)}の詳細を見る →</a></p>`).join('\n\n')}
+
+  <div class="cta">
+    <a class="primary" href="/#/info/contact-form">無料で相談する</a>
+    <a class="ghost" href="/pricing.html">料金の目安を見る</a>
+  </div>
+
+  <h2>Lumeniumの他のページ</h2>
+  <div class="others">
+    <a href="/about.html">ルメニウムとは</a>
+    <a href="/pricing.html">料金</a>
+    <a href="/works.html">実績</a>
+    <a href="/voice.html">お客様の声</a>
+    <a href="/flow.html">ご依頼の流れ</a>
+    <a href="/faq.html">よくある質問</a>
+    <a href="/contact.html">お問い合わせ</a>
+    <a href="/sitemap.html">サイトマップ</a>
+  </div>
+
+  <footer>
+    <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
+    <a href="/">lumenium.net</a>
+    <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
+  </footer>
+</div>
+</body>
+</html>
+`
+}
+
 mkdirSync('public/services', { recursive: true })
 for (const s of SERVICES) {
   writeFileSync(`public/services/${s.id}.html`, page(s))
   console.log(`public/services/${s.id}.html written`)
 }
+writeFileSync('public/services/index.html', hub())
+console.log('public/services/index.html written')

@@ -1,5 +1,6 @@
 https://lumenium.net/
 https://lumenium.net/about.html
+https://lumenium.net/services/index.html
 https://lumenium.net/services/video.html
 https://lumenium.net/services/ai.html
 https://lumenium.net/services/sns.html
