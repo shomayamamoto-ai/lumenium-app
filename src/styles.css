@@ -4564,15 +4564,15 @@ html[data-theme="dark"] .hero-video {
     position: fixed;
     top: 0; right: 0;
     height: 100dvh;
-    width: min(320px, 85vw);
+    width: min(348px, 88vw);
     /* Opaque solid panel — no backdrop-filter: re-blurring a large sliding
        surface every frame was the main source of open/close jank, and the
        blur was invisible behind a ~98%-opaque background anyway. */
     background: #1b2140;
     flex-direction: column;
     align-items: stretch;
-    padding: 96px 28px 32px;
-    gap: 4px;
+    padding: 88px 22px 36px;
+    gap: 0;
     border-left: 1px solid rgba(255,255,255,0.08);
     box-shadow: -24px 0 48px -24px rgba(0,0,0,0.55);
     transform: translateX(100%);
@@ -4606,11 +4606,31 @@ html[data-theme="dark"] .hero-video {
      No per-item staggered slide-in: under load the choreography stretched
      for seconds, showing items at mismatched indents until they settled.
      Items are always in place — the drawer's own slide is the animation. */
+  /* Grouped drawer: one labelled block per heading, so every section — and
+     each of the six service areas — gets its own row. */
+  .nav-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .nav-group:last-of-type { border-bottom: 0; margin-bottom: 0; }
+  .nav-group-label {
+    margin: 0 0 4px;
+    padding: 0 14px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: #818cf8;
+  }
   .nav-links a:not(.nav-cta) {
     display: block;
-    padding: 14px 16px;
-    border-radius: 10px;
-    font-size: 15px;
+    padding: 10px 14px;
+    border-radius: 9px;
+    font-size: 14.5px;
     font-weight: 500;
     color: var(--text);
     transition: background 0.3s var(--ease), color 0.3s var(--ease);
@@ -4660,9 +4680,11 @@ html[data-theme="dark"] .hero-video {
   }
 
   .nav-cta {
-    margin-top: 24px;
+    margin-top: 20px;
     text-align: center;
     align-self: stretch;
+    position: sticky;
+    bottom: 0;
   }
 
   .nav-toggle {

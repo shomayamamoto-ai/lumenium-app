@@ -127,16 +127,26 @@ export default function Services() {
     setActive(s)
   }
 
-  // The home search box can deep-link into a specific service's detail
-  // panel: it stores the service id, navigates to #/info/services, and this
-  // consumes the handoff on mount.
+  // The home search box and the drawer's 事業内容 group both deep-link into a
+  // specific service's detail panel: they store the service id, navigate to
+  // #/info/services, and this consumes the handoff on mount. When we are
+  // already on this page there is no mount, so they fire an event instead.
   useEffect(() => {
+    const open = (id) => {
+      const s = services.find((x) => x.id === id)
+      if (s) setActive(s)
+    }
     const pending = sessionStorage.getItem('lum_open_service')
     if (pending) {
       sessionStorage.removeItem('lum_open_service')
-      const s = services.find((x) => x.id === pending)
-      if (s) setActive(s)
+      open(pending)
     }
+    const onOpen = (e) => {
+      sessionStorage.removeItem('lum_open_service')
+      open(e.detail)
+    }
+    window.addEventListener('lumenium:open-service', onOpen)
+    return () => window.removeEventListener('lumenium:open-service', onOpen)
   }, [])
 
   return (

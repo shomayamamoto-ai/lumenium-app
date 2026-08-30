@@ -1,6 +1,52 @@
 import { useState, useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
 
+// The drawer is grouped by heading rather than one flat list, so every
+// section of the site — and each of the six service areas — has its own
+// entry instead of hiding behind a single "サービス" link.
+const NAV_GROUPS = [
+  {
+    label: '事業内容',
+    items: [
+      { label: '動画制作・映像編集', service: 'video' },
+      { label: 'AI導入・生成AI研修', service: 'ai' },
+      { label: 'SNS運用・LINE構築', service: 'sns' },
+      { label: 'Web制作・アプリ開発', service: 'web' },
+      { label: 'キャスト手配・イベント', service: 'cast' },
+      { label: 'クリエイティブ制作', service: 'creative' },
+      { label: 'サービス一覧', href: '#/info/services' },
+    ],
+  },
+  {
+    label: 'ご検討の方へ',
+    items: [
+      { label: 'お困りごと', href: '#/info/pain' },
+      { label: '料金・お見積り', href: '#/info/pricing' },
+      { label: '実績・制作事例', href: '#/info/results' },
+      { label: 'お客様の声', href: '#/info/testimonials' },
+      { label: 'ご依頼の流れ', href: '#/info/flow' },
+      { label: 'よくある質問', href: '#/info/faq' },
+    ],
+  },
+  {
+    label: 'Lumeniumについて',
+    items: [
+      { label: 'Lumeniumとは', href: '#/info/story' },
+      { label: 'ポジショニング', href: '#/info/positioning' },
+      { label: '代表紹介', href: '#/info/about' },
+      { label: '会社概要', href: '#/info/company' },
+    ],
+  },
+  {
+    label: '読みもの',
+    items: [
+      { label: 'ブログ', href: '#/info/blog' },
+      { label: 'お知らせ', href: '#/info/news' },
+      { label: 'サービス案内トップ', href: '#/info' },
+    ],
+  },
+]
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -47,6 +93,19 @@ export default function Navbar() {
     }
   }, [menuOpen])
 
+  // Opening a service from the menu behaves exactly like searching for it:
+  // land on the services page with that service's detail panel already open.
+  const handleServiceClick = (e, id) => {
+    e.preventDefault()
+    setMenuOpen(false)
+    try { sessionStorage.setItem('lum_open_service', id) } catch (_) {}
+    if (window.location.hash === '#/info/services') {
+      window.dispatchEvent(new CustomEvent('lumenium:open-service', { detail: id }))
+    } else {
+      window.location.hash = '#/info/services'
+    }
+  }
+
   const handleLinkClick = (e, href) => {
     e.preventDefault()
     setMenuOpen(false)
@@ -88,42 +147,47 @@ export default function Navbar() {
           aria-hidden="true"
         />
         <div id="primary-nav" ref={menuRef} className={`nav-links ${menuOpen ? 'active' : ''}`}>
-          <a href="#/info" onClick={(e) => handleLinkClick(e, '#/info')}>サービス案内</a>
-          <a href="#/info/news" onClick={(e) => handleLinkClick(e, '#/info/news')}>お知らせ</a>
-          <a href="#/info/pain" onClick={(e) => handleLinkClick(e, '#/info/pain')}>お困りごと</a>
-          <a href="#/info/services" onClick={(e) => handleLinkClick(e, '#/info/services')}>サービス</a>
-          <a href="#/info/pricing" onClick={(e) => handleLinkClick(e, '#/info/pricing')}>料金</a>
-          <a href="#/info/results" onClick={(e) => handleLinkClick(e, '#/info/results')}>実績</a>
-          <a href="#/info/flow" onClick={(e) => handleLinkClick(e, '#/info/flow')}>ご依頼の流れ</a>
-          <a href="#/info/blog" onClick={(e) => handleLinkClick(e, '#/info/blog')}>ブログ</a>
-          <a href="#/info/about" onClick={(e) => handleLinkClick(e, '#/info/about')}>代表紹介</a>
-          <div className="nav-dropdown">
-            <span
-              className="nav-dropdown-trigger"
-              onClick={(e) => { e.stopPropagation(); e.currentTarget.parentElement.classList.toggle('nav-dropdown--open') }}
-              role="button"
-              tabIndex={0}
-              aria-haspopup="true"
-            >ミニゲーム ▾</span>
-            <div className="nav-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-              {/* The 3 standard games are free for everyone; only the
-                  breaker stays members-only behind the login gate. */}
-              <a href="/game.html">🚀 シューティング</a>
-              <a href="/runner.html">🏃 ランナー</a>
-              <a href="/racing.html">🏰 ディフェンス</a>
-              {isMember ? (
-                <>
-                  <a href="/members/arena">⭐ 会員限定ブレイカー</a>
-                  <a href="/members/puzzle">🧩 会員限定2048</a>
-                </>
-              ) : (
-                <>
-                  <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
-                  <a href="/login.html?next=puzzle" className="nav-game-login">🧩 会員限定2048 🔒</a>
-                </>
+          {NAV_GROUPS.map((group) => (
+            <div className="nav-group" key={group.label}>
+              <p className="nav-group-label">{group.label}</p>
+              {group.items.map((item) =>
+                item.service ? (
+                  <a
+                    key={item.label}
+                    href="#/info/services"
+                    onClick={(e) => handleServiceClick(e, item.service)}
+                  >{item.label}</a>
+                ) : (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={(e) => handleLinkClick(e, item.href)}
+                  >{item.label}</a>
+                )
               )}
             </div>
+          ))}
+
+          <div className="nav-group">
+            <p className="nav-group-label">ミニゲーム</p>
+            {/* The 3 standard games are free for everyone; the two members
+                games stay behind the login gate. */}
+            <a href="/game.html">🚀 シューティング</a>
+            <a href="/runner.html">🏃 ランナー</a>
+            <a href="/racing.html">🏰 ディフェンス</a>
+            {isMember ? (
+              <>
+                <a href="/members/arena">⭐ 会員限定ブレイカー</a>
+                <a href="/members/puzzle">🧩 会員限定2048</a>
+              </>
+            ) : (
+              <>
+                <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
+                <a href="/login.html?next=puzzle" className="nav-game-login">🧩 会員限定2048 🔒</a>
+              </>
+            )}
           </div>
+
           <a href="#/info/contact-form" className="nav-cta" onClick={(e) => handleLinkClick(e, '#/info/contact-form')} data-cta="nav-consult">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 5l7 5 7-5M3 5v10h14V5M3 5h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             無料相談
