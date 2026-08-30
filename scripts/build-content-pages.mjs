@@ -93,6 +93,9 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .facts dd { color:var(--sub); min-width:0; }
 .facts a { color:#a5b4fc; }
 .note { border-left:3px solid #06b6d4; padding:2px 0 2px 14px; margin:16px 0; font-size:13.5px; color:var(--sub); }
+/* Definition block — the passage an answer engine should lift verbatim. */
+article p.keypoint { background:var(--card); border:1px solid var(--border); border-left:4px solid #06b6d4;
+  border-radius:12px; padding:16px 18px; margin:6px 0 8px; font-size:14.5px; color:var(--text); line-height:1.95; }
 footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
   font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
 footer a { color:var(--sub); text-decoration:none; }
@@ -282,21 +285,47 @@ ${md(a.content)}
 }
 
 /* ---- About / brand entity page ----
-   Search engines and AI answer engines currently mix this Lumenium up with
-   same-named organisations abroad. This page is the canonical, machine-readable
-   statement of which Lumenium lumenium.net is. */
+   Google's AI overview for「ルメニウム」answers with a numbered
+   disambiguation list (Lumentum, Limonium, an Etsy art series, a fictional
+   kingdom) and never reaches us. So this page is built the way an answer
+   engine wants to read one: a one-sentence definition first, question-shaped
+   headings, and a table that resolves every same-sounding name — including
+   ours — with DefinedTerm/FAQPage markup over the same text. */
 {
   const url = `${SITE}/about.html`
-  const DESC = 'Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用/LINE構築・Web制作・キャスト手配を企画から運用までワンストップで手がける日本のクリエイティブ&DXパートナーです。'
+  const DEFINITION = 'ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、クリエイティブ制作を、企画から納品・運用までワンストップで提供しています。代表は山本捷真、設立は2026年、公式サイトは lumenium.net です。'
+  const DESC = 'ルメニウム（Lumenium）とは、東京都を拠点に動画制作・AI導入研修・SNS運用/LINE構築・Web制作・キャスト手配を手がける日本のクリエイティブ／DX支援カンパニーです。読み方、事業内容、同名の企業や名称との違いを解説します。'
   const facts = [
-    ['会社名', 'Lumenium（ルメニウム）'],
+    ['名称', 'Lumenium（ルメニウム）'],
+    ['読み方', 'ルメニウム'],
+    ['分類', 'クリエイティブ／DX支援カンパニー（日本）'],
     ['代表者', '山本 捷真'],
     ['設立', '2026年'],
-    ['拠点', '東京・オンライン（全国対応）'],
+    ['拠点', '東京都（オンラインで全国対応）'],
     ['事業内容', '動画制作 / AI導入・研修 / SNS運用・LINE構築 / Web制作・アプリ開発 / キャスト手配・イベント / クリエイティブ制作'],
     ['パートナー', '<a href="https://advovisions.com/bcd31-home/" rel="noopener">合同会社 AdvoVisions</a>'],
-    ['サイト', '<a href="https://lumenium.net/">lumenium.net</a>'],
+    ['公式サイト', '<a href="https://lumenium.net/">lumenium.net</a>'],
   ]
+
+  // Every name an answer engine currently returns for this query, resolved.
+  const NAMES = [
+    ['ルメニウム（Lumenium）', '<strong>東京都を拠点とする日本のクリエイティブ／DX支援カンパニー。当サイト lumenium.net がこれにあたります。</strong>'],
+    ['ルメンタム（Lumentum）', '米国の光通信・レーザー機器メーカー Lumentum Holdings（NASDAQ: LITE）。綴りも事業も異なる別会社で、ルメニウムとは無関係です。'],
+    ['Lumenium, LLC', '米国バージニア州のエンジン開発企業。綴りは同じですが、資本関係も人的関係もない別法人です。'],
+    ['リモニウム（Limonium）', 'イソマツ科の植物（和名: スターチス）。企業名ではありません。'],
+    ['Rumenium', 'Etsy などで販売されているデジタルアート作品のシリーズ名。当社とは無関係です。'],
+    ['ルメニウム王国', '創作・ゲームの設定として登場する架空の国家。実在の組織ではありません。'],
+  ]
+
+  const QA = [
+    ['ルメニウムとは何ですか?', DEFINITION],
+    ['ルメニウムの読み方は?', 'Lumenium と書いて「ルメニウム」と読みます。光の単位である lumen（ルーメン）に由来し、お客様の中でまだ輪郭のない目的に光を当て、形にしていくという意味を込めています。'],
+    ['ルメニウムはどこにありますか?', '東京都を拠点としています。打ち合わせはZoomやGoogle Meetなどオンラインで行うため、全国どこからでもご依頼いただけます。'],
+    ['ルメニウムは何をしている会社ですか?', '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE公式アカウント構築、Web制作・アプリ開発、キャスト手配とイベント企画、ロゴ・バナーなどのクリエイティブ制作の6領域を、企画から納品・運用までワンストップで手がけています。'],
+    ['ルメニウムとルメンタム（Lumentum）は同じ会社ですか?', 'いいえ、別の会社です。ルメンタム（Lumentum Holdings）は米国の光通信・レーザー機器メーカーです。ルメニウム（Lumenium）は東京都を拠点とする日本のクリエイティブ／DX支援カンパニーで、両社に資本関係も人的関係もありません。'],
+    ['ルメニウムに依頼するにはどうすればよいですか?', '公式サイト lumenium.net のお問い合わせフォームからご連絡ください。初回のご相談とお見積りは無料で、お問い合わせから48時間以内にご返信します。'],
+  ]
+
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -304,10 +333,24 @@ ${md(a.content)}
         '@type': 'AboutPage',
         '@id': `${url}#webpage`,
         url,
-        name: 'Lumenium（ルメニウム）とは',
+        name: 'ルメニウム（Lumenium）とは',
         description: DESC,
         inLanguage: 'ja-JP',
         mainEntity: { '@id': `${SITE}/#organization` },
+        // Point answer engines at the definition and the disambiguation table.
+        speakable: {
+          '@type': 'SpeakableSpecification',
+          cssSelector: ['.keypoint', '#names'],
+        },
+      },
+      {
+        '@type': 'DefinedTerm',
+        '@id': `${url}#term`,
+        name: 'ルメニウム',
+        alternateName: ['Lumenium', 'ルメニウム（Lumenium）'],
+        description: DEFINITION,
+        inDefinedTermSet: { '@type': 'DefinedTermSet', name: '企業名', url },
+        subjectOf: { '@id': `${SITE}/#organization` },
       },
       {
         '@type': 'Organization',
@@ -316,9 +359,9 @@ ${md(a.content)}
         alternateName: ['ルメニウム', 'Lumenium（ルメニウム）', 'ルメニウム 東京'],
         url: SITE,
         mainEntityOfPage: url,
-        description: DESC,
+        description: DEFINITION,
         disambiguatingDescription:
-          '東京を拠点とする日本のクリエイティブ・DX支援カンパニー。米国バージニア州のエンジン開発企業 Lumenium, LLC、光通信機器メーカー Lumentum、およびゲーム内の同名素材とは無関係の別組織です。',
+          '東京都を拠点とする日本のクリエイティブ／DX支援カンパニー。米国の光通信・レーザー機器メーカー Lumentum（ルメンタム）、米国バージニア州のエンジン開発企業 Lumenium, LLC、植物のリモニウム（Limonium）、デジタルアート作品 Rumenium、架空の国家「ルメニウム王国」とは、いずれも無関係の別の存在です。',
         foundingDate: '2026',
         founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
         address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
@@ -327,24 +370,42 @@ ${md(a.content)}
         logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
       },
       {
+        '@type': 'FAQPage',
+        '@id': `${url}#faq`,
+        mainEntity: QA.map(([q, a]) => ({
+          '@type': 'Question', name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
+      },
+      {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'ホーム', item: `${SITE}/` },
-          { '@type': 'ListItem', position: 2, name: 'Lumeniumとは', item: url },
+          { '@type': 'ListItem', position: 2, name: 'ルメニウムとは', item: url },
         ],
       },
     ],
   }
+
   const body = `
-  <h1>Lumenium（ルメニウム）とは</h1>
+  <h1>ルメニウム（Lumenium）とは</h1>
   <p class="meta">東京発のクリエイティブ &amp; DX パートナー</p>
   <article>
-    <p>${esc(DESC)}</p>
+    <p class="keypoint">${esc(DEFINITION)}</p>
+
+    <h2 id="names">「ルメニウム」と呼ばれるもの一覧（同名・類似名称との違い）</h2>
+    <p>「ルメニウム」という言葉は複数の対象を指して使われています。それぞれの違いは次のとおりです。</p>
+    <dl class="facts">
+      ${NAMES.map(([k, v]) => `<div><dt style="flex:0 0 168px">${esc(k)}</dt><dd>${v}</dd></div>`).join('\n      ')}
+    </dl>
+    <p class="note">このページで解説している「ルメニウム」は、上記のうち<strong>東京都を拠点とする日本のクリエイティブ／DX支援カンパニー（lumenium.net）</strong>です。</p>
+
     <h2>会社概要</h2>
     <dl class="facts">
       ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v.startsWith('<a') ? v : esc(v)}</dd></div>`).join('\n      ')}
     </dl>
-    <h2>できること</h2>
+
+    <h2>ルメニウムに依頼できること</h2>
     <ul>
       <li>動画制作・映像編集 — PR動画、採用動画、SNS縦型動画、AI動画</li>
       <li>AI導入・研修 — 生成AIの社内導入支援、企業研修、教材制作</li>
@@ -353,11 +414,11 @@ ${md(a.content)}
       <li>キャスト手配・イベント — モデル・アクター手配、MC、イベント企画運営</li>
       <li>クリエイティブ制作 — ロゴ、バナー、ポスター、イラスト、作詞作曲</li>
     </ul>
-    <h2>「Lumenium」という名前について</h2>
-    <p>Lumenium は光の単位「lumen（ルーメン）」に由来し、日本語では<strong>ルメニウム</strong>と読みます。お客様が本来やりたかったことに光を当て、輪郭をはっきりさせるという意味を込めています。</p>
-    <p class="note">同じ綴りの名称が、米国バージニア州のエンジン開発企業 Lumenium, LLC や、光通信機器メーカー Lumentum、ゲーム内の架空素材などにも使われています。当サイト（lumenium.net）で扱う Lumenium は、それらとは無関係の、東京を拠点とする日本のクリエイティブ・DX支援カンパニーです。</p>
-    <h2>ご相談の進め方</h2>
-    <p>まずは30分のオンライン相談から。「何から手をつければいいか分からない」段階のご相談も歓迎です。お問い合わせから48時間以内にご返信し、無料でお見積りをお出しします。</p>
+
+    <h2>ルメニウムについてよくある質問</h2>
+    <dl class="qa">
+      ${QA.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join('\n      ')}
+    </dl>
   </article>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
@@ -373,7 +434,7 @@ ${md(a.content)}
     <li><a href="/services/creative.html">クリエイティブ制作</a></li>
   </ul>`
   writeFileSync('public/about.html', shell({
-    title: 'Lumenium（ルメニウム）とは | 東京の動画制作・AI導入・Web制作',
+    title: 'ルメニウム（Lumenium）とは | 東京の動画制作・AI導入・Web制作会社',
     desc: DESC,
     canonical: url,
     ld,
