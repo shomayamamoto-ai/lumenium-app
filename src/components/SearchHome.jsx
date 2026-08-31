@@ -401,8 +401,10 @@ export default function SearchHome() {
       <StarCanvas />
       <div className="search-home-inner">
         <div className="search-home-brand">
-          <img src="/favicon.svg" alt="" width="72" height="72" className="search-home-mark" />
-          <h1 className="search-home-logo">Lumenium</h1>
+          <div className="search-home-lockup">
+            <img src="/favicon.svg" alt="" width="280" height="280" className="search-home-mark" />
+            <h1 className="search-home-logo">Lumenium</h1>
+          </div>
           <p className="search-home-yomi">ルメニウム</p>
           <p className="search-home-tag">散文化した目的に焦点を当てる</p>
         </div>
