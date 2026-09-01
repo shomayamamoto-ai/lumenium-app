@@ -8126,10 +8126,34 @@ html[data-theme="dark"] .navbar.scrolled {
   justify-content: center;
   padding: 96px 20px 64px;
   position: relative;
+  overflow: hidden;
 }
+/* Light rising off a horizon — gives the starfield a floor and the page
+   somewhere to be, instead of an evenly dark rectangle. */
+.search-home::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -58vh;
+  width: 170vw;
+  height: 116vh;
+  transform: translateX(-50%);
+  /* Faded from its own centre, so the gradient reaches transparent well
+     inside the box — anchoring it to an edge left a visible straight seam
+     across the page. */
+  background: radial-gradient(ellipse 50% 50% at 50% 50%,
+    rgba(99, 102, 241, 0.22) 0%,
+    rgba(56, 89, 190, 0.11) 30%,
+    rgba(6, 182, 212, 0.05) 50%,
+    transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+}
+.search-home-inner,
+.search-home-bottom { position: relative; z-index: 1; }
 .search-home-inner {
   width: 100%;
-  max-width: 584px; /* Google's classic search width */
+  max-width: 648px;
   /* min-width:0 everywhere in this chain: flex items default to
      min-width:auto, which lets the input's long placeholder push the
      pill wider than the viewport on phones (the "search box vanished"
@@ -8139,7 +8163,18 @@ html[data-theme="dark"] .navbar.scrolled {
   flex-direction: column;
   align-items: center;
 }
-.search-home-brand { text-align: center; margin-bottom: 34px; }
+.search-home-brand { text-align: center; margin-bottom: 40px; }
+/* Eyebrow — small letterspaced caps above the lockup. */
+.search-home-eyebrow {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: rgba(148, 163, 214, 0.75);
+}
 /* Brand lockup: the mark is dropped behind the wordmark and overlaps it,
    rather than sitting above it as a separate element. */
 .search-home-lockup {
@@ -8147,14 +8182,38 @@ html[data-theme="dark"] .navbar.scrolled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 26px 0 18px;
+  padding: 34px 0 22px;
+}
+/* The name means light. The mark sits inside a slow bloom so it reads as a
+   source rather than a sticker — one breath every 9s, nothing more. */
+.search-home-lockup::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(340px, 76vw, 720px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(129, 140, 248, 0.20) 0%,
+    rgba(99, 102, 241, 0.10) 34%,
+    rgba(6, 182, 212, 0.05) 56%,
+    transparent 72%);
+  pointer-events: none;
+  z-index: -1;
+  animation: lumen-breathe 9s ease-in-out infinite;
+}
+@keyframes lumen-breathe {
+  0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.96); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.06); }
 }
 .search-home-mark {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: clamp(172px, 34vw, 292px);
+  width: clamp(196px, 38vw, 340px);
   height: auto;
   opacity: 0.5;
   z-index: 0;
@@ -8168,10 +8227,10 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-logo {
   position: relative;
   z-index: 1;
-  font-size: clamp(40px, 8vw, 58px);
+  font-size: clamp(52px, 11vw, 92px);
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   background: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -8184,18 +8243,31 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-yomi,
 .search-home-tag { position: relative; z-index: 1; }
 .search-home-yomi {
-  margin-top: 5px;
-  font-size: 11.5px;
+  margin-top: 8px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.34em;
   text-indent: 0.34em;
   color: rgba(165, 180, 252, 0.72);
 }
 .search-home-tag {
-  margin-top: 6px;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
+  margin-top: 12px;
+  font-size: clamp(15px, 2.4vw, 20px);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: rgba(214, 223, 245, 0.9);
+  /* Resolves from blurred to sharp on load — the page performing the
+     sentence it is saying. */
+  animation: lumen-focus 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes lumen-focus {
+  0%   { opacity: 0; filter: blur(14px); letter-spacing: 0.5em; }
+  60%  { opacity: 1; }
+  100% { opacity: 1; filter: blur(0);    letter-spacing: 0.1em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-home-tag { animation: none; }
+  .search-home-lockup::before { animation: none; }
 }
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }
 .search-home-box {
@@ -8206,7 +8278,7 @@ html[data-theme="dark"] .navbar.scrolled {
   min-width: 0;
   max-width: 100%;
   padding: 0 20px;
-  height: 52px;
+  height: 60px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -8226,7 +8298,7 @@ html[data-theme="dark"] .navbar.scrolled {
   border: none;
   outline: none;
   color: var(--text);
-  font-size: 15.5px;
+  font-size: 17px;
   font-family: inherit;
   height: 100%;
   /* Kill Safari's searchfield chrome (white UA styling can make the
@@ -8247,12 +8319,12 @@ html[data-theme="dark"] .navbar.scrolled {
   margin-top: 22px;
 }
 .search-home-btn {
-  padding: 11px 22px;
+  padding: 13px 26px;
   background: var(--bg-card);
   color: var(--text-sub);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 13.5px;
+  border-radius: 11px;
+  font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -8274,8 +8346,8 @@ html[data-theme="dark"] .navbar.scrolled {
   max-width: 100%;
 }
 .search-home-chip {
-  padding: 7px 15px;
-  font-size: 12.5px;
+  padding: 9px 18px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);
   background: rgba(255,255,255,0.04);
@@ -8301,10 +8373,11 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 .search-home-def {
   max-width: 640px;
+  padding-top: 10px;
   margin: 0 auto;
   padding: 0 20px;
   text-align: center;
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--text-muted);
 }
