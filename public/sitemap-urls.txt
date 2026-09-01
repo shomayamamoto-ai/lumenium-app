@@ -35,3 +35,4 @@ https://lumenium.net/specified-commerce.html
 https://lumenium.net/runner.html
 https://lumenium.net/game.html
 https://lumenium.net/racing.html
+https://lumenium.net/hitblow.html

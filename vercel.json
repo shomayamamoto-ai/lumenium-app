@@ -108,6 +108,10 @@
       "destination": "/sitemap.html"
     },
     {
+      "source": "/hitblow.html",
+      "destination": "/hitblow.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -157,7 +161,7 @@
       ]
     },
     {
-      "source": "/(404|game|racing|runner|specified-commerce|fix|login|register|admin-members)\\.html",
+      "source": "/(404|game|racing|runner|hitblow|specified-commerce|fix|login|register|admin-members)\\.html",
       "headers": [
         {
           "key": "Cache-Control",

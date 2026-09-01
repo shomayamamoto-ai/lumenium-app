@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LUMEN CODE（ヒットアンドブロー）— Lumenium</title>
+<meta name="description" content="隠された光のコードを推理で解き明かせ。ヒットアンドブロー（数当て）を3Dで。Lumenium（ルメニウム）の無料ミニゲーム。">
+<link rel="canonical" href="https://lumenium.net/hitblow.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LUMEN CODE（ヒットアンドブロー）— Lumenium">
+<meta property="og:description" content="HIT と BLOW を手がかりに、隠された光のコードを解き明かせ。">
+<meta property="og:url" content="https://lumenium.net/hitblow.html">
+<meta property="og:image" content="https://lumenium.net/api/og?title=LUMEN+CODE&subtitle=Crack+the+Light.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LUMEN CODE（ヒットアンドブロー）— Lumenium">
+<meta name="twitter:image" content="https://lumenium.net/api/og?title=LUMEN+CODE&subtitle=Crack+the+Light.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="theme-color" content="#020212">
+<style>
+:root{color-scheme:dark;--bg:#020212;--fg:#f8fafc;--indigo:#4f46e5;--indigo-light:#818cf8;--cyan:#06b6d4;--cyan-light:#22d3ee;--amber:#fbbf24;--green:#22c55e;--red:#ef4444;--muted:rgba(248,250,252,.42)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100%;background:var(--bg);color:var(--fg);
+  font-family:'Inter Tight','Helvetica Neue',system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body{-webkit-user-select:none;user-select:none}
+/* #stage sits above the starfield via its own z-index. It must NOT set
+   position on its children: an id-specificity `position:relative` there
+   silently beat `position:fixed` on the exit link and the switcher, which
+   then scrolled with the page. Its base is transparent so the stars show. */
+#stage{position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:96px 14px 32px;
+  background:radial-gradient(ellipse 90% 55% at 50% 8%,rgba(79,70,229,.20) 0,transparent 62%),
+             radial-gradient(ellipse 80% 50% at 50% 108%,rgba(6,182,212,.14) 0,transparent 66%)}
+canvas#stars{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ---- chrome shared with the other mini games ---- */
+.back-link{position:fixed;top:20px;right:20px;z-index:60;padding:8px 14px;font-size:10px;letter-spacing:.3em;
+  color:rgba(248,250,252,.6);text-decoration:none;border:1px solid rgba(248,250,252,.2);text-transform:uppercase;
+  background:rgba(0,0,0,.35);font-family:inherit;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.back-link:hover{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.game-switch{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:2px;padding:3px;
+  background:rgba(0,0,0,.55);border:1px solid rgba(248,250,252,.12);backdrop-filter:blur(8px);border-radius:999px;
+  max-width:calc(100vw - 24px);overflow-x:auto;scrollbar-width:none}
+.game-switch::-webkit-scrollbar{display:none}
+.game-switch a,.game-switch .game-switch-active{padding:7px 14px;font-size:10px;letter-spacing:.28em;
+  color:rgba(248,250,252,.55);text-decoration:none;border-radius:999px;text-transform:uppercase;white-space:nowrap;
+  transition:color .2s,background .2s}
+.game-switch a:hover{color:var(--fg);background:rgba(248,250,252,.08)}
+.game-switch .game-switch-active{color:#fff;background:linear-gradient(135deg,var(--indigo),var(--cyan));box-shadow:0 0 12px rgba(6,182,212,.45)}
+.game-switch-icon{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:8px;vertical-align:middle;background:rgba(248,250,252,.4)}
+.game-switch-active .game-switch-icon{background:#fff}
+
+/* ---- header ---- */
+.head{text-align:center;margin-bottom:18px}
+.eyebrow{font-size:10px;letter-spacing:.5em;color:var(--cyan-light);text-transform:uppercase}
+h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.02em;margin:10px 0 6px;
+  background:linear-gradient(135deg,#fff 0,var(--indigo-light) 45%,var(--cyan-light) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 34px rgba(79,70,229,.4))}
+.sub{font-size:12.5px;letter-spacing:.08em;color:rgba(248,250,252,.62);line-height:1.85}
+
+/* ---- status bar ---- */
+.status{display:flex;gap:22px;justify-content:center;margin:16px 0 14px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.stat-l{font-size:9px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase}
+.stat-v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--amber);text-shadow:0 0 16px rgba(251,191,36,.35)}
+
+/* ---- 3D board ---- */
+.board{perspective:1100px;perspective-origin:50% 22%;width:100%;max-width:440px;margin-bottom:14px}
+.rows{display:flex;flex-direction:column;gap:9px;transform:rotateX(9deg);transform-style:preserve-3d}
+.row{display:flex;align-items:center;gap:8px;justify-content:center;transform-style:preserve-3d;opacity:.4;transition:opacity .3s}
+.row.is-active{opacity:1}
+.row.is-done{opacity:1}
+.tiles{display:flex;gap:7px;transform-style:preserve-3d}
+.tile{width:clamp(38px,11vw,52px);height:clamp(46px,13vw,62px);display:flex;align-items:center;justify-content:center;
+  font-size:clamp(19px,5.4vw,26px);font-weight:800;font-variant-numeric:tabular-nums;border-radius:10px;
+  background:linear-gradient(165deg,#2a3160 0,#161b38 100%);
+  color:#fff;transform-style:preserve-3d;transition:transform .45s cubic-bezier(.2,.9,.3,1.3),box-shadow .3s,background .3s;
+  box-shadow:0 6px 0 #0d1130,0 10px 18px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -3px 8px rgba(0,0,0,.4);
+  border:1px solid rgba(129,140,248,.22)}
+.tile.filled{background:linear-gradient(165deg,#3b4488 0,#1b2150 100%);border-color:rgba(129,140,248,.5);
+  box-shadow:0 6px 0 #10143a,0 12px 24px rgba(79,70,229,.32),inset 0 1px 0 rgba(255,255,255,.24),inset 0 -3px 8px rgba(0,0,0,.4)}
+.tile.pop{animation:tilePop .22s ease}
+@keyframes tilePop{0%{transform:translateZ(0) scale(1)}50%{transform:translateZ(18px) scale(1.1)}100%{transform:translateZ(0) scale(1)}}
+.tile.reveal{animation:tileFlip .5s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes tileFlip{0%{transform:rotateX(0) translateZ(0)}50%{transform:rotateX(-90deg) translateZ(26px)}100%{transform:rotateX(0) translateZ(0)}}
+.tile.locked{background:linear-gradient(165deg,#243055 0,#131936 100%);box-shadow:0 4px 0 #0b0f28,0 8px 14px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1)}
+
+/* result pill */
+.res{display:flex;gap:6px;min-width:98px;transform-style:preserve-3d}
+.pill{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;height:clamp(28px,7.5vw,34px);
+  border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em;font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--muted);
+  box-shadow:0 4px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1)}
+.pill.hit{color:#06202a;background:linear-gradient(150deg,#6ee7f5,#06b6d4);border-color:rgba(34,211,238,.7);
+  box-shadow:0 4px 0 #05576b,0 8px 18px rgba(6,182,212,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+.pill.blow{color:#2a1c00;background:linear-gradient(150deg,#fde68a,#fbbf24);border-color:rgba(251,191,36,.7);
+  box-shadow:0 4px 0 #7a5405,0 8px 18px rgba(251,191,36,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.pill small{font-size:8.5px;letter-spacing:.14em;opacity:.85}
+
+/* ---- keypad ---- */
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:400px;margin-top:4px}
+.key{height:clamp(44px,12vw,52px);border:1px solid rgba(129,140,248,.28);border-radius:11px;color:#eef2ff;
+  font-family:inherit;font-size:clamp(17px,4.6vw,20px);font-weight:800;font-variant-numeric:tabular-nums;cursor:pointer;
+  background:linear-gradient(165deg,#2e3668 0,#171d40 100%);
+  box-shadow:0 5px 0 #0e1233,0 9px 16px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.18);
+  transition:transform .09s,box-shadow .09s,opacity .25s,background .25s}
+.key:active,.key.press{transform:translateY(5px);box-shadow:0 0 0 #0e1233,0 3px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+.key.used{opacity:.3}
+.key.wide{grid-column:span 2;font-size:11px;letter-spacing:.22em}
+.key.go{grid-column:span 3;background:linear-gradient(165deg,#5b52ff 0,#0e8ba8 100%);border-color:rgba(34,211,238,.5);
+  box-shadow:0 5px 0 #08344a,0 10px 22px rgba(6,182,212,.35),inset 0 1px 0 rgba(255,255,255,.28);font-size:11px;letter-spacing:.28em}
+.key.go:disabled{opacity:.35;cursor:not-allowed}
+.key:disabled{cursor:not-allowed}
+
+.msg{min-height:20px;margin-top:12px;font-size:12px;letter-spacing:.1em;color:var(--cyan-light);text-align:center}
+.msg.warn{color:var(--amber)}
+
+/* ---- overlays ---- */
+.overlay{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:28px 20px;text-align:center;overflow-y:auto;
+  background:radial-gradient(ellipse at center,rgba(2,2,18,.9),rgba(2,2,18,.985));backdrop-filter:blur(9px)}
+.overlay.hide{display:none}
+.overlay h2{font-size:clamp(32px,8vw,64px);font-weight:800;line-height:.98;letter-spacing:.02em;
+  background:linear-gradient(135deg,#fff 0,var(--indigo-light) 45%,var(--cyan-light) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.overlay p{font-size:12.5px;line-height:1.9;color:rgba(248,250,252,.72);max-width:460px;letter-spacing:.04em}
+.rules{max-width:460px;text-align:left;display:flex;flex-direction:column;gap:8px;font-size:12px;
+  color:rgba(248,250,252,.75);line-height:1.75;letter-spacing:.03em}
+.rules b{color:var(--cyan-light)}
+.rules .ex{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;
+  font-variant-numeric:tabular-nums}
+.diffs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.diff{padding:11px 16px;border-radius:11px;border:1px solid rgba(129,140,248,.3);cursor:pointer;font-family:inherit;
+  background:linear-gradient(165deg,#2a3160 0,#161b38 100%);color:#e9edff;
+  box-shadow:0 5px 0 #0e1233,0 9px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.16);
+  transition:transform .12s,box-shadow .12s,border-color .2s}
+.diff .dn{display:block;font-size:12px;font-weight:800;letter-spacing:.2em}
+.diff .dd{display:block;font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.06em}
+.diff[aria-pressed="true"]{border-color:var(--cyan);box-shadow:0 5px 0 #08344a,0 10px 22px rgba(6,182,212,.34),inset 0 1px 0 rgba(255,255,255,.28)}
+.diff:active{transform:translateY(4px);box-shadow:0 1px 0 #0e1233,0 3px 8px rgba(0,0,0,.45)}
+.btn{padding:15px 34px;border:none;border-radius:0;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.3em;
+  text-transform:uppercase;color:#fff;cursor:pointer;background:linear-gradient(135deg,var(--indigo),var(--cyan));
+  transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(6,182,212,.4)}
+.btn-ghost{background:none;border:1px solid rgba(248,250,252,.25);color:rgba(248,250,252,.85);text-decoration:none;display:inline-block;line-height:1}
+.btn-ghost:hover{background:rgba(248,250,252,.1);box-shadow:none}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+.answer{display:flex;gap:7px;justify-content:center}
+.answer span{width:42px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:10px;
+  font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:#06202a;
+  background:linear-gradient(150deg,#6ee7f5,#06b6d4);box-shadow:0 5px 0 #05576b,0 10px 20px rgba(6,182,212,.35)}
+.stats-row{display:flex;gap:30px;flex-wrap:wrap;justify-content:center;margin:2px 0}
+.share-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:center}
+.share-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;font-size:10.5px;font-weight:600;letter-spacing:.15em;
+  color:rgba(248,250,252,.85);background:rgba(248,250,252,.06);text-decoration:none;border:1px solid rgba(248,250,252,.2);
+  text-transform:uppercase;transition:background .2s,color .2s,border-color .2s}
+.share-btn:hover{background:var(--cyan);color:#020212;border-color:var(--cyan)}
+.rank{width:100%;max-width:400px;background:rgba(10,10,37,.7);border:1px solid rgba(79,70,229,.42);padding:16px}
+.rank-t{font-size:10px;font-weight:600;letter-spacing:.4em;color:var(--cyan);text-align:center;margin-bottom:10px;text-transform:uppercase}
+.rank-l{list-style:none;max-height:210px;overflow-y:auto}
+.rank-i{display:flex;align-items:center;padding:7px 8px;border-bottom:1px solid rgba(248,250,252,.06);font-size:11.5px;font-variant-numeric:tabular-nums}
+.rank-i:last-child{border-bottom:none}
+.rank-r{font-weight:700;color:var(--amber);width:30px;text-align:center}
+.rank-n{flex:1;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-s{font-weight:700;color:var(--amber);min-width:62px;text-align:right}
+.rank-i.is-new{background:rgba(251,191,36,.09)}
+.rank-empty{font-size:11px;color:var(--muted);text-align:center;padding:12px 0;letter-spacing:.1em}
+.name-modal{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:28px;
+  background:rgba(0,0,0,.9);backdrop-filter:blur(10px)}
+.name-modal.hide{display:none}
+.name-inner{background:rgba(10,10,37,.96);border:1px solid rgba(79,70,229,.55);padding:28px;max-width:340px;width:100%;text-align:center}
+.name-inner h3{font-size:12px;letter-spacing:.3em;color:var(--cyan);margin-bottom:8px;text-transform:uppercase}
+.name-inner p{font-size:11px;color:rgba(248,250,252,.6);margin-bottom:14px;letter-spacing:.1em}
+.name-inner input{width:100%;padding:12px 14px;background:#020212;border:1px solid rgba(248,250,252,.2);color:var(--fg);
+  font-size:14px;font-family:inherit;text-align:center;margin-bottom:14px;outline:0}
+.name-inner input:focus{border-color:var(--cyan)}
+@media (max-width:640px){
+  #stage{padding:100px 12px 18px}
+  .back-link{top:14px;right:14px;font-size:9px;padding:6px 10px}
+  .game-switch{top:52px;padding:2px}
+  .game-switch a,.game-switch .game-switch-active{padding:5px 9px;font-size:9px;letter-spacing:.16em}
+  .game-switch-icon{width:5px;height:5px;margin-right:5px}
+  .head{margin-bottom:10px}
+  .head h1{font-size:clamp(26px,7.4vw,38px);margin:6px 0 4px}
+  .sub{font-size:11.5px;line-height:1.7}
+  .status{gap:16px;margin:10px 0 10px}
+  .stat-v{font-size:17px}
+  /* Ten rows plus the keypad do not fit a phone screen. Let the board
+     scroll inside itself and keep the keypad pinned, so the controls are
+     always reachable without scrolling the page. */
+  /* Ten rows plus the keypad do not fit a phone screen, and a fixed
+     max-height still overflowed short ones. Make the stage exactly one
+     viewport tall and let the board absorb whatever is left, so the keypad
+     is reachable without scrolling at any height. */
+  #stage{height:100dvh;overflow:hidden}
+  .board{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:3px 0;scrollbar-width:none;margin-bottom:8px}
+  .board::-webkit-scrollbar{display:none}
+  .head,.status,.pad,.msg{flex:0 0 auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .tile.reveal,.tile.pop{animation:none}
+  .rows{transform:none}
+}
+</style>
+</head>
+<body>
+<canvas id="stars" aria-hidden="true"></canvas>
+<div id="stage">
+  <a class="back-link" href="/">← EXIT</a>
+  <nav class="game-switch" aria-label="ミニゲーム切り替え">
+    <a href="/game.html"><span class="game-switch-icon"></span>シューティング</a>
+    <a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
+    <a href="/racing.html"><span class="game-switch-icon"></span>ディフェンス</a>
+    <span class="game-switch-active"><span class="game-switch-icon"></span>コード解読</span>
+  </nav>
+
+  <div class="head">
+    <p class="eyebrow">LUMENIUM · MINI GAME</p>
+    <h1>LUMEN CODE</h1>
+    <p class="sub">隠された光のコードを、HIT と BLOW だけを手がかりに解き明かせ。</p>
+  </div>
+
+  <div class="status">
+    <div class="stat"><span class="stat-l">Mode</span><span class="stat-v" id="sMode">NORMAL</span></div>
+    <div class="stat"><span class="stat-l">Turn</span><span class="stat-v" id="sTurn">1 / 10</span></div>
+    <div class="stat"><span class="stat-l">Time</span><span class="stat-v" id="sTime">0:00</span></div>
+  </div>
+
+  <div class="board"><div class="rows" id="rows"></div></div>
+
+  <div class="pad" id="pad"></div>
+  <p class="msg" id="msg"></p>
+</div>
+
+<!-- start -->
+<div class="overlay" id="ovStart">
+  <p class="eyebrow">LUMENIUM PRESENTS</p>
+  <h2>LUMEN<br>CODE</h2>
+  <div class="rules">
+    <div>コンピュータが選んだ<b>数字のコード</b>を当てるゲームです。1回入力するたびに、2つのヒントが返ってきます。</div>
+    <div><b>HIT</b>＝数字も位置も合っている個数。<b>BLOW</b>＝数字は合っているが位置が違う個数。</div>
+    <div class="ex">例：答えが <b>1234</b> のとき<br>「1259」→ HIT 2（1と2）・BLOW 0<br>「4321」→ HIT 0・BLOW 4（全部あるが位置違い）</div>
+    <div>全部が HIT になれば解読成功。少ない手数と短い時間ほど高得点です。</div>
+  </div>
+  <div class="diffs" id="diffs"></div>
+  <div class="btn-row"><button class="btn" id="btnStart">START</button></div>
+  <div class="rank">
+    <div class="rank-t">🏆 TOP 10 RANKING</div>
+    <ol class="rank-l" id="rankStart"></ol>
+  </div>
+</div>
+
+<!-- result -->
+<div class="overlay hide" id="ovEnd">
+  <p class="eyebrow" id="endEyebrow">CODE CRACKED</p>
+  <h2 id="endTitle">CLEAR</h2>
+  <p id="endLead"></p>
+  <div class="answer" id="endAnswer"></div>
+  <div class="stats-row">
+    <div class="stat"><span class="stat-l">Score</span><span class="stat-v" id="endScore">0</span></div>
+    <div class="stat"><span class="stat-l">Turns</span><span class="stat-v" id="endTurns">0</span></div>
+    <div class="stat"><span class="stat-l">Time</span><span class="stat-v" id="endTime">0:00</span></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="btnRetry">RETRY</button>
+    <button class="btn btn-ghost" id="btnBackTop">モード選択へ</button>
+    <a class="btn btn-ghost" href="/">EXIT</a>
+  </div>
+  <div class="share-row" id="shareRow">
+    <a class="share-btn" id="shareX" target="_blank" rel="noopener" aria-label="X でシェア">X でシェア</a>
+    <a class="share-btn" id="shareLine" target="_blank" rel="noopener" aria-label="LINE でシェア">LINE でシェア</a>
+  </div>
+  <div class="rank">
+    <div class="rank-t">🏆 TOP 10 RANKING</div>
+    <ol class="rank-l" id="rankEnd"></ol>
+  </div>
+</div>
+
+<!-- name entry -->
+<div class="name-modal hide" id="nameModal">
+  <div class="name-inner">
+    <h3>TOP 10 入り 🏆</h3>
+    <p>名前を入力してください</p>
+    <input id="nameInput" maxlength="12" autocomplete="off" placeholder="名前（12文字以内）">
+    <button class="btn" id="nameSubmit" style="width:100%">登録する</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict'
+
+  /* ---------------------------------------------------------------
+     Rules. Duplicates are off except on HARD, where they are the whole
+     point of the extra difficulty.
+     --------------------------------------------------------------- */
+  const MODES = {
+    easy:   { name: 'EASY',   len: 3, dup: false, turns: 10, base: 600,  note: '3桁 · 重複なし' },
+    normal: { name: 'NORMAL', len: 4, dup: false, turns: 10, base: 1000, note: '4桁 · 重複なし' },
+    hard:   { name: 'HARD',   len: 4, dup: true,  turns: 8,  base: 1800, note: '4桁 · 重複あり' },
+  }
+  const RANK_KEY = 'lum_hitblow_rank_v1'
+  const MODE_KEY = 'lum_hitblow_mode'
+
+  const $ = (id) => document.getElementById(id)
+  const el = {
+    rows: $('rows'), pad: $('pad'), msg: $('msg'),
+    sMode: $('sMode'), sTurn: $('sTurn'), sTime: $('sTime'),
+    ovStart: $('ovStart'), ovEnd: $('ovEnd'), diffs: $('diffs'),
+    endEyebrow: $('endEyebrow'), endTitle: $('endTitle'), endLead: $('endLead'),
+    endAnswer: $('endAnswer'), endScore: $('endScore'), endTurns: $('endTurns'), endTime: $('endTime'),
+    rankStart: $('rankStart'), rankEnd: $('rankEnd'),
+    nameModal: $('nameModal'), nameInput: $('nameInput'),
+    shareX: $('shareX'), shareLine: $('shareLine'), shareRow: $('shareRow'),
+  }
+
+  let mode = 'normal'
+  let cfg = MODES[mode]
+  let secret = []
+  let guess = []
+  let turn = 0
+  let playing = false
+  let startedAt = 0
+  let timerId = 0
+  let ruledOut = new Set()
+  let lastScore = 0
+
+  /* ---- storage helpers (private mode can throw) ---- */
+  const load = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v) } catch (_) { return fb } }
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch (_) {} }
+
+  /* ---- core rule: count hits and blows, duplicate-safe ---- */
+  function judge(sec, gs) {
+    let hit = 0
+    const secLeft = {}
+    const gsLeft = {}
+    for (let i = 0; i < sec.length; i++) {
+      if (sec[i] === gs[i]) { hit++; continue }
+      secLeft[sec[i]] = (secLeft[sec[i]] || 0) + 1
+      gsLeft[gs[i]] = (gsLeft[gs[i]] || 0) + 1
+    }
+    let blow = 0
+    for (const d in gsLeft) blow += Math.min(gsLeft[d], secLeft[d] || 0)
+    return { hit, blow }
+  }
+
+  function makeSecret() {
+    const n = cfg.len
+    if (cfg.dup) {
+      return Array.from({ length: n }, () => Math.floor(Math.random() * 10))
+    }
+    const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const t = pool[i]; pool[i] = pool[j]; pool[j] = t
+    }
+    return pool.slice(0, n)
+  }
+
+  /* ---- board ---- */
+  function buildBoard() {
+    el.rows.innerHTML = ''
+    for (let r = 0; r < cfg.turns; r++) {
+      const row = document.createElement('div')
+      row.className = 'row' + (r === 0 ? ' is-active' : '')
+      row.dataset.row = String(r)
+      const tiles = document.createElement('div')
+      tiles.className = 'tiles'
+      for (let c = 0; c < cfg.len; c++) {
+        const t = document.createElement('div')
+        t.className = 'tile'
+        tiles.appendChild(t)
+      }
+      const res = document.createElement('div')
+      res.className = 'res'
+      res.innerHTML = '<span class="pill">–</span><span class="pill">–</span>'
+      row.appendChild(tiles)
+      row.appendChild(res)
+      el.rows.appendChild(row)
+    }
+  }
+
+  function currentRow() { return el.rows.children[turn] }
+
+  function paintGuess() {
+    const row = currentRow()
+    if (!row) return
+    const tiles = row.querySelectorAll('.tile')
+    tiles.forEach((t, i) => {
+      const v = guess[i]
+      t.textContent = v == null ? '' : String(v)
+      t.classList.toggle('filled', v != null)
+    })
+    $('btnGo').disabled = guess.length !== cfg.len
+  }
+
+  /* ---- keypad ---- */
+  function buildPad() {
+    el.pad.innerHTML = ''
+    for (let d = 0; d <= 9; d++) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'key'
+      b.dataset.digit = String(d)
+      b.textContent = String(d)
+      b.addEventListener('click', () => pushDigit(d))
+      el.pad.appendChild(b)
+    }
+    const del = document.createElement('button')
+    del.type = 'button'; del.className = 'key wide'; del.id = 'btnDel'; del.textContent = 'DEL'
+    del.addEventListener('click', popDigit)
+    const go = document.createElement('button')
+    go.type = 'button'; go.className = 'key go'; go.id = 'btnGo'; go.textContent = 'CHECK'
+    go.disabled = true
+    go.addEventListener('click', submit)
+    el.pad.appendChild(del)
+    el.pad.appendChild(go)
+  }
+
+  function flashKey(d) {
+    const k = el.pad.querySelector('[data-digit="' + d + '"]')
+    if (!k) return
+    k.classList.add('press')
+    setTimeout(() => k.classList.remove('press'), 110)
+  }
+
+  function pushDigit(d) {
+    if (!playing || guess.length >= cfg.len) return
+    if (!cfg.dup && guess.includes(d)) { note('このモードは同じ数字を2回使えません', true); return }
+    guess.push(d)
+    flashKey(d)
+    const t = currentRow().querySelectorAll('.tile')[guess.length - 1]
+    t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop')
+    note('')
+    paintGuess()
+  }
+
+  function popDigit() {
+    if (!playing || !guess.length) return
+    guess.pop()
+    note('')
+    paintGuess()
+  }
+
+  function note(text, warn) {
+    el.msg.textContent = text || ''
+    el.msg.classList.toggle('warn', !!warn)
+  }
+
+  /* ---- a digit absent from a 0-hit 0-blow guess can be crossed off ---- */
+  function updateRuledOut(gs, hit, blow) {
+    if (hit + blow !== 0) return
+    gs.forEach((d) => ruledOut.add(d))
+    ruledOut.forEach((d) => {
+      const k = el.pad.querySelector('[data-digit="' + d + '"]')
+      if (k) k.classList.add('used')
+    })
+  }
+
+  function submit() {
+    if (!playing || guess.length !== cfg.len) return
+    const gs = guess.slice()
+    const { hit, blow } = judge(secret, gs)
+
+    const row = currentRow()
+    row.classList.remove('is-active')
+    row.classList.add('is-done')
+    row.querySelectorAll('.tile').forEach((t, i) => {
+      t.classList.add('locked')
+      t.style.animationDelay = (i * 60) + 'ms'
+      t.classList.add('reveal')
+    })
+    const pills = row.querySelectorAll('.pill')
+    pills[0].className = 'pill' + (hit > 0 ? ' hit' : '')
+    pills[0].innerHTML = hit + ' <small>HIT</small>'
+    pills[1].className = 'pill' + (blow > 0 ? ' blow' : '')
+    pills[1].innerHTML = blow + ' <small>BLOW</small>'
+
+    updateRuledOut(gs, hit, blow)
+
+    turn++
+    guess = []
+
+    if (hit === cfg.len) { finish(true); return }
+    if (turn >= cfg.turns) { finish(false); return }
+
+    const next = el.rows.children[turn]
+    if (next) {
+      next.classList.add('is-active')
+      try { next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) } catch (_) {}
+    }
+    el.sTurn.textContent = (turn + 1) + ' / ' + cfg.turns
+    paintGuess()
+    note(hit + blow === 0 ? 'どの数字も含まれていません。候補を絞れます。' : '')
+  }
+
+  /* ---- timing ---- */
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000))
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+  }
+  function tick() { el.sTime.textContent = fmt(Date.now() - startedAt) }
+
+  /* ---- lifecycle ---- */
+  function start() {
+    cfg = MODES[mode]
+    secret = makeSecret()
+    guess = []
+    turn = 0
+    ruledOut = new Set()
+    playing = true
+    startedAt = Date.now()
+    clearInterval(timerId)
+    timerId = setInterval(tick, 250)
+
+    el.sMode.textContent = cfg.name
+    el.sTurn.textContent = '1 / ' + cfg.turns
+    el.sTime.textContent = '0:00'
+    buildBoard()
+    buildPad()
+    paintGuess()
+    note('')
+    el.ovStart.classList.add('hide')
+    el.ovEnd.classList.add('hide')
+  }
+
+  function finish(won) {
+    playing = false
+    clearInterval(timerId)
+    const elapsed = Date.now() - startedAt
+    const used = turn
+    lastScore = 0
+    if (won) {
+      const left = cfg.turns - used            // unused attempts
+      const timeBonus = Math.max(0, 300 - Math.floor(elapsed / 1000)) * 3
+      lastScore = cfg.base * (left + 1) + timeBonus
+    }
+
+    el.endEyebrow.textContent = won ? 'CODE CRACKED' : 'CODE LOCKED'
+    el.endTitle.textContent = won ? 'CLEAR' : 'GAME OVER'
+    el.endLead.textContent = won
+      ? cfg.name + ' モードを ' + used + ' 手で解読しました。'
+      : '手数を使い切りました。正解はこちらです。'
+    el.endAnswer.innerHTML = secret.map((d) => '<span>' + d + '</span>').join('')
+    el.endScore.textContent = lastScore.toLocaleString('ja-JP')
+    el.endTurns.textContent = used + ' / ' + cfg.turns
+    el.endTime.textContent = fmt(elapsed)
+    el.shareRow.style.display = won ? 'flex' : 'none'
+
+    if (won) {
+      const text = 'LUMEN CODE（' + cfg.name + '）を ' + used + ' 手・' + fmt(elapsed) + ' で解読！ SCORE ' + lastScore.toLocaleString('ja-JP')
+      const url = 'https://lumenium.net/hitblow.html'
+      el.shareX.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url)
+      el.shareLine.href = 'https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(text)
+    }
+
+    el.ovEnd.classList.remove('hide')
+    renderRank(el.rankEnd, null)
+    if (won && qualifies(lastScore)) askName()
+  }
+
+  /* ---- ranking ---- */
+  const getRank = () => { const r = load(RANK_KEY, []); return Array.isArray(r) ? r : [] }
+  function qualifies(score) {
+    if (score <= 0) return false
+    const r = getRank()
+    return r.length < 10 || score > r[r.length - 1].score
+  }
+  function renderRank(list, highlightAt) {
+    const r = getRank()
+    list.innerHTML = ''
+    if (!r.length) {
+      list.innerHTML = '<li class="rank-empty">まだ記録がありません</li>'
+      return
+    }
+    r.forEach((e, i) => {
+      const li = document.createElement('li')
+      li.className = 'rank-i' + (i === highlightAt ? ' is-new' : '')
+      li.innerHTML = '<span class="rank-r">' + (i + 1) + '</span>' +
+        '<span class="rank-n"></span>' +
+        '<span class="rank-s">' + Number(e.score).toLocaleString('ja-JP') + '</span>'
+      // Names are user input — assign as text, never as HTML.
+      li.querySelector('.rank-n').textContent = (e.name || '匿名') + ' · ' + (e.mode || '')
+      list.appendChild(li)
+    })
+  }
+  function askName() {
+    el.nameModal.classList.remove('hide')
+    setTimeout(() => el.nameInput.focus(), 60)
+  }
+  function commitName() {
+    const name = (el.nameInput.value || '').trim().slice(0, 12) || '匿名'
+    const r = getRank()
+    r.push({ name, score: lastScore, mode: cfg.name })
+    r.sort((a, b) => b.score - a.score)
+    const trimmed = r.slice(0, 10)
+    save(RANK_KEY, trimmed)
+    const idx = trimmed.findIndex((e) => e.name === name && e.score === lastScore)
+    el.nameModal.classList.add('hide')
+    el.nameInput.value = ''
+    renderRank(el.rankEnd, idx)
+    renderRank(el.rankStart, idx)
+  }
+
+  /* ---- difficulty picker ---- */
+  function buildDiffs() {
+    el.diffs.innerHTML = ''
+    Object.keys(MODES).forEach((k) => {
+      const m = MODES[k]
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'diff'
+      b.setAttribute('aria-pressed', String(k === mode))
+      b.innerHTML = '<span class="dn">' + m.name + '</span><span class="dd">' + m.note + ' · ' + m.turns + '手</span>'
+      b.addEventListener('click', () => {
+        mode = k
+        save(MODE_KEY, k)
+        buildDiffs()
+      })
+      el.diffs.appendChild(b)
+    })
+  }
+
+  /* ---- keyboard ---- */
+  document.addEventListener('keydown', (e) => {
+    if (!el.nameModal.classList.contains('hide')) {
+      if (e.key === 'Enter') { e.preventDefault(); commitName() }
+      return
+    }
+    if (!playing) {
+      if (e.key === 'Enter') { e.preventDefault(); start() }
+      return
+    }
+    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pushDigit(Number(e.key)) }
+    else if (e.key === 'Backspace') { e.preventDefault(); popDigit() }
+    else if (e.key === 'Enter') { e.preventDefault(); submit() }
+  })
+
+  $('btnStart').addEventListener('click', start)
+  $('btnRetry').addEventListener('click', start)
+  $('btnBackTop').addEventListener('click', () => {
+    el.ovEnd.classList.add('hide')
+    el.ovStart.classList.remove('hide')
+    renderRank(el.rankStart, null)
+  })
+  $('nameSubmit').addEventListener('click', commitName)
+
+  /* ---- ambient starfield, matching the site ---- */
+  ;(function stars() {
+    const c = document.getElementById('stars')
+    const ctx = c.getContext('2d')
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let w = 0, h = 0, pts = []
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      w = window.innerWidth; h = window.innerHeight
+      c.width = w * dpr; c.height = h * dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const n = Math.max(40, Math.min(110, Math.floor((w * h) / 14000)))
+      pts = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        r: 0.4 + Math.random() * 1.5,
+        a: Math.random() * Math.PI * 2,
+        s: 0.012 + Math.random() * 0.03,
+      }))
+    }
+    function draw() {
+      ctx.clearRect(0, 0, w, h)
+      for (const p of pts) {
+        if (!reduce) p.a += p.s
+        const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(p.a))
+        ctx.globalAlpha = tw * 0.7
+        ctx.fillStyle = '#c7d2fe'
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill()
+      }
+      ctx.globalAlpha = 1
+      requestAnimationFrame(draw)
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    requestAnimationFrame(draw)
+  })()
+
+  /* ---- boot ---- */
+  const savedMode = load(MODE_KEY, 'normal')
+  if (MODES[savedMode]) mode = savedMode
+  buildDiffs()
+  buildPad()
+  cfg = MODES[mode]
+  buildBoard()
+  renderRank(el.rankStart, null)
+})()
+</script>
+</body>
+</html>

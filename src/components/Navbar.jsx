@@ -193,6 +193,7 @@ export default function Navbar() {
             <a href="/game.html">🚀 シューティング</a>
             <a href="/runner.html">🏃 ランナー</a>
             <a href="/racing.html">🏰 ディフェンス</a>
+            <a href="/hitblow.html">🔦 コード解読（ヒットアンドブロー）</a>
             {isMember ? (
               <>
                 <a href="/members/arena">⭐ 会員限定ブレイカー</a>

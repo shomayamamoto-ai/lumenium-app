@@ -778,6 +778,7 @@ ${t.body()}
       ['/game.html', 'シューティング'],
       ['/runner.html', 'ランナー'],
       ['/racing.html', 'ディフェンス'],
+      ['/hitblow.html', 'コード解読（ヒットアンドブロー）'],
     ]],
   ]
   const total = SECTIONS.reduce((n, [, items]) => n + items.length, 0)
@@ -833,6 +834,7 @@ ${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
     { loc: `${SITE}/runner.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
     { loc: `${SITE}/game.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
     { loc: `${SITE}/racing.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
+    { loc: `${SITE}/hitblow.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.4' },
   ]
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"

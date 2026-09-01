@@ -108,7 +108,7 @@ body{
   .game-switch .game-switch-active,.game-switch a{padding:5px 8px;font-size:9px;letter-spacing:.18em}
   .game-switch-icon{width:5px;height:5px;margin-right:5px}
 }
-</style>
+@media(max-width:640px){.game-switch{max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}.game-switch::-webkit-scrollbar{display:none}}</style>
 </head>
 <body>
 <div class="bg-glow bg-glow-1"></div>
@@ -117,7 +117,7 @@ body{
 <nav aria-label="ミニゲーム切り替え" class="game-switch">
   <span class="game-switch-active"><span class="game-switch-icon"></span>シューティング</span>
   <a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
-  <a href="/racing.html"><span class="game-switch-icon"></span>ディフェンス</a>
+  <a href="/racing.html"><span class="game-switch-icon"></span>ディフェンス</a> <a href="/hitblow.html"><span class="game-switch-icon"></span>コード解読</a>
 </nav>
 <section class="game-page">
   <div class="fade-up section-header">

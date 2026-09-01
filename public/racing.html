@@ -86,14 +86,14 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 .tw-btn{padding:6px 9px;font-size:10px}
 .how{grid-template-columns:1fr}
 }
-</style>
+@media(max-width:640px){.game-switch{max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}.game-switch::-webkit-scrollbar{display:none}}</style>
 </head>
 <body>
 <a href="/" class="back-link">← EXIT</a>
 <nav aria-label="ミニゲーム切り替え" class="game-switch">
 <a href="/game.html"><span class="game-switch-icon"></span>シューティング</a>
 <a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
-<span class="game-switch-active"><span class="game-switch-icon"></span>ディフェンス</span>
+<span class="game-switch-active"><span class="game-switch-icon"></span>ディフェンス</span> <a href="/hitblow.html"><span class="game-switch-icon"></span>コード解読</a>
 </nav>
 <section class="pg">
 <div class="hd">
