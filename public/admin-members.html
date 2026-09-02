@@ -161,6 +161,20 @@
         <ul id="news-items" style="list-style:none;margin:0;padding:0"></ul>
       </div>
     </div>
+
+    <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">✍️ サイトの文章編集</h2>
+      <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。改行はそのまま改行、<code>**強調**</code> で太字になります。</p>
+      <div class="toolbar" style="margin-bottom:10px">
+        <select id="copy-group" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
+        <input type="search" id="copy-search" placeholder="文章を検索（例：ワンストップ）">
+        <span id="copy-count"></span>
+        <button id="copy-save" type="button">変更を保存</button>
+        <button class="ghost" id="copy-reload" type="button">再読込</button>
+      </div>
+      <p class="msg" id="copy-msg" style="margin-bottom:10px"></p>
+      <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
+    </div>
   </div>
 
 <script>
@@ -308,6 +322,8 @@ function buildXlsx(rows) {
     keyPanel.style.display = 'none';
     listView.style.display = 'block';
     document.getElementById('news-admin').style.display = 'block';
+    document.getElementById('copy-admin').style.display = 'block';
+    if (window.lumCopyInit) window.lumCopyInit();
     loadNews();
     return true;
   }
@@ -487,6 +503,223 @@ function buildXlsx(rows) {
   // Auto-restore within the same tab session
   var saved = sessionStorage.getItem('lum_admin_key');
   if (saved) load(saved);
+})();
+</script>
+
+<script>
+/* Copy editor: renders public/content-schema.json (every editable string on
+   the site, with its built-in default) as a form, and posts only the fields
+   that actually changed to /api/content-save. */
+(function () {
+  var schema = null;      // { groups: [{ key, label, fields: [{path, value}] }] }
+  var overrides = {};     // path -> string, as currently committed
+  var edited = {};        // path -> string | null (null = restore default)
+  var loaded = false;
+
+  var groupSel = document.getElementById('copy-group');
+  var searchEl = document.getElementById('copy-search');
+  var fieldsEl = document.getElementById('copy-fields');
+  var countEl = document.getElementById('copy-count');
+  var msgEl = document.getElementById('copy-msg');
+
+
+  // Dotted paths are how the file is keyed, but they read as code. Turn them
+  // into something a person can scan: "2件目 · 本文" rather than
+  // "site.TESTIMONIALS.1.text".
+  var LEAF = {
+    title: '見出し', titleLine1: '見出し1行目', titleLine2: '見出し2行目',
+    desc: '説明文', label: 'ラベル', lead: 'リード文', text: '本文', body: '本文',
+    name: 'お名前', detail: '補足', sub: 'サブ文', summary: '概要', content: '記事本文',
+    q: '質問', a: '回答', category: 'カテゴリ', date: '日付', tag: 'タグ',
+    metricLabel: '単位', pain: 'お困りごと', solution: '解決策',
+    k: '項目名', v: '説明', year: '年', price: '料金', partner: 'パートナー名',
+    partnerUrl: 'パートナーURL', eyebrow: '小見出し', time: '所要時間', prep: 'ご準備',
+    placeholder: '入力欄の文言', button: 'ボタン', searchButton: '検索ボタン',
+    askButton: 'AIボタン', definition: '定義文', definitionLink: '定義文のリンク',
+    tagline: 'タグライン', yomi: '読み', base: '拠点', achievementsHeading: '小見出し',
+    ctaLabel: 'CTAラベル', ctaTitle: 'CTA見出し', ctaButton: 'CTAボタン',
+    typingLabel: 'ラベル', reassure1: '安心材料1', reassure2: '安心材料2', reassure3: '安心材料3',
+  };
+  function humanLabel(path) {
+    var parts = path.split('.');
+    var out = [];
+    for (var i = 1; i < parts.length; i++) {
+      var seg = parts[i];
+      if (/^\d+$/.test(seg)) { out.push((Number(seg) + 1) + '件目'); continue; }
+      if (seg === 'items' || seg === 'checks' || seg === 'list' ||
+          seg === 'highlights' || seg === 'examples' || seg === 'tags' || seg === 'body') continue;
+      out.push(LEAF[seg] || seg);
+    }
+    if (!out.length) out.push(LEAF[parts[parts.length - 1]] || parts[parts.length - 1]);
+    return out.join(' · ');
+  }
+
+  function say(text, isInfo) {
+    msgEl.textContent = text || '';
+    msgEl.classList.toggle('show', !!text);
+    msgEl.classList.toggle('info', !!isInfo);
+  }
+
+  function current(path, def) {
+    if (Object.prototype.hasOwnProperty.call(edited, path)) {
+      return edited[path] === null ? def : edited[path];
+    }
+    if (Object.prototype.hasOwnProperty.call(overrides, path)) return overrides[path];
+    return def;
+  }
+
+  function dirtyCount() { return Object.keys(edited).length; }
+
+  function render() {
+    if (!schema) return;
+    var gk = groupSel.value;
+    var q = (searchEl.value || '').trim().toLowerCase();
+    var group = schema.groups.filter(function (g) { return g.key === gk })[0];
+    fieldsEl.innerHTML = '';
+    if (!group) return;
+
+    var shown = 0;
+    group.fields.forEach(function (f) {
+      var val = current(f.path, f.value);
+      if (q && val.toLowerCase().indexOf(q) < 0 && f.path.toLowerCase().indexOf(q) < 0) return;
+      shown++;
+
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)';
+
+      var head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap';
+      var label = document.createElement('span');
+      label.textContent = humanLabel(f.path);
+      label.title = f.path;
+      label.style.cssText = 'font-size:12px;font-weight:700;color:#93c5fd';
+      head.appendChild(label);
+
+      var changedTag = document.createElement('span');
+      changedTag.textContent = '変更あり';
+      changedTag.style.cssText = 'font-size:10px;font-weight:700;color:#0b1020;background:#fbbf24;padding:2px 7px;border-radius:999px';
+      changedTag.hidden = val === f.value;
+      head.appendChild(changedTag);
+
+      var reset = document.createElement('button');
+      reset.type = 'button';
+      reset.textContent = '元の文章に戻す';
+      reset.className = 'ghost';
+      reset.style.cssText = 'font-size:10.5px;padding:3px 9px;margin-left:auto';
+      head.appendChild(reset);
+      wrap.appendChild(head);
+
+      var ta = document.createElement('textarea');
+      ta.value = val;
+      ta.rows = Math.min(10, Math.max(2, val.split('\n').length + (val.length > 110 ? 1 : 0)));
+      ta.style.cssText = 'width:100%;padding:10px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
+      wrap.appendChild(ta);
+
+      function mark() {
+        var v = ta.value;
+        if (v === f.value) edited[f.path] = null;   // back to the built-in wording
+        else edited[f.path] = v;
+        // Nothing to record if this equals what is already committed.
+        var committed = Object.prototype.hasOwnProperty.call(overrides, f.path) ? overrides[f.path] : f.value;
+        if (v === committed) delete edited[f.path];
+        changedTag.hidden = v === f.value;
+        updateCount();
+      }
+      ta.addEventListener('input', mark);
+      reset.addEventListener('click', function () { ta.value = f.value; mark(); ta.focus(); });
+
+      fieldsEl.appendChild(wrap);
+    });
+
+    if (!shown) {
+      var none = document.createElement('p');
+      none.className = 'share-note';
+      none.textContent = '該当する文章がありません。';
+      fieldsEl.appendChild(none);
+    }
+    updateCount(shown, group.fields.length);
+  }
+
+  function updateCount(shown, total) {
+    var d = dirtyCount();
+    var base = (shown != null) ? (shown + ' / ' + total + ' 件') : countEl.dataset.base || '';
+    if (shown != null) countEl.dataset.base = base;
+    countEl.textContent = (countEl.dataset.base || '') + (d ? '（未保存 ' + d + ' 件）' : '');
+  }
+
+  async function loadAll() {
+    say('読み込み中…', true);
+    try {
+      var r1 = await fetch('/content-schema.json', { cache: 'no-store' });
+      schema = await r1.json();
+      var r2 = await fetch('/content.json', { cache: 'no-store' });
+      overrides = r2.ok ? (await r2.json()) : {};
+      if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) overrides = {};
+    } catch (_) {
+      say('文章データを読み込めませんでした。再読込をお試しください。');
+      return;
+    }
+    edited = {};
+    groupSel.innerHTML = '';
+    schema.groups.forEach(function (g) {
+      var o = document.createElement('option');
+      o.value = g.key;
+      o.textContent = g.label + '（' + g.fields.length + '）';
+      groupSel.appendChild(o);
+    });
+    say('編集できる文章：' + schema.count + ' 件', true);
+    render();
+  }
+
+  async function save() {
+    var changes = {};
+    Object.keys(edited).forEach(function (k) { changes[k] = edited[k]; });
+    if (!Object.keys(changes).length) { say('変更はありません。', true); return; }
+    var key = sessionStorage.getItem('lum_admin_key');
+    if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
+
+    var btn = document.getElementById('copy-save');
+    btn.disabled = true;
+    say('保存中…', true);
+    var res, data;
+    try {
+      res = await fetch('/api/content-save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+        body: JSON.stringify({ changes: changes }),
+      });
+      data = await res.json();
+    } catch (_) {
+      btn.disabled = false;
+      say('通信に失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
+    btn.disabled = false;
+    if (!res.ok || data.ok !== true) {
+      say(data && data.message ? data.message : '保存に失敗しました。');
+      return;
+    }
+    overrides = data.overrides || {};
+    edited = {};
+    say(data.message, true);
+    render();
+  }
+
+  groupSel.addEventListener('change', render);
+  searchEl.addEventListener('input', render);
+  document.getElementById('copy-save').addEventListener('click', save);
+  document.getElementById('copy-reload').addEventListener('click', function () { loadAll(); });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (dirtyCount()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // Called once the admin key has been accepted.
+  window.lumCopyInit = function () {
+    if (loaded) return;
+    loaded = true;
+    loadAll();
+  };
 })();
 </script>
 </body>

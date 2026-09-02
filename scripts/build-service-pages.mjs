@@ -2,7 +2,10 @@
 // at public/services/<id>.html — unique title/description, Service +
 // BreadcrumbList JSON-LD, crawlable body copy, cross-links, and CTAs into
 // the app. Run via `npm run build` (prebuild) or directly.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
+import { applyOverrides } from '../src/lib/content-registry.js'
+try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
 

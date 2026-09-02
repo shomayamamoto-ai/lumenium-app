@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 const info = [
   { label: '会社名', value: 'Lumenium（ルメニウム）' },
   { label: '代表者', value: '山本 捷真' },
@@ -13,8 +15,8 @@ export default function Company() {
     <section className="section section--gray" id="company">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">COMPANY</p>
-          <h2 className="section-title">会社概要</h2>
+          <p className="section-label">{SECTION.company.label}</p>
+          <h2 className="section-title">{rich(SECTION.company.title)}</h2>
         </div>
 
         <div className="company-card" data-animate data-delay="1">

@@ -1,14 +1,16 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 export default function Footer({ onPrivacy }) {
   return (
     <footer className="footer">
       <div className="footer-cta-bar">
         <div className="container footer-cta-inner">
           <div className="footer-cta-copy">
-            <p className="footer-cta-label">LET'S TALK</p>
-            <p className="footer-cta-title">はじめの一歩は、30分のご相談から。</p>
+            <p className="footer-cta-label">{SECTION.footer.ctaLabel}</p>
+            <p className="footer-cta-title">{rich(SECTION.footer.ctaTitle)}</p>
           </div>
           <a href="#contact-form" className="btn btn-white" data-cta="footer-consult">
-            無料で相談する
+            {SECTION.footer.ctaButton}
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </a>
         </div>
@@ -19,10 +21,10 @@ export default function Footer({ onPrivacy }) {
           <div className="footer-brand">
             <a href="#top" className="footer-logo">
               <img src="/lumenium-logo.svg?v=2" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
-              <span>Lumenium<small className="footer-logo-yomi">ルメニウム</small></span>
+              <span>Lumenium<small className="footer-logo-yomi">{SECTION.home.yomi}</small></span>
             </a>
-            <p className="footer-tagline">散文化した目的に、焦点を当てる。</p>
-            <p className="footer-sub">動画・AI・Webを中心に、企画から運用までを一緒に走りながら、お客様の想いをかたちにしています。</p>
+            <p className="footer-tagline">{rich(SECTION.footer.tagline)}</p>
+            <p className="footer-sub">{rich(SECTION.footer.sub)}</p>
             <ul className="footer-contact">
               <li>
                 <span>CONTACT</span>
@@ -30,7 +32,7 @@ export default function Footer({ onPrivacy }) {
               </li>
               <li>
                 <span>BASE</span>
-                <span className="footer-contact-text">東京 / オンライン全国対応</span>
+                <span className="footer-contact-text">{SECTION.footer.base}</span>
               </li>
             </ul>
           </div>

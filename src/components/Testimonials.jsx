@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useEffect, useRef } from 'react'
 import { TESTIMONIALS as testimonials } from '../data/site'
 
@@ -47,9 +49,9 @@ export default function Testimonials() {
     <section className="section section--gray" id="testimonials">
       <div className="container">
         <div className="section-header" data-animate data-stroke="VOICE">
-          <p className="section-label">VOICE</p>
-          <h2 className="section-title">お客様の声</h2>
-          <p className="section-desc">ご依頼いただいた方々からの感想の一部です。</p>
+          <p className="section-label">{SECTION.testimonials.label}</p>
+          <h2 className="section-title">{rich(SECTION.testimonials.title)}</h2>
+          <p className="section-desc">{rich(SECTION.testimonials.desc)}</p>
         </div>
 
         <div className="testimonial-carousel" data-animate data-delay="1">

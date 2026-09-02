@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useEffect, useState } from 'react'
 
 // お知らせ — reads the statically served /news.json (committed from the
@@ -21,8 +23,8 @@ export default function News() {
     <section className="section" id="news">
       <div className="container container--narrow">
         <div className="section-header" data-animate>
-          <p className="section-label">NEWS</p>
-          <h2 className="section-title">お知らせ</h2>
+          <p className="section-label">{SECTION.news.label}</p>
+          <h2 className="section-title">{rich(SECTION.news.title)}</h2>
         </div>
         <ul className="news-list" data-animate data-delay="1">
           {items.slice(0, 8).map((n) => (

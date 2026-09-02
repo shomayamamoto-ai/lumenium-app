@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useRef } from 'react'
 import { events } from '../lib/analytics'
 
@@ -101,9 +103,9 @@ export default function ContactForm() {
     <section className="section section--gray" id="contact-form">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">CONTACT</p>
-          <h2 className="section-title">お問い合わせ</h2>
-          <p className="section-desc">お気軽にご相談ください。</p>
+          <p className="section-label">{SECTION.contact.label}</p>
+          <h2 className="section-title">{rich(SECTION.contact.title)}</h2>
+          <p className="section-desc">{rich(SECTION.contact.desc)}</p>
         </div>
         <form className="contact-form" onSubmit={handleSubmit} data-animate data-delay="1" noValidate>
           <div className="form-row">

@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { CASE_STUDIES as caseStudies, ACHIEVEMENTS as achievements } from '../data/site'
 
 export default function Results() {
@@ -5,9 +7,9 @@ export default function Results() {
     <section className="section section--gray" id="results">
       <div className="container">
         <div className="section-header" data-animate data-stroke="RESULTS">
-          <p className="section-label">RESULTS</p>
-          <h2 className="section-title">このような案件に対応してきました</h2>
-          <p className="section-desc">規模やジャンルを問わず、最適なチーム体制で対応します。</p>
+          <p className="section-label">{SECTION.results.label}</p>
+          <h2 className="section-title">{rich(SECTION.results.title)}</h2>
+          <p className="section-desc">{rich(SECTION.results.desc)}</p>
         </div>
 
         <div className="case-grid">
@@ -27,7 +29,7 @@ export default function Results() {
         </div>
 
         <div className="achievements" data-animate data-delay="2">
-          <h3 className="achievements-heading">その他の実績</h3>
+          <h3 className="achievements-heading">{SECTION.results.achievementsHeading}</h3>
           <div className="achievements-list">
             {achievements.map((a) => (
               <span key={a} className="achievement-chip">{a}</span>

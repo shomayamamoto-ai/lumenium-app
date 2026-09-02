@@ -170,7 +170,7 @@
       ]
     },
     {
-      "source": "/news.json",
+      "source": "/(news|content|content-schema)\\.json",
       "headers": [
         {
           "key": "Cache-Control",

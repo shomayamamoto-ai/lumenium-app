@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useMemo } from 'react'
 import { events } from '../lib/analytics'
 import { PRICE_OPTIONS as OPTIONS } from '../data/site'
@@ -29,12 +31,9 @@ export default function PricingSimulator() {
     <section className="section section--gray" id="pricing">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">PRICING SIMULATOR</p>
-          <h2 className="section-title">見積もりの目安を<br />その場でシミュレーション。</h2>
-          <p className="section-desc">
-            必要なサービスを選ぶと概算レンジが表示されます。<br />
-            ※ 実際のお見積りは無料。内容を伺った上で正確にご提案します。
-          </p>
+          <p className="section-label">{SECTION.pricing.label}</p>
+          <h2 className="section-title">{rich(SECTION.pricing.title)}</h2>
+          <p className="section-desc">{rich(SECTION.pricing.desc)}</p>
         </div>
 
         <div className="pricing-sim" data-animate data-delay="1">

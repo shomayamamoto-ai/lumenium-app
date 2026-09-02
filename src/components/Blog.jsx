@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 import { articles } from '../data/articles'
@@ -153,9 +155,9 @@ export default function Blog() {
     <section className="section" id="blog">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">BLOG</p>
-          <h2 className="section-title">ノウハウ・お役立ち情報</h2>
-          <p className="section-desc">動画制作・AI活用・SNS運用・Web制作など、現場で役立つ情報を発信しています。</p>
+          <p className="section-label">{SECTION.blog.label}</p>
+          <h2 className="section-title">{rich(SECTION.blog.title)}</h2>
+          <p className="section-desc">{rich(SECTION.blog.desc)}</p>
         </div>
 
         {selected ? (

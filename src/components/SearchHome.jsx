@@ -1,3 +1,4 @@
+import { SECTION } from '../data/text'
 import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
 import { events } from '../lib/analytics'
@@ -401,15 +402,15 @@ export default function SearchHome() {
       <StarCanvas />
       <div className="search-home-inner">
         <div className="search-home-brand">
-          <p className="search-home-eyebrow">TOKYO ・ CREATIVE &amp; DX STUDIO</p>
+          <p className="search-home-eyebrow">{SECTION.home.eyebrow}</p>
           <div className="search-home-lockup">
             <img src="/favicon.svg" alt="" width="280" height="280" className="search-home-mark" />
             <h1 className="search-home-logo">Lumenium</h1>
           </div>
-          <p className="search-home-yomi">ルメニウム</p>
+          <p className="search-home-yomi">{SECTION.home.yomi}</p>
           {/* The tagline resolves from blurred to sharp once on load — the
               page performing the sentence it is saying. */}
-          <p className="search-home-tag">散文化した目的に焦点を当てる</p>
+          <p className="search-home-tag">{SECTION.home.tagline}</p>
         </div>
 
         <form className="search-home-form" onSubmit={onSearch} role="search" ref={formRef}>
@@ -469,7 +470,7 @@ export default function SearchHome() {
             </ul>
           )}
           <div className="search-home-actions">
-            <button type="submit" className="search-home-btn">検索</button>
+            <button type="submit" className="search-home-btn">{SECTION.home.searchButton}</button>
             <button type="button" className="search-home-btn" onClick={onAsk}>AIに相談する</button>
           </div>
         </form>
@@ -517,8 +518,8 @@ export default function SearchHome() {
         {/* One crawlable definition sentence on the page that actually ranks —
             answer engines lift the passage, not the whole site. */}
         <p className="search-home-def">
-          ルメニウム（Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。
-          <a href="/about.html">ルメニウムとは →</a>
+          {SECTION.home.definition}
+          <a href="/about.html">{SECTION.home.definitionLink}</a>
         </p>
 
         <footer className="search-home-footer">

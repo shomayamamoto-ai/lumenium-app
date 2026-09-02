@@ -16,6 +16,14 @@ import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
   PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS } from '../src/data/site.js'
 
+// Admin copy overrides are applied to the shared data modules before any
+// page is rendered, so the static pages always match what the site shows.
+import { applyOverrides } from '../src/lib/content-registry.js'
+try {
+  const n = applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8')))
+  if (n) console.log(`content overrides applied: ${n}`)
+} catch (_) { /* no overrides yet — built-in copy stands */ }
+
 const SITE = 'https://lumenium.net'
 const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 

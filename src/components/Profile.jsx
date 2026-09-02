@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { CAREER as career } from '../data/site'
 
 export default function Profile() {
@@ -5,8 +7,8 @@ export default function Profile() {
     <section className="section" id="about">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">ABOUT</p>
-          <h2 className="section-title">代表紹介</h2>
+          <p className="section-label">{SECTION.profile.label}</p>
+          <h2 className="section-title">{rich(SECTION.profile.title)}</h2>
         </div>
         <div className="profile" data-animate data-delay="1">
           <div className="profile-photo">

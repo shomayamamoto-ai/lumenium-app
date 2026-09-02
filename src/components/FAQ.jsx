@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useMemo } from 'react'
 import { events } from '../lib/analytics'
 
@@ -41,9 +43,9 @@ export default function FAQ() {
     <section className="section" id="faq">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">FAQ</p>
-          <h2 className="section-title">よくある質問</h2>
-          <p className="section-desc">問い合わせ前の疑問を、先に解消できるようにまとめました。</p>
+          <p className="section-label">{SECTION.faq.label}</p>
+          <h2 className="section-title">{rich(SECTION.faq.title)}</h2>
+          <p className="section-desc">{rich(SECTION.faq.desc)}</p>
         </div>
 
         <div className="faq-wrapper" data-animate data-delay="1">

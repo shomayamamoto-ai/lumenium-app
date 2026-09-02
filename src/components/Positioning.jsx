@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 // Competitive positioning map — high quality × high cost-performance.
 // Editorial 2x2 quadrant chart, modelled on the BIZ BUZZ-style reference.
 
@@ -6,11 +8,9 @@ export default function Positioning() {
     <section className="section" id="positioning">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">POSITIONING</p>
-          <h2 className="section-title">Lumenium（ルメニウム）ってどんな会社？</h2>
-          <p className="section-desc">
-            大手制作会社・クラウドソーシング——どれとも違う、ルメニウムの立ち位置です。
-          </p>
+          <p className="section-label">{SECTION.positioning.label}</p>
+          <h2 className="section-title">{rich(SECTION.positioning.title)}</h2>
+          <p className="section-desc">{rich(SECTION.positioning.desc)}</p>
         </div>
 
         <div className="positioning" data-animate data-delay="1">

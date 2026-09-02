@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 // Editorial-style brand narrative.
 // Designed as a 3-chapter reading experience — not a sales block.
 import { BRAND_CHAPTERS as CHAPTERS } from '../data/site'
@@ -7,9 +9,9 @@ export default function BrandStory() {
     <section className="section section--gray" id="story">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">ABOUT</p>
-          <h2 className="section-title">Lumenium（ルメニウム）について</h2>
-          <p className="section-desc">ルメニウムという社名の由来、事業の考え方、取り組み方をご紹介します。</p>
+          <p className="section-label">{SECTION.story.label}</p>
+          <h2 className="section-title">{rich(SECTION.story.title)}</h2>
+          <p className="section-desc">{rich(SECTION.story.desc)}</p>
         </div>
 
         <div className="story">

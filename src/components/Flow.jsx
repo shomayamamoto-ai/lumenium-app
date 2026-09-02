@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { FLOW_STEPS } from '../data/site'
 
 const FlowGrad = ({ id }) => (
@@ -64,9 +66,9 @@ export default function Flow() {
     <section className="section section--gray" id="flow">
       <div className="container">
         <div className="section-header" data-animate data-stroke="FLOW">
-          <p className="section-label">FLOW</p>
-          <h2 className="section-title">ご依頼の流れ</h2>
-          <p className="section-desc">お問い合わせから納品後の伴走まで、5つのステップでご案内します。</p>
+          <p className="section-label">{SECTION.flow.label}</p>
+          <h2 className="section-title">{rich(SECTION.flow.title)}</h2>
+          <p className="section-desc">{rich(SECTION.flow.desc)}</p>
         </div>
         <div className="flow-steps">
           {steps.map((s, i) => (

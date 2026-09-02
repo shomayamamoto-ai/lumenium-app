@@ -1,0 +1,1666 @@
+{
+  "generatedAt": "2026-09-02T09:06:26.589Z",
+  "count": 394,
+  "groups": [
+    {
+      "key": "text",
+      "label": "各セクションの見出し・説明文",
+      "fields": [
+        {
+          "path": "text.hero.lead",
+          "value": "DIGITAL CREATIVE STUDIO · TOKYO"
+        },
+        {
+          "path": "text.hero.titleLine1",
+          "value": "散文化した目的に"
+        },
+        {
+          "path": "text.hero.titleLine2",
+          "value": "焦点を当てる"
+        },
+        {
+          "path": "text.hero.desc",
+          "value": "ぼんやりした\"やりたい\"を、**動画・AI・Web**で最短ルートの成果に。\n企画から納品・運用まで**ワンストップ**で、あなたの事業に光を当てます。"
+        },
+        {
+          "path": "text.hero.typingLabel",
+          "value": "対応領域"
+        },
+        {
+          "path": "text.pain.label",
+          "value": "YOUR PAIN POINTS"
+        },
+        {
+          "path": "text.pain.title",
+          "value": "こんなお困りごと、ありませんか？"
+        },
+        {
+          "path": "text.pain.desc",
+          "value": "「何から手をつければいいか分からない」\n「やりたいことはあるのに、時間も人手も足りない」\n—— 事業の\"次の一手\"は、\nたいてい**言葉にならないモヤモヤ**から始まります。\nその曖昧な想いを一緒に**言語化**し、\n動画・AI・Webという最適な打ち手に翻訳するのが、\nルメニウムの仕事です。"
+        },
+        {
+          "path": "text.servicesIntro.label",
+          "value": "NEXT · SERVICES"
+        },
+        {
+          "path": "text.servicesIntro.title",
+          "value": "Lumenium（ルメニウム）が\nお手伝いできる領域。"
+        },
+        {
+          "path": "text.servicesIntro.lead",
+          "value": "動画制作からAI導入、Web開発まで。一つひとつの領域に、専門チームが伴走します。"
+        },
+        {
+          "path": "text.servicesIntro.metaKey1",
+          "value": "領域数"
+        },
+        {
+          "path": "text.servicesIntro.metaVal1",
+          "value": "6"
+        },
+        {
+          "path": "text.servicesIntro.metaKey2",
+          "value": "対応業界"
+        },
+        {
+          "path": "text.servicesIntro.metaVal2",
+          "value": "12+"
+        },
+        {
+          "path": "text.servicesIntro.metaKey3",
+          "value": "ご提案まで"
+        },
+        {
+          "path": "text.servicesIntro.metaVal3",
+          "value": "48h 以内"
+        },
+        {
+          "path": "text.services.label",
+          "value": "SERVICES"
+        },
+        {
+          "path": "text.services.title",
+          "value": "動画・AI・Webまで\n6領域をワンストップで。"
+        },
+        {
+          "path": "text.services.desc",
+          "value": "複数の制作会社に発注する手間を1社に集約。企画から納品・運用までLumenium（ルメニウム）が一貫して伴走します。"
+        },
+        {
+          "path": "text.results.label",
+          "value": "RESULTS"
+        },
+        {
+          "path": "text.results.title",
+          "value": "このような案件に対応してきました"
+        },
+        {
+          "path": "text.results.desc",
+          "value": "規模やジャンルを問わず、最適なチーム体制で対応します。"
+        },
+        {
+          "path": "text.results.achievementsHeading",
+          "value": "その他の実績"
+        },
+        {
+          "path": "text.testimonials.label",
+          "value": "VOICE"
+        },
+        {
+          "path": "text.testimonials.title",
+          "value": "お客様の声"
+        },
+        {
+          "path": "text.testimonials.desc",
+          "value": "ご依頼いただいた方々からの感想の一部です。"
+        },
+        {
+          "path": "text.pricing.label",
+          "value": "PRICING SIMULATOR"
+        },
+        {
+          "path": "text.pricing.title",
+          "value": "見積もりの目安を\nその場でシミュレーション。"
+        },
+        {
+          "path": "text.pricing.desc",
+          "value": "必要なサービスを選ぶと概算レンジが表示されます。\n※ 実際のお見積りは無料。内容を伺った上で正確にご提案します。"
+        },
+        {
+          "path": "text.flow.label",
+          "value": "FLOW"
+        },
+        {
+          "path": "text.flow.title",
+          "value": "ご依頼の流れ"
+        },
+        {
+          "path": "text.flow.desc",
+          "value": "お問い合わせから納品後の伴走まで、5つのステップでご案内します。"
+        },
+        {
+          "path": "text.faq.label",
+          "value": "FAQ"
+        },
+        {
+          "path": "text.faq.title",
+          "value": "よくある質問"
+        },
+        {
+          "path": "text.faq.desc",
+          "value": "問い合わせ前の疑問を、先に解消できるようにまとめました。"
+        },
+        {
+          "path": "text.blog.label",
+          "value": "BLOG"
+        },
+        {
+          "path": "text.blog.title",
+          "value": "ノウハウ・お役立ち情報"
+        },
+        {
+          "path": "text.blog.desc",
+          "value": "動画制作・AI活用・SNS運用・Web制作など、現場で役立つ情報を発信しています。"
+        },
+        {
+          "path": "text.news.label",
+          "value": "NEWS"
+        },
+        {
+          "path": "text.news.title",
+          "value": "お知らせ"
+        },
+        {
+          "path": "text.story.label",
+          "value": "ABOUT"
+        },
+        {
+          "path": "text.story.title",
+          "value": "Lumenium（ルメニウム）について"
+        },
+        {
+          "path": "text.story.desc",
+          "value": "ルメニウムという社名の由来、事業の考え方、取り組み方をご紹介します。"
+        },
+        {
+          "path": "text.positioning.label",
+          "value": "POSITIONING"
+        },
+        {
+          "path": "text.positioning.title",
+          "value": "Lumenium（ルメニウム）ってどんな会社？"
+        },
+        {
+          "path": "text.positioning.desc",
+          "value": "大手制作会社・クラウドソーシング——どれとも違う、ルメニウムの立ち位置です。"
+        },
+        {
+          "path": "text.profile.label",
+          "value": "ABOUT"
+        },
+        {
+          "path": "text.profile.title",
+          "value": "代表紹介"
+        },
+        {
+          "path": "text.company.label",
+          "value": "COMPANY"
+        },
+        {
+          "path": "text.company.title",
+          "value": "会社概要"
+        },
+        {
+          "path": "text.contact.label",
+          "value": "CONTACT"
+        },
+        {
+          "path": "text.contact.title",
+          "value": "お問い合わせ"
+        },
+        {
+          "path": "text.contact.desc",
+          "value": "お気軽にご相談ください。"
+        },
+        {
+          "path": "text.cta.label",
+          "value": "LET'S TALK"
+        },
+        {
+          "path": "text.cta.title",
+          "value": "あなたの\"やりたい\"を\n光ある形に。"
+        },
+        {
+          "path": "text.cta.desc",
+          "value": "「何から始めればいいかわからない」——まずはそこからで大丈夫です。\nLumenium（ルメニウム）が一緒に整理し、最短ルートの解決策までご提案します。"
+        },
+        {
+          "path": "text.cta.reassure1",
+          "value": "しつこい営業は一切なし"
+        },
+        {
+          "path": "text.cta.reassure2",
+          "value": "相談・お見積りだけでも歓迎"
+        },
+        {
+          "path": "text.cta.reassure3",
+          "value": "ご相談内容は秘密厳守"
+        },
+        {
+          "path": "text.cta.button",
+          "value": "無料で相談する"
+        },
+        {
+          "path": "text.footer.ctaLabel",
+          "value": "LET'S TALK"
+        },
+        {
+          "path": "text.footer.ctaTitle",
+          "value": "はじめの一歩は、30分のご相談から。"
+        },
+        {
+          "path": "text.footer.ctaButton",
+          "value": "無料で相談する"
+        },
+        {
+          "path": "text.footer.tagline",
+          "value": "散文化した目的に、焦点を当てる。"
+        },
+        {
+          "path": "text.footer.sub",
+          "value": "動画・AI・Webを中心に、企画から運用までを一緒に走りながら、お客様の想いをかたちにしています。"
+        },
+        {
+          "path": "text.footer.base",
+          "value": "東京 / オンライン全国対応"
+        },
+        {
+          "path": "text.home.eyebrow",
+          "value": "TOKYO ・ CREATIVE & DX STUDIO"
+        },
+        {
+          "path": "text.home.yomi",
+          "value": "ルメニウム"
+        },
+        {
+          "path": "text.home.tagline",
+          "value": "散文化した目的に焦点を当てる"
+        },
+        {
+          "path": "text.home.placeholder",
+          "value": "何をお探しですか？ 例：採用動画・AI研修・LP制作..."
+        },
+        {
+          "path": "text.home.searchButton",
+          "value": "検索"
+        },
+        {
+          "path": "text.home.askButton",
+          "value": "AIに相談する"
+        },
+        {
+          "path": "text.home.definition",
+          "value": "ルメニウム（Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。"
+        },
+        {
+          "path": "text.home.definitionLink",
+          "value": "ルメニウムとは →"
+        }
+      ]
+    },
+    {
+      "key": "services",
+      "label": "サービス6種の紹介文",
+      "fields": [
+        {
+          "path": "services.0.title",
+          "value": "動画制作・映像編集"
+        },
+        {
+          "path": "services.0.desc",
+          "value": "PR・SNS・企業紹介・AI動画。企画から納品まで一貫対応。"
+        },
+        {
+          "path": "services.0.partner",
+          "value": "AdvoVisions"
+        },
+        {
+          "path": "services.0.partnerUrl",
+          "value": "https://advovisions.com/bcd31-home/"
+        },
+        {
+          "path": "services.0.tags.0",
+          "value": "PR動画"
+        },
+        {
+          "path": "services.0.tags.1",
+          "value": "SNS動画"
+        },
+        {
+          "path": "services.0.tags.2",
+          "value": "AI動画"
+        },
+        {
+          "path": "services.0.tags.3",
+          "value": "映像編集"
+        },
+        {
+          "path": "services.0.highlights.0",
+          "value": "社内に映像チームがなく外注先を探している方"
+        },
+        {
+          "path": "services.0.highlights.1",
+          "value": "SNS向けの短尺動画を量産したい方"
+        },
+        {
+          "path": "services.0.highlights.2",
+          "value": "企業紹介・採用動画を丁寧に作りたい方"
+        },
+        {
+          "path": "services.0.examples.0",
+          "value": "登録者数十万人規模のYouTubeチャンネル動画制作"
+        },
+        {
+          "path": "services.0.examples.1",
+          "value": "有名飲食店での企画・映像制作"
+        },
+        {
+          "path": "services.0.examples.2",
+          "value": "AI企業PR動画"
+        },
+        {
+          "path": "services.0.examples.3",
+          "value": "就業支援・研修動画"
+        },
+        {
+          "path": "services.0.price",
+          "value": "3万円〜(案件規模に応じてご提案)"
+        },
+        {
+          "path": "services.1.title",
+          "value": "AI導入・研修"
+        },
+        {
+          "path": "services.1.desc",
+          "value": "企業向けAI研修、教材制作、IT講師。現場目線で指導。"
+        },
+        {
+          "path": "services.1.tags.0",
+          "value": "AI研修"
+        },
+        {
+          "path": "services.1.tags.1",
+          "value": "IT講師"
+        },
+        {
+          "path": "services.1.tags.2",
+          "value": "教材制作"
+        },
+        {
+          "path": "services.1.highlights.0",
+          "value": "AIを業務に取り入れたいが何から始めるか迷っている方"
+        },
+        {
+          "path": "services.1.highlights.1",
+          "value": "社員向けAIリテラシー研修を検討中の方"
+        },
+        {
+          "path": "services.1.highlights.2",
+          "value": "AI教材・メルマガを内製化したい方"
+        },
+        {
+          "path": "services.1.examples.0",
+          "value": "企業向けAI活用メルマガ制作"
+        },
+        {
+          "path": "services.1.examples.1",
+          "value": "AI教材制作"
+        },
+        {
+          "path": "services.1.examples.2",
+          "value": "研修・就業支援動画のAI活用"
+        },
+        {
+          "path": "services.1.price",
+          "value": "講師1回 10万円〜（教材費込）/ 交通費別途"
+        },
+        {
+          "path": "services.2.title",
+          "value": "SNS運用・LINE構築"
+        },
+        {
+          "path": "services.2.desc",
+          "value": "SNS運用代行、企画構成、LINE Bot制作。"
+        },
+        {
+          "path": "services.2.tags.0",
+          "value": "SNS運用"
+        },
+        {
+          "path": "services.2.tags.1",
+          "value": "LINE Bot"
+        },
+        {
+          "path": "services.2.tags.2",
+          "value": "集客設計"
+        },
+        {
+          "path": "services.2.highlights.0",
+          "value": "公式LINEで配信したいがやり方がわからない方"
+        },
+        {
+          "path": "services.2.highlights.1",
+          "value": "SNSで集客したいが何を投稿すべきか不明な方"
+        },
+        {
+          "path": "services.2.highlights.2",
+          "value": "シナリオ配信・セグメント配信を設計したい方"
+        },
+        {
+          "path": "services.2.examples.0",
+          "value": "企業公式LINE構築"
+        },
+        {
+          "path": "services.2.examples.1",
+          "value": "シナリオ型Bot制作"
+        },
+        {
+          "path": "services.2.examples.2",
+          "value": "SNS運用代行(月数十本投稿)"
+        },
+        {
+          "path": "services.2.price",
+          "value": "初期 20万円〜 / 月額 10万円〜"
+        },
+        {
+          "path": "services.3.title",
+          "value": "Web制作・アプリ開発"
+        },
+        {
+          "path": "services.3.desc",
+          "value": "HP、LP、Webアプリ、スマホアプリの開発。"
+        },
+        {
+          "path": "services.3.tags.0",
+          "value": "HP制作"
+        },
+        {
+          "path": "services.3.tags.1",
+          "value": "LP"
+        },
+        {
+          "path": "services.3.tags.2",
+          "value": "アプリ開発"
+        },
+        {
+          "path": "services.3.highlights.0",
+          "value": "古いHPをリニューアルしたい方"
+        },
+        {
+          "path": "services.3.highlights.1",
+          "value": "キャンペーン用のLPを短納期で作りたい方"
+        },
+        {
+          "path": "services.3.highlights.2",
+          "value": "業務効率化のための社内ツールを開発したい方"
+        },
+        {
+          "path": "services.3.examples.0",
+          "value": "企業ホームページ制作"
+        },
+        {
+          "path": "services.3.examples.1",
+          "value": "業務用Webアプリ開発"
+        },
+        {
+          "path": "services.3.examples.2",
+          "value": "スマートフォンアプリ開発"
+        },
+        {
+          "path": "services.3.price",
+          "value": "30万円〜(規模に応じてご提案)"
+        },
+        {
+          "path": "services.4.title",
+          "value": "キャスト手配・イベント"
+        },
+        {
+          "path": "services.4.desc",
+          "value": "在籍150名のモデル・アクター手配。MC、イベント企画運営。"
+        },
+        {
+          "path": "services.4.partner",
+          "value": "AdvoVisions"
+        },
+        {
+          "path": "services.4.partnerUrl",
+          "value": "https://advovisions.com/bcd31-home/"
+        },
+        {
+          "path": "services.4.tags.0",
+          "value": "モデル手配"
+        },
+        {
+          "path": "services.4.tags.1",
+          "value": "MC"
+        },
+        {
+          "path": "services.4.tags.2",
+          "value": "イベント企画"
+        },
+        {
+          "path": "services.4.highlights.0",
+          "value": "撮影や配信にキャストを手配したい方"
+        },
+        {
+          "path": "services.4.highlights.1",
+          "value": "MC・司会付きのイベントを企画中の方"
+        },
+        {
+          "path": "services.4.highlights.2",
+          "value": "配信者・アイドルのプロデュース相談"
+        },
+        {
+          "path": "services.4.examples.0",
+          "value": "アイドルイベント主催"
+        },
+        {
+          "path": "services.4.examples.1",
+          "value": "配信者のプロデュース"
+        },
+        {
+          "path": "services.4.examples.2",
+          "value": "企業イベントのキャスト手配・MC"
+        },
+        {
+          "path": "services.4.price",
+          "value": "キャスト1名 5,000円〜 / イベント企画別途"
+        },
+        {
+          "path": "services.5.title",
+          "value": "クリエイティブ制作"
+        },
+        {
+          "path": "services.5.desc",
+          "value": "ロゴ、バナー、ポスター、イラスト、教材制作、作詞作曲。"
+        },
+        {
+          "path": "services.5.tags.0",
+          "value": "ロゴ"
+        },
+        {
+          "path": "services.5.tags.1",
+          "value": "イラスト"
+        },
+        {
+          "path": "services.5.tags.2",
+          "value": "ライター"
+        },
+        {
+          "path": "services.5.tags.3",
+          "value": "作詞作曲"
+        },
+        {
+          "path": "services.5.highlights.0",
+          "value": "新ブランドのロゴ・アイデンティティを作りたい方"
+        },
+        {
+          "path": "services.5.highlights.1",
+          "value": "書籍・ブログ用のライターを探している方"
+        },
+        {
+          "path": "services.5.highlights.2",
+          "value": "イベント用の作詞・作曲を依頼したい方"
+        },
+        {
+          "path": "services.5.examples.0",
+          "value": "企業ロゴ・バナー・ポスター制作"
+        },
+        {
+          "path": "services.5.examples.1",
+          "value": "塾教材4万ページ制作(1ヶ月)"
+        },
+        {
+          "path": "services.5.examples.2",
+          "value": "作詞作曲・楽曲提供"
+        },
+        {
+          "path": "services.5.price",
+          "value": "3万円〜(内容に応じてご提案)"
+        }
+      ]
+    },
+    {
+      "key": "site.CASE_STUDIES",
+      "label": "実績（主な事例）",
+      "fields": [
+        {
+          "path": "site.CASE_STUDIES.0.tag",
+          "value": "教材制作"
+        },
+        {
+          "path": "site.CASE_STUDIES.0.title",
+          "value": "1ヶ月で塾教材4万ページ制作"
+        },
+        {
+          "path": "site.CASE_STUDIES.0.desc",
+          "value": "各教科の教師を含めた20人規模の人員を確保し、期限内に遂行しました。"
+        },
+        {
+          "path": "site.CASE_STUDIES.0.metricLabel",
+          "value": "ページ / 1ヶ月"
+        },
+        {
+          "path": "site.CASE_STUDIES.1.tag",
+          "value": "AI講師"
+        },
+        {
+          "path": "site.CASE_STUDIES.1.title",
+          "value": "研修・就業支援動画制作"
+        },
+        {
+          "path": "site.CASE_STUDIES.1.desc",
+          "value": "オンライン・オフライン・オンデマンドに対応。企業研修や就業支援向けの動画制作・講師を担当しました。"
+        }
+      ]
+    },
+    {
+      "key": "site.ACHIEVEMENTS",
+      "label": "実績（その他）",
+      "fields": [
+        {
+          "path": "site.ACHIEVEMENTS.0",
+          "value": "登録者数十万人規模のチャンネルの動画制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.1",
+          "value": "企業向けAI活用メルマガ制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.2",
+          "value": "AI教材制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.3",
+          "value": "企業ロゴ・バナー・ポスター制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.4",
+          "value": "企業公式LINE構築"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.5",
+          "value": "AI企業PR動画制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.6",
+          "value": "アプリ開発"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.7",
+          "value": "企業ホームページ制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.8",
+          "value": "有名飲食店での企画・映像制作"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.9",
+          "value": "配信者のプロデュース"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.10",
+          "value": "アイドルイベント主催"
+        },
+        {
+          "path": "site.ACHIEVEMENTS.11",
+          "value": "作詞作曲"
+        }
+      ]
+    },
+    {
+      "key": "site.TESTIMONIALS",
+      "label": "お客様の声",
+      "fields": [
+        {
+          "path": "site.TESTIMONIALS.0.text",
+          "value": "抽象的な相談から具体的な企画書に。スピード感に驚きです。"
+        },
+        {
+          "path": "site.TESTIMONIALS.0.name",
+          "value": "飲食店経営者"
+        },
+        {
+          "path": "site.TESTIMONIALS.0.detail",
+          "value": "SNS運用・動画制作をご依頼"
+        },
+        {
+          "path": "site.TESTIMONIALS.1.text",
+          "value": "AI活用の相談から研修まで。業務効率が目に見えて改善しました。"
+        },
+        {
+          "path": "site.TESTIMONIALS.1.name",
+          "value": "IT企業 マネージャー"
+        },
+        {
+          "path": "site.TESTIMONIALS.1.detail",
+          "value": "AI研修をご依頼"
+        },
+        {
+          "path": "site.TESTIMONIALS.2.text",
+          "value": "LINE構築から配信まで一括対応。反応率が3倍になりました。"
+        },
+        {
+          "path": "site.TESTIMONIALS.2.name",
+          "value": "美容サロン オーナー"
+        },
+        {
+          "path": "site.TESTIMONIALS.2.detail",
+          "value": "LINE Bot制作をご依頼"
+        },
+        {
+          "path": "site.TESTIMONIALS.3.text",
+          "value": "動画・LP・SNS運用を一社に任せられるのは、それだけで価値がありました。"
+        },
+        {
+          "path": "site.TESTIMONIALS.3.name",
+          "value": "教育系企業 広報担当"
+        },
+        {
+          "path": "site.TESTIMONIALS.3.detail",
+          "value": "採用動画・Web制作をご依頼"
+        },
+        {
+          "path": "site.TESTIMONIALS.4.text",
+          "value": "打ち合わせが穏やかで、話しやすかった。意図を汲んでくれる姿勢に助けられました。"
+        },
+        {
+          "path": "site.TESTIMONIALS.4.name",
+          "value": "士業事務所"
+        },
+        {
+          "path": "site.TESTIMONIALS.4.detail",
+          "value": "コーポレートサイト制作"
+        }
+      ]
+    },
+    {
+      "key": "site.FLOW_STEPS",
+      "label": "ご依頼の流れ",
+      "fields": [
+        {
+          "path": "site.FLOW_STEPS.0.title",
+          "value": "ご相談・お問い合わせ"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.desc",
+          "value": "まずはメールやフォームから、困っていることを教えてください。抽象的な内容でも大丈夫です。"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.meta.time",
+          "value": "即時"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.meta.prep",
+          "value": "連絡手段のみ"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.checks.0",
+          "value": "お名前・ご連絡先だけでOK"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.checks.1",
+          "value": "相談内容が決まっていなくても歓迎"
+        },
+        {
+          "path": "site.FLOW_STEPS.0.checks.2",
+          "value": "48時間以内にご返信"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.title",
+          "value": "ヒアリング・お見積り"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.desc",
+          "value": "オンライン or 対面で現状と目標をお伺いし、最適なプランと概算をご提案します。"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.meta.time",
+          "value": "30〜60分"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.meta.prep",
+          "value": "現状の課題メモ"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.checks.0",
+          "value": "参考資料があれば共有ください"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.checks.1",
+          "value": "ご予算・希望スケジュールを確認"
+        },
+        {
+          "path": "site.FLOW_STEPS.1.checks.2",
+          "value": "24h以内に概算レンジをお伝え"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.title",
+          "value": "ご契約・キックオフ"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.desc",
+          "value": "内容にご納得いただけたら契約へ。必要に応じてNDAを交わし、制作スケジュールを確定します。"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.meta.time",
+          "value": "1〜3営業日"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.meta.prep",
+          "value": "NDA要否"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.checks.0",
+          "value": "仕様書と工程表を共有"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.checks.1",
+          "value": "担当窓口を一本化"
+        },
+        {
+          "path": "site.FLOW_STEPS.2.checks.2",
+          "value": "着手金のご相談も対応"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.title",
+          "value": "制作・実行"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.desc",
+          "value": "企画→制作→レビューをサイクルで進行。中間共有で認識ズレを最小化します。"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.meta.time",
+          "value": "2週間〜2ヶ月"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.meta.prep",
+          "value": "定例1本分の時間"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.checks.0",
+          "value": "Slack / Chatwork / メールどれでも"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.checks.1",
+          "value": "週1の進捗共有 + 随時レビュー"
+        },
+        {
+          "path": "site.FLOW_STEPS.3.checks.2",
+          "value": "修正回数は案件ごとに合意"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.title",
+          "value": "納品・運用サポート"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.desc",
+          "value": "納品後も、必要に応じて改善・運用代行・追加制作まで伴走します。"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.meta.time",
+          "value": "継続可"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.meta.prep",
+          "value": "—"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.checks.0",
+          "value": "納品データ一式をお渡し"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.checks.1",
+          "value": "運用KPIのレビュー会も可"
+        },
+        {
+          "path": "site.FLOW_STEPS.4.checks.2",
+          "value": "追加のご相談はいつでも"
+        }
+      ]
+    },
+    {
+      "key": "site.PRICE_OPTIONS",
+      "label": "料金シミュレーター",
+      "fields": [
+        {
+          "path": "site.PRICE_OPTIONS.0.label",
+          "value": "動画制作"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.0.sub",
+          "value": "PR・SNS・企業紹介など"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.1.label",
+          "value": "AI導入・研修"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.1.sub",
+          "value": "講師1回+教材ベース"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.2.label",
+          "value": "SNS・LINE構築"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.2.sub",
+          "value": "初期+月額想定"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.3.label",
+          "value": "Web / LP 制作"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.3.sub",
+          "value": "HP・LP・Webアプリ"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.4.label",
+          "value": "キャスト手配"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.4.sub",
+          "value": "モデル・MC・イベント"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.5.label",
+          "value": "クリエイティブ"
+        },
+        {
+          "path": "site.PRICE_OPTIONS.5.sub",
+          "value": "ロゴ・バナー・ポスター他"
+        }
+      ]
+    },
+    {
+      "key": "site.PAIN_POINTS",
+      "label": "お困りごと",
+      "fields": [
+        {
+          "path": "site.PAIN_POINTS.0.title",
+          "value": "SNSに弱い…"
+        },
+        {
+          "path": "site.PAIN_POINTS.0.pain",
+          "value": "SNSで集客したいけど何から始めればいいかわからない。"
+        },
+        {
+          "path": "site.PAIN_POINTS.0.solution",
+          "value": "企画〜運用まで全てお任せ。"
+        },
+        {
+          "path": "site.PAIN_POINTS.1.title",
+          "value": "動画を作る時間がない…"
+        },
+        {
+          "path": "site.PAIN_POINTS.1.pain",
+          "value": "動画を作りたいけど時間を割けない。"
+        },
+        {
+          "path": "site.PAIN_POINTS.1.solution",
+          "value": "企画から納品まで一貫対応します。"
+        },
+        {
+          "path": "site.PAIN_POINTS.2.title",
+          "value": "LINEで発信したい…"
+        },
+        {
+          "path": "site.PAIN_POINTS.2.pain",
+          "value": "公式LINEで発信したいがやり方がわからない。"
+        },
+        {
+          "path": "site.PAIN_POINTS.2.solution",
+          "value": "Bot制作から配信設計まで対応します。"
+        }
+      ]
+    },
+    {
+      "key": "site.BRAND_CHAPTERS",
+      "label": "社名の由来・考え方",
+      "fields": [
+        {
+          "path": "site.BRAND_CHAPTERS.0.eyebrow",
+          "value": "NAME"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.0.title",
+          "value": "社名について"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.0.body.0",
+          "value": "Lumenium（ルメニウム）は、ラテン語で「光」を意味する Lumen から取りました。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.0.body.1",
+          "value": "お客様の中でまだ輪郭のない目的に、光を当てて形にしていく。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.0.body.2",
+          "value": "それが、私たちの役割だと考えています。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.1.eyebrow",
+          "value": "APPROACH"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.1.title",
+          "value": "対応領域"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.1.body.0",
+          "value": "動画・AI・Web・SNS・キャスト手配・クリエイティブの6領域を扱っています。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.1.body.1",
+          "value": "実際のプロジェクトでは、これらは一つの目的のもとで絡み合うことがほとんどです。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.1.body.2",
+          "value": "複数社をまたぐ調整をお客様側で抱え込まずに済むよう、窓口を一本化しています。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.2.eyebrow",
+          "value": "STANCE"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.2.title",
+          "value": "制作後の伴走"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.2.body.0",
+          "value": "動画もサイトも LINE も、公開した時点では成果が出揃いません。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.2.body.1",
+          "value": "数字が動き始めるまでには、運用とチューニングに時間がかかります。"
+        },
+        {
+          "path": "site.BRAND_CHAPTERS.2.body.2",
+          "value": "制作だけで終わらせず、運用フェーズまでご一緒できる体制を前提にしています。"
+        }
+      ]
+    },
+    {
+      "key": "site.POSITIONING_NOTES",
+      "label": "他社との違い",
+      "fields": [
+        {
+          "path": "site.POSITIONING_NOTES.0.k",
+          "value": "大手制作会社・広告代理店"
+        },
+        {
+          "path": "site.POSITIONING_NOTES.0.v",
+          "value": "品質は高いが固定費が重く、最低発注額・最低契約期間のハードルが大きい。"
+        },
+        {
+          "path": "site.POSITIONING_NOTES.1.k",
+          "value": "クラウドソーシング・フリーランス"
+        },
+        {
+          "path": "site.POSITIONING_NOTES.1.v",
+          "value": "安価で着手できるが、品質・進行・運用責任が分散しやすい。"
+        },
+        {
+          "path": "site.POSITIONING_NOTES.2.k",
+          "value": "Lumenium（ルメニウム）"
+        },
+        {
+          "path": "site.POSITIONING_NOTES.2.v",
+          "value": "企画〜運用までワンストップ。大手品質のアウトプットを、必要な規模だけで提供します。"
+        }
+      ]
+    },
+    {
+      "key": "site.CAREER",
+      "label": "代表の経歴",
+      "fields": [
+        {
+          "path": "site.CAREER.0.year",
+          "value": "2019.4"
+        },
+        {
+          "path": "site.CAREER.0.detail",
+          "value": "慶應義塾大学 文学部 入学"
+        },
+        {
+          "path": "site.CAREER.0.sub",
+          "value": "経済新人会マーケ研 / 早稲田AI研究会"
+        },
+        {
+          "path": "site.CAREER.1.year",
+          "value": "在学中"
+        },
+        {
+          "path": "site.CAREER.1.detail",
+          "value": "ADKビジコン・Microsoftビジコン入賞多数"
+        },
+        {
+          "path": "site.CAREER.1.sub",
+          "value": ""
+        },
+        {
+          "path": "site.CAREER.2.year",
+          "value": "2020.3〜"
+        },
+        {
+          "path": "site.CAREER.2.detail",
+          "value": "個人事業主として活動開始"
+        },
+        {
+          "path": "site.CAREER.2.sub",
+          "value": "動画 / SNS / AI開発"
+        },
+        {
+          "path": "site.CAREER.3.year",
+          "value": "2024.1"
+        },
+        {
+          "path": "site.CAREER.3.detail",
+          "value": "株式会社Link AI（業務委託）"
+        },
+        {
+          "path": "site.CAREER.3.sub",
+          "value": "AIメディア事業部 PM / メルマガライター"
+        },
+        {
+          "path": "site.CAREER.4.year",
+          "value": "2026.3"
+        },
+        {
+          "path": "site.CAREER.4.detail",
+          "value": "慶應義塾大学 文学部 卒業"
+        },
+        {
+          "path": "site.CAREER.4.sub",
+          "value": ""
+        },
+        {
+          "path": "site.CAREER.5.year",
+          "value": "現在"
+        },
+        {
+          "path": "site.CAREER.5.detail",
+          "value": "Lumenium（ルメニウム）設立"
+        },
+        {
+          "path": "site.CAREER.5.sub",
+          "value": "動画制作・DX支援・AI研修を軸に事業展開"
+        }
+      ]
+    },
+    {
+      "key": "site.PROFILE_BRICKS",
+      "label": "代表紹介（得意領域ほか）",
+      "fields": [
+        {
+          "path": "site.PROFILE_BRICKS.0.label",
+          "value": "EXPERTISE"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.0.title",
+          "value": "得意領域"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.0.text",
+          "value": "AI活用の設計と現場実装、動画の企画・演出、業務自動化のためのLINE / Web開発。「目的→手段」の翻訳に強みがあります。"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.0.list.0",
+          "value": "AI研修 (企業向け・エンジニア向け)"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.0.list.1",
+          "value": "動画企画・編集・配信設計"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.0.list.2",
+          "value": "LINE Bot / Webアプリ開発"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.label",
+          "value": "BACKGROUND"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.title",
+          "value": "バックグラウンド"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.text",
+          "value": "在学中から個人事業主として活動開始。マーケ・映像・AI開発を横断し、企業のAI導入コンサル、メディア運営 PM、ライター業を経て Lumenium（ルメニウム）を設立。"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.list.0",
+          "value": "慶應義塾大学 文学部 卒業"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.list.1",
+          "value": "ビジネスコンテスト入賞多数"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.1.list.2",
+          "value": "株式会社Link AI にて AI メディア PM"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.label",
+          "value": "PHILOSOPHY"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.title",
+          "value": "仕事観"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.text",
+          "value": "制作物は「成果への通り道」だと考えています。お客様の事業が前に進むことを最優先に、工程・関係・情報をなるべく透明にして伴走します。"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.list.0",
+          "value": "まず「目的」を一緒に言語化する"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.list.1",
+          "value": "作って終わりではなく運用まで"
+        },
+        {
+          "path": "site.PROFILE_BRICKS.2.list.2",
+          "value": "不透明な費用・工程を作らない"
+        }
+      ]
+    },
+    {
+      "key": "faq",
+      "label": "よくある質問",
+      "fields": [
+        {
+          "path": "faq.0.label",
+          "value": "Lumenium（ルメニウム）について"
+        },
+        {
+          "path": "faq.0.items.0.q",
+          "value": "Lumeniumの読み方を教えてください"
+        },
+        {
+          "path": "faq.0.items.0.a",
+          "value": "「ルメニウム」と読みます。光の単位である lumen（ルーメン）に由来し、お客様が本来やりたかったことに光を当て、その輪郭をはっきりさせるという意味を込めています。"
+        },
+        {
+          "path": "faq.0.items.1.q",
+          "value": "ルメニウムとは何ですか?"
+        },
+        {
+          "path": "faq.0.items.1.a",
+          "value": "ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、ロゴやバナーなどのクリエイティブ制作を、企画から納品・運用までワンストップで手がけています。代表は山本捷真、設立は2026年、拠点は東京都で、オンラインにより全国に対応しています。"
+        },
+        {
+          "path": "faq.0.items.2.q",
+          "value": "ルメニウムとルメンタム（Lumentum）は同じ会社ですか?"
+        },
+        {
+          "path": "faq.0.items.2.a",
+          "value": "いいえ、別の会社です。ルメンタム（Lumentum Holdings）は米国の光通信・レーザー機器メーカーです。ルメニウム（Lumenium）は東京都を拠点とする日本のクリエイティブ／DX支援カンパニーで、両社に資本関係も人的関係もありません。また、米国バージニア州のエンジン開発企業 Lumenium, LLC、植物のリモニウム（Limonium）、デジタルアート作品 Rumenium、架空の国家「ルメニウム王国」とも、いずれも無関係です。"
+        },
+        {
+          "path": "faq.0.items.3.q",
+          "value": "ルメニウムは化学元素ですか?"
+        },
+        {
+          "path": "faq.0.items.3.a",
+          "value": "いいえ、化学元素ではありません。ルメニウム（Lumenium）は東京都を拠点とする日本の企業の名称です。名前の響きが似ている元素としてルテニウム（Ruthenium、原子番号44）やレニウム（Rhenium、原子番号75）がありますが、いずれも別のものです。"
+        },
+        {
+          "path": "faq.0.items.4.q",
+          "value": "ルメニウムは実在する会社ですか?"
+        },
+        {
+          "path": "faq.0.items.4.a",
+          "value": "はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。"
+        },
+        {
+          "path": "faq.0.items.5.q",
+          "value": "ルメニウムの対応エリアはどこですか?"
+        },
+        {
+          "path": "faq.0.items.5.a",
+          "value": "東京を拠点としつつ、打ち合わせはZoomやGoogle Meetなどのオンラインで行うため全国どこからでもご依頼いただけます。撮影やイベントなど現地対応が必要な案件も、内容に応じて全国で対応しています。"
+        },
+        {
+          "path": "faq.1.label",
+          "value": "ご相談・お見積り"
+        },
+        {
+          "path": "faq.1.items.0.q",
+          "value": "どんな相談でも対応してもらえますか?"
+        },
+        {
+          "path": "faq.1.items.0.a",
+          "value": "はい、抽象的な内容でもお気軽にご相談ください。「何をしたいかはっきりしないけど困っている」という段階からでも大丈夫です。お話を伺いながら最適なプランをご提案します。"
+        },
+        {
+          "path": "faq.1.items.1.q",
+          "value": "料金はいくらくらいですか?"
+        },
+        {
+          "path": "faq.1.items.1.a",
+          "value": "内容や規模によって異なりますが、動画は3万円〜、Web制作は30万円〜、クリエイティブは3万円〜が目安です。お見積りは無料ですので、まずはお気軽にお問い合わせください。ご予算に合わせたプランもご提案可能です。"
+        },
+        {
+          "path": "faq.1.items.2.q",
+          "value": "見積りだけでも依頼できますか?"
+        },
+        {
+          "path": "faq.1.items.2.a",
+          "value": "もちろん可能です。他社と比較検討されている場合や、社内稟議用に概算が必要な場合もお気軽にご相談ください。見積り段階での強引な営業は一切いたしません。"
+        },
+        {
+          "path": "faq.1.items.3.q",
+          "value": "返信はどのくらいで来ますか?"
+        },
+        {
+          "path": "faq.1.items.3.a",
+          "value": "お問い合わせから48時間以内にご返信いたします。急ぎの案件の場合はその旨をお知らせいただければ、優先的に対応します。"
+        },
+        {
+          "path": "faq.2.label",
+          "value": "プロジェクト進行"
+        },
+        {
+          "path": "faq.2.items.0.q",
+          "value": "納期はどのくらいですか?"
+        },
+        {
+          "path": "faq.2.items.0.a",
+          "value": "案件の規模により異なります。動画制作は2週間〜、Web制作は1〜2ヶ月、AI研修は1〜2週間が標準です。急ぎの場合もスケジュールを調整してご提案しますので、まずはご相談ください。"
+        },
+        {
+          "path": "faq.2.items.1.q",
+          "value": "修正は何回まで対応してもらえますか?"
+        },
+        {
+          "path": "faq.2.items.1.a",
+          "value": "修正回数は案件ごとにご相談の上で決定します。通常2〜3回の修正までは見積りに含まれています。大幅な方針変更の場合は別途ご相談となりますが、お客様にご満足いただけるまで丁寧に対応します。"
+        },
+        {
+          "path": "faq.2.items.2.q",
+          "value": "進行中のコミュニケーション方法は?"
+        },
+        {
+          "path": "faq.2.items.2.a",
+          "value": "Slack / Chatwork / メール / Google Meet など、お客様が使い慣れたツールに合わせます。週1の進捗共有+必要に応じてレビュー会を行い、認識ズレが起きないよう進めます。"
+        },
+        {
+          "path": "faq.2.items.3.q",
+          "value": "途中でキャンセルや変更は可能ですか?"
+        },
+        {
+          "path": "faq.2.items.3.a",
+          "value": "フェーズに応じてご相談可能です。着手前であれば無償でキャンセルできます。制作開始後は進行状況に応じた費用をご相談させていただきます。詳細は契約時に明記します。"
+        },
+        {
+          "path": "faq.3.label",
+          "value": "対応範囲・実績"
+        },
+        {
+          "path": "faq.3.items.0.q",
+          "value": "遠方でも依頼できますか?"
+        },
+        {
+          "path": "faq.3.items.0.a",
+          "value": "はい、オンラインでのやり取りが可能です。打ち合わせはZoomやGoogle Meet等で対応します。全国どこからでもご依頼いただけます。撮影など現地対応が必要な案件は別途ご相談ください。"
+        },
+        {
+          "path": "faq.3.items.1.q",
+          "value": "個人でも依頼できますか?"
+        },
+        {
+          "path": "faq.3.items.1.a",
+          "value": "もちろんです。個人の方、個人事業主の方からのご依頼も歓迎しています。規模の大小を問わず、同じ姿勢でご提案します。初めてのご依頼でも安心してご相談ください。"
+        },
+        {
+          "path": "faq.3.items.2.q",
+          "value": "業界に合う実績はありますか?"
+        },
+        {
+          "path": "faq.3.items.2.a",
+          "value": "飲食店・IT企業・美容サロン・教育・広告代理店・士業など、12以上の業界で実績があります。初めての業界でもリサーチから入るため、同業種の実績がなくても支援可能です。"
+        }
+      ]
+    },
+    {
+      "key": "articles",
+      "label": "ブログ記事",
+      "fields": [
+        {
+          "path": "articles.0.date",
+          "value": "2026.04.04"
+        },
+        {
+          "path": "articles.0.category",
+          "value": "AI活用"
+        },
+        {
+          "path": "articles.0.title",
+          "value": "AI導入前に知るべき3つのこと"
+        },
+        {
+          "path": "articles.0.summary",
+          "value": "AI導入で押さえるべきポイントを解説。"
+        },
+        {
+          "path": "articles.0.content",
+          "value": "## はじめに\n\n「AIを導入したいけど、何から始めればいいかわからない」——そんな声をよくいただきます。\n\nChatGPTやCopilotなどのAIツールが話題になり、「うちも何かやらなきゃ」と感じている方も多いのではないでしょうか。\n\nしかし、ツールを入れればすぐに成果が出るわけではありません。この記事では、AI導入で失敗しないために最初に押さえるべき3つのポイントをお伝えします。\n\n## 1. 「何を解決したいか」を先に決める\n\nAIは万能ではありません。まず「何を解決したいのか」を明確にしましょう。\n\nよくある失敗パターンは、「とりあえずAIを入れてみた」というケースです。目的が曖昧だと、ツール選びも運用も中途半端になります。\n\n具体的に考えるべきポイント：\n- 業務のどこに時間がかかっているか\n- どの作業が繰り返し発生しているか\n- 人手不足で困っている領域はどこか\n- 外注コストが高い業務は何か\n\n例えば「毎月の報告書作成に3日かかっている」のであれば、AIによる文章の下書き生成で1日に短縮できる可能性があります。\n\n## 2. いきなり全社導入しない。小さく始める\n\nAI導入で最も大切なのは「小さく始める」ことです。\n\nいきなり数百万円のシステムを導入するのではなく、まずは1つの業務、1人のチームから試しましょう。\n\nおすすめの始め方：\n- 議事録の自動作成（録音データからテキスト化）\n- メール文面の下書き生成\n- 社内FAQのチャットボット化\n- 定型レポートの自動生成\n\nこれらはリスクが低く、効果が見えやすいので最初の一歩に最適です。小さな成功体験を積み重ねることで、社内の理解も得やすくなります。\n\n## 3. 社内に「AI担当者」を1人置く\n\nどんなに便利なツールでも、使いこなす人がいなければ定着しません。\n\n社内に1人でも「AIに詳しい人」を育てましょう。その人が社内の相談窓口になり、他のメンバーへの展開をスムーズにします。\n\n育成の方法：\n- 外部の研修やセミナーに参加する\n- AIツールの公式ドキュメントを読む習慣をつける\n- 週1回「AI活用共有会」を開催する\n\n担当者が1人いるだけで、ツールの定着率は大きく変わります。\n\n## まとめ\n\nAI導入は「課題の明確化 → 小さく始める → 担当者を育てる」の3ステップが鍵です。\n\n焦って大きな投資をする必要はありません。まずは身近な業務から、AIの力を試してみてください。\n\nLumeniumでは企業向けAI研修や導入支援を行っています。「何から始めればいいかわからない」という段階からサポートしますので、お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.1.date",
+          "value": "2026.04.01"
+        },
+        {
+          "path": "articles.1.category",
+          "value": "AI活用"
+        },
+        {
+          "path": "articles.1.title",
+          "value": "ChatGPT業務利用の注意点5選"
+        },
+        {
+          "path": "articles.1.summary",
+          "value": "業務利用時のセキュリティと品質管理。"
+        },
+        {
+          "path": "articles.1.content",
+          "value": "## はじめに\n\nChatGPTを業務に導入する企業が急増しています。しかし、便利だからといって無制限に使うのは危険です。\n\n情報漏洩、著作権の問題、品質管理の不備——使い方を間違えると、ビジネス上のリスクにつながります。\n\nこの記事では、業務でChatGPTを安全に活用するための5つの注意点をお伝えします。\n\n## 1. 機密情報・個人情報を入力しない\n\nChatGPTに入力した内容は、サービス改善のために利用される可能性があります。\n\n絶対に入力してはいけない情報：\n- 顧客の個人情報（氏名、住所、電話番号など）\n- 社外秘の売上データや戦略情報\n- 未発表の製品・サービス情報\n- 契約書や法的文書の内容\n\n対策として、ChatGPT Team版やAPI経由での利用なら、入力データが学習に使われない設定が可能です。\n\n## 2. AIの回答を「そのまま」使わない\n\nChatGPTの回答は、必ずしも正確ではありません。もっともらしい嘘（ハルシネーション）を生成することがあります。\n\n必ず確認すべきポイント：\n- 数字やデータの正確性\n- 法律や規制に関する情報\n- 固有名詞（人名、社名、地名）\n- URLやリンク先の存在\n\n「AIが言っていたから」は、ビジネスでは通用しません。最終チェックは必ず人の目で行いましょう。\n\n## 3. プロンプト（指示）を具体的に書く\n\nChatGPTの出力品質は、入力の質に大きく左右されます。\n\n悪い例：「マーケティングについて教えて」\n良い例：「BtoB SaaS企業がSNSで認知を広げるための施策を3つ、それぞれメリットとデメリットを含めて提案してください」\n\n具体的な指示のコツ：\n- 「誰に」「何を」「どんな形式で」を明示する\n- 文字数や項目数を指定する\n- 参考にしてほしいトーンや文体を伝える\n- 役割を設定する（「あなたはマーケティングの専門家です」）\n\n## 4. 社内ルール（ガイドライン）を作る\n\n個人の判断に任せると、使い方がバラバラになります。\n\nガイドラインに含めるべき項目：\n- 使ってよい業務と使ってはいけない業務\n- 入力してはいけない情報の具体例\n- 出力結果の確認フロー\n- トラブル発生時の報告先\n\nルールは最初からカンペキを目指さなくてOKです。運用しながら改善していきましょう。\n\n## 5. 定期的にアップデート情報を追う\n\nAIツールは進化のスピードが速く、数ヶ月で機能が大きく変わることもあります。\n\nおすすめの情報収集方法：\n- OpenAI公式ブログをチェック\n- 月1回「AI活用共有会」を社内で開催\n- 業界のAI活用事例を収集・共有\n\n知識をアップデートし続けることで、活用の幅が広がります。\n\n## まとめ\n\nChatGPTは正しく使えば、業務効率を大幅に向上させる強力なツールです。\n\n大切なのは「ルールを整備して、安全に活用する」こと。まずは社内ガイドラインの作成から始めてみてください。\n\nLumeniumでは企業向けのAI活用研修も行っています。「社内ルールの作り方がわからない」「社員にAIの使い方を教えたい」という方は、お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.2.date",
+          "value": "2026.03.25"
+        },
+        {
+          "path": "articles.2.category",
+          "value": "SNS運用"
+        },
+        {
+          "path": "articles.2.title",
+          "value": "SNS集客の始め方3ステップ"
+        },
+        {
+          "path": "articles.2.summary",
+          "value": "投稿前に整えるべきことを解説。"
+        },
+        {
+          "path": "articles.2.content",
+          "value": "## はじめに\n\n「SNSで集客したいけど、何から手をつけていいかわからない」\n\nそんなご相談をよくいただきます。多くの方が「とりあえず投稿を始めよう」としますが、準備なしに始めると時間だけが過ぎてしまいます。\n\nこの記事では、SNS集客を成功させるために、投稿を始める前にやるべき3つの準備をお伝えします。\n\n## 1. 「誰に届けたいか」を決める\n\nSNSは「みんなに届ける」メディアではありません。ターゲットが曖昧だと、誰にも刺さらない投稿になってしまいます。\n\n決めるべきこと：\n- 年齢層・性別\n- どんな悩みを持っている人か\n- 普段どのSNSを使っているか\n- どんな情報を求めているか\n\n例えば「30代の個人事業主で、集客に困っている人」のように具体的にイメージすると、投稿内容が自然と決まってきます。\n\n## 2. 使うSNSを1つに絞る\n\nInstagram、X（Twitter）、TikTok、YouTube、LINE——全部やろうとすると、どれも中途半端になります。\n\nまずは1つのSNSに集中しましょう。\n\n選び方の目安：\n- ビジュアルで魅せたい → Instagram\n- 情報発信・拡散したい → X（Twitter）\n- 短い動画でアプローチ → TikTok\n- じっくり説明したい → YouTube\n- リピーターを育てたい → LINE公式\n\n1つのSNSで成果が出てから、他のSNSに展開するのが効率的です。\n\n## 3. 投稿の「型」を決める\n\n毎回ゼロから投稿を考えていたら、継続できません。あらかじめ投稿の型（テンプレート）を決めておきましょう。\n\n型の例：\n- 月曜：お客様の声・実績紹介\n- 水曜：ノウハウ・お役立ち情報\n- 金曜：スタッフ紹介・日常\n- 不定期：キャンペーン告知\n\n型があることで「何を投稿すればいいかわからない」がなくなり、無理なく続けられます。\n\n## まとめ\n\nSNS集客の成功は「準備8割、実行2割」です。\n\nターゲットを決め、SNSを絞り、投稿の型を作る。この3つの準備が整えば、あとは投稿を続けるだけです。\n\nLumeniumでは、SNS運用の企画構成から実際の運用まで一括でサポートしています。「何から始めればいいかわからない」という方も、お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.3.date",
+          "value": "2026.03.18"
+        },
+        {
+          "path": "articles.3.category",
+          "value": "動画制作"
+        },
+        {
+          "path": "articles.3.title",
+          "value": "企業PR動画のコツ"
+        },
+        {
+          "path": "articles.3.summary",
+          "value": "効果的なPR動画のコツと失敗パターン。"
+        },
+        {
+          "path": "articles.3.content",
+          "value": "## はじめに\n\n企業PR動画は、会社の魅力を短時間で伝える最強のツールです。\n\nしかし「作ったけど全然見られない」「思ったような反応が得られない」という声も少なくありません。\n\nこの記事では、効果的な企業PR動画を作るために押さえるべきポイントをお伝えします。\n\n## 1. 最初の3秒で「つかむ」\n\n視聴者は最初の3秒で「見る・見ない」を判断します。\n\n冒頭でやるべきこと：\n- 視聴者の悩みを代弁する（「こんな経験ありませんか？」）\n- 驚きのある映像やデータを見せる\n- 結論を先に言う\n\n冒頭で会社のロゴや挨拶を長々と流すのはNGです。視聴者が求めているのは「自分にとって価値のある情報」です。\n\n## 2. 1本の動画に詰め込みすぎない\n\n伝えたいことが多いのはわかりますが、1本の動画で伝えるメッセージは1つに絞りましょう。\n\n悪い例：「会社紹介＋サービス紹介＋社員インタビュー」を5分に詰め込む\n良い例：「私たちが解決する課題」に絞って90秒で伝える\n\n情報を詰め込むほど、何も伝わらなくなります。\n\n## 3. 「誰に見せるか」で内容を変える\n\n動画の使い道によって、内容は大きく変わります。\n\n使い道別のポイント：\n- 採用向け → 社員の生の声、職場の雰囲気を重視\n- 営業向け → 課題解決の具体例、導入メリットを重視\n- SNS向け → 短く、インパクトのあるビジュアルを重視\n- 展示会向け → 製品・サービスのデモを中心に\n\n「全部に使える動画」を作ろうとすると、どの場面でも中途半端になります。\n\n## 4. プロに頼むべきタイミング\n\nすべての動画をプロに頼む必要はありません。しかし、以下のケースではプロの力を借りるのがおすすめです。\n\n- 会社の顔となるブランド動画\n- 広告として配信する動画\n- 商談や展示会で使う重要な動画\n\n日常的なSNS投稿用の動画は社内で制作し、ここぞという動画はプロに依頼するのが最もコストパフォーマンスの良い方法です。\n\n## まとめ\n\n効果的なPR動画のポイントは「3秒でつかむ、メッセージは1つ、ターゲットを絞る」です。\n\nLumeniumでは、企画構成から撮影・編集・納品までワンストップで対応しています。AI動画の制作や、パートナーのAdvoVisionsとの連携による映画品質の映像制作も可能です。\n\nお気軽にご相談ください。"
+        },
+        {
+          "path": "articles.4.date",
+          "value": "2026.03.25"
+        },
+        {
+          "path": "articles.4.category",
+          "value": "SNS運用"
+        },
+        {
+          "path": "articles.4.title",
+          "value": "SNS運用の外注ガイド"
+        },
+        {
+          "path": "articles.4.summary",
+          "value": "外注のメリットと業者選びのコツ。"
+        },
+        {
+          "path": "articles.4.content",
+          "value": "## はじめに\n\n「SNSをやらなきゃ」と思いつつ、投稿が続かない。そんな企業は少なくありません。\n\nこの記事では、SNS運用を外注するメリットと、業者選びで失敗しないためのポイントをお伝えします。\n\n## 外注する3つのメリット\n\n##1. 本業に集中できる\n\nSNS運用は思った以上に時間がかかります。企画・撮影・編集・投稿・分析。これを外注すれば、本業に集中できます。\n\n##2. プロのノウハウが使える\n\nどんな投稿が伸びるか、どの時間帯に投稿すべきか。プロは数字に基づいた戦略を持っています。\n\n##3. 継続できる\n\nSNSは継続が命です。外注すれば「忙しくて今月は投稿できなかった」がなくなります。\n\n## 業者選びの3つのポイント\n\n##1. 実績を確認する\n\n過去にどんなアカウントを運用したか、具体的な数字を聞きましょう。\n\n##2. コミュニケーション頻度を確認する\n\n月に何回打ち合わせがあるか、レポートはもらえるか。丸投げではなく、二人三脚で進められる業者がおすすめです。\n\n##3. 予算感を最初にすり合わせる\n\n月額いくらで、何をしてもらえるのか。料金体系が明確な業者を選びましょう。\n\n## まとめ\n\nSNS運用の外注は「時間の節約」と「成果の最大化」を両立できる手段です。\n\nLumeniumでは、企画構成から運用まで全てサポートしています。予算に合わせた最適なプランをご提案しますので、お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.5.date",
+          "value": "2026.03.20"
+        },
+        {
+          "path": "articles.5.category",
+          "value": "LINE構築"
+        },
+        {
+          "path": "articles.5.title",
+          "value": "公式LINEで売上を伸ばす方法"
+        },
+        {
+          "path": "articles.5.summary",
+          "value": "売上につながる具体的な活用法。"
+        },
+        {
+          "path": "articles.5.content",
+          "value": "## はじめに\n\n公式LINEを作ったものの「友だちが増えない」「何を配信すればいいかわからない」という声をよく聞きます。\n\nこの記事では、公式LINEで売上を伸ばすための3つの方法をご紹介します。\n\n## 1. 登録特典で友だちを集める\n\nまずは友だちを増やすことが大切です。効果的な方法は「登録特典」を用意すること。\n\n- 初回10%オフクーポン\n- 限定コンテンツの配信\n- 無料相談の案内\n\n店舗ならPOPやレジ横にQRコードを設置、WebサイトならCTAボタンを設置しましょう。\n\n## 2. セグメント配信で反応率を上げる\n\n全員に同じメッセージを送るのではなく、属性に合わせた配信が効果的です。\n\n- 新規客には「初回特典の案内」\n- リピーターには「新商品のお知らせ」\n- しばらく来ていない人には「久しぶりの特典」\n\nセグメント配信にすると、ブロック率が下がり、反応率が上がります。\n\n## 3. 自動応答（Bot）で24時間対応\n\nよくある質問への自動応答を設定しておけば、営業時間外でも顧客対応ができます。\n\n- 営業時間・アクセスの案内\n- メニュー・料金の案内\n- 予約の受付\n\n人手をかけずに顧客満足度を上げられます。\n\n## まとめ\n\n公式LINEは「集める → 届ける → 自動化する」の3ステップで売上につながります。\n\nLumeniumではLINE Bot制作から配信設計まで一括で対応しています。お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.6.date",
+          "value": "2026.03.15"
+        },
+        {
+          "path": "articles.6.category",
+          "value": "Web制作"
+        },
+        {
+          "path": "articles.6.title",
+          "value": "HPリニューアルの5つのサイン"
+        },
+        {
+          "path": "articles.6.summary",
+          "value": "リニューアルが必要なサインを解説。"
+        },
+        {
+          "path": "articles.6.content",
+          "value": "## はじめに\n\n「ホームページはあるけど、問い合わせが来ない」「デザインが古い気がする」——そんな悩みはありませんか？\n\nこの記事では、ホームページをリニューアルすべき5つのサインをご紹介します。\n\n## 1. スマホで見にくい\n\n今やWebアクセスの7割以上がスマートフォンからです。スマホで文字が小さい、ボタンが押しにくい、横スクロールが発生する——こんな状態なら、すぐにリニューアルが必要です。\n\n## 2. 3年以上デザインを変えていない\n\nWebデザインのトレンドは2〜3年で変わります。古いデザインは「この会社、大丈夫かな？」という不信感につながります。\n\n## 3. 問い合わせが来ない\n\nホームページはあるのに問い合わせが来ないなら、導線に問題がある可能性が高いです。CTAボタンの位置、フォームの入力項目数、ページの読み込み速度を見直しましょう。\n\n## 4. 自分で更新できない\n\n情報の更新に毎回業者に依頼が必要なら、CMSの導入やリニューアルを検討すべきです。鮮度の低い情報はSEOにもマイナスです。\n\n## 5. 競合のサイトに見劣りする\n\n同業他社のサイトと比べてみてください。明らかに見劣りするなら、お客様も同じことを感じています。\n\n## まとめ\n\n1つでも当てはまるなら、リニューアルを検討する価値があります。\n\nLumeniumではコーポレートサイト、LP、Webアプリの企画・デザイン・開発をワンストップで対応しています。お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.7.date",
+          "value": "2026.04.15"
+        },
+        {
+          "path": "articles.7.category",
+          "value": "動画制作"
+        },
+        {
+          "path": "articles.7.title",
+          "value": "SNS動画の「最初の3秒」で離脱を防ぐ設計"
+        },
+        {
+          "path": "articles.7.summary",
+          "value": "スマホ縦型動画で視聴維持率を上げるフック設計のコツ。"
+        },
+        {
+          "path": "articles.7.content",
+          "value": "## はじめに\n\nTikTokやInstagramリール、YouTube Shortsなど、縦型動画のフィードは指一本でどこまでもスクロールできてしまいます。最初の3秒で「続きが気になる」と思わせられなければ、あとから何を見せても読んでもらえません。\n\nLumeniumで制作している動画案件でも、冒頭の設計に一番時間をかけています。この記事では、実際に意識しているフック設計のポイントを共有します。\n\n## 1. 「結論を見せる」か「疑問を投げる」かを選ぶ\n\n冒頭の型は大きく2パターンあります。\n\n- **結論先出し型**:「このやり方で月商が2倍になりました」など、成果を最初に見せる\n- **疑問提示型**:「なぜ、開店3ヶ月の店が満席なのか?」と問いを投げる\n\nサービスや店舗の信頼感を伝えたいなら結論先出し、コンテンツ系で引き込みたいなら疑問提示が向いています。\n\n## 2. 動きは「画面の大きな変化」を1秒以内に\n\nスクロール中の視聴者の目は、色・輪郭・動きの「変化量」に反応します。\n\n- カメラワークで人物が大きく寄る\n- テロップが画面いっぱいに現れる\n- シーンが2〜3回短く切り替わる\n\nこのどれかが1秒以内に起きるだけで、スクロールが止まる確率は大きく上がります。\n\n## 3. 音声より「テロップ」で先に伝える\n\nスマホのフィードは音声オフで見られることがほとんどです。\n\n冒頭のセリフは、必ず大きめのテロップで補強します。テロップのフォントサイズ・色・位置も「3秒で読める量」に制限し、情報を詰めすぎないのがコツです。\n\n## 4. フォーマット化して量産する\n\n一度うまくいった冒頭の型は、テンプレート化して別動画でも使い回せます。\n\n「冒頭5秒は型、中盤10秒で本題、ラスト5秒でCTA」という骨組みを決めておくだけで、企画のブレや無駄なリテイクが減ります。\n\n## まとめ\n\n最初の3秒は、動画の命綱です。\n\nLumeniumでは、企画から撮影・編集・投稿まで一気通貫で支援しています。「うちのサービスならどう設計するか」と気になった方は、お気軽にご相談ください。"
+        },
+        {
+          "path": "articles.8.date",
+          "value": "2026.04.12"
+        },
+        {
+          "path": "articles.8.category",
+          "value": "LINE運用"
+        },
+        {
+          "path": "articles.8.title",
+          "value": "公式LINEが「ただの通知」にならない配信設計"
+        },
+        {
+          "path": "articles.8.summary",
+          "value": "購読解除を抑えつつ反応率を上げるシナリオ配信の考え方。"
+        },
+        {
+          "path": "articles.8.content",
+          "value": "## はじめに\n\n公式LINEを導入したものの、「登録はされるけど反応がない」「配信するとブロック率が上がる」という相談をよく受けます。\n\n原因のほとんどは配信内容ではなく、**設計段階の想定**にあります。この記事では、配信ルートを作るときに押さえておきたい考え方を整理します。\n\n## 1. 「いつ・何を送るか」より「なぜ登録したか」を先に考える\n\n多くの配信設計は、いきなり「週1で何を送るか」から始まってしまいます。\n\nですが、本質的に大事なのは登録動機です。\n\n- クーポン目当てで登録した人\n- 情報収集目的で登録した人\n- セミナー申込のフローで自動登録された人\n\nこの3者では、最適な1通目も、配信頻度も、配信内容もまったく違います。登録時のタグ付けは最初の段階で仕込んでおくのが鉄則です。\n\n## 2. ステップ配信と定期配信を分ける\n\nこの2つをごちゃ混ぜにすると、メッセージが多すぎてブロック率が跳ね上がります。\n\n- **ステップ配信**: 登録直後から順に1→2→3と届く、1回限りのシナリオ\n- **定期配信**: 全員に同じ内容を定期的に届ける\n\nまずステップ配信だけで「サービス理解」を済ませてから、定期配信に合流させるのが基本形です。\n\n## 3. CTAは「1通1つ」に絞る\n\nLINEの1通に複数ボタンを詰め込むと、「迷って押さない」が起きます。\n\n「詳しく見る」「今すぐ予約」「無料で試す」を同時に並べるより、その時に一番押してほしい1つだけにする方が結果的に反応率は上がります。\n\n## 4. ブロック率より「リッチメニュータップ率」を見る\n\n配信の直後だけブロック率を気にする運用者が多いのですが、安定しているアカウントは**リッチメニューからのタップ回数**を指標にしています。\n\n配信で関心を持った人が、リッチメニューから該当サービスに辿り着く。この回遊が設計できていれば、配信頻度を抑えてもCVは落ちません。\n\n## まとめ\n\n公式LINEは配信ツールではなく、顧客との関係設計ツールです。\n\nLumeniumでは、シナリオ設計・Bot実装・リッチメニュー制作までワンストップで支援しています。登録者数が伸び悩んでいる・反応率が落ちているなど、いつでもご相談ください。"
+        },
+        {
+          "path": "articles.9.date",
+          "value": "2026.04.08"
+        },
+        {
+          "path": "articles.9.category",
+          "value": "SNS運用"
+        },
+        {
+          "path": "articles.9.title",
+          "value": "SNSで「刺さる投稿」を考える前に確認したい3項目"
+        },
+        {
+          "path": "articles.9.summary",
+          "value": "投稿の質を上げる前に、そもそもの設計を見直すチェックリスト。"
+        },
+        {
+          "path": "articles.9.content",
+          "value": "## はじめに\n\nSNS運用の相談で一番多いのは、「もっと伸びる投稿を作りたい」というものです。\n\nただ、伸びない本当の原因は投稿1本の質ではなく、**そもそもアカウント設計が曖昧なまま投稿を続けている**ケースがほとんどです。この記事では、投稿改善の前に必ず立ち返りたい3項目を紹介します。\n\n## 1. 「誰の、どの瞬間に見られるか」が言語化できているか\n\nペルソナ設計ではなく、「視聴シチュエーション」まで落とし込めているかがポイントです。\n\n- 朝の通勤中に、片手でスクロールしながら\n- 仕事終わりにベッドで、音声オフで\n- 休憩中にデスクから、小さめの音量で\n\n同じターゲットでも、見られる瞬間が違えば最適な長さも情報量も変わります。\n\n## 2. 「1枚目で何を約束するか」が決まっているか\n\nフィード形式のSNSでは、1枚目 (またはサムネイル) が9割です。\n\n- この動画を見終えたら何が得られるのか\n- この投稿を保存しておく価値はあるか\n- この発信者はこのテーマで信頼できるか\n\nこのどれかを1枚目で「約束」できていないと、2枚目以降は読まれません。\n\n## 3. 投稿後の「次の動線」があるか\n\n投稿を見た人が次にとるべき行動を、事前に1つ決めておきます。\n\n- プロフィールを見に行く\n- LINE登録する\n- DMで質問する\n- 保存しておく\n\n「いいね数」だけを追うと、動線がないまま投稿だけ増えていきます。CVまでの通り道が繋がっているかは定期的に点検が必要です。\n\n## 4. 数字は「3項目だけ」で評価する\n\n見るべき指標を絞らないと、改善の方向性が散漫になります。Lumeniumが最初に提案するのは次の3つです。\n\n- **保存率**: そのテーマで「また見たい」と思われているか\n- **プロフィールクリック率**: 投稿→アカウントへの誘導が機能しているか\n- **リンククリック率**: CVの入口に辿り着いているか\n\nこれだけで、改善の優先順位がかなり見えてきます。\n\n## まとめ\n\n投稿の質を上げる前に、上の3項目がクリアになっているかを確認してみてください。\n\nLumeniumでは企画・撮影・編集・分析まで伴走する運用代行を行っています。「最近なぜか伸びなくなった」「数値の見方が分からない」という方もお気軽にご相談ください。"
+        },
+        {
+          "path": "articles.10.date",
+          "value": "2026.04.02"
+        },
+        {
+          "path": "articles.10.category",
+          "value": "採用・ブランディング"
+        },
+        {
+          "path": "articles.10.title",
+          "value": "採用動画で「会社の空気」まで伝える構成テクニック"
+        },
+        {
+          "path": "articles.10.summary",
+          "value": "応募率と定着率を同時に上げる、採用コンテンツの作り方。"
+        },
+        {
+          "path": "articles.10.content",
+          "value": "## はじめに\n\n採用動画を作っても応募が来ない、来ても入社後にミスマッチで早期離職——この悩みは多くの会社で共通しています。\n\n原因は、**「良さ」を伝えようとしすぎて情報が平均化してしまう**こと。この記事では、応募数と定着率を同時に上げるために意識したい構成テクニックを共有します。\n\n## 1. 「良い会社」ではなく「合う会社」を伝える\n\n採用広告では、ついオフィスの綺麗さ、福利厚生、社長のメッセージなど「良いところ」を並べがちです。\n\nですが、候補者が本当に知りたいのは「自分に合う場所か」です。\n\n- 会議中の空気 (静か/活発/遠慮がある)\n- 残業中の様子 (雑談がある/集中している)\n- ランチの取り方 (個人/チーム/リモート)\n\nこうした「合う・合わない」の判断材料を見せた方が、結果的にミスマッチは減ります。\n\n## 2. 社長より、入社2〜3年目の社員をメインにする\n\n候補者が感情移入しやすいのは、社長ではなく、自分の数歩先を歩いている社員です。\n\n- 入社1ヶ月でどこに戸惑ったか\n- 2年目で任される仕事のレベル感\n- 3年目で見えてきたキャリアの選択肢\n\nここを具体的に語ってもらうだけで、応募書類の質が明らかに変わります。\n\n## 3. 「良い日」と「ふつうの日」を両方見せる\n\n表彰式やキックオフのような「良い日」だけを撮ると、入社後に「こんなはずじゃなかった」と感じられやすくなります。\n\nふつうの水曜日の午後、月末のバタバタ、金曜の退勤間際——そういった「ありのままの日常」を5秒でもいいので混ぜることで、定着率は大きく変わります。\n\n## 4. 動画の最後は「次のアクション」を明確に\n\n採用動画のラストには、必ず次の行動を1つだけ提示します。\n\n- カジュアル面談の申込リンク\n- 会社資料のダウンロード\n- 現場社員との座談会の案内\n\n選択肢が多いほど応募は減ります。1つに絞ることで、興味を持った候補者を迷わず次のステップに誘導できます。\n\n## まとめ\n\n採用動画は「かっこいい映像を作る」ではなく、「合う人に出会うための設計」です。\n\nLumeniumでは企画・脚本・撮影・編集・配信戦略までワンストップで支援しています。採用広報にお悩みの方は、お気軽にご相談ください。"
+        }
+      ]
+    }
+  ]
+}

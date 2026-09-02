@@ -1,3 +1,5 @@
+import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useEffect, useState, useRef } from 'react'
 import VideoModal from './VideoModal'
 import { events } from '../lib/analytics'
@@ -209,25 +211,24 @@ export default function Hero() {
       <div className="hero-content">
         <p className="hero-lead animate-fade-up">
           <span className="hero-lead-dot" aria-hidden="true" />
-          DIGITAL CREATIVE STUDIO · TOKYO
+          {SECTION.hero.lead}
         </p>
         <h1 className="hero-title animate-fade-up delay-1">
-          {'散文化した目的に'.split('').map((ch, i) => (
+          {SECTION.hero.titleLine1.split('').map((ch, i) => (
             <span key={i} className="char-reveal" style={{ animationDelay: `${0.3 + i * 0.04}s` }}>{ch}</span>
           ))}
           <br />
           <span className="text-accent">
-            {'焦点を当てる'.split('').map((ch, i) => (
+            {SECTION.hero.titleLine2.split('').map((ch, i) => (
               <span key={i} className="char-reveal" style={{ animationDelay: `${0.7 + i * 0.04}s` }}>{ch}</span>
             ))}
           </span>
         </h1>
         <p className="hero-desc animate-fade-up delay-2">
-          ぼんやりした"やりたい"を、<strong>動画・AI・Web</strong>で最短ルートの成果に。<br />
-          企画から納品・運用まで<strong>ワンストップ</strong>で、あなたの事業に光を当てます。
+          {rich(SECTION.hero.desc)}
         </p>
         <div className="hero-typing animate-fade-up delay-2">
-          <span className="typing-label">対応領域</span>
+          <span className="typing-label">{SECTION.hero.typingLabel}</span>
           <span className="typing-arrow">→</span>
           <span className="typing-text">{typingText}</span>
           <span className="typing-cursor" />
