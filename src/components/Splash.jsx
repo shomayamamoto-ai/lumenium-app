@@ -162,7 +162,9 @@ export default function Splash({ onComplete }) {
 
       {/* Lumen readout (from G) */}
       <div className="lx-readout">
-        <div className="lx-readout-num">{lumens.toLocaleString()}</div>
+        {/* No thousands separator — this reads as an instrument display, and
+            the comma also made the number jump width as it counted up. */}
+        <div className="lx-readout-num">{lumens}</div>
         <div className="lx-readout-unit">lm</div>
       </div>
 
