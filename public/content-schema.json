@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T10:09:00.021Z",
+  "generatedAt": "2026-09-04T10:18:35.878Z",
   "count": 394,
   "groups": [
     {
@@ -300,7 +300,7 @@
         },
         {
           "path": "text.home.definition",
-          "value": "ルメニウム（Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。"
+          "value": "ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。"
         },
         {
           "path": "text.home.definitionLink",

@@ -1,4 +1,5 @@
 import { SECTION } from '../data/text'
+import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
 import { events } from '../lib/analytics'
@@ -518,7 +519,7 @@ export default function SearchHome() {
         {/* One crawlable definition sentence on the page that actually ranks —
             answer engines lift the passage, not the whole site. */}
         <p className="search-home-def">
-          {SECTION.home.definition}
+          {rich(SECTION.home.definition)}
           <a href="/about.html">{SECTION.home.definitionLink}</a>
         </p>
 
