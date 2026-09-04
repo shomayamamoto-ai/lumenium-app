@@ -164,7 +164,7 @@ function page(s) {
 <meta name="robots" content="index, follow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 <style>${STYLE}</style>

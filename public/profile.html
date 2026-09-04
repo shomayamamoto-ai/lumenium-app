@@ -16,7 +16,7 @@
 <meta name="robots" content="index, follow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://lumenium.net/profile.html#webpage","url":"https://lumenium.net/profile.html","name":"ルメニウム（Lumenium）代表 山本 捷真","description":"ルメニウム（Lumenium）代表・山本捷真の経歴と得意領域。慶應義塾大学文学部卒業、在学中から個人事業主として動画・AI・Web・SNSを横断し、企業向けAI研修の講師も歴任。","inLanguage":"ja-JP","isPartOf":{"@id":"https://lumenium.net/#website"},"about":{"@id":"https://lumenium.net/#organization"}},{"@context":"https://schema.org","@type":"Person","name":"山本 捷真","alternateName":"Shoma Yamamoto","jobTitle":"Lumenium（ルメニウム）代表","worksFor":{"@id":"https://lumenium.net/#organization"},"alumniOf":{"@type":"CollegeOrUniversity","name":"慶應義塾大学"},"knowsAbout":["AI研修","動画制作","LINE Bot開発","Webアプリ開発","キャスト手配","作詞作曲"]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://lumenium.net/"},{"@type":"ListItem","position":2,"name":"ルメニウム（Lumenium）代表 山本 捷真","item":"https://lumenium.net/profile.html"}]}]}</script>
 <style>
@@ -65,6 +65,12 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .facts dt { flex:0 0 92px; color:#93c5fd; font-size:12.5px; font-weight:700; }
 .facts dd { color:var(--sub); min-width:0; }
 .facts a { color:#a5b4fc; }
+/* Editorial serif, used only on the story and founder pages so they read in
+   the same voice as those sections do in the app. */
+.serif h2, .serif p, .serif li { font-family:'Zen Old Mincho','Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif; }
+.serif h2 { letter-spacing:.01em; line-height:1.55; }
+.serif p { font-size:15.5px; line-height:2.15; letter-spacing:.04em; }
+.serif li { letter-spacing:.03em; }
 .note { border-left:3px solid #06b6d4; padding:2px 0 2px 14px; margin:16px 0; font-size:13.5px; color:var(--sub); }
 /* Definition block — the passage an answer engine should lift verbatim. */
 article p.keypoint { background:var(--card); border:1px solid var(--border); border-left:4px solid #06b6d4;
@@ -82,7 +88,7 @@ footer a:hover { color:var(--text); }
 
   <h1>ルメニウム（Lumenium）代表 山本 捷真</h1>
   <p class="meta">慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。動画、AI、Web、SNSなど幅広く活動し、企業向けAI研修の講師も歴任しています。</p>
-  <article>
+  <article class="serif">
 
     
     <h2>得意領域</h2>

@@ -102,6 +102,12 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .facts dt { flex:0 0 92px; color:#93c5fd; font-size:12.5px; font-weight:700; }
 .facts dd { color:var(--sub); min-width:0; }
 .facts a { color:#a5b4fc; }
+/* Editorial serif, used only on the story and founder pages so they read in
+   the same voice as those sections do in the app. */
+.serif h2, .serif p, .serif li { font-family:'Zen Old Mincho','Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif; }
+.serif h2 { letter-spacing:.01em; line-height:1.55; }
+.serif p { font-size:15.5px; line-height:2.15; letter-spacing:.04em; }
+.serif li { letter-spacing:.03em; }
 .note { border-left:3px solid #06b6d4; padding:2px 0 2px 14px; margin:16px 0; font-size:13.5px; color:var(--sub); }
 /* Definition block — the passage an answer engine should lift verbatim. */
 article p.keypoint { background:var(--card); border:1px solid var(--border); border-left:4px solid #06b6d4;
@@ -131,7 +137,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <meta name="robots" content="index, follow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 <style>${STYLE}</style>
@@ -658,6 +664,7 @@ TOPIC_PAGES.push(
   },
   {
     file: 'story.html',
+    serif: true,
     eyebrow: 'LUMENIUM STORY',
     title: '社名の由来と考え方 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）という社名と、その考え方',
@@ -677,6 +684,7 @@ TOPIC_PAGES.push(
   },
   {
     file: 'profile.html',
+    serif: true,
     eyebrow: 'LUMENIUM FOUNDER',
     title: '代表紹介 山本捷真 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）代表 山本 捷真',
@@ -711,7 +719,7 @@ for (const t of TOPIC_PAGES) {
   const body = `
   <h1>${esc(t.h1)}</h1>
   <p class="meta">${esc(t.lead)}</p>
-  <article>
+  <article${t.serif ? ' class="serif"' : ''}>
 ${t.body()}
   </article>
   <div class="cta">
