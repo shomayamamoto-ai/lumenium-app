@@ -120,9 +120,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- Preload LCP-critical logo (used in Splash intro) -->
     <link rel="preload" as="image" href="/favicon.svg" fetchpriority="high" type="image/svg+xml">
-    <!-- Minimal fonts: Inter Tight (Latin) + Zen Kaku Gothic New (Japanese) with used weights only -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet"></noscript>
+    <!-- Two variable faces, each one file covering 400-900. The previous pair
+         only shipped some weights, so every 600 and 800 in the CSS was drawn
+         by the browser as a synthetic bold — the main reason the type looked
+         cheap. Latin comes from Schibsted Grotesk, Japanese from Noto Sans JP. -->
+    <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
     <!-- DNS prefetch for 3rd-party services used later -->
     <link rel="dns-prefetch" href="https://line-bot-omega-liard.vercel.app">
     <link rel="dns-prefetch" href="https://www.googletagmanager.com">

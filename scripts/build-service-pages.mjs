@@ -87,7 +87,8 @@ const STYLE = `
 body { background:
   radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
   radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
-  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  color:var(--text); font-family:'Schibsted Grotesk','Noto Sans JP','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  font-feature-settings:'palt' 1; text-spacing-trim:trim-start; letter-spacing:.02em;
   line-height:1.9; }
 .wrap { max-width:760px; margin:0 auto; padding:48px 22px 64px; }
 header a { color:var(--sub); text-decoration:none; font-size:13px; }
@@ -161,6 +162,9 @@ function page(s) {
 <meta property="og:image" content="${SITE}/api/og">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="index, follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 <style>${STYLE}</style>

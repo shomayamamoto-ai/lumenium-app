@@ -14,6 +14,9 @@
 <meta property="og:image" content="https://lumenium.net/api/og">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="index, follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://lumenium.net/flow.html#webpage","url":"https://lumenium.net/flow.html","name":"Lumenium（ルメニウム）へのご依頼の流れ","description":"ルメニウム（Lumenium）へのご依頼の流れ。ご相談から、ヒアリング・お見積り、ご契約、制作、納品・運用サポートまでの5ステップと、各段階の所要時間をご説明します。","inLanguage":"ja-JP","isPartOf":{"@id":"https://lumenium.net/#website"},"about":{"@id":"https://lumenium.net/#organization"}},{"@context":"https://schema.org","@type":"HowTo","name":"Lumeniumへのご依頼の流れ","step":[{"@type":"HowToStep","position":1,"name":"ご相談・お問い合わせ","text":"まずはメールやフォームから、困っていることを教えてください。抽象的な内容でも大丈夫です。"},{"@type":"HowToStep","position":2,"name":"ヒアリング・お見積り","text":"オンライン or 対面で現状と目標をお伺いし、最適なプランと概算をご提案します。"},{"@type":"HowToStep","position":3,"name":"ご契約・キックオフ","text":"内容にご納得いただけたら契約へ。必要に応じてNDAを交わし、制作スケジュールを確定します。"},{"@type":"HowToStep","position":4,"name":"制作・実行","text":"企画→制作→レビューをサイクルで進行。中間共有で認識ズレを最小化します。"},{"@type":"HowToStep","position":5,"name":"納品・運用サポート","text":"納品後も、必要に応じて改善・運用代行・追加制作まで伴走します。"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://lumenium.net/"},{"@type":"ListItem","position":2,"name":"Lumenium（ルメニウム）へのご依頼の流れ","item":"https://lumenium.net/flow.html"}]}]}</script>
 <style>
@@ -23,13 +26,14 @@
 body { background:
   radial-gradient(ellipse 70% 50% at 20% 10%, rgba(79,70,229,.16), transparent 60%),
   radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,.09), transparent 60%), var(--bg);
-  color:var(--text); font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  color:var(--text); font-family:'Schibsted Grotesk','Noto Sans JP','Hiragino Sans',system-ui,-apple-system,sans-serif;
+  font-feature-settings:'palt' 1; text-spacing-trim:trim-start; letter-spacing:.02em;
   line-height:2; }
 .wrap { max-width:720px; margin:0 auto; padding:48px 22px 64px; }
 header a { color:var(--sub); text-decoration:none; font-size:13px; }
 header a:hover { color:var(--text); }
 .eyebrow { margin-top:34px; font-size:11px; font-weight:700; letter-spacing:.3em; color:#818cf8; }
-h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.015em; line-height:1.45; margin:10px 0 8px;
+h1 { font-size:clamp(24px,5vw,32px); font-weight:800; letter-spacing:-.02em; word-break:auto-phrase; line-height:1.45; margin:10px 0 8px;
   background:linear-gradient(135deg,#f5f7fb 30%,#a5b4fc 70%,#67e8f9 100%);
   -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .meta { font-size:12.5px; color:#93c5fd; margin-bottom:30px; }

@@ -1121,7 +1121,7 @@ html[data-theme="dark"] .blog-filter {
   margin-bottom: 16px;
 }
 .story-chapter-no {
-  font-family: 'Inter Tight', sans-serif;
+  font-family: 'Schibsted Grotesk', sans-serif;
   font-size: clamp(36px, 6vw, 56px);
   font-weight: 800;
   line-height: 1;
@@ -1234,7 +1234,7 @@ html[data-theme="dark"] .blog-filter {
   margin-top: 4px;
 }
 .story-signature-en {
-  font-family: 'Inter Tight', sans-serif;
+  font-family: 'Schibsted Grotesk', sans-serif;
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -2794,14 +2794,24 @@ html[data-theme="dark"] button:focus-visible {
 }
 
 body {
-  font-family: 'Inter Tight', 'Zen Kaku Gothic New', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  /* Latin first, Japanese second: the browser takes each script from the face
+     that actually draws it well. The old heading stack had it the other way
+     round, so "Lumenium" itself was being set in a Japanese font. */
+  font-family: 'Schibsted Grotesk', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 16px;
   line-height: 1.9;
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  font-optical-sizing: auto;
+  /* palt tightens Japanese punctuation, but Google Fonts' dynamic subsetting
+     drops that table — text-spacing-trim does the same job in the engine and
+     is simply ignored where unsupported. */
   font-feature-settings: "palt" 1, "pkna" 1;
+  text-spacing-trim: trim-start;
+  line-break: strict;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -2815,10 +2825,18 @@ p, .card-text, .hero-desc, .section-desc, .cta-desc, .banner-desc, .testimonial-
 }
 
 h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title, .banner-title, .cta-title, .profile-name {
-  font-family: 'Zen Kaku Gothic New', 'Inter Tight', 'Noto Sans JP', sans-serif;
+  font-family: 'Schibsted Grotesk', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
   font-feature-settings: "palt" 1;
-  letter-spacing: -0.005em;
+  text-spacing-trim: trim-start;
+  /* Headings are set tighter than body — the default tracking is what makes
+     large Japanese type look slack. */
+  letter-spacing: -0.02em;
+  line-height: 1.45;
   text-wrap: balance;
+  /* Break Japanese headings at phrase boundaries instead of mid-word, which
+     was splitting ルメニウム across two lines. */
+  word-break: auto-phrase;
 }
 .container {
   max-width: 1200px;
@@ -3061,7 +3079,7 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
   gap: 10px;
   text-decoration: none;
   color: var(--text);
-  font-family: 'Inter Tight', 'Zen Kaku Gothic New', -apple-system, sans-serif;
+  font-family: 'Schibsted Grotesk', 'Noto Sans JP', -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -4387,7 +4405,7 @@ html[data-theme="dark"] .hero-video {
   gap: 10px;
   text-decoration: none;
   color: var(--text);
-  font-family: 'Inter Tight', 'Zen Kaku Gothic New', -apple-system, sans-serif;
+  font-family: 'Schibsted Grotesk', 'Noto Sans JP', -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 14px;
@@ -6222,7 +6240,7 @@ html[data-theme="dark"] .article-read-progress { background: rgba(255,255,255,0.
   100% { background-position: 200% 50%; }
 }
 .company-card-signature {
-  font-family: 'Inter Tight', sans-serif;
+  font-family: 'Schibsted Grotesk', sans-serif;
   font-style: italic;
   font-size: 13px;
   letter-spacing: 0.05em;
@@ -6629,7 +6647,7 @@ html[data-theme="dark"] .company-card {
   overflow: hidden;
   background: #010104;
   color: #e0f2fe;
-  font-family: 'Inter Tight', monospace;
+  font-family: 'Schibsted Grotesk', monospace;
   cursor: pointer;
   animation: lxFade 0.3s ease both;
 }
@@ -6996,7 +7014,7 @@ html[data-theme="dark"] .company-card {
 }
 .lx-tag {
   margin: 0;
-  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+  font-family: 'Noto Sans JP', 'Noto Sans JP', sans-serif;
   font-size: 13px;
   letter-spacing: 0.22em;
   color: rgba(255, 230, 180, 0.85);
@@ -7038,7 +7056,7 @@ html[data-theme="dark"] .company-card {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
-  font-family: 'Inter Tight', 'Helvetica Neue', sans-serif;
+  font-family: 'Schibsted Grotesk', 'Helvetica Neue', sans-serif;
 }
 .lx-readout-unit {
   font-size: 18px;
@@ -7112,7 +7130,7 @@ html[data-theme="dark"] .company-card {
   font-size: 10px;
   letter-spacing: 0.2em;
   color: rgba(224, 242, 254, 0.7);
-  font-family: 'Inter Tight', monospace;
+  font-family: 'Schibsted Grotesk', monospace;
   opacity: 0;
   animation: lxHudIn 0.4s ease 0.2s forwards;
 }
