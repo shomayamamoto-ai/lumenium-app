@@ -146,7 +146,7 @@ export default function Navbar() {
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`} aria-label="メインナビゲーション">
       <div className="nav-container">
         <a href="#" className="nav-logo" aria-label="Lumenium（ルメニウム）ホーム">
-          <img src="/lumenium-logo.svg?v=2" alt="Lumenium（ルメニウム）" className="nav-logo-img" width="40" height="40" />
+          <img src="/lumenium-logo.svg?v=3" alt="Lumenium（ルメニウム）" className="nav-logo-img" width="40" height="40" />
           <span className="nav-logo-stack">
             <span className="nav-logo-name">Lumenium</span>
             <span className="nav-logo-tag">散文化した目的に焦点を当てる</span>

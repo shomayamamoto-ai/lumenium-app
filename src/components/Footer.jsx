@@ -20,7 +20,7 @@ export default function Footer({ onPrivacy }) {
         <div className="footer-top">
           <div className="footer-brand">
             <a href="#top" className="footer-logo">
-              <img src="/lumenium-logo.svg?v=2" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
+              <img src="/lumenium-logo.svg?v=3" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
               <span>Lumenium<small className="footer-logo-yomi">{SECTION.home.yomi}</small></span>
             </a>
             <p className="footer-tagline">{rich(SECTION.footer.tagline)}</p>
