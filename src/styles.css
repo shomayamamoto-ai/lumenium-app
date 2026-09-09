@@ -8249,10 +8249,15 @@ html[data-theme="dark"] .navbar.scrolled {
   transform: translate(-50%, -50%);
   width: clamp(196px, 38vw, 340px);
   height: auto;
-  opacity: 0.5;
+  /* The mark carries its form in the value difference between facets, and
+     at 50% over a dark ground that difference collapsed — the shading was
+     there but too faint to read. Lift the opacity and restore the contrast
+     the transparency eats, rather than only turning it up. */
+  opacity: 0.72;
   z-index: 0;
   pointer-events: none;
-  filter: drop-shadow(0 14px 46px rgba(99,102,241,0.5));
+  filter: drop-shadow(0 16px 48px rgba(99,102,241,0.45))
+          contrast(1.14) saturate(1.12) brightness(1.04);
   /* Dissolve the bottom of the mark so the reading and the tagline sitting
      under the wordmark stay clean. */
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, rgba(0,0,0,0.35) 86%, transparent 100%);
