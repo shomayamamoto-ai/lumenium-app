@@ -175,6 +175,33 @@
       <p class="msg" id="copy-msg" style="margin-bottom:10px"></p>
       <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
     </div>
+
+    <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📈 アクセス解析</h2>
+      <p class="share-note" style="margin-bottom:14px">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
+      <div class="toolbar" style="margin-bottom:12px">
+        <select id="stats-range" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
+          <option value="7">過去7日</option>
+          <option value="30" selected>過去30日</option>
+          <option value="90">過去90日</option>
+        </select>
+        <span id="stats-updated"></span>
+        <button class="ghost" id="stats-reload" type="button">更新</button>
+      </div>
+      <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
+      <div id="stats-body" style="display:none">
+        <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px"></div>
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
+          <div id="stats-chart" style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px">
+          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">よく見られたページ</h3><div id="stats-paths"></div></div>
+          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">流入元</h3><div id="stats-refs"></div></div>
+          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">デバイス</h3><div id="stats-devices"></div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -324,6 +351,8 @@ function buildXlsx(rows) {
     document.getElementById('news-admin').style.display = 'block';
     document.getElementById('copy-admin').style.display = 'block';
     if (window.lumCopyInit) window.lumCopyInit();
+    document.getElementById('stats-admin').style.display = 'block';
+    if (window.lumStatsInit) window.lumStatsInit();
     loadNews();
     return true;
   }
@@ -719,6 +748,128 @@ function buildXlsx(rows) {
     if (loaded) return;
     loaded = true;
     loadAll();
+  };
+})();
+</script>
+
+<script>
+/* Analytics panel: reads /api/analytics and draws the report. The chart is
+   plain SVG — a charting library would be more code than the chart. */
+(function () {
+  var loaded = false;
+  var el = function (id) { return document.getElementById(id) };
+  var msg = el('stats-msg'), bodyEl = el('stats-body');
+
+  function say(text, isInfo) {
+    msg.textContent = text || '';
+    msg.classList.toggle('show', !!text);
+    msg.classList.toggle('info', !!isInfo);
+  }
+  var n = function (v) { return Number(v || 0).toLocaleString('ja-JP') };
+  function esc(t) { var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML }
+
+  function cards(d) {
+    var items = [
+      ['今日の閲覧数', n(d.totals.today)],
+      ['今日の訪問者', n(d.totals.todayVisitors)],
+      ['過去7日', n(d.totals.last7)],
+      ['過去30日', n(d.totals.last30)],
+      ['期間合計', n(d.totals.rangeViews)],
+      ['累計', n(d.totals.allTime)],
+    ];
+    el('stats-cards').innerHTML = items.map(function (i) {
+      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:12px 14px">' +
+        '<div style="font-size:10.5px;letter-spacing:.14em;color:var(--sub)">' + esc(i[0]) + '</div>' +
+        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
+    }).join('');
+  }
+
+  function chart(series) {
+    var W = 100, H = 34, pad = 1;
+    var max = Math.max(1, Math.max.apply(null, series.map(function (p) { return p.views })));
+    var bw = (W - pad * 2) / Math.max(series.length, 1);
+    var bars = series.map(function (p, i) {
+      var h = (p.views / max) * (H - 6);
+      var x = pad + i * bw, y = H - 3 - h;
+      var title = p.date + '：' + n(p.views) + ' 閲覧 / ' + n(p.visitors) + ' 訪問者';
+      return '<rect x="' + x.toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + Math.max(bw - 0.35, 0.4).toFixed(2) +
+        '" height="' + Math.max(h, 0.4).toFixed(2) + '" rx="0.3" fill="url(#sg)"><title>' + esc(title) + '</title></rect>';
+    }).join('');
+    var first = series[0], last = series[series.length - 1];
+    el('stats-chart').innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:150px;display:block">' +
+      '<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="#818cf8"/><stop offset="1" stop-color="#4f46e5" stop-opacity=".55"/>' +
+      '</linearGradient></defs>' + bars + '</svg>' +
+      '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--sub);margin-top:6px">' +
+      '<span>' + esc(first ? first.date : '') + '</span>' +
+      '<span>最大 ' + n(max) + ' / 日</span>' +
+      '<span>' + esc(last ? last.date : '') + '</span></div>';
+  }
+
+  function bars(target, list, opts) {
+    opts = opts || {};
+    var box = el(target);
+    if (!list || !list.length) {
+      box.innerHTML = '<p class="share-note">まだデータがありません。</p>';
+      return;
+    }
+    var max = Math.max.apply(null, list.map(function (i) { return i.count }));
+    box.innerHTML = list.map(function (i) {
+      var pct = Math.max(2, Math.round((i.count / max) * 100));
+      var label = i.name;
+      if (opts.link && /^\//.test(label)) {
+        label = '<a href="' + esc(label) + '" target="_blank" rel="noopener" style="color:inherit">' + esc(i.name) + '</a>';
+      } else {
+        label = esc(label);
+      }
+      return '<div style="margin-bottom:7px">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:3px">' +
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
+        '<span style="font-variant-numeric:tabular-nums;color:var(--sub);flex:none">' + n(i.count) + '</span></div>' +
+        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#4f46e5,#818cf8);border-radius:99px"></div>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  async function load() {
+    var key = sessionStorage.getItem('lum_admin_key');
+    if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
+    say('読み込み中…', true);
+    var days = el('stats-range').value;
+    var res, data;
+    try {
+      res = await fetch('/api/analytics?days=' + encodeURIComponent(days), {
+        headers: { Authorization: 'Bearer ' + key }, cache: 'no-store',
+      });
+      data = await res.json();
+    } catch (_) {
+      say('通信に失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
+    if (!res.ok || data.ok !== true) {
+      bodyEl.style.display = 'none';
+      say(data && data.message ? data.message : 'アクセス解析を表示できませんでした。', res.status === 503);
+      return;
+    }
+    cards(data);
+    chart(data.series || []);
+    bars('stats-paths', data.topPaths, { link: true });
+    bars('stats-refs', data.topReferrers);
+    bars('stats-devices', data.devices);
+    bodyEl.style.display = 'block';
+    el('stats-updated').textContent = data.range.from + ' 〜 ' + data.range.to;
+    say('', true);
+  }
+
+  el('stats-range').addEventListener('change', load);
+  el('stats-reload').addEventListener('click', load);
+
+  window.lumStatsInit = function () {
+    if (loaded) return;
+    loaded = true;
+    load();
   };
 })();
 </script>

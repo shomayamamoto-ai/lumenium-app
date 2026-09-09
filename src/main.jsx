@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { loadContent } from './lib/content'
+import { startPageviews } from './lib/pageview'
 import './styles.css'
 
 // Copy overrides from the admin page are applied before the first render, so
@@ -12,4 +13,5 @@ loadContent().finally(() => {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   )
+  startPageviews()
 })

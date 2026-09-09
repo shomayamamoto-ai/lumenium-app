@@ -214,6 +214,7 @@ function page(s) {
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>
+<script>(function(){try{var p=location.pathname.replace(/\/$/,'')||'/';fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:p,r:document.referrer||''}),keepalive:true,credentials:'omit'}).catch(function(){});}catch(e){}})();</script>
 </body>
 </html>
 `
