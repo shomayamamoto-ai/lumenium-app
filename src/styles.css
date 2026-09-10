@@ -3076,9 +3076,14 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
 }
 
 .nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 32px;
+  /* The bar is fixed chrome over the whole viewport, so it spans the full
+     width rather than sitting in the 1200px content column — inside that
+     column the logo and the toggle drifted toward the middle of a wide
+     screen instead of sitting at the edges. */
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(18px, 2.6vw, 44px);
   display: flex;
   align-items: center;
   justify-content: space-between;
