@@ -37,6 +37,8 @@ const NODES = [
 const TICK = 9        // length of the mark that steps off the orbit
 const SPAN = 20       // degrees of arc each entry owns
 const EXIT_MS = 420   // how long the closing sequence is given before unmount
+const TRANSIT_MS = 660 // how long the dive into a destination runs before it lands
+const DIVE = 2.1      // how far past the chosen entry the view travels
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
 const rad = (deg) => (deg * Math.PI) / 180
 const reduced = () =>
@@ -77,6 +79,7 @@ export default function RadialMenu() {
   const [lit, setLit] = useState(false)
   const [closing, setClosing] = useState(false)
   const [settled, setSettled] = useState(false)
+  const [going, setGoing] = useState(null)
   const [hot, setHot] = useState(null)
   const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, cx: 640, cy: 420 }))
   const [wipe, setWipe] = useState({ x: 0, y: 0, r: 1200 })
@@ -94,6 +97,7 @@ export default function RadialMenu() {
     setSettled(false)
     setClosing(true)
     setHot(null)
+    setGoing(null)
     // Let the reverse sequence play before the overlay leaves the document.
     exitTimer.current = setTimeout(() => {
       exitTimer.current = 0
@@ -159,9 +163,7 @@ export default function RadialMenu() {
     }
   }, [open, close])
 
-  const go = (node) => {
-    events.ctaClick('home-radial', node.label)
-    close()
+  const navigate = (node) => {
     if (node.service) {
       try { sessionStorage.setItem('lum_open_service', node.service) } catch (_) {}
       if (window.location.hash === '#/info/services') {
@@ -172,6 +174,38 @@ export default function RadialMenu() {
       return
     }
     window.location.hash = node.hash
+  }
+
+  const clear = () => {
+    setGoing(null)
+    setHot(null)
+    setSettled(false)
+    setLit(false)
+    setClosing(false)
+    setOpen(false)
+  }
+
+  /** Choosing an entry is not the same act as dismissing the dial, so it does
+   *  not get the same animation. The view dives: everything but the chosen
+   *  entry drops away, and the constellation rushes toward that entry and
+   *  past it, until the aperture closes on the spot where it was. The page
+   *  underneath is only swapped once that has played. */
+  const go = (node) => {
+    if (exitTimer.current) return
+    events.ctaClick('home-radial', node.label)
+    if (reduced()) {
+      navigate(node)
+      clear()
+      return
+    }
+    setHot(node.i)
+    setGoing(node.i)
+    setWipe((w) => ({ ...w, x: node.tick.x, y: node.tick.y }))
+    exitTimer.current = setTimeout(() => {
+      exitTimer.current = 0
+      navigate(node)
+      clear()
+    }, TRANSIT_MS)
   }
 
   const { cx, cy, rx, ry, k1x, k1y } = geo
@@ -241,6 +275,17 @@ export default function RadialMenu() {
     }
   })
 
+  // Translating by the chosen entry's offset scaled by the same factor lands
+  // that entry exactly on the centre as the view enlarges — the dive goes
+  // through it rather than merely near it.
+  const dive = going === null ? null : placed[going]
+  const diveStyle = dive
+    ? {
+        transform: `translate(${(-(dive.tick.x - cx) * DIVE).toFixed(1)}px, ${(-(dive.tick.y - cy) * DIVE).toFixed(1)}px) scale(${DIVE})`,
+        opacity: 0,
+      }
+    : null
+
   const vw = typeof window === 'undefined' ? 1280 : window.innerWidth
   const vh = typeof window === 'undefined' ? 800 : window.innerHeight
 
@@ -261,7 +306,7 @@ export default function RadialMenu() {
 
       {open && createPortal(
         <div
-          className={`rdial ${lit ? 'is-lit' : ''} ${closing ? 'is-closing' : ''} ${settled ? 'is-settled' : ''} ${hot !== null ? 'has-focus' : ''}`}
+          className={`rdial ${lit ? 'is-lit' : ''} ${closing ? 'is-closing' : ''} ${going !== null ? 'is-going' : ''} ${settled ? 'is-settled' : ''} ${hot !== null ? 'has-focus' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label="サービスとページの一覧"
@@ -272,7 +317,7 @@ export default function RadialMenu() {
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
 
           <div className="rdial-stage" ref={stageRef}>
-            <div className="rdial-spin" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+            <div className="rdial-spin" style={{ transformOrigin: `${cx}px ${cy}px`, ...diveStyle }}>
               <svg
                 className="rdial-plate"
                 viewBox={`0 0 ${vw} ${vh}`}
@@ -384,7 +429,12 @@ export default function RadialMenu() {
           </div>
 
           <p className="rdial-meta rdial-meta--tl">LUMENIUM — 対応領域</p>
-          <p className="rdial-meta rdial-meta--tr">ESC で閉じる</p>
+          <button type="button" className="rdial-x" onClick={close} aria-label="閉じる">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6 L18 18" />
+              <path d="M18 6 L6 18" />
+            </svg>
+          </button>
         </div>,
         document.body
       )}

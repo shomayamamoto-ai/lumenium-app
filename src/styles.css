@@ -8644,6 +8644,36 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
 .rdial.is-settled .ritem-no,
 .rdial.is-settled .rdial-tick { transition-delay: 0ms !important; }
 
+/* ---- taking an entry ----
+   Dismissing the dial and choosing from it are different acts, so they do not
+   share an animation. Here the view dives: the other eleven drop out at once,
+   the chosen entry rushes at you as the constellation travels through it, and
+   the aperture closes on the spot it occupied. */
+.rdial.is-going .rdial-spin {
+  /* Accelerating, but not so hard that it sits still for half a second: an
+     ease-in this steep left the view at 1.09x with 150ms to go. */
+  transition: transform 0.62s cubic-bezier(0.42, 0, 0.72, 0.3), opacity 0.3s ease-in 0.32s;
+}
+.rdial.is-going .ritem:not(.is-on) {
+  opacity: 0 !important;
+  transition: opacity 0.24s ease !important;
+  transition-delay: 0ms !important;
+}
+.rdial.is-going .ritem.is-on .ritem-mask { letter-spacing: 0.16em; }
+.rdial.is-going .rdial-ring,
+.rdial.is-going .rdial-tick,
+.rdial.is-going .rdial-sat,
+.rdial.is-going .rdial-hub {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  transition-delay: 0ms !important;
+}
+/* The aperture waits for the dive to be under way, then shuts on the entry. */
+.rdial.is-going {
+  clip-path: circle(0px at var(--ox) var(--oy));
+  transition: clip-path 0.4s cubic-bezier(0.55, 0, 1, 0.45) 0.26s;
+}
+
 /* Everything leaves together and quickly — a staggered exit reads as lag. */
 .rdial.is-closing .ritem,
 .rdial.is-closing .ritem-ch,
@@ -8710,7 +8740,46 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
 .rdial.is-lit .rdial-meta { opacity: 1; }
 .rdial.is-closing .rdial-meta { transition-delay: 0s; transition-duration: 0.2s; }
 .rdial-meta--tl { left: 24px; }
-.rdial-meta--tr { right: 24px; }
+
+/* A real target rather than a line of instructions. 44px of tap area around
+   a 20px mark, so it works under a thumb without looking heavy. */
+.rdial-x {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0;
+  transform: rotate(-45deg) scale(0.8);
+  transition:
+    opacity 0.5s var(--ease) 0.5s,
+    transform 0.8s var(--r-out) 0.5s,
+    color 0.3s var(--ease),
+    background 0.3s var(--ease);
+}
+.rdial.is-lit .rdial-x { opacity: 1; transform: rotate(0deg) scale(1); }
+.rdial-x svg { width: 20px; height: 20px; }
+.rdial-x path { stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.rdial-x:hover, .rdial-x:focus-visible {
+  color: #fff;
+  background: rgba(255,255,255,0.07);
+  transform: rotate(90deg) scale(1);
+  transition-delay: 0s;
+  outline: none;
+}
+.rdial-x:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 2px; }
+.rdial.is-closing .rdial-x,
+.rdial.is-going .rdial-x,
+.rdial.is-going .rdial-meta { opacity: 0; transition-delay: 0s; transition-duration: 0.2s; }
 
 /* A phone has no slack: shorter labels, tighter hub, smaller type. */
 @media (max-width: 640px) {
@@ -8723,7 +8792,8 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .rdial-hub-label { font-size: 8px; letter-spacing: 0.2em; text-indent: 0.2em; }
   .rdial-meta { top: 16px; font-size: 9px; letter-spacing: 0.16em; }
   .rdial-meta--tl { left: 16px; }
-  .rdial-meta--tr { right: 16px; }
+  /* max() keeps it clear of a notch when the page runs full-bleed. */
+  .rdial-x { top: max(6px, env(safe-area-inset-top)); right: max(6px, env(safe-area-inset-right)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8741,6 +8811,8 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .ritem-ch, .rdial.is-lit .ritem-ch { transition: none; transform: none; }
   .ritem-no, .rdial.is-lit .ritem-no { transition: none; transform: none; opacity: 1; }
   .rdial-pulse { animation: none; opacity: 0; }
+  .rdial-x, .rdial.is-lit .rdial-x { transition: none; transform: none; opacity: 1; }
+  .rdial-x:hover, .rdial-x:focus-visible { transform: none; }
   .rdial-hub, .rdial.is-lit .rdial-hub { transition: opacity 0.2s ease; transform: translate(-50%, -50%); }
 }
 
