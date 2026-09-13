@@ -8319,10 +8319,22 @@ html[data-theme="dark"] .navbar.scrolled {
    -------------------------------------------------------------------------
    An astrolabe, not a firework. The structure is drawn in hairlines, the
    content is typography, and colour is spent almost nowhere: a glow on every
-   element is what made the first attempt read as a template. Each entry owns
-   an arc of its ring, and hovering thickens that arc like a dial detent while
-   everything else recedes.
+   element is what made the first attempt read as a template.
+
+   The timing is the design. Nothing arrives at once — the overlay is wiped
+   open as a circle growing out of the button, the orbits are drawn clockwise
+   from twelve, and the entries are revealed in one sweep around the dial,
+   letter by letter, while the constellation untwists into true. Closing
+   plays it backwards.
+
+   Curves used throughout:
+     --r-out    long settle, no overshoot   (expo-out)
+     --r-swing  wipe and untwist, both ends  (expo-in-out)
    ========================================================================= */
+.rdial-scope,
+.rdial,
+.rcore { --r-out: cubic-bezier(0.16, 1, 0.3, 1); --r-swing: cubic-bezier(0.76, 0, 0.24, 1); }
+
 .rcore {
   position: relative;
   z-index: 2;
@@ -8336,15 +8348,28 @@ html[data-theme="dark"] .navbar.scrolled {
   font-family: inherit;
   color: rgba(255,255,255,0.92);
   cursor: pointer;
+  overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
 }
+/* A sheen crosses the pill on hover — the one flourish the trigger gets. */
+.rcore::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.12) 50%, transparent 62%);
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--r-swing);
+  pointer-events: none;
+}
+.rcore:hover::after, .rcore:focus-visible::after { transform: translateX(120%); }
 .rcore:hover, .rcore:focus-visible {
   border-color: rgba(255,255,255,0.4);
   background: rgba(255,255,255,0.05);
   outline: none;
 }
 .rcore:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 4px; }
+.rcore:active { transform: scale(0.98); }
 .rcore.is-open { opacity: 0; pointer-events: none; }
 
 /* A quiet compass that turns a quarter-turn when you reach for it. */
@@ -8356,7 +8381,7 @@ html[data-theme="dark"] .navbar.scrolled {
   height: 34px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.22);
-  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s var(--ease);
+  transition: transform 0.7s var(--r-out), border-color 0.4s var(--ease);
 }
 .rcore-dial::before,
 .rcore-dial::after {
@@ -8368,6 +8393,7 @@ html[data-theme="dark"] .navbar.scrolled {
 .rcore-dial::after  { width: 3px; height: 3px; border-radius: 50%; background: #fff; }
 .rcore:hover .rcore-dial { transform: rotate(90deg); border-color: rgba(255,255,255,0.5); }
 .rcore-label {
+  position: relative;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -8383,12 +8409,21 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 
 /* ---- the dial overlay ---- */
+/* Wiped open as a circle centred on the button that was pressed. */
 .rdial {
   position: fixed;
   inset: 0;
   z-index: 1200;
   font-family: inherit;
+  clip-path: circle(0px at var(--ox) var(--oy));
+  /* Expo-out, not in-out: an in-out curve spent its first four hundred
+     milliseconds at a 30px radius, which reads as the page having hung. */
+  transition: clip-path 0.85s var(--r-out);
 }
+.rdial.is-lit { clip-path: circle(var(--wipe) at var(--ox) var(--oy)); }
+/* Closing wants the opposite curve — it should leave, not linger. */
+.rdial.is-closing { transition: clip-path 0.42s cubic-bezier(0.55, 0, 1, 0.45); }
+
 .rdial-scrim {
   position: absolute;
   inset: 0;
@@ -8404,9 +8439,10 @@ html[data-theme="dark"] .navbar.scrolled {
   -webkit-backdrop-filter: blur(18px) saturate(70%);
   backdrop-filter: blur(18px) saturate(70%);
   opacity: 0;
-  transition: opacity 0.7s var(--ease);
+  transition: opacity 0.55s var(--ease);
 }
 .rdial.is-lit .rdial-scrim { opacity: 1; }
+
 /* The hero's own glow blooms straight through a blurred scrim and pools in
    the middle of the dial. Send the hero back while the dial is up; the
    starfield sits outside this wrapper and stays. */
@@ -8422,48 +8458,74 @@ body[data-dial-open] .search-home::after { opacity: 0; transition: opacity 0.6s 
    you are reading. The ring and dot stay; only the aura stands down. */
 body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ease); }
 
+/* Pointer parallax lives here; the transform is written by JS and eased here,
+   so moving the mouse costs no render. */
+.rdial-stage {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.75s var(--r-out);
+}
+/* The whole constellation — plate, labels and hub — arrives turned and small
+   and untwists into true. Rotating the labels with everything else is what
+   makes it read as one object rather than a dozen animated pieces. */
+.rdial-spin {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-5deg) scale(0.93);
+  opacity: 0;
+  transition: transform 1.25s var(--r-out), opacity 0.5s var(--ease);
+}
+.rdial.is-lit .rdial-spin { transform: rotate(0deg) scale(1); opacity: 1; }
+.rdial.is-closing .rdial-spin { transform: rotate(3deg) scale(0.96); transition-duration: 0.4s, 0.3s; }
+
 /* The rings and ticks. Everything here is decoration — the links are HTML. */
 .rdial-plate {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: visible;
-  opacity: 0;
-  transform-box: view-box;
-  transition: opacity 0.5s var(--ease);
 }
-.rdial.is-lit .rdial-plate { opacity: 1; }
 
-/* The plate settles: it arrives turned slightly and rolls into true. */
-.rdial-rot {
-  transform: rotate(-7deg);
-  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.rdial.is-lit .rdial-rot { transform: rotate(0deg); }
-
+/* Drawn clockwise from twelve o'clock, inner first. */
 .rdial-ring {
   fill: none;
   stroke: rgba(255,255,255,0.13);
   stroke-width: 1;
-  transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: stroke-dashoffset 1.3s var(--r-swing) 0.15s;
 }
-.rdial-ring--2 { transition-delay: 0.12s; }
+.rdial-ring--2 { transition-delay: 0.28s; }
+.rdial.is-closing .rdial-ring { transition: stroke-dashoffset 0.35s ease-in 0s; }
 
-/* One arc per entry, lit only while that entry is held. */
+/* One arc per entry, drawn in only while that entry is held. */
 .rdial-arc {
   fill: none;
-  stroke: rgba(255,255,255,0.9);
-  stroke-width: 1;
+  stroke: rgba(255,255,255,0.92);
+  stroke-width: 2.5;
   stroke-linecap: round;
   opacity: 0;
-  transition: opacity 0.4s var(--ease), stroke-width 0.4s var(--ease);
+  transition: stroke-dashoffset 0.55s var(--r-out), opacity 0.3s var(--ease);
 }
-.rdial-arc.is-on { opacity: 1; stroke-width: 2.5; }
+.rdial-arc.is-on { opacity: 1; }
+
+/* A ring leaves the tick once, each time an entry is taken up. */
+.rdial-pulse {
+  fill: none;
+  stroke: rgba(255,255,255,0.55);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rpulse 1s var(--r-out) forwards;
+}
+@keyframes rpulse {
+  from { transform: scale(0.4); opacity: 0.9; }
+  to   { transform: scale(4.6); opacity: 0; }
+}
 
 .rdial-tick {
   stroke: rgba(255,255,255,0.32);
   stroke-width: 1;
-  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.35s var(--ease);
+  transition: stroke-dashoffset 0.7s var(--r-out), stroke 0.35s var(--ease);
 }
 .rdial-tick.is-on { stroke: #fff; }
 
@@ -8477,6 +8539,17 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
 }
 .rdial-spoke.is-on { opacity: 1; }
 
+/* Satellites — the one place a little light is earned. */
+.rdial-sat {
+  fill: #dbe4ff;
+  filter: drop-shadow(0 0 5px rgba(165,180,252,0.8));
+  opacity: 0;
+  transition: opacity 0.9s var(--ease) 1.1s;
+}
+.rdial.is-lit .rdial-sat { opacity: 0.85; }
+.rdial-sat--2 { fill: #a5e9f5; }
+.rdial.is-closing .rdial-sat { opacity: 0; transition-delay: 0s; transition-duration: 0.25s; }
+
 /* ---- the entries ---- */
 .ritem {
   --push: 18px;
@@ -8488,7 +8561,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   opacity: 0;
   transition:
     opacity 0.75s var(--ease),
-    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 0.9s var(--r-out);
   /* Pushed outward from its tick by half its own box, so the text radiates
      away from the centre instead of straddling the ring. */
   transform:
@@ -8515,26 +8588,34 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   letter-spacing: 0.24em;
   color: rgba(255,255,255,0.36);
   font-variant-numeric: tabular-nums;
-  transition: color 0.35s var(--ease);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--r-out), color 0.35s var(--ease);
 }
-/* The label rises out of a mask — the reveal does the work a glow was doing. */
+.rdial.is-lit .ritem-no { opacity: 1; transform: translateY(0); }
+
+/* The label rises out of a mask, one character at a time — the reveal does
+   the work a glow was doing. The mask clips every character at once, so no
+   per-character wrapper is needed. */
 .ritem-mask {
   display: block;
   overflow: hidden;
-  padding-bottom: 0.12em;
-}
-.ritem-text {
-  display: block;
+  white-space: nowrap;
   font-size: clamp(14px, 1.7vmin, 19px);
   font-weight: 600;
   letter-spacing: 0.02em;
-  line-height: 1.35;
+  line-height: 1.4;
   color: rgba(255,255,255,0.9);
-  white-space: nowrap;
-  transform: translateY(110%);
-  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: letter-spacing 0.45s var(--r-out);
 }
-.rdial.is-lit .ritem-text { transform: translateY(0); }
+.ritem-ch {
+  display: inline-block;
+  transform: translateY(130%);
+  transition: transform 0.85s var(--r-out);
+}
+.rdial.is-lit .ritem-ch { transform: translateY(0); }
+.ritem.is-on .ritem-mask { letter-spacing: 0.1em; }
+
 /* A rule that draws itself under the entry you are on. */
 .ritem-rule {
   display: block;
@@ -8543,17 +8624,35 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   background: rgba(255,255,255,0.8);
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.5s var(--r-out);
 }
 .ritem--left .ritem-rule { transform-origin: right center; }
 .ritem--mid  .ritem-rule { transform-origin: center; }
 .ritem.is-on .ritem-rule { transform: scaleX(1); }
-.ritem.is-on .ritem-no { color: rgba(255,255,255,0.8); }
+.ritem.is-on .ritem-no { color: rgba(255,255,255,0.8); letter-spacing: 0.3em; }
 .ritem:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 6px; border-radius: 3px; }
 
 /* Attention is exclusive: touching one entry sends the others back. */
 .rdial.has-focus .ritem { opacity: 0.26; }
 .rdial.has-focus .ritem.is-on { opacity: 1; }
+
+/* The stagger is choreography for the entrance only. Left in place it also
+   delayed the response to hover — dimming the other entries could lag by
+   most of a second. */
+.rdial.is-settled .ritem,
+.rdial.is-settled .ritem-ch,
+.rdial.is-settled .ritem-no,
+.rdial.is-settled .rdial-tick { transition-delay: 0ms !important; }
+
+/* Everything leaves together and quickly — a staggered exit reads as lag. */
+.rdial.is-closing .ritem,
+.rdial.is-closing .ritem-ch,
+.rdial.is-closing .ritem-no,
+.rdial.is-closing .rdial-tick,
+.rdial.is-closing .rdial-hub {
+  transition-duration: 0.3s !important;
+  transition-delay: 0ms !important;
+}
 
 /* ---- the centre ---- */
 .rdial-hub {
@@ -8570,15 +8669,15 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   color: rgba(255,255,255,0.78);
   font-family: inherit;
   cursor: pointer;
-  transform: translate(-50%, -50%) scale(0.82);
+  transform: translate(-50%, -50%) scale(0.7);
   opacity: 0;
   transition:
-    opacity 0.5s var(--ease),
-    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.5s var(--ease) 0.26s,
+    transform 0.95s var(--r-out) 0.26s,
     border-color 0.4s var(--ease);
 }
 .rdial.is-lit .rdial-hub { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-.rdial-hub img { width: 34px; height: auto; opacity: 0.72; }
+.rdial-hub img { width: 34px; height: auto; opacity: 0.72; transition: opacity 0.4s var(--ease); }
 .rdial-hub-label {
   font-size: 9px;
   font-weight: 700;
@@ -8591,6 +8690,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   border-color: rgba(255,255,255,0.45);
   outline: none;
 }
+.rdial-hub:hover img, .rdial-hub:focus-visible img { opacity: 1; }
 .rdial-hub:hover .rdial-hub-label, .rdial-hub:focus-visible .rdial-hub-label { color: rgba(255,255,255,0.9); }
 .rdial-hub:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 5px; }
 
@@ -8604,17 +8704,19 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   letter-spacing: 0.22em;
   color: rgba(255,255,255,0.34);
   opacity: 0;
-  transition: opacity 0.7s var(--ease) 0.35s;
+  transition: opacity 0.7s var(--ease) 0.8s;
   pointer-events: none;
 }
 .rdial.is-lit .rdial-meta { opacity: 1; }
+.rdial.is-closing .rdial-meta { transition-delay: 0s; transition-duration: 0.2s; }
 .rdial-meta--tl { left: 24px; }
 .rdial-meta--tr { right: 24px; }
 
 /* A phone has no slack: shorter labels, tighter hub, smaller type. */
 @media (max-width: 640px) {
   .ritem { --push: 8px; max-width: 5.4em; }
-  .ritem-text { font-size: 12.5px; letter-spacing: 0; }
+  .ritem-mask { font-size: 12.5px; letter-spacing: 0; }
+  .ritem.is-on .ritem-mask { letter-spacing: 0.04em; }
   .ritem-no { font-size: 9px; letter-spacing: 0.18em; }
   .rdial-hub { width: 68px; height: 68px; gap: 3px; }
   .rdial-hub img { width: 24px; }
@@ -8625,16 +8727,20 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rcore-dial, .rdial-rot, .rdial-ring, .rdial-tick { transition: none; }
+  .rcore-dial, .rdial, .rdial-spin, .rdial-stage, .rdial-ring, .rdial-tick { transition: none; }
+  .rcore::after { display: none; }
   .rcore:hover .rcore-dial { transform: none; }
-  .rdial-rot { transform: none; }
+  .rdial { clip-path: none; }
+  .rdial-spin, .rdial.is-lit .rdial-spin { transform: none; opacity: 1; }
   .ritem, .rdial.is-lit .ritem {
     transition: opacity 0.2s ease;
     transform: translate(-50%, -50%)
       translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
       translate(calc(var(--dx) * var(--push)), calc(var(--dy) * var(--push)));
   }
-  .ritem-text, .rdial.is-lit .ritem-text { transition: none; transform: none; }
+  .ritem-ch, .rdial.is-lit .ritem-ch { transition: none; transform: none; }
+  .ritem-no, .rdial.is-lit .ritem-no { transition: none; transform: none; opacity: 1; }
+  .rdial-pulse { animation: none; opacity: 0; }
   .rdial-hub, .rdial.is-lit .rdial-hub { transition: opacity 0.2s ease; transform: translate(-50%, -50%); }
 }
 

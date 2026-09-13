@@ -7,13 +7,15 @@ import { events } from '../lib/analytics'
 // Pressing the trigger opens a dial: two hairline orbits with the twelve
 // destinations set on them like an astrolabe.
 //
-// The first version of this was a firework — glowing pills flying out of a
-// glowing core. Everything emitted light, so nothing meant anything. This one
-// spends colour almost nowhere: the structure is drawn in 1px strokes, the
-// content is type, and the only bright mark on screen belongs to whichever
-// entry you are on. Each entry owns an arc of its ring; touching it thickens
-// that arc like a detent on a physical dial, draws a spoke back to the hub,
-// and dims the other eleven.
+// The structure is 1px strokes and the content is type — the only bright mark
+// belongs to whichever entry you are on. What makes it feel made rather than
+// generated is the timing. Nothing arrives at once: the overlay is wiped open
+// as a circle growing out of the button, the orbits are drawn clockwise from
+// twelve o'clock, and the entries are revealed in a single sweep around the
+// dial, letter by letter, while the whole constellation untwists into true.
+// Two satellites keep drifting along the orbits afterwards, so the thing is
+// alive while you read it, and closing plays the whole sequence backwards
+// rather than cutting to black.
 
 const NODES = [
   // Inner orbit — 事業内容. These open that service's detail panel.
@@ -34,8 +36,12 @@ const NODES = [
 
 const TICK = 9        // length of the mark that steps off the orbit
 const SPAN = 20       // degrees of arc each entry owns
+const EXIT_MS = 420   // how long the closing sequence is given before unmount
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
 const rad = (deg) => (deg * Math.PI) / 180
+const reduced = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Orbits are ellipses, not circles. A phone is narrow and tall; a circle
  *  sized to its width leaves the two orbits too close for the labels between
@@ -59,30 +65,58 @@ function measure() {
   }
 }
 
-// Ramanujan's approximation — close enough to hand stroke-dasharray a length
-// it can draw the orbit in with.
-const ellipsePerimeter = (a, b) =>
-  Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)))
+/** An ellipse written as two arcs starting at twelve o'clock, so that drawing
+ *  it with stroke-dashoffset sweeps clockwise from the top like a compass
+ *  being swung. An <ellipse> would start at three o'clock instead, and it
+ *  cannot be rotated into place without distorting. */
+const orbitPath = (cx, cy, rx, ry) =>
+  `M ${cx} ${cy - ry} A ${rx} ${ry} 0 0 1 ${cx} ${cy + ry} A ${rx} ${ry} 0 0 1 ${cx} ${cy - ry}`
 
 export default function RadialMenu() {
   const [open, setOpen] = useState(false)
   const [lit, setLit] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const [settled, setSettled] = useState(false)
   const [hot, setHot] = useState(null)
   const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, cx: 640, cy: 420 }))
+  const [wipe, setWipe] = useState({ x: 0, y: 0, r: 1200 })
   const triggerRef = useRef(null)
   const sheetRef = useRef(null)
+  const stageRef = useRef(null)
+  const satsRef = useRef([])
+  const exitTimer = useRef(0)
 
   useFocusTrap(sheetRef, open && lit)
 
   const close = useCallback(() => {
+    if (exitTimer.current) return
     setLit(false)
-    setOpen(false)
+    setSettled(false)
+    setClosing(true)
     setHot(null)
-    triggerRef.current?.focus()
+    // Let the reverse sequence play before the overlay leaves the document.
+    exitTimer.current = setTimeout(() => {
+      exitTimer.current = 0
+      setClosing(false)
+      setOpen(false)
+      triggerRef.current?.focus()
+    }, reduced() ? 0 : EXIT_MS)
   }, [])
 
   const openDial = () => {
     setGeo(measure())
+    // The overlay is wiped open as a circle growing out of the button, so the
+    // dial reads as coming out of the thing that was pressed.
+    const r = triggerRef.current?.getBoundingClientRect()
+    const x = r ? r.left + r.width / 2 : window.innerWidth / 2
+    const y = r ? r.top + r.height / 2 : window.innerHeight / 2
+    const far = Math.max(
+      Math.hypot(x, y),
+      Math.hypot(window.innerWidth - x, y),
+      Math.hypot(x, window.innerHeight - y),
+      Math.hypot(window.innerWidth - x, window.innerHeight - y)
+    )
+    setWipe({ x, y, r: Math.ceil(far) + 8 })
     events.ctaClick('home-radial', 'open')
     setOpen(true)
   }
@@ -95,6 +129,17 @@ export default function RadialMenu() {
     const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setLit(true)) })
     return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
   }, [open])
+
+  // Once the opening sequence has played out, drop the per-entry delays: they
+  // are choreography for the entrance, and leaving them in place made hover
+  // take up to a second to dim the other entries.
+  useEffect(() => {
+    if (!lit) return
+    const id = setTimeout(() => setSettled(true), reduced() ? 0 : 1500)
+    return () => clearTimeout(id)
+  }, [lit])
+
+  useEffect(() => () => { if (exitTimer.current) clearTimeout(exitTimer.current) }, [])
 
   useEffect(() => {
     if (!open) return
@@ -132,6 +177,41 @@ export default function RadialMenu() {
   const { cx, cy, rx, ry, k1x, k1y } = geo
   const r1 = { x: rx * k1x, y: ry * k1y }
   const r2 = { x: rx, y: ry }
+
+  // Two satellites drift along the orbits for as long as the dial is up. The
+  // positions are written straight onto the nodes each frame — putting an
+  // orbit through React state would re-render the whole dial sixty times a
+  // second to move two dots four pixels.
+  useEffect(() => {
+    if (!lit || reduced()) return
+    let raf = 0
+    const t0 = performance.now()
+    const tick = (now) => {
+      const t = (now - t0) / 1000
+      const set = (el, r, speed, phase) => {
+        if (!el) return
+        const a = phase + t * speed
+        el.setAttribute('cx', cx + r.x * Math.sin(a))
+        el.setAttribute('cy', cy - r.y * Math.cos(a))
+      }
+      set(satsRef.current[0], r1, 0.155, 0.6)
+      set(satsRef.current[1], r2, -0.092, 3.1)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [lit, cx, cy, r1.x, r1.y, r2.x, r2.y])
+
+  // A few pixels of pointer parallax gives the plate somewhere to sit. Written
+  // to the node directly and eased by CSS, so a mouse move costs no render.
+  const onStageMove = (e) => {
+    const el = stageRef.current
+    if (!el || reduced()) return
+    const nx = (e.clientX / window.innerWidth - 0.5) * 2
+    const ny = (e.clientY / window.innerHeight - 0.5) * 2
+    el.style.transform = `translate3d(${(nx * 11).toFixed(2)}px, ${(ny * 9).toFixed(2)}px, 0)`
+  }
+
   const onEllipse = (r, deg) => ({ x: cx + r.x * Math.sin(rad(deg)), y: cy - r.y * Math.cos(rad(deg)) })
 
   const placed = NODES.map((n, i) => {
@@ -139,13 +219,14 @@ export default function RadialMenu() {
     const p = onEllipse(r, n.a)
     // Radial direction, normalised — the labels push out along it and the
     // ticks step off along it.
-    const dx = Math.sin(rad(n.a))
-    const dy = -Math.cos(rad(n.a))
-    const len = Math.hypot(dx, dy) || 1
-    const ux = dx / len
-    const uy = dy / len
+    const ux = Math.sin(rad(n.a))
+    const uy = -Math.cos(rad(n.a))
     const from = onEllipse(r, n.a - SPAN / 2)
     const to = onEllipse(r, n.a + SPAN / 2)
+    // The reveal sweeps once around the dial clockwise from twelve, the same
+    // way the orbits are drawn — alternating rings as it goes, rather than
+    // doing all of one ring and then all of the other.
+    const base = 420 + Math.round(n.a / 30) * 52
     return {
       ...n,
       i,
@@ -156,13 +237,10 @@ export default function RadialMenu() {
       arc: `M ${from.x} ${from.y} A ${r.x} ${r.y} 0 0 1 ${to.x} ${to.y}`,
       side: ux > 0.26 ? 'right' : ux < -0.26 ? 'left' : 'mid',
       no: String(i + 1).padStart(2, '0'),
-      // Inner orbit reveals first, so the dial reads as opening outward.
-      delay: (n.ring === 1 ? 120 : 300) + (i % 6) * 55,
+      d: { mark: base, num: base + 95, text: base + 150 },
     }
   })
 
-  const per1 = ellipsePerimeter(r1.x, r1.y)
-  const per2 = ellipsePerimeter(r2.x, r2.y)
   const vw = typeof window === 'undefined' ? 1280 : window.innerWidth
   const vh = typeof window === 'undefined' ? 800 : window.innerHeight
 
@@ -183,95 +261,127 @@ export default function RadialMenu() {
 
       {open && createPortal(
         <div
-          className={`rdial ${lit ? 'is-lit' : ''} ${hot !== null ? 'has-focus' : ''}`}
+          className={`rdial ${lit ? 'is-lit' : ''} ${closing ? 'is-closing' : ''} ${settled ? 'is-settled' : ''} ${hot !== null ? 'has-focus' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label="サービスとページの一覧"
           ref={sheetRef}
+          onMouseMove={onStageMove}
+          style={{ '--ox': `${wipe.x}px`, '--oy': `${wipe.y}px`, '--wipe': `${wipe.r}px` }}
         >
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
 
-          <svg
-            className="rdial-plate"
-            viewBox={`0 0 ${vw} ${vh}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <g className="rdial-rot" style={{ transformOrigin: `${cx}px ${cy}px` }}>
-              <ellipse
-                className="rdial-ring rdial-ring--1"
-                cx={cx} cy={cy} rx={r1.x} ry={r1.y}
-                strokeDasharray={per1}
-                strokeDashoffset={lit ? 0 : per1}
-              />
-              <ellipse
-                className="rdial-ring rdial-ring--2"
-                cx={cx} cy={cy} rx={r2.x} ry={r2.y}
-                strokeDasharray={per2}
-                strokeDashoffset={lit ? 0 : per2}
-              />
+          <div className="rdial-stage" ref={stageRef}>
+            <div className="rdial-spin" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+              <svg
+                className="rdial-plate"
+                viewBox={`0 0 ${vw} ${vh}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  className="rdial-ring rdial-ring--1"
+                  d={orbitPath(cx, cy, r1.x, r1.y)}
+                  pathLength="1"
+                  strokeDasharray="1"
+                  strokeDashoffset={lit ? 0 : 1}
+                />
+                <path
+                  className="rdial-ring rdial-ring--2"
+                  d={orbitPath(cx, cy, r2.x, r2.y)}
+                  pathLength="1"
+                  strokeDasharray="1"
+                  strokeDashoffset={lit ? 0 : 1}
+                />
+
+                {placed.map((n) => (
+                  <g key={n.label}>
+                    <line
+                      className={`rdial-spoke ${hot === n.i ? 'is-on' : ''}`}
+                      x1={cx + n.ux * 58} y1={cy + n.uy * 58}
+                      x2={n.p.x} y2={n.p.y}
+                    />
+                    <path
+                      className={`rdial-arc ${hot === n.i ? 'is-on' : ''}`}
+                      d={n.arc}
+                      pathLength="1"
+                      strokeDasharray="1"
+                      strokeDashoffset={hot === n.i ? 0 : 1}
+                    />
+                    {hot === n.i && (
+                      <circle className="rdial-pulse" cx={n.p.x} cy={n.p.y} r="4" />
+                    )}
+                    <line
+                      className={`rdial-tick ${hot === n.i ? 'is-on' : ''}`}
+                      x1={n.p.x} y1={n.p.y}
+                      x2={n.tick.x} y2={n.tick.y}
+                      strokeDasharray={TICK}
+                      strokeDashoffset={lit ? 0 : TICK}
+                      style={{ transitionDelay: `${n.d.mark}ms` }}
+                    />
+                  </g>
+                ))}
+
+                {/* The orbits are never quite still. */}
+                <circle className="rdial-sat" r="2.4" ref={(el) => { satsRef.current[0] = el }} cx={cx} cy={cy - r1.y} />
+                <circle className="rdial-sat rdial-sat--2" r="1.9" ref={(el) => { satsRef.current[1] = el }} cx={cx} cy={cy - r2.y} />
+              </svg>
+
               {placed.map((n) => (
-                <g key={n.label}>
-                  <line
-                    className={`rdial-spoke ${hot === n.i ? 'is-on' : ''}`}
-                    x1={cx + n.ux * 58} y1={cy + n.uy * 58}
-                    x2={n.p.x} y2={n.p.y}
-                  />
-                  <path className={`rdial-arc ${hot === n.i ? 'is-on' : ''}`} d={n.arc} />
-                  <line
-                    className={`rdial-tick ${hot === n.i ? 'is-on' : ''}`}
-                    x1={n.p.x} y1={n.p.y}
-                    x2={n.tick.x} y2={n.tick.y}
-                    strokeDasharray={TICK}
-                    strokeDashoffset={lit ? 0 : TICK}
-                    style={{ transitionDelay: `${n.delay}ms` }}
-                  />
-                </g>
+                <a
+                  key={n.label}
+                  href={n.service ? '#/info/services' : n.hash}
+                  className={`ritem ritem--${n.side} ${hot === n.i ? 'is-on' : ''}`}
+                  style={{
+                    left: n.tick.x,
+                    top: n.tick.y,
+                    '--dx': n.ux,
+                    '--dy': n.uy,
+                    transitionDelay: `${n.d.mark}ms`,
+                  }}
+                  onMouseEnter={() => setHot(n.i)}
+                  onMouseLeave={() => setHot((h) => (h === n.i ? null : h))}
+                  onFocus={() => setHot(n.i)}
+                  onBlur={() => setHot((h) => (h === n.i ? null : h))}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+                    e.preventDefault()
+                    go(n)
+                  }}
+                >
+                  <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${n.d.num}ms` }}>
+                    {n.no}
+                  </span>
+                  {/* Split for the reveal; the unsplit label is what is read out. */}
+                  <span className="ritem-mask" aria-hidden="true">
+                    {[...n.label].map((ch, ci) => (
+                      <span
+                        key={`${n.label}-${ci}`}
+                        className="ritem-ch"
+                        style={{ transitionDelay: `${n.d.text + ci * 30}ms` }}
+                      >
+                        {ch}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="sr-only">{n.label}</span>
+                  <span className="ritem-rule" aria-hidden="true" />
+                </a>
               ))}
-            </g>
-          </svg>
 
-          {placed.map((n) => (
-            <a
-              key={n.label}
-              href={n.service ? '#/info/services' : n.hash}
-              className={`ritem ritem--${n.side} ${hot === n.i ? 'is-on' : ''}`}
-              style={{
-                left: n.tick.x,
-                top: n.tick.y,
-                '--dx': n.ux,
-                '--dy': n.uy,
-                transitionDelay: `${n.delay}ms`,
-              }}
-              onMouseEnter={() => setHot(n.i)}
-              onMouseLeave={() => setHot((h) => (h === n.i ? null : h))}
-              onFocus={() => setHot(n.i)}
-              onBlur={() => setHot((h) => (h === n.i ? null : h))}
-              onClick={(e) => {
-                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-                e.preventDefault()
-                go(n)
-              }}
-            >
-              <span className="ritem-no" aria-hidden="true">{n.no}</span>
-              <span className="ritem-mask">
-                <span className="ritem-text" style={{ transitionDelay: `${n.delay}ms` }}>{n.label}</span>
-              </span>
-              <span className="ritem-rule" aria-hidden="true" />
-            </a>
-          ))}
-
-          <button
-            type="button"
-            className="rdial-hub"
-            style={{ left: cx, top: cy }}
-            onClick={close}
-            aria-label="閉じる"
-          >
-            <img src="/favicon.svg?v=3" alt="" width="34" height="34" />
-            <span className="rdial-hub-label" aria-hidden="true">CLOSE</span>
-          </button>
+              <button
+                type="button"
+                className="rdial-hub"
+                style={{ left: cx, top: cy }}
+                onClick={close}
+                aria-label="閉じる"
+              >
+                <img src="/favicon.svg?v=3" alt="" width="34" height="34" />
+                <span className="rdial-hub-label" aria-hidden="true">CLOSE</span>
+              </button>
+            </div>
+          </div>
 
           <p className="rdial-meta rdial-meta--tl">LUMENIUM — 対応領域</p>
           <p className="rdial-meta rdial-meta--tr">ESC で閉じる</p>
