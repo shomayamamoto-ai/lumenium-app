@@ -11,7 +11,7 @@ const NAV_GROUPS = [
       { label: '動画制作・映像編集', service: 'video' },
       { label: 'AI導入・生成AI研修', service: 'ai' },
       { label: 'SNS運用・LINE構築', service: 'sns' },
-      { label: 'Web制作・アプリ開発', service: 'web' },
+      { label: 'Web制作・システム開発', service: 'web' },
       { label: 'キャスト手配・イベント', service: 'cast' },
       { label: 'クリエイティブ制作', service: 'creative' },
       { label: 'サービス一覧', href: '#/info/services' },

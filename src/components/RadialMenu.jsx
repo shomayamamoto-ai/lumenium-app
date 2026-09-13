@@ -21,7 +21,7 @@ const NODES = [
   // Inner orbit — 事業内容. These open that service's detail panel.
   { a: 0, ring: 1, label: '動画制作', service: 'video' },
   { a: 60, ring: 1, label: 'AI導入・研修', service: 'ai' },
-  { a: 120, ring: 1, label: 'Web制作', service: 'web' },
+  { a: 120, ring: 1, label: 'Web制作\nシステム開発', service: 'web' },
   { a: 180, ring: 1, label: 'クリエイティブ', service: 'creative' },
   { a: 240, ring: 1, label: 'キャスト手配', service: 'cast' },
   { a: 300, ring: 1, label: 'SNS・LINE', service: 'sns' },
@@ -37,6 +37,7 @@ const NODES = [
 const TICK = 9        // length of the mark that steps off the orbit
 const SPAN = 20       // degrees of arc each entry owns
 const EXIT_MS = 700   // how long the reverse sequence is given before unmount
+const REDUCED_EXIT_MS = 240 // reduced motion still cross-fades; it does not cut
 const TRANSIT_MS = 660 // how long the dive into a destination runs before it lands
 const DIVE = 2.1      // how far past the chosen entry the view travels
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
@@ -107,7 +108,7 @@ export default function RadialMenu() {
       setClosing(false)
       setOpen(false)
       triggerRef.current?.focus()
-    }, reduced() ? 0 : EXIT_MS)
+    }, reduced() ? REDUCED_EXIT_MS : EXIT_MS)
   }, [])
 
   const openDial = () => {
@@ -205,7 +206,7 @@ export default function RadialMenu() {
    *  underneath is only swapped once that has played. */
   const go = (node) => {
     if (exitTimer.current) return
-    events.ctaClick('home-radial', node.label)
+    events.ctaClick('home-radial', node.label.replace('\n', ' '))
     if (reduced()) {
       navigate(node)
       clear()
@@ -251,9 +252,17 @@ export default function RadialMenu() {
 
   // A few pixels of pointer parallax gives the plate somewhere to sit. Written
   // to the node directly and eased by CSS, so a mouse move costs no render.
+  //
+  // Mouse only. A tap on a touchscreen also emits a compatibility mousemove,
+  // so tapping the ✕ in the top right set the parallax for the first time at
+  // the very moment the dial was closing — the whole thing lurched 9px right
+  // on its way out. It is also frozen once we are leaving, so a stray move
+  // cannot shift the dial during the exit.
   const onStageMove = (e) => {
     const el = stageRef.current
-    if (!el || reduced()) return
+    if (!el || reduced() || closing || going !== null) return
+    if (e.pointerType && e.pointerType !== 'mouse') return
+    if (!window.matchMedia('(pointer: fine)').matches) return
     const nx = (e.clientX / window.innerWidth - 0.5) * 2
     const ny = (e.clientY / window.innerHeight - 0.5) * 2
     el.style.transform = `translate3d(${(nx * 11).toFixed(2)}px, ${(ny * 9).toFixed(2)}px, 0)`
@@ -268,6 +277,7 @@ export default function RadialMenu() {
     // ticks step off along it.
     const ux = Math.sin(rad(n.a))
     const uy = -Math.cos(rad(n.a))
+    const lines = n.label.split('\n')
     const from = onEllipse(r, n.a - SPAN / 2)
     const to = onEllipse(r, n.a + SPAN / 2)
     // The reveal sweeps once around the dial clockwise from twelve, the same
@@ -275,7 +285,7 @@ export default function RadialMenu() {
     // doing all of one ring and then all of the other. Closing runs the same
     // sweep backwards and faster: last in, first out.
     const rank = Math.round(n.a / 30)
-    const base = 420 + rank * 52
+    const base = 300 + rank * 44
     const back = (11 - rank) * 18
     return {
       ...n,
@@ -287,7 +297,12 @@ export default function RadialMenu() {
       arc: `M ${from.x} ${from.y} A ${r.x} ${r.y} 0 0 1 ${to.x} ${to.y}`,
       side: ux > 0.26 ? 'right' : ux < -0.26 ? 'left' : 'mid',
       no: String(i + 1).padStart(2, '0'),
-      d: { mark: base, num: base + 95, text: base + 150 },
+      lines,
+      // How many characters precede each line, so the stagger runs on across
+      // the line break instead of restarting.
+      before: lines.reduce((acc, l) => [...acc, acc[acc.length - 1] + [...l].length], [0]),
+      chars: [...n.label.replace('\n', '')].length,
+      d: { mark: base, num: base + 80, text: base + 120 },
       x: { mark: back, num: back, text: back },
     }
   })
@@ -332,7 +347,7 @@ export default function RadialMenu() {
           aria-modal="true"
           aria-label="サービスとページの一覧"
           ref={sheetRef}
-          onMouseMove={onStageMove}
+          onPointerMove={onStageMove}
           style={{ '--ox': `${wipe.x}px`, '--oy': `${wipe.y}px`, '--wipe': `${wipe.r}px` }}
         >
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
@@ -419,23 +434,33 @@ export default function RadialMenu() {
                   <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${closing ? n.x.num : n.d.num}ms` }}>
                     {n.no}
                   </span>
-                  {/* Split for the reveal; the unsplit label is what is read out. */}
-                  <span className="ritem-mask" aria-hidden="true">
-                    {[...n.label].map((ch, ci, all) => (
-                      <span
-                        key={`${n.label}-${ci}`}
-                        className="ritem-ch"
-                        style={{
-                          transitionDelay: closing
-                            ? `${n.x.text + (all.length - 1 - ci) * 12}ms`
-                            : `${n.d.text + ci * 30}ms`,
-                        }}
-                      >
-                        {ch}
+                  {/* Split for the reveal; the unsplit label is what is read
+                      out. A label may run to two lines — each gets its own
+                      mask, but the character stagger keeps counting across
+                      both so the reveal stays one gesture. */}
+                  <span className="ritem-lines" aria-hidden="true">
+                    {n.lines.map((line, li) => (
+                      <span className="ritem-mask" key={li}>
+                        {[...line].map((ch, ci) => {
+                          const k = n.before[li] + ci
+                          return (
+                            <span
+                              key={`${li}-${ci}`}
+                              className="ritem-ch"
+                              style={{
+                                transitionDelay: closing
+                                  ? `${n.x.text + (n.chars - 1 - k) * 12}ms`
+                                  : `${n.d.text + k * 24}ms`,
+                              }}
+                            >
+                              {ch}
+                            </span>
+                          )
+                        })}
                       </span>
                     ))}
                   </span>
-                  <span className="sr-only">{n.label}</span>
+                  <span className="sr-only">{n.label.replace('\n', ' ')}</span>
                   <span className="ritem-rule" aria-hidden="true" />
                 </a>
               ))}

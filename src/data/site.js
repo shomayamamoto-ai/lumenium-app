@@ -23,7 +23,7 @@ export const ACHIEVEMENTS = [
   '企業ロゴ・バナー・ポスター制作',
   '企業公式LINE構築',
   'AI企業PR動画制作',
-  'アプリ開発',
+  'システム開発',
   '企業ホームページ制作',
   '有名飲食店での企画・映像制作',
   '配信者のプロデュース',
@@ -205,7 +205,7 @@ export const PROFILE_BRICKS = [
     label: 'EXPERTISE',
     title: '得意領域',
     text: 'AI活用の設計と現場実装、動画の企画・演出、業務自動化のためのLINE / Web開発。「目的→手段」の翻訳に強みがあります。',
-    list: ['AI研修 (企業向け・エンジニア向け)', '動画企画・編集・配信設計', 'LINE Bot / Webアプリ開発'],
+    list: ['AI研修 (企業向け・エンジニア向け)', '動画企画・編集・配信設計', 'LINE Bot / Webシステム開発'],
   },
   {
     label: 'BACKGROUND',

@@ -313,7 +313,7 @@ ${md(a.content)}
    ours — with DefinedTerm/FAQPage markup over the same text. */
 {
   const url = `${SITE}/about.html`
-  const DEFINITION = 'ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、クリエイティブ制作を、企画から納品・運用までワンストップで提供しています。代表は山本捷真、設立は2026年、公式サイトは lumenium.net です。'
+  const DEFINITION = 'ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・システム開発、キャスト手配・イベント、クリエイティブ制作を、企画から納品・運用までワンストップで提供しています。代表は山本捷真、設立は2026年、公式サイトは lumenium.net です。'
   const DESC = 'ルメニウム（Lumenium）とは、東京都を拠点に動画制作・AI導入研修・SNS運用/LINE構築・Web制作・キャスト手配を手がける日本のクリエイティブ／DX支援カンパニーです。読み方、事業内容、同名の企業や名称との違いを解説します。'
   const facts = [
     ['名称', 'Lumenium（ルメニウム）'],
@@ -322,7 +322,7 @@ ${md(a.content)}
     ['代表者', '山本 捷真'],
     ['設立', '2026年'],
     ['拠点', '東京都（オンラインで全国対応）'],
-    ['事業内容', '動画制作 / AI導入・研修 / SNS運用・LINE構築 / Web制作・アプリ開発 / キャスト手配・イベント / クリエイティブ制作'],
+    ['事業内容', '動画制作 / AI導入・研修 / SNS運用・LINE構築 / Web制作・システム開発 / キャスト手配・イベント / クリエイティブ制作'],
     ['パートナー', '<a href="https://advovisions.com/bcd31-home/" rel="noopener">合同会社 AdvoVisions</a>'],
     ['公式サイト', '<a href="https://lumenium.net/">lumenium.net</a>'],
   ]
@@ -343,7 +343,7 @@ ${md(a.content)}
     ['ルメニウムとは何ですか?', DEFINITION],
     ['ルメニウムの読み方は?', 'Lumenium と書いて「ルメニウム」と読みます。光の単位である lumen（ルーメン）に由来し、お客様の中でまだ輪郭のない目的に光を当て、形にしていくという意味を込めています。'],
     ['ルメニウムはどこにありますか?', '東京都を拠点としています。打ち合わせはZoomやGoogle Meetなどオンラインで行うため、全国どこからでもご依頼いただけます。'],
-    ['ルメニウムは何をしている会社ですか?', '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE公式アカウント構築、Web制作・アプリ開発、キャスト手配とイベント企画、ロゴ・バナーなどのクリエイティブ制作の6領域を、企画から納品・運用までワンストップで手がけています。'],
+    ['ルメニウムは何をしている会社ですか?', '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE公式アカウント構築、Web制作・システム開発、キャスト手配とイベント企画、ロゴ・バナーなどのクリエイティブ制作の6領域を、企画から納品・運用までワンストップで手がけています。'],
     ['ルメニウムとルメンタム（Lumentum）は同じ会社ですか?', 'いいえ、別の会社です。ルメンタム（Lumentum Holdings）は米国の光通信・レーザー機器メーカーです。ルメニウム（Lumenium）は東京都を拠点とする日本のクリエイティブ／DX支援カンパニーで、両社に資本関係も人的関係もありません。'],
     ['ルメニウムは化学元素ですか?', 'いいえ、化学元素ではありません。ルメニウム（Lumenium）は東京都を拠点とする日本の企業の名称です。名前の響きが似ている元素としてルテニウム（Ruthenium、原子番号44）やレニウム（Rhenium、原子番号75）がありますが、いずれも別のものです。'],
     ['ルメニウムは実在する会社ですか?', 'はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。'],
@@ -434,7 +434,7 @@ ${md(a.content)}
       <li>動画制作・映像編集 — PR動画、採用動画、SNS縦型動画、AI動画</li>
       <li>AI導入・研修 — 生成AIの社内導入支援、企業研修、教材制作</li>
       <li>SNS運用・LINE構築 — 運用代行、企画構成、LINE公式アカウント / Bot制作</li>
-      <li>Web制作・アプリ開発 — コーポレートサイト、LP、Webアプリ、スマホアプリ</li>
+      <li>Web制作・システム開発 — コーポレートサイト、LP、Webシステム、スマホアプリ</li>
       <li>キャスト手配・イベント — モデル・アクター手配、MC、イベント企画運営</li>
       <li>クリエイティブ制作 — ロゴ、バナー、ポスター、イラスト、作詞作曲</li>
     </ul>
@@ -453,7 +453,7 @@ ${md(a.content)}
     <li><a href="/services/video.html">動画制作・映像編集</a></li>
     <li><a href="/services/ai.html">AI導入・研修</a></li>
     <li><a href="/services/sns.html">SNS運用・LINE構築</a></li>
-    <li><a href="/services/web.html">Web制作・アプリ開発</a></li>
+    <li><a href="/services/web.html">Web制作・システム開発</a></li>
     <li><a href="/services/cast.html">キャスト手配・イベント</a></li>
     <li><a href="/services/creative.html">クリエイティブ制作</a></li>
   </ul>`
@@ -699,7 +699,7 @@ TOPIC_PAGES.push(
       jobTitle: 'Lumenium（ルメニウム）代表',
       worksFor: { '@id': `${SITE}/#organization` },
       alumniOf: { '@type': 'CollegeOrUniversity', name: '慶應義塾大学' },
-      knowsAbout: ['AI研修', '動画制作', 'LINE Bot開発', 'Webアプリ開発', 'キャスト手配', '作詞作曲'],
+      knowsAbout: ['AI研修', '動画制作', 'LINE Bot開発', 'Webシステム開発', 'キャスト手配', '作詞作曲'],
     }),
     body: () => `
     ${PROFILE_BRICKS.map((k) => `
@@ -770,7 +770,7 @@ ${t.body()}
       ['/services/video.html', '動画制作・映像編集'],
       ['/services/ai.html', 'AI導入・生成AI研修'],
       ['/services/sns.html', 'SNS運用・LINE構築'],
-      ['/services/web.html', 'Web制作・アプリ開発'],
+      ['/services/web.html', 'Web制作・システム開発'],
       ['/services/cast.html', 'キャスト手配・イベント'],
       ['/services/creative.html', 'クリエイティブ制作'],
     ]],

@@ -45,13 +45,13 @@ const SERVICES = [
   },
   {
     id: 'web',
-    name: 'Web制作・アプリ開発',
+    name: 'Web制作・システム開発',
     keyword: 'ホームページ制作',
-    title: 'ホームページ制作・LP制作・アプリ開発 | Lumenium（ルメニウム）',
+    title: 'ホームページ制作・LP制作・システム開発 | Lumenium（ルメニウム）',
     desc: '企業ホームページ・LP・Webアプリ・スマホアプリの開発。リニューアルから短納期LPまで30万円〜。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: '古いHPのリニューアル、キャンペーンLPの短納期制作、業務効率化のWebアプリまで。設計から公開後の運用まで伴走します。',
     highlights: ['古いホームページをリニューアルしたい', 'キャンペーン用LPを短納期で作りたい', '業務効率化のための社内ツールを開発したい'],
-    examples: ['企業ホームページ制作', '業務用Webアプリ開発', 'スマートフォンアプリ開発'],
+    examples: ['企業ホームページ制作', '業務システム開発', 'スマートフォンアプリ'],
     price: '30万円〜（規模に応じてご提案）',
   },
   {
@@ -224,7 +224,7 @@ function page(s) {
 // page's breadcrumb — that used to point at a '#/…' hash, which is not a
 // page a crawler can visit, so the hierarchy stopped at one level.
 function hub() {
-  const DESC = '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、クリエイティブ制作の6領域。ルメニウム（Lumenium）が企画から納品・運用までワンストップで対応します。'
+  const DESC = '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・システム開発、キャスト手配・イベント、クリエイティブ制作の6領域。ルメニウム（Lumenium）が企画から納品・運用までワンストップで対応します。'
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [

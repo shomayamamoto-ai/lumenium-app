@@ -43,7 +43,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/services/video.html">動画制作・映像編集</a>
               <a href="/services/ai.html">AI導入・研修</a>
               <a href="/services/sns.html">SNS運用・LINE構築</a>
-              <a href="/services/web.html">Web制作・アプリ開発</a>
+              <a href="/services/web.html">Web制作・システム開発</a>
               <a href="/services/cast.html">キャスト手配・イベント</a>
               <a href="/services/creative.html">クリエイティブ制作</a>
             </div>

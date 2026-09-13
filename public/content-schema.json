@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T16:58:10.763Z",
+  "generatedAt": "2026-09-13T17:20:44.197Z",
   "count": 395,
   "groups": [
     {
@@ -478,11 +478,11 @@
         },
         {
           "path": "services.3.title",
-          "value": "Web制作・アプリ開発"
+          "value": "Web制作・システム開発"
         },
         {
           "path": "services.3.desc",
-          "value": "HP、LP、Webアプリ、スマホアプリの開発。"
+          "value": "HP、LP、Webシステム、スマホアプリの開発。"
         },
         {
           "path": "services.3.tags.0",
@@ -494,7 +494,7 @@
         },
         {
           "path": "services.3.tags.2",
-          "value": "アプリ開発"
+          "value": "システム開発"
         },
         {
           "path": "services.3.highlights.0",
@@ -514,11 +514,11 @@
         },
         {
           "path": "services.3.examples.1",
-          "value": "業務用Webアプリ開発"
+          "value": "業務システム開発"
         },
         {
           "path": "services.3.examples.2",
-          "value": "スマートフォンアプリ開発"
+          "value": "スマートフォンアプリ"
         },
         {
           "path": "services.3.price",
@@ -698,7 +698,7 @@
         },
         {
           "path": "site.ACHIEVEMENTS.6",
-          "value": "アプリ開発"
+          "value": "システム開発"
         },
         {
           "path": "site.ACHIEVEMENTS.7",
@@ -1230,7 +1230,7 @@
         },
         {
           "path": "site.PROFILE_BRICKS.0.list.2",
-          "value": "LINE Bot / Webアプリ開発"
+          "value": "LINE Bot / Webシステム開発"
         },
         {
           "path": "site.PROFILE_BRICKS.1.label",
@@ -1304,7 +1304,7 @@
         },
         {
           "path": "faq.0.items.1.a",
-          "value": "ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・アプリ開発、キャスト手配・イベント、ロゴやバナーなどのクリエイティブ制作を、企画から納品・運用までワンストップで手がけています。代表は山本捷真、設立は2026年、拠点は東京都で、オンラインにより全国に対応しています。"
+          "value": "ルメニウム（英字表記: Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・システム開発、キャスト手配・イベント、ロゴやバナーなどのクリエイティブ制作を、企画から納品・運用までワンストップで手がけています。代表は山本捷真、設立は2026年、拠点は東京都で、オンラインにより全国に対応しています。"
         },
         {
           "path": "faq.0.items.2.q",

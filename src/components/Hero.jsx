@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import VideoModal from './VideoModal'
 import { events } from '../lib/analytics'
 
-const typingWords = ['SNS集客', '動画制作', 'AI導入', 'LINE構築', 'Web制作', 'アプリ開発']
+const typingWords = ['SNS集客', '動画制作', 'AI導入', 'LINE構築', 'Web制作', 'システム開発']
 
 function useTypingEffect(words, pauseTime = 2200) {
   const [text, setText] = useState('')

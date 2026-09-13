@@ -57,9 +57,9 @@ export const SERVICES = [
   },
   {
     id: 'web',
-    title: 'Web制作・アプリ開発',
-    desc: 'HP、LP、Webアプリ、スマホアプリの開発。',
-    tags: ['HP制作', 'LP', 'アプリ開発'],
+    title: 'Web制作・システム開発',
+    desc: 'HP、LP、Webシステム、スマホアプリの開発。',
+    tags: ['HP制作', 'LP', 'システム開発'],
     highlights: [
       '古いHPをリニューアルしたい方',
       'キャンペーン用のLPを短納期で作りたい方',
@@ -67,8 +67,8 @@ export const SERVICES = [
     ],
     examples: [
       '企業ホームページ制作',
-      '業務用Webアプリ開発',
-      'スマートフォンアプリ開発',
+      '業務システム開発',
+      'スマートフォンアプリ',
     ],
     price: '30万円〜(規模に応じてご提案)',
   },

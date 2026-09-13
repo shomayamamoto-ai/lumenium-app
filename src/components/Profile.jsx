@@ -29,7 +29,7 @@ export default function Profile() {
               <span>AI研修・講師</span>
               <span>動画制作</span>
               <span>LINE Bot</span>
-              <span>Web・アプリ開発</span>
+              <span>Web・システム開発</span>
               <span>キャスト手配</span>
               <span>作詞作曲</span>
             </div>
@@ -47,7 +47,7 @@ export default function Profile() {
             <ul className="profile-brick-list">
               <li>AI研修 (企業向け・エンジニア向け)</li>
               <li>動画企画・編集・配信設計</li>
-              <li>LINE Bot / Webアプリ開発</li>
+              <li>LINE Bot / Webシステム開発</li>
             </ul>
           </article>
           <article className="profile-brick">
