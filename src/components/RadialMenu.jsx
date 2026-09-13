@@ -36,7 +36,7 @@ const NODES = [
 
 const TICK = 9        // length of the mark that steps off the orbit
 const SPAN = 20       // degrees of arc each entry owns
-const EXIT_MS = 420   // how long the closing sequence is given before unmount
+const EXIT_MS = 690   // how long the reverse sequence is given before unmount
 const TRANSIT_MS = 660 // how long the dive into a destination runs before it lands
 const DIVE = 2.1      // how far past the chosen entry the view travels
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
@@ -259,8 +259,11 @@ export default function RadialMenu() {
     const to = onEllipse(r, n.a + SPAN / 2)
     // The reveal sweeps once around the dial clockwise from twelve, the same
     // way the orbits are drawn — alternating rings as it goes, rather than
-    // doing all of one ring and then all of the other.
-    const base = 420 + Math.round(n.a / 30) * 52
+    // doing all of one ring and then all of the other. Closing runs the same
+    // sweep backwards and faster: last in, first out.
+    const rank = Math.round(n.a / 30)
+    const base = 420 + rank * 52
+    const back = (11 - rank) * 18
     return {
       ...n,
       i,
@@ -272,6 +275,7 @@ export default function RadialMenu() {
       side: ux > 0.26 ? 'right' : ux < -0.26 ? 'left' : 'mid',
       no: String(i + 1).padStart(2, '0'),
       d: { mark: base, num: base + 95, text: base + 150 },
+      x: { mark: back, num: back, text: back },
     }
   })
 
@@ -294,7 +298,7 @@ export default function RadialMenu() {
       <button
         ref={triggerRef}
         type="button"
-        className={`rcore ${open ? 'is-open' : ''}`}
+        className={`rcore ${open && !closing ? 'is-open' : ''}`}
         onClick={openDial}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -344,7 +348,7 @@ export default function RadialMenu() {
                   <g key={n.label}>
                     <line
                       className={`rdial-spoke ${hot === n.i ? 'is-on' : ''}`}
-                      x1={cx + n.ux * 58} y1={cy + n.uy * 58}
+                      x1={cx + n.ux * 26} y1={cy + n.uy * 26}
                       x2={n.p.x} y2={n.p.y}
                     />
                     <path
@@ -363,7 +367,7 @@ export default function RadialMenu() {
                       x2={n.tick.x} y2={n.tick.y}
                       strokeDasharray={TICK}
                       strokeDashoffset={lit ? 0 : TICK}
-                      style={{ transitionDelay: `${n.d.mark}ms` }}
+                      style={{ transitionDelay: `${closing ? n.x.mark : n.d.mark}ms` }}
                     />
                   </g>
                 ))}
@@ -383,7 +387,7 @@ export default function RadialMenu() {
                     top: n.tick.y,
                     '--dx': n.ux,
                     '--dy': n.uy,
-                    transitionDelay: `${n.d.mark}ms`,
+                    transitionDelay: `${closing ? n.x.mark : n.d.mark}ms`,
                   }}
                   onMouseEnter={() => setHot(n.i)}
                   onMouseLeave={() => setHot((h) => (h === n.i ? null : h))}
@@ -395,16 +399,20 @@ export default function RadialMenu() {
                     go(n)
                   }}
                 >
-                  <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${n.d.num}ms` }}>
+                  <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${closing ? n.x.num : n.d.num}ms` }}>
                     {n.no}
                   </span>
                   {/* Split for the reveal; the unsplit label is what is read out. */}
                   <span className="ritem-mask" aria-hidden="true">
-                    {[...n.label].map((ch, ci) => (
+                    {[...n.label].map((ch, ci, all) => (
                       <span
                         key={`${n.label}-${ci}`}
                         className="ritem-ch"
-                        style={{ transitionDelay: `${n.d.text + ci * 30}ms` }}
+                        style={{
+                          transitionDelay: closing
+                            ? `${n.x.text + (all.length - 1 - ci) * 12}ms`
+                            : `${n.d.text + ci * 30}ms`,
+                        }}
                       >
                         {ch}
                       </span>
@@ -415,16 +423,15 @@ export default function RadialMenu() {
                 </a>
               ))}
 
-              <button
-                type="button"
-                className="rdial-hub"
+              <img
+                className="rdial-mark"
+                src="/favicon.svg?v=3"
+                alt=""
+                aria-hidden="true"
+                width="30"
+                height="30"
                 style={{ left: cx, top: cy }}
-                onClick={close}
-                aria-label="閉じる"
-              >
-                <img src="/favicon.svg?v=3" alt="" width="34" height="34" />
-                <span className="rdial-hub-label" aria-hidden="true">CLOSE</span>
-              </button>
+              />
             </div>
           </div>
 

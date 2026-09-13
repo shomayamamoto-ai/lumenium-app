@@ -8350,7 +8350,7 @@ html[data-theme="dark"] .navbar.scrolled {
   cursor: pointer;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
+  transition: border-color 0.4s var(--ease), background 0.4s var(--ease), opacity 0.45s var(--ease) 0.2s;
 }
 /* A sheen crosses the pill on hover — the one flourish the trigger gets. */
 .rcore::after {
@@ -8370,7 +8370,7 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 .rcore:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 4px; }
 .rcore:active { transform: scale(0.98); }
-.rcore.is-open { opacity: 0; pointer-events: none; }
+.rcore.is-open { opacity: 0; pointer-events: none; transition-delay: 0s; }
 
 /* A quiet compass that turns a quarter-turn when you reach for it. */
 .rcore-dial {
@@ -8422,7 +8422,7 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 .rdial.is-lit { clip-path: circle(var(--wipe) at var(--ox) var(--oy)); }
 /* Closing wants the opposite curve — it should leave, not linger. */
-.rdial.is-closing { transition: clip-path 0.42s cubic-bezier(0.55, 0, 1, 0.45); }
+.rdial.is-closing { transition: clip-path 0.42s cubic-bezier(0.7, 0, 0.84, 0) 0.26s; }
 
 .rdial-scrim {
   position: absolute;
@@ -8446,8 +8446,13 @@ html[data-theme="dark"] .navbar.scrolled {
 /* The hero's own glow blooms straight through a blurred scrim and pools in
    the middle of the dial. Send the hero back while the dial is up; the
    starfield sits outside this wrapper and stays. */
+/* All the way out, not down to 20%: the hero's 280px logo mark still bloomed
+   faintly through the scrim, and the hub used to be an opaque disc sitting on
+   top of it. With the hub gone that bloom would sit directly behind the
+   dial's own centre mark. The starfield sits outside this wrapper and is what
+   keeps the depth. */
 body[data-dial-open] .search-home-inner {
-  opacity: 0.2;
+  opacity: 0;
   transition: opacity 0.6s var(--ease);
 }
 body[data-dial-open] .search-home-lockup::before { animation: none; opacity: 0; }
@@ -8495,7 +8500,8 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   transition: stroke-dashoffset 1.3s var(--r-swing) 0.15s;
 }
 .rdial-ring--2 { transition-delay: 0.28s; }
-.rdial.is-closing .rdial-ring { transition: stroke-dashoffset 0.35s ease-in 0s; }
+.rdial.is-closing .rdial-ring { transition: stroke-dashoffset 0.5s cubic-bezier(0.5, 0, 0.75, 0.35) 0.1s; }
+.rdial.is-closing .rdial-ring--2 { transition-delay: 0s; }
 
 /* One arc per entry, drawn in only while that entry is held. */
 .rdial-arc {
@@ -8663,7 +8669,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
 .rdial.is-going .rdial-ring,
 .rdial.is-going .rdial-tick,
 .rdial.is-going .rdial-sat,
-.rdial.is-going .rdial-hub {
+.rdial.is-going .rdial-mark {
   opacity: 0 !important;
   transition: opacity 0.3s ease !important;
   transition-delay: 0ms !important;
@@ -8674,55 +8680,40 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   transition: clip-path 0.4s cubic-bezier(0.55, 0, 1, 0.45) 0.26s;
 }
 
-/* Everything leaves together and quickly — a staggered exit reads as lag. */
-.rdial.is-closing .ritem,
-.rdial.is-closing .ritem-ch,
-.rdial.is-closing .ritem-no,
-.rdial.is-closing .rdial-tick,
-.rdial.is-closing .rdial-hub {
-  transition-duration: 0.3s !important;
-  transition-delay: 0ms !important;
+/* ---- dismissing ----
+   The reverse of the opening, not a cut. The sweep runs the other way round
+   the dial — the entries that arrived last leave first — the letters drop
+   back into their masks, the orbits un-draw outer-first, the constellation
+   twists back to where it came in, and only then does the aperture collapse
+   onto the button it grew out of. The delays are the mirrored ones, written
+   inline by the component. */
+.rdial.is-closing .ritem { transition-duration: 0.42s, 0.46s; }
+.rdial.is-closing .ritem-ch { transition-duration: 0.46s; }
+.rdial.is-closing .ritem-no { transition-duration: 0.3s, 0.3s, 0.3s; }
+.rdial.is-closing .ritem-rule { transition-duration: 0.2s; }
+.rdial.is-closing .rdial-tick { transition-duration: 0.4s, 0.3s; }
+.rdial.is-closing .rdial-spin {
+  transition: transform 0.62s cubic-bezier(0.5, 0, 0.75, 0.35), opacity 0.34s var(--ease) 0.28s;
 }
+.rdial.is-closing .rdial-mark { transition-duration: 0.28s, 0.28s; transition-delay: 0s; }
+.rdial.is-closing .rdial-scrim { transition: opacity 0.4s var(--ease) 0.26s; }
 
-/* ---- the centre ---- */
-.rdial-hub {
+/* ---- the centre ----
+   This used to be a second close control, directly duplicating the ✕ in the
+   corner. What is left is a mark, not a button: the spokes need something to
+   converge on, and nothing here takes a click. */
+.rdial-mark {
   position: absolute;
-  display: grid;
-  place-items: center;
-  gap: 5px;
-  width: 104px;
-  height: 104px;
-  padding: 0;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 50%;
-  background: rgba(8,10,22,0.6);
-  color: rgba(255,255,255,0.78);
-  font-family: inherit;
-  cursor: pointer;
-  transform: translate(-50%, -50%) scale(0.7);
+  width: 30px;
+  height: auto;
   opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.6);
   transition:
-    opacity 0.5s var(--ease) 0.26s,
-    transform 0.95s var(--r-out) 0.26s,
-    border-color 0.4s var(--ease);
+    opacity 0.6s var(--ease) 0.26s,
+    transform 0.95s var(--r-out) 0.26s;
 }
-.rdial.is-lit .rdial-hub { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-.rdial-hub img { width: 34px; height: auto; opacity: 0.72; transition: opacity 0.4s var(--ease); }
-.rdial-hub-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.26em;
-  text-indent: 0.26em;
-  color: rgba(255,255,255,0.42);
-  transition: color 0.35s var(--ease);
-}
-.rdial-hub:hover, .rdial-hub:focus-visible {
-  border-color: rgba(255,255,255,0.45);
-  outline: none;
-}
-.rdial-hub:hover img, .rdial-hub:focus-visible img { opacity: 1; }
-.rdial-hub:hover .rdial-hub-label, .rdial-hub:focus-visible .rdial-hub-label { color: rgba(255,255,255,0.9); }
-.rdial-hub:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 5px; }
+.rdial.is-lit .rdial-mark { opacity: 0.62; transform: translate(-50%, -50%) scale(1); }
 
 /* Corner chrome — the overlay states what it is and how to leave it. */
 .rdial-meta {
@@ -8787,9 +8778,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .ritem-mask { font-size: 12.5px; letter-spacing: 0; }
   .ritem.is-on .ritem-mask { letter-spacing: 0.04em; }
   .ritem-no { font-size: 9px; letter-spacing: 0.18em; }
-  .rdial-hub { width: 68px; height: 68px; gap: 3px; }
-  .rdial-hub img { width: 24px; }
-  .rdial-hub-label { font-size: 8px; letter-spacing: 0.2em; text-indent: 0.2em; }
+  .rdial-mark { width: 24px; }
   .rdial-meta { top: 16px; font-size: 9px; letter-spacing: 0.16em; }
   .rdial-meta--tl { left: 16px; }
   /* max() keeps it clear of a notch when the page runs full-bleed. */
@@ -8813,7 +8802,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .rdial-pulse { animation: none; opacity: 0; }
   .rdial-x, .rdial.is-lit .rdial-x { transition: none; transform: none; opacity: 1; }
   .rdial-x:hover, .rdial-x:focus-visible { transform: none; }
-  .rdial-hub, .rdial.is-lit .rdial-hub { transition: opacity 0.2s ease; transform: translate(-50%, -50%); }
+  .rdial-mark, .rdial.is-lit .rdial-mark { transition: none; transform: translate(-50%, -50%); opacity: 0.62; }
 }
 
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }
