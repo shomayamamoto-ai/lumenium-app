@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-13T07:49:09.661Z",
-  "count": 394,
+  "generatedAt": "2026-09-13T10:52:37.843Z",
+  "count": 396,
   "groups": [
     {
       "key": "text",
@@ -293,6 +293,14 @@
         {
           "path": "text.home.searchButton",
           "value": "検索"
+        },
+        {
+          "path": "text.home.exploreButton",
+          "value": "探す"
+        },
+        {
+          "path": "text.home.exploreHint",
+          "value": "押すと、対応領域が放射状に展開します"
         },
         {
           "path": "text.home.askButton",

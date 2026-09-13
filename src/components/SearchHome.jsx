@@ -2,7 +2,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
-import SkillTree from './SkillTree'
+import RadialMenu from './RadialMenu'
 import { events } from '../lib/analytics'
 
 // Home: the brand lockup over a radial skill tree.
@@ -321,9 +321,9 @@ export default function SearchHome() {
           <p className="search-home-tag">{SECTION.home.tagline}</p>
         </div>
 
-        {/* The search box is replaced by a radial tree: twelve destinations is
-            few enough to show outright rather than ask someone to type for. */}
-        <SkillTree />
+        {/* One button. Pressing it bursts the twelve destinations outward
+            across the whole screen. */}
+        <RadialMenu />
 
         <div className="search-home-actions">
           <button type="button" className="search-home-btn" onClick={onAsk}>{SECTION.home.askButton}</button>

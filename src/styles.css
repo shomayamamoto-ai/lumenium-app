@@ -8315,141 +8315,229 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 
 /* =========================================================================
-   HOME — radial skill tree (replaces the search box)
+   HOME — the core button and its radial burst
    ========================================================================= */
-.tree {
-  --tree: clamp(292px, 84vw, 440px);
+.rcore {
   position: relative;
   z-index: 2;
-  width: var(--tree);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.tree-box {
-  position: relative;
-  width: var(--tree);
-  height: var(--tree);
-}
-.tree-wires {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-.tree-orbit {
-  fill: none;
-  stroke: rgba(148, 163, 233, 0.16);
-  stroke-width: 0.22;
-}
-.tree-wire {
-  stroke-width: 0.42;
-  opacity: 0.55;
-  transition: opacity 0.25s var(--ease), stroke-width 0.25s var(--ease);
-}
-.tree-wire.is-active { opacity: 1; stroke-width: 0.9; }
-
-/* The core the spokes run back to. */
-.tree-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: calc(var(--tree) * 0.155);
-  height: calc(var(--tree) * 0.155);
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, rgba(199,210,254,0.22), rgba(79,70,229,0.10) 62%, transparent 75%);
-  pointer-events: none;
-}
-.tree-core img { width: 100%; height: 100%; display: block; }
-
-.tree-node {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+  width: clamp(132px, 26vw, 168px);
+  height: clamp(132px, 26vw, 168px);
   padding: 0;
   border: none;
   background: none;
   font-family: inherit;
-  text-decoration: none;
-  color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.25s var(--ease);
+  -webkit-tap-highlight-color: transparent;
 }
-.tree-node-dot {
+/* The halo breathes so the button reads as pressable without a hard border. */
+.rcore-halo {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(129,140,248,0.28) 0%, rgba(99,102,241,0.12) 42%, transparent 68%);
+  animation: rcore-breathe 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes rcore-breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.7; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+.rcore-face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(168deg, rgba(52,60,116,0.96), rgba(18,22,52,0.96));
+  border: 1px solid rgba(129,140,248,0.42);
+  box-shadow: 0 8px 0 rgba(9,12,34,0.95), 0 20px 40px -14px rgba(0,0,0,0.8),
+    0 0 40px rgba(79,70,229,0.32), inset 0 2px 0 rgba(255,255,255,0.2);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.25s var(--ease);
+}
+.rcore-face img { width: 44%; height: auto; display: block; }
+.rcore-label {
+  font-size: clamp(12px, 2.4vw, 14px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  color: #e6ebff;
+}
+.rcore:hover .rcore-face {
+  transform: translateY(-2px);
+  border-color: rgba(165,180,252,0.85);
+  box-shadow: 0 10px 0 rgba(9,12,34,0.95), 0 26px 50px -14px rgba(0,0,0,0.85),
+    0 0 60px rgba(99,102,241,0.55), inset 0 2px 0 rgba(255,255,255,0.3);
+}
+/* Press: the whole thing sinks onto its shadow. */
+.rcore:active .rcore-face {
+  transform: translateY(7px);
+  box-shadow: 0 1px 0 rgba(9,12,34,0.95), 0 6px 14px rgba(0,0,0,0.7),
+    0 0 30px rgba(99,102,241,0.4), inset 0 2px 0 rgba(255,255,255,0.16);
+}
+.rcore:focus-visible .rcore-face { outline: 2px solid #a5b4fc; outline-offset: 5px; }
+.rcore.is-open { opacity: 0; pointer-events: none; }
+
+.rcore-hint {
+  position: relative;
+  z-index: 2;
+  margin-top: 14px;
+  font-size: clamp(11px, 2vw, 12.5px);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---- the burst ---------------------------------------------------------- */
+.rburst {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+.rburst-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: radial-gradient(ellipse at center, rgba(6,8,26,0.82), rgba(3,4,16,0.95));
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+  cursor: pointer;
+}
+.rburst.is-lit .rburst-backdrop { opacity: 1; }
+
+/* Shockwave rings leaving the core. One-shot; they do not loop. */
+.rburst-wave {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 2px solid rgba(165,180,252,0.6);
+  opacity: 0;
+  pointer-events: none;
+}
+.rburst.is-lit .rburst-wave { animation: rwave 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.rburst.is-lit .rburst-wave--2 { animation-delay: 0.12s; border-color: rgba(99,102,241,0.5); }
+.rburst.is-lit .rburst-wave--3 { animation-delay: 0.26s; border-color: rgba(103,232,249,0.36); }
+@keyframes rwave {
+  0%   { opacity: 0.9; transform: scale(1); border-width: 2px; }
+  70%  { opacity: 0.22; }
+  100% { opacity: 0; transform: scale(150); border-width: 0.4px; }
+}
+
+.rburst-rays {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rburst-ray {
+  stroke: rgba(148, 163, 240, 0.42);
+  stroke-width: 1.4;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Nodes start collapsed on the core and fly out to --tx/--ty. */
+.rnode {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: rgba(203, 213, 245, 0.92);
+  transform: translate(-50%, -50%) scale(0.25);
+  opacity: 0;
+  transition: transform 0.72s cubic-bezier(0.18, 1.18, 0.32, 1), opacity 0.42s ease;
+  will-change: transform, opacity;
+}
+.rburst.is-lit .rnode {
+  transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1);
+  opacity: 1;
+}
+.rnode-dot {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(165deg, rgba(48,56,105,0.92), rgba(20,25,56,0.92));
-  border: 1px solid rgba(129, 140, 248, 0.34);
-  box-shadow: 0 4px 0 rgba(10,13,38,0.9), 0 10px 20px -8px rgba(0,0,0,0.7),
-    inset 0 1px 0 rgba(255,255,255,0.16);
+  background: linear-gradient(165deg, rgba(56,64,124,0.95), rgba(20,25,58,0.95));
+  border: 1px solid rgba(129,140,248,0.4);
+  box-shadow: 0 6px 0 rgba(9,12,34,0.9), 0 16px 30px -10px rgba(0,0,0,0.75),
+    inset 0 1px 0 rgba(255,255,255,0.2);
   transition: transform 0.25s var(--ease), border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
-.tree-node--r1 .tree-node-dot {
-  width: calc(var(--tree) * 0.132);
-  height: calc(var(--tree) * 0.132);
-}
-.tree-node--r2 .tree-node-dot {
-  width: calc(var(--tree) * 0.088);
-  height: calc(var(--tree) * 0.088);
-}
-.tree-node-dot svg { width: 52%; height: 52%; }
-.tree-node-pip {
-  width: 28%;
-  height: 28%;
+.rnode--r1 .rnode-dot { width: clamp(64px, 13vmin, 96px); height: clamp(64px, 13vmin, 96px); }
+.rnode--r2 .rnode-dot { width: clamp(48px, 9.5vmin, 72px); height: clamp(48px, 9.5vmin, 72px); }
+.rnode-dot svg { width: 50%; height: 50%; }
+.rnode-pip {
+  width: 26%;
+  height: 26%;
   border-radius: 50%;
-  background: rgba(165, 180, 252, 0.75);
-  box-shadow: 0 0 10px rgba(129, 140, 248, 0.7);
+  background: rgba(165,180,252,0.8);
+  box-shadow: 0 0 12px rgba(129,140,248,0.8);
 }
-.tree-node-label {
-  max-width: calc(var(--tree) * 0.24);
-  font-size: clamp(9.5px, 2vw, 12px);
+.rnode-label {
+  max-width: 9em;
+  font-size: clamp(11px, 2.2vmin, 14px);
   font-weight: 700;
   letter-spacing: 0.04em;
-  line-height: 1.3;
-  text-align: center;
-  white-space: nowrap;
-}
-.tree-node:hover,
-.tree-node:focus-visible { color: #dbe2ff; outline: none; }
-.tree-node:hover .tree-node-dot,
-.tree-node:focus-visible .tree-node-dot,
-.tree-node.is-active .tree-node-dot {
-  transform: translateY(-2px) scale(1.09);
-  border-color: rgba(165, 180, 252, 0.85);
-  box-shadow: 0 6px 0 rgba(10,13,38,0.9), 0 14px 26px -8px rgba(79,70,229,0.55),
-    0 0 22px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.28);
-}
-.tree-node:focus-visible .tree-node-dot { outline: 2px solid #a5b4fc; outline-offset: 3px; }
-
-.tree-readout {
-  margin-top: 6px;
-  min-height: 1.5em;
-  font-size: clamp(12px, 2.2vw, 14px);
-  letter-spacing: 0.06em;
-  color: rgba(203, 213, 245, 0.9);
+  line-height: 1.35;
   text-align: center;
 }
+.rnode:hover, .rnode:focus-visible { color: #fff; outline: none; }
+.rnode:hover .rnode-dot, .rnode:focus-visible .rnode-dot {
+  transform: scale(1.12);
+  border-color: rgba(165,180,252,0.95);
+  box-shadow: 0 8px 0 rgba(9,12,34,0.9), 0 20px 36px -10px rgba(79,70,229,0.6),
+    0 0 32px rgba(99,102,241,0.6), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.rnode:focus-visible .rnode-dot { outline: 2px solid #a5b4fc; outline-offset: 4px; }
 
-/* Twelve nodes on a phone leaves no slack: trim the labels and the node
-   circles so neighbouring rings cannot collide. */
+.rburst-core {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  width: clamp(88px, 17vmin, 124px);
+  height: clamp(88px, 17vmin, 124px);
+  border-radius: 50%;
+  border: 1px solid rgba(165,180,252,0.5);
+  background: linear-gradient(168deg, rgba(52,60,116,0.96), rgba(16,20,48,0.96));
+  box-shadow: 0 0 50px rgba(99,102,241,0.5), inset 0 2px 0 rgba(255,255,255,0.2);
+  font-family: inherit;
+  color: rgba(203,213,245,0.9);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.rburst-core img { width: 46%; height: auto; }
+.rburst-core-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.28em; text-indent: 0.28em; }
+.rburst-core:hover { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 0 70px rgba(99,102,241,0.7), inset 0 2px 0 rgba(255,255,255,0.3); }
+.rburst-core:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 5px; }
+
+/* A phone has no slack: trim the footprints so neighbouring rings clear. */
 @media (max-width: 640px) {
-  .tree-node-label { max-width: calc(var(--tree) * 0.21); font-size: 9.5px; letter-spacing: 0.01em; }
-  .tree-node { gap: 3px; }
-  .tree-node--r1 .tree-node-dot { width: calc(var(--tree) * 0.125); height: calc(var(--tree) * 0.125); }
-  .tree-node--r2 .tree-node-dot { width: calc(var(--tree) * 0.075); height: calc(var(--tree) * 0.075); }
+  .rnode { gap: 5px; }
+  .rnode--r1 .rnode-dot { width: 54px; height: 54px; }
+  .rnode--r2 .rnode-dot { width: 42px; height: 42px; }
+  .rnode-label { max-width: 5.6em; font-size: 10px; letter-spacing: 0.01em; }
+  .rburst-core { width: 78px; height: 78px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tree-node-dot, .tree-wire { transition: none; }
+  .rcore-halo { animation: none; }
+  .rnode { transition: opacity 0.25s ease; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1); }
+  .rburst.is-lit .rburst-wave { animation: none; opacity: 0; }
+  .rburst-ray { transition: none; }
 }
 
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }
