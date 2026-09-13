@@ -308,17 +308,21 @@ export default function RadialMenu() {
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`rcore ${open && !closing ? 'is-open' : ''}`}
-        onClick={openDial}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-      >
-        <span className="rcore-dial" aria-hidden="true" />
-        <span className="rcore-label">{SECTION.home.exploreButton}</span>
-      </button>
+      <span className={`rcore-wrap ${open && !closing ? 'is-open' : ''}`}>
+        {/* A slow hairline ping so the eye finds the one thing to press. */}
+        <span className="rcore-ping" aria-hidden="true" />
+        <button
+          ref={triggerRef}
+          type="button"
+          className={`rcore ${open && !closing ? 'is-open' : ''}`}
+          onClick={openDial}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+        >
+          <span className="rcore-dial" aria-hidden="true" />
+          <span className="rcore-label">{SECTION.home.exploreButton}</span>
+        </button>
+      </span>
       <p className="rcore-hint">{SECTION.home.exploreHint}</p>
 
       {open && createPortal(

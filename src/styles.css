@@ -8335,20 +8335,48 @@ html[data-theme="dark"] .navbar.scrolled {
 .rdial,
 .rcore { --r-out: cubic-bezier(0.16, 1, 0.3, 1); --r-swing: cubic-bezier(0.76, 0, 0.24, 1); }
 
+/* The one thing on the hero to press, so it is sized and weighted like it.
+   A 1px border at 16% white on a near-black field was close to invisible and
+   sat in a 46px-tall box; it is now a 64px target with a lit rim. */
+.rcore-wrap {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+}
+.rcore-ping {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(199,210,254,0.6);
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  animation: rping 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  transition: opacity 0.3s var(--ease);
+}
+@keyframes rping {
+  0%       { transform: scale(1);    opacity: 0; }
+  12%      { opacity: 0.5; }
+  55%, 100% { transform: scale(1.22); opacity: 0; }
+}
+.rcore-wrap.is-open .rcore-ping { opacity: 0; animation: none; }
+
 .rcore {
   position: relative;
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 26px 13px 16px;
-  border: 1px solid rgba(255,255,255,0.16);
+  justify-content: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 0 36px 0 22px;
+  border: 1px solid rgba(255,255,255,0.42);
   border-radius: 999px;
-  background: rgba(255,255,255,0.02);
+  background: rgba(255,255,255,0.07);
   font-family: inherit;
-  color: rgba(255,255,255,0.92);
+  color: #fff;
   cursor: pointer;
   overflow: hidden;
+  box-shadow: 0 14px 40px -18px rgba(0,0,0,0.95);
   -webkit-tap-highlight-color: transparent;
   transition: border-color 0.4s var(--ease), background 0.4s var(--ease), opacity 0.45s var(--ease) 0.2s;
 }
@@ -8364,23 +8392,23 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 .rcore:hover::after, .rcore:focus-visible::after { transform: translateX(120%); }
 .rcore:hover, .rcore:focus-visible {
-  border-color: rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.13);
   outline: none;
 }
 .rcore:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 4px; }
-.rcore:active { transform: scale(0.98); }
 .rcore.is-open { opacity: 0; pointer-events: none; transition-delay: 0s; }
+.rcore:active { transform: scale(0.975); }
 
 /* A quiet compass that turns a quarter-turn when you reach for it. */
 .rcore-dial {
   position: relative;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.5);
   transition: transform 0.7s var(--r-out), border-color 0.4s var(--ease);
 }
 .rcore-dial::before,
@@ -8389,22 +8417,23 @@ html[data-theme="dark"] .navbar.scrolled {
   position: absolute;
   background: rgba(255,255,255,0.55);
 }
-.rcore-dial::before { width: 1px; height: 7px; top: -1px; }
-.rcore-dial::after  { width: 3px; height: 3px; border-radius: 50%; background: #fff; }
-.rcore:hover .rcore-dial { transform: rotate(90deg); border-color: rgba(255,255,255,0.5); }
+.rcore-dial::before { width: 1px; height: 8px; top: -1px; }
+.rcore-dial::after  { width: 4px; height: 4px; border-radius: 50%; background: #fff; }
+.rcore:hover .rcore-dial { transform: rotate(90deg); border-color: rgba(255,255,255,0.85); }
 .rcore-label {
   position: relative;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-indent: 0.16em;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  white-space: nowrap;
 }
 .rcore-hint {
-  margin: 14px 0 0;
-  font-size: 11px;
+  margin: 16px 0 0;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.14em;
-  color: rgba(255,255,255,0.34);
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.55);
   text-align: center;
 }
 
@@ -8437,11 +8466,15 @@ html[data-theme="dark"] .navbar.scrolled {
   cursor: default;
   /* Flat, not a gradient. Grading the scrim from 94% at the centre to 98% at
      the edges pooled a soft teal disc in the middle — the page bleeding
-     through by exactly the difference. Desaturating the backdrop keeps what
-     is left reading as depth rather than colour. */
-  background: rgba(5,6,16,0.965);
-  -webkit-backdrop-filter: blur(18px) saturate(70%);
-  backdrop-filter: blur(18px) saturate(70%);
+     through by exactly the difference.
+
+     No backdrop-filter either. At this opacity the blur was worth almost
+     nothing to look at, and it cost a great deal: the starfield behind it
+     repaints every frame, so the blur had to be recomputed every frame too,
+     over the whole viewport, while the aperture was animating. Measured at 4x
+     CPU throttle, dropping the blur and holding the starfield together took
+     the opening from 67ms a frame to 33ms. */
+  background: rgba(5,6,16,0.975);
   opacity: 0;
   transition: opacity 0.55s var(--ease);
 }
@@ -8801,6 +8834,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .rcore-dial, .rdial, .rdial-spin, .rdial-stage, .rdial-ring, .rdial-tick { transition: none; }
+  .rcore-ping { animation: none; opacity: 0; }
   .rcore::after { display: none; }
   .rcore:hover .rcore-dial { transform: none; }
   .rdial { clip-path: none; }

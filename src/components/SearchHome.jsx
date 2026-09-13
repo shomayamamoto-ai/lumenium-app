@@ -222,6 +222,14 @@ function StarCanvas() {
 
     const draw = (now) => {
       if (!running) return
+      // The dial covers the field with a 96.5%-opaque scrim, so redrawing a
+      // hundred and thirty stars behind it buys nothing and costs a
+      // full-viewport repaint on every frame of the opening animation. Hold
+      // the loop but skip the work; it picks straight back up on close.
+      if (document.body.dataset.dialOpen) {
+        raf = requestAnimationFrame(draw)
+        return
+      }
       ctx.clearRect(0, 0, w, h)
       for (const s of stars) drawStar(s, now)
       if (!prefersReduced) drawMeteors(now)
