@@ -2,14 +2,14 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
+import SkillTree from './SkillTree'
 import { events } from '../lib/analytics'
 
-// Google-style minimal home: a big logo and one search box.
-// Known topics route straight to the info page section; anything else is
-// handed to the AI chat widget via the `lumenium:ask` custom event.
-
-// Service-specific keywords open that service's detail panel directly
-// (checked before the generic topic routes below).
+// Home: the brand lockup over a radial skill tree.
+//
+// The search box is gone, but `/?q=…` still routes — it is a useful deep
+// link for campaigns — so the keyword maps below stay. Service keywords open
+// that service's detail panel and are checked before the topic routes.
 const SERVICE_MAP = [
   { re: /SNS|LINE|ライン|インスタ|Instagram|運用代行|Bot|ボット|集客/i, id: 'sns' },
   { re: /動画|映像|採用動画|PR動画|ムービー|YouTube|ユーチューブ|編集|撮影/i, id: 'video' },
@@ -30,28 +30,6 @@ const TOPIC_ROUTES = [
   { re: /ブログ|記事|コラム/i, hash: '#/info/blog' },
   { re: /お知らせ|ニュース|新着/i, hash: '#/info/news' },
   { re: /サービス|動画|映像|AI|SNS|LINE|Web|HP|LP|アプリ|ロゴ|キャスト|制作|研修/i, hash: '#/info/services' },
-]
-
-// Search-assist suggestions (shown when the magnifier is pressed / the box
-// is focused). `service` opens that service's detail panel; `hash` jumps to
-// a section; `ai` hands the label to the chat.
-const SUGGESTIONS = [
-  { label: '採用動画・PR動画を作ってみよう', service: 'video' },
-  { label: '生成AI研修で社内を強化しよう', service: 'ai' },
-  { label: 'SNS・LINEで集客を仕組み化しよう', service: 'sns' },
-  { label: 'HP・LPをリニューアルしよう', service: 'web' },
-  { label: '料金をシミュレーションしてみよう', hash: '#/info/pricing' },
-  { label: '実績を見てみよう', hash: '#/info/results' },
-  { label: 'まずは無料で相談してみよう', hash: '#/info/contact-form' },
-]
-
-const CHIPS = [
-  { label: 'サービス', hash: '#/info/services' },
-  { label: '料金', hash: '#/info/pricing' },
-  { label: '実績', hash: '#/info/results' },
-  { label: 'お客様の声', hash: '#/info/testimonials' },
-  { label: 'よくある質問', hash: '#/info/faq' },
-  { label: 'お問い合わせ', hash: '#/info/contact-form' },
 ]
 
 function askAI(query) {
@@ -276,19 +254,11 @@ function StarCanvas() {
 
 export default function SearchHome() {
   const [q, setQ] = useState('')
-  const [assistOpen, setAssistOpen] = useState(false)
-  const [activeIdx, setActiveIdx] = useState(-1)
   const [videoOpen, setVideoOpen] = useState(false)
-  const inputRef = useRef(null)
-  const formRef = useRef(null)
 
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  // `/?q=...` entry point — this is what the WebSite SearchAction in the
-  // markup promises, so deep links (and Google's sitelinks searchbox) land
-  // on the same destination a typed search would.
+  // `/?q=...` deep link. The box it used to mirror is gone, but the entry
+  // point is still worth keeping for campaign links — it routes to the same
+  // place a typed query did.
   const ranQuery = useRef(false)
   useEffect(() => {
     if (ranQuery.current) return
@@ -305,64 +275,6 @@ export default function SearchHome() {
     return () => clearTimeout(id)
   }, [])
 
-  // Close the assist panel on outside click / Escape
-  useEffect(() => {
-    if (!assistOpen) return
-    const onDown = (e) => {
-      if (formRef.current && !formRef.current.contains(e.target)) setAssistOpen(false)
-    }
-    const onKey = (e) => { if (e.key === 'Escape') setAssistOpen(false) }
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [assistOpen])
-
-  // Typed text filters the suggestions; an "ask AI" row is appended when
-  // there is a query so there is always a way forward.
-  const query = q.trim()
-  const filtered = query
-    ? SUGGESTIONS.filter((s) => s.label.toLowerCase().includes(query.toLowerCase()))
-    : SUGGESTIONS
-  const rows = query ? [...filtered, { label: `「${query}」をAIに聞く`, ai: true }] : filtered
-
-  const jump = (s) => {
-    setAssistOpen(false)
-    setActiveIdx(-1)
-    events.ctaClick('home-assist', s.label.slice(0, 60))
-    if (s.ai) {
-      askAI(query || 'Lumeniumについて教えて')
-      return
-    }
-    if (s.service) {
-      sessionStorage.setItem('lum_open_service', s.service)
-      window.location.hash = '#/info/services'
-      return
-    }
-    if (s.hash) window.location.hash = s.hash
-  }
-
-  const onInputKeyDown = (e) => {
-    if (!assistOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-      setAssistOpen(true)
-      setActiveIdx(0)
-      e.preventDefault()
-      return
-    }
-    if (!assistOpen) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveIdx((i) => (i + 1) % rows.length)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveIdx((i) => (i - 1 + rows.length) % rows.length)
-    } else if (e.key === 'Enter' && activeIdx >= 0 && rows[activeIdx]) {
-      e.preventDefault()
-      jump(rows[activeIdx])
-    }
-  }
 
   const runSearch = (query, source) => {
     if (!query) return
@@ -387,11 +299,6 @@ export default function SearchHome() {
   const runSearchRef = useRef(runSearch)
   runSearchRef.current = runSearch
 
-  const onSearch = (e) => {
-    e.preventDefault()
-    runSearch(q.trim(), 'home-search')
-  }
-
   const onAsk = () => {
     const query = q.trim()
     events.ctaClick('home-ask-ai', query.slice(0, 60) || '(empty)')
@@ -414,67 +321,13 @@ export default function SearchHome() {
           <p className="search-home-tag">{SECTION.home.tagline}</p>
         </div>
 
-        <form className="search-home-form" onSubmit={onSearch} role="search" ref={formRef}>
-          <div className="search-home-box">
-            <button
-              type="button"
-              className="search-home-icon-btn"
-              onClick={() => { setAssistOpen((v) => !v); setActiveIdx(-1); inputRef.current?.focus() }}
-              aria-label="検索アシストを開く"
-              aria-expanded={assistOpen}
-              aria-controls="search-assist"
-            >
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M14 14L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="search"
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setAssistOpen(true); setActiveIdx(-1) }}
-              // Open on an actual press — NOT on focus, or the mount-time
-              // autofocus would pop the panel right after the splash.
-              onPointerDown={() => setAssistOpen(true)}
-              onKeyDown={onInputKeyDown}
-              placeholder="何をお探しですか？ 例：採用動画・AI研修・LP制作…"
-              aria-label="サイト内検索・AIへの質問"
-              aria-autocomplete="list"
-              maxLength={200}
-              enterKeyHint="search"
-            />
-          </div>
-          {assistOpen && rows.length > 0 && (
-            <ul className="search-home-assist" id="search-assist" role="listbox" aria-label="検索候補">
-              {rows.map((s, i) => (
-                <li key={s.label} role="option" aria-selected={i === activeIdx}>
-                  <button
-                    type="button"
-                    className={`search-home-assist-item ${i === activeIdx ? 'is-active' : ''}`}
-                    onClick={() => jump(s)}
-                    onMouseEnter={() => setActiveIdx(i)}
-                  >
-                    {s.ai ? (
-                      <span className="search-home-assist-ico" aria-hidden="true">💬</span>
-                    ) : (
-                      <svg className="search-home-assist-ico" width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                        <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.6" />
-                        <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                      </svg>
-                    )}
-                    <span>{s.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="search-home-actions">
-            <button type="submit" className="search-home-btn">{SECTION.home.searchButton}</button>
-            <button type="button" className="search-home-btn" onClick={onAsk}>AIに相談する</button>
-          </div>
-        </form>
+        {/* The search box is replaced by a radial tree: twelve destinations is
+            few enough to show outright rather than ask someone to type for. */}
+        <SkillTree />
+
+        <div className="search-home-actions">
+          <button type="button" className="search-home-btn" onClick={onAsk}>{SECTION.home.askButton}</button>
+        </div>
 
         {/* PR movie card — relocated from the old hero so it gets seen */}
         <button
@@ -506,11 +359,7 @@ export default function SearchHome() {
           </span>
         </button>
 
-        <div className="search-home-chips" aria-label="よく見られるページ">
-          {CHIPS.map((c) => (
-            <a key={c.label} href={c.hash} className="search-home-chip">{c.label}</a>
-          ))}
-        </div>
+
       </div>
 
       {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}

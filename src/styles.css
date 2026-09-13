@@ -8163,7 +8163,7 @@ html[data-theme="dark"] .navbar.scrolled {
   /* The definition + footer stack is pinned to the bottom of the viewport,
      so the flow content above it needs to clear that height. It grew to
      three lines, which was letting it sit on top of the chips. */
-  padding: 96px 20px 184px;
+  padding: 96px 20px 56px;
   position: relative;
   overflow: hidden;
 }
@@ -8202,7 +8202,7 @@ html[data-theme="dark"] .navbar.scrolled {
   flex-direction: column;
   align-items: center;
 }
-.search-home-brand { text-align: center; margin-bottom: 40px; }
+.search-home-brand { text-align: center; margin-bottom: 26px; }
 /* Eyebrow — small letterspaced caps above the lockup. */
 .search-home-eyebrow {
   position: relative;
@@ -8221,7 +8221,7 @@ html[data-theme="dark"] .navbar.scrolled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 34px 0 22px;
+  padding: 24px 0 14px;
 }
 /* The name means light. The mark sits inside a slow bloom so it reads as a
    source rather than a sticker — one breath every 9s, nothing more. */
@@ -8313,6 +8313,145 @@ html[data-theme="dark"] .navbar.scrolled {
   .search-home-tag { animation: none; }
   .search-home-lockup::before { animation: none; }
 }
+
+/* =========================================================================
+   HOME — radial skill tree (replaces the search box)
+   ========================================================================= */
+.tree {
+  --tree: clamp(292px, 84vw, 440px);
+  position: relative;
+  z-index: 2;
+  width: var(--tree);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.tree-box {
+  position: relative;
+  width: var(--tree);
+  height: var(--tree);
+}
+.tree-wires {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.tree-orbit {
+  fill: none;
+  stroke: rgba(148, 163, 233, 0.16);
+  stroke-width: 0.22;
+}
+.tree-wire {
+  stroke-width: 0.42;
+  opacity: 0.55;
+  transition: opacity 0.25s var(--ease), stroke-width 0.25s var(--ease);
+}
+.tree-wire.is-active { opacity: 1; stroke-width: 0.9; }
+
+/* The core the spokes run back to. */
+.tree-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--tree) * 0.155);
+  height: calc(var(--tree) * 0.155);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(199,210,254,0.22), rgba(79,70,229,0.10) 62%, transparent 75%);
+  pointer-events: none;
+}
+.tree-core img { width: 100%; height: 100%; display: block; }
+
+.tree-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-decoration: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.25s var(--ease);
+}
+.tree-node-dot {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(165deg, rgba(48,56,105,0.92), rgba(20,25,56,0.92));
+  border: 1px solid rgba(129, 140, 248, 0.34);
+  box-shadow: 0 4px 0 rgba(10,13,38,0.9), 0 10px 20px -8px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.16);
+  transition: transform 0.25s var(--ease), border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.tree-node--r1 .tree-node-dot {
+  width: calc(var(--tree) * 0.132);
+  height: calc(var(--tree) * 0.132);
+}
+.tree-node--r2 .tree-node-dot {
+  width: calc(var(--tree) * 0.088);
+  height: calc(var(--tree) * 0.088);
+}
+.tree-node-dot svg { width: 52%; height: 52%; }
+.tree-node-pip {
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(165, 180, 252, 0.75);
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.7);
+}
+.tree-node-label {
+  max-width: calc(var(--tree) * 0.24);
+  font-size: clamp(9.5px, 2vw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+}
+.tree-node:hover,
+.tree-node:focus-visible { color: #dbe2ff; outline: none; }
+.tree-node:hover .tree-node-dot,
+.tree-node:focus-visible .tree-node-dot,
+.tree-node.is-active .tree-node-dot {
+  transform: translateY(-2px) scale(1.09);
+  border-color: rgba(165, 180, 252, 0.85);
+  box-shadow: 0 6px 0 rgba(10,13,38,0.9), 0 14px 26px -8px rgba(79,70,229,0.55),
+    0 0 22px rgba(99,102,241,0.45), inset 0 1px 0 rgba(255,255,255,0.28);
+}
+.tree-node:focus-visible .tree-node-dot { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+
+.tree-readout {
+  margin-top: 6px;
+  min-height: 1.5em;
+  font-size: clamp(12px, 2.2vw, 14px);
+  letter-spacing: 0.06em;
+  color: rgba(203, 213, 245, 0.9);
+  text-align: center;
+}
+
+/* Twelve nodes on a phone leaves no slack: trim the labels and the node
+   circles so neighbouring rings cannot collide. */
+@media (max-width: 640px) {
+  .tree-node-label { max-width: calc(var(--tree) * 0.21); font-size: 9.5px; letter-spacing: 0.01em; }
+  .tree-node { gap: 3px; }
+  .tree-node--r1 .tree-node-dot { width: calc(var(--tree) * 0.125); height: calc(var(--tree) * 0.125); }
+  .tree-node--r2 .tree-node-dot { width: calc(var(--tree) * 0.075); height: calc(var(--tree) * 0.075); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-node-dot, .tree-wire { transition: none; }
+}
+
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }
 .search-home-box {
   display: flex;
@@ -8409,10 +8548,8 @@ html[data-theme="dark"] .navbar.scrolled {
    The definition is the passage an answer engine can lift from the page that
    actually ranks, so it has to be real text on the home page itself. */
 .search-home-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: static;
+  margin-top: 34px;
   z-index: 2;
 }
 .search-home-def {
@@ -8435,7 +8572,7 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-def a:hover { color: #c7d2fe; }
 @media (max-width: 640px) {
   .search-home { padding-bottom: 40px; }
-  .search-home-bottom { position: static; margin-top: 30px; }
+  .search-home-bottom { margin-top: 28px; }
 }
 .search-home-footer {
   position: static;
