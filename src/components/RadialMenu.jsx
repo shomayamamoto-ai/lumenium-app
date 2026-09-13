@@ -36,7 +36,7 @@ const NODES = [
 
 const TICK = 9        // length of the mark that steps off the orbit
 const SPAN = 20       // degrees of arc each entry owns
-const EXIT_MS = 690   // how long the reverse sequence is given before unmount
+const EXIT_MS = 700   // how long the reverse sequence is given before unmount
 const TRANSIT_MS = 660 // how long the dive into a destination runs before it lands
 const DIVE = 2.1      // how far past the chosen entry the view travels
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
@@ -62,6 +62,9 @@ function measure() {
     // straight through the hub on a phone, so it is kept wide there instead.
     k1x: narrow ? 0.74 : 0.52,
     k1y: narrow ? 0.48 : 0.52,
+    // Where the spokes start — clear of the centre mark, which is 54px across
+    // on a phone and 78px on anything wider.
+    hubR: narrow ? 36 : 52,
     cx: w / 2,
     cy: h / 2,
   }
@@ -81,7 +84,7 @@ export default function RadialMenu() {
   const [settled, setSettled] = useState(false)
   const [going, setGoing] = useState(null)
   const [hot, setHot] = useState(null)
-  const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, cx: 640, cy: 420 }))
+  const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, hubR: 52, cx: 640, cy: 420 }))
   const [wipe, setWipe] = useState({ x: 0, y: 0, r: 1200 })
   const triggerRef = useRef(null)
   const sheetRef = useRef(null)
@@ -151,17 +154,27 @@ export default function RadialMenu() {
     const onResize = () => setGeo(measure())
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    // Tells the hero's starfield to stop chasing the cursor while we are over it.
-    document.body.dataset.dialOpen = '1'
     window.addEventListener('keydown', onKey)
     window.addEventListener('resize', onResize)
     return () => {
       document.body.style.overflow = prev
-      delete document.body.dataset.dialOpen
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
     }
   }, [open, close])
+
+  // The hero is pushed out of the way while the dial is up. Dropping the flag
+  // at the start of the reverse rather than at unmount means the hero fades
+  // back in *through* the collapsing aperture, instead of appearing whole the
+  // instant the overlay leaves. It also stops the starfield chasing the
+  // cursor for as long as we are over it.
+  useEffect(() => {
+    // Not on a dive: that ends on a different page, so bringing the hero back
+    // underneath it would flash a screen we are in the middle of leaving.
+    if (!open || closing) return
+    document.body.dataset.dialOpen = '1'
+    return () => { delete document.body.dataset.dialOpen }
+  }, [open, closing])
 
   const navigate = (node) => {
     if (node.service) {
@@ -208,7 +221,7 @@ export default function RadialMenu() {
     }, TRANSIT_MS)
   }
 
-  const { cx, cy, rx, ry, k1x, k1y } = geo
+  const { cx, cy, rx, ry, k1x, k1y, hubR } = geo
   const r1 = { x: rx * k1x, y: ry * k1y }
   const r2 = { x: rx, y: ry }
 
@@ -348,7 +361,7 @@ export default function RadialMenu() {
                   <g key={n.label}>
                     <line
                       className={`rdial-spoke ${hot === n.i ? 'is-on' : ''}`}
-                      x1={cx + n.ux * 26} y1={cy + n.uy * 26}
+                      x1={cx + n.ux * hubR} y1={cy + n.uy * hubR}
                       x2={n.p.x} y2={n.p.y}
                     />
                     <path
@@ -428,8 +441,8 @@ export default function RadialMenu() {
                 src="/favicon.svg?v=3"
                 alt=""
                 aria-hidden="true"
-                width="30"
-                height="30"
+                width="78"
+                height="78"
                 style={{ left: cx, top: cy }}
               />
             </div>

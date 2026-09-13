@@ -8422,7 +8422,11 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 .rdial.is-lit { clip-path: circle(var(--wipe) at var(--ox) var(--oy)); }
 /* Closing wants the opposite curve — it should leave, not linger. */
-.rdial.is-closing { transition: clip-path 0.42s cubic-bezier(0.7, 0, 0.84, 0) 0.26s; }
+/* Not a mirrored expo-in: that curve sits at full radius until the last
+   150ms, so holding the scrim opaque behind it left a blank screen and then
+   a snap. An in-out curve started earlier means the disc is visibly shrinking
+   while the last entries are still leaving. */
+.rdial.is-closing { transition: clip-path 0.56s cubic-bezier(0.65, 0, 0.35, 1) 0.1s; }
 
 .rdial-scrim {
   position: absolute;
@@ -8449,19 +8453,24 @@ html[data-theme="dark"] .navbar.scrolled {
 /* All the way out, not down to 20%: the hero's 280px logo mark still bloomed
    faintly through the scrim, and the hub used to be an opaque disc sitting on
    top of it. With the hub gone that bloom would sit directly behind the
-   dial's own centre mark. The starfield sits outside this wrapper and is what
-   keeps the depth. */
-body[data-dial-open] .search-home-inner {
-  opacity: 0;
-  transition: opacity 0.6s var(--ease);
-}
+   dial's own centre mark. The starfield is outside this wrapper and is what
+   keeps the depth.
+
+   The transitions live on the plain selectors, not inside the attribute rule.
+   Declared only under body[data-dial-open] they exist while the dial is up
+   and vanish with the attribute, so the hero had no transition left to run on
+   the way back and snapped in instead of being revealed. */
+.search-home-inner { transition: opacity 0.6s var(--ease); }
+.search-home::after { transition: opacity 0.6s var(--ease); }
+.lumen-glow { transition: opacity 0.4s var(--ease); }
+body[data-dial-open] .search-home-inner { opacity: 0; }
 body[data-dial-open] .search-home-lockup::before { animation: none; opacity: 0; }
-/* The horizon wash behind the hero pools right where the hub sits. */
-body[data-dial-open] .search-home::after { opacity: 0; transition: opacity 0.6s var(--ease); }
+/* The horizon wash behind the hero pools right where the centre sits. */
+body[data-dial-open] .search-home::after { opacity: 0; }
 /* The custom cursor's trailing aura is a 320px screen-blended blob at
    z-index 9997 — it floats over the overlay and washes out whichever label
    you are reading. The ring and dot stay; only the aura stands down. */
-body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ease); }
+body[data-dial-open] .lumen-glow { opacity: 0; }
 
 /* Pointer parallax lives here; the transform is written by JS and eased here,
    so moving the mouse costs no render. */
@@ -8687,8 +8696,8 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
    twists back to where it came in, and only then does the aperture collapse
    onto the button it grew out of. The delays are the mirrored ones, written
    inline by the component. */
-.rdial.is-closing .ritem { transition-duration: 0.42s, 0.46s; }
-.rdial.is-closing .ritem-ch { transition-duration: 0.46s; }
+.rdial.is-closing .ritem { transition-duration: 0.36s, 0.4s; }
+.rdial.is-closing .ritem-ch { transition-duration: 0.4s; }
 .rdial.is-closing .ritem-no { transition-duration: 0.3s, 0.3s, 0.3s; }
 .rdial.is-closing .ritem-rule { transition-duration: 0.2s; }
 .rdial.is-closing .rdial-tick { transition-duration: 0.4s, 0.3s; }
@@ -8696,7 +8705,12 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   transition: transform 0.62s cubic-bezier(0.5, 0, 0.75, 0.35), opacity 0.34s var(--ease) 0.28s;
 }
 .rdial.is-closing .rdial-mark { transition-duration: 0.28s, 0.28s; transition-delay: 0s; }
-.rdial.is-closing .rdial-scrim { transition: opacity 0.4s var(--ease) 0.26s; }
+/* The scrim holds its full opacity right to the end. Fading it out as well
+   turned the whole exit into a cross-fade, and the collapsing aperture — the
+   part that carries the dial back to the button — was never visible against
+   it. Now a dark disc shrinks onto the trigger and the hero is revealed
+   around it. */
+.rdial.is-closing .rdial-scrim { opacity: 1; transition: none; }
 
 /* ---- the centre ----
    This used to be a second close control, directly duplicating the ✕ in the
@@ -8704,7 +8718,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
    converge on, and nothing here takes a click. */
 .rdial-mark {
   position: absolute;
-  width: 30px;
+  width: 78px;
   height: auto;
   opacity: 0;
   pointer-events: none;
@@ -8713,7 +8727,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
     opacity 0.6s var(--ease) 0.26s,
     transform 0.95s var(--r-out) 0.26s;
 }
-.rdial.is-lit .rdial-mark { opacity: 0.62; transform: translate(-50%, -50%) scale(1); }
+.rdial.is-lit .rdial-mark { opacity: 0.68; transform: translate(-50%, -50%) scale(1); }
 
 /* Corner chrome — the overlay states what it is and how to leave it. */
 .rdial-meta {
@@ -8778,7 +8792,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .ritem-mask { font-size: 12.5px; letter-spacing: 0; }
   .ritem.is-on .ritem-mask { letter-spacing: 0.04em; }
   .ritem-no { font-size: 9px; letter-spacing: 0.18em; }
-  .rdial-mark { width: 24px; }
+  .rdial-mark { width: 54px; }
   .rdial-meta { top: 16px; font-size: 9px; letter-spacing: 0.16em; }
   .rdial-meta--tl { left: 16px; }
   /* max() keeps it clear of a notch when the page runs full-bleed. */
@@ -8802,7 +8816,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ea
   .rdial-pulse { animation: none; opacity: 0; }
   .rdial-x, .rdial.is-lit .rdial-x { transition: none; transform: none; opacity: 1; }
   .rdial-x:hover, .rdial-x:focus-visible { transform: none; }
-  .rdial-mark, .rdial.is-lit .rdial-mark { transition: none; transform: translate(-50%, -50%); opacity: 0.62; }
+  .rdial-mark, .rdial.is-lit .rdial-mark { transition: none; transform: translate(-50%, -50%); opacity: 0.68; }
 }
 
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }
