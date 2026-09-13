@@ -1,26 +1,29 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { IconVideo, IconAI, IconSNS, IconWeb, IconCast, IconCreative } from './Icons'
 import { useFocusTrap } from '../lib/focusTrap'
 import { SECTION } from '../data/text'
 import { events } from '../lib/analytics'
 
-// One button in the hero. Pressing it detonates: a shockwave leaves the core
-// and the twelve destinations fly outward along their own angles, across the
-// whole viewport rather than inside a boxed diagram.
+// Pressing the trigger opens a dial: two hairline orbits with the twelve
+// destinations set on them like an astrolabe.
 //
-// The burst starts from wherever the button actually is, so the motion reads
-// as coming out of the thing you pressed.
+// The first version of this was a firework — glowing pills flying out of a
+// glowing core. Everything emitted light, so nothing meant anything. This one
+// spends colour almost nowhere: the structure is drawn in 1px strokes, the
+// content is type, and the only bright mark on screen belongs to whichever
+// entry you are on. Each entry owns an arc of its ring; touching it thickens
+// that arc like a detent on a physical dial, draws a spoke back to the hub,
+// and dims the other eleven.
 
 const NODES = [
-  // Inner ring — 事業内容. These open that service's detail panel.
-  { a: 0, ring: 1, label: '動画制作', service: 'video', Icon: IconVideo },
-  { a: 60, ring: 1, label: 'AI導入・研修', service: 'ai', Icon: IconAI },
-  { a: 120, ring: 1, label: 'Web制作', service: 'web', Icon: IconWeb },
-  { a: 180, ring: 1, label: 'クリエイティブ', service: 'creative', Icon: IconCreative },
-  { a: 240, ring: 1, label: 'キャスト手配', service: 'cast', Icon: IconCast },
-  { a: 300, ring: 1, label: 'SNS・LINE', service: 'sns', Icon: IconSNS },
-  // Outer ring — 検討するための情報.
+  // Inner orbit — 事業内容. These open that service's detail panel.
+  { a: 0, ring: 1, label: '動画制作', service: 'video' },
+  { a: 60, ring: 1, label: 'AI導入・研修', service: 'ai' },
+  { a: 120, ring: 1, label: 'Web制作', service: 'web' },
+  { a: 180, ring: 1, label: 'クリエイティブ', service: 'creative' },
+  { a: 240, ring: 1, label: 'キャスト手配', service: 'cast' },
+  { a: 300, ring: 1, label: 'SNS・LINE', service: 'sns' },
+  // Outer orbit — 検討するための情報. Offset 30° so the two orbits interleave.
   { a: 30, ring: 2, label: '料金', hash: '#/info/pricing' },
   { a: 90, ring: 2, label: '実績', hash: '#/info/results' },
   { a: 150, ring: 2, label: 'ご依頼の流れ', hash: '#/info/flow' },
@@ -29,32 +32,43 @@ const NODES = [
   { a: 330, ring: 2, label: 'お問い合わせ', hash: '#/info/contact-form' },
 ]
 
-// Inner ring first, then outer — the wave reads as travelling outward.
-const delayOf = (n, i) => (n.ring === 1 ? 90 + i * 45 : 330 + (i - 6) * 45)
-
+const TICK = 9        // length of the mark that steps off the orbit
+const SPAN = 20       // degrees of arc each entry owns
 const clamp = (lo, v, hi) => Math.min(Math.max(v, lo), hi)
+const rad = (deg) => (deg * Math.PI) / 180
 
-/** Geometry is resolved in JS: SVG line endpoints are numbers, not CSS vars,
- *  which browsers only accept as geometry properties inconsistently.
- *
- *  The burst is an ellipse, not a circle. A phone is narrow and tall, and a
- *  circle sized to its width packs the two rings close enough that the nodes
- *  collide; spreading further vertically than horizontally uses the screen
- *  that is actually there. On a desktop the two radii come out near enough
- *  to equal that it still reads as a circle. */
+/** Orbits are ellipses, not circles. A phone is narrow and tall; a circle
+ *  sized to its width leaves the two orbits too close for the labels between
+ *  them. Taking each radius from its own axis uses the screen that is there,
+ *  and on a desktop the two come out near enough equal to read as circles. */
 function measure() {
   const w = window.innerWidth
   const h = window.innerHeight
-  const rx = clamp(108, w * 0.34, 340)
-  const ry = clamp(148, h * 0.30, 300)
-  return { rx, ry, k1: 0.62 }   // k1 = inner ring, as a fraction of the outer
+  // The labels at 90° and 270° are pushed out by their whole width, so on a
+  // narrow screen the horizontal radius has to give way before they do.
+  const narrow = w < 700
+  return {
+    rx: clamp(92, w * (narrow ? 0.24 : 0.30), 320),
+    ry: clamp(132, h * 0.32, 296),
+    // The inner orbit scales per axis. Squeezing x as hard as y would run it
+    // straight through the hub on a phone, so it is kept wide there instead.
+    k1x: narrow ? 0.74 : 0.52,
+    k1y: narrow ? 0.48 : 0.52,
+    cx: w / 2,
+    cy: h / 2,
+  }
 }
+
+// Ramanujan's approximation — close enough to hand stroke-dasharray a length
+// it can draw the orbit in with.
+const ellipsePerimeter = (a, b) =>
+  Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)))
 
 export default function RadialMenu() {
   const [open, setOpen] = useState(false)
-  const [origin, setOrigin] = useState({ x: 0, y: 0 })
-  const [geo, setGeo] = useState({ rx: 240, ry: 220, k1: 0.62 })
   const [lit, setLit] = useState(false)
+  const [hot, setHot] = useState(null)
+  const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, cx: 640, cy: 420 }))
   const triggerRef = useRef(null)
   const sheetRef = useRef(null)
 
@@ -63,27 +77,18 @@ export default function RadialMenu() {
   const close = useCallback(() => {
     setLit(false)
     setOpen(false)
+    setHot(null)
     triggerRef.current?.focus()
   }, [])
 
-  const placeOrigin = useCallback(() => {
-    const r = triggerRef.current?.getBoundingClientRect()
-    const x = r ? r.left + r.width / 2 : window.innerWidth / 2
-    const raw = r ? r.top + r.height / 2 : window.innerHeight / 2
-    // Keep the origin in a band that leaves room for both rings, top and bottom.
-    const y = clamp(window.innerHeight * 0.42, raw, window.innerHeight * 0.58)
-    setOrigin({ x, y })
+  const openDial = () => {
     setGeo(measure())
-  }, [])
-
-  const explode = () => {
-    placeOrigin()
     events.ctaClick('home-radial', 'open')
     setOpen(true)
   }
 
-  // Paint once collapsed, then flip — without a "before" frame the browser has
-  // nothing to animate from and everything appears already open.
+  // Paint once closed, then flip — without a "before" frame the browser has
+  // nothing to animate from and the dial appears already settled.
   useEffect(() => {
     if (!open) return
     let raf2 = 0
@@ -94,17 +99,20 @@ export default function RadialMenu() {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') close() }
-    const onResize = () => placeOrigin()
+    const onResize = () => setGeo(measure())
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // Tells the hero's starfield to stop chasing the cursor while we are over it.
+    document.body.dataset.dialOpen = '1'
     window.addEventListener('keydown', onKey)
     window.addEventListener('resize', onResize)
     return () => {
       document.body.style.overflow = prev
+      delete document.body.dataset.dialOpen
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
     }
-  }, [open, close, placeOrigin])
+  }, [open, close])
 
   const go = (node) => {
     events.ctaClick('home-radial', node.label)
@@ -121,12 +129,42 @@ export default function RadialMenu() {
     window.location.hash = node.hash
   }
 
+  const { cx, cy, rx, ry, k1x, k1y } = geo
+  const r1 = { x: rx * k1x, y: ry * k1y }
+  const r2 = { x: rx, y: ry }
+  const onEllipse = (r, deg) => ({ x: cx + r.x * Math.sin(rad(deg)), y: cy - r.y * Math.cos(rad(deg)) })
+
   const placed = NODES.map((n, i) => {
-    const k = n.ring === 1 ? geo.k1 : 1
-    const tx = geo.rx * k * Math.sin((n.a * Math.PI) / 180)
-    const ty = -geo.ry * k * Math.cos((n.a * Math.PI) / 180)
-    return { ...n, tx, ty, len: Math.hypot(tx, ty), delay: delayOf(n, i) }
+    const r = n.ring === 1 ? r1 : r2
+    const p = onEllipse(r, n.a)
+    // Radial direction, normalised — the labels push out along it and the
+    // ticks step off along it.
+    const dx = Math.sin(rad(n.a))
+    const dy = -Math.cos(rad(n.a))
+    const len = Math.hypot(dx, dy) || 1
+    const ux = dx / len
+    const uy = dy / len
+    const from = onEllipse(r, n.a - SPAN / 2)
+    const to = onEllipse(r, n.a + SPAN / 2)
+    return {
+      ...n,
+      i,
+      p,
+      ux,
+      uy,
+      tick: { x: p.x + ux * TICK, y: p.y + uy * TICK },
+      arc: `M ${from.x} ${from.y} A ${r.x} ${r.y} 0 0 1 ${to.x} ${to.y}`,
+      side: ux > 0.26 ? 'right' : ux < -0.26 ? 'left' : 'mid',
+      no: String(i + 1).padStart(2, '0'),
+      // Inner orbit reveals first, so the dial reads as opening outward.
+      delay: (n.ring === 1 ? 120 : 300) + (i % 6) * 55,
+    }
   })
+
+  const per1 = ellipsePerimeter(r1.x, r1.y)
+  const per2 = ellipsePerimeter(r2.x, r2.y)
+  const vw = typeof window === 'undefined' ? 1280 : window.innerWidth
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight
 
   return (
     <>
@@ -134,88 +172,109 @@ export default function RadialMenu() {
         ref={triggerRef}
         type="button"
         className={`rcore ${open ? 'is-open' : ''}`}
-        onClick={explode}
+        onClick={openDial}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <span className="rcore-halo" aria-hidden="true" />
-        <span className="rcore-face">
-          <img src="/favicon.svg?v=3" alt="" width="72" height="72" />
-          <span className="rcore-label">{SECTION.home.exploreButton}</span>
-        </span>
+        <span className="rcore-dial" aria-hidden="true" />
+        <span className="rcore-label">{SECTION.home.exploreButton}</span>
       </button>
       <p className="rcore-hint">{SECTION.home.exploreHint}</p>
 
       {open && createPortal(
         <div
-          className={`rburst ${lit ? 'is-lit' : ''}`}
+          className={`rdial ${lit ? 'is-lit' : ''} ${hot !== null ? 'has-focus' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label="サービスとページの一覧"
           ref={sheetRef}
         >
-          <button type="button" className="rburst-backdrop" onClick={close} tabIndex={-1} aria-hidden="true" />
+          <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
 
-          {/* Shockwaves — one-shot, decorative. */}
-          {[1, 2, 3].map((k) => (
-            <span
-              key={k}
-              className={`rburst-wave rburst-wave--${k}`}
-              style={{ left: origin.x, top: origin.y }}
-              aria-hidden="true"
-            />
-          ))}
-
-          <svg className="rburst-rays" aria-hidden="true" focusable="false">
-            {placed.map((n) => (
-              <line
-                key={n.label}
-                className="rburst-ray"
-                x1={origin.x} y1={origin.y}
-                x2={origin.x + n.tx} y2={origin.y + n.ty}
-                strokeDasharray={n.len}
-                strokeDashoffset={lit ? 0 : n.len}
-                style={{ transitionDelay: `${n.delay}ms` }}
+          <svg
+            className="rdial-plate"
+            viewBox={`0 0 ${vw} ${vh}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <g className="rdial-rot" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+              <ellipse
+                className="rdial-ring rdial-ring--1"
+                cx={cx} cy={cy} rx={r1.x} ry={r1.y}
+                strokeDasharray={per1}
+                strokeDashoffset={lit ? 0 : per1}
               />
-            ))}
+              <ellipse
+                className="rdial-ring rdial-ring--2"
+                cx={cx} cy={cy} rx={r2.x} ry={r2.y}
+                strokeDasharray={per2}
+                strokeDashoffset={lit ? 0 : per2}
+              />
+              {placed.map((n) => (
+                <g key={n.label}>
+                  <line
+                    className={`rdial-spoke ${hot === n.i ? 'is-on' : ''}`}
+                    x1={cx + n.ux * 58} y1={cy + n.uy * 58}
+                    x2={n.p.x} y2={n.p.y}
+                  />
+                  <path className={`rdial-arc ${hot === n.i ? 'is-on' : ''}`} d={n.arc} />
+                  <line
+                    className={`rdial-tick ${hot === n.i ? 'is-on' : ''}`}
+                    x1={n.p.x} y1={n.p.y}
+                    x2={n.tick.x} y2={n.tick.y}
+                    strokeDasharray={TICK}
+                    strokeDashoffset={lit ? 0 : TICK}
+                    style={{ transitionDelay: `${n.delay}ms` }}
+                  />
+                </g>
+              ))}
+            </g>
           </svg>
 
           {placed.map((n) => (
             <a
               key={n.label}
               href={n.service ? '#/info/services' : n.hash}
-              className={`rnode rnode--r${n.ring}`}
+              className={`ritem ritem--${n.side} ${hot === n.i ? 'is-on' : ''}`}
               style={{
-                left: origin.x,
-                top: origin.y,
-                '--tx': `${n.tx}px`,
-                '--ty': `${n.ty}px`,
+                left: n.tick.x,
+                top: n.tick.y,
+                '--dx': n.ux,
+                '--dy': n.uy,
                 transitionDelay: `${n.delay}ms`,
               }}
+              onMouseEnter={() => setHot(n.i)}
+              onMouseLeave={() => setHot((h) => (h === n.i ? null : h))}
+              onFocus={() => setHot(n.i)}
+              onBlur={() => setHot((h) => (h === n.i ? null : h))}
               onClick={(e) => {
                 if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
                 e.preventDefault()
                 go(n)
               }}
             >
-              <span className="rnode-dot">
-                {n.Icon ? <n.Icon /> : <span className="rnode-pip" aria-hidden="true" />}
+              <span className="ritem-no" aria-hidden="true">{n.no}</span>
+              <span className="ritem-mask">
+                <span className="ritem-text" style={{ transitionDelay: `${n.delay}ms` }}>{n.label}</span>
               </span>
-              <span className="rnode-label">{n.label}</span>
+              <span className="ritem-rule" aria-hidden="true" />
             </a>
           ))}
 
-          {/* The core stays where it was pressed and becomes the way back. */}
           <button
             type="button"
-            className="rburst-core"
-            style={{ left: origin.x, top: origin.y }}
+            className="rdial-hub"
+            style={{ left: cx, top: cy }}
             onClick={close}
             aria-label="閉じる"
           >
-            <img src="/favicon.svg?v=3" alt="" width="72" height="72" />
-            <span className="rburst-core-label" aria-hidden="true">CLOSE</span>
+            <img src="/favicon.svg?v=3" alt="" width="34" height="34" />
+            <span className="rdial-hub-label" aria-hidden="true">CLOSE</span>
           </button>
+
+          <p className="rdial-meta rdial-meta--tl">LUMENIUM — 対応領域</p>
+          <p className="rdial-meta rdial-meta--tr">ESC で閉じる</p>
         </div>,
         document.body
       )}

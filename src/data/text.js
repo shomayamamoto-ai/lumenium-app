@@ -114,7 +114,6 @@ export const SECTION = {
     searchButton: '検索',
     exploreButton: '探す',
     exploreHint: '押すと、対応領域が放射状に展開します',
-    askButton: 'AIに相談する',
     definition: 'ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。',
     definitionLink: 'ルメニウムとは →',
   },

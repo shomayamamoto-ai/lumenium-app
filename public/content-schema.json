@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-13T10:52:37.843Z",
-  "count": 396,
+  "generatedAt": "2026-09-13T13:07:26.713Z",
+  "count": 395,
   "groups": [
     {
       "key": "text",
@@ -301,10 +301,6 @@
         {
           "path": "text.home.exploreHint",
           "value": "押すと、対応領域が放射状に展開します"
-        },
-        {
-          "path": "text.home.askButton",
-          "value": "AIに相談する"
         },
         {
           "path": "text.home.definition",

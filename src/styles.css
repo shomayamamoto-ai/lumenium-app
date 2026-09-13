@@ -8315,229 +8315,327 @@ html[data-theme="dark"] .navbar.scrolled {
 }
 
 /* =========================================================================
-   HOME — the core button and its radial burst
+   HOME — the trigger, and the dial it opens
+   -------------------------------------------------------------------------
+   An astrolabe, not a firework. The structure is drawn in hairlines, the
+   content is typography, and colour is spent almost nowhere: a glow on every
+   element is what made the first attempt read as a template. Each entry owns
+   an arc of its ring, and hovering thickens that arc like a dial detent while
+   everything else recedes.
    ========================================================================= */
 .rcore {
   position: relative;
   z-index: 2;
-  display: grid;
-  place-items: center;
-  width: clamp(132px, 26vw, 168px);
-  height: clamp(132px, 26vw, 168px);
-  padding: 0;
-  border: none;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 26px 13px 16px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.02);
   font-family: inherit;
+  color: rgba(255,255,255,0.92);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
 }
-/* The halo breathes so the button reads as pressable without a hard border. */
-.rcore-halo {
-  position: absolute;
-  inset: -14%;
-  border-radius: 50%;
-  background: radial-gradient(circle,
-    rgba(129,140,248,0.28) 0%, rgba(99,102,241,0.12) 42%, transparent 68%);
-  animation: rcore-breathe 4.5s ease-in-out infinite;
-  pointer-events: none;
+.rcore:hover, .rcore:focus-visible {
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.05);
+  outline: none;
 }
-@keyframes rcore-breathe {
-  0%, 100% { transform: scale(0.94); opacity: 0.7; }
-  50%      { transform: scale(1.06); opacity: 1; }
-}
-.rcore-face {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: linear-gradient(168deg, rgba(52,60,116,0.96), rgba(18,22,52,0.96));
-  border: 1px solid rgba(129,140,248,0.42);
-  box-shadow: 0 8px 0 rgba(9,12,34,0.95), 0 20px 40px -14px rgba(0,0,0,0.8),
-    0 0 40px rgba(79,70,229,0.32), inset 0 2px 0 rgba(255,255,255,0.2);
-  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease), border-color 0.25s var(--ease);
-}
-.rcore-face img { width: 44%; height: auto; display: block; }
-.rcore-label {
-  font-size: clamp(12px, 2.4vw, 14px);
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-indent: 0.18em;
-  color: #e6ebff;
-}
-.rcore:hover .rcore-face {
-  transform: translateY(-2px);
-  border-color: rgba(165,180,252,0.85);
-  box-shadow: 0 10px 0 rgba(9,12,34,0.95), 0 26px 50px -14px rgba(0,0,0,0.85),
-    0 0 60px rgba(99,102,241,0.55), inset 0 2px 0 rgba(255,255,255,0.3);
-}
-/* Press: the whole thing sinks onto its shadow. */
-.rcore:active .rcore-face {
-  transform: translateY(7px);
-  box-shadow: 0 1px 0 rgba(9,12,34,0.95), 0 6px 14px rgba(0,0,0,0.7),
-    0 0 30px rgba(99,102,241,0.4), inset 0 2px 0 rgba(255,255,255,0.16);
-}
-.rcore:focus-visible .rcore-face { outline: 2px solid #a5b4fc; outline-offset: 5px; }
+.rcore:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 4px; }
 .rcore.is-open { opacity: 0; pointer-events: none; }
 
-.rcore-hint {
+/* A quiet compass that turns a quarter-turn when you reach for it. */
+.rcore-dial {
   position: relative;
-  z-index: 2;
-  margin-top: 14px;
-  font-size: clamp(11px, 2vw, 12.5px);
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s var(--ease);
+}
+.rcore-dial::before,
+.rcore-dial::after {
+  content: '';
+  position: absolute;
+  background: rgba(255,255,255,0.55);
+}
+.rcore-dial::before { width: 1px; height: 7px; top: -1px; }
+.rcore-dial::after  { width: 3px; height: 3px; border-radius: 50%; background: #fff; }
+.rcore:hover .rcore-dial { transform: rotate(90deg); border-color: rgba(255,255,255,0.5); }
+.rcore-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+}
+.rcore-hint {
+  margin: 14px 0 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.34);
   text-align: center;
 }
 
-/* ---- the burst ---------------------------------------------------------- */
-.rburst {
+/* ---- the dial overlay ---- */
+.rdial {
   position: fixed;
   inset: 0;
   z-index: 1200;
+  font-family: inherit;
 }
-.rburst-backdrop {
-  position: absolute;
-  inset: 0;
-  border: none;
-  padding: 0;
-  background: radial-gradient(ellipse at center, rgba(6,8,26,0.82), rgba(3,4,16,0.95));
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
-  opacity: 0;
-  transition: opacity 0.4s var(--ease);
-  cursor: pointer;
-}
-.rburst.is-lit .rburst-backdrop { opacity: 1; }
-
-/* Shockwave rings leaving the core. One-shot; they do not loop. */
-.rburst-wave {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  border: 2px solid rgba(165,180,252,0.6);
-  opacity: 0;
-  pointer-events: none;
-}
-.rburst.is-lit .rburst-wave { animation: rwave 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.rburst.is-lit .rburst-wave--2 { animation-delay: 0.12s; border-color: rgba(99,102,241,0.5); }
-.rburst.is-lit .rburst-wave--3 { animation-delay: 0.26s; border-color: rgba(103,232,249,0.36); }
-@keyframes rwave {
-  0%   { opacity: 0.9; transform: scale(1); border-width: 2px; }
-  70%  { opacity: 0.22; }
-  100% { opacity: 0; transform: scale(150); border-width: 0.4px; }
-}
-
-.rburst-rays {
+.rdial-scrim {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: 100%;
+  padding: 0;
+  border: none;
+  cursor: default;
+  /* Flat, not a gradient. Grading the scrim from 94% at the centre to 98% at
+     the edges pooled a soft teal disc in the middle — the page bleeding
+     through by exactly the difference. Desaturating the backdrop keeps what
+     is left reading as depth rather than colour. */
+  background: rgba(5,6,16,0.965);
+  -webkit-backdrop-filter: blur(18px) saturate(70%);
+  backdrop-filter: blur(18px) saturate(70%);
+  opacity: 0;
+  transition: opacity 0.7s var(--ease);
+}
+.rdial.is-lit .rdial-scrim { opacity: 1; }
+/* The hero's own glow blooms straight through a blurred scrim and pools in
+   the middle of the dial. Send the hero back while the dial is up; the
+   starfield sits outside this wrapper and stays. */
+body[data-dial-open] .search-home-inner {
+  opacity: 0.2;
+  transition: opacity 0.6s var(--ease);
+}
+body[data-dial-open] .search-home-lockup::before { animation: none; opacity: 0; }
+/* The horizon wash behind the hero pools right where the hub sits. */
+body[data-dial-open] .search-home::after { opacity: 0; transition: opacity 0.6s var(--ease); }
+/* The custom cursor's trailing aura is a 320px screen-blended blob at
+   z-index 9997 — it floats over the overlay and washes out whichever label
+   you are reading. The ring and dot stay; only the aura stands down. */
+body[data-dial-open] .lumen-glow { opacity: 0; transition: opacity 0.4s var(--ease); }
+
+/* The rings and ticks. Everything here is decoration — the links are HTML. */
+.rdial-plate {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 0;
+  transform-box: view-box;
+  transition: opacity 0.5s var(--ease);
+}
+.rdial.is-lit .rdial-plate { opacity: 1; }
+
+/* The plate settles: it arrives turned slightly and rolls into true. */
+.rdial-rot {
+  transform: rotate(-7deg);
+  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rdial.is-lit .rdial-rot { transform: rotate(0deg); }
+
+.rdial-ring {
+  fill: none;
+  stroke: rgba(255,255,255,0.13);
+  stroke-width: 1;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rdial-ring--2 { transition-delay: 0.12s; }
+
+/* One arc per entry, lit only while that entry is held. */
+.rdial-arc {
+  fill: none;
+  stroke: rgba(255,255,255,0.9);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease), stroke-width 0.4s var(--ease);
+}
+.rdial-arc.is-on { opacity: 1; stroke-width: 2.5; }
+
+.rdial-tick {
+  stroke: rgba(255,255,255,0.32);
+  stroke-width: 1;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.35s var(--ease);
+}
+.rdial-tick.is-on { stroke: #fff; }
+
+/* The spoke only appears for the entry under the cursor. */
+.rdial-spoke {
+  stroke: rgba(255,255,255,0.5);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+}
+.rdial-spoke.is-on { opacity: 1; }
+
+/* ---- the entries ---- */
+.ritem {
+  --push: 18px;
+  position: absolute;
+  display: block;
+  max-width: 10em;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0;
+  transition:
+    opacity 0.75s var(--ease),
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Pushed outward from its tick by half its own box, so the text radiates
+     away from the centre instead of straddling the ring. */
+  transform:
+    translate(-50%, -50%)
+    translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
+    translate(calc(var(--dx) * var(--push) * -1), calc(var(--dy) * var(--push) * -1));
+}
+.rdial.is-lit .ritem {
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
+    translate(calc(var(--dx) * var(--push)), calc(var(--dy) * var(--push)));
+}
+/* Reading order follows the ring, so the text hangs off the correct edge. */
+.ritem--left  { text-align: right; }
+.ritem--right { text-align: left; }
+.ritem--mid   { text-align: center; }
+
+.ritem-no {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: rgba(255,255,255,0.36);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s var(--ease);
+}
+/* The label rises out of a mask — the reveal does the work a glow was doing. */
+.ritem-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+}
+.ritem-text {
+  display: block;
+  font-size: clamp(14px, 1.7vmin, 19px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  transform: translateY(110%);
+  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rdial.is-lit .ritem-text { transform: translateY(0); }
+/* A rule that draws itself under the entry you are on. */
+.ritem-rule {
+  display: block;
+  height: 1px;
+  margin-top: 6px;
+  background: rgba(255,255,255,0.8);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ritem--left .ritem-rule { transform-origin: right center; }
+.ritem--mid  .ritem-rule { transform-origin: center; }
+.ritem.is-on .ritem-rule { transform: scaleX(1); }
+.ritem.is-on .ritem-no { color: rgba(255,255,255,0.8); }
+.ritem:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 6px; border-radius: 3px; }
+
+/* Attention is exclusive: touching one entry sends the others back. */
+.rdial.has-focus .ritem { opacity: 0.26; }
+.rdial.has-focus .ritem.is-on { opacity: 1; }
+
+/* ---- the centre ---- */
+.rdial-hub {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  width: 104px;
+  height: 104px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 50%;
+  background: rgba(8,10,22,0.6);
+  color: rgba(255,255,255,0.78);
+  font-family: inherit;
+  cursor: pointer;
+  transform: translate(-50%, -50%) scale(0.82);
+  opacity: 0;
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.4s var(--ease);
+}
+.rdial.is-lit .rdial-hub { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.rdial-hub img { width: 34px; height: auto; opacity: 0.72; }
+.rdial-hub-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  color: rgba(255,255,255,0.42);
+  transition: color 0.35s var(--ease);
+}
+.rdial-hub:hover, .rdial-hub:focus-visible {
+  border-color: rgba(255,255,255,0.45);
+  outline: none;
+}
+.rdial-hub:hover .rdial-hub-label, .rdial-hub:focus-visible .rdial-hub-label { color: rgba(255,255,255,0.9); }
+.rdial-hub:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 5px; }
+
+/* Corner chrome — the overlay states what it is and how to leave it. */
+.rdial-meta {
+  position: absolute;
+  top: 22px;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.34);
+  opacity: 0;
+  transition: opacity 0.7s var(--ease) 0.35s;
   pointer-events: none;
 }
-.rburst-ray {
-  stroke: rgba(148, 163, 240, 0.42);
-  stroke-width: 1.4;
-  transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-}
+.rdial.is-lit .rdial-meta { opacity: 1; }
+.rdial-meta--tl { left: 24px; }
+.rdial-meta--tr { right: 24px; }
 
-/* Nodes start collapsed on the core and fly out to --tx/--ty. */
-.rnode {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  color: rgba(203, 213, 245, 0.92);
-  transform: translate(-50%, -50%) scale(0.25);
-  opacity: 0;
-  transition: transform 0.72s cubic-bezier(0.18, 1.18, 0.32, 1), opacity 0.42s ease;
-  will-change: transform, opacity;
-}
-.rburst.is-lit .rnode {
-  transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1);
-  opacity: 1;
-}
-.rnode-dot {
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(165deg, rgba(56,64,124,0.95), rgba(20,25,58,0.95));
-  border: 1px solid rgba(129,140,248,0.4);
-  box-shadow: 0 6px 0 rgba(9,12,34,0.9), 0 16px 30px -10px rgba(0,0,0,0.75),
-    inset 0 1px 0 rgba(255,255,255,0.2);
-  transition: transform 0.25s var(--ease), border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
-}
-.rnode--r1 .rnode-dot { width: clamp(64px, 13vmin, 96px); height: clamp(64px, 13vmin, 96px); }
-.rnode--r2 .rnode-dot { width: clamp(48px, 9.5vmin, 72px); height: clamp(48px, 9.5vmin, 72px); }
-.rnode-dot svg { width: 50%; height: 50%; }
-.rnode-pip {
-  width: 26%;
-  height: 26%;
-  border-radius: 50%;
-  background: rgba(165,180,252,0.8);
-  box-shadow: 0 0 12px rgba(129,140,248,0.8);
-}
-.rnode-label {
-  max-width: 9em;
-  font-size: clamp(11px, 2.2vmin, 14px);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
-  text-align: center;
-}
-.rnode:hover, .rnode:focus-visible { color: #fff; outline: none; }
-.rnode:hover .rnode-dot, .rnode:focus-visible .rnode-dot {
-  transform: scale(1.12);
-  border-color: rgba(165,180,252,0.95);
-  box-shadow: 0 8px 0 rgba(9,12,34,0.9), 0 20px 36px -10px rgba(79,70,229,0.6),
-    0 0 32px rgba(99,102,241,0.6), inset 0 1px 0 rgba(255,255,255,0.3);
-}
-.rnode:focus-visible .rnode-dot { outline: 2px solid #a5b4fc; outline-offset: 4px; }
-
-.rburst-core {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: grid;
-  place-items: center;
-  gap: 2px;
-  width: clamp(88px, 17vmin, 124px);
-  height: clamp(88px, 17vmin, 124px);
-  border-radius: 50%;
-  border: 1px solid rgba(165,180,252,0.5);
-  background: linear-gradient(168deg, rgba(52,60,116,0.96), rgba(16,20,48,0.96));
-  box-shadow: 0 0 50px rgba(99,102,241,0.5), inset 0 2px 0 rgba(255,255,255,0.2);
-  font-family: inherit;
-  color: rgba(203,213,245,0.9);
-  cursor: pointer;
-  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
-}
-.rburst-core img { width: 46%; height: auto; }
-.rburst-core-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.28em; text-indent: 0.28em; }
-.rburst-core:hover { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 0 70px rgba(99,102,241,0.7), inset 0 2px 0 rgba(255,255,255,0.3); }
-.rburst-core:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 5px; }
-
-/* A phone has no slack: trim the footprints so neighbouring rings clear. */
+/* A phone has no slack: shorter labels, tighter hub, smaller type. */
 @media (max-width: 640px) {
-  .rnode { gap: 5px; }
-  .rnode--r1 .rnode-dot { width: 54px; height: 54px; }
-  .rnode--r2 .rnode-dot { width: 42px; height: 42px; }
-  .rnode-label { max-width: 5.6em; font-size: 10px; letter-spacing: 0.01em; }
-  .rburst-core { width: 78px; height: 78px; }
+  .ritem { --push: 8px; max-width: 5.4em; }
+  .ritem-text { font-size: 12.5px; letter-spacing: 0; }
+  .ritem-no { font-size: 9px; letter-spacing: 0.18em; }
+  .rdial-hub { width: 68px; height: 68px; gap: 3px; }
+  .rdial-hub img { width: 24px; }
+  .rdial-hub-label { font-size: 8px; letter-spacing: 0.2em; text-indent: 0.2em; }
+  .rdial-meta { top: 16px; font-size: 9px; letter-spacing: 0.16em; }
+  .rdial-meta--tl { left: 16px; }
+  .rdial-meta--tr { right: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rcore-halo { animation: none; }
-  .rnode { transition: opacity 0.25s ease; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1); }
-  .rburst.is-lit .rburst-wave { animation: none; opacity: 0; }
-  .rburst-ray { transition: none; }
+  .rcore-dial, .rdial-rot, .rdial-ring, .rdial-tick { transition: none; }
+  .rcore:hover .rcore-dial { transform: none; }
+  .rdial-rot { transform: none; }
+  .ritem, .rdial.is-lit .ritem {
+    transition: opacity 0.2s ease;
+    transform: translate(-50%, -50%)
+      translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
+      translate(calc(var(--dx) * var(--push)), calc(var(--dy) * var(--push)));
+  }
+  .ritem-text, .rdial.is-lit .ritem-text { transition: none; transform: none; }
+  .rdial-hub, .rdial.is-lit .rdial-hub { transition: opacity 0.2s ease; transform: translate(-50%, -50%); }
 }
 
 .search-home-form { width: 100%; min-width: 0; max-width: 100%; }

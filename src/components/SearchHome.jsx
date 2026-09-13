@@ -135,6 +135,10 @@ function StarCanvas() {
 
     const mouse = { x: w / 2, y: h / 2, active: false }
     const onMove = (e) => {
+      // While the dial is open the field stays put. Stars clustering under the
+      // cursor glow through the scrim and smear whichever label you are
+      // reading — the effect belongs to the hero, not to the overlay.
+      if (document.body.dataset.dialOpen) { mouse.active = false; return }
       const rect = canvas.getBoundingClientRect()
       mouse.x = e.clientX - rect.left
       mouse.y = e.clientY - rect.top
@@ -299,12 +303,6 @@ export default function SearchHome() {
   const runSearchRef = useRef(runSearch)
   runSearchRef.current = runSearch
 
-  const onAsk = () => {
-    const query = q.trim()
-    events.ctaClick('home-ask-ai', query.slice(0, 60) || '(empty)')
-    askAI(query || 'Lumeniumについて教えて')
-  }
-
   return (
     <main className="search-home" id="top">
       <StarCanvas />
@@ -324,10 +322,6 @@ export default function SearchHome() {
         {/* One button. Pressing it bursts the twelve destinations outward
             across the whole screen. */}
         <RadialMenu />
-
-        <div className="search-home-actions">
-          <button type="button" className="search-home-btn" onClick={onAsk}>{SECTION.home.askButton}</button>
-        </div>
 
         {/* PR movie card — relocated from the old hero so it gets seen */}
         <button
