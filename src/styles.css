@@ -8507,11 +8507,25 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 /* Pointer parallax lives here; the transform is written by JS and eased here,
    so moving the mouse costs no render. */
+/* Pointer parallax lives here; the offset is written by JS as --px/--py and
+   eased by CSS, so moving the mouse costs no render. The layers take
+   different fractions of it in opposite directions, which is the whole point:
+   move them together and there is no depth, only sliding. */
 .rdial-stage {
+  --px: 0px;
+  --py: 0px;
   position: absolute;
   inset: 0;
-  transform: translate3d(0, 0, 0);
+  transform: translate3d(var(--px), var(--py), 0);
   transition: transform 0.75s var(--r-out);
+}
+.rdial-plate {
+  transform: translate3d(calc(var(--px) * -0.42), calc(var(--py) * -0.42), 0);
+  transition: transform 0.75s var(--r-out);
+}
+.rdial-mark {
+  margin-left: calc(var(--px) * -0.62);
+  margin-top: calc(var(--py) * -0.62);
 }
 /* The whole constellation — plate, labels and hub — arrives turned and small
    and untwists into true. Rotating the labels with everything else is what
@@ -8661,6 +8675,24 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
     translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
     translate(calc(var(--dx) * var(--push)), calc(var(--dy) * var(--push)));
 }
+/* Carries only the proximity lean, so a value written sixty times a second
+   never collides with the entrance transform on .ritem. Entries tip toward
+   the cursor and lift slightly as it nears — a field rather than a binary
+   hover, which is what makes the dial feel awake under a mouse. */
+.ritem-near {
+  --near: 0;
+  display: block;
+  transform:
+    translate(calc(var(--dx) * var(--near) * 7px), calc(var(--dy) * var(--near) * 7px))
+    scale(calc(1 + var(--near) * 0.045));
+  opacity: calc(0.84 + 0.16 * var(--near));
+}
+.ritem--left  .ritem-near { transform-origin: right center; }
+.ritem--right .ritem-near { transform-origin: left center; }
+.ritem--mid   .ritem-near { transform-origin: center; }
+/* Once an entry is actually held, the field steps aside. */
+.ritem.is-on .ritem-near { opacity: 1; }
+
 /* Reading order follows the ring, so the text hangs off the correct edge. */
 .ritem--left  { text-align: right; }
 .ritem--right { text-align: left; }
@@ -8862,6 +8894,14 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .rdial.is-going .rdial-x,
 .rdial.is-going .rdial-meta { opacity: 0; transition-delay: 0s; transition-duration: 0.2s; }
 
+/* No mouse, no field and no parallax — nothing writes --near or --px there,
+   but saying so keeps the resting state identical rather than merely equal. */
+@media (pointer: coarse) {
+  .ritem-near { transform: none; opacity: 1; }
+  .rdial-plate { transform: none; }
+  .rdial-mark { margin: 0; }
+}
+
 /* A phone has no slack: shorter labels, tighter hub, smaller type. */
 @media (max-width: 640px) {
   .ritem { --push: 8px; max-width: 5.4em; }
@@ -8891,6 +8931,9 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
   .rcore:hover .rcore-dial { transform: none; }
   .rdial { clip-path: none; transition: none; }
   .rdial-stage { transform: none; transition: none; }
+  .rdial-plate { transform: none; transition: none; }
+  .rdial-mark { margin: 0; }
+  .ritem-near { transform: none; opacity: 1; }
   .rdial-spin,
   .rdial.is-lit .rdial-spin,
   .rdial.is-closing .rdial-spin,

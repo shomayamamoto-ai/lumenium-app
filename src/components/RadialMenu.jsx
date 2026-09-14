@@ -93,6 +93,10 @@ export default function RadialMenu() {
   const sheetRef = useRef(null)
   const stageRef = useRef(null)
   const satsRef = useRef([])
+  const nearRef = useRef([])          // the per-entry nodes the field writes to
+  const pointRef = useRef({ x: 0, y: 0, on: false })
+  const placedRef = useRef([])
+  const hotRef = useRef(null)
   const exitTimer = useRef(0)
 
   useFocusTrap(sheetRef, open && lit)
@@ -228,24 +232,63 @@ export default function RadialMenu() {
   const r1 = { x: rx * k1x, y: ry * k1y }
   const r2 = { x: rx, y: ry }
 
-  // Two satellites drift along the orbits for as long as the dial is up. The
-  // positions are written straight onto the nodes each frame — putting an
-  // orbit through React state would re-render the whole dial sixty times a
-  // second to move two dots four pixels.
+  // Everything that moves per frame shares one loop, and none of it goes
+  // through React state — re-rendering a twelve-entry dial sixty times a
+  // second to nudge a dot four pixels would be absurd.
+  //
+  //  · two satellites drift along the orbits at different speeds
+  //  · the one on the hovered entry's orbit leaves its drift and goes to it,
+  //    so the instrument points at whatever you are reading
+  //  · every entry is told how near the cursor is, and leans that far toward
+  //    it — a field, not a binary hover, which is what makes a dial with a
+  //    mouse over it feel awake
   useEffect(() => {
     if (!lit || reduced()) return
     let raf = 0
     const t0 = performance.now()
+    const ang = [0.6, 3.1]
+    const FIELD = 300
     const tick = (now) => {
       const t = (now - t0) / 1000
-      const set = (el, r, speed, phase) => {
+      const hot = hotRef.current
+      const nodes = placedRef.current
+
+      // satellites
+      const place = (i, r, speed, phase, ringNo) => {
+        const el = satsRef.current[i]
         if (!el) return
-        const a = phase + t * speed
-        el.setAttribute('cx', cx + r.x * Math.sin(a))
-        el.setAttribute('cy', cy - r.y * Math.cos(a))
+        const target = hot !== null && nodes[hot] && nodes[hot].ring === ringNo
+          ? rad(nodes[hot].a)
+          : null
+        if (target === null) {
+          ang[i] = phase + t * speed
+        } else {
+          // shortest way round to the entry being looked at
+          let d = (target - ang[i]) % (Math.PI * 2)
+          if (d > Math.PI) d -= Math.PI * 2
+          if (d < -Math.PI) d += Math.PI * 2
+          ang[i] += d * 0.09
+        }
+        el.setAttribute('cx', cx + r.x * Math.sin(ang[i]))
+        el.setAttribute('cy', cy - r.y * Math.cos(ang[i]))
       }
-      set(satsRef.current[0], r1, 0.155, 0.6)
-      set(satsRef.current[1], r2, -0.092, 3.1)
+      place(0, r1, 0.155, 0.6, 1)
+      place(1, r2, -0.092, 3.1, 2)
+
+      // proximity field
+      const p = pointRef.current
+      for (let i = 0; i < nearRef.current.length; i++) {
+        const el = nearRef.current[i]
+        const n = nodes[i]
+        if (!el || !n) continue
+        let v = 0
+        if (p.on) {
+          const d = Math.hypot(p.x - n.tick.x, p.y - n.tick.y)
+          v = Math.max(0, 1 - d / FIELD)
+          v = v * v
+        }
+        el.style.setProperty('--near', v.toFixed(3))
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -265,9 +308,15 @@ export default function RadialMenu() {
     if (!el || reduced() || closing || going !== null) return
     if (e.pointerType && e.pointerType !== 'mouse') return
     if (!window.matchMedia('(pointer: fine)').matches) return
+    pointRef.current = { x: e.clientX, y: e.clientY, on: true }
+    // Published as a pair of custom properties rather than a finished
+    // transform: the labels take all of it, the plate and the centre mark take
+    // a fraction of it in the other direction, and the dial gets a depth it
+    // cannot have while every layer moves together.
     const nx = (e.clientX / window.innerWidth - 0.5) * 2
     const ny = (e.clientY / window.innerHeight - 0.5) * 2
-    el.style.transform = `translate3d(${(nx * 11).toFixed(2)}px, ${(ny * 9).toFixed(2)}px, 0)`
+    el.style.setProperty('--px', `${(nx * 12).toFixed(2)}px`)
+    el.style.setProperty('--py', `${(ny * 10).toFixed(2)}px`)
   }
 
   const onEllipse = (r, deg) => ({ x: cx + r.x * Math.sin(rad(deg)), y: cy - r.y * Math.cos(rad(deg)) })
@@ -319,6 +368,9 @@ export default function RadialMenu() {
         opacity: 0,
       }
     : null
+
+  placedRef.current = placed
+  hotRef.current = hot
 
   const vw = typeof window === 'undefined' ? 1280 : window.innerWidth
   const vh = typeof window === 'undefined' ? 800 : window.innerHeight
@@ -450,6 +502,7 @@ export default function RadialMenu() {
                     go(n)
                   }}
                 >
+                  <span className="ritem-near" ref={(el) => { nearRef.current[n.i] = el }}>
                   <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${closing ? n.x.num : n.d.num}ms` }}>
                     {n.no}
                   </span>
@@ -479,8 +532,9 @@ export default function RadialMenu() {
                       </span>
                     ))}
                   </span>
-                  <span className="sr-only">{n.label.replace('\n', ' ')}</span>
                   <span className="ritem-rule" aria-hidden="true" />
+                  </span>
+                  <span className="sr-only">{n.label.replace('\n', ' ')}</span>
                 </a>
               ))}
 
