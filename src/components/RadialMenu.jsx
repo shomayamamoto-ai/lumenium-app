@@ -35,6 +35,8 @@ const NODES = [
 ]
 
 const TICK = 9        // length of the mark that steps off the orbit
+const SWEEP_LEAD = 300 // when the beam reaches twelve o'clock, and entry 01 lands
+const STEP = 44       // ms between entries, and so 12 x STEP per revolution
 const SPAN = 20       // degrees of arc each entry owns
 const EXIT_MS = 700   // how long the reverse sequence is given before unmount
 const REDUCED_EXIT_MS = 240 // reduced motion still cross-fades; it does not cut
@@ -285,7 +287,7 @@ export default function RadialMenu() {
     // doing all of one ring and then all of the other. Closing runs the same
     // sweep backwards and faster: last in, first out.
     const rank = Math.round(n.a / 30)
-    const base = 300 + rank * 44
+    const base = SWEEP_LEAD + rank * STEP
     const back = (11 - rank) * 18
     return {
       ...n,
@@ -353,6 +355,23 @@ export default function RadialMenu() {
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
 
           <div className="rdial-stage" ref={stageRef}>
+            {/* The beam makes one revolution, and its leading edge arrives at
+                each entry exactly when that entry is due — so the sweep reads
+                as the cause of the reveal rather than something laid over it.
+                SWEEP_LEAD/STEP below and the entry stagger are the same
+                numbers on purpose. */}
+            <div
+              className="rdial-sweep"
+              aria-hidden="true"
+              style={{
+                left: cx,
+                top: cy,
+                width: rx * 2.12,
+                height: ry * 2.12,
+                animationDelay: `${SWEEP_LEAD}ms`,
+                animationDuration: `${STEP * 12}ms`,
+              }}
+            />
             <div className="rdial-spin" style={{ transformOrigin: `${cx}px ${cy}px`, ...diveStyle }}>
               <svg
                 className="rdial-plate"
