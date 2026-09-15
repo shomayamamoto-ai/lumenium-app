@@ -12,10 +12,13 @@ function currentPath() {
   return (pathname.replace(/\/$/, '') || '') + h || '/'
 }
 
-function send(path) {
-  if (path === last) return
-  last = path
-  const body = JSON.stringify({ p: path, r: document.referrer || '' })
+/** Report a funnel step. Same endpoint, same privacy properties — no cookie,
+ *  no IP, just a counter per day. Exported so analytics.js can reach it. */
+export function sendEvent(name) {
+  post(JSON.stringify({ p: currentPath(), e: name }))
+}
+
+function post(body) {
   try {
     // keepalive so the request survives the navigation that triggered it.
     fetch('/api/track', {
@@ -26,6 +29,12 @@ function send(path) {
       credentials: 'omit',
     }).catch(() => {})
   } catch (_) { /* never let counting break a page */ }
+}
+
+function send(path) {
+  if (path === last) return
+  last = path
+  post(JSON.stringify({ p: path, r: document.referrer || '' }))
 }
 
 export function startPageviews() {

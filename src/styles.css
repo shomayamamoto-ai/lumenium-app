@@ -9455,3 +9455,67 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 /* Solo section pages (hamburger picks): clear the fixed navbar */
 .solo-page { padding-top: 72px; min-height: 60vh; }
+
+/* ---- estimator: the refinement step and what it carries ----
+   Choosing services alone gave ranges as wide as seven-fold, which is not a
+   number anyone can decide on. Three more questions narrow it, and whatever
+   the visitor lands on travels into the enquiry with them. */
+.pricing-refine {
+  margin: 18px 0 0;
+  padding: 18px 18px 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+}
+.pricing-refine-lead {
+  margin: 0 0 14px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-muted, rgba(255,255,255,0.7));
+}
+.pricing-refine-step { border: 0; padding: 0; margin: 0 0 16px; }
+.pricing-refine-step legend {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px; padding: 0;
+  font-size: 13px; font-weight: 700;
+}
+.pricing-refine-no {
+  display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  font-size: 11px; font-weight: 700;
+}
+.pricing-refine-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.pricing-refine-opt {
+  padding: 10px 14px; min-height: 44px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: none; color: inherit;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.pricing-refine-opt:hover { border-color: rgba(255,255,255,0.45); }
+.pricing-refine-opt.is-on {
+  background: var(--grad, linear-gradient(135deg,#4f46e5,#06b6d4));
+  border-color: transparent; color: #fff;
+}
+.pricing-refine-opt:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+
+.pricing-sim-monthly {
+  display: block; margin-top: 4px;
+  font-size: 14px; font-weight: 600;
+  color: var(--text-muted, rgba(255,255,255,0.72));
+}
+
+.form-carried {
+  margin: 0 0 8px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(99,102,241,0.14);
+  border: 1px solid rgba(129,140,248,0.35);
+  font-size: 12.5px; line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .pricing-refine { padding: 14px 14px 4px; }
+  .pricing-refine-opt { font-size: 12.5px; padding: 9px 12px; }
+}

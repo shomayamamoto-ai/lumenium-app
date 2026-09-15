@@ -47,5 +47,8 @@ export const K = {
   dayPaths: (d) => `lum:pv:p:${d}`,
   dayRefs: (d) => `lum:pv:r:${d}`,
   dayDevices: (d) => `lum:pv:dev:${d}`,
+  // Conversion steps. Kept in the same daily hash shape as the rest so the
+  // report reads them the same way.
+  dayEvents: (d) => `lum:ev:d:${d}`,
   expire: TTL,
 }

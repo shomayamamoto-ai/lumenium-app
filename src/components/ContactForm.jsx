@@ -1,7 +1,7 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
-import { useState, useRef } from 'react'
-import { events } from '../lib/analytics'
+import { useState, useRef, useEffect } from 'react'
+import { events, funnel } from '../lib/analytics'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LIMITS = { name: 50, email: 100, message: 1000 }
@@ -19,13 +19,30 @@ function validate(form) {
 }
 
 export default function ContactForm() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  // The simulator hands over the specification it just produced. Without this
+  // the visitor arrives at a blank box having already answered the questions,
+  // and the enquiry reaches us with no scale or budget to prioritise by.
+  const [form, setForm] = useState(() => {
+    let spec = ''
+    try { spec = sessionStorage.getItem('lum_estimate') || '' } catch (_) {}
+    return { name: '', email: '', message: spec ? spec + '\n\n---\n' : '' }
+  })
+  const [carried] = useState(() => {
+    try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
+  })
   const [touched, setTouched] = useState({})
   const [errors, setErrors] = useState({})
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState(null) // {type, text}
   const startedRef = useRef(false)
+
+  useEffect(() => {
+    funnel.contactView()
+    // Consumed once: a later visit to the form should start clean rather than
+    // repeating an estimate the visitor may have moved on from.
+    try { sessionStorage.removeItem('lum_estimate') } catch (_) {}
+  }, [])
 
   const showToast = (type, text) => {
     setToast({ type, text })
@@ -36,6 +53,7 @@ export default function ContactForm() {
     if (startedRef.current) return
     startedRef.current = true
     events.formStart('contact')
+    funnel.contactStart()
   }
 
   const onChange = (key) => (e) => {
@@ -64,6 +82,7 @@ export default function ContactForm() {
 
     setSending(true)
     events.formSubmit('contact')
+    funnel.contactSubmit()
 
     try {
       const res = await fetch('/api/contact', {
@@ -161,6 +180,11 @@ export default function ContactForm() {
                 {charInfo('message').len} / {charInfo('message').max}
               </span>
             </div>
+            {carried && (
+              <p className="form-carried">
+                見積りシミュレーターで選んだ内容を下に入れてあります。ご自由に書き換えてください。
+              </p>
+            )}
             <textarea
               id="message"
               required

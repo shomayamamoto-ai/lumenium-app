@@ -35,6 +35,19 @@ function refHost(ref, selfHost) {
   }
 }
 
+/** The funnel, in order. Anything not on this list is ignored — the counter
+ *  is a Redis hash, and letting callers name their own fields would let one
+ *  grow without bound. */
+export const EVENTS = new Set([
+  'menu_open',       // the hero menu was opened
+  'service_view',    // a service detail was opened
+  'estimate_start',  // the estimator was opened
+  'estimate_done',   // an estimate was produced
+  'contact_view',    // the enquiry form was reached
+  'contact_start',   // the first field was filled
+  'contact_submit',  // an enquiry was sent
+])
+
 /** Keep the path list bounded and free of anything identifying. */
 function cleanPath(raw) {
   let p = String(raw || '/').split('?')[0]
@@ -77,6 +90,21 @@ export async function POST(req) {
 
   const path = cleanPath(body?.p)
   if (IGNORED.test(path)) return ok()
+
+  // A funnel step rather than a pageview. Only names this file knows are
+  // counted, so a hostile caller cannot invent unbounded hash fields.
+  const ev = typeof body?.e === 'string' ? body.e : ''
+  if (ev) {
+    if (!EVENTS.has(ev)) return ok()
+    const d = jstDate()
+    try {
+      await pipeline(storeConfig(), [
+        ['HINCRBY', K.dayEvents(d), ev, 1],
+        ['EXPIRE', K.dayEvents(d), K.expire],
+      ])
+    } catch (_) { /* a beacon must never surface an error */ }
+    return ok()
+  }
 
   const date = jstDate()
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

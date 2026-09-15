@@ -4,6 +4,7 @@ export const config = { runtime: 'edge' }
 // and rate limiting as the member endpoints.
 
 import { storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
+import { EVENTS } from './track.js'
 
 const enc = new TextEncoder()
 
@@ -95,6 +96,7 @@ export async function GET(req) {
       ...dates.map((d) => ['HGETALL', K.dayPaths(d)]),
       ...dates.map((d) => ['HGETALL', K.dayRefs(d)]),
       ...dates.map((d) => ['HGETALL', K.dayDevices(d)]),
+      ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
     ])
   } catch (e) {
     return json({ ok: false, code: 'STORE_ERROR', message: 'アクセス解析データを読み込めませんでした。時間をおいて再度お試しください。' }, 502)
@@ -107,6 +109,29 @@ export async function GET(req) {
   const paths = dates.map(() => toPairs(raw[i++]))
   const refs = dates.map(() => toPairs(raw[i++]))
   const devices = dates.map(() => toPairs(raw[i++]))
+  const evDays = dates.map(() => toPairs(raw[i++]))
+
+  // The enquiry funnel, in order. Counting how many reach each step is the
+  // only way to tell which page is doing the selling — pageviews alone say
+  // nothing about whether anyone got as far as writing to us.
+  const evTotals = {}
+  for (const day of evDays) for (const { name, count } of day) evTotals[name] = (evTotals[name] || 0) + count
+  const STEPS = [
+    ['menu_open', 'メニューを開いた'],
+    ['service_view', 'サービスを見た'],
+    ['estimate_start', '見積りを開いた'],
+    ['estimate_done', '概算を出した'],
+    ['contact_view', '問い合わせ画面'],
+    ['contact_start', '入力を始めた'],
+    ['contact_submit', '送信した'],
+  ]
+  const rangeViews0 = views.reduce((x, y) => x + y, 0)
+  const funnel = STEPS.map(([key, label]) => ({
+    key, label,
+    count: evTotals[key] || 0,
+    // Against pageviews, so it reads as "of everyone who arrived".
+    rate: rangeViews0 ? (evTotals[key] || 0) / rangeViews0 : 0,
+  }))
 
   const series = dates.map((date, n) => ({ date, views: views[n], visitors: visitors[n] }))
   const sum = (a) => a.reduce((x, y) => x + y, 0)
@@ -119,6 +144,11 @@ export async function GET(req) {
     generatedAt: new Date().toISOString(),
     keepDays: KEEP_DAYS,
     range: { days, from: dates[0], to: dates[dates.length - 1] },
+    funnel,
+    funnelSeries: dates.map((date, n) => ({
+      date,
+      submit: (evDays[n].find((e) => e.name === 'contact_submit') || {}).count || 0,
+    })),
     totals: {
       allTime: totalAllTime,
       today: todayIdx >= 0 ? views[todayIdx] : 0,

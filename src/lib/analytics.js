@@ -1,5 +1,11 @@
-// Thin GA4 event helper. Silently no-ops when gtag is unavailable
-// (localhost, ad-blockers, placeholder GA ID).
+// Event helper. Sends to GA4 when a tag is installed, and — separately — to
+// our own endpoint for the handful of steps that make up the enquiry funnel.
+//
+// GA_ID in index.html is empty, so window.gtag has never existed and every
+// call here was a silent no-op: the site has been running with no conversion
+// data at all. The first-party half does not depend on it.
+
+import { sendEvent } from './pageview'
 
 export function track(eventName, params = {}) {
   if (typeof window === 'undefined') return
@@ -9,6 +15,17 @@ export function track(eventName, params = {}) {
   } catch {
     /* swallow */
   }
+}
+
+/** The funnel steps we count ourselves. Names match api/track.js. */
+export const funnel = {
+  menuOpen: () => sendEvent('menu_open'),
+  serviceView: () => sendEvent('service_view'),
+  estimateStart: () => sendEvent('estimate_start'),
+  estimateDone: () => sendEvent('estimate_done'),
+  contactView: () => sendEvent('contact_view'),
+  contactStart: () => sendEvent('contact_start'),
+  contactSubmit: () => sendEvent('contact_submit'),
 }
 
 // Named conversion shortcuts — keep names stable for GA dashboards
