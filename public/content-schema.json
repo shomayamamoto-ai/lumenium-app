@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-15T07:16:39.020Z",
-  "count": 395,
+  "generatedAt": "2026-09-15T17:11:08.703Z",
+  "count": 393,
   "groups": [
     {
       "key": "text",
@@ -248,7 +248,7 @@
         },
         {
           "path": "text.cta.button",
-          "value": "無料で相談する"
+          "value": "無料でご相談する"
         },
         {
           "path": "text.footer.ctaLabel",
@@ -285,14 +285,6 @@
         {
           "path": "text.home.tagline",
           "value": "散文化した目的に焦点を当てる"
-        },
-        {
-          "path": "text.home.placeholder",
-          "value": "何をお探しですか？ 例：採用動画・AI研修・LP制作..."
-        },
-        {
-          "path": "text.home.searchButton",
-          "value": "検索"
         },
         {
           "path": "text.home.exploreButton",

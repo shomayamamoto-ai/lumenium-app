@@ -96,7 +96,7 @@ export const SECTION = {
     reassure1: 'しつこい営業は一切なし',
     reassure2: '相談・お見積りだけでも歓迎',
     reassure3: 'ご相談内容は秘密厳守',
-    button: '無料で相談する',
+    button: '無料でご相談する',
   },
   footer: {
     ctaLabel: "LET'S TALK",
@@ -110,8 +110,6 @@ export const SECTION = {
     eyebrow: 'TOKYO ・ CREATIVE & DX STUDIO',
     yomi: 'ルメニウム',
     tagline: '散文化した目的に焦点を当てる',
-    placeholder: '何をお探しですか？ 例：採用動画・AI研修・LP制作...',
-    searchButton: '検索',
     exploreButton: '探す',
     exploreHint: '押すと、対応領域が放射状に展開します',
     definition: 'ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。',

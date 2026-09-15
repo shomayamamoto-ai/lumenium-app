@@ -719,6 +719,7 @@ TOPIC_PAGES.push(
     }),
     body: () => `
     ${PROFILE_BRICKS.map((k) => `
+    <p class="group" style="margin-bottom:-6px;font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,sans-serif">${esc(k.label)}</p>
     <h2>${esc(k.title)}</h2>
     <p>${esc(k.text)}</p>
     <ul>
