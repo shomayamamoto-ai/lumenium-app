@@ -73,6 +73,11 @@ globalThis.fetch = async (input, init = {}) => {
 const KEY = { Authorization: 'Bearer smoke-admin-key' }
 const JSONH = { ...KEY, 'content-type': 'application/json' }
 
+// A real signed session, so the members-only pages are exercised on the path a
+// logged-in member takes and not only on the redirect.
+const { issueSession } = await import(new URL('../api/_session.js', import.meta.url))
+const MEMBER = { cookie: `lum_session=${(await issueSession(false)).token}` }
+
 // One authorised call per endpoint. Bodies are the smallest thing the handler
 // will accept — the point is to reach the end of the function, not to test it.
 const CALLS = [
@@ -84,6 +89,17 @@ const CALLS = [
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
+  // The committed-state reads behind the two editors.
+  ['news-post', 'GET', '', KEY],
+  ['content-save', 'GET', '', KEY],
+  // Members-only pages. Called without a session, so what is exercised is the
+  // redirect — which is the path every logged-out visitor takes, and the one
+  // that must not throw. (api/og.jsx is left out: it is JSX and needs the
+  // build's transform to import at all.)
+  ['members-game', 'GET', '', {}],
+  ['members-puzzle', 'GET', '', {}],
+  ['members-game', 'GET', '', MEMBER],
+  ['members-puzzle', 'GET', '', MEMBER],
   // These two write through GitHub, which is stubbed above — nothing leaves
   // the process. They are called with a body that passes validation, because a
   // 400 would stop short of the part that was broken elsewhere.

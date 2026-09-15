@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } from './_github.js'
 
 // Admin news publishing: commits public/news.json to the GitHub repo via
 // the Contents API. Vercel's GitHub integration then redeploys, so a post
@@ -10,34 +11,39 @@ import { requireAdmin } from './_admin-auth.js'
 // GITHUB_TOKEN (fine-grained PAT with Contents read/write on the repo).
 // Optional: GITHUB_REPO ("owner/repo", defaults to the site repo).
 
-const enc = new TextEncoder()
-
-// UTF-8 safe base64 helpers (edge runtime)
-function b64encodeUtf8(str) {
-  const bytes = enc.encode(str)
-  let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-  return btoa(bin)
-}
-function b64decodeUtf8(b64) {
-  const bin = atob(b64.replace(/\n/g, ''))
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return new TextDecoder().decode(bytes)
-}
-
 const FILE_PATH = 'public/news.json'
 
-async function gh(token, repo, path, init = {}) {
-  return fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'lumenium-news',
-      ...(init.headers || {}),
-    },
-  })
+const NO_TOKEN = {
+  ok: false, code: 'GITHUB_NOT_CONFIGURED',
+  message: 'GITHUB_TOKEN が未設定です。GitHubのFine-grained PAT（対象リポジトリのContents: Read and write権限）を作成し、Vercelの環境変数に設定して再デプロイしてください。',
+}
+
+/** The committed list, which is not the same as the published one: a commit is
+ *  instant and the redeploy behind it is not. The admin reads this so a post
+ *  made a minute ago is not missing from its own list. */
+export async function GET(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+
+  const token = process.env.GITHUB_TOKEN
+  if (!token) return json(NO_TOKEN, 503)
+  const repo = repoName()
+
+  const cur = await ghFile(token, repo, FILE_PATH)
+  if (!cur.ok) {
+    return json({
+      ok: false, code: 'GITHUB_ERROR',
+      message: `ニュースファイルを読み込めませんでした。${ghDetail(cur.status)}`,
+    }, 502)
+  }
+  const curJson = await cur.json()
+  let items = []
+  try {
+    const parsed = JSON.parse(b64decodeUtf8(curJson.content || ''))
+    if (Array.isArray(parsed)) items = parsed
+  } catch (_) { items = [] }
+
+  return json({ ok: true, items, commit: await lastCommit(token, repo, FILE_PATH) })
 }
 
 export async function POST(req) {
@@ -45,13 +51,8 @@ export async function POST(req) {
   if (denied) return denied
 
   const token = process.env.GITHUB_TOKEN
-  const repo = process.env.GITHUB_REPO || 'shomayamamoto-ai/lumenium-app'
-  if (!token) {
-    return json({
-      ok: false, code: 'GITHUB_NOT_CONFIGURED',
-      message: 'GITHUB_TOKEN が未設定です。GitHubのFine-grained PAT（対象リポジトリのContents: Read and write権限）を作成し、Vercelの環境変数に設定して再デプロイしてください。',
-    }, 503)
-  }
+  const repo = repoName()
+  if (!token) return json(NO_TOKEN, 503)
 
   let payload
   try {
@@ -77,10 +78,9 @@ export async function POST(req) {
   }
 
   // Read current file (content + sha for the update)
-  const cur = await gh(token, repo, FILE_PATH)
+  const cur = await ghFile(token, repo, FILE_PATH)
   if (!cur.ok) {
-    const detail = cur.status === 401 || cur.status === 403 ? 'トークンの権限を確認してください。' : `GitHub応答: ${cur.status}`
-    return json({ ok: false, code: 'GITHUB_ERROR', message: `ニュースファイルを読み込めませんでした。${detail}` }, 502)
+    return json({ ok: false, code: 'GITHUB_ERROR', message: `ニュースファイルを読み込めませんでした。${ghDetail(cur.status)}` }, 502)
   }
   const curJson = await cur.json()
   let items = []
@@ -107,7 +107,7 @@ export async function POST(req) {
     message = `news: remove ${delId}`
   }
 
-  const put = await gh(token, repo, FILE_PATH, {
+  const put = await ghFile(token, repo, FILE_PATH, {
     method: 'PUT',
     body: JSON.stringify({
       message,

@@ -181,6 +181,12 @@
     .f-rate, .f-times, .f-drop { width: auto; }
     .f-times:not(:empty)::before { content: '/ '; }
   }
+  /* Saved and published are two different states, and the gap between them is
+     a minute or two of redeploy. Saying nothing made a save look lost. */
+  .deploy-state { font-size: 11.5px; line-height: 1.7; margin-bottom: 10px; color: var(--sub); }
+  .deploy-state.pending { color: #fbbf24; }
+  .deploy-state.problem { color: #fca5a5; }
+  .deploy-state:empty { display: none; }
   .share-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   /* Four columns in a phone's width squeezes every cell to two characters a
      line. Narrow screens get the same fields stacked, with 失効 beside them. */
@@ -329,6 +335,7 @@
       <p class="msg" id="news-msg" style="margin-top:12px"></p>
       <div style="margin-top:18px">
         <h3 style="font-size:12px;letter-spacing:0.1em;color:var(--sub);font-weight:700;margin-bottom:8px">掲載中のお知らせ</h3>
+        <p class="deploy-state" id="news-state"></p>
         <ul id="news-items" style="list-style:none;margin:0;padding:0"></ul>
       </div>
     </div>
@@ -344,6 +351,7 @@
         <button class="ghost" id="copy-reload" type="button">再読込</button>
       </div>
       <p class="msg" id="copy-msg" style="margin-bottom:10px"></p>
+      <p class="deploy-state" id="copy-state"></p>
       <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
     </div>
 
@@ -773,11 +781,60 @@ window.lumAdmin = {
       ul.appendChild(li);
     });
   }
+  /* Saved at (a commit) and live on the site (a redeploy) are a minute or two
+     apart. The list used to be read from the deployed file, so reloading just
+     after posting showed the list without the post — saved, but looking lost.
+     It now reads what is committed, and says separately whether that has
+     reached the site yet. */
+  window.lumDeployState = function (elId, saved, live, commit, what) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    var when = commit && commit.at
+      ? new Date(commit.at).toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : null;
+    el.classList.remove('pending', 'problem');
+    if (live === null) {
+      el.textContent = when ? '最終保存: ' + when : '';
+      return;
+    }
+    if (saved === live) {
+      el.textContent = 'サイトに反映済み' + (when ? '（最終保存: ' + when + '）' : '');
+      return;
+    }
+    el.classList.add('pending');
+    el.textContent = '保存済み・サイトへの反映待ちです（自動デプロイに約1〜2分）。'
+      + (when ? '最終保存: ' + when + '。' : '')
+      + 'この画面の' + what + 'は保存された内容です。';
+  };
+
   function loadNews() {
-    fetch('/news.json', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (d) { renderNews(Array.isArray(d) ? d : []); })
-      .catch(function () { renderNews([]); });
+    // Committed first; the deployed copy only to work out whether it is live.
+    Promise.all([
+      window.lumAdmin.fetch('/api/news-post').catch(function () { return null; }),
+      fetch('/news.json', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (out) {
+      var api = out[0], live = Array.isArray(out[1]) ? out[1] : null;
+      if (api && api.res && api.res.ok && api.data && api.data.ok) {
+        var items = api.data.items || [];
+        renderNews(items);
+        window.lumDeployState('news-state',
+          JSON.stringify(items), live === null ? null : JSON.stringify(live),
+          api.data.commit, '一覧');
+        return;
+      }
+      // No GitHub token, or GitHub unreachable: the deployed file is all there
+      // is. Show it, and say that it is the published copy rather than the
+      // saved one, so a missing post is not a mystery.
+      renderNews(live || []);
+      var el = document.getElementById('news-state');
+      if (el) {
+        el.className = 'deploy-state problem';
+        el.textContent = api && api.data && api.data.message
+          ? api.data.message + '（表示しているのはサイトに公開中の一覧です）'
+          : '保存済みの一覧を取得できませんでした。表示しているのはサイトに公開中の一覧です。';
+      }
+    });
   }
   function newsPost(payload, btn) {
     var key = sessionStorage.getItem('lum_admin_key') || '';
@@ -792,6 +849,8 @@ window.lumAdmin = {
         if (x.r.ok && x.d.ok === true) {
           newsSay(x.d.message || '保存しました。', true);
           renderNews(x.d.items || []);
+          // A commit has just landed, so it is by definition ahead of the site.
+          window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
           if (payload.action === 'add') {
             document.getElementById('news-title').value = '';
             document.getElementById('news-body').value = '';
@@ -1217,12 +1276,31 @@ window.lumAdmin = {
 
   async function loadAll() {
     say('読み込み中…', true);
+    var live = null;
     try {
       var r1 = await fetch('/content-schema.json', { cache: 'no-store' });
       schema = await r1.json();
       var r2 = await fetch('/content.json', { cache: 'no-store' });
-      overrides = r2.ok ? (await r2.json()) : {};
-      if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) overrides = {};
+      var deployed = r2.ok ? await r2.json() : {};
+      if (!deployed || typeof deployed !== 'object' || Array.isArray(deployed)) deployed = {};
+      live = deployed;
+      // What is committed, which is what the next deploy will publish. Reading
+      // the deployed file instead meant 再読込 within a minute of saving showed
+      // the text you had just replaced.
+      var saved = await window.lumAdmin.fetch('/api/content-save');
+      if (saved.res.ok && saved.data && saved.data.ok) {
+        overrides = saved.data.overrides || {};
+        window.lumDeployState('copy-state',
+          JSON.stringify(overrides), JSON.stringify(live), saved.data.commit, '文章');
+      } else {
+        overrides = deployed;
+        var st = document.getElementById('copy-state');
+        if (st) {
+          st.className = 'deploy-state problem';
+          st.textContent = (saved.data && saved.data.message ? saved.data.message + '　' : '') +
+            '表示しているのはサイトに公開中の文章です。保存直後はまだ反映されていないことがあります。';
+        }
+      }
     } catch (_) {
       say('文章データを読み込めませんでした。再読込をお試しください。');
       return;
@@ -1270,6 +1348,8 @@ window.lumAdmin = {
     overrides = data.overrides || {};
     edited = {};
     say(data.message, true);
+    // Just committed, so the site is one deploy behind by definition.
+    window.lumDeployState('copy-state', 'saved', 'live', null, '文章');
     render();
   }
 

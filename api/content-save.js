@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } from './_github.js'
 
 // Admin copy editing: commits public/content.json to the GitHub repo via the
 // Contents API, exactly like news-post.js. Vercel's GitHub integration then
@@ -14,36 +15,44 @@ import { requireAdmin } from './_admin-auth.js'
 // Requires env: ADMIN_KEY and GITHUB_TOKEN (fine-grained PAT, Contents:
 // Read and write on the repo). Optional: GITHUB_REPO ("owner/repo").
 
-const enc = new TextEncoder()
-
-function b64encodeUtf8(str) {
-  const bytes = enc.encode(str)
-  let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-  return btoa(bin)
-}
-function b64decodeUtf8(b64) {
-  const bin = atob(b64.replace(/\n/g, ''))
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return new TextDecoder().decode(bytes)
-}
-
 const FILE_PATH = 'public/content.json'
 const MAX_KEYS = 2000
 const MAX_LEN = 4000
 const PATH_RE = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/
 
-async function gh(token, repo, path, init = {}) {
-  return fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'lumenium-content',
-      ...(init.headers || {}),
-    },
-  })
+const NO_TOKEN = {
+  ok: false, code: 'GITHUB_NOT_CONFIGURED',
+  message: 'GITHUB_TOKEN が未設定です。GitHubのFine-grained PAT（対象リポジトリのContents: Read and write権限）を作成し、Vercelの環境変数に設定して再デプロイしてください。',
+}
+
+/** Read the committed overrides back. The editor used to load /content.json —
+ *  the deployed copy — so pressing 再読込 within a minute of saving showed the
+ *  text you had just replaced, as if the save had not happened. */
+export async function GET(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+
+  const token = process.env.GITHUB_TOKEN
+  if (!token) return json(NO_TOKEN, 503)
+  const repo = repoName()
+
+  const cur = await ghFile(token, repo, FILE_PATH)
+  // No file yet simply means nothing has been overridden.
+  if (cur.status === 404) return json({ ok: true, overrides: {}, commit: null })
+  if (!cur.ok) {
+    return json({
+      ok: false, code: 'GITHUB_ERROR',
+      message: `文章ファイルを読み込めませんでした。${ghDetail(cur.status)}`,
+    }, 502)
+  }
+  const curJson = await cur.json()
+  let overrides = {}
+  try {
+    const parsed = JSON.parse(b64decodeUtf8(curJson.content || ''))
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) overrides = parsed
+  } catch (_) { overrides = {} }
+
+  return json({ ok: true, overrides, commit: await lastCommit(token, repo, FILE_PATH) })
 }
 
 export async function POST(req) {
@@ -51,13 +60,8 @@ export async function POST(req) {
   if (denied) return denied
 
   const token = process.env.GITHUB_TOKEN
-  const repo = process.env.GITHUB_REPO || 'shomayamamoto-ai/lumenium-app'
-  if (!token) {
-    return json({
-      ok: false, code: 'GITHUB_NOT_CONFIGURED',
-      message: 'GITHUB_TOKEN が未設定です。GitHubのFine-grained PAT（対象リポジトリのContents: Read and write権限）を作成し、Vercelの環境変数に設定して再デプロイしてください。',
-    }, 503)
-  }
+  const repo = repoName()
+  if (!token) return json(NO_TOKEN, 503)
 
   let payload
   try {
@@ -73,10 +77,9 @@ export async function POST(req) {
 
   // Read the current overrides first: the admin only sends what it changed,
   // so an edit from one browser must not wipe an edit made from another.
-  const cur = await gh(token, repo, FILE_PATH)
+  const cur = await ghFile(token, repo, FILE_PATH)
   if (!cur.ok && cur.status !== 404) {
-    const detail = cur.status === 401 || cur.status === 403 ? 'トークンの権限を確認してください。' : `GitHub応答: ${cur.status}`
-    return json({ ok: false, code: 'GITHUB_ERROR', message: `文章ファイルを読み込めませんでした。${detail}` }, 502)
+    return json({ ok: false, code: 'GITHUB_ERROR', message: `文章ファイルを読み込めませんでした。${ghDetail(cur.status)}` }, 502)
   }
   let sha
   let merged = {}
@@ -119,7 +122,7 @@ export async function POST(req) {
   const sorted = {}
   for (const k of Object.keys(merged).sort()) sorted[k] = merged[k]
 
-  const put = await gh(token, repo, FILE_PATH, {
+  const put = await ghFile(token, repo, FILE_PATH, {
     method: 'PUT',
     body: JSON.stringify({
       message: `content: ${changed} 件の文章を更新`,
