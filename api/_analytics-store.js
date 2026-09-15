@@ -50,5 +50,8 @@ export const K = {
   // Conversion steps. Kept in the same daily hash shape as the rest so the
   // report reads them the same way.
   dayEvents: (d) => `lum:ev:d:${d}`,
+  // Enquiry outcomes, so a form that has stopped working is visible.
+  dayContact: (d) => `lum:ct:d:${d}`,
+  contactLastError: 'lum:ct:lasterr',
   expire: TTL,
 }

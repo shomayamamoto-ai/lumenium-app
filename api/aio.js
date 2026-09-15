@@ -237,11 +237,20 @@ export async function GET(req) {
     .map((raw) => { try { return JSON.parse(raw) } catch (_) { return null } })
     .filter(Boolean)
 
-  const latest = runs[0] || null
+  // A specific past run, when asked for. Comparing against a month ago is the
+  // whole point of measuring repeatedly, and only the newest was reachable.
+  const wanted = new URL(req.url).searchParams.get('run')
+  const latest = (wanted && runs.find((r) => r.id === wanted)) || runs[0] || null
   return json({
     ok: true,
     meta,
     latest,
+    runs: runs.filter((r) => r.summary).map((r) => ({
+      id: r.id,
+      finishedAt: r.finishedAt,
+      openMentionRate: r.summary.openMentionRate,
+      asked: r.summary.asked,
+    })),
     history: runs
       .filter((r) => r.summary)
       .map((r) => ({

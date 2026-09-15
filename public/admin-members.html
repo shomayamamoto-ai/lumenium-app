@@ -237,6 +237,20 @@
       <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
     </div>
 
+    <div class="panel" id="health-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🩺 設定状況</h2>
+      <p class="share-note" style="margin-bottom:14px">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
+      <div class="toolbar" style="margin-bottom:12px">
+        <button class="ghost" id="health-reload" type="button">再確認</button>
+        <span id="health-updated"></span>
+      </div>
+      <p class="msg" id="health-msg" style="margin-bottom:12px"></p>
+      <div id="health-body" style="display:none">
+        <div id="health-summary" style="margin-bottom:16px"></div>
+        <div id="health-list"></div>
+      </div>
+    </div>
+
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🔎 SEO / AIO 分析</h2>
       <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答にルメニウムが出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
@@ -244,6 +258,7 @@
         <button id="seo-run" type="button">AIO出現率を計測</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
         <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
+        <select id="seo-pick" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
         <span id="seo-cost"></span>
       </div>
       <div id="seo-progress" style="display:none;margin-bottom:12px">
@@ -487,6 +502,7 @@ window.lumAdmin = {
      rather than all at once on login, which used to fire four API requests
      the moment the key was accepted. */
   var TABS = [
+    { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit' },
     { id: 'list-view', icon: '👥', label: '会員リスト' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿' },
     { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit' },
@@ -1259,10 +1275,11 @@ window.lumAdmin = {
     say(run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '', true);
   }
 
-  async function load() {
+  async function load(runId) {
     var res, data;
     try {
-      res = await window.lumAdmin.tap(await fetch('/api/aio', { headers: { Authorization: 'Bearer ' + key() } }));
+      res = await window.lumAdmin.tap(await fetch('/api/aio' + (runId ? '?run=' + encodeURIComponent(runId) : ''),
+        { headers: { Authorization: 'Bearer ' + key() } }));
       data = await res.json();
     } catch (_) { say('通信に失敗しました。'); return; }
     if (data.meta) {
@@ -1272,6 +1289,19 @@ window.lumAdmin = {
       el('seo-run').disabled = !data.meta.aiReady;
     }
     if (!res.ok || data.ok !== true) { say(data.message || '表示できませんでした。', res.status === 503); return; }
+    // Past runs: comparing with a month ago is why it is measured repeatedly.
+    var sel = el('seo-pick');
+    var list = data.runs || [];
+    if (list.length > 1) {
+      sel.innerHTML = list.map(function (r) {
+        return '<option value="' + r.id + '">' + new Date(r.finishedAt).toLocaleDateString('ja-JP') +
+          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%）</option>';
+      }).join('');
+      if (data.latest) sel.value = data.latest.id;
+      sel.style.display = 'inline-block';
+    } else {
+      sel.style.display = 'none';
+    }
     draw(data);
   }
 
@@ -1324,7 +1354,8 @@ window.lumAdmin = {
     var cost = meta ? ('約 $' + meta.estimateUsd.toFixed(2)) : '';
     if (confirm(n + '問をAIに質問します（API呼び出し ' + (n + 1) + '回・' + cost + '）。数分かかります。実行しますか？')) run();
   });
-  el('seo-reload').addEventListener('click', load);
+  el('seo-reload').addEventListener('click', function () { load(); });
+  el('seo-pick').addEventListener('change', function () { load(el('seo-pick').value); });
   el('seo-resume').addEventListener('click', async function () {
     if (!pending) return;
     el('seo-resume').disabled = true;
@@ -1483,6 +1514,80 @@ window.lumAdmin = {
     }
     bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・問い合わせ導線を見ています。何を聞いていただいても構いません。下のボタンからでもどうぞ。');
   };
+})();
+</script>
+
+<script>
+/* Configuration status. One place that answers "what is set up and what is
+   broken", instead of six panels each reporting their own missing key. */
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var loaded = false;
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function say(text, info) {
+    var m = el('health-msg');
+    m.textContent = text;
+    m.classList.toggle('show', !!text);
+    m.classList.toggle('info', !!info);
+  }
+
+  var MARK = { ok: ['✅', '#6ee7b7'], warn: ['⚠️', '#fcd34d'], error: ['⛔️', '#fca5a5'] };
+
+  function draw(d) {
+    var counts = { ok: 0, warn: 0, error: 0 };
+    d.checks.forEach(function (c) { counts[c.state] = (counts[c.state] || 0) + 1; });
+
+    var headline = d.worst === 'ok'
+      ? 'すべて正常に設定されています。'
+      : d.worst === 'error'
+        ? '対応が必要な項目があります。'
+        : '設定すると使える機能があります。';
+    el('health-summary').innerHTML =
+      '<div style="background:#151b31;border:1px solid var(--border);border-left:3px solid ' + MARK[d.worst][1] +
+        ';border-radius:12px;padding:14px 16px">' +
+        '<div style="font-size:14px;font-weight:700;margin-bottom:6px">' + MARK[d.worst][0] + ' ' + headline + '</div>' +
+        '<div style="font-size:12.5px;color:var(--sub)">正常 ' + counts.ok + ' / 注意 ' + (counts.warn || 0) +
+          ' / 要対応 ' + (counts.error || 0) +
+          (d.contact ? '　｜　問い合わせ 直近30日: 成功 ' + d.contact.ok + ' 件・失敗 ' + d.contact.fail + ' 件' : '') +
+        '</div></div>';
+
+    var order = { error: 0, warn: 1, ok: 2 };
+    var rows = d.checks.slice().sort(function (a, b) { return order[a.state] - order[b.state]; });
+    el('health-list').innerHTML = rows.map(function (c) {
+      return '<div style="display:flex;gap:11px;padding:12px 13px;background:#151b31;border:1px solid var(--border);border-radius:11px;margin-bottom:8px">' +
+        '<span style="flex:none;font-size:15px;line-height:1.4">' + MARK[c.state][0] + '</span>' +
+        '<div style="min-width:0">' +
+          '<div style="font-size:13.5px;font-weight:700">' + esc(c.label) +
+            (c.env ? ' <code style="font-size:11px;color:var(--sub);font-weight:500">' + esc(c.env) + '</code>' : '') +
+          '</div>' +
+          '<div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:3px">' + esc(c.note) + '</div>' +
+        '</div></div>';
+    }).join('');
+
+    el('health-body').style.display = 'block';
+    el('health-updated').textContent = new Date(d.generatedAt).toLocaleString('ja-JP');
+    say('');
+  }
+
+  async function load() {
+    var res, data;
+    try {
+      res = await window.lumAdmin.tap(await fetch('/api/health', {
+        headers: { Authorization: 'Bearer ' + window.lumAdmin.key() }, cache: 'no-store'
+      }));
+      data = await res.json();
+    } catch (_) { say('通信に失敗しました。'); return; }
+    if (!res.ok || data.ok !== true) { say(data.message || '確認できませんでした。', res.status === 503); return; }
+    draw(data);
+  }
+
+  el('health-reload').addEventListener('click', load);
+  window.lumHealthInit = function () { if (loaded) return; loaded = true; load(); };
 })();
 </script>
 </body>

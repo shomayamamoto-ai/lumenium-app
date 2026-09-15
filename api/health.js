@@ -1,0 +1,130 @@
+export const config = { runtime: 'edge' }
+
+// What is configured, and what is quietly broken.
+//
+// Every panel used to discover its own misconfiguration and say so in its own
+// words, so the only way to learn what was set up was to open all six and read
+// six different errors. Worse, two of the environment variables fall back to
+// values published in the repository, and nothing anywhere said so.
+//
+// This never returns a secret. Each check reports only whether a value is
+// present, and the counts come from the same store as the analytics.
+
+import { requireAdmin, json, apiKey } from './_admin-auth.js'
+import { storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
+
+const has = (name) => !!(process.env[name] || '').trim()
+
+export async function GET(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+
+  const store = storeConfig()
+
+  const checks = [
+    {
+      id: 'admin', label: '管理キー', env: 'ADMIN_KEY',
+      state: 'ok',
+      note: 'この画面が開けているので設定済みです。',
+    },
+    {
+      id: 'resend', label: '問い合わせメール送信', env: 'RESEND_API_KEY',
+      state: has('RESEND_API_KEY') ? 'ok' : 'error',
+      note: has('RESEND_API_KEY')
+        ? '問い合わせフォームと会員登録が動作します。'
+        : '未設定です。お問い合わせフォームが動作していません。resend.com でキーを発行し、Vercel に RESEND_API_KEY を設定してください。',
+    },
+    {
+      id: 'contactTo', label: '問い合わせの宛先', env: 'CONTACT_TO_EMAIL',
+      state: has('CONTACT_TO_EMAIL') ? 'ok' : 'warn',
+      note: has('CONTACT_TO_EMAIL')
+        ? '指定のアドレスに届きます。'
+        : '未設定のため既定の shoma.yamamoto@lumenium.net に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。',
+    },
+    {
+      id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL / _TOKEN',
+      state: store ? 'ok' : 'warn',
+      note: store
+        ? 'ページビュー・導線・AIO計測が記録されます。'
+        : '未接続のため、アクセス解析も導線もAIO計測も一切記録されていません。Vercel の Storage から Upstash Redis を接続してください。',
+    },
+    {
+      id: 'ai', label: 'AI（SEO/AIO分析・アドバイザー）', env: 'ANTHROPIC_API_KEY',
+      state: apiKey() ? 'ok' : 'warn',
+      note: apiKey()
+        ? 'AIO計測とアドバイザーが使えます。'
+        : '未設定のため、AIO計測とAIアドバイザーが使えません。console.anthropic.com で発行してください。',
+    },
+    {
+      id: 'github', label: 'お知らせ投稿・文章編集の保存', env: 'GITHUB_TOKEN',
+      state: has('GITHUB_TOKEN') ? 'ok' : 'warn',
+      note: has('GITHUB_TOKEN')
+        ? '保存すると自動デプロイが走ります。'
+        : '未設定のため、お知らせの投稿とサイト文章の保存ができません。',
+    },
+    // The two that fail open. Both fall back to a value anyone can read in the
+    // public repository, so "unset" here does not mean "off" — it means the
+    // published default is live.
+    {
+      id: 'memberCode', label: '会員登録コード', env: 'MEMBER_CODE',
+      state: has('MEMBER_CODE') ? 'ok' : 'error',
+      note: has('MEMBER_CODE')
+        ? '独自のコードが設定されています。'
+        : '未設定のため、リポジトリに公開されている既定コード「LUMEN2026」が有効です。誰でも会員登録できる状態なので、MEMBER_CODE を設定してください。',
+    },
+    {
+      id: 'sessionSecret', label: 'ログインセッションの署名鍵', env: 'SESSION_SECRET',
+      state: has('SESSION_SECRET') ? 'ok' : 'error',
+      note: has('SESSION_SECRET')
+        ? '独自の鍵が設定されています。'
+        : '未設定のため、リポジトリに公開されている既定の鍵が使われています。ログイン状態を偽造できる状態なので、SESSION_SECRET を設定してください。',
+    },
+  ]
+
+  // Live signals, when there is somewhere to have recorded them.
+  let contact = null
+  if (store) {
+    const dates = lastDays(30)
+    try {
+      const out = await pipeline(store, [
+        ...dates.map((d) => ['HGETALL', K.dayContact(d)]),
+        ['GET', K.contactLastError],
+      ])
+      let ok = 0, fail = 0
+      let last7ok = 0
+      out.slice(0, dates.length).forEach((flat, i) => {
+        if (!Array.isArray(flat)) return
+        for (let j = 0; j + 1 < flat.length; j += 2) {
+          const n = Number(flat[j + 1]) || 0
+          if (String(flat[j]) === 'ok') { ok += n; if (i >= dates.length - 7) last7ok += n }
+          else fail += n
+        }
+      })
+      let lastError = null
+      try { lastError = JSON.parse(out[dates.length]) } catch (_) {}
+      contact = { days: 30, ok, fail, last7ok, lastError }
+
+      if (fail > 0) {
+        checks.push({
+          id: 'contactFail', label: '問い合わせの送信失敗', env: '',
+          state: 'error',
+          note: `直近30日で ${fail} 件の送信が失敗しています。` +
+            (lastError ? `最後の失敗: ${lastError.reason}（${lastError.at}）` : ''),
+        })
+      }
+    } catch (_) { /* the report is still useful without the counts */ }
+  }
+
+  const worst = checks.some((c) => c.state === 'error')
+    ? 'error'
+    : checks.some((c) => c.state === 'warn') ? 'warn' : 'ok'
+
+  return json({
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    today: jstDate(),
+    worst,
+    checks,
+    contact,
+  })
+}
