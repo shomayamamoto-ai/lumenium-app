@@ -25,6 +25,7 @@ async function keyMatches(submitted, configured) {
 }
 
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
+import { useShare } from './_share.js'
 
 const WINDOW_S = 15 * 60
 const MAX_FAILS = 5
@@ -83,11 +84,20 @@ export function json(body, status = 200, extra) {
  *
  *  A locked-out caller gets 429 and a retry-after, not 401. Returning the same
  *  "key is wrong" for both meant a correct key looked wrong for fifteen
- *  minutes, with nothing on screen to say why. */
+ *  minutes, with nothing on screen to say why.
+ *
+ *  opts.as: 'text'       — errors as text/plain, for the endpoints that answer
+ *                          in HTML or xlsx and cannot return a JSON body.
+ *  opts.allowQueryKey    — accept ?key=. Off by default, and deliberately so:
+ *                          a credential in a URL survives in history, in
+ *                          referrers and in logs, and the admin key opens
+ *                          every endpoint. Only the two member endpoints — the
+ *                          ones that exist to be opened as a link — set it.
+ *  opts.share: '<scope>' — also accept ?s=<share token> for that scope. */
 export async function requireAdmin(req, opts) {
-  // The share links answer in HTML and in xlsx, so they cannot be handed a
-  // JSON error body.
   const asText = opts && opts.as === 'text'
+  const shareScope = (opts && opts.share) || null
+  const allowQueryKey = !!(opts && opts.allowQueryKey)
   const fail = (body, status, extra) =>
     asText
       ? new Response(body.message, {
@@ -114,8 +124,28 @@ export async function requireAdmin(req, opts) {
   }
 
   const url = new URL(req.url)
+
+  // A share token, when this endpoint accepts one. Checked before the key so a
+  // recipient who was given a link never has the admin key's error message
+  // explained to them — they get the one that tells them to ask for a new link.
+  if (shareScope) {
+    const token = (url.searchParams.get('s') || '').trim()
+    if (token) {
+      if (await useShare(token, shareScope)) {
+        await clearFails(ip, cfg)
+        return null
+      }
+      await recordFail(ip, cfg)
+      return fail({
+        ok: false, code: 'SHARE_INVALID',
+        message: 'この共有リンクは使えません。失効したか、有効期限が切れています。発行元に再発行を依頼してください。',
+      }, 401)
+    }
+  }
+
   const auth = req.headers.get('authorization') || ''
-  const submitted = ((auth.startsWith('Bearer ') ? auth.slice(7) : '') || url.searchParams.get('key') || '').trim()
+  const fromHeader = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  const submitted = (fromHeader || (allowQueryKey ? url.searchParams.get('key') || '' : '')).trim()
 
   if (!submitted || !(await keyMatches(submitted, adminKey))) {
     await recordFail(ip, cfg)

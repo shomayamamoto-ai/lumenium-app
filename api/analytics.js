@@ -43,6 +43,9 @@ export async function GET(req) {
     }, 503)
   }
 
+  // The same `url` the endpoint parsed for itself before the guard was
+  // factored out. Without it every authorised request threw here.
+  const url = new URL(req.url)
   const days = Math.min(Math.max(parseInt(url.searchParams.get('days') || '30', 10) || 30, 1), 90)
   const dates = lastDays(days)
 

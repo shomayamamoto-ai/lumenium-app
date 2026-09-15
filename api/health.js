@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin, json, apiKey } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
+import { listShares } from './_share.js'
 
 const has = (name) => !!(process.env[name] || '').trim()
 
@@ -45,8 +46,8 @@ export async function GET(req) {
       id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL / _TOKEN',
       state: store ? 'ok' : 'warn',
       note: store
-        ? 'ページビュー・導線・AIO計測が記録されます。'
-        : '未接続のため、アクセス解析も導線もAIO計測も一切記録されていません。Vercel の Storage から Upstash Redis を接続してください。',
+        ? 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'
+        : '未接続のため、アクセス解析も導線もAIO計測も一切記録されていません。会員リストの共有リンクも、管理キー入りのURL（個別に失効できない）しか作れません。Vercel の Storage から Upstash Redis を接続してください。',
     },
     {
       id: 'ai', label: 'AI（SEO/AIO分析・アドバイザー）', env: 'ANTHROPIC_API_KEY',
@@ -123,6 +124,23 @@ export async function GET(req) {
         })
       }
     } catch (_) { /* the report is still useful without the counts */ }
+
+    // A link you issued and forgot is the one that leaks. Anything still open
+    // belongs on the page that lists what is switched on.
+    try {
+      const links = await listShares()
+      if (links && links.length) {
+        const forever = links.filter((l) => !l.expiresAt).length
+        checks.push({
+          id: 'share', label: '会員リストの共有リンク', env: '',
+          state: forever ? 'warn' : 'ok',
+          note: `${links.length}本が有効です（会員リストのみ・この管理画面は開けません）。` +
+            (forever
+              ? `うち${forever}本が無期限です。渡した用事が済んだものは「会員リスト」タブで失効させてください。`
+              : 'すべて期限付きで、期日が来れば自動的に使えなくなります。'),
+        })
+      }
+    } catch (_) { /* the rest of the report stands without this */ }
   }
 
   const worst = checks.some((c) => c.state === 'error')

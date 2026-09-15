@@ -1,11 +1,12 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { SCOPE } from './_share.js'
 
 import { listContacts } from './_resend-audience.js'
 import { buildXlsx } from './_xlsx.js'
 
-// Permalink Excel export: GET /api/members-xlsx?key=<ADMIN_KEY> builds a
+// Permalink Excel export: GET /api/members-xlsx?s=<share token> builds a
 // fresh .xlsx from the live member list on every request, so the same URL
 // always yields the up-to-date sheet. Accepts the key via query (shareable
 // link) or an Authorization: Bearer header. Same hard rule as the list
@@ -25,7 +26,7 @@ function fmtDate(iso) {
 }
 
 export async function GET(req) {
-  const denied = await requireAdmin(req, { as: 'text' })
+  const denied = await requireAdmin(req, { as: 'text', allowQueryKey: true, share: SCOPE })
   if (denied) return denied
 
   const apiKey = process.env.RESEND_API_KEY

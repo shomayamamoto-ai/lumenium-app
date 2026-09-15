@@ -1,12 +1,17 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { SCOPE } from './_share.js'
 
 import { listContacts } from './_resend-audience.js'
 
-// Live member list view: GET /api/members-view?key=<ADMIN_KEY> renders the
+// Live member list view: GET /api/members-view?s=<share token> renders the
 // always-current list as an HTML table — no download step. Auto-refreshes
 // every 60s; same auth guarantees as the other admin endpoints.
+//
+// ?key=<ADMIN_KEY> still works, because share tokens need Redis and it may not
+// be connected yet. Issue a share link from the admin page when it is: that
+// one can be withdrawn on its own, and it opens nothing but this list.
 
 const enc = new TextEncoder()
 
@@ -28,7 +33,7 @@ function fmtDate(iso) {
 }
 
 export async function GET(req) {
-  const denied = await requireAdmin(req, { as: 'text' })
+  const denied = await requireAdmin(req, { as: 'text', allowQueryKey: true, share: SCOPE })
   if (denied) return denied
 
   const apiKey = process.env.RESEND_API_KEY
@@ -39,7 +44,18 @@ export async function GET(req) {
 
   members.sort((a, b) => (b.created || '').localeCompare(a.created || ''))
   const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', hour12: false })
-  const keyParam = encodeURIComponent(submitted)
+  // Carry whichever credential opened this page through to the Excel link, so
+  // the download works for a share-link recipient too — and so this page never
+  // has to name the admin key to build it. (It used to read a `submitted`
+  // variable that the move to the shared guard had already removed, which
+  // meant every authorised request to this page threw before rendering.)
+  const url = new URL(req.url)
+  const carried = ['s', 'key']
+    .map((p) => [p, (url.searchParams.get(p) || '').trim()])
+    .find(([, v]) => v)
+  const xlsxHref = carried
+    ? `/api/members-xlsx?${carried[0]}=${encodeURIComponent(carried[1])}`
+    : null
 
   const rows = members.map((m) => `
     <tr>
@@ -105,7 +121,7 @@ export async function GET(req) {
       <span>${members.length} 件</span>
       <span>最終更新 ${escapeHtml(now)}（60秒ごと自動更新）</span>
       <a href="javascript:location.reload()">今すぐ更新</a>
-      <a href="/api/members-xlsx?key=${keyParam}">Excelでダウンロード</a>
+      ${xlsxHref ? `<a href="${escapeHtml(xlsxHref)}">Excelでダウンロード</a>` : ''}
     </div>
     <div class="panel">
       ${members.length === 0

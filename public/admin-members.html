@@ -134,7 +134,49 @@
     background: #1a2038; border: 1px solid var(--border); border-radius: 12px;
   }
   .share-label { font-size: 11.5px; font-weight: 700; color: #93c5fd; white-space: nowrap; }
-  #share-url {
+  .share-block {
+    margin-bottom: 18px; padding: 14px 16px 12px;
+    background: #1a2038; border: 1px solid var(--border); border-radius: 14px;
+  }
+  .share-head {
+    display: flex; align-items: baseline; gap: 10px;
+    justify-content: space-between; margin-bottom: 10px;
+  }
+  .share-head .share-label { font-size: 13px; }
+  #share-count { font-size: 11.5px; color: var(--sub); }
+  .share-block .share { background: var(--card); margin-bottom: 10px; }
+  #share-tbl table { font-size: 12.5px; }
+  #share-tbl th, #share-tbl td { padding: 8px 10px; }
+  #share-tbl td.exp-soon { color: #fbbf24; }
+  #share-tbl td.exp-none { color: var(--sub); }
+  .share-revoke { padding: 5px 12px; font-size: 11.5px; }
+  .share-make { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  #share-label {
+    flex: 1; min-width: 200px; padding: 9px 12px;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
+  }
+  #share-days {
+    padding: 9px 10px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
+  }
+  .share-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  /* Four columns in a phone's width squeezes every cell to two characters a
+     line. Narrow screens get the same fields stacked, with 失効 beside them. */
+  @media (max-width: 640px) {
+    #share-tbl thead { display: none; }
+    #share-tbl tr {
+      display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+      padding: 10px 2px; border-bottom: 1px solid var(--border);
+    }
+    #share-tbl td { border: 0; padding: 1px 0; }
+    #share-tbl td:nth-child(1) { grid-column: 1; font-weight: 700; }
+    #share-tbl td:nth-child(2), #share-tbl td:nth-child(3) {
+      grid-column: 1; font-size: 11.5px; color: var(--sub);
+    }
+    #share-tbl td:nth-child(4) { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+  }
+  #share-url, #share-url-view, #share-new-url {
     flex: 1; min-width: 180px; padding: 8px 10px;
     background: var(--card); color: var(--sub);
     border: 1px solid var(--border); border-radius: 8px;
@@ -142,9 +184,11 @@
   }
   .share button { padding: 8px 14px; font-size: 12px; }
   .share-open {
-    padding: 8px 14px; font-size: 12px; font-weight: 700;
-    background: var(--grad); color: #fff; border-radius: 10px; text-decoration: none;
+    padding: 9px 16px; font-size: 12.5px; font-weight: 700;
+    background: var(--grad); color: #fff; border: 0; border-radius: 10px;
+    text-decoration: none; cursor: pointer;
   }
+  .share-open[disabled] { opacity: 0.55; cursor: progress; }
   .share-note { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 16px; }
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
 </style>
@@ -172,19 +216,64 @@
     <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="vertical"></div>
     <div class="shell-main">
     <div class="panel" id="list-view">
-      <div class="share">
-        <span class="share-label">📺 ライブ表示リンク（開くだけで最新）</span>
-        <input type="text" id="share-url-view" readonly>
-        <button class="ghost" id="copy-btn-view" type="button">コピー</button>
-        <a id="open-view" class="share-open" href="#">開く</a>
+      <div class="share-block">
+        <div class="share-head">
+          <span class="share-label">🔗 会員リストの共有リンク</span>
+          <span id="share-count"></span>
+        </div>
+
+        <!-- Shown once, right after issuing. The token is not stored in a form
+             that can be read back, so this is the only time the full link
+             exists. -->
+        <div class="share" id="share-new" style="display:none">
+          <span class="share-label">発行しました（この画面を離れると二度と表示できません）</span>
+          <input type="text" id="share-new-url" readonly>
+          <button class="ghost" id="share-new-copy" type="button">コピー</button>
+        </div>
+
+        <div class="tbl" id="share-tbl" style="display:none">
+          <table>
+            <thead><tr><th>渡した相手・メモ</th><th>有効期限</th><th>アクセス</th><th></th></tr></thead>
+            <tbody id="share-rows"></tbody>
+          </table>
+        </div>
+        <p class="share-note" id="share-empty" style="display:none">まだ共有リンクはありません。下のボタンで発行できます。</p>
+
+        <div class="share-make" id="share-make" style="display:none">
+          <input type="text" id="share-label" placeholder="渡す相手やメモ（例: 経理 佐藤さん）" maxlength="60">
+          <select id="share-days">
+            <option value="7">7日間</option>
+            <option value="30" selected>30日間</option>
+            <option value="90">90日間</option>
+            <option value="365">1年間</option>
+            <option value="0">無期限</option>
+          </select>
+          <button id="share-issue" type="button">共有リンクを発行</button>
+        </div>
+
+        <!-- Share tokens need Upstash Redis. Until it is connected the old
+             admin-key links are all there is, so they stay — with the warning
+             they never carried. -->
+        <div id="share-legacy" style="display:none">
+          <div class="share">
+            <span class="share-label">📺 ライブ表示リンク（開くだけで最新）</span>
+            <input type="text" id="share-url-view" readonly>
+            <button class="ghost" id="copy-btn-view" type="button">コピー</button>
+          </div>
+          <div class="share">
+            <span class="share-label">📊 Excel直リンク（常に最新）</span>
+            <input type="text" id="share-url" readonly>
+            <button class="ghost" id="copy-btn" type="button">コピー</button>
+          </div>
+        </div>
+
+        <div class="share-actions">
+          <button class="share-open" id="open-view" type="button">📺 ライブ表示を開く</button>
+          <button class="share-open" id="open-xlsx" type="button">📊 Excelをダウンロード</button>
+        </div>
+        <p class="msg" id="share-msg"></p>
+        <p class="share-note" id="share-note"></p>
       </div>
-      <div class="share">
-        <span class="share-label">📊 Excel直リンク（常に最新）</span>
-        <input type="text" id="share-url" readonly>
-        <button class="ghost" id="copy-btn" type="button">コピー</button>
-        <a id="open-xlsx" class="share-open" href="#">開く</a>
-      </div>
-      <p class="share-note">ライブ表示はダウンロード不要で、開くだけで最新一覧が見られます（60秒ごと自動更新・ブックマーク可）。Excel直リンクは開くたびに最新の .xlsx をダウンロードします。いずれもリンクを知っている人は誰でも閲覧できるため取り扱いにご注意ください（Vercel の ADMIN_KEY を変更すると無効化されます）。</p>
       <div class="toolbar">
         <input type="search" id="search" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
@@ -613,13 +702,7 @@ window.lumAdmin = {
     members = data.members || [];
     render();
     sessionStorage.setItem('lum_admin_key', key);
-    // Permalinks: live HTML view + always-fresh Excel
-    var shareUrl = location.origin + '/api/members-xlsx?key=' + encodeURIComponent(key);
-    document.getElementById('share-url').value = shareUrl;
-    document.getElementById('open-xlsx').href = shareUrl;
-    var viewUrl = location.origin + '/api/members-view?key=' + encodeURIComponent(key);
-    document.getElementById('share-url-view').value = viewUrl;
-    document.getElementById('open-view').href = viewUrl;
+    loadShare();
     keyPanel.style.display = 'none';
     document.body.classList.add('is-in');
     document.getElementById('sign-out').style.display = 'inline-block';
@@ -800,6 +883,167 @@ window.lumAdmin = {
   }
   wireCopy('copy-btn', 'share-url');
   wireCopy('copy-btn-view', 'share-url-view');
+  wireCopy('share-new-copy', 'share-new-url');
+
+  /* ---- Share links ----
+     A share link used to be the admin key in a query string. It could not be
+     withdrawn without changing ADMIN_KEY — which kills every link at once —
+     and in the recipient's hands it opened every admin endpoint, not only this
+     list. These are tokens instead: scoped to the member list, dated, and
+     revocable one at a time. */
+  var shareMsg = document.getElementById('share-msg');
+  var shareReady = false;
+
+  function shareSay(text, isInfo) {
+    shareMsg.textContent = text || '';
+    shareMsg.classList.toggle('show', !!text);
+    shareMsg.classList.toggle('info', !!isInfo);
+  }
+
+  function fmtWhen(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return String(iso);
+    return d.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function renderShare(links) {
+    var rows = document.getElementById('share-rows');
+    rows.textContent = '';
+    document.getElementById('share-count').textContent = links.length ? links.length + ' 本が有効' : '';
+    document.getElementById('share-tbl').style.display = links.length ? 'block' : 'none';
+    document.getElementById('share-empty').style.display = links.length ? 'none' : 'block';
+
+    links.forEach(function (l) {
+      var tr = document.createElement('tr');
+      var label = document.createElement('td');
+      label.textContent = l.label || '共有リンク';
+
+      var exp = document.createElement('td');
+      if (!l.expiresAt) {
+        exp.textContent = '無期限';
+        exp.className = 'exp-none';
+      } else {
+        var left = Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000);
+        exp.textContent = fmtWhen(l.expiresAt).slice(0, 10) + '（あと' + left + '日）';
+        if (left <= 7) exp.className = 'exp-soon';
+      }
+
+      var use = document.createElement('td');
+      use.textContent = l.uses ? l.uses + '回 / 最終 ' + fmtWhen(l.lastUsedAt) : 'まだ開かれていません';
+
+      var act = document.createElement('td');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ghost share-revoke';
+      btn.textContent = '失効';
+      btn.onclick = function () {
+        if (!confirm('「' + (l.label || '共有リンク') + '」を今すぐ使えなくします。よろしいですか？')) return;
+        btn.disabled = true;
+        window.lumAdmin.fetch('/api/share-links', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'revoke', id: l.id })
+        }).then(function (r) {
+          shareSay((r.data && r.data.message) || '失効しました。', true);
+          loadShare();
+        });
+      };
+      act.appendChild(btn);
+
+      [label, exp, use, act].forEach(function (td) { tr.appendChild(td); });
+      rows.appendChild(tr);
+    });
+  }
+
+  /* Without Redis there is nowhere to keep a revocable token, so the old
+     admin-key URLs are all there is. They stay — with the warning they should
+     always have carried. */
+  function showLegacy() {
+    var key = encodeURIComponent(window.lumAdmin.key());
+    document.getElementById('share-legacy').style.display = 'block';
+    document.getElementById('share-make').style.display = 'none';
+    document.getElementById('share-tbl').style.display = 'none';
+    document.getElementById('share-empty').style.display = 'none';
+    document.getElementById('share-url').value = location.origin + '/api/members-xlsx?key=' + key;
+    document.getElementById('share-url-view').value = location.origin + '/api/members-view?key=' + key;
+    document.getElementById('share-note').textContent =
+      '⚠ 保存先（Upstash Redis）が未接続のため、失効できる共有リンクを発行できません。上のURLには管理キーがそのまま入っており、' +
+      '渡した相手はこの管理画面と同じ操作（文章の書き換え・お知らせ投稿など）ができます。無効化する方法は Vercel の ADMIN_KEY を' +
+      '変更することだけで、その場合はすべてのリンクが同時に使えなくなります。「設定状況」タブの手順で接続すると、相手ごとに' +
+      '発行して1本ずつ失効できるリンクに変わります。';
+  }
+
+  async function loadShare() {
+    var r = await window.lumAdmin.fetch('/api/share-links');
+    if (r.data && r.data.ready === false) { shareReady = false; showLegacy(); return; }
+    if (!r.res.ok) { shareSay((r.data && r.data.message) || '共有リンクを読み込めませんでした。'); return; }
+    shareReady = true;
+    document.getElementById('share-legacy').style.display = 'none';
+    document.getElementById('share-make').style.display = 'flex';
+    document.getElementById('share-note').textContent =
+      '共有リンクで開けるのは会員リストだけです（この管理画面や他の操作には使えません）。渡す相手ごとに発行しておくと、' +
+      '必要になったときその1本だけを失効できます。リンクは発行した直後にしか表示されないので、その場でコピーしてお渡しください。' +
+      'Excel は、開いたライブ表示の画面からダウンロードできます。';
+    renderShare(r.data.links || []);
+  }
+
+  document.getElementById('share-issue').addEventListener('click', async function () {
+    var btn = this;
+    btn.disabled = true;
+    shareSay('');
+    var r = await window.lumAdmin.fetch('/api/share-links', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create',
+        label: document.getElementById('share-label').value,
+        days: Number(document.getElementById('share-days').value)
+      })
+    });
+    btn.disabled = false;
+    if (!r.res.ok || !r.data.ok) { shareSay((r.data && r.data.message) || '発行できませんでした。'); return; }
+    document.getElementById('share-label').value = '';
+    document.getElementById('share-new').style.display = 'flex';
+    document.getElementById('share-new-url').value = r.data.view;
+    shareSay('発行しました。このURLが表示されるのは今だけです — コピーしてお渡しください。', true);
+    loadShare();
+  });
+
+  /* The 開く buttons mint a link that dies in fifteen minutes, so looking at
+     the list yourself does not leave the admin key in the address bar and in
+     the browser history. The tab is opened before the await: a window.open
+     that lands after one is treated as a popup and blocked. */
+  function wireOpen(id, kind) {
+    document.getElementById(id).addEventListener('click', async function () {
+      var btn = this, label = btn.textContent;
+      var tab = window.open('', '_blank');
+      var go = function (url) {
+        if (tab && !tab.closed) tab.location = url; else location.href = url;
+      };
+      if (!shareReady) {
+        go(location.origin + '/api/members-' + kind + '?key=' + encodeURIComponent(window.lumAdmin.key()));
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = '準備中…';
+      var r = await window.lumAdmin.fetch('/api/share-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open' })
+      });
+      btn.disabled = false;
+      btn.textContent = label;
+      if (!r.res.ok || !r.data.ok) {
+        if (tab && !tab.closed) tab.close();
+        shareSay((r.data && r.data.message) || '開けませんでした。');
+        return;
+      }
+      go(kind === 'view' ? r.data.view : r.data.xlsx);
+    });
+  }
+  wireOpen('open-view', 'view');
+  wireOpen('open-xlsx', 'xlsx');
 
   // Auto-restore within the same tab session
   var saved = sessionStorage.getItem('lum_admin_key');

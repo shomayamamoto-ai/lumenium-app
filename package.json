@@ -10,8 +10,9 @@
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
     "deploy:logs": "vercel logs --follow",
-    "prebuild": "node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs",
-    "indexnow": "node scripts/indexnow.mjs"
+    "prebuild": "node scripts/smoke-api.mjs && node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs",
+    "indexnow": "node scripts/indexnow.mjs",
+    "check:api": "node scripts/smoke-api.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
