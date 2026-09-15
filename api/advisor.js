@@ -13,6 +13,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
+import { EVENTS } from './track.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND } from './_aio-catalog.js'
 
@@ -36,10 +37,22 @@ async function liveNumbers() {
     const cmds = [
       ['LRANGE', 'lum:aio:index', 0, 0],
       ...dates.map((d) => ['GET', K.dayViews(d)]),
+      ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
     ]
     const out = await pipeline(cfg, cmds)
     const ids = Array.isArray(out[0]) ? out[0] : []
-    const views = out.slice(1).map((v) => Number(v) || 0)
+    const views = out.slice(1, 1 + dates.length).map((v) => Number(v) || 0)
+
+    // The enquiry funnel. Advice about search rankings is only half the job:
+    // without this the advisor cannot see that the visitors already arriving
+    // are being lost, and where.
+    const ev = {}
+    for (const flat of out.slice(1 + dates.length)) {
+      if (!Array.isArray(flat)) continue
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        ev[String(flat[i])] = (ev[String(flat[i])] || 0) + (Number(flat[i + 1]) || 0)
+      }
+    }
 
     let aio = null
     if (ids.length) {
@@ -62,7 +75,10 @@ async function liveNumbers() {
         }
       } catch (_) { /* no usable run yet */ }
     }
-    return { analytics: { days: 30, total: views.reduce((a, b) => a + b, 0), daily: views }, aio }
+    return {
+      analytics: { days: 30, total: views.reduce((a, b) => a + b, 0), daily: views, events: ev },
+      aio,
+    }
   } catch (_) {
     return { analytics: null, aio: null }
   }
@@ -83,9 +99,35 @@ function systemPrompt(live) {
       ].join('\n')
     : 'まだ計測されていません（管理画面の「AIO出現率を計測」を実行すると入ります）。'
 
-  const pv = live.analytics
-    ? `直近30日の合計ページビュー: ${live.analytics.total}`
-    : 'アクセス解析は未接続です（Upstash Redis 未設定）。'
+  const STEPS = [
+    ['menu_open', 'メニューを開いた'],
+    ['service_view', 'サービスを見た'],
+    ['estimate_start', '見積りを開いた'],
+    ['estimate_done', '概算を出した'],
+    ['contact_view', '問い合わせ画面に到達'],
+    ['contact_start', '入力を始めた'],
+    ['contact_submit', '送信した'],
+  ]
+  let pv = 'アクセス解析は未接続です（Upstash Redis 未設定）。'
+  if (live.analytics) {
+    const ev = live.analytics.events || {}
+    const lines = STEPS.map(([k, label], i) => {
+      const n = ev[k] || 0
+      const prev = i > 0 ? (ev[STEPS[i - 1][0]] || 0) : null
+      const drop = prev ? Math.round((1 - n / prev) * 100) : null
+      return `  ${label}: ${n}${drop !== null ? `（前段から −${drop}%）` : ''}`
+    })
+    const any = STEPS.some(([k]) => ev[k])
+    pv = [
+      `直近30日の合計ページビュー: ${live.analytics.total}`,
+      '',
+      '## 問い合わせまでの導線（直近30日）',
+      any ? lines.join('\n') : '  まだ記録がありません。',
+      any
+        ? '脱落が大きい段が、集客より先に直すべき場所です。SEOの話と混ぜず、どちらが先かを明示してください。'
+        : '',
+    ].filter(Boolean).join('\n')
+  }
 
   return [
     'あなたは lumenium.net（ルメニウム）専属のSEO / AIO（AI検索最適化）アドバイザーです。',

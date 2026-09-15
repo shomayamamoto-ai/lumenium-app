@@ -1,5 +1,7 @@
 export const config = { runtime: 'edge' }
 
+import { requireAdmin } from './_admin-auth.js'
+
 // Reads the pageview counters back for the admin page. Same admin-key auth
 // and rate limiting as the member endpoints.
 
@@ -7,38 +9,6 @@ import { storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analy
 import { EVENTS } from './track.js'
 
 const enc = new TextEncoder()
-
-async function hmacHex(message, secret) {
-  const key = await crypto.subtle.importKey(
-    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message))
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-async function keyMatches(submitted, configured) {
-  const a = await hmacHex(String(submitted), 'lumenium-admin-compare')
-  const b = await hmacHex(String(configured), 'lumenium-admin-compare')
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return diff === 0
-}
-
-const WINDOW_MS = 15 * 60 * 1000
-const MAX_FAILS = 5
-const fails = new Map()
-function limited(ip) {
-  const rec = fails.get(ip)
-  return !!rec && Date.now() <= rec.resetAt && rec.count >= MAX_FAILS
-}
-function recordFail(ip) {
-  const now = Date.now()
-  const rec = fails.get(ip)
-  if (!rec || now > rec.resetAt) fails.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  else rec.count += 1
-  if (fails.size > 1000) fails.clear()
-}
 
 /** Upstash returns hashes as a flat [field, value, ...] array. */
 function toPairs(flat) {
@@ -62,19 +32,8 @@ function merge(lists, limit) {
 }
 
 export async function GET(req) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-
-  const adminKey = (process.env.ADMIN_KEY || '').trim()
-  if (!adminKey) return json({ ok: false, code: 'NOT_CONFIGURED', message: 'ADMIN_KEY が未設定です。' }, 503)
-
-  const url = new URL(req.url)
-  const auth = req.headers.get('authorization') || ''
-  const submitted = ((auth.startsWith('Bearer ') ? auth.slice(7) : '') || url.searchParams.get('key') || '').trim()
-  if (limited(ip) || !submitted || !(await keyMatches(submitted, adminKey))) {
-    recordFail(ip)
-    return json({ ok: false, code: 'UNAUTHORIZED', message: '管理キーが正しくありません。' }, 401)
-  }
-  fails.delete(ip)
+  const denied = await requireAdmin(req)
+  if (denied) return denied
 
   const cfg = storeConfig()
   if (!cfg) {

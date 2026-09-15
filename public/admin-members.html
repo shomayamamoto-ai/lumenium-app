@@ -169,7 +169,7 @@
     </div>
 
     <div class="shell" id="shell" style="display:none">
-    <nav class="shell-nav" id="shell-nav" aria-label="管理メニュー"></nav>
+    <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="vertical"></div>
     <div class="shell-main">
     <div class="panel" id="list-view">
       <div class="share">
@@ -504,14 +504,23 @@ window.lumAdmin = {
     if (id !== 'copy-admin' && window.lumDirtyCopy && window.lumDirtyCopy()) {
       var panel = document.getElementById('copy-admin');
       if (panel && panel.style.display !== 'none') {
-        if (!confirm('未保存の文章編集が' + window.lumDirtyCopy() + '件あります。保存せずに移動しますか？')) return;
+        if (!confirm('未保存の文章編集が' + window.lumDirtyCopy() + '件あります。保存せずに移動しますか？')) return false;
       }
     }
     TABS.forEach(function (t) {
       var panel = document.getElementById(t.id);
       if (panel) panel.style.display = t.id === id ? 'block' : 'none';
       var btn = document.getElementById('tab-' + t.id);
-      if (btn) btn.setAttribute('aria-current', t.id === id ? 'true' : 'false');
+      if (btn) {
+        var on = t.id === id;
+        btn.setAttribute('aria-current', on ? 'true' : 'false');
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        btn.tabIndex = on ? 0 : -1;
+      }
+      if (panel) {
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', 'tab-' + t.id);
+      }
     });
     var tab = TABS.find(function (t) { return t.id === id; });
     if (tab && tab.init && !started[id]) {
@@ -530,11 +539,25 @@ window.lumAdmin = {
     var nav = document.getElementById('shell-nav');
     if (nav.childElementCount) return;
     nav.innerHTML = TABS.map(function (t) {
-      return '<button type="button" class="shell-tab" id="tab-' + t.id + '">' +
+      return '<button type="button" class="shell-tab" id="tab-' + t.id + '" role="tab" tabindex="-1"' +
+        ' aria-controls="' + t.id + '" aria-selected="false">' +
         '<span aria-hidden="true">' + t.icon + '</span><span>' + t.label + '</span></button>';
     }).join('');
     TABS.forEach(function (t) {
-      document.getElementById('tab-' + t.id).addEventListener('click', function () { showTab(t.id); });
+      var el = document.getElementById('tab-' + t.id);
+      el.addEventListener('click', function () { showTab(t.id); });
+      // A tablist is one stop in the tab order; the arrows move within it.
+      el.addEventListener('keydown', function (e) {
+        var i = TABS.findIndex(function (x) { return x.id === t.id; });
+        var to = null;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = (i + 1) % TABS.length;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = (i - 1 + TABS.length) % TABS.length;
+        if (e.key === 'Home') to = 0;
+        if (e.key === 'End') to = TABS.length - 1;
+        if (to === null) return;
+        e.preventDefault();
+        if (showTab(TABS[to].id) !== false) document.getElementById('tab-' + TABS[to].id).focus();
+      });
     });
     var saved = null;
     try { saved = sessionStorage.getItem('lum_admin_tab'); } catch (_) {}
@@ -1320,7 +1343,12 @@ window.lumAdmin = {
 /* AI advisor: streams from /api/advisor over SSE. */
 (function () {
   var el = function (id) { return document.getElementById(id); };
+  var CHAT_KEY = 'lum_advisor_chat';
   var history = [], busy = false, started = false, controller = null;
+
+  function saveChat() {
+    try { sessionStorage.setItem(CHAT_KEY, JSON.stringify(history.slice(-20))); } catch (_) {}
+  }
 
   function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
   function esc(t) {
@@ -1354,6 +1382,7 @@ window.lumAdmin = {
     say('');
     bubble('user', text);
     history.push({ role: 'user', content: text });
+    saveChat();
     var target = bubble('assistant', '');
     var acc = '';
 
@@ -1397,6 +1426,7 @@ window.lumAdmin = {
       }
     }
     if (acc) history.push({ role: 'assistant', content: acc });
+    saveChat();
     finish();
   }
 
@@ -1421,6 +1451,7 @@ window.lumAdmin = {
   el('advisor-clear').addEventListener('click', function () {
     if (busy || !history.length) return;
     history = [];
+    try { sessionStorage.removeItem(CHAT_KEY); } catch (_) {}
     el('advisor-log').textContent = '';
     bubble('assistant', '履歴をクリアしました。あらためてご質問ください。');
   });
@@ -1441,7 +1472,16 @@ window.lumAdmin = {
     Array.prototype.forEach.call(document.querySelectorAll('.advisor-chip'), function (b) {
       b.addEventListener('click', function () { ask(b.textContent); });
     });
-    bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・アクセス解析を見ています。何を聞いていただいても構いません。下のボタンからでもどうぞ。');
+    // A long answer was lost on reload, and with it the context of the
+    // conversation that produced it.
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(CHAT_KEY) || 'null'); } catch (_) {}
+    if (Array.isArray(saved) && saved.length) {
+      history = saved;
+      saved.forEach(function (m) { bubble(m.role === 'user' ? 'user' : 'assistant', m.content); });
+      return;
+    }
+    bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・問い合わせ導線を見ています。何を聞いていただいても構いません。下のボタンからでもどうぞ。');
   };
 })();
 </script>

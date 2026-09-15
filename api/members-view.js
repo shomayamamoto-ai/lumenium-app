@@ -1,5 +1,7 @@
 export const config = { runtime: 'edge' }
 
+import { requireAdmin } from './_admin-auth.js'
+
 import { listContacts } from './_resend-audience.js'
 
 // Live member list view: GET /api/members-view?key=<ADMIN_KEY> renders the
@@ -7,38 +9,6 @@ import { listContacts } from './_resend-audience.js'
 // every 60s; same auth guarantees as the other admin endpoints.
 
 const enc = new TextEncoder()
-
-async function hmacHex(message, secret) {
-  const key = await crypto.subtle.importKey(
-    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message))
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-async function keyMatches(submitted, configured) {
-  const a = await hmacHex(String(submitted), 'lumenium-admin-compare')
-  const b = await hmacHex(String(configured), 'lumenium-admin-compare')
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return diff === 0
-}
-
-const WINDOW_MS = 15 * 60 * 1000
-const MAX_FAILS = 5
-const fails = new Map()
-function limited(ip) {
-  const rec = fails.get(ip)
-  return !!rec && Date.now() <= rec.resetAt && rec.count >= MAX_FAILS
-}
-function recordFail(ip) {
-  const now = Date.now()
-  const rec = fails.get(ip)
-  if (!rec || now > rec.resetAt) fails.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-  else rec.count += 1
-  if (fails.size > 1000) fails.clear()
-}
 
 function escapeHtml(s) {
   return String(s == null ? '' : s)
@@ -58,19 +28,8 @@ function fmtDate(iso) {
 }
 
 export async function GET(req) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-
-  const adminKey = (process.env.ADMIN_KEY || '').trim()
-  if (!adminKey) return text('ADMIN_KEY が未設定です。Vercel の環境変数に設定してください。', 503)
-
-  const url = new URL(req.url)
-  const submitted = (url.searchParams.get('key') || '').trim()
-
-  if (limited(ip) || !submitted || !(await keyMatches(submitted, adminKey))) {
-    recordFail(ip)
-    return text('アクセスキーが正しくありません。', 401)
-  }
-  fails.delete(ip)
+  const denied = await requireAdmin(req, { as: 'text' })
+  if (denied) return denied
 
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return text('RESEND_API_KEY が未設定です。', 503)

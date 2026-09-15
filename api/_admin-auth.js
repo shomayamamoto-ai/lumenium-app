@@ -84,19 +84,30 @@ export function json(body, status = 200, extra) {
  *  A locked-out caller gets 429 and a retry-after, not 401. Returning the same
  *  "key is wrong" for both meant a correct key looked wrong for fifteen
  *  minutes, with nothing on screen to say why. */
-export async function requireAdmin(req) {
+export async function requireAdmin(req, opts) {
+  // The share links answer in HTML and in xlsx, so they cannot be handed a
+  // JSON error body.
+  const asText = opts && opts.as === 'text'
+  const fail = (body, status, extra) =>
+    asText
+      ? new Response(body.message, {
+          status,
+          headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...(extra || {}) },
+        })
+      : json(body, status, extra)
+
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
   const adminKey = (process.env.ADMIN_KEY || '').trim()
   if (!adminKey) {
-    return json({ ok: false, code: 'NOT_CONFIGURED', message: 'ADMIN_KEY が未設定です。' }, 503)
+    return fail({ ok: false, code: 'NOT_CONFIGURED', message: 'ADMIN_KEY が未設定です。' }, 503)
   }
 
   const cfg = storeConfig()
   const state = await failState(ip, cfg)
   if (state.count >= MAX_FAILS) {
     const mins = Math.max(1, Math.ceil(state.retryAfter / 60))
-    return json({
+    return fail({
       ok: false, code: 'RATE_LIMITED', retryAfter: state.retryAfter,
       message: `試行回数の上限に達しました。あと約${mins}分お待ちください（正しいキーでもこの間は開きません）。`,
     }, 429, { 'retry-after': String(state.retryAfter || WINDOW_S) })
@@ -109,7 +120,7 @@ export async function requireAdmin(req) {
   if (!submitted || !(await keyMatches(submitted, adminKey))) {
     await recordFail(ip, cfg)
     const left = MAX_FAILS - (state.count + 1)
-    return json({
+    return fail({
       ok: false, code: 'UNAUTHORIZED',
       message: left > 0
         ? `管理キーが正しくありません。（あと${left}回でロックされます）`

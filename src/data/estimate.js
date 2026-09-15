@@ -5,12 +5,38 @@
 // figures broken into a base and a set of multipliers, so a visitor can reach a
 // real range on their own.
 //
-// `base` is the published floor for that service and must stay equal to the
-// number in src/data/services.js — the estimator contradicting the price list
-// would be worse than having no estimator. The range is deliberately wide and
-// labelled as an estimate: it exists to start a conversation, not to quote.
+// The floor is read from the published price rather than duplicated here.
+// Those prices are editable from the admin page, so a hardcoded base would go
+// stale the first time one was changed and the estimator would quote a figure
+// the price list contradicts. `base` below is only the fallback for when the
+// published string cannot be parsed.
+
+import { SERVICES } from './services.js'
 
 export const SPREAD = 1.6   // the top of the range, as a multiple of the bottom
+
+/** Pull the yen amounts out of a published price string.
+ *  "3万円〜(案件規模に応じてご提案)"      -> [30000]
+ *  "初期 20万円〜 / 月額 10万円〜"        -> [200000, 100000]
+ *  "キャスト1名 5,000円〜 / イベント企画別途" -> [5000] */
+export function parseYen(text) {
+  const out = []
+  const re = /([\d,]+(?:\.\d+)?)\s*(万)?\s*円/g
+  let m
+  while ((m = re.exec(String(text || '')))) {
+    const n = parseFloat(m[1].replace(/,/g, ''))
+    if (Number.isFinite(n)) out.push(Math.round(m[2] ? n * 10000 : n))
+  }
+  return out
+}
+
+/** Read at call time, not at module load: the admin's copy overrides are
+ *  applied to the live data module before first render, and a value captured
+ *  at import would miss them. */
+function published(id) {
+  const svc = SERVICES.find((s) => s.id === id)
+  return svc ? parseYen(svc.price) : []
+}
 
 export const ESTIMATE = [
   {
@@ -197,6 +223,18 @@ export const BY_ID = Object.fromEntries(ESTIMATE.map((e) => [e.id, e]))
 const grain = (n) => (n < 100000 ? 1000 : 10000)
 const roundTo = (n) => Math.round(n / grain(n)) * grain(n)
 
+/** The floor and the monthly figure actually in force, published price first. */
+export function basesOf(service) {
+  const svc = BY_ID[service]
+  if (!svc) return null
+  const found = published(service)
+  return {
+    base: found.length ? found[0] : svc.base,
+    monthlyBase: svc.monthlyBase ? (found.length > 1 ? found[1] : svc.monthlyBase) : null,
+    fromPublished: found.length > 0,
+  }
+}
+
 /** Multiply the base by one option from each step. Returns the bottom of the
  *  range; the top is SPREAD times it. */
 export function calculate(service, picks) {
@@ -208,11 +246,12 @@ export function calculate(service, picks) {
     if (!chosen) return null
     mul *= chosen.mul
   }
-  const low = Math.max(svc.base, roundTo(svc.base * mul))
+  const { base, monthlyBase } = basesOf(service)
+  const low = Math.max(base, roundTo(base * mul))
   return {
     low,
     high: Math.max(low, roundTo(low * SPREAD)),
-    monthly: svc.monthlyBase ? roundTo(svc.monthlyBase * mul) : null,
+    monthly: monthlyBase ? roundTo(monthlyBase * mul) : null,
   }
 }
 
