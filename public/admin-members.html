@@ -176,6 +176,55 @@
       <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
     </div>
 
+    <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🔎 SEO / AIO 分析</h2>
+      <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答にルメニウムが出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
+      <div class="toolbar" style="margin-bottom:12px">
+        <button id="seo-run" type="button">AIO出現率を計測</button>
+        <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
+        <span id="seo-cost"></span>
+      </div>
+      <div id="seo-progress" style="display:none;margin-bottom:12px">
+        <div style="height:6px;background:#1a2038;border-radius:999px;overflow:hidden">
+          <div id="seo-bar" style="height:100%;width:0;background:var(--grad);transition:width .3s ease"></div>
+        </div>
+        <p id="seo-progress-text" style="font-size:12px;color:var(--sub);margin-top:7px"></p>
+      </div>
+      <p class="msg" id="seo-msg" style="margin-bottom:12px"></p>
+      <div id="seo-body" style="display:none">
+        <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px"></div>
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">カテゴリ別の出現率</h3>
+          <div id="seo-cats"></div>
+        </div>
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">競合とのシェア（非指名の質問で名前が挙がった回数）</h3>
+          <div id="seo-comp"></div>
+        </div>
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">質問ごとの結果</h3>
+          <div id="seo-rows"></div>
+        </div>
+        <div>
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">推移</h3>
+          <div id="seo-trend"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="advisor-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🤖 AIアドバイザー</h2>
+      <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析を渡してあります。「次に何をすべきか」を具体的に聞いてください。ウェブ検索も使って答えます。</p>
+      <div id="advisor-log" style="max-height:52vh;overflow-y:auto;background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13.5px;line-height:1.75"></div>
+      <div id="advisor-chips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px"></div>
+      <form id="advisor-form" style="display:flex;gap:9px">
+        <input type="text" id="advisor-input" placeholder="例：非指名の検索で出てこないのはなぜ？" autocomplete="off"
+          style="flex:1;min-width:0;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit">
+        <button type="submit" id="advisor-send">送信</button>
+      </form>
+      <p class="msg" id="advisor-msg" style="margin-top:10px"></p>
+    </div>
+
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📈 アクセス解析</h2>
       <p class="share-note" style="margin-bottom:14px">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
@@ -353,6 +402,10 @@ function buildXlsx(rows) {
     if (window.lumCopyInit) window.lumCopyInit();
     document.getElementById('stats-admin').style.display = 'block';
     if (window.lumStatsInit) window.lumStatsInit();
+    document.getElementById('seo-admin').style.display = 'block';
+    if (window.lumSeoInit) window.lumSeoInit();
+    document.getElementById('advisor-admin').style.display = 'block';
+    if (window.lumAdvisorInit) window.lumAdvisorInit();
     loadNews();
     return true;
   }
@@ -870,6 +923,276 @@ function buildXlsx(rows) {
     if (loaded) return;
     loaded = true;
     load();
+  };
+})();
+</script>
+
+<script>
+/* SEO / AIO panel: drives the probe one question at a time (so a single slow
+   web search cannot time the whole run out) and draws the report. */
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var loaded = false, running = false, meta = null;
+
+  function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
+  function say(text, info) {
+    var m = el('seo-msg');
+    m.textContent = text;
+    m.classList.toggle('show', !!text);
+    m.classList.toggle('info', !!info);
+  }
+  function pct(v) { return (v * 100).toFixed(0) + '%'; }
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function cards(s) {
+    var items = [
+      ['出現率（全体）', pct(s.mentionRate)],
+      ['出現率（非指名）', pct(s.openMentionRate)],
+      ['自社サイトが情報源', pct(s.citeRate)],
+      ['質問数', String(s.asked)]
+    ];
+    el('seo-cards').innerHTML = items.map(function (i) {
+      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
+        '<div style="font-size:11px;color:var(--sub)">' + i[0] + '</div>' +
+        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
+    }).join('');
+  }
+
+  function bars(id, rows, opt) {
+    opt = opt || {};
+    var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
+    el(id).innerHTML = rows.length ? rows.map(function (r) {
+      var w = (r.value / max * 100).toFixed(1);
+      var col = r.us ? 'var(--grad)' : 'rgba(255,255,255,0.22)';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">' +
+        '<span style="flex:none;width:' + (opt.labelWidth || 150) + 'px;font-size:12.5px;' +
+          (r.us ? 'font-weight:800' : 'color:var(--sub)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          esc(r.name) + '</span>' +
+        '<span style="flex:1;height:8px;background:#1a2038;border-radius:999px;overflow:hidden">' +
+          '<span style="display:block;height:100%;width:' + w + '%;background:' + col + '"></span></span>' +
+        '<span style="flex:none;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums">' + esc(r.note) + '</span>' +
+      '</div>';
+    }).join('') : '<p style="font-size:12.5px;color:var(--sub)">データがありません。</p>';
+  }
+
+  function rows(run) {
+    el('seo-rows').innerHTML = (run.results || []).map(function (r) {
+      var mark = r.error ? '⚠️' : (r.mention ? (r.cited ? '🟢' : '🟡') : '⚪️');
+      var note = r.error ? '失敗: ' + esc(r.error)
+        : (r.mention ? (r.cited ? '出現・自社サイトが情報源' : '出現（情報源は他サイト）') : '出現せず');
+      var co = (r.companies || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">同時に挙がった会社: ' + esc(r.companies.join('、')) + '</div>' : '';
+      return '<details style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
+        '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
+        '<div style="font-size:12px;color:var(--sub);margin-top:8px">' + note + '</div>' + co +
+        '<div style="font-size:12.5px;margin-top:8px;white-space:pre-wrap;line-height:1.7">' + esc(r.answer || '') + '</div>' +
+        ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '') +
+      '</details>';
+    }).join('');
+  }
+
+  function draw(data) {
+    var run = data.latest;
+    if (!run || !run.summary) {
+      say('まだ計測結果がありません。「AIO出現率を計測」を押してください。', true);
+      el('seo-body').style.display = 'none';
+      return;
+    }
+    var s = run.summary;
+    cards(s);
+    bars('seo-cats', s.byCategory.map(function (c) {
+      return { name: c.cat, value: c.rate, note: c.mentions + '/' + c.asked, us: false };
+    }), { labelWidth: 150 });
+    bars('seo-comp', (s.competitors || []).map(function (c) {
+      return { name: c.name, value: c.count, note: String(c.count) + '回', us: c.us };
+    }), { labelWidth: 170 });
+    rows(run);
+    var h = (data.history || []).slice(0, 12).reverse();
+    bars('seo-trend', h.map(function (r) {
+      return { name: (r.finishedAt || '').slice(0, 10), value: r.openMentionRate, note: pct(r.openMentionRate), us: false };
+    }), { labelWidth: 100 });
+    el('seo-body').style.display = 'block';
+    say(run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '', true);
+  }
+
+  async function load() {
+    var res, data;
+    try {
+      res = await fetch('/api/aio', { headers: { Authorization: 'Bearer ' + key() } });
+      data = await res.json();
+    } catch (_) { say('通信に失敗しました。'); return; }
+    if (data.meta) {
+      meta = data.meta;
+      el('seo-cost').textContent = '1回あたり約 $' + data.meta.estimateUsd.toFixed(2) +
+        '（' + data.meta.questions + '問）' + (data.meta.aiReady ? '' : '・APIキー未設定');
+      el('seo-run').disabled = !data.meta.aiReady;
+    }
+    if (!res.ok || data.ok !== true) { say(data.message || '表示できませんでした。', res.status === 503); return; }
+    draw(data);
+  }
+
+  async function post(payload) {
+    var res = await fetch('/api/aio', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var data = await res.json();
+    if (!res.ok || data.ok !== true) throw new Error(data.message || ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    el('seo-run').disabled = true;
+    el('seo-progress').style.display = 'block';
+    say('');
+    var started;
+    try {
+      started = await post({ action: 'start' });
+    } catch (e) { say('開始できませんでした: ' + e.message); running = false; el('seo-run').disabled = false; return; }
+
+    var total = started.questions.length, hit = 0;
+    for (var i = 0; i < total; i++) {
+      el('seo-bar').style.width = (i / total * 100) + '%';
+      el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
+      try {
+        var r = await post({ action: 'ask', runId: started.runId, index: i });
+        if (r.result && r.result.mention) hit++;
+      } catch (e) {
+        el('seo-progress-text').textContent = (i + 1) + '問目でエラー: ' + e.message + '（続行します）';
+      }
+    }
+    el('seo-bar').style.width = '100%';
+    el('seo-progress-text').textContent = '集計中…';
+    try {
+      await post({ action: 'finalize', runId: started.runId });
+    } catch (e) { say('集計に失敗しました: ' + e.message); }
+    el('seo-progress').style.display = 'none';
+    running = false;
+    el('seo-run').disabled = false;
+    await load();
+  }
+
+  el('seo-run').addEventListener('click', function () {
+    var n = meta ? meta.questions : 16;
+    var cost = meta ? ('約 $' + meta.estimateUsd.toFixed(2)) : '';
+    if (confirm(n + '問をAIに質問します（API呼び出し ' + (n + 1) + '回・' + cost + '）。数分かかります。実行しますか？')) run();
+  });
+  el('seo-reload').addEventListener('click', load);
+
+  window.lumSeoInit = function () { if (loaded) return; loaded = true; load(); };
+})();
+</script>
+
+<script>
+/* AI advisor: streams from /api/advisor over SSE. */
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var history = [], busy = false, started = false;
+
+  function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function say(text) {
+    var m = el('advisor-msg');
+    m.textContent = text;
+    m.classList.toggle('show', !!text);
+  }
+
+  function bubble(role, text) {
+    var log = el('advisor-log');
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:14px';
+    wrap.innerHTML =
+      '<div style="font-size:10.5px;letter-spacing:.12em;font-weight:800;color:var(--sub);margin-bottom:4px">' +
+        (role === 'user' ? 'あなた' : 'ADVISOR') + '</div>' +
+      '<div class="advisor-text" style="white-space:pre-wrap">' + esc(text) + '</div>';
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+    return wrap.querySelector('.advisor-text');
+  }
+
+  async function ask(text) {
+    if (busy || !text.trim()) return;
+    busy = true;
+    el('advisor-send').disabled = true;
+    say('');
+    bubble('user', text);
+    history.push({ role: 'user', content: text });
+    var target = bubble('assistant', '');
+    var acc = '';
+
+    var res;
+    try {
+      res = await fetch('/api/advisor', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      });
+    } catch (_) {
+      target.textContent = '通信に失敗しました。';
+      busy = false; el('advisor-send').disabled = false; return;
+    }
+    if (!res.ok) {
+      var err = {};
+      try { err = await res.json(); } catch (_) {}
+      target.textContent = err.message || ('エラー (HTTP ' + res.status + ')');
+      busy = false; el('advisor-send').disabled = false; return;
+    }
+
+    var reader = res.body.getReader(), dec = new TextDecoder(), buf = '';
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buf += dec.decode(chunk.value, { stream: true });
+      var parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (var i = 0; i < parts.length; i++) {
+        var line = parts[i].trim();
+        if (line.indexOf('data: ') !== 0) continue;
+        var ev;
+        try { ev = JSON.parse(line.slice(6)); } catch (_) { continue; }
+        if (ev.t) { acc += ev.t; target.textContent = acc; el('advisor-log').scrollTop = el('advisor-log').scrollHeight; }
+        if (ev.error) { target.textContent = acc + '\n\n（エラー: ' + ev.error + '）'; }
+      }
+    }
+    history.push({ role: 'assistant', content: acc });
+    busy = false;
+    el('advisor-send').disabled = false;
+  }
+
+  var CHIPS = [
+    '今いちばん効く打ち手を3つ、優先順に教えて',
+    '非指名の検索で出てこない原因は？',
+    '競合と比べて何が足りない？',
+    '今週やるべきことを教えて'
+  ];
+
+  el('advisor-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = el('advisor-input').value;
+    el('advisor-input').value = '';
+    ask(v);
+  });
+
+  window.lumAdvisorInit = function () {
+    if (started) return;
+    started = true;
+    el('advisor-chips').innerHTML = CHIPS.map(function (c) {
+      return '<button type="button" class="ghost advisor-chip" style="font-size:12px;padding:7px 11px">' + esc(c) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('.advisor-chip'), function (b) {
+      b.addEventListener('click', function () { ask(b.textContent); });
+    });
+    bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・アクセス解析を見ています。何を聞いていただいても構いません。下のボタンからでもどうぞ。');
   };
 })();
 </script>
