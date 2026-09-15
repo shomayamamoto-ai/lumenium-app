@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../lib/focusTrap'
 import { SECTION } from '../data/text'
-import { events } from '../lib/analytics'
+import { events, funnel } from '../lib/analytics'
 import { SERVICES } from '../data/services'
 
 // Pressing the trigger opens a dial: two hairline orbits with the twelve
@@ -164,6 +164,7 @@ export default function RadialMenu() {
     )
     setWipe({ x, y, r: Math.ceil(far) + 8 })
     events.ctaClick('home-radial', 'open')
+    funnel.menuOpen()
     setOpen(true)
   }
 

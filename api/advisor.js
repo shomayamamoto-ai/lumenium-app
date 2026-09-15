@@ -13,7 +13,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
-import { EVENTS } from './track.js'
+import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './analytics.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND } from './_aio-catalog.js'
 
@@ -38,6 +38,8 @@ async function liveNumbers() {
       ['LRANGE', 'lum:aio:index', 0, 0],
       ...dates.map((d) => ['GET', K.dayViews(d)]),
       ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
+      ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
+      ...STEP_KEYS.map((e) => ['PFCOUNT', ...dates.map((d) => K.dayEventUsers(d, e))]),
     ]
     const out = await pipeline(cfg, cmds)
     const ids = Array.isArray(out[0]) ? out[0] : []
@@ -47,12 +49,21 @@ async function liveNumbers() {
     // without this the advisor cannot see that the visitors already arriving
     // are being lost, and where.
     const ev = {}
-    for (const flat of out.slice(1 + dates.length)) {
+    for (const flat of out.slice(1 + dates.length, 1 + 2 * dates.length)) {
       if (!Array.isArray(flat)) continue
       for (let i = 0; i + 1 < flat.length; i += 2) {
         ev[String(flat[i])] = (ev[String(flat[i])] || 0) + (Number(flat[i + 1]) || 0)
       }
     }
+
+    // …and the same steps in people, which is the only unit a rate can be
+    // built from. The advisor used to be handed event counts divided by each
+    // other, so an optional detour in the middle of the list produced a
+    // "drop" of −1700% and it was told that as fact.
+    let at = 1 + 2 * dates.length
+    const arrivals = Number(out[at++]) || 0
+    const people = {}
+    for (const e of STEP_KEYS) people[e] = Number(out[at++]) || 0
 
     let aio = null
     if (ids.length) {
@@ -76,7 +87,10 @@ async function liveNumbers() {
       } catch (_) { /* no usable run yet */ }
     }
     return {
-      analytics: { days: 30, total: views.reduce((a, b) => a + b, 0), daily: views, events: ev },
+      analytics: {
+        days: 30, total: views.reduce((a, b) => a + b, 0), daily: views,
+        events: ev, people, arrivals,
+      },
       aio,
     }
   } catch (_) {
@@ -99,32 +113,43 @@ function systemPrompt(live) {
       ].join('\n')
     : 'まだ計測されていません（管理画面の「AIO出現率を計測」を実行すると入ります）。'
 
-  const STEPS = [
-    ['menu_open', 'メニューを開いた'],
-    ['service_view', 'サービスを見た'],
-    ['estimate_start', '見積りを開いた'],
-    ['estimate_done', '概算を出した'],
-    ['contact_view', '問い合わせ画面に到達'],
-    ['contact_start', '入力を始めた'],
-    ['contact_submit', '送信した'],
-  ]
   let pv = 'アクセス解析は未接続です（Upstash Redis 未設定）。'
   if (live.analytics) {
     const ev = live.analytics.events || {}
-    const lines = STEPS.map(([k, label], i) => {
-      const n = ev[k] || 0
-      const prev = i > 0 ? (ev[STEPS[i - 1][0]] || 0) : null
-      const drop = prev ? Math.round((1 - n / prev) * 100) : null
-      return `  ${label}: ${n}${drop !== null ? `（前段から −${drop}%）` : ''}`
-    })
-    const any = STEPS.some(([k]) => ev[k])
+    const ppl = live.analytics.people || {}
+    const arrivals = live.analytics.arrivals || 0
+
+    const row = ([k, label], prev) => {
+      const n = ppl[k] || 0
+      const rate = arrivals ? Math.round((n / arrivals) * 100) : 0
+      // Only when it is a loss. A step bigger than the one above it means
+      // people arrived straight into it, which is information, not a negative.
+      const tail = prev === null ? ''
+        : n > prev ? '（前段より多い＝そこに直接到達している人がいる）'
+        : prev > 0 ? `（前段から −${Math.round((1 - n / prev) * 100)}%）`
+        : ''
+      return `  ${label}: ${n}人 / ${ev[k] || 0}回 — 訪問の${rate}%${tail}`
+    }
+
+    const main = []
+    let prev = arrivals
+    for (const s of MAIN) { main.push(row(s, prev)); prev = ppl[s[0]] || 0 }
+
+    const any = arrivals || STEP_KEYS.some((k) => ppl[k])
     pv = [
       `直近30日の合計ページビュー: ${live.analytics.total}`,
+      `同期間の延べ訪問者: ${arrivals}（同じ日の再訪は1人、日をまたぐと別の1人）`,
       '',
       '## 問い合わせまでの導線（直近30日）',
-      any ? lines.join('\n') : '  まだ記録がありません。',
+      '数値は「人数 / 回数」で、割合はすべて延べ訪問者に対する人数の割合です。',
+      any ? main.join('\n') : '  まだ記録がありません。',
+      '',
+      '### 任意の経路（全員が通るわけではないので、上の導線とは分けて見ること）',
+      SIDE.map((s) => row(s, null)).join('\n'),
+      ENGAGE.map((s) => row(s, null)).join('\n'),
       any
-        ? '脱落が大きい段が、集客より先に直すべき場所です。SEOの話と混ぜず、どちらが先かを明示してください。'
+        ? '脱落が大きい段が、集客より先に直すべき場所です。SEOの話と混ぜず、どちらが先かを明示してください。' +
+          '回数と人数を取り違えないこと（1人が3回見ても人数は1です）。'
         : '',
     ].filter(Boolean).join('\n')
   }

@@ -6,9 +6,24 @@ import { requireAdmin } from './_admin-auth.js'
 // and rate limiting as the member endpoints.
 
 import { storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
-import { EVENTS } from './track.js'
 
-const enc = new TextEncoder()
+// The enquiry path, and the two things that are measured but are not steps on
+// it. They used to be one flat list of seven, which made the report say things
+// that were not true: 見積り is an optional detour most visitors skip, so the
+// row after it always looked like a gain rather than a loss, and the admin
+// rendered that gain as "−-1700%". メニューを開いた is engagement, not a stage.
+export const MAIN = [
+  ['service_view', 'サービスを見た'],
+  ['contact_view', '問い合わせ画面'],
+  ['contact_start', '入力を始めた'],
+  ['contact_submit', '送信した'],
+]
+export const SIDE = [
+  ['estimate_start', '見積りを開いた'],
+  ['estimate_done', '概算を出した'],
+]
+export const ENGAGE = [['menu_open', 'メニューを開いた']]
+export const STEP_KEYS = [...MAIN, ...SIDE, ...ENGAGE].map(([k]) => k)
 
 /** Upstash returns hashes as a flat [field, value, ...] array. */
 function toPairs(flat) {
@@ -59,6 +74,10 @@ export async function GET(req) {
       ...dates.map((d) => ['HGETALL', K.dayRefs(d)]),
       ...dates.map((d) => ['HGETALL', K.dayDevices(d)]),
       ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
+      // One union per step. PFCOUNT over many keys returns the cardinality of
+      // their union, so this is 8 commands rather than 8 × days.
+      ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
+      ...STEP_KEYS.map((ev) => ['PFCOUNT', ...dates.map((d) => K.dayEventUsers(d, ev))]),
     ])
   } catch (e) {
     return json({ ok: false, code: 'STORE_ERROR', message: 'アクセス解析データを読み込めませんでした。時間をおいて再度お試しください。' }, 502)
@@ -72,28 +91,49 @@ export async function GET(req) {
   const refs = dates.map(() => toPairs(raw[i++]))
   const devices = dates.map(() => toPairs(raw[i++]))
   const evDays = dates.map(() => toPairs(raw[i++]))
+  const arrivals = Number(raw[i++]) || 0
+  const people = {}
+  for (const ev of STEP_KEYS) people[ev] = Number(raw[i++]) || 0
 
-  // The enquiry funnel, in order. Counting how many reach each step is the
-  // only way to tell which page is doing the selling — pageviews alone say
-  // nothing about whether anyone got as far as writing to us.
   const evTotals = {}
   for (const day of evDays) for (const { name, count } of day) evTotals[name] = (evTotals[name] || 0) + count
-  const STEPS = [
-    ['menu_open', 'メニューを開いた'],
-    ['service_view', 'サービスを見た'],
-    ['estimate_start', '見積りを開いた'],
-    ['estimate_done', '概算を出した'],
-    ['contact_view', '問い合わせ画面'],
-    ['contact_start', '入力を始めた'],
-    ['contact_submit', '送信した'],
-  ]
-  const rangeViews0 = views.reduce((x, y) => x + y, 0)
-  const funnel = STEPS.map(([key, label]) => ({
+
+  // Two numbers per step, because they answer different questions and only one
+  // of them can be turned into a rate: `count` is how many times it happened,
+  // `people` is how many visitors did it at least once that day. `rate` is
+  // always people ÷ arrivals — the same unit on both sides.
+  const step = ([key, label]) => ({
     key, label,
     count: evTotals[key] || 0,
-    // Against pageviews, so it reads as "of everyone who arrived".
-    rate: rangeViews0 ? (evTotals[key] || 0) / rangeViews0 : 0,
-  }))
+    people: people[key] || 0,
+    rate: arrivals ? (people[key] || 0) / arrivals : 0,
+  })
+
+  const main = MAIN.map(step)
+  // Step-over-step loss, and only when it is a loss. A step larger than the one
+  // above it means visitors arrived straight into it — a real and useful thing
+  // to see, but it is not a negative drop.
+  main.forEach((s, n) => {
+    const prev = n === 0 ? arrivals : main[n - 1].people
+    s.drop = prev > 0 && s.people <= prev ? 1 - s.people / prev : null
+    s.direct = prev > 0 && s.people > prev
+  })
+
+  const side = SIDE.map(step)
+  const funnel = {
+    // Visitor-days: the id is re-salted daily on purpose, so someone returning
+    // on a second day counts twice. Both sides of every rate share that, so the
+    // ratio is right even though the total is not a headcount.
+    arrivals,
+    unit: 'visitor-days',
+    main,
+    side,
+    // Of those who opened the estimator, how many saw a figure.
+    sideCompletion: side[0] && side[0].people
+      ? (side[1] ? side[1].people : 0) / side[0].people
+      : null,
+    engagement: ENGAGE.map(step),
+  }
 
   const series = dates.map((date, n) => ({ date, views: views[n], visitors: visitors[n] }))
   const sum = (a) => a.reduce((x, y) => x + y, 0)

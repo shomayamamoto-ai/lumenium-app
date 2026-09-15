@@ -93,23 +93,26 @@ export async function POST(req) {
 
   // A funnel step rather than a pageview. Only names this file knows are
   // counted, so a hostile caller cannot invent unbounded hash fields.
-  const ev = typeof body?.e === 'string' ? body.e : ''
-  if (ev) {
-    if (!EVENTS.has(ev)) return ok()
-    const d = jstDate()
-    try {
-      await pipeline(storeConfig(), [
-        ['HINCRBY', K.dayEvents(d), ev, 1],
-        ['EXPIRE', K.dayEvents(d), K.expire],
-      ])
-    } catch (_) { /* a beacon must never surface an error */ }
-    return ok()
-  }
-
   const date = jstDate()
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   const salt = (process.env.ADMIN_KEY || 'lumenium') + ':analytics'
   const vid = await visitorId(ip, ua, date, salt)
+
+  const ev = typeof body?.e === 'string' ? body.e : ''
+  if (ev) {
+    if (!EVENTS.has(ev)) return ok()
+    try {
+      await pipeline(cfg, [
+        ['HINCRBY', K.dayEvents(date), ev, 1],
+        ['EXPIRE', K.dayEvents(date), K.expire],
+        // How many times, and separately how many people. Only the second can
+        // be divided by the visitor count to get a rate.
+        ['PFADD', K.dayEventUsers(date, ev), vid],
+        ['EXPIRE', K.dayEventUsers(date, ev), K.expire],
+      ])
+    } catch (_) { /* a beacon must never surface an error */ }
+    return ok()
+  }
 
   const host = new URL(req.url).hostname
   const ref = refHost(body?.r, host)

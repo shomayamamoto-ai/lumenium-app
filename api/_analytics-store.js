@@ -50,6 +50,12 @@ export const K = {
   // Conversion steps. Kept in the same daily hash shape as the rest so the
   // report reads them the same way.
   dayEvents: (d) => `lum:ev:d:${d}`,
+  // …and the same steps counted in people rather than in times. A funnel
+  // measured in event counts cannot be read as a conversion rate: one visitor
+  // opening three services is three service_view against one arrival. Same
+  // HyperLogLog as the visitor count, so the unit on both sides matches and
+  // nothing identifying is kept.
+  dayEventUsers: (d, e) => `lum:evu:d:${d}:${e}`,
   // Enquiry outcomes, so a form that has stopped working is visible.
   dayContact: (d) => `lum:ct:d:${d}`,
   contactLastError: 'lum:ct:lasterr',

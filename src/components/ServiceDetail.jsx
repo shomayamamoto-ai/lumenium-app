@@ -1,9 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
+import { funnel } from '../lib/analytics'
 
 export default function ServiceDetail({ service, onClose }) {
   const panelRef = useRef(null)
   useFocusTrap(panelRef, true)
+
+  // Counted here rather than at the card click, so the deep links into a
+  // service — from the home search box and from the drawer — are counted too.
+  // Keyed on the id: re-rendering the same panel is not a second view.
+  const id = service && service.id
+  useEffect(() => { if (id) funnel.serviceView() }, [id])
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
