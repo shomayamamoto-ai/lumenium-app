@@ -21,7 +21,7 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import {
   QUESTIONS, CATEGORIES, BRAND, costEstimateUsd,
-  mentionsBrand, citesBrand, hostOf,
+  namesBrand, citesBrand, hostOf, isHit, VERDICTS,
 } from './_aio-catalog.js'
 
 const MODEL = 'claude-opus-5'
@@ -80,7 +80,11 @@ async function askOne(client, item) {
     cat: item.cat,
     q: item.q,
     answer: answer.trim(),
-    mention: mentionsBrand(answer),
+    // Whether the name is in the text. Shown live so the run has something to
+    // report as it goes; the verdict that the report is built from is decided
+    // in finalize, by reading the answer rather than searching it.
+    named: namesBrand(answer),
+    verdict: null,
     cited: citesBrand(urls),
     sources,
     searched: urls.length,
@@ -89,15 +93,19 @@ async function askOne(client, item) {
   }
 }
 
-/** One pass over every answer, pulling out the company names each one named.
- *  A forced tool call is used rather than free text so the shape is fixed. */
-async function extractCompanies(client, results) {
+/** One pass over every answer: which companies it named, and how it treated
+ *  us. A forced tool call is used rather than free text so the shape is fixed.
+ *
+ *  The verdict is here rather than in a regex because the distinction that
+ *  matters cannot be made by searching for the name. 「ルメニウムは見つかり
+ *  ませんでした」 contains the name and is the opposite of a hit. */
+async function analyseAnswers(client, results) {
   const usable = results.filter((r) => r.answer && !r.error)
   if (!usable.length) return {}
 
   const tool = {
-    name: 'record_companies',
-    description: '各回答で実際に名前が挙がっていた制作会社・支援会社を記録する。',
+    name: 'record_analysis',
+    description: '各回答について、挙がっていた会社名と、ルメニウムの扱われ方を記録する。',
     input_schema: {
       type: 'object',
       properties: {
@@ -112,8 +120,18 @@ async function extractCompanies(client, results) {
                 items: { type: 'string' },
                 description: '回答文中に名前が出てきた会社名のみ。一般名詞や役所・媒体名は除く。',
               },
+              lumenium: {
+                type: 'string',
+                enum: Object.keys(VERDICTS),
+                description:
+                  'recommended=依頼先・候補として挙げられている / ' +
+                  'mentioned=実在する会社として説明されているが依頼先としては挙がっていない / ' +
+                  'denied=見つからない・確認できない・情報がないと書かれている / ' +
+                  'other_company=同名の別会社（Lumenium LLC、Lumentum など）の話しかしていない / ' +
+                  'absent=まったく出てこない',
+              },
             },
-            required: ['id', 'companies'],
+            required: ['id', 'companies', 'lumenium'],
           },
         },
       },
@@ -130,11 +148,17 @@ async function extractCompanies(client, results) {
     max_tokens: 4000,
     output_config: { effort: 'low' },
     system:
-      '与えられた各回答について、その回答文中で実際に社名が挙がっている会社だけを列挙してください。' +
+      '与えられた各回答について、2つのことを記録してください。\n' +
+      '1) その回答文中で実際に社名が挙がっている会社だけを列挙する。' +
       '回答に出てこない会社を推測で足さないこと。媒体名・ディレクトリ名（例: 発注ナビ、比較biz）や、' +
-      '官公庁・団体名は会社として数えないでください。',
+      '官公庁・団体名は会社として数えないでください。\n' +
+      '2) 日本の制作・DX支援会社である「ルメニウム / Lumenium（lumenium.net）」が、その回答でどう扱われたか。' +
+      '名前が出てくるかどうかではなく、扱われ方で判定してください。' +
+      '「見つかりませんでした」「確認できません」は名前が出ていても denied です。' +
+      '米国の Lumenium LLC（エンジン）や Lumentum（光学）は別会社なので、' +
+      'それらの話しかしていなければ other_company です。',
     tools: [tool],
-    tool_choice: { type: 'tool', name: 'record_companies' },
+    tool_choice: { type: 'tool', name: 'record_analysis' },
     messages: [{ role: 'user', content: payload }],
   })
 
@@ -143,24 +167,37 @@ async function extractCompanies(client, results) {
   const items = call && call.input && Array.isArray(call.input.items) ? call.input.items : []
   for (const it of items) {
     if (!it || typeof it.id !== 'string') continue
-    out[it.id] = Array.isArray(it.companies)
-      ? it.companies.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
-      : []
+    out[it.id] = {
+      companies: Array.isArray(it.companies)
+        ? it.companies.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
+        : [],
+      // An unrecognised value is left null and excluded from the rates, rather
+      // than being rounded towards either answer.
+      verdict: VERDICTS[it.lumenium] ? it.lumenium : null,
+    }
   }
   return out
 }
 
-/** Everything the report shows is derived here, from the stored answers. */
-function summarise(results) {
-  const done = results.filter((r) => r && !r.error && r.answer)
-  const rate = (list) => (list.length ? list.filter((r) => r.mention).length / list.length : 0)
+/** Everything the report shows is derived here, from the stored answers.
+ *
+ *  `fallback` means the analysis pass did not run, so there is no verdict and
+ *  the only thing left is whether the name is in the text. That is the old,
+ *  wrong measure, so the run is marked and the UI says which one it is. */
+function summarise(results, fallback) {
+  const hit = (r) => (fallback ? !!r.named : isHit(r.verdict))
+  // An answer with no verdict is not evidence either way, so it is left out of
+  // the denominator rather than counted as a miss.
+  const judged = (r) => r && !r.error && r.answer && (fallback || r.verdict)
+  const done = results.filter(judged)
+  const rate = (list) => (list.length ? list.filter(hit).length / list.length : 0)
 
   const byCategory = CATEGORIES.map((cat) => {
     const list = done.filter((r) => r.cat === cat)
     return {
       cat,
       asked: list.length,
-      mentions: list.filter((r) => r.mention).length,
+      mentions: list.filter(hit).length,
       cites: list.filter((r) => r.cited).length,
       rate: rate(list),
     }
@@ -173,14 +210,14 @@ function summarise(results) {
   const tally = new Map()
   for (const r of open) {
     for (const c of new Set(r.companies || [])) {
-      // Our own row is counted from `mention` below and nowhere else. The
+      // Our own row is counted from the verdict below and nowhere else. The
       // extractor also returns us by name, and counting both put Lumenium at
       // 26 out of a possible 13.
-      if (mentionsBrand(c)) continue
+      if (namesBrand(c)) continue
       tally.set(c, (tally.get(c) || 0) + 1)
     }
   }
-  tally.set('Lumenium', open.filter((r) => r.mention).length)
+  tally.set('Lumenium', open.filter(hit).length)
   const competitors = [...tally.entries()]
     .map(([name, count]) => ({
       name,
@@ -194,11 +231,28 @@ function summarise(results) {
   const hosts = new Map()
   for (const r of done) for (const h of new Set(r.sources || [])) hosts.set(h, (hosts.get(h) || 0) + 1)
 
+  const answered = results.filter((r) => r && !r.error && r.answer)
+  const counted = (v) => done.filter((r) => r.verdict === v).length
+
   return {
     asked: done.length,
-    failed: results.length - done.length,
+    // Answers that came back but could not be judged, kept apart from the ones
+    // that never came back at all.
+    unjudged: answered.length - done.length,
+    failed: results.length - answered.length,
+    fallback: !!fallback,
     mentionRate: rate(done),
     openMentionRate: rate(open),
+    // The number to act on: named as somewhere you could actually go. A
+    // mention that merely confirms we exist does not win work.
+    recommendRate: open.length ? open.filter((r) => r.verdict === 'recommended').length / open.length : 0,
+    verdicts: fallback ? null : {
+      recommended: counted('recommended'),
+      mentioned: counted('mentioned'),
+      denied: counted('denied'),
+      other_company: counted('other_company'),
+      absent: counted('absent'),
+    },
     citeRate: done.length ? done.filter((r) => r.cited).length / done.length : 0,
     byCategory,
     competitors,
@@ -326,16 +380,26 @@ export async function POST(req) {
     const run = await readRun(cfg, body.runId)
     if (!run) return json({ ok: false, message: '集計セッションが見つかりません。' }, 404)
 
+    let fallback = false
     try {
-      const byId = await extractCompanies(client, run.results)
-      run.results = run.results.map((r) => ({ ...r, companies: byId[r.id] || [] }))
+      const byId = await analyseAnswers(client, run.results)
+      run.results = run.results.map((r) => ({
+        ...r,
+        companies: (byId[r.id] && byId[r.id].companies) || [],
+        verdict: (byId[r.id] && byId[r.id].verdict) || null,
+      }))
+      // Nothing came back at all — treat it as the pass having failed rather
+      // than reporting every question as a miss.
+      if (!run.results.some((r) => r.verdict)) fallback = true
     } catch (_) {
-      // Company extraction is the optional half. A failure here still leaves
-      // a usable appearance-rate report rather than losing the whole run.
-      run.companiesFailed = true
+      // The analysis is the second half of the run. A failure here still
+      // leaves a usable report rather than losing the answers, but it is only
+      // the rough text match, so the run says so and the UI repeats it.
+      fallback = true
     }
+    run.companiesFailed = fallback
 
-    run.summary = summarise(run.results)
+    run.summary = summarise(run.results, fallback)
     run.finishedAt = new Date().toISOString()
     await writeRun(cfg, run)
     return json({ ok: true, run })

@@ -379,7 +379,8 @@
       </div>
       <p class="msg" id="seo-msg" style="margin-bottom:12px"></p>
       <div id="seo-body" style="display:none">
-        <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px"></div>
+        <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px"></div>
+        <div id="seo-breakdown" style="margin-bottom:18px"></div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">カテゴリ別の出現率</h3>
           <div id="seo-cats"></div>
@@ -1489,12 +1490,25 @@ window.lumAdmin = {
     });
   }
 
+  /* A mention is not a hit. For a site that is not yet indexed, the answers
+     that contain the name are usually the ones saying it could not be found,
+     so the headline used to read 100% when the truth was 0%. 出現 now means
+     the answer treated us as a real company; 候補として挙がった is the number
+     that actually wins work. */
+  var VERDICT_LABEL = {
+    recommended: '候補として挙がった',
+    mentioned: '実在の会社として言及',
+    denied: '見つからないと回答',
+    other_company: '同名の別会社の話',
+    absent: '出てこない'
+  };
+
   function cards(s) {
     var items = [
-      ['出現率（全体）', pct(s.mentionRate)],
+      ['候補として挙がった（非指名）', pct(s.recommendRate || 0)],
       ['出現率（非指名）', pct(s.openMentionRate)],
       ['自社サイトが情報源', pct(s.citeRate)],
-      ['質問数', String(s.asked)]
+      ['判定できた質問', String(s.asked) + (s.unjudged ? ' (+' + s.unjudged + '未判定)' : '')]
     ];
     el('seo-cards').innerHTML = items.map(function (i) {
       return '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
@@ -1520,11 +1534,45 @@ window.lumAdmin = {
     }).join('') : '<p style="font-size:12.5px;color:var(--sub)">データがありません。</p>';
   }
 
+  /* How the answers actually treated us, in one line. Without this the report
+     gives a percentage and no way to see what it is made of — and the two
+     kinds of zero (「見つからないと回答された」 and 「そもそも話題に出ない」)
+     call for completely different work. */
+  function breakdown(s) {
+    var host = el('seo-breakdown');
+    if (!host) return;
+    if (s.fallback || !s.verdicts) {
+      host.innerHTML = '<p style="font-size:12px;color:#fbbf24;line-height:1.7">' +
+        '⚠ 回答の読み取りができなかったため、この回の数値は「本文に社名が含まれるか」だけで出しています。' +
+        '「見つかりませんでした」という回答も社名を含むため、実際より高く出ます。もう一度計測し直すと正しい判定になります。</p>';
+      return;
+    }
+    var order = ['recommended', 'mentioned', 'denied', 'other_company', 'absent'];
+    var parts = order.filter(function (k) { return s.verdicts[k]; }).map(function (k) {
+      return '<span style="white-space:nowrap">' + VERDICT_LABEL[k] + ' <b>' + s.verdicts[k] + '</b></span>';
+    });
+    // A percentage built on a minority of the questions is worth saying out
+    // loud, rather than leaving it to be inferred from a count in a corner.
+    var thin = s.unjudged && s.unjudged >= s.asked;
+    host.innerHTML = '<p style="font-size:12px;color:var(--sub);line-height:1.9">' +
+      '内訳: ' + (parts.length ? parts.join(' ／ ') : '—') +
+      (s.unjudged ? ' ／ 判定できず <b>' + s.unjudged + '</b>' : '') +
+      '</p>' +
+      (thin ? '<p style="font-size:11.5px;color:#fbbf24;line-height:1.7">⚠ ' + s.asked +
+        '問しか判定できていません（' + s.unjudged + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
+      '<p style="font-size:11px;color:var(--sub);line-height:1.7">' +
+      '「出現」は、回答が実在する会社として扱ったものを数えています。社名が本文にあるだけでは数えません' +
+      '（新しいサイトでは「見つかりませんでした」という回答こそ社名を含むためです）。</p>';
+  }
+
   function rows(run) {
     el('seo-rows').innerHTML = (run.results || []).map(function (r) {
-      var mark = r.error ? '⚠️' : (r.mention ? (r.cited ? '🟢' : '🟡') : '⚪️');
+      var MARK = { recommended: '🟢', mentioned: '🟡', denied: '🔴', other_company: '🟠', absent: '⚪️' };
+      var mark = r.error ? '⚠️' : (r.verdict ? MARK[r.verdict] : (r.named ? '🟡' : '⚪️'));
       var note = r.error ? '失敗: ' + esc(r.error)
-        : (r.mention ? (r.cited ? '出現・自社サイトが情報源' : '出現（情報源は他サイト）') : '出現せず');
+        : r.verdict
+          ? VERDICT_LABEL[r.verdict] + (r.cited ? '・自社サイトが情報源' : '')
+          : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
       var co = (r.companies || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">同時に挙がった会社: ' + esc(r.companies.join('、')) + '</div>' : '';
       return '<details style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
         '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
@@ -1555,6 +1603,7 @@ window.lumAdmin = {
     }
     var s = run.summary;
     cards(s);
+    breakdown(s);
     bars('seo-cats', s.byCategory.map(function (c) {
       return { name: c.cat, value: c.rate, note: c.mentions + '/' + c.asked, us: false };
     }), { labelWidth: 150 });
@@ -1628,7 +1677,7 @@ window.lumAdmin = {
       el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
       try {
         var r = await post({ action: 'ask', runId: started.runId, index: i });
-        if (r.result && r.result.mention) hit++;
+        if (r.result && r.result.named) hit++;
       } catch (e) {
         el('seo-progress-text').textContent = (i + 1) + '問目でエラー: ' + e.message + '（続行します）';
       }

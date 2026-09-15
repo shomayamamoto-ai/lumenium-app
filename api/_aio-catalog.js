@@ -62,17 +62,45 @@ export function costEstimateUsd(n = QUESTIONS.length) {
   return n * perQuestion + extraction
 }
 
-/** Does the answer name us — and is it actually us? */
-export function mentionsBrand(text) {
+/** Does the name appear in the answer at all?
+ *
+ *  This is a pre-filter, not the verdict. "Appears in the text" and "appeared
+ *  as a company you could hire" are different things, and for a site that is
+ *  not yet indexed they are usually opposites: the answers that name us are
+ *  the ones saying 「ルメニウムという会社は見つかりませんでした」. Scoring on
+ *  the text alone reported the 指名 questions as 100% when the truth was 0%.
+ *  VERDICTS below is what decides, and it is decided by reading the answer. */
+export function namesBrand(text) {
   const t = String(text || '')
   const cleaned = BRAND.notUs.reduce((acc, re) => acc.replace(new RegExp(re.source, 'gi'), ' '), t)
   return BRAND.names.some((n) => cleaned.toLowerCase().includes(n.toLowerCase()))
 }
 
+/** How the answer actually treated us. Ordered from best to worst. */
+export const VERDICTS = {
+  recommended: { label: '候補として挙がった', hit: true, good: true },
+  mentioned: { label: '実在の会社として言及', hit: true, good: false },
+  denied: { label: '見つからないと回答', hit: false, good: false },
+  other_company: { label: '同名の別会社の話', hit: false, good: false },
+  absent: { label: '出てこない', hit: false, good: false },
+}
+
+/** Did the answer count as us appearing? Unknown verdicts are not guesses —
+ *  they are excluded from the rates rather than counted either way. */
+export function isHit(verdict) {
+  const v = VERDICTS[verdict]
+  return !!(v && v.hit)
+}
+
 /** Was our own site one of the sources the answer searched? Citation is a
- *  stronger signal than a mention: it means the page was read, not recalled. */
+ *  stronger signal than a mention: it means the page was read, not recalled.
+ *  Matched on the host, not on the whole URL — someone else's page at
+ *  /review-lumenium.net is not a citation of ours. */
 export function citesBrand(urls) {
-  return (urls || []).some((u) => String(u).toLowerCase().includes(BRAND.domain))
+  return (urls || []).some((u) => {
+    const h = hostOf(u)
+    return h === BRAND.domain || h.endsWith('.' + BRAND.domain)
+  })
 }
 
 export function hostOf(url) {

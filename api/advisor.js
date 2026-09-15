@@ -15,7 +15,7 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
 import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './analytics.js'
 import { SERVICES } from '../src/data/services.js'
-import { QUESTIONS, BRAND } from './_aio-catalog.js'
+import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'
 
 const MODEL = 'claude-opus-5'
 const MAX_TURNS = 16
@@ -77,11 +77,17 @@ async function liveNumbers() {
             mentionRate: run.summary.mentionRate,
             openMentionRate: run.summary.openMentionRate,
             citeRate: run.summary.citeRate,
+            recommendRate: run.summary.recommendRate,
+            verdicts: run.summary.verdicts,
+            fallback: !!run.summary.fallback,
             byCategory: run.summary.byCategory,
             competitors: (run.summary.competitors || []).slice(0, 10),
+            // The questions we did not come back on, and why — 「見つからないと
+            // 言われた」 and 「話題にすら出ない」 need different work, and the
+            // advisor could not tell them apart when this was one flag.
             missed: (run.results || [])
-              .filter((r) => !r.mention && !r.error && r.cat !== 'ブランド指名')
-              .map((r) => r.q),
+              .filter((r) => !r.error && r.cat !== 'ブランド指名' && !isHit(r.verdict))
+              .map((r) => ({ q: r.q, verdict: r.verdict })),
           }
         }
       } catch (_) { /* no usable run yet */ }
@@ -106,10 +112,20 @@ function systemPrompt(live) {
         `最終計測: ${live.aio.finishedAt}（${live.aio.asked}問）`,
         `全体の出現率: ${(live.aio.mentionRate * 100).toFixed(0)}%`,
         `非指名質問での出現率: ${(live.aio.openMentionRate * 100).toFixed(0)}%`,
+        `そのうち依頼先の候補として挙げられた率: ${((live.aio.recommendRate || 0) * 100).toFixed(0)}%`,
         `自社サイトが情報源に使われた率: ${(live.aio.citeRate * 100).toFixed(0)}%`,
+        live.aio.verdicts
+          ? '回答の扱われ方の内訳: ' + Object.entries(live.aio.verdicts)
+              .filter(([, n]) => n)
+              .map(([k, n]) => `${VERDICTS[k] ? VERDICTS[k].label : k} ${n}件`).join(' / ')
+          : '（この回は回答の読み取りができず、社名が本文に含まれるかだけで判定しています。実際より高く出ます）',
         'カテゴリ別: ' + live.aio.byCategory.map((c) => `${c.cat} ${c.mentions}/${c.asked}`).join(' / '),
         '同時に名前が挙がった会社: ' + live.aio.competitors.map((c) => `${c.name}(${c.count})`).join(', '),
-        '出現できなかった質問:\n' + live.aio.missed.map((q) => `  ・${q}`).join('\n'),
+        // Why we did not appear matters more than that we did not. Being told
+        // we could not be found is an indexing problem; not coming up at all
+        // is a content and authority problem. They do not share a fix.
+        '出現できなかった質問（かっこ内は理由）:\n' + live.aio.missed
+          .map((m) => `  ・${m.q}（${VERDICTS[m.verdict] ? VERDICTS[m.verdict].label : '判定できず'}）`).join('\n'),
       ].join('\n')
     : 'まだ計測されていません（管理画面の「AIO出現率を計測」を実行すると入ります）。'
 
@@ -187,6 +203,8 @@ function systemPrompt(live) {
     '',
     `計測に使っている質問は${QUESTIONS.length}問で、「ブランド指名」と「非指名」に分かれています。`,
     '非指名での出現率が低いことが、対策の主戦場です。',
+    '「見つからないと回答」はインデックスと実在性の問題、「出てこない」は内容と被リンクの問題で、打ち手が違います。',
+    'どちらが多いかを見てから助言してください。',
   ].join('\n')
 }
 
