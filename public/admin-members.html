@@ -21,6 +21,53 @@
     padding: 32px 20px;
   }
   .wrap { max-width: 860px; margin: 0 auto; }
+  body.is-in .wrap { max-width: 1220px; }
+
+  /* Six panels stacked made one very long page where nothing could be found.
+     The nav sits beside them and only one panel is mounted at a time. It is on
+     the right because that is where it was asked for; swapping the two grid
+     columns is the only change needed to move it left. */
+  .shell { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 20px; align-items: start; }
+  /* The nav stays first in the source so that on a narrow screen, where the
+     grid collapses to one column, it sits above the panel rather than below
+     it. On a wide screen it is placed into the second column explicitly —
+     left to source order it took the 1fr column and the panel got 232px. */
+  .shell-main { min-width: 0; grid-column: 1; grid-row: 1; }
+  .shell-nav { grid-column: 2; grid-row: 1; }
+  .shell-main > .panel { margin-top: 0 !important; }
+  .shell-nav {
+    position: sticky; top: 24px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 10px;
+  }
+  .shell-tab {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px;
+    border: none; border-radius: 10px;
+    background: none; color: var(--sub);
+    font-family: inherit; font-size: 13.5px; font-weight: 600; text-align: left;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .shell-tab span:first-child { flex: none; font-size: 15px; line-height: 1; }
+  .shell-tab:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .shell-tab[aria-current="true"] { background: var(--grad); color: #fff; }
+  .shell-tab:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+
+  /* Narrow: the nav becomes a scrollable row above the panel. */
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .shell-main, .shell-nav { grid-column: auto; grid-row: auto; }
+    .shell-nav {
+      position: static;
+      flex-direction: row; gap: 6px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      border-radius: 12px; padding: 8px;
+    }
+    .shell-tab { flex: none; padding: 9px 12px; font-size: 13px; }
+    .shell-tab span:last-child { white-space: nowrap; }
+  }
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
   header img { width: 30px; height: 30px; }
   header h1 { font-size: 18px; font-weight: 700; }
@@ -96,7 +143,7 @@
   <div class="wrap">
     <header>
       <img src="/favicon.svg" alt="">
-      <h1>会員リスト</h1>
+      <h1 id="page-title">会員リスト</h1>
       <span class="tag">ADMIN</span>
       <a href="/">← lumenium.net</a>
     </header>
@@ -110,6 +157,9 @@
       <p class="msg" id="key-msg"></p>
     </div>
 
+    <div class="shell" id="shell" style="display:none">
+    <nav class="shell-nav" id="shell-nav" aria-label="管理メニュー"></nav>
+    <div class="shell-main">
     <div class="panel" id="list-view">
       <div class="share">
         <span class="share-label">📺 ライブ表示リンク（開くだけで最新）</span>
@@ -223,6 +273,8 @@
         <button type="submit" id="advisor-send">送信</button>
       </form>
       <p class="msg" id="advisor-msg" style="margin-top:10px"></p>
+    </div>
+    </div>
     </div>
 
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
@@ -368,6 +420,55 @@ function buildXlsx(rows) {
     keyMsg.classList.toggle('info', !!isInfo);
   }
 
+  /* ---- section nav ----
+     Each panel keeps its own init function; they are called on first view
+     rather than all at once on login, which used to fire four API requests
+     the moment the key was accepted. */
+  var TABS = [
+    { id: 'list-view', icon: '👥', label: '会員リスト' },
+    { id: 'news-admin', icon: '📰', label: 'お知らせ投稿' },
+    { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit' },
+    { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit' },
+    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit' },
+    { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit' }
+  ];
+  var started = {};
+
+  function showTab(id) {
+    TABS.forEach(function (t) {
+      var panel = document.getElementById(t.id);
+      if (panel) panel.style.display = t.id === id ? 'block' : 'none';
+      var btn = document.getElementById('tab-' + t.id);
+      if (btn) btn.setAttribute('aria-current', t.id === id ? 'true' : 'false');
+    });
+    var tab = TABS.find(function (t) { return t.id === id; });
+    if (tab && tab.init && !started[id]) {
+      started[id] = true;
+      if (window[tab.init]) window[tab.init]();
+    }
+    if (tab) {
+      var h = document.getElementById('page-title');
+      if (h) h.textContent = tab.label;
+      document.title = tab.label + ' | Lumenium 管理';
+    }
+    try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
+  }
+
+  function buildTabs() {
+    var nav = document.getElementById('shell-nav');
+    if (nav.childElementCount) return;
+    nav.innerHTML = TABS.map(function (t) {
+      return '<button type="button" class="shell-tab" id="tab-' + t.id + '">' +
+        '<span aria-hidden="true">' + t.icon + '</span><span>' + t.label + '</span></button>';
+    }).join('');
+    TABS.forEach(function (t) {
+      document.getElementById('tab-' + t.id).addEventListener('click', function () { showTab(t.id); });
+    });
+    var saved = null;
+    try { saved = sessionStorage.getItem('lum_admin_tab'); } catch (_) {}
+    showTab(TABS.some(function (t) { return t.id === saved; }) ? saved : TABS[0].id);
+  }
+
   async function load(key) {
     var res, data;
     try {
@@ -396,16 +497,9 @@ function buildXlsx(rows) {
     document.getElementById('share-url-view').value = viewUrl;
     document.getElementById('open-view').href = viewUrl;
     keyPanel.style.display = 'none';
-    listView.style.display = 'block';
-    document.getElementById('news-admin').style.display = 'block';
-    document.getElementById('copy-admin').style.display = 'block';
-    if (window.lumCopyInit) window.lumCopyInit();
-    document.getElementById('stats-admin').style.display = 'block';
-    if (window.lumStatsInit) window.lumStatsInit();
-    document.getElementById('seo-admin').style.display = 'block';
-    if (window.lumSeoInit) window.lumSeoInit();
-    document.getElementById('advisor-admin').style.display = 'block';
-    if (window.lumAdvisorInit) window.lumAdvisorInit();
+    document.body.classList.add('is-in');
+    document.getElementById('shell').style.display = 'grid';
+    buildTabs();
     loadNews();
     return true;
   }
