@@ -28,6 +28,22 @@ const SITE = 'https://lumenium.net'
 const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** JSON for embedding inside a <script> block.
+ *
+ *  JSON.stringify does not escape "<", so a "</script>" anywhere in an
+ *  admin-editable string — a service description, an FAQ answer — closes the
+ *  block early and everything after it becomes live HTML. Escaping the three
+ *  characters as unicode leaves the JSON identical to a parser while making it
+ *  impossible to break out of the tag. U+2028/29 are escaped too: they are
+ *  legal in JSON but not in a JavaScript string literal. */
+const ldJson = (value) =>
+  JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
 const isoDate = (d) => String(d || '').replace(/\./g, '-')
 
 // Category → related service page
@@ -139,7 +155,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script type="application/ld+json">${JSON.stringify(ld)}</script>
+<script type="application/ld+json">${ldJson(ld)}</script>
 <style>${STYLE}</style>
 </head>
 <body>
