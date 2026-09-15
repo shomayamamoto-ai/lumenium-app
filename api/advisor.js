@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' }
 // considered answer takes longer than that.
 
 import Anthropic from '@anthropic-ai/sdk'
-import { requireAdmin, json, apiKey, NO_AI } from './_admin-auth.js'
+import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND } from './_aio-catalog.js'
@@ -142,6 +142,9 @@ export async function POST(req) {
   if (!messages.length || messages[messages.length - 1].role !== 'user') {
     return json({ ok: false, message: '質問が空です。' }, 400)
   }
+
+  const capped = await spendGuard('advisor', 80)
+  if (capped) return capped
 
   const live = await liveNumbers()
   const client = new Anthropic({ apiKey: key })

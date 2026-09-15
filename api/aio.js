@@ -17,7 +17,7 @@ export const config = { runtime: 'edge' }
 //   GET  ?days=90                      -> the latest run plus the history
 
 import Anthropic from '@anthropic-ai/sdk'
-import { requireAdmin, json, apiKey, NO_AI } from './_admin-auth.js'
+import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import {
   QUESTIONS, CATEGORIES, BRAND, costEstimateUsd,
@@ -270,6 +270,11 @@ export async function POST(req) {
   const action = body && body.action
 
   if (action === 'start') {
+    // Three full runs a day. A run is roughly $1.54, and the admin key also
+    // travels in the members share links — a leaked one should not be able to
+    // spend without limit.
+    const capped = await spendGuard('aio', 3)
+    if (capped) return capped
     const run = {
       id: `${jstDate()}-${Math.random().toString(36).slice(2, 8)}`,
       startedAt: new Date().toISOString(),

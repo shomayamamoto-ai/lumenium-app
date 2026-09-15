@@ -55,6 +55,16 @@
   .shell-tab[aria-current="true"] { background: var(--grad); color: #fff; }
   .shell-tab:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
 
+  #sign-out {
+    margin-left: auto;
+    padding: 7px 13px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: none; color: var(--sub);
+    font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  #sign-out:hover { color: var(--text); border-color: var(--sub); }
+  body.is-in header a { margin-left: 14px; }
+
   /* Narrow: the nav becomes a scrollable row above the panel. */
   @media (max-width: 860px) {
     .shell { grid-template-columns: 1fr; }
@@ -145,6 +155,7 @@
       <img src="/favicon.svg" alt="">
       <h1 id="page-title">会員リスト</h1>
       <span class="tag">ADMIN</span>
+      <button type="button" id="sign-out" style="display:none">ログアウト</button>
       <a href="/">← lumenium.net</a>
     </header>
 
@@ -232,6 +243,7 @@
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
+        <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
         <span id="seo-cost"></span>
       </div>
       <div id="seo-progress" style="display:none;margin-bottom:12px">
@@ -271,6 +283,8 @@
         <input type="text" id="advisor-input" placeholder="例：非指名の検索で出てこないのはなぜ？" autocomplete="off"
           style="flex:1;min-width:0;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit">
         <button type="submit" id="advisor-send">送信</button>
+        <button type="button" class="ghost" id="advisor-stop" style="display:none">停止</button>
+        <button type="button" class="ghost" id="advisor-clear">クリア</button>
       </form>
       <p class="msg" id="advisor-msg" style="margin-top:10px"></p>
     </div>
@@ -402,6 +416,49 @@ function buildXlsx(rows) {
 }
 </script>
 <script>
+/* Shared admin fetch. Every panel used to read the key and interpret failures
+   on its own, so rotating ADMIN_KEY left each one showing a different vague
+   message with no way back to the login form. */
+window.lumAdmin = {
+  key: function () { try { return sessionStorage.getItem('lum_admin_key') || ''; } catch (_) { return ''; } },
+  signOut: function (reason) {
+    try { sessionStorage.removeItem('lum_admin_key'); } catch (_) {}
+    document.body.classList.remove('is-in');
+    var shell = document.getElementById('shell');
+    if (shell) shell.style.display = 'none';
+    var kp = document.getElementById('key-panel');
+    if (kp) kp.style.display = 'block';
+    var msg = document.getElementById('key-msg');
+    if (msg && reason) { msg.textContent = reason; msg.classList.add('show'); msg.classList.remove('info'); }
+    var f = document.getElementById('admin-key');
+    if (f) { f.value = ''; f.focus(); }
+  },
+  /* Pass any authenticated response through this. A 401 means the key is no
+     longer valid — every panel used to render its own vague error and leave
+     the dead key in storage, with no way back to the login form. */
+  tap: async function (res) {
+    if (res && res.status === 401) {
+      var d = {};
+      try { d = await res.clone().json(); } catch (_) {}
+      window.lumAdmin.signOut(d.message || '管理キーが無効になりました。もう一度入力してください。');
+    }
+    return res;
+  },
+  /* Resolves to {res, data}. A 401 means the key is no longer valid, so it
+     drops you back to the login rather than pretending the panel is broken. */
+  fetch: async function (url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ Authorization: 'Bearer ' + window.lumAdmin.key() }, opts.headers || {});
+    var res = await fetch(url, opts);
+    var data = {};
+    try { data = await res.clone().json(); } catch (_) {}
+    if (res.status === 401) {
+      window.lumAdmin.signOut(data.message || '管理キーが無効になりました。もう一度入力してください。');
+    }
+    return { res: res, data: data, limited: res.status === 429 };
+  }
+};
+
 (function () {
   var keyPanel = document.getElementById('key-panel');
   var listView = document.getElementById('list-view');
@@ -435,6 +492,16 @@ function buildXlsx(rows) {
   var started = {};
 
   function showTab(id) {
+    // The copy editor's beforeunload guard only covers closing the tab. Now
+    // that sections are switchable, leaving one is just as easy a way to lose
+    // an edit, and just as silent.
+    var current = TABS.filter(function (t) { return t.id !== id; });
+    if (id !== 'copy-admin' && window.lumDirtyCopy && window.lumDirtyCopy()) {
+      var panel = document.getElementById('copy-admin');
+      if (panel && panel.style.display !== 'none') {
+        if (!confirm('未保存の文章編集が' + window.lumDirtyCopy() + '件あります。保存せずに移動しますか？')) return;
+      }
+    }
     TABS.forEach(function (t) {
       var panel = document.getElementById(t.id);
       if (panel) panel.style.display = t.id === id ? 'block' : 'none';
@@ -469,6 +536,13 @@ function buildXlsx(rows) {
     showTab(TABS.some(function (t) { return t.id === saved; }) ? saved : TABS[0].id);
   }
 
+  document.getElementById('sign-out').addEventListener('click', function () {
+    if (window.lumDirtyCopy && window.lumDirtyCopy() &&
+        !confirm('未保存の文章編集が' + window.lumDirtyCopy() + '件あります。破棄してログアウトしますか？')) return;
+    document.getElementById('sign-out').style.display = 'none';
+    window.lumAdmin.signOut('ログアウトしました。');
+  });
+
   async function load(key) {
     var res, data;
     try {
@@ -479,11 +553,17 @@ function buildXlsx(rows) {
       return false;
     }
     if (res.status === 503) {
-      showMsg('未設定です。Vercel の環境変数に ADMIN_KEY を設定し、再デプロイしてください。', true);
+      showMsg(data.message || '未設定です。Vercel の環境変数に ADMIN_KEY を設定し、再デプロイしてください。', true);
+      return false;
+    }
+    if (res.status === 429) {
+      // A lockout and a wrong key used to look identical, so a correct key
+      // appeared wrong for fifteen minutes with nothing saying why.
+      showMsg(data.message || '試行回数の上限に達しました。しばらくお待ちください。', true);
       return false;
     }
     if (!res.ok || data.ok !== true) {
-      showMsg('管理キーが正しくないか、現在表示できません。');
+      showMsg(data.message || '管理キーが正しくありません。');
       return false;
     }
     members = data.members || [];
@@ -498,6 +578,7 @@ function buildXlsx(rows) {
     document.getElementById('open-view').href = viewUrl;
     keyPanel.style.display = 'none';
     document.body.classList.add('is-in');
+    document.getElementById('sign-out').style.display = 'inline-block';
     document.getElementById('shell').style.display = 'grid';
     buildTabs();
     loadNews();
@@ -745,6 +826,7 @@ function buildXlsx(rows) {
   }
 
   function dirtyCount() { return Object.keys(edited).length; }
+  window.lumDirtyCopy = dirtyCount;
 
   function render() {
     if (!schema) return;
@@ -859,11 +941,11 @@ function buildXlsx(rows) {
     say('保存中…', true);
     var res, data;
     try {
-      res = await fetch('/api/content-save', {
+      res = await window.lumAdmin.tap(await fetch('/api/content-save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
         body: JSON.stringify({ changes: changes }),
-      });
+      }));
       data = await res.json();
     } catch (_) {
       btn.disabled = false;
@@ -987,9 +1069,9 @@ function buildXlsx(rows) {
     var days = el('stats-range').value;
     var res, data;
     try {
-      res = await fetch('/api/analytics?days=' + encodeURIComponent(days), {
+      res = await window.lumAdmin.tap(await fetch('/api/analytics?days=' + encodeURIComponent(days), {
         headers: { Authorization: 'Bearer ' + key }, cache: 'no-store',
-      });
+      }));
       data = await res.json();
     } catch (_) {
       say('通信に失敗しました。時間をおいて再度お試しください。');
@@ -1026,7 +1108,7 @@ function buildXlsx(rows) {
    web search cannot time the whole run out) and draws the report. */
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var loaded = false, running = false, meta = null;
+  var loaded = false, running = false, meta = null, pending = null;
 
   function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
   function say(text, info) {
@@ -1090,6 +1172,17 @@ function buildXlsx(rows) {
 
   function draw(data) {
     var run = data.latest;
+    if (run && !run.summary && (run.results || []).length) {
+      // Closing the tab mid-run left the answers in storage but the run
+      // unfinalised, and the panel then reported "no results" as if the work
+      // had never happened.
+      pending = run;
+      say('前回の計測が' + run.results.length + '問で中断しています。「中断分を集計」で結果にできます。', true);
+      el('seo-resume').style.display = 'inline-block';
+      el('seo-body').style.display = 'none';
+      return;
+    }
+    el('seo-resume').style.display = 'none';
     if (!run || !run.summary) {
       say('まだ計測結果がありません。「AIO出現率を計測」を押してください。', true);
       el('seo-body').style.display = 'none';
@@ -1115,7 +1208,7 @@ function buildXlsx(rows) {
   async function load() {
     var res, data;
     try {
-      res = await fetch('/api/aio', { headers: { Authorization: 'Bearer ' + key() } });
+      res = await window.lumAdmin.tap(await fetch('/api/aio', { headers: { Authorization: 'Bearer ' + key() } }));
       data = await res.json();
     } catch (_) { say('通信に失敗しました。'); return; }
     if (data.meta) {
@@ -1129,11 +1222,11 @@ function buildXlsx(rows) {
   }
 
   async function post(payload) {
-    var res = await fetch('/api/aio', {
+    var res = await window.lumAdmin.tap(await fetch('/api/aio', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
+    }));
     var data = await res.json();
     if (!res.ok || data.ok !== true) throw new Error(data.message || ('HTTP ' + res.status));
     return data;
@@ -1178,6 +1271,15 @@ function buildXlsx(rows) {
     if (confirm(n + '問をAIに質問します（API呼び出し ' + (n + 1) + '回・' + cost + '）。数分かかります。実行しますか？')) run();
   });
   el('seo-reload').addEventListener('click', load);
+  el('seo-resume').addEventListener('click', async function () {
+    if (!pending) return;
+    el('seo-resume').disabled = true;
+    say('集計しています…', true);
+    try { await post({ action: 'finalize', runId: pending.id }); } catch (e) { say('集計に失敗しました: ' + e.message); }
+    el('seo-resume').disabled = false;
+    pending = null;
+    await load();
+  });
 
   window.lumSeoInit = function () { if (loaded) return; loaded = true; load(); };
 })();
@@ -1187,7 +1289,7 @@ function buildXlsx(rows) {
 /* AI advisor: streams from /api/advisor over SSE. */
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var history = [], busy = false, started = false;
+  var history = [], busy = false, started = false, controller = null;
 
   function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
   function esc(t) {
@@ -1225,26 +1327,31 @@ function buildXlsx(rows) {
     var acc = '';
 
     var res;
+    controller = new AbortController();
+    el('advisor-stop').style.display = 'inline-block';
     try {
       res = await fetch('/api/advisor', {
         method: 'POST',
+        signal: controller.signal,
         headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: history })
       });
     } catch (_) {
       target.textContent = '通信に失敗しました。';
-      busy = false; el('advisor-send').disabled = false; return;
+      finish(); return;
     }
     if (!res.ok) {
       var err = {};
       try { err = await res.json(); } catch (_) {}
+      if (res.status === 401) { window.lumAdmin.signOut(err.message || '管理キーが無効になりました。'); }
       target.textContent = err.message || ('エラー (HTTP ' + res.status + ')');
-      busy = false; el('advisor-send').disabled = false; return;
+      finish(); return;
     }
 
     var reader = res.body.getReader(), dec = new TextDecoder(), buf = '';
     while (true) {
-      var chunk = await reader.read();
+      var chunk;
+      try { chunk = await reader.read(); } catch (_) { break; }   // stopped
       if (chunk.done) break;
       buf += dec.decode(chunk.value, { stream: true });
       var parts = buf.split('\n\n');
@@ -1258,9 +1365,15 @@ function buildXlsx(rows) {
         if (ev.error) { target.textContent = acc + '\n\n（エラー: ' + ev.error + '）'; }
       }
     }
-    history.push({ role: 'assistant', content: acc });
+    if (acc) history.push({ role: 'assistant', content: acc });
+    finish();
+  }
+
+  function finish() {
     busy = false;
+    controller = null;
     el('advisor-send').disabled = false;
+    el('advisor-stop').style.display = 'none';
   }
 
   var CHIPS = [
@@ -1269,6 +1382,17 @@ function buildXlsx(rows) {
     '競合と比べて何が足りない？',
     '今週やるべきことを教えて'
   ];
+
+  el('advisor-stop').addEventListener('click', function () {
+    if (controller) { try { controller.abort(); } catch (_) {} }
+    finish();
+  });
+  el('advisor-clear').addEventListener('click', function () {
+    if (busy || !history.length) return;
+    history = [];
+    el('advisor-log').textContent = '';
+    bubble('assistant', '履歴をクリアしました。あらためてご質問ください。');
+  });
 
   el('advisor-form').addEventListener('submit', function (e) {
     e.preventDefault();
