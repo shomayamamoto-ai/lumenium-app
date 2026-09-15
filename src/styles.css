@@ -8507,6 +8507,139 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 /* Pointer parallax lives here; the transform is written by JS and eased here,
    so moving the mouse costs no render. */
+/* ---- the list: the default way in ----
+   Twelve names arranged round a circle looked considered and told a first-time
+   visitor nothing — no idea what any of them meant, no order of importance,
+   and a reading path that goes round rather than down. This is the same twelve
+   destinations laid out to be read: what each service is, what it costs, and a
+   visible "詳しく見る". The dial is still there behind a toggle. */
+.rlist {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(64px, 9vh, 104px) clamp(20px, 6vw, 72px) 96px;
+  -webkit-overflow-scrolling: touch;
+}
+.rlist-head { max-width: 1160px; margin: 0 auto clamp(24px, 4vh, 40px); }
+.rlist-eyebrow {
+  margin: 0 0 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.42);
+}
+.rlist-title {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3.6vw, 40px); font-weight: 700; letter-spacing: 0.01em;
+  color: #fff;
+}
+.rlist-sub { margin: 0; font-size: clamp(13px, 1.2vw, 15px); color: rgba(255,255,255,0.6); }
+
+.rlist-group {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  max-width: 1160px; margin: 0 auto 14px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.55);
+}
+.rlist-group span {
+  font-size: 11.5px; font-weight: 500; letter-spacing: 0.02em;
+  color: rgba(255,255,255,0.34);
+}
+.rlist-links + .rlist-group, .rlist-cards + .rlist-group { margin-top: clamp(28px, 4vh, 44px); }
+
+/* Fixed column counts, not auto-fit: six items into an auto-fit grid landed
+   as four plus two, which reads as a mistake. Three and three does not. */
+.rlist-cards {
+  display: grid; gap: 12px; grid-template-columns: 1fr;
+  max-width: 1160px; margin: 0 auto;
+}
+@media (min-width: 620px) { .rlist-cards { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .rlist-cards { grid-template-columns: repeat(3, 1fr); } }
+.rcard {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 20px 20px 18px;
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  text-decoration: none; color: inherit;
+  opacity: 0; transform: translateY(14px);
+  transition: opacity 0.5s var(--ease), transform 0.6s var(--r-out),
+              border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.rdial.is-lit .rcard { opacity: 1; transform: translateY(0); }
+.rcard-title { font-size: clamp(16px, 1.5vw, 19px); font-weight: 700; color: #fff; line-height: 1.4; }
+.rcard-desc { font-size: 13px; line-height: 1.75; color: rgba(255,255,255,0.68); }
+.rcard-price {
+  margin-top: 2px; font-size: 12.5px; font-weight: 600;
+  color: rgba(199,210,254,0.92); font-variant-numeric: tabular-nums;
+}
+.rcard-go {
+  margin-top: auto; padding-top: 10px;
+  font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,0.5);
+  transition: color 0.25s var(--ease), transform 0.35s var(--r-out);
+}
+.rcard:hover, .rcard:focus-visible {
+  border-color: rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.08);
+  outline: none;
+}
+.rcard:hover .rcard-go, .rcard:focus-visible .rcard-go { color: #fff; transform: translateX(4px); }
+.rcard:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 3px; }
+
+.rlist-links {
+  display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr);
+  max-width: 1160px; margin: 0 auto;
+}
+@media (min-width: 1000px) { .rlist-links { grid-template-columns: repeat(3, 1fr); } }
+.rlink {
+  display: flex; flex-direction: column; gap: 3px;
+  min-height: 62px; justify-content: center;
+  padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 11px;
+  text-decoration: none; color: inherit;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.45s var(--ease), transform 0.5s var(--r-out),
+              border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.rdial.is-lit .rlink { opacity: 1; transform: translateY(0); }
+.rlink-label { font-size: 14.5px; font-weight: 700; color: rgba(255,255,255,0.95); }
+.rlink-note { font-size: 11.5px; color: rgba(255,255,255,0.48); }
+.rlink:hover, .rlink:focus-visible {
+  border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06); outline: none;
+}
+.rlink:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 3px; }
+
+/* The dial has not gone anywhere — it is one press away and remembered. */
+.rview {
+  position: absolute;
+  z-index: 2;
+  left: 50%; bottom: 20px; transform: translateX(-50%);
+  padding: 9px 18px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px;
+  background: rgba(8,10,22,0.7);
+  color: rgba(255,255,255,0.6);
+  font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease) 0.5s, color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.rdial.is-lit .rview { opacity: 1; }
+.rview:hover, .rview:focus-visible { color: #fff; border-color: rgba(255,255,255,0.5); outline: none; }
+.rview:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 3px; }
+.rdial.is-closing .rview, .rdial.is-going .rview { opacity: 0; transition-delay: 0s; }
+
+/* The radial apparatus only exists in the dial view. */
+.rdial--list .rdial-stage, .rdial--list .rdial-sweep { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rcard, .rlink, .rdial.is-lit .rcard, .rdial.is-lit .rlink {
+    transform: none;
+    transition: opacity 0.3s var(--ease) !important;
+  }
+  .rview, .rdial.is-lit .rview { transition: opacity 0.3s var(--ease) !important; }
+}
+
 /* Pointer parallax lives here; the offset is written by JS as --px/--py and
    eased by CSS, so moving the mouse costs no render. The layers take
    different fractions of it in opposite directions, which is the whole point:
@@ -8516,6 +8649,11 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
   --py: 0px;
   position: absolute;
   inset: 0;
+  /* The stage covers the whole viewport, so anything it does not itself use a
+     click for it must let through: otherwise it swallows the backdrop (a click
+     on empty space never reached the scrim, so clicking away never closed the
+     dial) and the view toggle underneath it. The entries opt back in. */
+  pointer-events: none;
   transform: translate3d(var(--px), var(--py), 0);
   transition: transform 0.75s var(--r-out);
 }
@@ -8652,6 +8790,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 /* ---- the entries ---- */
 .ritem {
   --push: 18px;
+  pointer-events: auto;
   position: absolute;
   display: block;
   max-width: 10em;

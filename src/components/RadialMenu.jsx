@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../lib/focusTrap'
 import { SECTION } from '../data/text'
 import { events } from '../lib/analytics'
+import { SERVICES } from '../data/services'
 
 // Pressing the trigger opens a dial: two hairline orbits with the twelve
 // destinations set on them like an astrolabe.
@@ -34,6 +35,20 @@ const NODES = [
   { a: 330, ring: 2, label: 'お問い合わせ', hash: '#/info/contact-form' },
 ]
 
+// The dial's short labels are for fitting on an orbit; the list wants the
+// real service names, what they are, and what they cost — a visitor who only
+// sees "動画制作" has no more information than the word itself.
+const SERVICE_COPY = Object.fromEntries(SERVICES.map((s) => [s.id, s]))
+const INFO = [
+  { hash: '#/info/pricing', label: '料金', note: '各サービスの目安金額' },
+  { hash: '#/info/results', label: '実績', note: '12業界・制作事例' },
+  { hash: '#/info/flow', label: 'ご依頼の流れ', note: '相談から納品まで' },
+  { hash: '#/info/faq', label: 'よくある質問', note: '納期・修正・支払い' },
+  { hash: '#/info/testimonials', label: 'お客様の声', note: 'ご依頼者の評価' },
+  { hash: '#/info/contact-form', label: 'お問い合わせ', note: '48時間以内に返信' },
+]
+
+const VIEW_KEY = 'lum_dial_view'
 const TICK = 9        // length of the mark that steps off the orbit
 const SWEEP_LEAD = 300 // when the beam reaches twelve o'clock, and entry 01 lands
 const STEP = 44       // ms between entries, and so 12 x STEP per revolution
@@ -87,6 +102,10 @@ export default function RadialMenu() {
   const [settled, setSettled] = useState(false)
   const [going, setGoing] = useState(null)
   const [hot, setHot] = useState(null)
+  // The list is the default. Reading twelve labels scattered round a circle is
+  // slower than reading a list, and the circle told a first-time visitor
+  // nothing about what any of it meant — which is what was losing people.
+  const [view, setView] = useState('list')
   const [geo, setGeo] = useState(() => ({ rx: 300, ry: 270, k1x: 0.52, k1y: 0.52, hubR: 52, cx: 640, cy: 420 }))
   const [wipe, setWipe] = useState({ x: 0, y: 0, r: 1200 })
   const triggerRef = useRef(null)
@@ -100,6 +119,19 @@ export default function RadialMenu() {
   const exitTimer = useRef(0)
 
   useFocusTrap(sheetRef, open && lit)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY)
+      if (saved === 'dial' || saved === 'list') setView(saved)
+    } catch (_) { /* private mode */ }
+  }, [])
+
+  const switchView = (next) => {
+    setView(next)
+    setHot(null)
+    try { localStorage.setItem(VIEW_KEY, next) } catch (_) {}
+  }
 
   const close = useCallback(() => {
     if (exitTimer.current) return
@@ -218,9 +250,16 @@ export default function RadialMenu() {
       clear()
       return
     }
-    setHot(node.i)
-    setGoing(node.i)
-    setWipe((w) => ({ ...w, x: node.tick.x, y: node.tick.y }))
+    if (node.tick) {
+      // The dive belongs to the dial: it travels through the entry's own
+      // position on the orbit. A list entry has no orbit position, so it
+      // leaves the way it arrived — the aperture closing back on the button.
+      setHot(node.i)
+      setGoing(node.i)
+      setWipe((w) => ({ ...w, x: node.tick.x, y: node.tick.y }))
+    } else {
+      setGoing(-1)
+    }
     exitTimer.current = setTimeout(() => {
       exitTimer.current = 0
       navigate(node)
@@ -243,7 +282,7 @@ export default function RadialMenu() {
   //    it — a field, not a binary hover, which is what makes a dial with a
   //    mouse over it feel awake
   useEffect(() => {
-    if (!lit || reduced()) return
+    if (!lit || reduced() || view !== 'dial') return
     let raf = 0
     const t0 = performance.now()
     const ang = [0.6, 3.1]
@@ -293,7 +332,7 @@ export default function RadialMenu() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [lit, cx, cy, r1.x, r1.y, r2.x, r2.y])
+  }, [lit, view, cx, cy, r1.x, r1.y, r2.x, r2.y])
 
   // A few pixels of pointer parallax gives the plate somewhere to sit. Written
   // to the node directly and eased by CSS, so a mouse move costs no render.
@@ -305,7 +344,7 @@ export default function RadialMenu() {
   // cannot shift the dial during the exit.
   const onStageMove = (e) => {
     const el = stageRef.current
-    if (!el || reduced() || closing || going !== null) return
+    if (!el || reduced() || closing || going !== null || view !== 'dial') return
     if (e.pointerType && e.pointerType !== 'mouse') return
     if (!window.matchMedia('(pointer: fine)').matches) return
     pointRef.current = { x: e.clientX, y: e.clientY, on: true }
@@ -396,7 +435,7 @@ export default function RadialMenu() {
 
       {open && createPortal(
         <div
-          className={`rdial ${lit ? 'is-lit' : ''} ${closing ? 'is-closing' : ''} ${going !== null ? 'is-going' : ''} ${settled ? 'is-settled' : ''} ${hot !== null ? 'has-focus' : ''}`}
+          className={`rdial rdial--${view} ${lit ? 'is-lit' : ''} ${closing ? 'is-closing' : ''} ${going !== null ? 'is-going' : ''} ${settled ? 'is-settled' : ''} ${hot !== null ? 'has-focus' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label="サービスとページの一覧"
@@ -405,6 +444,65 @@ export default function RadialMenu() {
           style={{ '--ox': `${wipe.x}px`, '--oy': `${wipe.y}px`, '--wipe': `${wipe.r}px` }}
         >
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
+
+          {view === 'list' && (
+            <div className="rlist">
+              <header className="rlist-head">
+                <p className="rlist-eyebrow">LUMENIUM — 対応領域</p>
+                <h2 className="rlist-title">何をお探しですか？</h2>
+                <p className="rlist-sub">ご覧になりたい項目をお選びください。</p>
+              </header>
+
+              <h3 className="rlist-group">事業内容<span>6領域・企画から運用までワンストップ</span></h3>
+              <div className="rlist-cards">
+                {NODES.filter((n) => n.service).map((n, i) => {
+                  const c = SERVICE_COPY[n.service] || {}
+                  return (
+                    <a
+                      key={n.service}
+                      href="#/info/services"
+                      className="rcard"
+                      style={{ transitionDelay: `${closing ? 0 : 80 + i * 45}ms` }}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+                        e.preventDefault()
+                        go(n)
+                      }}
+                    >
+                      <span className="rcard-title">{c.title || n.label.replace('\n', '・')}</span>
+                      {c.desc && <span className="rcard-desc">{c.desc}</span>}
+                      {c.price && <span className="rcard-price">{c.price}</span>}
+                      <span className="rcard-go" aria-hidden="true">詳しく見る →</span>
+                    </a>
+                  )
+                })}
+              </div>
+
+              <h3 className="rlist-group">検討に役立つ情報</h3>
+              <div className="rlist-links">
+                {INFO.map((n, i) => (
+                  <a
+                    key={n.hash}
+                    href={n.hash}
+                    className="rlink"
+                    style={{ transitionDelay: `${closing ? 0 : 360 + i * 35}ms` }}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+                      e.preventDefault()
+                      go(n)
+                    }}
+                  >
+                    <span className="rlink-label">{n.label}</span>
+                    <span className="rlink-note">{n.note}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button type="button" className="rview" onClick={() => switchView(view === 'list' ? 'dial' : 'list')}>
+            {view === 'list' ? '星図で見る' : '一覧で見る'}
+          </button>
 
           <div className="rdial-stage" ref={stageRef}>
             {/* The beam makes one revolution, and its leading edge arrives at
@@ -550,7 +648,7 @@ export default function RadialMenu() {
             </div>
           </div>
 
-          <p className="rdial-meta rdial-meta--tl">LUMENIUM — 対応領域</p>
+          {view === 'dial' && <p className="rdial-meta rdial-meta--tl">LUMENIUM — 対応領域</p>}
           <button type="button" className="rdial-x" onClick={close} aria-label="閉じる">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M6 6 L18 18" />
