@@ -90,20 +90,30 @@ export async function GET(req) {
         ...dates.map((d) => ['HGETALL', K.dayContact(d)]),
         ['GET', K.contactLastError],
       ])
-      let ok = 0, fail = 0
+      let ok = 0, fail = 0, blocked = 0
       let last7ok = 0
       out.slice(0, dates.length).forEach((flat, i) => {
         if (!Array.isArray(flat)) return
         for (let j = 0; j + 1 < flat.length; j += 2) {
           const n = Number(flat[j + 1]) || 0
-          if (String(flat[j]) === 'ok') { ok += n; if (i >= dates.length - 7) last7ok += n }
+          const field = String(flat[j])
+          if (field === 'ok') { ok += n; if (i >= dates.length - 7) last7ok += n }
+          // A spam block is the limiter working, not the form breaking.
+          else if (field === 'blocked') blocked += n
           else fail += n
         }
       })
       let lastError = null
       try { lastError = JSON.parse(out[dates.length]) } catch (_) {}
-      contact = { days: 30, ok, fail, last7ok, lastError }
+      contact = { days: 30, ok, fail, blocked, last7ok, lastError }
 
+      if (blocked > 0) {
+        checks.push({
+          id: 'contactBlocked', label: '迷惑送信のブロック', env: '',
+          state: 'ok',
+          note: `直近30日で ${blocked} 件を回数制限で遮断しました。受信箱とメール送信枠を守っています。`,
+        })
+      }
       if (fail > 0) {
         checks.push({
           id: 'contactFail', label: '問い合わせの送信失敗', env: '',

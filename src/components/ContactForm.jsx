@@ -25,7 +25,7 @@ export default function ContactForm() {
   const [form, setForm] = useState(() => {
     let spec = ''
     try { spec = sessionStorage.getItem('lum_estimate') || '' } catch (_) {}
-    return { name: '', email: '', message: spec ? spec + '\n\n---\n' : '' }
+    return { name: '', email: '', message: spec ? spec + '\n\n---\n' : '', company: '' }
   })
   const [carried] = useState(() => {
     try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
@@ -88,7 +88,15 @@ export default function ContactForm() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, email: form.email, message: form.message }),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          message: form.message,
+          // Left empty by anyone who can see the form; bots fill every field.
+          company: form.company,
+          // Which page the enquiry came from, so it can be prioritised.
+          page: typeof window !== 'undefined' ? window.location.hash || window.location.pathname : '',
+        }),
       })
       if (!res.ok) throw new Error(`status ${res.status}`)
       setSent(true)
@@ -179,6 +187,17 @@ export default function ContactForm() {
               >
                 {charInfo('message').len} / {charInfo('message').max}
               </span>
+            </div>
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label htmlFor="company">会社名（入力しないでください）</label>
+              <input
+                id="company"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={form.company}
+                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+              />
             </div>
             {carried && (
               <p className="form-carried">
