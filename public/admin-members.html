@@ -288,6 +288,24 @@
   }
   /* Saved and published are two different states, and the gap between them is
      a minute or two of redeploy. Saying nothing made a save look lost. */
+  .env-copy {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 11px; font-weight: 500; color: var(--sub);
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1px 7px; cursor: pointer;
+  }
+  .env-copy:hover { color: var(--text); border-color: var(--sub); }
+  .copy-only {
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    font-size: 12px; color: var(--sub); cursor: pointer;
+  }
+  .copy-only input { accent-color: #4f46e5; width: 14px; height: 14px; }
+  /* Which section a result came from, shown on every row while searching —
+     with fourteen groups the answer to "where is this text" is the point. */
+  .copy-where {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+    color: #0b1020; background: #67e8f9; padding: 2px 8px; border-radius: 999px;
+  }
   .deploy-state { font-size: 11.5px; line-height: 1.7; margin-bottom: 10px; color: var(--sub); }
   .deploy-state.pending { color: #fbbf24; }
   .deploy-state.problem { color: #fca5a5; }
@@ -458,6 +476,7 @@
         <input type="text" id="news-link" maxlength="300"
           style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:14px">
         <button type="submit" id="news-btn">投稿する</button>
+        <button type="button" class="ghost" id="news-cancel" style="display:none;margin-left:8px">編集をやめる</button>
       </form>
       <p class="msg" id="news-msg" style="margin-top:12px"></p>
       <div style="margin-top:18px">
@@ -472,7 +491,8 @@
       <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。改行はそのまま改行、<code>**強調**</code> で太字になります。</p>
       <div class="toolbar" style="margin-bottom:10px">
         <select id="copy-group" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
-        <input type="search" id="copy-search" placeholder="文章を検索（例：ワンストップ）">
+        <input type="search" id="copy-search" placeholder="サイト全体から文章を検索（例：ワンストップ）">
+        <label class="copy-only"><input type="checkbox" id="copy-changed"> 変更したものだけ</label>
         <span id="copy-count"></span>
         <button id="copy-save" type="button">変更を保存</button>
         <button class="ghost" id="copy-reload" type="button">再読込</button>
@@ -1060,6 +1080,13 @@ window.lumAdmin = {
       var t = document.createElement('span');
       t.style.cssText = 'flex:1;color:var(--text)';
       t.textContent = n.title || '';
+      var ed = document.createElement('button');
+      ed.type = 'button';
+      ed.className = 'ghost';
+      ed.style.cssText = 'padding:5px 10px;font-size:11.5px';
+      ed.textContent = '編集';
+      ed.onclick = function () { startEdit(n); };
+
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'ghost';
@@ -1069,7 +1096,7 @@ window.lumAdmin = {
         if (!confirm('「' + (n.title || '') + '」を削除しますか？')) return;
         newsPost({ action: 'delete', id: n.id }, del);
       };
-      li.appendChild(d); li.appendChild(t); li.appendChild(del);
+      li.appendChild(d); li.appendChild(t); li.appendChild(ed); li.appendChild(del);
       ul.appendChild(li);
     });
   }
@@ -1143,11 +1170,7 @@ window.lumAdmin = {
           renderNews(x.d.items || []);
           // A commit has just landed, so it is by definition ahead of the site.
           window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
-          if (payload.action === 'add') {
-            document.getElementById('news-title').value = '';
-            document.getElementById('news-body').value = '';
-            document.getElementById('news-link').value = '';
-          }
+          if (payload.action === 'add' || payload.action === 'edit') stopEdit();
         } else {
           newsSay(x.d.message || '保存に失敗しました。');
         }
@@ -1155,12 +1178,41 @@ window.lumAdmin = {
       })
       .catch(function () { newsSay('通信に失敗しました。'); if (btn) btn.disabled = false; });
   }
+  // Editing in place. Correcting a typo used to mean deleting the post and
+  // retyping it, which gave it today's date and moved it to the top — a
+  // different post, not a correction.
+  var editingId = null;
+  function startEdit(n) {
+    editingId = n.id;
+    document.getElementById('news-title').value = n.title || '';
+    document.getElementById('news-body').value = n.body || '';
+    document.getElementById('news-link').value = n.link || '';
+    document.getElementById('news-btn').textContent = 'この内容で更新';
+    document.getElementById('news-cancel').style.display = 'inline-block';
+    newsSay((n.date || '') + ' のお知らせを編集しています。日付と並び順は変わりません。', true);
+    document.getElementById('news-title').focus();
+    document.getElementById('news-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function stopEdit() {
+    editingId = null;
+    document.getElementById('news-title').value = '';
+    document.getElementById('news-body').value = '';
+    document.getElementById('news-link').value = '';
+    document.getElementById('news-btn').textContent = '投稿する';
+    document.getElementById('news-cancel').style.display = 'none';
+  }
+  document.getElementById('news-cancel').addEventListener('click', function () {
+    stopEdit();
+    newsSay('編集をやめました。', true);
+  });
+
   document.getElementById('news-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var title = document.getElementById('news-title').value.trim();
     if (!title) { newsSay('タイトルを入力してください。'); return; }
     newsPost({
-      action: 'add',
+      action: editingId ? 'edit' : 'add',
+      id: editingId || undefined,
       title: title,
       body: document.getElementById('news-body').value.trim(),
       link: document.getElementById('news-link').value.trim()
@@ -1493,14 +1545,29 @@ window.lumAdmin = {
     if (!schema) return;
     var gk = groupSel.value;
     var q = (searchEl.value || '').trim().toLowerCase();
-    var group = schema.groups.filter(function (g) { return g.key === gk })[0];
+    var onlyChanged = document.getElementById('copy-changed').checked;
     fieldsEl.innerHTML = '';
-    if (!group) return;
 
+    // A search used to look only inside the section you happened to have
+    // selected, so asking for a sentence that lives anywhere else was answered
+    // 「該当する文章がありません」 — with 393 strings across fourteen sections
+    // that made the search worse than useless. It now spans everything, and
+    // each result says which section it came from.
+    var wide = !!q || onlyChanged;
+    var list = [];
+    schema.groups.forEach(function (g) {
+      if (!wide && g.key !== gk) return;
+      g.fields.forEach(function (f) { list.push({ f: f, g: g }); });
+    });
+
+    var total = wide ? schema.count : (schema.groups.filter(function (g) { return g.key === gk })[0] || { fields: [] }).fields.length;
     var shown = 0;
-    group.fields.forEach(function (f) {
+    list.forEach(function (entry) {
+      var f = entry.f;
       var val = current(f.path, f.value);
-      if (q && val.toLowerCase().indexOf(q) < 0 && f.path.toLowerCase().indexOf(q) < 0) return;
+      if (q && val.toLowerCase().indexOf(q) < 0 && f.path.toLowerCase().indexOf(q) < 0 &&
+          entry.g.label.toLowerCase().indexOf(q) < 0) return;
+      if (onlyChanged && val === f.value) return;
       shown++;
 
       var wrap = document.createElement('div');
@@ -1513,6 +1580,14 @@ window.lumAdmin = {
       label.title = f.path;
       label.style.cssText = 'font-size:12px;font-weight:700;color:#93c5fd';
       head.appendChild(label);
+
+      if (wide) {
+        var where = document.createElement('span');
+        where.className = 'copy-where';
+        where.textContent = entry.g.label;
+        where.title = 'この文章がある場所';
+        head.appendChild(where);
+      }
 
       var changedTag = document.createElement('span');
       changedTag.textContent = '変更あり';
@@ -1553,10 +1628,12 @@ window.lumAdmin = {
     if (!shown) {
       var none = document.createElement('p');
       none.className = 'share-note';
-      none.textContent = '該当する文章がありません。';
+      none.textContent = onlyChanged && !q
+        ? 'まだ変更した文章はありません。'
+        : 'サイト全体を探しましたが、該当する文章はありませんでした。';
       fieldsEl.appendChild(none);
     }
-    updateCount(shown, group.fields.length);
+    updateCount(shown, total);
   }
 
   function updateCount(shown, total) {
@@ -1645,8 +1722,24 @@ window.lumAdmin = {
     render();
   }
 
+  function syncScope() {
+    var wide = !!(searchEl.value || '').trim() || document.getElementById('copy-changed').checked;
+    groupSel.disabled = wide
+    groupSel.style.opacity = wide ? '0.45' : '1'
+    render();
+  }
   groupSel.addEventListener('change', render);
-  searchEl.addEventListener('input', render);
+  searchEl.addEventListener('input', syncScope);
+  document.getElementById('copy-changed').addEventListener('change', syncScope);
+
+  // Saving is the thing you do most here, and reaching for the button each
+  // time is the thing you do most often instead of editing.
+  document.getElementById('copy-admin').addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      if (dirtyCount()) save();
+    }
+  });
   document.getElementById('copy-save').addEventListener('click', save);
   document.getElementById('copy-reload').addEventListener('click', function () { loadAll(); });
 
@@ -2279,11 +2372,30 @@ window.lumAdmin = {
         '<span style="flex:none;font-size:15px;line-height:1.4">' + MARK[c.state][0] + '</span>' +
         '<div style="min-width:0">' +
           '<div style="font-size:13.5px;font-weight:700">' + esc(c.label) +
-            (c.env ? ' <code style="font-size:11px;color:var(--sub);font-weight:500">' + esc(c.env) + '</code>' : '') +
+            (c.env ? ' ' + c.env.split(',').map(function (e) {
+              var name = e.trim();
+              return '<button type="button" class="env-copy" data-env="' + esc(name) + '" title="変数名をコピー">' + esc(name) + '</button>';
+            }).join(' ') : '') +
           '</div>' +
           '<div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:3px">' + esc(c.note) + '</div>' +
         '</div></div>';
     }).join('');
+
+    // The name is the thing you carry to the Vercel settings page, so it is a
+    // button rather than a label you have to select by hand.
+    var copies = el('health-list').querySelectorAll('.env-copy');
+    for (var ci = 0; ci < copies.length; ci++) {
+      copies[ci].addEventListener('click', function () {
+        var btn = this, name = btn.dataset.env;
+        var done = function () {
+          var was = btn.textContent;
+          btn.textContent = '✓ コピーしました';
+          setTimeout(function () { btn.textContent = was; }, 1400);
+        };
+        if (navigator.clipboard) navigator.clipboard.writeText(name).then(done).catch(function () {});
+        else done();
+      });
+    }
 
     el('health-body').style.display = 'block';
     el('health-updated').textContent = new Date(d.generatedAt).toLocaleString('ja-JP');

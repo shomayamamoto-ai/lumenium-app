@@ -43,7 +43,7 @@ export async function GET(req) {
         : '未設定のため既定の shoma.yamamoto@lumenium.net に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。',
     },
     {
-      id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL / _TOKEN',
+      id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN',
       state: store ? 'ok' : 'warn',
       note: store
         ? 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'

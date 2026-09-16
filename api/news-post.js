@@ -67,10 +67,11 @@ export async function POST(req) {
   const link = String(payload?.link ?? '').trim()
   const delId = String(payload?.id ?? '').trim()
 
-  if (action === 'add') {
+  if (action === 'add' || action === 'edit') {
     if (!title || title.length > 80) return json({ ok: false, code: 'BAD_REQUEST', message: 'タイトルは1〜80文字で入力してください。' }, 400)
     if (body.length > 600) return json({ ok: false, code: 'BAD_REQUEST', message: '本文は600文字以内で入力してください。' }, 400)
     if (link && !/^https?:\/\/|^\//.test(link)) return json({ ok: false, code: 'BAD_REQUEST', message: 'リンクは http(s):// か / で始まるURLを指定してください。' }, 400)
+    if (action === 'edit' && !delId) return json({ ok: false, code: 'BAD_REQUEST', message: '編集対象のIDがありません。' }, 400)
   } else if (action === 'delete') {
     if (!delId) return json({ ok: false, code: 'BAD_REQUEST', message: '削除対象のIDがありません。' }, 400)
   } else {
@@ -100,6 +101,13 @@ export async function POST(req) {
     items.unshift({ id, date, title, body, link })
     if (items.length > 50) items = items.slice(0, 50) // keep the file lean
     message = `news: ${title}`
+  } else if (action === 'edit') {
+    // The id and the date stay. Fixing a typo by deleting and retyping moved
+    // the post to today and to the top of the list, which is not a correction.
+    const at = items.findIndex((n) => n && n.id === delId)
+    if (at < 0) return json({ ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, 404)
+    items[at] = { id: items[at].id, date: items[at].date, title, body, link }
+    message = `news: edit ${title}`
   } else {
     const before = items.length
     items = items.filter((n) => n && n.id !== delId)
