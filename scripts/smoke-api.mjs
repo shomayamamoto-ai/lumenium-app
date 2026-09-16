@@ -90,6 +90,8 @@ const CALLS = [
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
   // The committed-state reads behind the two editors.
+  ['settings', 'GET', '', KEY],
+  ['settings', 'POST', '', JSONH, { name: 'CONTACT_TO_EMAIL', value: 'smoke@example.com' }],
   ['news-post', 'GET', '', KEY],
   ['content-save', 'GET', '', KEY],
   // Members-only pages. Called without a session, so what is exercised is the

@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { setting } from './_settings.js'
 
 import { listContacts } from './_resend-audience.js'
 
@@ -14,7 +15,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = await setting('RESEND_API_KEY')
   if (!apiKey) return json({ ok: false, code: 'NOT_CONFIGURED' }, 503)
 
   const members = await listContacts(apiKey)

@@ -25,6 +25,7 @@ async function keyMatches(submitted, configured) {
 }
 
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
+import { setting } from './_settings.js'
 import { useShare } from './_share.js'
 
 const WINDOW_S = 15 * 60
@@ -181,8 +182,10 @@ export async function spendGuard(kind, limit) {
   return null
 }
 
+/** Async now: the key may have been entered from the admin page rather than
+ *  set as an environment variable. */
 export function apiKey() {
-  return (process.env.ANTHROPIC_API_KEY || '').trim()
+  return setting('ANTHROPIC_API_KEY')
 }
 
 export const NO_AI = {

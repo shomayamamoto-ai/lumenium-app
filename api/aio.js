@@ -272,7 +272,7 @@ export async function GET(req) {
     questions: QUESTIONS.length,
     categories: CATEGORIES,
     estimateUsd: costEstimateUsd(),
-    aiReady: !!apiKey(),
+    aiReady: !!(await apiKey()),
     brand: BRAND.domain,
   }
   if (!cfg) return json({ ...NO_STORE, meta }, 503)
@@ -322,7 +322,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const key = apiKey()
+  const key = await apiKey()
   if (!key) return json(NO_AI, 503)
 
   const cfg = storeConfig()

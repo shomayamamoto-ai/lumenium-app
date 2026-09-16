@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { storeConfig, pipeline, jstDate, K } from './_analytics-store.js'
+import { setting } from './_settings.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 
 // Per IP. Three enquiries in ten minutes is well past what a real person
@@ -78,7 +79,7 @@ export async function POST(req) {
     }, 429, { 'retry-after': String(burst.limited ? burst.retryAfter : daily.retryAfter) })
   }
 
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = await setting('RESEND_API_KEY')
   if (!apiKey) {
     console.error('[api/contact] RESEND_API_KEY is not set')
     await record(false, 'RESEND_API_KEY が未設定')
@@ -86,7 +87,7 @@ export async function POST(req) {
   }
 
   const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
-  const to = process.env.CONTACT_TO_EMAIL || 'shoma.yamamoto@lumenium.net'
+  const to = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net')
   const jst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16)
   const from_page = String(payload?.page ?? '').slice(0, 120)
   const withEstimate = /概算見積り|概算:/.test(message)

@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { setting } from './_settings.js'
 import { SCOPE } from './_share.js'
 
 import { listContacts } from './_resend-audience.js'
@@ -29,7 +30,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req, { as: 'text', allowQueryKey: true, share: SCOPE })
   if (denied) return denied
 
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = await setting('RESEND_API_KEY')
   if (!apiKey) return text('RESEND_API_KEY が未設定です。', 503)
 
   const members = await listContacts(apiKey)

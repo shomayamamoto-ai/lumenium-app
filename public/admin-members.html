@@ -288,6 +288,30 @@
   }
   /* Saved and published are two different states, and the gap between them is
      a minute or two of redeploy. Saying nothing made a save look lost. */
+  .set-row {
+    display: grid; gap: 4px 10px; align-items: center;
+    grid-template-columns: 1fr auto;
+    padding: 12px 13px; margin-bottom: 8px;
+    background: #151b31; border: 1px solid var(--border); border-radius: 11px;
+  }
+  .set-row h4 { grid-column: 1 / -1; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .set-row .state { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .set-row .state.on { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+  .set-row .state.env { background: rgba(59,130,246,0.16); color: #93c5fd; }
+  .set-row .state.off { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .set-row .why { grid-column: 1 / -1; font-size: 12px; color: var(--sub); line-height: 1.7; }
+  .set-row .where { grid-column: 1 / -1; font-size: 11px; color: var(--sub); opacity: 0.8; }
+  .set-row input {
+    width: 100%; padding: 9px 11px; background: #1a2038; color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  .set-row .acts { display: flex; gap: 6px; }
+  .set-row button { padding: 8px 14px; font-size: 12px; }
+  @media (max-width: 560px) {
+    .set-row { grid-template-columns: 1fr; }
+    .set-row .acts { justify-content: flex-end; }
+  }
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: 11px; font-weight: 500; color: var(--sub);
@@ -514,6 +538,14 @@
         <div id="health-summary" style="margin-bottom:16px"></div>
         <div id="health-list"></div>
       </div>
+
+      <h3 style="font-size:13.5px;font-weight:700;margin:22px 0 4px">🔑 キーの入力</h3>
+      <p class="share-note" style="margin-bottom:12px">
+        ここに貼ると、Vercel の環境変数を触らなくてもその場で有効になります（再デプロイ不要）。
+        入力した値は画面に戻しません。末尾4文字だけ、どのキーかを見分けるために表示します。
+      </p>
+      <p class="msg" id="set-msg" style="margin-bottom:10px"></p>
+      <div id="set-list"></div>
     </div>
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
@@ -2402,6 +2434,103 @@ window.lumAdmin = {
     say('');
   }
 
+  // ---- keys ----
+  // Entering a key used to mean leaving the site for the Vercel project
+  // settings and redeploying, which is why five of seven sections were still
+  // switched off. These save into the same store as the analytics and take
+  // effect on the next request.
+  function setSay(t, info) {
+    var m = el('set-msg');
+    m.textContent = t || '';
+    m.classList.toggle('show', !!t);
+    m.classList.toggle('info', !!info);
+  }
+
+  function renderSettings(list, ready) {
+    var host = el('set-list');
+    host.innerHTML = '';
+    list.forEach(function (s) {
+      var row = document.createElement('div');
+      row.className = 'set-row';
+
+      var h = document.createElement('h4');
+      h.textContent = s.label;
+      var st = document.createElement('span');
+      st.className = 'state ' + (s.from === 'saved' ? 'on' : s.from === 'env' ? 'env' : 'off');
+      st.textContent = s.from === 'saved' ? 'この画面で設定済み ' + s.hint
+        : s.from === 'env' ? '環境変数で設定済み ' + s.hint
+        : '未設定';
+      h.appendChild(st);
+      var code = document.createElement('code');
+      code.textContent = s.name;
+      code.style.cssText = 'font-size:10.5px;color:var(--sub);font-weight:500';
+      h.appendChild(code);
+      row.appendChild(h);
+
+      var why = document.createElement('p');
+      why.className = 'why';
+      why.textContent = s.why;
+      row.appendChild(why);
+
+      var input = document.createElement('input');
+      input.type = s.kind === 'text' ? 'text' : 'password';
+      input.autocomplete = 'off';
+      input.placeholder = s.from ? '新しい値に置き換えるときだけ入力' : '値を貼り付け';
+      input.disabled = !ready;
+      row.appendChild(input);
+
+      var acts = document.createElement('div');
+      acts.className = 'acts';
+      var save = document.createElement('button');
+      save.type = 'button';
+      save.textContent = '保存';
+      save.disabled = !ready;
+      save.onclick = function () { put(s.name, input.value, save, input); };
+      acts.appendChild(save);
+      if (s.from === 'saved') {
+        var clr = document.createElement('button');
+        clr.type = 'button';
+        clr.className = 'ghost';
+        clr.textContent = '削除';
+        clr.onclick = function () {
+          if (!confirm(s.label + ' に保存した値を削除しますか？')) return;
+          put(s.name, '', clr, input);
+        };
+        acts.appendChild(clr);
+      }
+      row.appendChild(acts);
+
+      var where = document.createElement('p');
+      where.className = 'where';
+      where.textContent = '取得元：' + s.where;
+      row.appendChild(where);
+
+      host.appendChild(row);
+    });
+  }
+
+  async function put(name, value, btn, input) {
+    btn.disabled = true;
+    setSay('保存中…', true);
+    var r = await window.lumAdmin.fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, value: value })
+    });
+    btn.disabled = false;
+    if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || '保存できませんでした。'); return; }
+    if (input) input.value = '';
+    setSay(r.data.message, true);
+    renderSettings(r.data.settings, true);
+    load();   // what is switched on has just changed
+  }
+
+  async function loadSettings() {
+    var r = await window.lumAdmin.fetch('/api/settings');
+    if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || 'キーの状態を取得できませんでした。'); return; }
+    renderSettings(r.data.settings || [], r.data.ready);
+    setSay(r.data.ready ? '' : r.data.message, true);
+  }
+
   async function load() {
     var res, data;
     try {
@@ -2414,8 +2543,13 @@ window.lumAdmin = {
     draw(data);
   }
 
-  el('health-reload').addEventListener('click', load);
-  window.lumHealthInit = function () { if (loaded) return; loaded = true; load(); };
+  el('health-reload').addEventListener('click', function () { load(); loadSettings(); });
+  window.lumHealthInit = function () {
+    if (loaded) return;
+    loaded = true;
+    load();
+    loadSettings();
+  };
 })();
 </script>
 </body>

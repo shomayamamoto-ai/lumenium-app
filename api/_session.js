@@ -2,10 +2,13 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 //
 // Session cookie format: "<expiresMs>.<hmacHex>" — HMAC binds the expiry so
-// the token cannot be extended client-side. Secrets come from env with a
-// dev fallback; set SESSION_SECRET (and MEMBER_CODE) in Vercel for production.
+// the token cannot be extended client-side. Both secrets may be set from the
+// admin page or from the environment; until one of those happens the published
+// fallback is live, which the settings screen says in as many words.
 
-const SECRET = () => process.env.SESSION_SECRET || 'lumenium-dev-secret-change-me'
+import { setting } from './_settings.js'
+
+const SECRET = () => setting('SESSION_SECRET', 'lumenium-dev-secret-change-me')
 
 const enc = new TextEncoder()
 
@@ -28,7 +31,7 @@ function safeEqual(a, b) {
 export async function issueSession(remember) {
   const ttlMs = (remember ? 30 * 24 : 12) * 60 * 60 * 1000 // 30 days / 12 hours
   const exp = Date.now() + ttlMs
-  const sig = await hmacHex(String(exp), SECRET())
+  const sig = await hmacHex(String(exp), await SECRET())
   return { token: `${exp}.${sig}`, maxAge: Math.floor(ttlMs / 1000) }
 }
 
@@ -43,15 +46,16 @@ export async function verifySessionCookie(cookieHeader) {
   const exp = token.slice(0, dot)
   const sig = token.slice(dot + 1)
   if (!/^\d{10,}$/.test(exp) || Number(exp) < Date.now()) return false
-  const expected = await hmacHex(exp, SECRET())
+  const expected = await hmacHex(exp, await SECRET())
   return safeEqual(sig, expected)
 }
 
 // Compare a submitted member code against the configured one without
 // leaking length/content timing: HMAC both sides, compare digests.
 export async function memberCodeMatches(submitted) {
-  const configured = process.env.MEMBER_CODE || 'LUMEN2026'
-  const a = await hmacHex(String(submitted), SECRET())
-  const b = await hmacHex(configured, SECRET())
+  const configured = await setting('MEMBER_CODE', 'LUMEN2026')
+  const secret = await SECRET()
+  const a = await hmacHex(String(submitted), secret)
+  const b = await hmacHex(configured, secret)
   return safeEqual(a, b)
 }

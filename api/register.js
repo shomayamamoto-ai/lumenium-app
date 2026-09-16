@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { issueSession } from './_session.js'
+import { setting } from './_settings.js'
 import { addContact } from './_resend-audience.js'
 
 // New-member registration: capture name+email, grant a session immediately,
@@ -51,16 +52,16 @@ export async function POST(req) {
   const { token, maxAge } = await issueSession(false)
 
   // Best-effort side effects — registration must succeed even if these fail.
-  const memberCode = process.env.MEMBER_CODE || 'LUMEN2026'
+  const memberCode = await setting('MEMBER_CODE', 'LUMEN2026')
   let mailed = false
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = await setting('RESEND_API_KEY')
   if (apiKey) {
     // Persist the lead into the Resend audience (member list page reads this).
     await addContact(apiKey, { name, email, company }).catch((err) =>
       console.error('[api/register] addContact failed', err)
     )
     const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
-    const owner = process.env.CONTACT_TO_EMAIL || 'shoma.yamamoto@lumenium.net'
+    const owner = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net')
     const send = (body) =>
       fetch('https://api.resend.com/emails', {
         method: 'POST',

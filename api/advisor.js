@@ -212,7 +212,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const key = apiKey()
+  const key = await apiKey()
   if (!key) return json(NO_AI, 503)
 
   let body

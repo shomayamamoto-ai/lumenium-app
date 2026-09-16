@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
+import { setting } from './_settings.js'
 import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } from './_github.js'
 
 // Admin copy editing: commits public/content.json to the GitHub repo via the
@@ -32,7 +33,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const token = process.env.GITHUB_TOKEN
+  const token = await setting('GITHUB_TOKEN')
   if (!token) return json(NO_TOKEN, 503)
   const repo = repoName()
 
@@ -59,7 +60,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const token = process.env.GITHUB_TOKEN
+  const token = await setting('GITHUB_TOKEN')
   const repo = repoName()
   if (!token) return json(NO_TOKEN, 503)
 
