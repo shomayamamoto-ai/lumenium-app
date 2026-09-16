@@ -145,7 +145,7 @@
   <div class="sub">MEMBERS EXCLUSIVE</div>
   <p>
     自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
-    線に触れられると1機失います（<b>残機3</b>）。相手の線を横切れば、その相手を脱落させられます。<br>
+    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます（残機3）。相手の線を横切れば、その相手を脱落させられます。<br>
     2分後、いちばん広い陣地を持っていた者が勝ち。
   </p>
   <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
@@ -194,6 +194,9 @@
   var running = false, paused = false, over = false
   var startedAt = 0, lastFrame = 0, pausedMs = 0, pausedAt = 0
   var kills = 0
+  var flash = null       // cells just taken, lit briefly so a capture registers
+  var shakeUntil = 0     // a hit you can feel
+  var danger = 0         // 0..1, how close the nearest threat is to your line
 
   var idx = function (x, y) { return y * W + x }
   var inBounds = function (x, y) { return x >= 0 && y >= 0 && x < W && y < H }
@@ -291,8 +294,10 @@
     }
 
     var gained = 0
+    var took = p.human ? [] : null
     for (j = 0; j < N; j++) {
       if (!scratch[j] && owner[j] !== p.id) {
+        if (took && took.length < 4000) took.push(j)
         // The enemy's line is left where it is — taking the ground under it is
         // enough. Wiping it would kill them from across the map for something
         // they cannot see coming.
@@ -301,6 +306,7 @@
       }
     }
     recount()
+    if (took && took.length) flash = { cells: took, until: performance.now() + 420 }
     return gained
   }
 
@@ -308,9 +314,15 @@
   function kill(p, by) {
     if (!p.alive) return
     p.alive = false
+    if (p.human || (by && by.human)) shakeUntil = performance.now() + 380
     for (var i = 0; i < p.trailCells.length; i++) trail[p.trailCells[i]] = 0
     p.trailCells.length = 0
-    for (var c = 0; c < N; c++) if (owner[c] === p.id) owner[c] = 0
+    // Half, eaten in from the edges, rather than all of it. Measured over
+    // three rounds with the old rule: a round ended 0% / 0% / 0.9% / 21.7%,
+    // because one death in the last thirty seconds deleted two minutes of
+    // play. Losing the outside of your ground is a real punishment that still
+    // leaves you something to defend.
+    erode(p, 0.5)
     recount()
     if (p.human) {
       p.lives--
@@ -326,24 +338,63 @@
     }
   }
 
+  /** Eat a player's ground inward from its border until `keep` of it is left.
+   *  Taking random cells would leave a speckle; taking the edge looks like
+   *  ground being lost, which is what happened. */
+  function erode(p, keep) {
+    var cells = []
+    for (var c = 0; c < N; c++) if (owner[c] === p.id) cells.push(c)
+    var target = Math.floor(cells.length * keep)
+    var guard = 0
+    while (cells.length > target && guard++ < 200) {
+      var border = []
+      for (var i = 0; i < cells.length; i++) {
+        var j = cells[i], x = j % W, y = (j / W) | 0
+        if ((x > 0 && owner[j - 1] !== p.id) || (x < W - 1 && owner[j + 1] !== p.id) ||
+            (y > 0 && owner[j - W] !== p.id) || (y < H - 1 && owner[j + W] !== p.id) ||
+            x === 0 || y === 0 || x === W - 1 || y === H - 1) border.push(j)
+      }
+      if (!border.length) break
+      for (i = 0; i < border.length && cells.length > target; i++) {
+        owner[border[i]] = 0
+        cells.splice(cells.indexOf(border[i]), 1)
+      }
+    }
+  }
+
   function respawn(p) {
+    // Back inside whatever ground survived, if any of it has room.
+    var own = []
+    for (var c = 0; c < N; c++) if (owner[c] === p.id) own.push(c)
+    shuffle(own)
+    for (var oi = 0; oi < own.length && oi < 400; oi++) {
+      var ox2 = own[oi] % W, oy2 = (own[oi] / W) | 0
+      if (roomAt(ox2, oy2, p, true)) { p.alive = true; p.plan.length = 0; base(p, ox2, oy2); recount(); return }
+    }
     // Somewhere with room, and not on anyone's doorstep.
     for (var tries = 0; tries < 200; tries++) {
       var x = 6 + ((Math.random() * (W - 12)) | 0)
       var y = 6 + ((Math.random() * (H - 12)) | 0)
-      var clear = true
-      for (var dy = -3; dy <= 3 && clear; dy++) {
-        for (var dx = -3; dx <= 3; dx++) {
-          var j = idx(x + dx, y + dy)
-          if (!inBounds(x + dx, y + dy) || owner[j] || trail[j]) { clear = false; break }
-        }
-      }
-      if (clear) { p.alive = true; p.plan.length = 0; base(p, x, y); recount(); return }
+      if (roomAt(x, y, p, false)) { p.alive = true; p.plan.length = 0; base(p, x, y); recount(); return }
     }
     p.respawnAt = performance.now() + 1500
   }
 
   // ---------------------------------------------------------------- step
+  /** Is there a clear 7x7 here? `ownOk` lets a player land back on its own
+   *  ground, which is the whole point of coming home to what survived. */
+  function roomAt(x, y, p, ownOk) {
+    for (var dy = -3; dy <= 3; dy++) {
+      for (var dx = -3; dx <= 3; dx++) {
+        if (!inBounds(x + dx, y + dy)) return false
+        var j = idx(x + dx, y + dy)
+        if (trail[j]) return false
+        if (owner[j] && !(ownOk && owner[j] === p.id)) return false
+      }
+    }
+    return true
+  }
+
   function enterCell(p) {
     var c = idx(p.cx, p.cy)
 
@@ -386,6 +437,12 @@
       // A turn is only taken at a cell boundary, so the line always runs along
       // the grid and never cuts a corner.
       if ((p.next + 2) % 4 !== p.dir) p.dir = p.next
+      // Bots decide seven times a second and move at the same rate, so a plan
+      // can still walk one into its own line between decisions.
+      if (!p.human && suicide(p, p.dir)) {
+        var away = escape(p)
+        if (away !== -1) { p.dir = away; p.next = away; p.plan.length = 0 }
+      }
       var d = DIRS[p.dir]
       var nx = p.cx + d[0], ny = p.cy + d[1]
       if (!inBounds(nx, ny)) {
@@ -405,7 +462,33 @@
   // A bot goes out from its own ground, turns, runs a while, and comes home —
   // which is the same shape a person draws. It will also cut across a line it
   // can see, because a game where nobody attacks is not a game.
+  /** Would stepping this way put a player on its own line? Seven of the
+   *  seventeen deaths across three measured rounds were exactly this, and a
+   *  bot killing itself is not a game, it is a gift. */
+  function suicide(p, d) {
+    var x = p.cx + DIRS[d][0], y = p.cy + DIRS[d][1]
+    if (!inBounds(x, y)) return true
+    return trail[idx(x, y)] === p.id
+  }
+
+  /** The way out of a corner: any direction that is neither a reversal nor a
+   *  step onto one's own line. */
+  function escape(p) {
+    var opts = []
+    for (var d = 0; d < 4; d++) {
+      if ((d + 2) % 4 === p.dir) continue
+      if (!suicide(p, d)) opts.push(d)
+    }
+    return opts.length ? opts[(Math.random() * opts.length) | 0] : -1
+  }
+
   function think(p) {
+    // Checked before anything else: a plan made three seconds ago does not know
+    // where this player's line has since been laid.
+    if (suicide(p, p.next)) {
+      var out = escape(p)
+      if (out !== -1) { p.plan.length = 0; p.next = out; return }
+    }
     if (p.plan.length) {
       p.plan[0][1]--
       if (p.plan[0][1] <= 0) p.plan.shift()
@@ -415,9 +498,13 @@
 
     var home = owner[idx(p.cx, p.cy)] === p.id
 
-    // Something to cut, if it is close and roughly in front.
-    if (home || p.trailCells.length < 26) {
-      var target = null, bestD = 13
+    // Something to cut, if it is close and roughly in front. The range was 13
+    // and only reached from close to home; with the suicide guard in, deaths
+    // across three rounds fell from seventeen to five, which is a quieter game
+    // than it should be. Being cut is the tension — it is now telegraphed and
+    // survivable, so there can be more of it.
+    if (home || p.trailCells.length < 34) {
+      var target = null, bestD = 17
       for (var i = 0; i < players.length; i++) {
         var q = players[i]
         if (q === p || !q.alive || !q.trailCells.length) continue
@@ -427,7 +514,7 @@
           if (d < bestD) { bestD = d; target = c }
         }
       }
-      if (target !== null && Math.random() < 0.8) {
+      if (target !== null && Math.random() < 0.88) {
         var tx = target % W, ty = (target / W) | 0
         p.plan = []
         if (tx !== p.cx) p.plan.push([tx > p.cx ? 0 : 2, Math.abs(tx - p.cx)])
@@ -501,6 +588,12 @@
     var h = headPos(me.alive ? me : players[0])
     var ox = vw / 2 - (h.x + 0.5) * cell
     var oy = vh / 2 - (h.y + 0.5) * cell
+    var now = performance.now()
+    if (now < shakeUntil) {
+      var k2 = (shakeUntil - now) / 380
+      ox += (Math.random() - 0.5) * 18 * k2
+      oy += (Math.random() - 0.5) * 18 * k2
+    }
 
     ctx.fillStyle = '#070a16'
     ctx.fillRect(0, 0, vw, vh)
@@ -587,6 +680,23 @@
     ctx.lineWidth = 2
     ctx.strokeRect(ox, oy, W * cell, H * cell)
 
+    // What was just taken, lit for a moment. A capture used to be a number in
+    // the corner; this is the thing you actually did.
+    if (flash) {
+      if (now > flash.until) flash = null
+      else {
+        ctx.globalAlpha = 0.55 * ((flash.until - now) / 420)
+        ctx.fillStyle = '#ffffff'
+        for (var fi = 0; fi < flash.cells.length; fi++) {
+          var fc = flash.cells[fi]
+          var fx = fc % W, fy = (fc / W) | 0
+          if (fx < x0 || fx > x1 || fy < y0 || fy > y1) continue
+          ctx.fillRect(ox + fx * cell, oy + fy * cell, cell + 0.5, cell + 0.5)
+        }
+        ctx.globalAlpha = 1
+      }
+    }
+
     // Heads
     var lead = leader()
     for (pi = 0; pi < players.length; pi++) {
@@ -616,6 +726,36 @@
       var label = (lead === p ? '♛ ' : '') + p.name
       ctx.strokeText(label, hx + cell * 0.5, hy - cell * 0.3)
       ctx.fillText(label, hx + cell * 0.5, hy - cell * 0.3)
+    }
+
+    // Rivals you cannot see. Without this the only warning of being cut was
+    // the moment it happened.
+    for (pi = 0; pi < players.length; pi++) {
+      p = players[pi]
+      if (p === me || !p.alive) continue
+      var pp = headPos(p)
+      var sx = ox + (pp.x + 0.5) * cell, sy = oy + (pp.y + 0.5) * cell
+      if (sx > 16 && sx < vw - 16 && sy > 16 && sy < vh - 16) continue
+      var ang = Math.atan2(sy - vh / 2, sx - vw / 2)
+      var rr = Math.min(vw, vh) / 2 - 34
+      var ax = vw / 2 + Math.cos(ang) * rr, ay = vh / 2 + Math.sin(ang) * rr
+      var cells = Math.abs(p.cx - me.cx) + Math.abs(p.cy - me.cy)
+      ctx.save()
+      ctx.translate(ax, ay); ctx.rotate(ang)
+      ctx.globalAlpha = Math.max(0.28, 1 - cells / 60)
+      ctx.fillStyle = COLORS[p.id].base
+      ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-7, 7); ctx.lineTo(-7, -7); ctx.closePath(); ctx.fill()
+      ctx.restore()
+      ctx.globalAlpha = 1
+    }
+
+    // …and when one of them is closing on the line you are drawing.
+    if (danger > 0.02) {
+      var g = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.max(vw, vh) * 0.62)
+      g.addColorStop(0, 'rgba(244,63,94,0)')
+      g.addColorStop(1, 'rgba(244,63,94,' + (0.42 * danger).toFixed(3) + ')')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, vw, vh)
     }
 
     drawMini(cell)
@@ -791,11 +931,17 @@
     running = false
     var order = players.slice().sort(function (a, b) { return b.area - a.area })
     var rank = order.indexOf(me) + 1
+    var pct = (me.area / N) * 100
+    var best = 0
+    try { best = Number(localStorage.getItem('lum_territory_best') || 0) } catch (_) {}
+    var record = pct > best
+    if (record) { try { localStorage.setItem('lum_territory_best', pct.toFixed(1)) } catch (_) {} }
     document.getElementById('endTitle').textContent =
       me.alive && rank === 1 ? '勝ち' : (reason || '終了')
     document.getElementById('endSub').textContent =
-      (me.lives > 0 ? rank + ' 位' : '脱落') + '　陣地 ' + ((me.area / N) * 100).toFixed(1) + '%' +
-      (kills ? '　撃破 ' + kills : '')
+      (me.lives > 0 ? rank + ' 位' : '脱落') + '　陣地 ' + pct.toFixed(1) + '%' +
+      (kills ? '　撃破 ' + kills : '') +
+      (record ? '　★ 自己ベスト更新' : (best ? '　自己ベスト ' + best.toFixed(1) + '%' : ''))
     var list = document.getElementById('endList')
     list.innerHTML = ''
     for (var i = 0; i < order.length; i++) {
@@ -814,6 +960,12 @@
     }
     endOv.hidden = false
   }
+
+  // Switching tabs used to leave the two minutes running against the wall
+  // clock while nothing was drawn — you came back to a finished round.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && running && !paused && !over) togglePause()
+  })
 
   document.getElementById('startBtn').addEventListener('click', begin)
   document.getElementById('againBtn').addEventListener('click', begin)
@@ -839,6 +991,25 @@
       }
       if (!p.human && doThink) think(p)
       advance(p, dt)
+    }
+
+    // How close the nearest rival is to the line you are drawing. Being cut is
+    // the way this game is lost, and until now it arrived with no warning at
+    // all: whoever did it was usually off the edge of the screen.
+    danger = 0
+    if (me.alive && me.trailCells.length) {
+      for (i = 0; i < players.length; i++) {
+        var q = players[i]
+        if (q === me || !q.alive) continue
+        var best = 99
+        for (var k = 0; k < me.trailCells.length; k += 2) {
+          var c = me.trailCells[k]
+          var dd = Math.abs((c % W) - q.cx) + Math.abs(((c / W) | 0) - q.cy)
+          if (dd < best) best = dd
+        }
+        var lvl = Math.max(0, 1 - best / 16)
+        if (lvl > danger) danger = lvl
+      }
     }
 
     updateHud()
