@@ -6,7 +6,10 @@ import { events, funnel } from '../lib/analytics'
 import { SERVICES } from '../data/services'
 
 // Pressing the trigger opens a dial: two hairline orbits with the twelve
-// destinations set on them like an astrolabe.
+// destinations set on them like an astrolabe. Each destination is a plate on
+// the ring carrying its own mark, with the name and a line of what it is
+// hanging off it along the radius — the same shape as the admin portal, so
+// the two screens read as one system.
 //
 // The structure is 1px strokes and the content is type — the only bright mark
 // belongs to whichever entry you are on. What makes it feel made rather than
@@ -18,21 +21,40 @@ import { SERVICES } from '../data/services'
 // alive while you read it, and closing plays the whole sequence backwards
 // rather than cutting to black.
 
+/** One line each, drawn on a 24-square with a single stroke weight. Type on a
+ *  hairline told you the names but not the shape of the thing — a mark on the
+ *  orbit is legible before the label is read, and it is what makes an entry
+ *  look like somewhere to go rather than a word. */
+const ICONS = {
+  video: 'M4 7.5h10.5v9H4zM14.5 11l5.5-3v8l-5.5-3z',
+  ai: 'M8 8h8v8H8zM10 4v4M14 4v4M10 16v4M14 16v4M4 10h4M4 14h4M16 10h4M16 14h4',
+  web: 'M3.5 5.5h17v13h-17zM3.5 9.5h17M6.5 7.5h.01M9 7.5h.01M9.5 13l-2 2 2 2M14.5 13l2 2-2 2',
+  creative: 'M4 20l1.2-4.2L15.6 5.4a2 2 0 012.8 2.8L8 18.6 4 20zM14 7l3 3',
+  cast: 'M9 11a3.2 3.2 0 100-6.4A3.2 3.2 0 009 11zM3 20a6 6 0 0112 0M16.5 11.5a2.6 2.6 0 100-5.2M17 14.5a5.5 5.5 0 014 5.5',
+  sns: 'M4 5.5h16v10H9l-5 4v-4H4z M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01',
+  pricing: 'M12 3v18M7.5 7.5L12 12l4.5-4.5M8 13h8M8 16.5h8',
+  results: 'M4 19V11M9.5 19V6M15 19v-6M20.5 19V8.5M3 21h18',
+  flow: 'M4 6.5h6v4H4zM14 13.5h6v4h-6zM10 8.5h5.5v5M12.5 11l3 2.5-3 2.5',
+  faq: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.4A2.6 2.6 0 0114.6 10c0 1.7-2.6 2.2-2.6 4M12 17.2h.01',
+  testimonials: 'M4.5 5.5h15v11h-8l-4.5 3.5V16.5h-2.5zM9 9.5c-1 0-1.6.8-1.6 1.6S8 12.7 9 12.7c1.6 0-.2 2 1.6 1.6M15 9.5c-1 0-1.6.8-1.6 1.6s.6 1.6 1.6 1.6c1.6 0-.2 2 1.6 1.6',
+  contact: 'M3.5 6h17v12h-17zM3.5 7l8.5 6 8.5-6',
+}
+
 const NODES = [
   // Inner orbit — 事業内容. These open that service's detail panel.
-  { a: 0, ring: 1, label: '動画制作', service: 'video' },
-  { a: 60, ring: 1, label: 'AI導入・研修', service: 'ai' },
-  { a: 120, ring: 1, label: 'Web制作\nシステム開発', service: 'web' },
-  { a: 180, ring: 1, label: 'クリエイティブ', service: 'creative' },
-  { a: 240, ring: 1, label: 'キャスト手配', service: 'cast' },
-  { a: 300, ring: 1, label: 'SNS・LINE', service: 'sns' },
+  { a: 0, ring: 1, label: '動画制作', service: 'video', icon: 'video', note: '撮影・編集・配信設計' },
+  { a: 60, ring: 1, label: 'AI導入・研修', service: 'ai', icon: 'ai', note: '社内研修と業務実装' },
+  { a: 120, ring: 1, label: 'Web制作\nシステム開発', service: 'web', icon: 'web', note: 'サイト・業務システム' },
+  { a: 180, ring: 1, label: 'クリエイティブ', service: 'creative', icon: 'creative', note: 'ロゴ・バナー・資料' },
+  { a: 240, ring: 1, label: 'キャスト手配', service: 'cast', icon: 'cast', note: 'MC・出演者の手配' },
+  { a: 300, ring: 1, label: 'SNS・LINE', service: 'sns', icon: 'sns', note: 'アカウント運用代行' },
   // Outer orbit — 検討するための情報. Offset 30° so the two orbits interleave.
-  { a: 30, ring: 2, label: '料金', hash: '#/info/pricing' },
-  { a: 90, ring: 2, label: '実績', hash: '#/info/results' },
-  { a: 150, ring: 2, label: 'ご依頼の流れ', hash: '#/info/flow' },
-  { a: 210, ring: 2, label: 'よくある質問', hash: '#/info/faq' },
-  { a: 270, ring: 2, label: 'お客様の声', hash: '#/info/testimonials' },
-  { a: 330, ring: 2, label: 'お問い合わせ', hash: '#/info/contact-form' },
+  { a: 30, ring: 2, label: '料金', hash: '#/info/pricing', icon: 'pricing', note: '各サービスの目安金額' },
+  { a: 90, ring: 2, label: '実績', hash: '#/info/results', icon: 'results', note: '12業界・制作事例' },
+  { a: 150, ring: 2, label: 'ご依頼の流れ', hash: '#/info/flow', icon: 'flow', note: '相談から納品まで' },
+  { a: 210, ring: 2, label: 'よくある質問', hash: '#/info/faq', icon: 'faq', note: '納期・修正・支払い' },
+  { a: 270, ring: 2, label: 'お客様の声', hash: '#/info/testimonials', icon: 'testimonials', note: 'ご依頼者の評価' },
+  { a: 330, ring: 2, label: 'お問い合わせ', hash: '#/info/contact-form', icon: 'contact', note: '48時間以内に返信' },
 ]
 
 // The dial's short labels are for fitting on an orbit; the list wants the
@@ -78,11 +100,18 @@ function measure() {
     ry: clamp(132, h * 0.32, 296),
     // The inner orbit scales per axis. Squeezing x as hard as y would run it
     // straight through the hub on a phone, so it is kept wide there instead.
-    k1x: narrow ? 0.74 : 0.52,
-    k1y: narrow ? 0.48 : 0.52,
+    // Pulled in from 0.52 once the entries grew a plate and a note: the inner
+    // ring's text lives in the gap between the two orbits, and at 0.52 it was
+    // landing on the outer ring's plates.
+    k1x: narrow ? 0.74 : 0.44,
+    k1y: narrow ? 0.48 : 0.44,
     // Where the spokes start — clear of the centre mark, which is 54px across
     // on a phone and 78px on anything wider.
     hubR: narrow ? 36 : 52,
+    // The icon plate that sits on the orbit. Small enough that six of them on
+    // the inner orbit of a phone still clear each other: adjacent inner
+    // entries are 60° apart, which is about 89px there.
+    plateR: narrow ? 21 : 30,
     cx: w / 2,
     cy: h / 2,
   }
@@ -268,7 +297,7 @@ export default function RadialMenu() {
     }, TRANSIT_MS)
   }
 
-  const { cx, cy, rx, ry, k1x, k1y, hubR } = geo
+  const { cx, cy, rx, ry, k1x, k1y, hubR, plateR } = geo
   const r1 = { x: rx * k1x, y: ry * k1y }
   const r2 = { x: rx, y: ry }
 
@@ -384,7 +413,10 @@ export default function RadialMenu() {
       p,
       ux,
       uy,
-      tick: { x: p.x + ux * TICK, y: p.y + uy * TICK },
+      // The label hangs off the plate, so the mark that ties them starts at
+      // the plate's edge rather than at the orbit line under it.
+      tick: { x: p.x + ux * (plateR + TICK), y: p.y + uy * (plateR + TICK) },
+      tickFrom: { x: p.x + ux * plateR, y: p.y + uy * plateR },
       arc: `M ${from.x} ${from.y} A ${r.x} ${r.y} 0 0 1 ${to.x} ${to.y}`,
       side: ux > 0.26 ? 'right' : ux < -0.26 ? 'left' : 'mid',
       no: String(i + 1).padStart(2, '0'),
@@ -565,7 +597,7 @@ export default function RadialMenu() {
                     )}
                     <line
                       className={`rdial-tick ${hot === n.i ? 'is-on' : ''}`}
-                      x1={n.p.x} y1={n.p.y}
+                      x1={n.tickFrom.x} y1={n.tickFrom.y}
                       x2={n.tick.x} y2={n.tick.y}
                       strokeDasharray={TICK}
                       strokeDashoffset={lit ? 0 : TICK}
@@ -585,10 +617,12 @@ export default function RadialMenu() {
                   href={n.service ? '#/info/services' : n.hash}
                   className={`ritem ritem--${n.side} ${hot === n.i ? 'is-on' : ''}`}
                   style={{
-                    left: n.tick.x,
-                    top: n.tick.y,
+                    left: n.p.x,
+                    top: n.p.y,
                     '--dx': n.ux,
                     '--dy': n.uy,
+                    '--plate': `${plateR * 2}px`,
+                    '--gap': `${plateR + 12}px`,
                     transitionDelay: `${closing ? n.x.mark : n.d.mark}ms`,
                   }}
                   onMouseEnter={() => setHot(n.i)}
@@ -602,6 +636,18 @@ export default function RadialMenu() {
                   }}
                 >
                   <span className="ritem-near" ref={(el) => { nearRef.current[n.i] = el }}>
+                  <span
+                    className="ritem-plate"
+                    aria-hidden="true"
+                    style={{ transitionDelay: `${closing ? n.x.mark : n.d.mark}ms` }}
+                  >
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+                      stroke="currentColor" strokeWidth="1.4"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d={ICONS[n.icon]} />
+                    </svg>
+                  </span>
+                  <span className="ritem-body">
                   <span className="ritem-no" aria-hidden="true" style={{ transitionDelay: `${closing ? n.x.num : n.d.num}ms` }}>
                     {n.no}
                   </span>
@@ -631,9 +677,17 @@ export default function RadialMenu() {
                       </span>
                     ))}
                   </span>
+                  <span
+                    className="ritem-note"
+                    aria-hidden="true"
+                    style={{ transitionDelay: `${closing ? n.x.text : n.d.text + 60}ms` }}
+                  >
+                    {n.note}
+                  </span>
                   <span className="ritem-rule" aria-hidden="true" />
                   </span>
-                  <span className="sr-only">{n.label.replace('\n', ' ')}</span>
+                  </span>
+                  <span className="sr-only">{n.label.replace('\n', ' ')}（{n.note}）</span>
                 </a>
               ))}
 

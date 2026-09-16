@@ -8788,31 +8788,94 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .rdial.is-closing .rdial-sat { opacity: 0; transition-delay: 0s; transition-duration: 0.25s; }
 
 /* ---- the entries ---- */
+/* An entry is now anchored on the orbit itself: the plate sits exactly on the
+   ring and the label hangs outside it along the same radius. Before this the
+   whole entry was text pushed off a 9px tick, which told you the names but
+   gave the eye nothing to land on. */
 .ritem {
-  --push: 18px;
+  --push: 14px;
   pointer-events: auto;
   position: absolute;
+  /* A real box, the size of the plate. Absolutely positioning both children
+     collapsed the anchor to 0x0 — it still painted, so it looked right, and
+     the entries had no hit area at all. */
   display: block;
-  max-width: 10em;
+  width: var(--plate);
+  height: var(--plate);
   text-decoration: none;
   color: inherit;
   opacity: 0;
   transition:
     opacity 0.6s var(--ease),
     transform 0.78s var(--r-out);
-  /* Pushed outward from its tick by half its own box, so the text radiates
-     away from the centre instead of straddling the ring. */
-  transform:
-    translate(-50%, -50%)
-    translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
-    translate(calc(var(--dx) * var(--push) * -1), calc(var(--dy) * var(--push) * -1));
+  transform: translate(-50%, -50%) scale(0.9);
 }
-.rdial.is-lit .ritem {
-  opacity: 1;
+.rdial.is-lit .ritem { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* The mark on the ring. */
+.ritem-plate {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(10,12,26,0.72);
+  color: rgba(255,255,255,0.72);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.55s var(--ease), transform 0.66s var(--r-out),
+    border-color 0.35s var(--ease), color 0.35s var(--ease),
+    background 0.35s var(--ease);
+}
+.rdial.is-lit .ritem-plate { opacity: 1; transform: scale(1); }
+.ritem.is-on .ritem-plate {
+  border-color: rgba(255,255,255,0.85);
+  color: #fff;
+  background: rgba(79,70,229,0.22);
+}
+
+/* The text, pushed clear of the plate along the radius. */
+.ritem-body {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9.5em;
   transform:
     translate(-50%, -50%)
     translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
-    translate(calc(var(--dx) * var(--push)), calc(var(--dy) * var(--push)));
+    translate(calc(var(--dx) * var(--gap)), calc(var(--dy) * var(--gap)))
+    translate(calc(var(--dx) * var(--push) * -1), calc(var(--dy) * var(--push) * -1));
+  transition: transform 0.78s var(--r-out);
+}
+.rdial.is-lit .ritem-body {
+  transform:
+    translate(-50%, -50%)
+    translate(calc(var(--dx) * 50%), calc(var(--dy) * 50%))
+    translate(calc(var(--dx) * var(--gap)), calc(var(--dy) * var(--gap)));
+}
+/* The orbits are hairlines and the labels sit across them. Rather than move
+   the text off the ring — there is nowhere else for it to go — the ring is
+   made to pass behind it. */
+.ritem-no, .ritem-lines, .ritem-note {
+  text-shadow: 0 0 7px rgba(5,6,16,0.95), 0 0 14px rgba(5,6,16,0.8);
+}
+.ritem-note {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(10px, 1.05vmin, 11.5px);
+  line-height: 1.5;
+  color: rgba(255,255,255,0.42);
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--r-out), color 0.35s var(--ease);
+}
+.rdial.is-lit .ritem-note { opacity: 1; transform: translateY(0); }
+.ritem.is-on .ritem-note { color: rgba(255,255,255,0.72); }
+/* Twelve notes is a lot of small type. Below this the names carry it alone. */
+@media (max-width: 900px), (max-height: 680px) {
+  .ritem-note { display: none; }
 }
 /* Carries only the proximity lean, so a value written sixty times a second
    never collides with the entrance transform on .ritem. Entries tip toward
@@ -8821,6 +8884,9 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .ritem-near {
   --near: 0;
   display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
   transform:
     translate(calc(var(--dx) * var(--near) * 7px), calc(var(--dy) * var(--near) * 7px))
     scale(calc(1 + var(--near) * 0.045));
