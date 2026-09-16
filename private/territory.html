@@ -46,6 +46,10 @@
   #hud {
     position:fixed; left:16px; bottom:16px; z-index:15;
     display:flex; flex-direction:column; gap:8px; pointer-events:none;
+    /* Without this the column stretches every panel to the width of its
+       widest sibling: three effects made the score panel 278px on a 390px
+       screen and it ran under the pad. */
+    align-items:flex-start;
   }
   .panel {
     background:rgba(10,13,28,0.72); border:1px solid rgba(245,247,251,0.12);
@@ -73,6 +77,10 @@
     border-radius:12px; border:1px solid rgba(245,247,251,0.14);
     background:rgba(10,13,28,0.72);
   }
+  #effects { display:flex; gap:8px; flex-wrap:wrap; font-size:11.5px; font-weight:700; }
+  body.touch #effects { max-width:170px; gap:4px 8px; font-size:11px; }
+  #effects span { display:flex; align-items:center; gap:4px; }
+  #effects b { font-variant-numeric:tabular-nums; }
   #toast {
     position:fixed; left:50%; top:58px; transform:translateX(-50%); z-index:16;
     font-size:13px; font-weight:700; padding:7px 14px; border-radius:999px;
@@ -118,6 +126,8 @@
     border-color:rgba(165,180,252,0.7); color:#fff;
   }
   .levels button[aria-pressed="true"] span { color:rgba(255,255,255,0.8); }
+
+  #lengths button { min-width:104px; padding:8px 14px; }
 
   #count3 {
     position:fixed; inset:0; z-index:25; display:none;
@@ -188,6 +198,7 @@
 </div>
 
 <div id="hud">
+  <div class="panel" id="effects" style="display:none"></div>
   <div class="panel" id="board-list"></div>
 </div>
 <canvas id="mini" width="150" height="150"></canvas>
@@ -197,12 +208,18 @@
   <div class="sub">MEMBERS EXCLUSIVE</div>
   <p>
     自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
-    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます（残機3）。相手の線を横切れば、その相手を脱落させられます。<br>
-    2分後、いちばん広い陣地を持っていた者が勝ち。
+    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、その相手を脱落させられます。<br>
+    時間切れの時点で、いちばん広い陣地を持っていた者が勝ち。<br>
+    盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
   </p>
   <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
     操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下の十字キー、またはスワイプ
   </p>
+  <div class="levels" id="lengths">
+    <button type="button" data-ln="2">2分<span>残機3</span></button>
+    <button type="button" data-ln="4">4分<span>残機5</span></button>
+    <button type="button" data-ln="6">6分<span>残機7</span></button>
+  </div>
   <div class="levels" id="levels">
     <button type="button" data-lv="easy">やさしい<span>相手はゆっくり・あまり狙ってこない</span></button>
     <button type="button" data-lv="normal">ふつう<span>互角</span></button>
@@ -245,7 +262,16 @@
 
   var DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
   var SPEED = 7.4          // cells per second, for the person
-  var ROUND_MS = 120000
+  // A longer round needs more lives, or you spend it watching: the round ends
+  // the moment the person is out, and three lives does not last six minutes.
+  var LENGTHS = {
+    '2': { label: '2分', ms: 120000, lives: 3 },
+    '4': { label: '4分', ms: 240000, lives: 5 },
+    '6': { label: '6分', ms: 360000, lives: 7 }
+  }
+  var length = '4'
+  try { if (LENGTHS[localStorage.getItem('lum_territory_len')]) length = localStorage.getItem('lum_territory_len') } catch (_) {}
+  var ROUND_MS = LENGTHS[length].ms
 
   // One setting was one game. The levers are how fast a rival moves relative
   // to you, how far it looks for a line to cut, and how often it bothers.
@@ -259,6 +285,16 @@
 
   // Three rivals that all played the same way read as one opponent with three
   // markers. Each now leans somewhere: what it does when it is safe at home.
+  // Something worth going out for. The whole game is the choice between
+  // staying safe and going further; until now the only reward for going was
+  // more ground, and the board is large.
+  var ITEMS = {
+    speed:  { tag: '加速',  ms: 9000,  color: '#67e8f9', mark: '»' },
+    shield: { tag: '無敵',  ms: 7000,  color: '#a5b4fc', mark: '◇' },
+    wide:   { tag: '拡張',  ms: 0,     color: '#fbbf24', mark: '✦' }
+  }
+  var ITEM_KEYS = ['speed', 'shield', 'wide']
+
   var STYLES = [
     { key: 'guard',  tag: '慎重', out: [3, 6],  hunt: 0.55, aggro: 0.5 },
     { key: 'hunter', tag: '狩り', out: [4, 8],  hunt: 1.45, aggro: 1.35 },
@@ -269,6 +305,8 @@
   var running = false, paused = false, over = false
   var startedAt = 0, lastFrame = 0, pausedMs = 0, pausedAt = 0
   var kills = 0
+  var items = []         // what is lying on the board
+  var nextItemAt = 0
   var flash = null       // cells just taken, lit briefly so a capture registers
   var shakeUntil = 0     // a hit you can feel
   var danger = 0         // 0..1, how close the nearest threat is to your line
@@ -282,7 +320,8 @@
       id: id, human: !!human, name: COLORS[id].name,
       cx: 0, cy: 0, dir: 0, next: 0, t: 0,
       alive: true, area: 0, trailCells: [], respawnAt: 0,
-      lives: human ? 3 : 0, plan: [], style: STYLES[0]
+      lives: human ? LENGTHS[length].lives : 0, plan: [], style: STYLES[0],
+      boostUntil: 0, shieldUntil: 0, wide: 0
     }
   }
 
@@ -316,6 +355,9 @@
     for (var i = 0; i < players.length; i++) base(players[i], spots[i][0], spots[i][1])
     recount()
     kills = 0; over = false; paused = false
+    ROUND_MS = LENGTHS[length].ms
+    items.length = 0
+    nextItemAt = 0
     startedAt = performance.now()
     lastFrame = startedAt
     pausedMs = 0; pausedAt = 0
@@ -383,6 +425,26 @@
         gained++
       }
     }
+    // 拡張 spends itself here: the capture also takes a rim outward, which is
+    // the one pickup whose value you can see in the shape you end up with.
+    if (p.wide > 0) {
+      var rim = []
+      for (j = 0; j < N; j++) {
+        if (owner[j] === p.id) continue
+        var jx = j % W, jy = (j / W) | 0
+        for (var d2 = 0; d2 < 4; d2++) {
+          var nx2 = jx + DIRS[d2][0], ny2 = jy + DIRS[d2][1]
+          if (!inBounds(nx2, ny2)) continue
+          if (owner[idx(nx2, ny2)] === p.id) { rim.push(j); break }
+        }
+      }
+      for (i = 0; i < rim.length; i++) {
+        owner[rim[i]] = p.id
+        gained++
+        if (took && took.length < 4000) took.push(rim[i])
+      }
+      p.wide--
+    }
     recount()
     if (took && took.length) flash = { cells: took, until: performance.now() + 420 }
     return gained
@@ -392,6 +454,7 @@
   function kill(p, by) {
     if (!p.alive) return
     p.alive = false
+    p.boostUntil = 0; p.shieldUntil = 0; p.wide = 0
     if (p.human || (by && by.human)) shakeUntil = performance.now() + 380
     for (var i = 0; i < p.trailCells.length; i++) trail[p.trailCells[i]] = 0
     p.trailCells.length = 0
@@ -477,13 +540,21 @@
 
   function enterCell(p) {
     var c = idx(p.cx, p.cy)
+    if (items.length) takeItem(p, c)
 
     // Someone's line, including this player's own.
     var t = trail[c]
     if (t) {
       if (t === p.id) { kill(p, null); return }
-      kill(players[t - 1], p)
-      if (!p.alive) return
+      var victim = players[t - 1]
+      // A shield does not make you safe — it makes your line safe, which is
+      // what you are actually exposed by.
+      if (performance.now() < victim.shieldUntil) {
+        if (victim.human) toast('無敵で守った')
+      } else {
+        kill(victim, p)
+        if (!p.alive) return
+      }
     }
 
     // A head-on. Whoever is away from home loses it; if both are, both do.
@@ -510,7 +581,9 @@
   }
 
   function advance(p, dt) {
-    p.t += (p.human ? SPEED : SPEED * LEVELS[level].bot) * dt
+    var sp = p.human ? SPEED : SPEED * LEVELS[level].bot
+    if (performance.now() < p.boostUntil) sp *= 1.38
+    p.t += sp * dt
     var guard = 0
     while (p.t >= 1 && p.alive && guard++ < 8) {
       p.t -= 1
@@ -583,6 +656,21 @@
     // across three rounds fell from seventeen to five, which is a quieter game
     // than it should be. Being cut is the tension — it is now telegraphed and
     // survivable, so there can be more of it.
+    // A pickup close by is worth more than another lap of the same ground.
+    if (items.length && Math.random() < 0.7) {
+      var want = null, wd = 15
+      for (var ii = 0; ii < items.length; ii++) {
+        var dd2 = Math.abs(items[ii].x - p.cx) + Math.abs(items[ii].y - p.cy)
+        if (dd2 < wd) { wd = dd2; want = items[ii] }
+      }
+      if (want) {
+        p.plan = []
+        if (want.x !== p.cx) p.plan.push([want.x > p.cx ? 0 : 2, Math.abs(want.x - p.cx)])
+        if (want.y !== p.cy) p.plan.push([want.y > p.cy ? 1 : 3, Math.abs(want.y - p.cy)])
+        if (p.plan.length) { p.next = p.plan[0][0]; return }
+      }
+    }
+
     var reach = Math.round(LEVELS[level].hunt * p.style.hunt)
     if (home || p.trailCells.length < 34) {
       var target = null, bestD = reach
@@ -622,6 +710,39 @@
     var d0 = p.dir
     p.plan = [[d0, out], [(d0 + side) % 4, run], [(d0 + 2) % 4, out + 2], [(d0 + side + 2) % 4, run]]
     p.next = p.plan[0][0]
+  }
+
+  /** Drop one on neutral ground, away from anybody's line. Four at a time is
+   *  enough to be worth crossing the board for without littering it. */
+  function spawnItem(now) {
+    if (items.length >= 4) return
+    for (var tries = 0; tries < 120; tries++) {
+      var x = 3 + ((Math.random() * (W - 6)) | 0)
+      var y = 3 + ((Math.random() * (H - 6)) | 0)
+      var c = idx(x, y)
+      if (owner[c] || trail[c]) continue
+      var near = false
+      for (var i = 0; i < items.length; i++) {
+        if (Math.abs(items[i].x - x) + Math.abs(items[i].y - y) < 10) { near = true; break }
+      }
+      if (near) continue
+      items.push({ x: x, y: y, c: c, kind: ITEM_KEYS[(Math.random() * ITEM_KEYS.length) | 0], born: now })
+      return
+    }
+  }
+
+  function takeItem(p, c) {
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].c !== c) continue
+      var it = items[i]
+      items.splice(i, 1)
+      var now = performance.now()
+      if (it.kind === 'speed') p.boostUntil = now + ITEMS.speed.ms
+      else if (it.kind === 'shield') p.shieldUntil = now + ITEMS.shield.ms
+      else p.wide = 2
+      if (p.human) { toast(ITEMS[it.kind].tag + 'を取った'); SFX.item() }
+      return
+    }
   }
 
   /** Which of the four ways gets back to this player's own ground soonest. */
@@ -779,6 +900,29 @@
       }
     }
 
+    // Pickups, bobbing so they read as objects rather than as terrain.
+    for (var ii2 = 0; ii2 < items.length; ii2++) {
+      var it2 = items[ii2]
+      if (it2.x < x0 || it2.x > x1 || it2.y < y0 || it2.y > y1) continue
+      var ix = ox + (it2.x + 0.5) * cell
+      var iy = oy + (it2.y + 0.5) * cell + Math.sin((now - it2.born) / 420) * cell * 0.12
+      var ir = cell * 0.42
+      var def = ITEMS[it2.kind]
+      ctx.save()
+      ctx.translate(ix, iy)
+      ctx.rotate(Math.PI / 4)
+      ctx.fillStyle = def.color
+      ctx.globalAlpha = 0.9
+      round(ctx, -ir * 0.7, -ir * 0.7, ir * 1.4, ir * 1.4, ir * 0.3)
+      ctx.fill()
+      ctx.restore()
+      ctx.globalAlpha = 1
+      ctx.fillStyle = '#0a0d1c'
+      ctx.font = '800 ' + Math.round(cell * 0.46) + 'px inherit'
+      ctx.textAlign = 'center'
+      ctx.fillText(def.mark, ix, iy + cell * 0.16)
+    }
+
     // Heads
     var lead = leader()
     for (pi = 0; pi < players.length; pi++) {
@@ -787,6 +931,15 @@
       var hp = headPos(p)
       var hx = ox + hp.x * cell, hy = oy + hp.y * cell
       if (hx < -cell * 4 || hy < -cell * 4 || hx > vw + cell * 4 || hy > vh + cell * 4) continue
+      if (now < p.shieldUntil) {
+        ctx.beginPath()
+        ctx.arc(hx + cell * 0.5, hy + cell * 0.5, cell * 0.95, 0, Math.PI * 2)
+        ctx.strokeStyle = ITEMS.shield.color
+        ctx.lineWidth = 3
+        ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(now / 150))
+        ctx.stroke()
+        ctx.globalAlpha = 1
+      }
       // Yours wears a white ring, so at this zoom you can always find it.
       if (p.human) {
         ctx.beginPath()
@@ -953,6 +1106,22 @@
       el.pc.textContent = pct.toFixed(1) + '%'
       el.fill.style.width = Math.min(100, pct * 2.2) + '%'
     }
+    // What you are holding, and for how long. An effect you cannot see the end
+    // of is an effect you cannot plan around.
+    var fx = []
+    var tnow = performance.now()
+    if (tnow < me.boostUntil) fx.push(['speed', ((me.boostUntil - tnow) / 1000).toFixed(1) + 's'])
+    if (tnow < me.shieldUntil) fx.push(['shield', ((me.shieldUntil - tnow) / 1000).toFixed(1) + 's'])
+    if (me.wide > 0) fx.push(['wide', '次の占領'])
+    var fxEl = document.getElementById('effects')
+    fxEl.style.display = fx.length ? 'flex' : 'none'
+    if (fx.length) {
+      fxEl.innerHTML = fx.map(function (f) {
+        return '<span style="color:' + ITEMS[f[0]].color + '">' + ITEMS[f[0]].mark + ' ' +
+          ITEMS[f[0]].tag + ' <b>' + f[1] + '</b></span>'
+      }).join('')
+    }
+
     var left = Math.max(0, ROUND_MS - elapsed())
     var s = Math.ceil(left / 1000)
     clockEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
@@ -992,7 +1161,8 @@
     kill: function () { beep(660, 0.09, 'square', 0.06); setTimeout(function () { beep(990, 0.13, 'square', 0.06) }, 85) },
     die: function () { beep(300, 0.42, 'sawtooth', 0.09, 70) },
     tick: function () { beep(880, 0.05, 'sine', 0.05) },
-    go: function () { beep(523, 0.1, 'triangle', 0.08); setTimeout(function () { beep(784, 0.2, 'triangle', 0.09) }, 110) }
+    go: function () { beep(523, 0.1, 'triangle', 0.08); setTimeout(function () { beep(784, 0.2, 'triangle', 0.09) }, 110) },
+    item: function () { beep(1046, 0.08, 'triangle', 0.07); setTimeout(function () { beep(1568, 0.12, 'triangle', 0.06) }, 70) }
   }
 
   var muteBtn = document.getElementById('muteBtn')
@@ -1048,6 +1218,21 @@
   }
 
   // ---- level ----
+  var lenBtns = document.querySelectorAll('#lengths button')
+  function paintLengths() {
+    for (var i = 0; i < lenBtns.length; i++) {
+      lenBtns[i].setAttribute('aria-pressed', lenBtns[i].dataset.ln === length ? 'true' : 'false')
+    }
+  }
+  for (var lj = 0; lj < lenBtns.length; lj++) {
+    lenBtns[lj].addEventListener('click', function () {
+      length = this.dataset.ln
+      try { localStorage.setItem('lum_territory_len', length) } catch (_) {}
+      paintLengths()
+    })
+  }
+  paintLengths()
+
   var levelBtns = document.querySelectorAll('#levels button')
   function paintLevels() {
     for (var i = 0; i < levelBtns.length; i++) {
@@ -1114,17 +1299,20 @@
     var order = players.slice().sort(function (a, b) { return b.area - a.area })
     var rank = order.indexOf(me) + 1
     var pct = (me.area / N) * 100
+    // A record set on やさしい over six minutes is not the same achievement as
+    // one set on つよい over two, so they are kept apart.
+    var bestKey = 'lum_territory_best_' + level + '_' + length
     var best = 0
-    try { best = Number(localStorage.getItem('lum_territory_best') || 0) } catch (_) {}
+    try { best = Number(localStorage.getItem(bestKey) || 0) } catch (_) {}
     var record = pct > best
-    if (record) { try { localStorage.setItem('lum_territory_best', pct.toFixed(1)) } catch (_) {} }
+    if (record) { try { localStorage.setItem(bestKey, pct.toFixed(1)) } catch (_) {} }
     document.getElementById('endTitle').textContent =
       me.alive && rank === 1 ? '勝ち' : (reason || '終了')
     document.getElementById('endSub').textContent =
       (me.lives > 0 ? rank + ' 位' : '脱落') + '　陣地 ' + pct.toFixed(1) + '%' +
       (kills ? '　撃破 ' + kills : '') +
       (record ? '　★ 自己ベスト更新' : (best ? '　自己ベスト ' + best.toFixed(1) + '%' : '')) +
-      '　[' + LEVELS[level].label + ']'
+      '　[' + LEVELS[level].label + '・' + LENGTHS[length].label + ']'
     var list = document.getElementById('endList')
     list.innerHTML = ''
     for (var i = 0; i < order.length; i++) {
@@ -1161,6 +1349,9 @@
     var dt = Math.min(0.05, (now - lastFrame) / 1000)
     lastFrame = now
     if (!running || paused) { if (players.length) draw(); return }
+
+    if (!nextItemAt) nextItemAt = now + 3000
+    if (now >= nextItemAt) { spawnItem(now); nextItemAt = now + 6000 + Math.random() * 4000 }
 
     thinkAcc += dt
     var doThink = thinkAcc >= 1 / SPEED
