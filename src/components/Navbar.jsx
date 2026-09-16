@@ -198,11 +198,13 @@ export default function Navbar() {
               <>
                 <a href="/members/arena">⭐ 会員限定ブレイカー</a>
                 <a href="/members/puzzle">🧩 会員限定2048</a>
+                <a href="/members/territory">🏳️ 会員限定 陣取り</a>
               </>
             ) : (
               <>
                 <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
                 <a href="/login.html?next=puzzle" className="nav-game-login">🧩 会員限定2048 🔒</a>
+                <a href="/login.html?next=territory" className="nav-game-login">🏳️ 会員限定 陣取り 🔒</a>
               </>
             )}
           </div>

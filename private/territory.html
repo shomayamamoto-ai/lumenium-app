@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>LUMEN TERRITORY | Lumenium 会員限定</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    background:#070a16; color:#f5f7fb; overflow:hidden;
+    font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+  }
+  #wrap { position:fixed; inset:0; }
+  #cv { display:block; width:100%; height:100%; touch-action:none; }
+
+  .top {
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; gap:10px; padding:12px 16px;
+    background:linear-gradient(180deg, rgba(7,10,22,0.82), rgba(7,10,22,0));
+    pointer-events:none;
+  }
+  .top > * { pointer-events:auto; }
+  .top a {
+    color:rgba(245,247,251,0.72); font-size:12px; text-decoration:none;
+    border:1px solid rgba(245,247,251,0.18); border-radius:999px; padding:6px 12px;
+  }
+  .top a:hover { color:#fff; border-color:rgba(245,247,251,0.5); }
+  .badge {
+    font-size:9.5px; font-weight:800; letter-spacing:0.18em;
+    background:linear-gradient(135deg,#4f46e5,#06b6d4); color:#fff;
+    padding:5px 11px; border-radius:999px;
+  }
+  .btns { margin-left:auto; display:flex; gap:8px; }
+  .btns button {
+    background:rgba(0,0,0,0.4); border:1px solid rgba(245,247,251,0.2);
+    color:rgba(245,247,251,0.78); border-radius:10px; padding:6px 12px;
+    font-size:12px; font-family:inherit; cursor:pointer;
+  }
+  .btns button:hover { color:#fff; border-color:rgba(245,247,251,0.5); }
+
+  /* HUD */
+  #hud {
+    position:fixed; left:16px; bottom:16px; z-index:15;
+    display:flex; flex-direction:column; gap:8px; pointer-events:none;
+  }
+  .panel {
+    background:rgba(10,13,28,0.72); border:1px solid rgba(245,247,251,0.12);
+    border-radius:12px; padding:10px 12px; backdrop-filter:blur(6px);
+  }
+  #board-list { display:flex; flex-direction:column; gap:6px; min-width:186px; }
+  .row { display:flex; align-items:center; gap:8px; font-size:12px; }
+  .row .swatch { width:11px; height:11px; border-radius:3px; flex:none; }
+  .row .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .pc { font-variant-numeric:tabular-nums; font-weight:800; }
+  .row.me .nm { color:#fff; }
+  .row.dead { opacity:0.4; }
+  .bar { height:3px; border-radius:2px; background:rgba(255,255,255,0.09); overflow:hidden; margin-top:3px; }
+  .bar i { display:block; height:100%; border-radius:2px; }
+
+  #clock {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:15;
+    font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;
+    letter-spacing:0.04em; text-shadow:0 2px 10px rgba(0,0,0,0.7); pointer-events:none;
+  }
+  #clock.warn { color:#fca5a5; }
+  #mini {
+    position:fixed; right:16px; bottom:16px; z-index:15;
+    display:block; width:150px; height:150px;
+    border-radius:12px; border:1px solid rgba(245,247,251,0.14);
+    background:rgba(10,13,28,0.72);
+  }
+  #toast {
+    position:fixed; left:50%; top:58px; transform:translateX(-50%); z-index:16;
+    font-size:13px; font-weight:700; padding:7px 14px; border-radius:999px;
+    background:rgba(10,13,28,0.85); border:1px solid rgba(245,247,251,0.16);
+    opacity:0; transition:opacity 0.25s ease; pointer-events:none; white-space:nowrap;
+  }
+  #toast.on { opacity:1; }
+
+  /* Overlays */
+  .overlay {
+    position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:14px; padding:24px;
+    background:radial-gradient(ellipse 70% 60% at 50% 45%, rgba(20,24,56,0.94), rgba(5,7,18,0.97));
+  }
+  .overlay[hidden] { display:none; }
+  .overlay h1 {
+    font-size:clamp(26px,5vw,42px); font-weight:800; letter-spacing:0.06em;
+    background:linear-gradient(135deg,#fff,#a5b4fc 55%,#67e8f9);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .overlay .sub { font-size:10.5px; letter-spacing:0.36em; color:#67e8f9; }
+  .overlay p { font-size:13.5px; line-height:2; color:rgba(245,247,251,0.72); max-width:560px; }
+  .overlay kbd {
+    display:inline-block; padding:1px 7px; margin:0 1px; border-radius:6px;
+    border:1px solid rgba(245,247,251,0.28); font-size:12px; font-family:inherit;
+  }
+  .overlay button {
+    background:linear-gradient(135deg,#4f46e5,#3b82f6,#06b6d4); color:#fff;
+    border:none; border-radius:12px; padding:14px 42px; margin-top:4px;
+    font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:0.04em;
+  }
+  .overlay button:hover { transform:translateY(-1px); }
+  .result { display:flex; flex-direction:column; gap:7px; min-width:290px; }
+  .result .row { font-size:13.5px; padding:7px 12px; border-radius:10px; background:rgba(255,255,255,0.05); }
+  .result .row.me { background:rgba(79,70,229,0.28); }
+  .result .rk { width:22px; font-weight:800; color:rgba(245,247,251,0.6); }
+
+  @media (max-width:760px) {
+    #hud { left:10px; bottom:10px; }
+    #board-list { min-width:150px; }
+    .row { font-size:11px; }
+    #mini { right:10px; bottom:10px; }
+    #clock { font-size:19px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+</div>
+
+<div class="top">
+  <a href="/">← lumenium.net</a>
+  <span class="badge">MEMBERS ONLY</span>
+  <span class="btns">
+    <button id="pauseBtn" type="button">❚❚</button>
+  </span>
+</div>
+
+<div id="clock">2:00</div>
+<div id="toast"></div>
+
+<div id="hud">
+  <div class="panel" id="board-list"></div>
+</div>
+<canvas id="mini" width="150" height="150"></canvas>
+
+<div class="overlay" id="startOv">
+  <h1>LUMEN TERRITORY</h1>
+  <div class="sub">MEMBERS EXCLUSIVE</div>
+  <p>
+    自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
+    線に触れられると1機失います（<b>残機3</b>）。相手の線を横切れば、その相手を脱落させられます。<br>
+    2分後、いちばん広い陣地を持っていた者が勝ち。
+  </p>
+  <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
+    操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホはスワイプ
+  </p>
+  <button id="startBtn" type="button">はじめる</button>
+</div>
+
+<div class="overlay" id="endOv" hidden>
+  <h1 id="endTitle">RESULT</h1>
+  <div class="sub" id="endSub"></div>
+  <div class="result" id="endList"></div>
+  <button id="againBtn" type="button">もう一度</button>
+</div>
+
+<script>
+(function () {
+  'use strict'
+
+  // ---------------------------------------------------------------- board
+  // A grid of cells. `owner` says who holds each cell; `trail` marks the line
+  // a player is currently drawing outside their own ground. Two flat typed
+  // arrays rather than objects: the fill runs over every cell and wants to be
+  // a tight loop.
+  // 72 rather than 92. At 92 a full round left two thirds of the board empty
+  // and the four of you rarely met, which is most of the game.
+  var W = 72, H = 72, N = W * H
+  var owner = new Uint8Array(N)
+  var trail = new Uint8Array(N)
+  var scratch = new Uint8Array(N)
+  var stack = new Int32Array(N)
+
+  var COLORS = [
+    null,
+    { base: '#22d3ee', deep: '#0e7490', name: 'あなた' },
+    { base: '#a78bfa', deep: '#5b21b6', name: 'ミナト' },
+    { base: '#fbbf24', deep: '#b45309', name: 'ソラ' },
+    { base: '#fb7185', deep: '#9f1239', name: 'ハル' }
+  ]
+
+  var DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+  var SPEED = 7.4          // cells per second
+  var ROUND_MS = 120000
+  var players = []
+  var me = null
+  var running = false, paused = false, over = false
+  var startedAt = 0, lastFrame = 0, pausedMs = 0, pausedAt = 0
+  var kills = 0
+
+  var idx = function (x, y) { return y * W + x }
+  var inBounds = function (x, y) { return x >= 0 && y >= 0 && x < W && y < H }
+
+  // ---------------------------------------------------------------- setup
+  function makePlayer(id, human) {
+    return {
+      id: id, human: !!human, name: COLORS[id].name,
+      cx: 0, cy: 0, dir: 0, next: 0, t: 0,
+      alive: true, area: 0, trailCells: [], respawnAt: 0,
+      lives: human ? 3 : 0, plan: [], aggro: 0
+    }
+  }
+
+  function base(p, cx, cy) {
+    p.cx = cx; p.cy = cy; p.t = 0
+    // Bots may start facing anywhere; the person always starts heading right,
+    // so their first key press is never a reversal into the direction they are
+    // already travelling — which is ignored, and looks like a dropped input.
+    p.dir = p.human ? 0 : (Math.random() * 4) | 0
+    p.next = p.dir
+    // 7x7 rather than 5x5: the way home is the hard part of this game, and a
+    // two-cell margin either side of the centre line makes the first minute a
+    // coin toss rather than a skill.
+    for (var y = cy - 3; y <= cy + 3; y++) {
+      for (var x = cx - 3; x <= cx + 3; x++) {
+        if (inBounds(x, y)) { owner[idx(x, y)] = p.id; trail[idx(x, y)] = 0 }
+      }
+    }
+  }
+
+  function reset() {
+    owner.fill(0); trail.fill(0)
+    players = [makePlayer(1, true), makePlayer(2), makePlayer(3), makePlayer(4)]
+    me = players[0]
+    // Four corners of an inner square, so nobody starts on top of anyone.
+    var spots = [[18, 18], [W - 19, 18], [18, H - 19], [W - 19, H - 19]]
+    shuffle(spots)
+    for (var i = 0; i < players.length; i++) base(players[i], spots[i][0], spots[i][1])
+    recount()
+    kills = 0; over = false; paused = false
+    startedAt = performance.now()
+    lastFrame = startedAt
+    pausedMs = 0; pausedAt = 0
+  }
+
+  function elapsed() {
+    return performance.now() - startedAt - pausedMs - (paused ? performance.now() - pausedAt : 0)
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = (Math.random() * (i + 1)) | 0
+      var t = a[i]; a[i] = a[j]; a[j] = t
+    }
+  }
+
+  function recount() {
+    for (var i = 0; i < players.length; i++) players[i].area = 0
+    for (var c = 0; c < N; c++) {
+      var o = owner[c]
+      if (o) players[o - 1].area++
+    }
+  }
+
+  // ---------------------------------------------------------------- claim
+  // Everything the player just walked becomes theirs, and then anything the
+  // loop encloses does too. The enclosure is found by flooding the board from
+  // its edges with the player's own ground as a wall: whatever the flood
+  // cannot reach is inside.
+  function claim(p) {
+    var i, c
+    for (i = 0; i < p.trailCells.length; i++) {
+      c = p.trailCells[i]
+      trail[c] = 0
+      owner[c] = p.id
+    }
+    p.trailCells.length = 0
+
+    scratch.fill(0)
+    var top = 0
+    var push = function (x, y) {
+      if (x < 0 || y < 0 || x >= W || y >= H) return
+      var j = y * W + x
+      if (scratch[j] || owner[j] === p.id) return
+      scratch[j] = 1
+      stack[top++] = j
+    }
+    for (var x = 0; x < W; x++) { push(x, 0); push(x, H - 1) }
+    for (var y = 0; y < H; y++) { push(0, y); push(W - 1, y) }
+    while (top > 0) {
+      var j = stack[--top]
+      var jx = j % W, jy = (j / W) | 0
+      push(jx + 1, jy); push(jx - 1, jy); push(jx, jy + 1); push(jx, jy - 1)
+    }
+
+    var gained = 0
+    for (j = 0; j < N; j++) {
+      if (!scratch[j] && owner[j] !== p.id) {
+        // The enemy's line is left where it is — taking the ground under it is
+        // enough. Wiping it would kill them from across the map for something
+        // they cannot see coming.
+        owner[j] = p.id
+        gained++
+      }
+    }
+    recount()
+    return gained
+  }
+
+  // ---------------------------------------------------------------- death
+  function kill(p, by) {
+    if (!p.alive) return
+    p.alive = false
+    for (var i = 0; i < p.trailCells.length; i++) trail[p.trailCells[i]] = 0
+    p.trailCells.length = 0
+    for (var c = 0; c < N; c++) if (owner[c] === p.id) owner[c] = 0
+    recount()
+    if (p.human) {
+      p.lives--
+      if (p.lives <= 0) { finish('やられました'); return }
+      toast('やられた　残り ' + p.lives)
+      p.respawnAt = performance.now() + 1500
+      return
+    }
+    p.respawnAt = performance.now() + 2600
+    if (by && by.human) {
+      kills++
+      toast(p.name + ' を脱落させた')
+    }
+  }
+
+  function respawn(p) {
+    // Somewhere with room, and not on anyone's doorstep.
+    for (var tries = 0; tries < 200; tries++) {
+      var x = 6 + ((Math.random() * (W - 12)) | 0)
+      var y = 6 + ((Math.random() * (H - 12)) | 0)
+      var clear = true
+      for (var dy = -3; dy <= 3 && clear; dy++) {
+        for (var dx = -3; dx <= 3; dx++) {
+          var j = idx(x + dx, y + dy)
+          if (!inBounds(x + dx, y + dy) || owner[j] || trail[j]) { clear = false; break }
+        }
+      }
+      if (clear) { p.alive = true; p.plan.length = 0; base(p, x, y); recount(); return }
+    }
+    p.respawnAt = performance.now() + 1500
+  }
+
+  // ---------------------------------------------------------------- step
+  function enterCell(p) {
+    var c = idx(p.cx, p.cy)
+
+    // Someone's line, including this player's own.
+    var t = trail[c]
+    if (t) {
+      if (t === p.id) { kill(p, null); return }
+      kill(players[t - 1], p)
+      if (!p.alive) return
+    }
+
+    // A head-on. Whoever is away from home loses it; if both are, both do.
+    for (var i = 0; i < players.length; i++) {
+      var q = players[i]
+      if (q === p || !q.alive) continue
+      if (q.cx === p.cx && q.cy === p.cy) {
+        var pOut = p.trailCells.length > 0, qOut = q.trailCells.length > 0
+        if (pOut) kill(p, qOut ? null : q)
+        if (qOut) kill(q, pOut ? null : p)
+        if (!p.alive) return
+      }
+    }
+
+    if (owner[c] === p.id) {
+      if (p.trailCells.length) {
+        var g = claim(p)
+        if (p.human && g > 0) toast('+' + g)
+      }
+    } else if (!trail[c]) {
+      trail[c] = p.id
+      p.trailCells.push(c)
+    }
+  }
+
+  function advance(p, dt) {
+    p.t += SPEED * dt
+    var guard = 0
+    while (p.t >= 1 && p.alive && guard++ < 8) {
+      p.t -= 1
+      // A turn is only taken at a cell boundary, so the line always runs along
+      // the grid and never cuts a corner.
+      if ((p.next + 2) % 4 !== p.dir) p.dir = p.next
+      var d = DIRS[p.dir]
+      var nx = p.cx + d[0], ny = p.cy + d[1]
+      if (!inBounds(nx, ny)) {
+        // The edge of the world is a wall, not a cliff: turn rather than die.
+        p.dir = (p.dir + (Math.random() < 0.5 ? 1 : 3)) % 4
+        p.next = p.dir
+        d = DIRS[p.dir]
+        nx = p.cx + d[0]; ny = p.cy + d[1]
+        if (!inBounds(nx, ny)) { p.t = 0; return }
+      }
+      p.cx = nx; p.cy = ny
+      enterCell(p)
+    }
+  }
+
+  // ---------------------------------------------------------------- bots
+  // A bot goes out from its own ground, turns, runs a while, and comes home —
+  // which is the same shape a person draws. It will also cut across a line it
+  // can see, because a game where nobody attacks is not a game.
+  function think(p) {
+    if (p.plan.length) {
+      p.plan[0][1]--
+      if (p.plan[0][1] <= 0) p.plan.shift()
+      else { p.next = p.plan[0][0]; return }
+    }
+    if (p.plan.length) { p.next = p.plan[0][0]; return }
+
+    var home = owner[idx(p.cx, p.cy)] === p.id
+
+    // Something to cut, if it is close and roughly in front.
+    if (home || p.trailCells.length < 26) {
+      var target = null, bestD = 13
+      for (var i = 0; i < players.length; i++) {
+        var q = players[i]
+        if (q === p || !q.alive || !q.trailCells.length) continue
+        for (var k = 0; k < q.trailCells.length; k += 3) {
+          var c = q.trailCells[k]
+          var d = Math.abs((c % W) - p.cx) + Math.abs(((c / W) | 0) - p.cy)
+          if (d < bestD) { bestD = d; target = c }
+        }
+      }
+      if (target !== null && Math.random() < 0.8) {
+        var tx = target % W, ty = (target / W) | 0
+        p.plan = []
+        if (tx !== p.cx) p.plan.push([tx > p.cx ? 0 : 2, Math.abs(tx - p.cx)])
+        if (ty !== p.cy) p.plan.push([ty > p.cy ? 1 : 3, Math.abs(ty - p.cy)])
+        p.next = p.plan.length ? p.plan[0][0] : p.next
+        return
+      }
+    }
+
+    if (!home && p.trailCells.length > 8) {
+      // Head back by whichever axis reaches own ground first.
+      var backDir = nearestHome(p)
+      if (backDir !== -1) {
+        p.plan = [[backDir, 40]]
+        p.next = backDir
+        return
+      }
+    }
+
+    var out = 5 + ((Math.random() * 9) | 0)
+    var side = Math.random() < 0.5 ? 1 : 3
+    var run = 4 + ((Math.random() * 8) | 0)
+    var d0 = p.dir
+    p.plan = [[d0, out], [(d0 + side) % 4, run], [(d0 + 2) % 4, out + 2], [(d0 + side + 2) % 4, run]]
+    p.next = p.plan[0][0]
+  }
+
+  /** Which of the four ways gets back to this player's own ground soonest. */
+  function nearestHome(p) {
+    var best = -1, bestD = 1e9
+    for (var d = 0; d < 4; d++) {
+      if ((d + 2) % 4 === p.dir) continue
+      var dx = DIRS[d][0], dy = DIRS[d][1]
+      for (var s = 1; s < 46; s++) {
+        var x = p.cx + dx * s, y = p.cy + dy * s
+        if (!inBounds(x, y)) break
+        var j = idx(x, y)
+        if (trail[j] === p.id) break
+        if (owner[j] === p.id) { if (s < bestD) { bestD = s; best = d } break }
+      }
+    }
+    return best
+  }
+
+  // ---------------------------------------------------------------- render
+  var cv = document.getElementById('cv')
+  var ctx = cv.getContext('2d')
+  var mini = document.getElementById('mini')
+  var mctx = mini.getContext('2d')
+  var dpr = 1, vw = 0, vh = 0
+
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1)
+    vw = window.innerWidth; vh = window.innerHeight
+    cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+  window.addEventListener('resize', resize)
+  resize()
+
+  function headPos(p) {
+    var d = DIRS[p.dir]
+    return { x: p.cx + d[0] * p.t, y: p.cy + d[1] * p.t }
+  }
+
+  function draw() {
+    // About thirty cells across the short side. At twenty-three you could not
+    // see the edge of your own ground, let alone anyone else's, which is the
+    // one thing the view has to show.
+    var cell = Math.max(11, Math.min(vw, vh) / 30)
+    var h = headPos(me.alive ? me : players[0])
+    var ox = vw / 2 - (h.x + 0.5) * cell
+    var oy = vh / 2 - (h.y + 0.5) * cell
+
+    ctx.fillStyle = '#070a16'
+    ctx.fillRect(0, 0, vw, vh)
+
+    var x0 = Math.max(0, Math.floor(-ox / cell) - 1)
+    var y0 = Math.max(0, Math.floor(-oy / cell) - 1)
+    var x1 = Math.min(W - 1, Math.ceil((vw - ox) / cell) + 1)
+    var y1 = Math.min(H - 1, Math.ceil((vh - oy) / cell) + 1)
+
+    // Ground, a row-run at a time. Filling cell by cell left hairline seams
+    // between them wherever the edges landed between device pixels.
+    for (var y = y0; y <= y1; y++) {
+      var x = x0
+      while (x <= x1) {
+        var o = owner[idx(x, y)]
+        if (!o) { x++; continue }
+        var e = x
+        while (e + 1 <= x1 && owner[idx(e + 1, y)] === o) e++
+        // Snapped to whole pixels at both edges. Adding a half pixel of
+        // overlap instead left a brighter seam wherever two rows met.
+        var px = Math.round(ox + x * cell), py = Math.round(oy + y * cell)
+        ctx.fillStyle = COLORS[o].deep
+        ctx.fillRect(px, py, Math.round(ox + (e + 1) * cell) - px, Math.round(oy + (y + 1) * cell) - py)
+        x = e + 1
+      }
+    }
+    // A sparse mark over held ground, so a large holding reads as a surface
+    // rather than a flat colour.
+    ctx.globalAlpha = 0.14
+    ctx.fillStyle = '#ffffff'
+    for (y = y0; y <= y1; y++) {
+      for (x = x0; x <= x1; x++) {
+        if (!owner[idx(x, y)]) continue
+        if ((x * 5 + y * 3) % 11) continue
+        var mx = ox + (x + 0.5) * cell, my = oy + (y + 0.5) * cell, mr = cell * 0.2
+        ctx.beginPath()
+        ctx.moveTo(mx, my - mr); ctx.lineTo(mx + mr, my)
+        ctx.lineTo(mx, my + mr); ctx.lineTo(mx - mr, my)
+        ctx.closePath(); ctx.fill()
+      }
+    }
+    ctx.globalAlpha = 1
+    // The edge of a holding, so the shape reads rather than a wash of colour
+    for (y = y0; y <= y1; y++) {
+      for (x = x0; x <= x1; x++) {
+        var oo = owner[idx(x, y)]
+        if (!oo) continue
+        var px = ox + x * cell, py = oy + y * cell
+        ctx.strokeStyle = COLORS[oo].base
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        if (y === 0 || owner[idx(x, y - 1)] !== oo) { ctx.moveTo(px, py + 1); ctx.lineTo(px + cell, py + 1) }
+        if (y === H - 1 || owner[idx(x, y + 1)] !== oo) { ctx.moveTo(px, py + cell - 1); ctx.lineTo(px + cell, py + cell - 1) }
+        if (x === 0 || owner[idx(x - 1, y)] !== oo) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + cell) }
+        if (x === W - 1 || owner[idx(x + 1, y)] !== oo) { ctx.moveTo(px + cell - 1, py); ctx.lineTo(px + cell - 1, py + cell) }
+        ctx.stroke()
+      }
+    }
+    // Lines
+    ctx.globalAlpha = 0.72
+    for (var pi = 0; pi < players.length; pi++) {
+      var p = players[pi]
+      if (!p.alive) continue
+      ctx.fillStyle = COLORS[p.id].base
+      for (var i = 0; i < p.trailCells.length; i++) {
+        var c = p.trailCells[i]
+        var tx = c % W, ty = (c / W) | 0
+        if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue
+        ctx.fillRect(ox + tx * cell + cell * 0.18, oy + ty * cell + cell * 0.18, cell * 0.64, cell * 0.64)
+      }
+    }
+    ctx.globalAlpha = 1
+
+    // Outside the world
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    if (ox > 0) ctx.fillRect(0, 0, ox, vh)
+    if (oy > 0) ctx.fillRect(0, 0, vw, oy)
+    var rx = ox + W * cell, ry = oy + H * cell
+    if (rx < vw) ctx.fillRect(rx, 0, vw - rx, vh)
+    if (ry < vh) ctx.fillRect(0, ry, vw, vh - ry)
+    // Without this the space beyond the board is just darker, which looks like
+    // something failed to draw rather than like the end of the world.
+    ctx.strokeStyle = 'rgba(165,180,252,0.5)'
+    ctx.lineWidth = 2
+    ctx.strokeRect(ox, oy, W * cell, H * cell)
+
+    // Heads
+    var lead = leader()
+    for (pi = 0; pi < players.length; pi++) {
+      p = players[pi]
+      if (!p.alive) continue
+      var hp = headPos(p)
+      var hx = ox + hp.x * cell, hy = oy + hp.y * cell
+      if (hx < -cell * 4 || hy < -cell * 4 || hx > vw + cell * 4 || hy > vh + cell * 4) continue
+      // Yours wears a white ring, so at this zoom you can always find it.
+      if (p.human) {
+        ctx.beginPath()
+        ctx.arc(hx + cell * 0.5, hy + cell * 0.5, cell * 0.78, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+      ctx.fillStyle = COLORS[p.id].base
+      ctx.strokeStyle = p.human ? '#fff' : 'rgba(0,0,0,0.6)'
+      ctx.lineWidth = p.human ? 2.5 : 2
+      round(ctx, hx + cell * 0.08, hy + cell * 0.08, cell * 0.84, cell * 0.84, cell * 0.26)
+      ctx.fill(); ctx.stroke()
+      ctx.font = '700 ' + Math.round(Math.max(12.5, cell * 0.5)) + 'px inherit'
+      ctx.textAlign = 'center'
+      ctx.lineWidth = 3
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)'
+      ctx.fillStyle = '#fff'
+      var label = (lead === p ? '♛ ' : '') + p.name
+      ctx.strokeText(label, hx + cell * 0.5, hy - cell * 0.3)
+      ctx.fillText(label, hx + cell * 0.5, hy - cell * 0.3)
+    }
+
+    drawMini(cell)
+  }
+
+  function round(c, x, y, w, h, r) {
+    c.beginPath()
+    c.moveTo(x + r, y)
+    c.arcTo(x + w, y, x + w, y + h, r)
+    c.arcTo(x + w, y + h, x, y + h, r)
+    c.arcTo(x, y + h, x, y, r)
+    c.arcTo(x, y, x + w, y, r)
+    c.closePath()
+  }
+
+  var miniImg = null, miniBuf = null, mbctx = null
+  function drawMini() {
+    if (!miniBuf) {
+      miniBuf = document.createElement('canvas')
+      miniBuf.width = W; miniBuf.height = H
+      mbctx = miniBuf.getContext('2d')
+      miniImg = mbctx.createImageData(W, H)
+    }
+    var d = miniImg.data
+    for (var c = 0; c < N; c++) {
+      var o = owner[c], k = c * 4
+      if (o) {
+        var col = hex(COLORS[o].base)
+        d[k] = col[0]; d[k + 1] = col[1]; d[k + 2] = col[2]; d[k + 3] = 235
+      } else {
+        d[k] = 18; d[k + 1] = 22; d[k + 2] = 42; d[k + 3] = 255
+      }
+    }
+    mbctx.putImageData(miniImg, 0, 0)
+    mctx.imageSmoothingEnabled = false
+    mctx.clearRect(0, 0, mini.width, mini.height)
+    mctx.drawImage(miniBuf, 0, 0, mini.width, mini.height)
+    if (me.alive) {
+      mctx.fillStyle = '#fff'
+      mctx.fillRect((me.cx / W) * mini.width - 2, (me.cy / H) * mini.height - 2, 4, 4)
+    }
+  }
+
+  var hexCache = {}
+  function hex(s) {
+    if (!hexCache[s]) {
+      hexCache[s] = [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]
+    }
+    return hexCache[s]
+  }
+
+  function leader() {
+    var best = null
+    for (var i = 0; i < players.length; i++) {
+      if (!players[i].alive) continue
+      if (!best || players[i].area > best.area) best = players[i]
+    }
+    return best
+  }
+
+  // ---------------------------------------------------------------- hud
+  var listEl = document.getElementById('board-list')
+  var clockEl = document.getElementById('clock')
+  var toastEl = document.getElementById('toast')
+  var toastTimer = 0
+
+  function toast(msg) {
+    toastEl.textContent = msg
+    toastEl.classList.add('on')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(function () { toastEl.classList.remove('on') }, 1100)
+  }
+
+  var rowEls = []
+  function buildHud() {
+    listEl.innerHTML = ''
+    rowEls = []
+    for (var i = 0; i < players.length; i++) {
+      var p = players[i]
+      var row = document.createElement('div')
+      row.className = 'row' + (p.human ? ' me' : '')
+      row.innerHTML =
+        '<span class="swatch" style="background:' + COLORS[p.id].base + '"></span>' +
+        '<span class="nm"></span><span class="pc"></span>'
+      var wrapBar = document.createElement('div')
+      var holder = document.createElement('div')
+      holder.appendChild(row)
+      var bar = document.createElement('div')
+      bar.className = 'bar'
+      bar.innerHTML = '<i style="background:' + COLORS[p.id].base + '"></i>'
+      holder.appendChild(bar)
+      listEl.appendChild(holder)
+      rowEls.push({ row: row, nm: row.querySelector('.nm'), pc: row.querySelector('.pc'), fill: bar.querySelector('i') })
+      void wrapBar
+    }
+  }
+
+  function updateHud() {
+    var order = players.slice().sort(function (a, b) { return b.area - a.area })
+    for (var i = 0; i < order.length; i++) {
+      var p = order[i]
+      var el = rowEls[i]
+      el.row.className = 'row' + (p.human ? ' me' : '') + (p.alive ? '' : ' dead')
+      el.row.querySelector('.swatch').style.background = COLORS[p.id].base
+      // The rows are re-sorted every frame, so the bar has to be recoloured
+      // too — it was keeping the colour of whoever held the slot at build time.
+      el.fill.style.background = COLORS[p.id].base
+      el.nm.textContent = (i + 1) + '. ' + p.name +
+        (p.human ? '　♥' + Math.max(0, p.lives) : '') +
+        (p.alive ? '' : '（復帰中）')
+      var pct = (p.area / N) * 100
+      el.pc.textContent = pct.toFixed(1) + '%'
+      el.fill.style.width = Math.min(100, pct * 2.2) + '%'
+    }
+    var left = Math.max(0, ROUND_MS - elapsed())
+    var s = Math.ceil(left / 1000)
+    clockEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+    clockEl.classList.toggle('warn', s <= 15)
+  }
+
+  // ---------------------------------------------------------------- input
+  var KEYS = {
+    ArrowRight: 0, ArrowDown: 1, ArrowLeft: 2, ArrowUp: 3,
+    d: 0, s: 1, a: 2, w: 3, D: 0, S: 1, A: 2, W: 3
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'p') { togglePause(); return }
+    var d = KEYS[e.key]
+    if (d === undefined || !running || !me.alive) return
+    e.preventDefault()
+    if ((d + 2) % 4 !== me.dir) me.next = d
+  }, { passive: false })
+
+  var touch = null
+  cv.addEventListener('pointerdown', function (e) { touch = { x: e.clientX, y: e.clientY } })
+  cv.addEventListener('pointermove', function (e) {
+    if (!touch || !running || !me.alive) return
+    var dx = e.clientX - touch.x, dy = e.clientY - touch.y
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return
+    var d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
+    if ((d + 2) % 4 !== me.dir) me.next = d
+    touch = { x: e.clientX, y: e.clientY }
+  })
+  cv.addEventListener('pointerup', function () { touch = null })
+  cv.addEventListener('pointercancel', function () { touch = null })
+
+  // ---------------------------------------------------------------- flow
+  var startOv = document.getElementById('startOv')
+  var endOv = document.getElementById('endOv')
+
+  function begin() {
+    reset()
+    buildHud()
+    startOv.hidden = true
+    endOv.hidden = true
+    running = true
+  }
+
+  function togglePause() {
+    if (!running || over) return
+    paused = !paused
+    document.getElementById('pauseBtn').textContent = paused ? '▶' : '❚❚'
+    // The round is measured against the wall clock, so time spent paused has
+    // to be given back — otherwise pausing only froze the display while the
+    // two minutes kept running underneath it.
+    if (paused) pausedAt = performance.now()
+    else { pausedMs += performance.now() - pausedAt; lastFrame = performance.now() }
+  }
+
+  function finish(reason) {
+    if (over) return
+    over = true
+    running = false
+    var order = players.slice().sort(function (a, b) { return b.area - a.area })
+    var rank = order.indexOf(me) + 1
+    document.getElementById('endTitle').textContent =
+      me.alive && rank === 1 ? '勝ち' : (reason || '終了')
+    document.getElementById('endSub').textContent =
+      (me.lives > 0 ? rank + ' 位' : '脱落') + '　陣地 ' + ((me.area / N) * 100).toFixed(1) + '%' +
+      (kills ? '　撃破 ' + kills : '')
+    var list = document.getElementById('endList')
+    list.innerHTML = ''
+    for (var i = 0; i < order.length; i++) {
+      var p = order[i]
+      var row = document.createElement('div')
+      row.className = 'row' + (p.human ? ' me' : '')
+      row.innerHTML =
+        '<span class="rk">' + (i + 1) + '</span>' +
+        '<span class="swatch" style="background:' + COLORS[p.id].base + '"></span>' +
+        '<span class="nm">' + p.name + (p.alive ? '' : '（脱落）') + '</span>' +
+        '<span class="pc">' + ((p.area / N) * 100).toFixed(1) + '%</span>'
+      row.style.display = 'flex'
+      row.style.alignItems = 'center'
+      row.style.gap = '9px'
+      list.appendChild(row)
+    }
+    endOv.hidden = false
+  }
+
+  document.getElementById('startBtn').addEventListener('click', begin)
+  document.getElementById('againBtn').addEventListener('click', begin)
+  document.getElementById('pauseBtn').addEventListener('click', togglePause)
+
+  // ---------------------------------------------------------------- loop
+  var thinkAcc = 0
+  function frame(now) {
+    requestAnimationFrame(frame)
+    var dt = Math.min(0.05, (now - lastFrame) / 1000)
+    lastFrame = now
+    if (!running || paused) { if (players.length) draw(); return }
+
+    thinkAcc += dt
+    var doThink = thinkAcc >= 1 / SPEED
+    if (doThink) thinkAcc = 0
+
+    for (var i = 0; i < players.length; i++) {
+      var p = players[i]
+      if (!p.alive) {
+        if (p.respawnAt && now >= p.respawnAt) { p.respawnAt = 0; respawn(p) }
+        continue
+      }
+      if (!p.human && doThink) think(p)
+      advance(p, dt)
+    }
+
+    updateHud()
+    draw()
+
+    if (elapsed() >= ROUND_MS) finish('時間切れ')
+  }
+
+  reset()
+  buildHud()
+  updateHud()
+  draw()
+  requestAnimationFrame(frame)
+})()
+</script>
+</body>
+</html>

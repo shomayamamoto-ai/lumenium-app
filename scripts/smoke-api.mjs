@@ -98,8 +98,10 @@ const CALLS = [
   // build's transform to import at all.)
   ['members-game', 'GET', '', {}],
   ['members-puzzle', 'GET', '', {}],
+  ['members-territory', 'GET', '', {}],
   ['members-game', 'GET', '', MEMBER],
   ['members-puzzle', 'GET', '', MEMBER],
+  ['members-territory', 'GET', '', MEMBER],
   // These two write through GitHub, which is stubbed above — nothing leaves
   // the process. They are called with a body that passes validation, because a
   // 400 would stop short of the part that was broken elsewhere.

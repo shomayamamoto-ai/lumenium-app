@@ -12,6 +12,10 @@
       "destination": "/api/members-puzzle"
     },
     {
+      "source": "/members/territory",
+      "destination": "/api/members-territory"
+    },
+    {
       "source": "/game.html",
       "destination": "/game.html"
     },
