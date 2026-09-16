@@ -8504,6 +8504,17 @@ body[data-dial-open] .search-home::after { opacity: 0; }
    z-index 9997 — it floats over the overlay and washes out whichever label
    you are reading. The ring and dot stay; only the aura stands down. */
 body[data-dial-open] .lumen-glow { opacity: 0; }
+/* Over an entry, the cursor's ring steps back so the mark under it is legible.
+   The core stays: it is the thing that says where the pointer actually is. */
+body[data-dial-hot] .lumen-ring { opacity: 0.2; transition: opacity 0.12s ease; }
+/* Not transform: the cursor's position is written inline every frame, so any
+   transform declared here is overwritten before it is ever painted. Size and
+   glow are untouched by that code and do the same job. */
+body[data-dial-hot] .lumen-dot {
+  width: 9px; height: 9px; margin: 0;
+  box-shadow: 0 0 9px rgba(199,210,254,0.9);
+  animation: none;
+}
 
 /* Pointer parallax lives here; the transform is written by JS and eased here,
    so moving the mouse costs no render. */
@@ -8819,9 +8830,9 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.22);
-  background: rgba(10,12,26,0.72);
-  color: rgba(255,255,255,0.72);
+  border: 1px solid rgba(255,255,255,0.32);
+  background: rgba(10,12,26,0.78);
+  color: rgba(255,255,255,0.94);
   opacity: 0;
   transform: scale(0.6);
   transition:
@@ -8831,9 +8842,11 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 }
 .rdial.is-lit .ritem-plate { opacity: 1; transform: scale(1); }
 .ritem.is-on .ritem-plate {
-  border-color: rgba(255,255,255,0.85);
+  border-color: #fff;
   color: #fff;
-  background: rgba(79,70,229,0.22);
+  background: rgba(79,70,229,0.34);
+  transform: scale(1.14);
+  box-shadow: 0 0 0 4px rgba(79,70,229,0.16), 0 0 22px rgba(99,102,241,0.45);
 }
 
 /* The text, pushed clear of the plate along the radius. */
@@ -8864,9 +8877,9 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .ritem-note {
   display: block;
   margin-top: 4px;
-  font-size: clamp(11.5px, 1.3vmin, 13.5px);
-  line-height: 1.55;
-  color: rgba(255,255,255,0.74);
+  font-size: clamp(13px, 1.55vmin, 15.5px);
+  line-height: 1.6;
+  color: rgba(255,255,255,0.86);
   opacity: 0;
   transform: translateY(3px);
   transition: opacity 0.6s var(--ease), transform 0.6s var(--r-out), color 0.35s var(--ease);
@@ -8908,10 +8921,10 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 .ritem-no {
   display: block;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.24em;
-  color: rgba(255,255,255,0.72);
+  color: rgba(255,255,255,0.78);
   font-variant-numeric: tabular-nums;
   opacity: 0;
   transform: translateY(4px);
@@ -8924,7 +8937,7 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
    per-character wrapper is needed. */
 .ritem-lines {
   display: block;
-  font-size: clamp(15px, 1.95vmin, 21px);
+  font-size: clamp(16px, 2.15vmin, 23px);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.45;
@@ -8974,7 +8987,23 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .rdial.is-settled .ritem,
 .rdial.is-settled .ritem-ch,
 .rdial.is-settled .ritem-no,
+.rdial.is-settled .ritem-note,
+.rdial.is-settled .ritem-plate,
 .rdial.is-settled .rdial-tick { transition-delay: 0ms !important; }
+
+/* …and the durations with them. Clearing only the delays still left the
+   entrance timings in place, so putting the cursor on a mark took 350ms to
+   light it and 600ms for the rest of the dial to step back. Those numbers are
+   choreography for the way in; under a cursor they are lag. */
+.rdial.is-settled .ritem { transition: opacity 0.13s var(--ease), transform 0.78s var(--r-out); }
+.rdial.is-settled .ritem-plate {
+  transition: opacity 0.13s var(--ease), transform 0.17s var(--r-out),
+    border-color 0.1s var(--ease), color 0.1s var(--ease), background 0.1s var(--ease);
+}
+.rdial.is-settled .ritem-lines { transition: letter-spacing 0.15s var(--r-out); }
+.rdial.is-settled .ritem-rule { transition: transform 0.17s var(--r-out); }
+.rdial.is-settled .ritem-no,
+.rdial.is-settled .ritem-note { transition: color 0.1s var(--ease); }
 
 /* ---- taking an entry ----
    Dismissing the dial and choosing from it are different acts, so they do not

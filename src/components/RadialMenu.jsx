@@ -27,16 +27,16 @@ import { SERVICES } from '../data/services'
  *  look like somewhere to go rather than a word. */
 const ICONS = {
   video: 'M4 7.5h10.5v9H4zM14.5 11l5.5-3v8l-5.5-3z',
-  ai: 'M8 8h8v8H8zM10 4v4M14 4v4M10 16v4M14 16v4M4 10h4M4 14h4M16 10h4M16 14h4',
+  ai: 'M6.8 6.8h10.4v10.4H6.8zM10.2 10.2h3.6v3.6h-3.6zM10 6.8V3.2M14 6.8V3.2M10 17.2v3.6M14 17.2v3.6M6.8 10H3.2M6.8 14H3.2M17.2 10h3.6M17.2 14h3.6',
   web: 'M3.5 5.5h17v13h-17zM3.5 9.5h17M6.5 7.5h.01M9 7.5h.01M9.5 13l-2 2 2 2M14.5 13l2 2-2 2',
   creative: 'M4 20l1.2-4.2L15.6 5.4a2 2 0 012.8 2.8L8 18.6 4 20zM14 7l3 3',
   cast: 'M9 11a3.2 3.2 0 100-6.4A3.2 3.2 0 009 11zM3 20a6 6 0 0112 0M16.5 11.5a2.6 2.6 0 100-5.2M17 14.5a5.5 5.5 0 014 5.5',
   sns: 'M4 5.5h16v10H9l-5 4v-4H4z M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01',
   pricing: 'M12 3v18M7.5 7.5L12 12l4.5-4.5M8 13h8M8 16.5h8',
   results: 'M4 19V11M9.5 19V6M15 19v-6M20.5 19V8.5M3 21h18',
-  flow: 'M4 6.5h6v4H4zM14 13.5h6v4h-6zM10 8.5h5.5v5M12.5 11l3 2.5-3 2.5',
+  flow: 'M3.2 19.6h5.2v-4.8h5.2V10h5.2V5.2h2.4M8.4 19.6v-4.8M13.6 14.8V10M18.8 10V5.2',
   faq: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.4A2.6 2.6 0 0114.6 10c0 1.7-2.6 2.2-2.6 4M12 17.2h.01',
-  testimonials: 'M4.5 5.5h15v11h-8l-4.5 3.5V16.5h-2.5zM9 9.5c-1 0-1.6.8-1.6 1.6S8 12.7 9 12.7c1.6 0-.2 2 1.6 1.6M15 9.5c-1 0-1.6.8-1.6 1.6s.6 1.6 1.6 1.6c1.6 0-.2 2 1.6 1.6',
+  testimonials: 'M12 3.4l2.7 5.5 6 .87-4.35 4.24 1.03 6L12 17.24 6.62 20.05l1.03-6L3.3 9.77l6-.87z',
   contact: 'M3.5 6h17v12h-17zM3.5 7l8.5 6 8.5-6',
 }
 
@@ -244,6 +244,15 @@ export default function RadialMenu() {
     document.body.dataset.dialOpen = '1'
     return () => { delete document.body.dataset.dialOpen }
   }, [open, closing])
+
+  // The cursor is a 44px ring, and an entry's mark is a 60px plate: holding one
+  // buried the very thing you were looking at. Published on the body so the
+  // cursor, which lives outside this tree, can stand down while you read it.
+  useEffect(() => {
+    if (open && !closing && hot !== null) document.body.dataset.dialHot = '1'
+    else delete document.body.dataset.dialHot
+    return () => { delete document.body.dataset.dialHot }
+  }, [open, closing, hot])
 
   const navigate = (node) => {
     if (node.service) {
@@ -641,8 +650,8 @@ export default function RadialMenu() {
                     aria-hidden="true"
                     style={{ transitionDelay: `${closing ? n.x.mark : n.d.mark}ms` }}
                   >
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
-                      stroke="currentColor" strokeWidth="1.4"
+                    <svg viewBox="0 0 24 24" width="27" height="27" fill="none"
+                      stroke="currentColor" strokeWidth="1.7"
                       strokeLinecap="round" strokeLinejoin="round">
                       <path d={ICONS[n.icon]} />
                     </svg>
