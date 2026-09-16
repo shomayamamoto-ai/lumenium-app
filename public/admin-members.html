@@ -55,6 +55,111 @@
   .shell-tab[aria-current="true"] { background: var(--grad); color: #fff; }
   .shell-tab:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
 
+  /* ---- Portal ----
+     A hub with the sections in orbit around it. The point is not the shape:
+     it is that one screen answers "what is in here" and "what state is each
+     part in" before you have clicked anything. The ring is drawn from the node
+     count, so adding a section needs no layout work. */
+  #portal { display: none; }
+  #portal.on { display: block; }
+  .portal-head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  #portal-search {
+    flex: 1; min-width: 200px; max-width: 420px;
+    padding: 11px 14px;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 999px; font-size: 13.5px;
+  }
+  #portal-note { font-size: 12px; color: var(--sub); }
+  .portal-stage {
+    position: relative;
+    width: 100%; max-width: 700px; margin: 0 auto;
+    aspect-ratio: 1 / 1;
+  }
+  .portal-rings { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .portal-rings circle, .portal-rings line { stroke: var(--border); fill: none; }
+  .portal-rings circle { opacity: 0.5; }
+  .portal-rings line { opacity: 0.32; }
+
+  .portal-hub, .pnode {
+    position: absolute; left: 50%; top: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; padding: 8px;
+    border-radius: 50%; border: 1px solid var(--border);
+    background: var(--card); color: var(--text);
+    font-family: inherit; text-align: center; cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: transform 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+  }
+  .portal-hub {
+    width: 170px; height: 170px;
+    background: radial-gradient(circle at 50% 35%, #2b3360 0%, #1e2442 70%);
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 10px rgba(79,70,229,0.07), 0 0 40px rgba(79,70,229,0.18);
+  }
+  .hub-mark {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center; margin-bottom: 4px;
+    background: var(--grad); color: #fff; font-size: 19px; font-weight: 800;
+  }
+  .hub-name { font-size: 13px; font-weight: 800; letter-spacing: 0.01em; }
+  .hub-sub { font-size: 10.5px; color: var(--sub); line-height: 1.5; max-width: 118px; }
+
+  .pnode { width: 152px; height: 152px; }
+  .pnode:hover, .pnode:focus-visible { transform: translate(-50%, -50%) scale(1.06); border-color: var(--n-accent, #a5b4fc); }
+  .pnode:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+  .pnode .pn-icon {
+    width: 34px; height: 34px; border-radius: 11px;
+    display: grid; place-items: center; font-size: 17px; line-height: 1;
+    background: var(--n-tint, rgba(255,255,255,0.06));
+  }
+  .pnode .pn-name { font-size: 12.5px; font-weight: 700; margin-top: 4px; }
+  .pnode .pn-desc { font-size: 10.5px; color: var(--sub); line-height: 1.5; max-width: 124px; }
+  .pn-chip {
+    margin-top: 3px; padding: 1.5px 8px; border-radius: 999px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+  }
+  .pn-chip.ok { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+  .pn-chip.warn { background: rgba(251,191,36,0.16); color: #fbbf24; }
+  .pn-chip.off { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .pn-chip.idle { background: rgba(255,255,255,0.06); color: var(--sub); }
+  .pnode.dim { opacity: 0.22; }
+
+  /* A circle needs room. Below that, the same nodes as a plain grid — the
+     orbit is the nice part, being able to reach everything is the point. */
+  @media (max-width: 720px) {
+    .portal-stage {
+      aspect-ratio: auto; max-width: none;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+      gap: 10px; padding-top: 4px;
+    }
+    .portal-rings { display: none; }
+    .portal-hub, .pnode {
+      position: static; transform: none;
+      width: auto; height: auto; border-radius: 16px;
+      padding: 14px 12px;
+    }
+    .portal-hub { grid-column: 1 / -1; flex-direction: row; gap: 12px; justify-content: flex-start; text-align: left; }
+    .hub-mark { margin-bottom: 0; }
+    .hub-sub { max-width: none; }
+    .pnode:hover, .pnode:focus-visible { transform: none; }
+    .pnode .pn-desc { max-width: none; }
+    #portal-nodes { display: contents; }
+  }
+
+  /* Back to the portal, shown while a section is open. */
+  #to-portal {
+    display: none;
+    align-items: center; gap: 6px;
+    margin-bottom: 12px; padding: 7px 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--sub); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  #to-portal.on { display: inline-flex; }
+  #to-portal:hover { color: var(--text); border-color: var(--sub); }
+
   #sign-out {
     margin-left: auto;
     padding: 7px 13px;
@@ -242,6 +347,28 @@
     <div class="shell" id="shell" style="display:none">
     <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="vertical"></div>
     <div class="shell-main">
+
+    <!-- The portal. One screen that shows every part of the admin at once,
+         what state each one is in, and lets you go straight to it. The seven
+         panels below are unchanged; this sits in front of them. -->
+    <div id="portal">
+      <div class="portal-head">
+        <input type="search" id="portal-search" placeholder="機能を検索…（例: 会員、解析、文章）" autocomplete="off">
+        <span id="portal-note"></span>
+      </div>
+      <div class="portal-stage" id="portal-stage">
+        <svg class="portal-rings" id="portal-rings" aria-hidden="true" focusable="false"></svg>
+        <button type="button" class="portal-hub" id="portal-hub">
+          <span class="hub-mark">L</span>
+          <span class="hub-name">Lumenium / Admin</span>
+          <span class="hub-sub" id="portal-hub-sub">読み込み中…</span>
+        </button>
+        <div id="portal-nodes"></div>
+      </div>
+    </div>
+
+    <button type="button" id="to-portal">← ポータル</button>
+
     <div class="panel" id="list-view">
       <div class="share-block">
         <div class="share-head">
@@ -620,27 +747,47 @@ window.lumAdmin = {
      Each panel keeps its own init function; they are called on first view
      rather than all at once on login, which used to fire four API requests
      the moment the key was accepted. */
+  /* `needs` is the health check each section depends on, so the portal can say
+     which parts actually work right now instead of listing seven doors and
+     letting you find the locked ones by opening them. */
   var TABS = [
-    { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit' },
-    { id: 'list-view', icon: '👥', label: '会員リスト' },
-    { id: 'news-admin', icon: '📰', label: 'お知らせ投稿' },
-    { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit' },
-    { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit' },
-    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit' },
-    { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit' }
+    { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit',
+      desc: '何が使えるか確認', accent: '#6ee7b7', tint: 'rgba(16,185,129,0.14)' },
+    { id: 'list-view', icon: '👥', label: '会員リスト', needs: 'resend',
+      desc: '登録者を見る・渡す', accent: '#93c5fd', tint: 'rgba(59,130,246,0.14)' },
+    { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
+      desc: 'お知らせを出す', accent: '#c4b5fd', tint: 'rgba(139,92,246,0.14)' },
+    { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
+      desc: 'サイトの文章を直す', accent: '#f9a8d4', tint: 'rgba(236,72,153,0.13)' },
+    { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
+      desc: '訪問と問い合わせ導線', accent: '#67e8f9', tint: 'rgba(6,182,212,0.14)' },
+    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: ['ai', 'store'],
+      desc: 'AI検索での見え方', accent: '#fcd34d', tint: 'rgba(245,158,11,0.14)' },
+    { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
+      desc: '次の一手を相談する', accent: '#fdba74', tint: 'rgba(249,115,22,0.14)' }
   ];
+  var PORTAL = 'portal';
+  var NAV = [{ id: PORTAL, label: 'ポータル', icon: '🧭' }].concat(TABS);
   var started = {};
 
   function showTab(id) {
     // The copy editor's beforeunload guard only covers closing the tab. Now
     // that sections are switchable, leaving one is just as easy a way to lose
     // an edit, and just as silent.
-    var current = TABS.filter(function (t) { return t.id !== id; });
     if (id !== 'copy-admin' && window.lumDirtyCopy && window.lumDirtyCopy()) {
       var panel = document.getElementById('copy-admin');
       if (panel && panel.style.display !== 'none') {
         if (!confirm('未保存の文章編集が' + window.lumDirtyCopy() + '件あります。保存せずに移動しますか？')) return false;
       }
+    }
+    var onPortal = id === PORTAL;
+    document.getElementById('portal').classList.toggle('on', onPortal);
+    document.getElementById('to-portal').classList.toggle('on', !onPortal);
+    var pbtn = document.getElementById('tab-portal');
+    if (pbtn) {
+      pbtn.setAttribute('aria-current', onPortal ? 'true' : 'false');
+      pbtn.setAttribute('aria-selected', onPortal ? 'true' : 'false');
+      pbtn.tabIndex = onPortal ? 0 : -1;
     }
     TABS.forEach(function (t) {
       var panel = document.getElementById(t.id);
@@ -662,41 +809,186 @@ window.lumAdmin = {
       started[id] = true;
       if (window[tab.init]) window[tab.init]();
     }
-    if (tab) {
-      var h = document.getElementById('page-title');
-      if (h) h.textContent = tab.label;
-      document.title = tab.label + ' | Lumenium 管理';
-    }
+    var title = onPortal ? '管理ポータル' : (tab ? tab.label : '');
+    var h = document.getElementById('page-title');
+    if (h) h.textContent = title;
+    document.title = title + ' | Lumenium 管理';
+    if (onPortal) layoutPortal();
     try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
   }
 
   function buildTabs() {
     var nav = document.getElementById('shell-nav');
     if (nav.childElementCount) return;
-    nav.innerHTML = TABS.map(function (t) {
-      return '<button type="button" class="shell-tab" id="tab-' + t.id + '" role="tab" tabindex="-1"' +
-        ' aria-controls="' + t.id + '" aria-selected="false">' +
-        '<span aria-hidden="true">' + t.icon + '</span><span>' + t.label + '</span></button>';
-    }).join('');
-    TABS.forEach(function (t) {
+    nav.innerHTML = '<button type="button" class="shell-tab" id="tab-portal" role="tab" tabindex="0"' +
+      ' aria-controls="portal" aria-selected="false"><span aria-hidden="true">🧭</span><span>ポータル</span></button>' +
+      TABS.map(function (t) {
+        return '<button type="button" class="shell-tab" id="tab-' + t.id + '" role="tab" tabindex="-1"' +
+          ' aria-controls="' + t.id + '" aria-selected="false">' +
+          '<span aria-hidden="true">' + t.icon + '</span><span>' + t.label + '</span></button>';
+      }).join('');
+    NAV.forEach(function (t) {
       var el = document.getElementById('tab-' + t.id);
       el.addEventListener('click', function () { showTab(t.id); });
       // A tablist is one stop in the tab order; the arrows move within it.
       el.addEventListener('keydown', function (e) {
-        var i = TABS.findIndex(function (x) { return x.id === t.id; });
+        var i = NAV.findIndex(function (x) { return x.id === t.id; });
         var to = null;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = (i + 1) % TABS.length;
-        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = (i - 1 + TABS.length) % TABS.length;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = (i + 1) % NAV.length;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = (i - 1 + NAV.length) % NAV.length;
         if (e.key === 'Home') to = 0;
-        if (e.key === 'End') to = TABS.length - 1;
+        if (e.key === 'End') to = NAV.length - 1;
         if (to === null) return;
         e.preventDefault();
-        if (showTab(TABS[to].id) !== false) document.getElementById('tab-' + TABS[to].id).focus();
+        if (showTab(NAV[to].id) !== false) document.getElementById('tab-' + NAV[to].id).focus();
       });
     });
+    buildPortal();
     var saved = null;
     try { saved = sessionStorage.getItem('lum_admin_tab'); } catch (_) {}
-    showTab(TABS.some(function (t) { return t.id === saved; }) ? saved : TABS[0].id);
+    showTab(NAV.some(function (t) { return t.id === saved; }) ? saved : PORTAL);
+  }
+
+
+  /* ---- Portal ----
+     Nodes are laid out from the count, so a new section needs no geometry.
+     Everything is one list of buttons: the circle is presentation, and on a
+     narrow screen the same buttons become a grid without re-rendering. */
+  var portalBuilt = false;
+
+  function chipFor(tab, health) {
+    if (!health) return { cls: 'idle', text: '確認中' };
+    var needs = tab.needs ? [].concat(tab.needs) : [];
+    if (!needs.length) {
+      var worst = health.worst;
+      return worst === 'error' ? { cls: 'warn', text: '要対応あり' }
+        : worst === 'warn' ? { cls: 'warn', text: '未設定あり' }
+        : { cls: 'ok', text: '利用可' };
+    }
+    var states = needs.map(function (n) { return health.by[n]; });
+    if (states.some(function (st) { return st === 'error' || st === undefined; })) return { cls: 'off', text: '未設定' };
+    if (states.some(function (st) { return st === 'warn'; })) return { cls: 'off', text: '未設定' };
+    return { cls: 'ok', text: '利用可' };
+  }
+
+  function buildPortal() {
+    if (portalBuilt) return;
+    portalBuilt = true;
+    var host = document.getElementById('portal-nodes');
+    TABS.forEach(function (t) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pnode';
+      b.id = 'pnode-' + t.id;
+      b.style.setProperty('--n-accent', t.accent);
+      b.style.setProperty('--n-tint', t.tint);
+      b.innerHTML =
+        '<span class="pn-icon" aria-hidden="true">' + t.icon + '</span>' +
+        '<span class="pn-name"></span>' +
+        '<span class="pn-desc"></span>' +
+        '<span class="pn-chip idle">確認中</span>';
+      b.querySelector('.pn-name').textContent = t.label;
+      b.querySelector('.pn-desc').textContent = t.desc;
+      b.addEventListener('click', function () { showTab(t.id); });
+      b.addEventListener('keydown', function (e) {
+        var vis = visibleNodes();
+        var i = vis.indexOf(t.id);
+        var to = null;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = (i + 1) % vis.length;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = (i - 1 + vis.length) % vis.length;
+        if (to === null || i < 0) return;
+        e.preventDefault();
+        document.getElementById('pnode-' + vis[to]).focus();
+      });
+      host.appendChild(b);
+    });
+    document.getElementById('portal-hub').addEventListener('click', function () { showTab('health-admin'); });
+    document.getElementById('portal-search').addEventListener('input', filterPortal);
+    document.getElementById('to-portal').addEventListener('click', function () { showTab(PORTAL); });
+    window.addEventListener('resize', layoutPortal);
+    loadPortalHealth();
+    layoutPortal();
+  }
+
+  function visibleNodes() {
+    return TABS.filter(function (t) {
+      var el = document.getElementById('pnode-' + t.id);
+      return el && !el.classList.contains('dim');
+    }).map(function (t) { return t.id; });
+  }
+
+  function filterPortal() {
+    var q = (document.getElementById('portal-search').value || '').trim().toLowerCase();
+    var hit = 0;
+    TABS.forEach(function (t) {
+      var el = document.getElementById('pnode-' + t.id);
+      var text = (t.label + ' ' + t.desc + ' ' + t.id).toLowerCase();
+      var on = !q || text.indexOf(q) >= 0;
+      el.classList.toggle('dim', !on);
+      if (on) hit++;
+    });
+    var note = document.getElementById('portal-note');
+    note.textContent = q ? hit + ' 件が一致' : '';
+  }
+
+  /* The ring. Radius is whatever leaves the nodes clear of the hub and inside
+     the stage; the spokes and circles are drawn to match so nothing can drift
+     out of alignment when the node count changes. */
+  function layoutPortal() {
+    var stage = document.getElementById('portal-stage');
+    if (!stage || !document.getElementById('portal').classList.contains('on')) return;
+    var w = stage.clientWidth;
+    if (!w) return;
+    var svg = document.getElementById('portal-rings');
+    // Below the breakpoint the stage is a grid and the geometry does not apply.
+    if (window.matchMedia('(max-width: 720px)').matches) { svg.innerHTML = ''; return; }
+    var h = stage.clientHeight || w;
+    var cx = w / 2, cy = h / 2;
+    var node = 152, hub = 170;
+    var r = Math.min(w, h) / 2 - node / 2 - 6;
+    var n = TABS.length;
+    var parts = [
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r + node / 2 - 2) + '" opacity="0.22"/>',
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"/>',
+      '<circle cx="' + cx + '" cy="' + cy + '" r="' + (hub / 2 + 22) + '"/>'];
+    TABS.forEach(function (t, i) {
+      var a = (-90 + (360 / n) * i) * Math.PI / 180;
+      var x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      var el = document.getElementById('pnode-' + t.id);
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      var x0 = cx + Math.cos(a) * (hub / 2 + 22), y0 = cy + Math.sin(a) * (hub / 2 + 22);
+      var x1 = cx + Math.cos(a) * (r - node / 2), y1 = cy + Math.sin(a) * (r - node / 2);
+      parts.push('<line x1="' + x0 + '" y1="' + y0 + '" x2="' + x1 + '" y2="' + y1 + '"/>');
+    });
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svg.innerHTML = parts.join('');
+  }
+
+  /* One call, and every node can say whether it will actually work. Opening a
+     section to find out it needs an environment variable is the thing this
+     screen exists to prevent. */
+  async function loadPortalHealth() {
+    var r = await window.lumAdmin.fetch('/api/health').catch(function () { return null; });
+    var health = null;
+    if (r && r.res && r.res.ok && r.data && r.data.ok) {
+      health = { worst: r.data.worst, by: {} };
+      (r.data.checks || []).forEach(function (c) { health.by[c.id] = c.state; });
+    }
+    TABS.forEach(function (t) {
+      var chip = document.querySelector('#pnode-' + t.id + ' .pn-chip');
+      var c = chipFor(t, health);
+      chip.className = 'pn-chip ' + c.cls;
+      chip.textContent = c.text;
+    });
+    var sub = document.getElementById('portal-hub-sub');
+    if (!health) { sub.textContent = '状態を取得できませんでした'; return; }
+    var off = TABS.filter(function (t) {
+      return document.querySelector('#pnode-' + t.id + ' .pn-chip').classList.contains('off');
+    }).length;
+    sub.textContent = off ? (TABS.length - off) + ' / ' + TABS.length + ' 利用可' : 'すべて利用可';
+    document.getElementById('portal-note').textContent = off
+      ? off + ' 件が未設定です。設定状況から手順を確認できます。' : '';
   }
 
   document.getElementById('sign-out').addEventListener('click', function () {
