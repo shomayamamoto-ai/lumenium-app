@@ -208,7 +208,9 @@
   <div class="sub">MEMBERS EXCLUSIVE</div>
   <p>
     自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
-    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、その相手を脱落させられます。<br>
+    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、相手も同じだけ失います。<br>
+    <b>残機は4人とも同じ</b>。使い切った者はそこで脱落し、相手が全員いなくなればその時点で勝ちです。<br>
+    盤面の<b>9割</b>を取った時点でも、その場で勝ち。<br>
     時間切れの時点で、いちばん広い陣地を持っていた者が勝ち。<br>
     盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
   </p>
@@ -216,9 +218,9 @@
     操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下の十字キー、またはスワイプ
   </p>
   <div class="levels" id="lengths">
-    <button type="button" data-ln="2">2分<span>残機3</span></button>
-    <button type="button" data-ln="4">4分<span>残機5</span></button>
-    <button type="button" data-ln="6">6分<span>残機7</span></button>
+    <button type="button" data-ln="2">2分<span>全員 残機3</span></button>
+    <button type="button" data-ln="4">4分<span>全員 残機5</span></button>
+    <button type="button" data-ln="6">6分<span>全員 残機7</span></button>
   </div>
   <div class="levels" id="levels">
     <button type="button" data-lv="easy">やさしい<span>相手はゆっくり・あまり狙ってこない</span></button>
@@ -319,8 +321,12 @@
     return {
       id: id, human: !!human, name: COLORS[id].name,
       cx: 0, cy: 0, dir: 0, next: 0, t: 0,
-      alive: true, area: 0, trailCells: [], respawnAt: 0,
-      lives: human ? LENGTHS[length].lives : 0, plan: [], style: STYLES[0],
+      alive: true, area: 0, trailCells: [], respawnAt: 0, out: false,
+      // Everyone gets the same number. Rivals used to have none of this: the
+      // life count and the "you are out" check both sat inside the branch for
+      // the person, so cutting a rival cost it two and a half seconds and
+      // nothing else, for ever. A round could be won long before it could end.
+      lives: LENGTHS[length].lives, plan: [], style: STYLES[0],
       boostUntil: 0, shieldUntil: 0, wide: 0
     }
   }
@@ -452,7 +458,7 @@
 
   // ---------------------------------------------------------------- death
   function kill(p, by) {
-    if (!p.alive) return
+    if (!p.alive || p.out) return
     p.alive = false
     p.boostUntil = 0; p.shieldUntil = 0; p.wide = 0
     if (p.human || (by && by.human)) shakeUntil = performance.now() + 380
@@ -465,19 +471,40 @@
     // leaves you something to defend.
     erode(p, 0.5)
     recount()
-    if (p.human) {
-      SFX.die()
-      p.lives--
-      if (p.lives <= 0) { finish('やられました'); return }
-      toast('やられた　残り ' + p.lives)
-      p.respawnAt = performance.now() + 1500
+    p.lives--
+    if (p.human) SFX.die()
+    if (by && by.human && !p.human) { kills++; SFX.kill() }
+    if (p.lives <= 0) {
+      p.out = true
+      p.respawnAt = 0
+      if (p.human) { finish('やられました'); return }
+      toast(p.name + ' が脱落　残り ' + rivalsLeft() + '人')
       return
     }
-    p.respawnAt = performance.now() + 2600
-    if (by && by.human) {
-      kills++
-      SFX.kill()
-      toast(p.name + ' を脱落させた')
+    if (p.human) toast('やられた　残り ' + p.lives)
+    else if (by && by.human) toast(p.name + ' を撃破　残り ' + p.lives)
+    p.respawnAt = performance.now() + (p.human ? 1500 : 2600)
+  }
+
+  function rivalsLeft() {
+    var n = 0
+    for (var i = 0; i < players.length; i++) if (!players[i].human && !players[i].out) n++
+    return n
+  }
+
+  /* Is the round already settled? It used to be able to run its full clock
+     with nothing left to play: a person holding the whole board left the
+     rivals with nowhere to respawn, so all three sat in 復帰中 and the four
+     minutes ran out on an empty game. */
+  function decided() {
+    if (over || !running) return
+    if (me.out) return                          // finish() already ran
+    if (!rivalsLeft()) { finish('全員脱落'); return }
+    // Nine tenths of the board is not a lead, it is a result. Sitting on it
+    // for the remaining three minutes is what "もう勝負ありなのに終わらない"
+    // meant.
+    for (var i = 0; i < players.length; i++) {
+      if (players[i].area >= N * 0.9) { finish(players[i].human ? '制圧勝ち' : '盤面を取られました'); return }
     }
   }
 
@@ -520,6 +547,29 @@
       var y = 6 + ((Math.random() * (H - 12)) | 0)
       if (roomAt(x, y, p, false)) { p.alive = true; p.plan.length = 0; base(p, x, y); recount(); return }
     }
+    // Two hundred guesses failing is not the same as there being nowhere, and
+    // the difference matters now that giving up costs a life. Look everywhere
+    // before saying so.
+    var spots = []
+    for (var sy = 4; sy < H - 4; sy++) {
+      for (var sx = 4; sx < W - 4; sx++) if (roomAt(sx, sy, p, false)) spots.push(sx + sy * W)
+    }
+    if (spots.length) {
+      var s = spots[(Math.random() * spots.length) | 0]
+      p.alive = true; p.plan.length = 0; base(p, s % W, (s / W) | 0); recount(); return
+    }
+    // Nowhere to come back to. That costs a life, the same as dying — without
+    // it, a player locked out of the board waits for ever and so does the
+    // round.
+    p.lives--
+    if (p.lives <= 0) {
+      p.out = true
+      p.respawnAt = 0
+      if (p.human) { finish('戻る場所がない'); return }
+      toast(p.name + ' が脱落　残り ' + rivalsLeft() + '人')
+      return
+    }
+    toast((p.human ? 'あなた' : p.name) + ' は戻る場所がない　残り ' + p.lives)
     p.respawnAt = performance.now() + 1500
   }
 
@@ -1094,14 +1144,14 @@
     for (var i = 0; i < order.length; i++) {
       var p = order[i]
       var el = rowEls[i]
-      el.row.className = 'row' + (p.human ? ' me' : '') + (p.alive ? '' : ' dead')
+      el.row.className = 'row' + (p.human ? ' me' : '') + (p.alive && !p.out ? '' : ' dead')
       el.row.querySelector('.swatch').style.background = COLORS[p.id].base
       // The rows are re-sorted every frame, so the bar has to be recoloured
       // too — it was keeping the colour of whoever held the slot at build time.
       el.fill.style.background = COLORS[p.id].base
       el.nm.textContent = (i + 1) + '. ' + p.name +
-        (p.human ? '　♥' + Math.max(0, p.lives) : '　' + p.style.tag) +
-        (p.alive ? '' : '（復帰中）')
+        '　♥' + Math.max(0, p.lives) + (p.human ? '' : '　' + p.style.tag) +
+        (p.out ? '　脱落' : p.alive ? '' : '　復帰中')
       var pct = (p.area / N) * 100
       el.pc.textContent = pct.toFixed(1) + '%'
       el.fill.style.width = Math.min(100, pct * 2.2) + '%'
@@ -1307,9 +1357,9 @@
     var record = pct > best
     if (record) { try { localStorage.setItem(bestKey, pct.toFixed(1)) } catch (_) {} }
     document.getElementById('endTitle').textContent =
-      me.alive && rank === 1 ? '勝ち' : (reason || '終了')
+      me.out ? (reason || '終了') : (rank === 1 ? '勝ち' : (reason || '終了'))
     document.getElementById('endSub').textContent =
-      (me.lives > 0 ? rank + ' 位' : '脱落') + '　陣地 ' + pct.toFixed(1) + '%' +
+      (me.out ? '脱落' : rank + ' 位') + '　陣地 ' + pct.toFixed(1) + '%' +
       (kills ? '　撃破 ' + kills : '') +
       (record ? '　★ 自己ベスト更新' : (best ? '　自己ベスト ' + best.toFixed(1) + '%' : '')) +
       '　[' + LEVELS[level].label + '・' + LENGTHS[length].label + ']'
@@ -1322,7 +1372,7 @@
       row.innerHTML =
         '<span class="rk">' + (i + 1) + '</span>' +
         '<span class="swatch" style="background:' + COLORS[p.id].base + '"></span>' +
-        '<span class="nm">' + p.name + (p.alive ? '' : '（脱落）') + '</span>' +
+        '<span class="nm">' + p.name + (p.out ? '（脱落）' : '　♥' + Math.max(0, p.lives)) + '</span>' +
         '<span class="pc">' + ((p.area / N) * 100).toFixed(1) + '%</span>'
       row.style.display = 'flex'
       row.style.alignItems = 'center'
@@ -1360,7 +1410,7 @@
     for (var i = 0; i < players.length; i++) {
       var p = players[i]
       if (!p.alive) {
-        if (p.respawnAt && now >= p.respawnAt) { p.respawnAt = 0; respawn(p) }
+        if (!p.out && p.respawnAt && now >= p.respawnAt) { p.respawnAt = 0; respawn(p) }
         continue
       }
       if (!p.human && doThink) think(p)
@@ -1389,6 +1439,7 @@
     updateHud()
     draw()
 
+    decided()
     if (elapsed() >= ROUND_MS) finish('時間切れ')
   }
 
