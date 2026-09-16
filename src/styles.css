@@ -8859,20 +8859,20 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
    the text off the ring — there is nowhere else for it to go — the ring is
    made to pass behind it. */
 .ritem-no, .ritem-lines, .ritem-note {
-  text-shadow: 0 0 7px rgba(5,6,16,0.95), 0 0 14px rgba(5,6,16,0.8);
+  text-shadow: 0 1px 2px rgba(5,6,16,0.98), 0 0 9px rgba(5,6,16,0.95), 0 0 18px rgba(5,6,16,0.85);
 }
 .ritem-note {
   display: block;
   margin-top: 4px;
-  font-size: clamp(10px, 1.05vmin, 11.5px);
-  line-height: 1.5;
-  color: rgba(255,255,255,0.42);
+  font-size: clamp(11.5px, 1.3vmin, 13.5px);
+  line-height: 1.55;
+  color: rgba(255,255,255,0.74);
   opacity: 0;
   transform: translateY(3px);
   transition: opacity 0.6s var(--ease), transform 0.6s var(--r-out), color 0.35s var(--ease);
 }
 .rdial.is-lit .ritem-note { opacity: 1; transform: translateY(0); }
-.ritem.is-on .ritem-note { color: rgba(255,255,255,0.72); }
+.ritem.is-on .ritem-note { color: #fff; }
 /* Twelve notes is a lot of small type. Below this the names carry it alone. */
 @media (max-width: 900px), (max-height: 680px) {
   .ritem-note { display: none; }
@@ -8890,7 +8890,10 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
   transform:
     translate(calc(var(--dx) * var(--near) * 7px), calc(var(--dy) * var(--near) * 7px))
     scale(calc(1 + var(--near) * 0.045));
-  opacity: calc(0.84 + 0.16 * var(--near));
+  /* The field used to run from 0.84, which cost every entry a sixth of its
+     contrast for an effect the lean already carries. Measured: the notes came
+     out at 3.1:1. */
+  opacity: calc(0.96 + 0.04 * var(--near));
 }
 .ritem--left  .ritem-near { transform-origin: right center; }
 .ritem--right .ritem-near { transform-origin: left center; }
@@ -8905,10 +8908,10 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 
 .ritem-no {
   display: block;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.24em;
-  color: rgba(255,255,255,0.36);
+  color: rgba(255,255,255,0.72);
   font-variant-numeric: tabular-nums;
   opacity: 0;
   transform: translateY(4px);
@@ -8921,11 +8924,11 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
    per-character wrapper is needed. */
 .ritem-lines {
   display: block;
-  font-size: clamp(14px, 1.7vmin, 19px);
+  font-size: clamp(15px, 1.95vmin, 21px);
   font-weight: 600;
   letter-spacing: 0.02em;
-  line-height: 1.4;
-  color: rgba(255,255,255,0.9);
+  line-height: 1.45;
+  color: #fff;
   transition: letter-spacing 0.45s var(--r-out);
 }
 .ritem-mask {
@@ -8954,11 +8957,15 @@ body[data-dial-open] .lumen-glow { opacity: 0; }
 .ritem--left .ritem-rule { transform-origin: right center; }
 .ritem--mid  .ritem-rule { transform-origin: center; }
 .ritem.is-on .ritem-rule { transform: scaleX(1); }
-.ritem.is-on .ritem-no { color: rgba(255,255,255,0.8); letter-spacing: 0.3em; }
+.ritem.is-on .ritem-no { color: #fff; letter-spacing: 0.3em; }
 .ritem:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 6px; border-radius: 3px; }
 
-/* Attention is exclusive: touching one entry sends the others back. */
-.rdial.has-focus .ritem { opacity: 0.26; }
+/* Attention is exclusive: touching one entry sends the others back. It used
+   to send them to 0.26, which put the remaining eleven names at 1.7:1 — so
+   the moment the cursor was anywhere on the dial, most of it was unreadable.
+   0.7 still recedes; the lit plate and the rule under the held entry are what
+   carry the distinction. */
+.rdial.has-focus .ritem { opacity: 0.7; }
 .rdial.has-focus .ritem.is-on { opacity: 1; }
 
 /* The stagger is choreography for the entrance only. Left in place it also
