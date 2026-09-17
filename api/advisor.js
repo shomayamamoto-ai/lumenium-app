@@ -29,11 +29,11 @@ const PAGES = [
   '/blog/ ブログ', '/contact.html お問い合わせ', '/sitemap.html サイトマップ',
 ]
 
-async function liveNumbers() {
+async function liveNumbers(req) {
   // How much went out, and where. Advice about being invisible in answer
   // engines is half an answer if the month it covers contained two posts:
   // "書く量を増やす" and "書いたものを出す先を増やす" are different jobs.
-  const social = { activity: await socialActivity(30), networks: await socialStatus() }
+  const social = { activity: await socialActivity(30), networks: await socialStatus(req) }
 
   const cfg = storeConfig()
   if (!cfg) return { analytics: null, aio: null, social }
@@ -241,7 +241,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const key = await apiKey()
+  const key = await apiKey(req)
   if (!key) return json(NO_AI, 503)
 
   let body
@@ -260,7 +260,7 @@ export async function POST(req) {
   const capped = await spendGuard('advisor', 80)
   if (capped) return capped
 
-  const live = await liveNumbers()
+  const live = await liveNumbers(req)
   const client = new Anthropic({ apiKey: key })
   const encoder = new TextEncoder()
 

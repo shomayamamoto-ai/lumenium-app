@@ -18,7 +18,7 @@ export async function GET(req) {
   return json({
     ok: true,
     stored: !!storeConfig(),
-    networks: await socialStatus(),
+    networks: await socialStatus(req),
     recent: await recentPosts(20),
     activity: await socialActivity(30),
   })
@@ -53,7 +53,7 @@ export async function POST(req) {
     const net = NETWORKS.find((n) => n.id === id)
     let r
     try {
-      r = await postTo(id, { text, link, imageUrl })
+      r = await postTo(id, { text, link, imageUrl }, req)
     } catch (e) {
       r = { ok: false, message: `${net.label}：${String((e && e.message) || e).slice(0, 200)}` }
     }

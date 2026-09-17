@@ -184,8 +184,8 @@ export async function spendGuard(kind, limit) {
 
 /** Async now: the key may have been entered from the admin page rather than
  *  set as an environment variable. */
-export function apiKey() {
-  return setting('ANTHROPIC_API_KEY')
+export function apiKey(req) {
+  return setting('ANTHROPIC_API_KEY', '', req)
 }
 
 export const NO_AI = {

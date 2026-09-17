@@ -273,7 +273,8 @@ export async function GET(req) {
     questions: QUESTIONS.length,
     categories: CATEGORIES,
     estimateUsd: costEstimateUsd(),
-    aiReady: !!(await apiKey()),
+    aiReady: !!(await apiKey(req)),
+    stored: !!cfg,
     brand: BRAND.domain,
   }
   // What went out in the same window. An answer engine has to have something
@@ -328,7 +329,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const key = await apiKey()
+  const key = await apiKey(req)
   if (!key) return json(NO_AI, 503)
 
   const cfg = storeConfig()

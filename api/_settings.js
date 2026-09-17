@@ -21,6 +21,7 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
 import { storeConfig, pipeline } from './_analytics-store.js'
+import { bag, bagReady } from './_keybag.js'
 
 const K = (name) => `lum:cfg:${name}`
 
@@ -33,12 +34,16 @@ export const GROUPS = [
 /** What the admin can set, in the order it is shown. */
 export const SETTINGS = [
   {
-    name: 'RESEND_API_KEY', label: '問い合わせ・会員登録メール', kind: 'secret', group: 'site',
+    // device:false — these are read while serving somebody else's request (a
+    // visitor sending the contact form, a member logging in), and that browser
+    // carries no cookie of ours. Storing them per-device would look like it
+    // worked and quietly do nothing.
+    name: 'RESEND_API_KEY', label: '問い合わせ・会員登録メール', kind: 'secret', group: 'site', device: false,
     where: 'resend.com › API Keys',
     why: 'これが無いと、お問い合わせフォームも会員登録も送信できません。',
   },
   {
-    name: 'CONTACT_TO_EMAIL', label: '問い合わせの宛先', kind: 'text', group: 'site',
+    name: 'CONTACT_TO_EMAIL', label: '問い合わせの宛先', kind: 'text', group: 'site', device: false,
     where: '受け取りたいメールアドレス',
     why: '未設定のときは shoma.yamamoto@lumenium.net に届きます。',
   },
@@ -53,12 +58,12 @@ export const SETTINGS = [
     why: 'これが無いと、お知らせの投稿もサイト文章の保存もできません。',
   },
   {
-    name: 'MEMBER_CODE', label: '会員登録コード', kind: 'secret', group: 'site',
+    name: 'MEMBER_CODE', label: '会員登録コード', kind: 'secret', group: 'site', device: false,
     where: '好きな文字列',
     why: '未設定のあいだは、リポジトリに公開されている既定コードが有効なままです。',
   },
   {
-    name: 'SESSION_SECRET', label: 'ログインセッションの署名鍵', kind: 'secret', group: 'site',
+    name: 'SESSION_SECRET', label: 'ログインセッションの署名鍵', kind: 'secret', group: 'site', device: false,
     where: '推測できない長い文字列',
     why: '未設定のあいだは公開されている既定の鍵で署名されるため、ログイン状態を偽造できます。変更すると、いまログイン中の会員は入り直しになります。',
   },
@@ -142,31 +147,41 @@ async function all() {
   }
 }
 
-/** The value in force: what was saved from the admin, else the environment. */
-export async function setting(name, fallback) {
+/** The value in force, in the order a person would expect: what was saved for
+ *  everyone, then what this browser is carrying, then the environment.
+ *  `req` is optional — without it the browser's own keys are simply not seen,
+ *  which is the correct answer on a visitor's request. */
+export async function setting(name, fallback, req) {
   const saved = (await all())[name]
   if (saved) return saved
+  if (req) {
+    const mine = (await bag(req))[name]
+    if (mine) return mine
+  }
   const env = (process.env[name] || '').trim()
   return env || fallback || ''
 }
 
 /** Where each value is coming from, and enough of it to tell keys apart —
  *  never the value itself. */
-export async function settingStatus() {
+export async function settingStatus(req) {
   const saved = await all()
+  const mine = req ? await bag(req) : {}
   return SETTINGS.map((s) => {
     const env = (process.env[s.name] || '').trim()
-    const value = saved[s.name] || env
+    const device = s.device !== false ? mine[s.name] : ''
+    const value = saved[s.name] || device || env
     return {
       name: s.name,
       label: s.label,
       kind: s.kind,
       group: s.group || 'site',
       net: s.net || '',
+      device: s.device !== false,
       where: s.where,
       why: s.why,
       set: !!value,
-      from: saved[s.name] ? 'saved' : (env ? 'env' : null),
+      from: saved[s.name] ? 'saved' : device ? 'device' : (env ? 'env' : null),
       hint: value ? (s.kind === 'text' ? value : '••••' + value.slice(-4)) : '',
     }
   })
@@ -184,4 +199,16 @@ export async function saveSetting(name, value) {
 
 export function storeReady() {
   return !!storeConfig()
+}
+
+/** Can a key be kept in this browser? Only if there is an ADMIN_KEY to
+ *  derive the encryption from — which there is, or this screen would not
+ *  have opened. */
+export async function deviceReady() {
+  return await bagReady()
+}
+
+export function canGoOnDevice(name) {
+  const s = SETTINGS.find((x) => x.name === name)
+  return !!s && s.device !== false
 }

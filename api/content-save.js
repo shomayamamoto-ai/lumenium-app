@@ -33,7 +33,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const token = await setting('GITHUB_TOKEN')
+  const token = await setting('GITHUB_TOKEN', '', req)
   if (!token) return json(NO_TOKEN, 503)
   const repo = repoName()
 
@@ -60,7 +60,7 @@ export async function POST(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const token = await setting('GITHUB_TOKEN')
+  const token = await setting('GITHUB_TOKEN', '', req)
   const repo = repoName()
   if (!token) return json(NO_TOKEN, 503)
 

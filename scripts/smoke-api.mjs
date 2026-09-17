@@ -169,6 +169,48 @@ for (const [name, method, query, headers, body] of CALLS) {
   }
 }
 
+// The other half of the key panel: with no store, a key has to be storable in
+// the admin's own browser, and the ones a visitor's request reads have to
+// refuse rather than appear to save. Both paths are one endpoint, so a change
+// to either can break the other silently.
+{
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  delete process.env.UPSTASH_REDIS_REST_URL
+  delete process.env.UPSTASH_REDIS_REST_TOKEN
+  try {
+    const mod = await import(new URL('../api/settings.js', import.meta.url))
+    const call = (body) => mod.POST(new Request('https://lumenium.net/api/settings', {
+      method: 'POST',
+      headers: { ...JSONH, 'x-forwarded-for': '203.0.113.200' },
+      body: JSON.stringify(body),
+    }))
+    const kept = await call({ name: 'ANTHROPIC_API_KEY', value: 'sk-ant-smoke-1234' })
+    const cookie = kept.headers.get('set-cookie') || ''
+    if (kept.status !== 200 || !cookie.includes('lum_k_ANTHROPIC_API_KEY=')) {
+      console.error(`✗ 保存先なしでの端末保存 — ${kept.status} / cookie=${cookie.slice(0, 40)}`)
+      failed++
+    } else {
+      // …and it has to come back on the next request.
+      const { setting } = await import(new URL('../api/_settings.js', import.meta.url))
+      const back = new Request('https://lumenium.net/api/aio', { headers: { cookie: cookie.split(';')[0] } })
+      const got = await setting('ANTHROPIC_API_KEY', '', back)
+      if (got !== 'sk-ant-smoke-1234') { console.error(`✗ 端末保存したキーが読めない — ${got}`); failed++ }
+      else console.log('  端末保存 → 次のリクエストで有効')
+    }
+    const refused = await call({ name: 'SESSION_SECRET', value: 'nope' })
+    if (refused.status !== 503) {
+      console.error(`✗ 訪問者側で読む値が端末保存を受け付けてしまう — ${refused.status}`)
+      failed++
+    } else console.log('  訪問者側で読む値は端末保存を拒否')
+  } catch (e) {
+    console.error(`✗ 端末保存 — threw ${e && e.message}`)
+    failed++
+  }
+  process.env.UPSTASH_REDIS_REST_URL = url
+  process.env.UPSTASH_REDIS_REST_TOKEN = token
+}
+
 if (failed) {
   console.error(`\n${failed} 件のエンドポイントが認証後に失敗します。デプロイすると 500 になります。`)
   process.exit(1)

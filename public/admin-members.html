@@ -415,6 +415,7 @@
   .set-row .state { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
   .set-row .state.on { background: rgba(16,185,129,0.16); color: #6ee7b7; }
   .set-row .state.env { background: rgba(59,130,246,0.16); color: #93c5fd; }
+  .set-row .state.dev { background: rgba(20,184,166,0.18); color: #5eead4; }
   .set-row .state.off { background: rgba(248,113,113,0.15); color: #fca5a5; }
   .set-row .why { grid-column: 1 / -1; font-size: 12px; color: var(--sub); line-height: 1.7; }
   .set-row .where { grid-column: 1 / -1; font-size: 11px; color: var(--sub); opacity: 0.8; }
@@ -2864,8 +2865,11 @@ window.lumAdmin = {
     if (data.meta) {
       meta = data.meta;
       el('seo-cost').textContent = '1回あたり約 $' + data.meta.estimateUsd.toFixed(2) +
-        '（' + data.meta.questions + '問）' + (data.meta.aiReady ? '' : '・APIキー未設定');
-      el('seo-run').disabled = !data.meta.aiReady;
+        '（' + data.meta.questions + '問）' + (data.meta.aiReady ? '' : '・APIキー未設定') +
+        (data.meta.stored === false ? '・保存先が未接続' : '');
+      // A run writes its answers down as it goes; with nowhere to write, the
+      // button used to be pressable and then fail on the first question.
+      el('seo-run').disabled = !data.meta.aiReady || data.meta.stored === false;
     }
     if (!res.ok || data.ok !== true) { say(data.message || '表示できませんでした。', res.status === 503); return; }
     // Past runs: comparing with a month ago is why it is measured repeatedly.
@@ -3185,9 +3189,11 @@ window.lumAdmin = {
   }
 
   var setGroups = [{ id: 'site', label: '', note: '' }];
+  var setDevice = false;
 
-  function renderSettings(list, ready, groups) {
+  function renderSettings(list, ready, groups, device) {
     if (groups && groups.length) setGroups = groups;
+    if (device !== undefined) setDevice = !!device;
     var host = el('set-list');
     host.innerHTML = '';
     var head = null;
@@ -3230,12 +3236,13 @@ window.lumAdmin = {
       var h = document.createElement('h4');
       h.textContent = s.label;
       var st = document.createElement('span');
-      st.className = 'state ' + (s.from === 'saved' ? 'on' : s.from === 'env' ? 'env' : 'off');
+      st.className = 'state ' + (s.from === 'saved' ? 'on' : s.from === 'device' ? 'dev' : s.from === 'env' ? 'env' : 'off');
       st.textContent = s.from === 'saved' ? 'この画面で設定済み ' + s.hint
+        : s.from === 'device' ? 'この端末に保存済み ' + s.hint
         : s.from === 'env' ? '環境変数で設定済み ' + s.hint
         : '未設定';
       h.appendChild(st);
-      if (ready) {
+      if (ready || s.device) {
         var code = document.createElement('code');
         code.textContent = s.name;
         code.style.cssText = 'font-size:10.5px;color:var(--sub);font-weight:500';
@@ -3265,22 +3272,24 @@ window.lumAdmin = {
       why.textContent = s.why;
       row.appendChild(why);
 
+      var usable = ready || (setDevice && s.device);
       var input = document.createElement('input');
       input.type = s.kind === 'text' ? 'text' : 'password';
       input.autocomplete = 'off';
       input.placeholder = s.from ? '新しい値に置き換えるときだけ入力' : '値を貼り付け';
-      input.disabled = !ready;
+      input.disabled = !usable;
       row.appendChild(input);
 
       var acts = document.createElement('div');
       acts.className = 'acts';
       var save = document.createElement('button');
       save.type = 'button';
-      save.textContent = '保存';
-      save.disabled = !ready;
+      // Only the rows that can actually go in the browser say so.
+      save.textContent = ready || !s.device ? '保存' : 'この端末に保存';
+      save.disabled = !usable;
       save.onclick = function () { put(s.name, input.value, save, input); };
       acts.appendChild(save);
-      if (s.from === 'saved') {
+      if (s.from === 'saved' || s.from === 'device') {
         var clr = document.createElement('button');
         clr.type = 'button';
         clr.className = 'ghost';
@@ -3298,6 +3307,15 @@ window.lumAdmin = {
       where.textContent = '取得元：' + s.where;
       row.appendChild(where);
 
+      if (!ready && !s.device) {
+        var no = document.createElement('p');
+        no.className = 'where';
+        no.style.color = '#fca5a5';
+        no.textContent = 'この項目は端末保存では効きません（訪問者のリクエストで読まれる値のため）。'
+          + 'Vercel の環境変数に設定するか、Upstash Redis を接続してください。';
+        row.appendChild(no);
+      }
+
       return row;
     }
   }
@@ -3313,20 +3331,32 @@ window.lumAdmin = {
     if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || '保存できませんでした。'); return; }
     if (input) input.value = '';
     setSay(r.data.message, true);
-    renderSettings(r.data.settings, true, r.data.groups);
+    renderSettings(r.data.settings, r.data.where === 'saved', r.data.groups, setDevice);
     load();   // what is switched on has just changed
   }
 
   /* Two ways in, and the greyed-out box only explains the one that is shut.
      Connecting the store takes about a minute and unlocks this screen; until
      then the same names in Vercel do the same job. */
-  function steps(ready) {
+  function steps(ready, device) {
     var host = el('set-steps');
     host.style.display = ready ? 'none' : 'block';
     if (ready) return;
     host.innerHTML =
+      (device
+        ? '<div style="background:rgba(20,184,166,0.1);border:1px solid #14b8a6;border-radius:11px;padding:13px 15px;margin-bottom:10px">' +
+          '<p style="font-size:12.5px;font-weight:700;margin-bottom:6px">いまは「この端末に保存」で使えます</p>' +
+          '<p style="font-size:12px;color:var(--sub);line-height:1.9">' +
+          '保存先（Upstash Redis）が未接続でも、下の入力欄に貼れば<b>このブラウザの中に暗号化して保存</b>し、すぐ有効になります。' +
+          'AIアドバイザー・SNS投稿・お知らせ投稿・文章編集はこれで動きます。<br>' +
+          '・ほかの端末やブラウザからは使えません（そちらでは未設定に見えます）<br>' +
+          '・赤い注記の付いた項目は対象外です。訪問者のリクエストで読まれる値なので、この端末に置いても効きません<br>' +
+          '・アクセス解析とAIO計測は、記録先そのものが要るため保存先の接続が必要です<br>' +
+          '・管理キー（ADMIN_KEY）を変更すると、この端末の保存は読めなくなります（未設定に戻ります）' +
+          '</p></div>'
+        : '') +
       '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
-      '<p style="font-size:12.5px;font-weight:700;margin-bottom:6px">この画面から入力できるようにする（約1分・再デプロイ不要）</p>' +
+      '<p style="font-size:12.5px;font-weight:700;margin-bottom:6px">すべての端末で使えるようにする（約1分・再デプロイ不要）</p>' +
       '<ol style="font-size:12px;color:var(--sub);line-height:1.9;padding-left:1.2em">' +
       '<li>vercel.com › このプロジェクト › <b>Storage</b> タブ</li>' +
       '<li><b>Create Database</b> › Upstash の <b>Redis</b> を選ぶ（無料枠あり）</li>' +
@@ -3343,9 +3373,9 @@ window.lumAdmin = {
   async function loadSettings() {
     var r = await window.lumAdmin.fetch('/api/settings');
     if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || 'キーの状態を取得できませんでした。'); return; }
-    renderSettings(r.data.settings || [], r.data.ready, r.data.groups);
+    renderSettings(r.data.settings || [], r.data.ready, r.data.groups, r.data.device);
     setSay(r.data.ready ? '' : r.data.message, true);
-    steps(r.data.ready);
+    steps(r.data.ready, r.data.device);
   }
 
   async function load() {

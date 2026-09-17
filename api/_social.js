@@ -48,29 +48,29 @@ export const NETWORKS = [
 
 const LOG = 'lum:social:log'
 
-async function creds(names) {
+async function creds(names, req) {
   const out = {}
-  for (const n of names) out[n] = await setting(n)
+  for (const n of names) out[n] = await setting(n, '', req)
   return out
 }
 
 /** What this network still needs. One answer for both the list and the send:
  *  they used to disagree about Instagram's fallback to the Facebook page
  *  token, so the row said 利用可 and pressing 投稿 said IG_TOKEN が未設定. */
-async function missingFor(net) {
-  const got = await creds(net.needs)
+async function missingFor(net, req) {
+  const got = await creds(net.needs, req)
   const missing = net.needs.filter((k) => !got[k])
-  if (net.id === 'instagram' && missing.includes('IG_TOKEN') && (await setting('FB_PAGE_TOKEN'))) {
+  if (net.id === 'instagram' && missing.includes('IG_TOKEN') && (await setting('FB_PAGE_TOKEN', '', req))) {
     return missing.filter((k) => k !== 'IG_TOKEN')
   }
   return missing
 }
 
 /** Which networks can actually be posted to right now, and what is missing. */
-export async function socialStatus() {
+export async function socialStatus(req) {
   const rows = []
   for (const n of NETWORKS) {
-    const missing = await missingFor(n)
+    const missing = await missingFor(n, req)
     rows.push({
       id: n.id, label: n.label, mark: n.mark, limit: n.limit,
       image: n.image, note: n.note, needs: n.needs,
@@ -102,8 +102,8 @@ async function call(url, init, label) {
   return { ok: true, data: data || {}, res }
 }
 
-async function postX(body) {
-  const token = await setting('X_ACCESS_TOKEN')
+async function postX(body, req) {
+  const token = await setting('X_ACCESS_TOKEN', '', req)
   const text = [body.text, body.link].filter(Boolean).join('\n')
   const r = await call('https://api.twitter.com/2/tweets', {
     method: 'POST',
@@ -115,9 +115,9 @@ async function postX(body) {
   return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '' }
 }
 
-async function postFacebook(body) {
-  const page = await setting('FB_PAGE_ID')
-  const token = await setting('FB_PAGE_TOKEN')
+async function postFacebook(body, req) {
+  const page = await setting('FB_PAGE_ID', '', req)
+  const token = await setting('FB_PAGE_TOKEN', '', req)
   const form = new URLSearchParams()
   const path = body.imageUrl ? 'photos' : 'feed'
   if (body.imageUrl) {
@@ -137,9 +137,9 @@ async function postFacebook(body) {
 /** Meta's two-step publish: build a container, then publish it. Both halves
  *  can fail on their own, and the second failing after the first succeeded is
  *  exactly the case that needs saying out loud. */
-async function postInstagram(body) {
-  const user = await setting('IG_USER_ID')
-  const token = (await setting('IG_TOKEN')) || (await setting('FB_PAGE_TOKEN'))
+async function postInstagram(body, req) {
+  const user = await setting('IG_USER_ID', '', req)
+  const token = (await setting('IG_TOKEN', '', req)) || (await setting('FB_PAGE_TOKEN', '', req))
   if (!token) return { ok: false, message: 'Instagram：アクセストークンが未設定です（Facebookページのトークンでも構いません）。' }
   if (!body.imageUrl) return { ok: false, message: 'Instagram：画像URLが必要です。' }
   const make = new URLSearchParams({
@@ -159,9 +159,9 @@ async function postInstagram(body) {
   return { ok: true, id, url }
 }
 
-async function postThreads(body) {
-  const user = await setting('THREADS_USER_ID')
-  const token = await setting('THREADS_TOKEN')
+async function postThreads(body, req) {
+  const user = await setting('THREADS_USER_ID', '', req)
+  const token = await setting('THREADS_TOKEN', '', req)
   const make = new URLSearchParams({
     media_type: body.imageUrl ? 'IMAGE' : 'TEXT',
     text: [body.text, body.link].filter(Boolean).join('\n'),
@@ -180,9 +180,9 @@ async function postThreads(body) {
   return { ok: true, id, url }
 }
 
-async function postLinkedIn(body) {
-  const author = await setting('LI_AUTHOR_URN')
-  const token = await setting('LI_TOKEN')
+async function postLinkedIn(body, req) {
+  const author = await setting('LI_AUTHOR_URN', '', req)
+  const token = await setting('LI_TOKEN', '', req)
   const text = [body.text, body.link].filter(Boolean).join('\n')
   const r = await call('https://api.linkedin.com/v2/ugcPosts', {
     method: 'POST',
@@ -213,10 +213,10 @@ const SENDERS = {
   threads: postThreads, linkedin: postLinkedIn,
 }
 
-export async function postTo(id, body) {
+export async function postTo(id, body, req) {
   const net = NETWORKS.find((n) => n.id === id)
   if (!net) return { ok: false, message: '不明な投稿先です。' }
-  const missing = await missingFor(net)
+  const missing = await missingFor(net, req)
   if (missing.length) {
     return { ok: false, message: `${net.label}：${missing.join('・')} が未設定です。` }
   }
@@ -229,7 +229,7 @@ export async function postTo(id, body) {
   if (sent.length > net.limit) {
     return { ok: false, message: `${net.label}：本文が ${net.limit} 文字を超えています（リンクを含めて ${sent.length}）。` }
   }
-  return SENDERS[id]({ text, imageUrl: body.imageUrl || '', link: body.link || '' })
+  return SENDERS[id]({ text, imageUrl: body.imageUrl || '', link: body.link || '' }, req)
 }
 
 /** The record the SEO/AIO side reads. Posting works without a store; only the

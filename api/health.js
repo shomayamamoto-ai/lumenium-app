@@ -28,7 +28,7 @@ export async function GET(req) {
   // asked `apiKey() ? ...`, which became a Promise when keys moved into the
   // store: always truthy, so the one row that was supposed to say "no AI key"
   // said 利用可 whatever was set.
-  const settings = await settingStatus()
+  const settings = await settingStatus(req)
   const has = (name) => settings.some((s) => s.name === name && s.set)
 
   const checks = [
@@ -92,7 +92,7 @@ export async function GET(req) {
   ]
 
   // The networks, as one row: which of the five can be posted to right now.
-  const nets = await socialStatus()
+  const nets = await socialStatus(req)
   const live = nets.filter((n) => n.ready)
   checks.push({
     id: 'social', label: 'SNS 投稿', env: 'X_ACCESS_TOKEN ほか',
