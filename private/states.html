@@ -182,19 +182,20 @@
   <div class="sub">MEMBERS EXCLUSIVE</div>
   <h1>LUMEN STATES</h1>
   <p>
-    州をつないで奪い合う陣取りゲームです。<b>自分の州から相手の州へドラッグ</b>すると軍が飛びます。<br>
-    自分の州は時間で兵が増え、<b>相手の数より多く送り込めばその州を奪えます</b>。<br>
-    ドラッグ中に自分の州をなぞると、<b>まとめて出撃</b>できます。<br>
-    相手の州をすべて奪えば勝ち。全部取られたら負けです。
+    地続きの州を奪い合う陣取りゲームです。<b>自分の州から、隣り合う州へドラッグ</b>すると軍が出ます。<br>
+    送れるのは<b>隣の州だけ</b>。飛び地には攻め込めないので、どこを前線にするかが勝負です。<br>
+    <b>相手の数より多く送り込めばその州を奪えます</b>。自分の州は時間で兵が増えます。<br>
+    金色の<b>拠点</b>は増えるのが速く、守りも堅い州。取り合いになります。<br>
+    全員3州から開始。最初の4秒は誰も動きません。相手を全滅させれば勝ちです。
   </p>
   <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
     操作：ドラッグ（スマホは指でなぞる）／ 州をタップして選び、行き先をタップでも同じです<br>
     <kbd>Space</kbd> 一時停止　<kbd>A</kbd> 全州から出撃
   </p>
   <div class="levels" id="sizes">
-    <button type="button" data-sz="s">小さい地図<span>16州・短期決戦</span></button>
-    <button type="button" data-sz="m">ふつう<span>24州</span></button>
-    <button type="button" data-sz="l">大きい地図<span>32州・長期戦</span></button>
+    <button type="button" data-sz="s">小さい地図<span>14州・短期決戦</span></button>
+    <button type="button" data-sz="m">ふつう<span>20州</span></button>
+    <button type="button" data-sz="l">大きい地図<span>26州・長期戦</span></button>
   </div>
   <div class="levels" id="levels">
     <button type="button" data-lv="easy">やさしい<span>相手はゆっくり考える</span></button>
@@ -233,11 +234,25 @@
   ];
   var NEUTRAL = { color: '#cbd5e1', deep: '#64748b' };
 
-  var SIZES = { s: { n: 16, label: '16州' }, m: { n: 24, label: '24州' }, l: { n: 32, label: '32州' } };
+  // Four players opening with three states each is twelve of them spoken for
+  // before anyone moves; at twenty states that left eight to fight over and
+  // the expansion — the good part — was finished in twenty-five seconds.
+  var SIZES = {
+    s: { n: 18, label: '18州', ms: 150000 },
+    m: { n: 26, label: '26州', ms: 195000 },
+    l: { n: 34, label: '34州', ms: 255000 }
+  };
+  /* Measured on the first version: while the person did nothing, the rivals
+     went from 3 states to 23 in forty-five seconds and the moves worth making
+     fell from 18 to 2. One state against three opponents is a third of their
+     tempo from the first second, and the map was gone before a person had
+     made four decisions — the land grab, which is the good part, was over
+     before it started. Everyone now opens with three states, the rivals think
+     slower than they used to, and they cannot move before the fourth second. */
   var LEVELS = {
-    easy:   { label: 'やさしい', think: 2100, greed: 0.55, margin: 4, reach: 0.75 },
-    normal: { label: 'ふつう',   think: 1350, greed: 0.85, margin: 2, reach: 1.0 },
-    hard:   { label: 'つよい',   think: 950,  greed: 1.0,  margin: 1, reach: 1.3 }
+    easy:   { label: 'やさしい', think: 2800, greed: 0.55, margin: 4 },
+    normal: { label: 'ふつう',   think: 2000, greed: 0.85, margin: 2 },
+    hard:   { label: 'つよい',   think: 1450, greed: 1.0,  margin: 1 }
   };
   // A rival's habit, so three opponents do not read as one opponent with
   // three colours.
@@ -253,8 +268,9 @@
     if (LEVELS[localStorage.getItem('lum_states_diff')]) level = localStorage.getItem('lum_states_diff');
   } catch (_) {}
 
-  var ROUND_MS = 6 * 60 * 1000;   // a hard stop, so a stalemate cannot run for ever
-  var GROW_MS = 900;              // one soldier per state per this, scaled by size
+  var ROUND_MS = 195000;          // a hard stop, so a stalemate cannot run for ever; set per map
+  var GROW_MS = 560;              // one soldier per state per this, scaled by size
+  var OPEN_MS = 4000;             // the rivals hold still while you read the map
 
   var states = [];      // the map
   var flights = [];     // armies in the air
@@ -376,18 +392,18 @@
       var area = areaOf(pg);
       // A bigger state is worth more and holds more, which is what makes one
       // part of the map worth fighting over and another not.
-      var cap = Math.max(14, Math.min(70, Math.round(26 * (area / avg))));
+      var cap = Math.max(18, Math.min(60, Math.round(30 * (area / avg))));
       return {
         id: i, poly: pg, x: c[0], y: c[1], area: area,
-        cap: cap, gain: 0.55 + 0.75 * (area / avg),
+        cap: cap, gain: 0.7 + 0.9 * (area / avg),
         owner: 0, units: 0, r: Math.sqrt(area / Math.PI),
-        near: [], flash: 0
+        near: [], flash: 0, pop: 0, hq: false
       };
     });
 
     // Neighbours: two states are neighbours when a corner of one sits on the
-    // line exactly between the two seeds. Only the AI uses this, to prefer a
-    // target it can actually hold.
+    // line exactly between the two seeds. Everything is built on this now —
+    // an army can only cross a border, so the shape of the map is the game.
     for (i = 0; i < states.length; i++) {
       for (var j = i + 1; j < states.length; j++) {
         var ax = pts[i][0], ay = pts[i][1], bx = pts[j][0], by = pts[j][1];
@@ -435,16 +451,31 @@
         if (d < bestD) { bestD = d; best = states[s]; }
       }
       best.owner = p.id;
-      best.units = 24;
+      best.units = 14;
+      best.hq = true;
+      // Two neighbours as well, so the first decision is "which way do I
+      // push" rather than "wait twelve seconds for one state to fill up".
+      var ring = best.near.slice().filter(function (id) { return !states[id].owner; });
+      ring.sort(function (a, b) { return states[b].area - states[a].area; });
+      ring.slice(0, 2).forEach(function (id) { states[id].owner = p.id; states[id].units = 9; });
       p.out = false;
       p.style = STYLES[deck[i]];
       p.nextThink = 0;
     });
-    // Everything else starts neutral, with enough of a garrison that the
-    // first minute is a choice about where to spend, not a free sweep.
-    states.forEach(function (s) {
-      if (s.owner) return;
-      s.units = 4 + Math.floor(Math.random() * Math.max(4, s.cap * 0.35));
+    // Everything else is neutral. A few are worth more than the rest: the
+    // difference between a map and a list of numbers is having somewhere you
+    // want.
+    var free = states.filter(function (s) { return !s.owner; });
+    shuffle(free);
+    free.forEach(function (s, i) {
+      // Defended enough that taking one is a decision you save up for, not a
+      // sweep you do while waiting for something to happen.
+      s.units = 6 + Math.floor(Math.random() * Math.max(4, s.cap * 0.35));
+      if (i < Math.max(2, Math.round(free.length * 0.18))) {
+        s.hq = true;              // a 拠点: grows half again as fast
+        s.gain *= 1.8;
+        s.units += 8;             // and is defended to match
+      }
     });
   }
 
@@ -476,6 +507,8 @@
     buildMap(SIZES[size].n);
     placeStarts();
     over = false; paused = false;
+    ROUND_MS = SIZES[size].ms;
+    combo = 0; comboAt = 0; shakeUntil = 0;
     startedAt = performance.now(); pausedMs = 0; pausedAt = 0;
     lastFrame = startedAt;
     fit();
@@ -505,8 +538,16 @@
   }
 
   // ---------------------------------------------------------------- flight
+  /* Anywhere-to-anywhere made the map decorative: every state was the same
+     distance from every other in every way that mattered, so there was no
+     front line, no place worth holding and nothing to read. An army crosses
+     one border at a time now. */
+  function canReach(from, to) {
+    return from.id !== to.id && from.near.indexOf(to.id) >= 0;
+  }
+
   function send(from, to, ratio) {
-    if (from.id === to.id) return false;
+    if (!canReach(from, to)) return false;
     var n = Math.floor(from.units * ratio);
     if (n < 1) return false;
     from.units -= n;
@@ -514,28 +555,40 @@
     flights.push({
       owner: from.owner, n: n, from: from.id, to: to.id,
       x: from.x, y: from.y, t: 0,
-      // Far is slow. Sending across the map has to cost something, or there
-      // is no reason to hold the middle.
-      dur: Math.max(650, d * 3.2)
+      dur: Math.max(380, d * 1.9)
     });
     return true;
   }
 
   function land(f) {
     var s = states[f.to];
-    s.flash = performance.now() + 260;
+    var now = performance.now();
+    s.flash = now + 260;
     if (s.owner === f.owner) { s.units += f.n; return; }
     if (f.n > s.units) {
       var before = s.owner;
       s.units = f.n - s.units;
       s.owner = f.owner;
-      if (f.owner === 1) { SFX.take(); }
-      else if (before === 1) { SFX.lose(); }
+      s.pop = now + 420;
+      if (f.owner === 1) {
+        SFX.take();
+        // Two in three seconds is a push, and it should feel like one.
+        combo = now - comboAt < 3000 ? combo + 1 : 1;
+        comboAt = now;
+        if (combo > 1) toast('連取 ×' + combo + (s.hq ? '　拠点を奪取！' : ''));
+        else if (s.hq) toast('拠点を奪取！');
+      } else if (before === 1) {
+        SFX.lose();
+        shakeUntil = now + 320;
+        toast(player(f.owner).name + ' に奪われた');
+      }
       if (before) checkOut(before);
     } else {
       s.units -= f.n;
+      if (s.owner === 1 && f.n > 3) shakeUntil = now + 160;
     }
   }
+  var combo = 0, comboAt = 0, shakeUntil = 0;
 
   /** A player with no states and nothing still flying is finished. */
   function checkOut(id) {
@@ -562,9 +615,17 @@
       return;
     }
     if (player(1).out) { finish('敗北'); return; }
-    var mine = 0;
-    for (var i = 0; i < states.length; i++) if (states[i].owner === 1) mine++;
-    if (mine === states.length) { finish('制圧'); return; }
+    // Eighty-five per cent of the map is not a lead, it is a result. Sitting
+    // on it for the rest of the clock is the thing that made the last game
+    // boring, and it applies to a rival running away with it too.
+    var t = totals();
+    for (var i = 0; i < PLAYERS.length; i++) {
+      var q = PLAYERS[i];
+      if (t[q.id].count >= states.length * 0.85) {
+        finish(q.human ? '制圧' : '盤面を取られました');
+        return;
+      }
+    }
   }
 
   function totals() {
@@ -598,21 +659,18 @@
     var force = Math.floor(from.units * (1 - keep));
     if (force < 4) return;
 
+    // Only across a border, the same as the person. Which also means a rival
+    // has to work its way over rather than appearing behind you.
     var best = null, bestScore = 0;
-    for (var i = 0; i < states.length; i++) {
-      var s = states[i];
+    for (var n = 0; n < from.near.length; n++) {
+      var s = states[from.near[n]];
       if (s.owner === p.id) continue;
       var need = Math.ceil(s.units) + lv.margin;
       if (need > force) continue;
-      var d = Math.hypot(s.x - from.x, s.y - from.y);
-      if (d > world.w * lv.reach) continue;
-      // Worth: how much ground and how much it will earn, against what it
-      // costs to take and how far the army has to fly.
       var worth = (s.area / (world.w * world.h / states.length)) * (1 + s.gain);
+      if (s.hq) worth *= 1.6;
       if (!s.owner) worth *= p.style.neutralBias;
-      // Somewhere it already touches is somewhere it can hold.
-      if (from.near.indexOf(s.id) >= 0) worth *= 1.5;
-      var score = (worth * lv.greed) / (need * 0.06 + d / world.w);
+      var score = (worth * lv.greed) / (need * 0.06 + 0.4);
       if (score > bestScore) { bestScore = score; best = s; }
     }
     if (!best) {
@@ -623,14 +681,13 @@
       //
       // So it does what a person does — moves troops up from somewhere safe
       // to somewhere that touches the enemy, and attacks next time.
-      var interior = from.near.every(function (id) { return states[id].owner === p.id; });
-      if (!interior || from.units < 12) return;
+      if (from.units < 10) return;
       var front = null, fd = Infinity;
-      for (i = 0; i < states.length; i++) {
-        var q = states[i];
-        if (q.owner !== p.id || q.id === from.id) continue;
-        if (q.near.every(function (id) { return states[id].owner === p.id; })) continue;
-        var qd = Math.hypot(q.x - from.x, q.y - from.y);
+      for (var j = 0; j < from.near.length; j++) {
+        var q = states[from.near[j]];
+        if (q.owner !== p.id) continue;
+        // Step it towards whichever of my own neighbours is nearest a border.
+        var qd = q.near.every(function (id) { return states[id].owner === p.id; }) ? 2 : 1;
         if (qd < fd) { fd = qd; front = q; }
       }
       if (front) send(from, front, 0.65);
@@ -725,8 +782,13 @@
 
   function selectAll() {
     selected.length = 0;
-    states.forEach(function (s) { if (s.owner === 1) selected.push(s.id); });
-    if (selected.length) toast(selected.length + ' 州を選択中　行き先をタップ');
+    // Only the states that touch someone else: picking the interior as well
+    // just made the drag line a starburst that could not be used.
+    states.forEach(function (s) {
+      if (s.owner !== 1) return;
+      if (s.near.some(function (id) { return states[id].owner !== 1; })) selected.push(s.id);
+    });
+    if (selected.length) toast('前線の ' + selected.length + ' 州を選択中　行き先をタップ');
   }
 
   window.addEventListener('keydown', function (e) {
@@ -804,7 +866,7 @@
       setTimeout(function () {
         countEl.classList.remove('on');
         if (paused) { pausedMs += performance.now() - pausedAt; paused = false; lastFrame = performance.now(); }
-        if (!hintShown) showHint('自分の州から相手の州へドラッグ');
+        if (!hintShown) showHint('自分の州から、隣の州へドラッグ');
       }, 420);
     }, 620);
   }
@@ -882,11 +944,23 @@
   // ----------------------------------------------------------------- draw
   function draw() {
     var w = cv.width / (window.devicePixelRatio || 1), h = cv.height / (window.devicePixelRatio || 1);
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#0a0f1f';
-    ctx.fillRect(0, 0, w, h);
-
     var now = performance.now();
+    ctx.save();
+    // A hit you can feel.
+    if (now < shakeUntil) {
+      var k = (shakeUntil - now) / 320;
+      ctx.translate((Math.random() - 0.5) * 9 * k, (Math.random() - 0.5) * 9 * k);
+    }
+    ctx.clearRect(-20, -20, w + 40, h + 40);
+    ctx.fillStyle = '#0a0f1f';
+    ctx.fillRect(-20, -20, w + 40, h + 40);
+
+    // Where the selected states can actually send. Without this the rule
+    // "only across a border" is invisible and reads as the game ignoring you.
+    var reach = {};
+    selected.forEach(function (id) {
+      states[id].near.forEach(function (n) { if (states[n].owner !== 1) reach[n] = 1; });
+    });
 
     // States.
     for (var i = 0; i < states.length; i++) {
@@ -898,12 +972,14 @@
       for (var k = 1; k < s.poly.length; k++) ctx.lineTo(sx(s.poly[k][0]), sy(s.poly[k][1]));
       ctx.closePath();
       var lit = now < s.flash;
-      ctx.globalAlpha = p ? (lit ? 0.62 : 0.34) : (lit ? 0.3 : 0.14);
+      ctx.globalAlpha = p ? (lit ? 0.7 : 0.4) : (lit ? 0.34 : 0.16);
+      if (reach[s.id]) ctx.globalAlpha += 0.2;
       ctx.fillStyle = col;
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.lineWidth = isSelected(s) ? 3 : (hoverId === s.id ? 2 : 1);
+      ctx.lineWidth = isSelected(s) ? 3 : reach[s.id] ? 2.5 : (hoverId === s.id ? 2 : 1);
       ctx.strokeStyle = isSelected(s) ? '#67e8f9'
+        : reach[s.id] ? 'rgba(252,211,77,0.9)'
         : hoverId === s.id ? 'rgba(245,247,251,0.55)' : 'rgba(245,247,251,0.22)';
       ctx.stroke();
     }
@@ -963,7 +1039,14 @@
       var st = states[i];
       var pp = st.owner ? player(st.owner) : null;
       var cx = sx(st.x), cy = sy(st.y);
-      var bw = 46, bh = 30;
+      var grow = now < st.pop ? 1 + 0.35 * ((st.pop - now) / 420) : 1;
+      var bw = (st.hq ? 54 : 46) * grow, bh = 30 * grow;
+      if (st.hq) {
+        // 拠点: worth more, so it has to look like it.
+        ctx.fillStyle = 'rgba(252,211,77,0.9)';
+        roundRect(cx - bw / 2 - 3, cy - bh / 2 - 3, bw + 6, bh + 6, 10);
+        ctx.fill();
+      }
       ctx.fillStyle = pp ? pp.color : NEUTRAL.color;
       roundRect(cx - bw / 2, cy - bh / 2, bw, bh, 8);
       ctx.fill();
@@ -976,8 +1059,8 @@
       ctx.font = '700 10px system-ui, sans-serif';
       ctx.fillText(pp ? pp.mark : '·', cx - bw / 2 + 8.5, cy + 0.5);
       ctx.fillStyle = '#0b1120';
-      ctx.font = '800 16px system-ui, sans-serif';
-      ctx.fillText(String(Math.floor(st.units)), cx + 6, cy + 0.5);
+      ctx.font = '800 ' + Math.round(16 * grow) + 'px system-ui, sans-serif';
+      ctx.fillText(String(Math.floor(st.units)), cx + (st.hq ? 9 : 6), cy + 0.5);
     }
 
     // Clock.
@@ -992,6 +1075,22 @@
     ctx.fill();
     ctx.fillStyle = left < 30000 ? '#fca5a5' : 'rgba(245,247,251,0.8)';
     ctx.fillText(clock, w - 24, 88);
+
+    // Who holds how much of the map, as one bar. The standings say units; a
+    // round is won on ground.
+    var t = totals();
+    var bx = 14, by = h - 62, bwid = w - 28;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(bx, by, bwid, 7, 4); ctx.fill();
+    var at = bx;
+    PLAYERS.forEach(function (q) {
+      var frac = t[q.id].count / states.length;
+      if (!frac) return;
+      ctx.fillStyle = q.color;
+      ctx.fillRect(at, by, bwid * frac, 7);
+      at += bwid * frac;
+    });
+    ctx.restore();
   }
 
   function plane(x, y, s) {
@@ -1032,15 +1131,24 @@
       for (var i = 0; i < states.length; i++) {
         var s = states[i];
         if (!s.owner) continue;
+        // Growth stops at the ceiling, but troops moved in on top of it stay.
+        // They used to bleed off at half a soldier a tick, which quietly made
+        // massing impossible: a border state could never be built up past its
+        // own cap, so a well-defended neighbour could never be taken and the
+        // board locked solid a minute in — measured, 4/4/5/9 unchanged for two
+        // minutes. Stacking is the answer to a strong state; it has to work.
         if (s.units < s.cap) s.units = Math.min(s.cap, s.units + s.gain);
-        else if (s.units > s.cap) s.units = Math.max(s.cap, s.units - 0.5);
       }
     }
 
-    for (i = 0; i < PLAYERS.length; i++) {
-      var p = PLAYERS[i];
-      if (p.human || p.out) continue;
-      if (now >= (p.nextThink || 0)) think(p, now);
+    // Nobody moves for the first few seconds: the map is new every round and
+    // being behind before you have read it is not a difficulty setting.
+    if (elapsed() > OPEN_MS) {
+      for (i = 0; i < PLAYERS.length; i++) {
+        var p = PLAYERS[i];
+        if (p.human || p.out) continue;
+        if (now >= (p.nextThink || 0)) think(p, now);
+      }
     }
 
     for (i = flights.length - 1; i >= 0; i--) {
