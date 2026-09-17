@@ -9333,6 +9333,16 @@ body[data-dial-hot] .lumen-dot {
 @media (max-width: 640px) {
   .search-home { padding-bottom: 40px; }
   .search-home-bottom { margin-top: 28px; }
+  /* The sentence is written as three lines and should read as three. The page
+     already carries 20px of side padding; this element's own 20px on top of it
+     left 300px for a line that needs 303, so the last line broke with two
+     characters stranded on a fourth. */
+  .search-home-def { padding-left: 0; padding-right: 0; }
+}
+@media (max-width: 359px) {
+  /* Narrower than any current phone. Nothing fits at 13px here, and losing
+     the letter-spacing costs less than losing a line. */
+  .search-home-def { font-size: 12px; letter-spacing: 0; }
 }
 .search-home-footer {
   position: static;
