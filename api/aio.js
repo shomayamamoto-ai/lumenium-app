@@ -19,6 +19,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
+import { socialActivity } from './_social.js'
 import {
   QUESTIONS, CATEGORIES, BRAND, costEstimateUsd,
   namesBrand, citesBrand, hostOf, isHit, VERDICTS,
@@ -275,7 +276,11 @@ export async function GET(req) {
     aiReady: !!(await apiKey()),
     brand: BRAND.domain,
   }
-  if (!cfg) return json({ ...NO_STORE, meta }, 503)
+  // What went out in the same window. An answer engine has to have something
+  // recent to find; a mention rate read without the publishing rate beside it
+  // invites the wrong fix.
+  const social = await socialActivity(30)
+  if (!cfg) return json({ ...NO_STORE, meta, social }, 503)
 
   let ids = []
   try {
@@ -285,7 +290,7 @@ export async function GET(req) {
     return json({ ok: false, code: 'STORE_ERROR', message: '保存先の読み取りに失敗しました。', meta }, 502)
   }
 
-  if (!ids.length) return json({ ok: true, meta, latest: null, history: [] })
+  if (!ids.length) return json({ ok: true, meta, social, latest: null, history: [] })
 
   const runs = (await pipeline(cfg, ids.map((id) => ['GET', RK(id)])))
     .map((raw) => { try { return JSON.parse(raw) } catch (_) { return null } })
@@ -298,6 +303,7 @@ export async function GET(req) {
   return json({
     ok: true,
     meta,
+    social,
     latest,
     runs: runs.filter((r) => r.summary).map((r) => ({
       id: r.id,
@@ -400,6 +406,10 @@ export async function POST(req) {
     run.companiesFailed = fallback
 
     run.summary = summarise(run.results, fallback)
+    // Frozen with the run: comparing this month's mention rate against last
+    // month's only means something if you can also see what was published in
+    // between, and that number moves.
+    run.social = await socialActivity(30)
     run.finishedAt = new Date().toISOString()
     await writeRun(cfg, run)
     return json({ ok: true, run })

@@ -14,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
 import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './analytics.js'
+import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'
 
@@ -29,8 +30,13 @@ const PAGES = [
 ]
 
 async function liveNumbers() {
+  // How much went out, and where. Advice about being invisible in answer
+  // engines is half an answer if the month it covers contained two posts:
+  // "書く量を増やす" and "書いたものを出す先を増やす" are different jobs.
+  const social = { activity: await socialActivity(30), networks: await socialStatus() }
+
   const cfg = storeConfig()
-  if (!cfg) return { analytics: null, aio: null }
+  if (!cfg) return { analytics: null, aio: null, social }
 
   const dates = lastDays(30)
   try {
@@ -98,9 +104,10 @@ async function liveNumbers() {
         events: ev, people, arrivals,
       },
       aio,
+      social,
     }
   } catch (_) {
-    return { analytics: null, aio: null }
+    return { analytics: null, aio: null, social }
   }
 }
 
@@ -170,6 +177,22 @@ function systemPrompt(live) {
     ].filter(Boolean).join('\n')
   }
 
+  const act = live.social && live.social.activity
+  const ready = ((live.social && live.social.networks) || []).filter((n) => n.ready)
+  const sns = !act || !act.posts
+    ? '直近30日、この管理画面からのSNS投稿は0件です。' +
+      (ready.length
+        ? `投稿できる状態なのは ${ready.map((n) => n.label).join('・')} です。`
+        : 'どのSNSも資格情報が未入力で、管理画面からは投稿できません。') +
+      '（管理画面を経由しない手動投稿はここに出ません。数を語るときは必ずその旨を断ること）'
+    : [
+        `直近30日: ${act.posts}回（成功 ${act.sent} / 失敗 ${act.failed}）、直近7日: ${act.last7}回`,
+        '内訳: ' + Object.entries(act.byNet).map(([k, n]) => `${k} ${n}件`).join(' / '),
+        `最後の投稿: ${act.lastAt || '記録なし'}`,
+        '投稿できる状態: ' + (ready.length ? ready.map((n) => n.label).join('・') : 'なし'),
+        'これは管理画面から出した分だけの数です。手動投稿は含みません。',
+      ].join('\n')
+
   return [
     'あなたは lumenium.net（ルメニウム）専属のSEO / AIO（AI検索最適化）アドバイザーです。',
     '相手はこのサイトのオーナー（山本捷真）本人で、管理画面から相談しています。日本語で答えてください。',
@@ -200,6 +223,12 @@ function systemPrompt(live) {
     '',
     '## AIO出現率（answer engine に実際に質問した結果）',
     aio,
+    '',
+    '## SNS発信量（管理画面から投稿した分）',
+    sns,
+    'answer engine は最近の言及と一次情報を拾います。出現率が低いまま発信も少ないなら、',
+    '内部施策より先に「出す量」を指摘してください。逆に発信しているのに出てこないなら、',
+    '出し先・書き方・被リンクの問題として切り分けること。',
     '',
     `計測に使っている質問は${QUESTIONS.length}問で、「ブランド指名」と「非指名」に分かれています。`,
     '非指名での出現率が低いことが、対策の主戦場です。',

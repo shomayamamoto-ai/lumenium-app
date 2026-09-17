@@ -13,7 +13,7 @@ export const config = { runtime: 'edge' }
 // apart.
 
 import { requireAdmin, json } from './_admin-auth.js'
-import { settingStatus, saveSetting, storeReady, SETTINGS } from './_settings.js'
+import { settingStatus, saveSetting, storeReady, SETTINGS, GROUPS } from './_settings.js'
 
 const NO_STORE = {
   ok: false,
@@ -31,7 +31,7 @@ export async function GET(req) {
   const settings = await settingStatus()
   // Without a store nothing can be saved, but the environment may still have
   // values — so the list is worth showing either way, read-only.
-  return json({ ok: true, ready, settings, message: ready ? '' : NO_STORE.message })
+  return json({ ok: true, ready, groups: GROUPS, settings, message: ready ? '' : NO_STORE.message })
 }
 
 export async function POST(req) {
@@ -56,6 +56,7 @@ export async function POST(req) {
     return json({
       ok: true,
       cleared: res.cleared,
+      groups: GROUPS,
       settings: await settingStatus(),
       message: res.cleared
         ? '削除しました。環境変数が設定されていればそちらが使われます。'

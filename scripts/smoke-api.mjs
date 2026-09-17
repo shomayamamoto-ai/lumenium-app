@@ -31,6 +31,13 @@ Object.assign(process.env, {
   GITHUB_REPO: 'smoke/smoke',
   UPSTASH_REDIS_REST_URL: REDIS,
   UPSTASH_REDIS_REST_TOKEN: 'smoke',
+  // The five networks, so POST /api/social is exercised on the path where it
+  // actually sends rather than on the "not configured" refusal.
+  X_ACCESS_TOKEN: 'smoke',
+  FB_PAGE_ID: '1', FB_PAGE_TOKEN: 'smoke',
+  IG_USER_ID: '2', IG_TOKEN: 'smoke',
+  THREADS_USER_ID: '3', THREADS_TOKEN: 'smoke',
+  LI_AUTHOR_URN: 'urn:li:person:smoke', LI_TOKEN: 'smoke',
 })
 
 const store = new Map()
@@ -67,6 +74,16 @@ globalThis.fetch = async (input, init = {}) => {
     return ok({ id: 'smoke' })
   }
   if (u.includes('api.github.com')) return ok({ sha: 'deadbeef', content: '', commit: { sha: 'deadbeef' } })
+  // The publishing endpoints. Shapes match what each platform documents, so a
+  // handler that reads the wrong field here reads the wrong field in
+  // production too.
+  if (u.includes('api.twitter.com')) return ok({ data: { id: '1770000000000000000', text: 'smoke' } })
+  if (u.includes('graph.facebook.com') || u.includes('graph.threads.net')) {
+    if (u.includes('permalink')) return ok({ permalink: 'https://example.invalid/p/smoke' })
+    if (u.includes('media_publish') || u.includes('threads_publish')) return ok({ id: 'published_1' })
+    return ok({ id: 'container_1', post_id: '1_2' })
+  }
+  if (u.includes('api.linkedin.com')) return ok({ id: 'urn:li:share:1' })
   throw new Error(`smoke test tried to reach the network: ${u}`)
 }
 
@@ -89,6 +106,11 @@ const CALLS = [
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
+  ['social', 'GET', '', KEY],
+  ['social', 'POST', '', JSONH,
+    { text: 'スモークテストの投稿です。', link: 'https://lumenium.net/',
+      imageUrl: 'https://lumenium.net/ogp.png',
+      targets: ['x', 'facebook', 'instagram', 'threads', 'linkedin'] }],
   // The committed-state reads behind the two editors.
   ['settings', 'GET', '', KEY],
   ['settings', 'POST', '', JSONH, { name: 'CONTACT_TO_EMAIL', value: 'smoke@example.com' }],

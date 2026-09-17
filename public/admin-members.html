@@ -73,6 +73,14 @@
     border: 1px solid var(--border); border-radius: 999px; font-size: 13.5px;
   }
   #portal-note { font-size: 12px; color: var(--sub); }
+  /* The one screen every unconfigured feature sends you to, one click from
+     the portal instead of three. */
+  #portal-keys {
+    flex: none; padding: 9px 15px; border-radius: 999px; font-size: 12.5px;
+    background: #1a2038; border: 1px solid var(--border); color: var(--text);
+  }
+  #portal-keys:hover { border-color: #818cf8; color: #c7d2fe; }
+  #portal-keys.urgent { background: var(--grad); border-color: transparent; color: #fff; }
   #portal-hub-sub {
     flex: none; padding: 5px 11px; border-radius: 999px;
     background: rgba(255,255,255,0.05); border: 1px solid var(--border);
@@ -421,6 +429,53 @@
     .set-row { grid-template-columns: 1fr; }
     .set-row .acts { justify-content: flex-end; }
   }
+  /* Fifteen key fields in one list is a wall. The headings say which job each
+     block belongs to, so you can stop reading once you reach one you do not
+     use. */
+  .set-group { margin: 20px 0 10px; }
+  .set-group h4 { font-size: 12.5px; font-weight: 800; margin-bottom: 3px; }
+  .set-group p { font-size: 11.5px; color: var(--sub); line-height: 1.7; }
+  .set-group .tally { font-size: 11px; font-weight: 700; color: var(--sub); margin-left: 8px; }
+  .linkish {
+    padding: 0; background: none; border: 0; color: #93c5fd;
+    font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline;
+  }
+  .linkish:hover { color: #c7d2fe; }
+
+  /* ---- SNS composer ---- */
+  .soc-nets { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .soc-net {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 9px;
+    padding: 10px 12px; background: #151b31; border: 1px solid var(--border);
+    border-radius: 11px; cursor: pointer;
+  }
+  .soc-net.off { opacity: 0.55; cursor: default; }
+  .soc-net.on { border-color: #5eead4; background: rgba(20,184,166,0.09); }
+  .soc-net input { width: 15px; height: 15px; accent-color: #14b8a6; }
+  .soc-net .nm { font-size: 13px; font-weight: 700; }
+  .soc-net .left { font-size: 11px; font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .soc-net .left.over { color: #fca5a5; }
+  .soc-net .sub { grid-column: 2 / -1; font-size: 10.5px; color: var(--sub); line-height: 1.6; }
+  .soc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .soc-fields input {
+    width: 100%; padding: 10px 12px; background: #1a2038; color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 12.5px; font-family: inherit;
+  }
+  @media (max-width: 560px) { .soc-fields { grid-template-columns: 1fr; } }
+  .soc-res { display: flex; align-items: flex-start; gap: 9px; padding: 9px 12px; margin-bottom: 6px;
+    border-radius: 10px; font-size: 12.5px; line-height: 1.7; background: #151b31; border: 1px solid var(--border); }
+  .soc-res.ok { border-color: rgba(16,185,129,0.5); }
+  .soc-res.ng { border-color: rgba(248,113,113,0.5); }
+  .soc-res b { flex: none; }
+  .soc-res a { color: #93c5fd; }
+  .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #151b31; border: 1px solid var(--border); border-radius: 10px; }
+  .soc-post .when { font-size: 11px; color: var(--sub); }
+  .soc-post .body { font-size: 12.5px; line-height: 1.7; margin: 3px 0; white-space: pre-wrap; word-break: break-word; }
+  .soc-post .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .soc-post .tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-decoration: none; }
+  .soc-post .tag.ok { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+  .soc-post .tag.ng { background: rgba(248,113,113,0.15); color: #fca5a5; }
+
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: 11px; font-weight: 500; color: var(--sub);
@@ -505,6 +560,7 @@
     <div id="portal">
       <div class="portal-head">
         <input type="search" id="portal-search" placeholder="機能を検索…（例: 会員、解析、文章）" autocomplete="off">
+        <button type="button" id="portal-keys">🔑 APIキーを入力</button>
         <span id="portal-hub-sub">読み込み中…</span>
         <span id="portal-note"></span>
       </div>
@@ -672,6 +728,30 @@
       <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
     </div>
 
+    <div class="panel" id="social-admin" style="display:none; margin-top:20px">
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📣 SNS投稿</h2>
+      <p class="share-note" style="margin-bottom:14px">
+        ここから X・Facebook・Instagram・Threads・LinkedIn に直接投稿します。各SNSの開発者画面で発行したアクセストークンを
+        <button type="button" class="linkish" id="social-to-keys">「設定状況 › キーの入力」</button>に貼ると、その SNS が選べるようになります。
+        送信結果は各SNSからの返答をそのまま表示します。投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
+      </p>
+      <p class="msg" id="social-msg" style="margin-bottom:12px"></p>
+      <div id="social-nets" class="soc-nets"></div>
+      <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
+      <div class="soc-fields">
+        <input type="url" id="social-link" placeholder="リンク（任意 / https://）" autocomplete="off">
+        <input type="url" id="social-image" placeholder="画像URL（任意 / https:// · Instagramは必須）" autocomplete="off">
+      </div>
+      <div class="toolbar" style="margin:12px 0">
+        <button type="button" id="social-post">選んだSNSに投稿</button>
+        <button type="button" class="ghost" id="social-reload">状態を再取得</button>
+        <span id="social-hint"></span>
+      </div>
+      <div id="social-results" style="margin-bottom:18px"></div>
+      <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">これまでの投稿</h3>
+      <div id="social-log"></div>
+    </div>
+
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🩺 設定状況</h2>
       <p class="share-note" style="margin-bottom:14px">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
@@ -691,6 +771,7 @@
         入力した値は画面に戻しません。末尾4文字だけ、どのキーかを見分けるために表示します。
       </p>
       <p class="msg" id="set-msg" style="margin-bottom:10px"></p>
+      <div id="set-steps" style="display:none"></div>
       <div id="set-list"></div>
     </div>
 
@@ -711,6 +792,7 @@
         <p id="seo-progress-text" style="font-size:12px;color:var(--sub);margin-top:7px"></p>
       </div>
       <p class="msg" id="seo-msg" style="margin-bottom:12px"></p>
+      <div id="seo-social" style="margin-bottom:18px"></div>
       <div id="seo-body" style="display:none">
         <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px"></div>
         <div id="seo-breakdown" style="margin-bottom:18px"></div>
@@ -955,6 +1037,8 @@ window.lumAdmin = {
       desc: '登録者を見る・渡す', accent: '#93c5fd', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
       desc: 'お知らせを出す', accent: '#c4b5fd', tint: 'rgba(139,92,246,0.14)' },
+    { id: 'social-admin', icon: '📣', label: 'SNS投稿', init: 'lumSocialInit', needs: 'social',
+      desc: '5つのSNSに直接出す', accent: '#5eead4', tint: 'rgba(20,184,166,0.14)' },
     { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
       desc: 'サイトの文章を直す', accent: '#f9a8d4', tint: 'rgba(236,72,153,0.13)' },
     { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
@@ -1014,6 +1098,10 @@ window.lumAdmin = {
     if (onPortal) layoutPortal();
     try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
   }
+
+  // Panels link to each other — the SNS composer points at the key panel —
+  // and they are separate scripts, so one way in has to be reachable.
+  window.lumShowTab = showTab;
 
   function buildTabs() {
     var nav = document.getElementById('shell-nav');
@@ -1103,6 +1191,13 @@ window.lumAdmin = {
     buildClock();
     buildPomo();
     document.getElementById('portal-search').addEventListener('input', filterPortal);
+    document.getElementById('portal-keys').addEventListener('click', function () {
+      showTab('health-admin');
+      setTimeout(function () {
+        var h = document.getElementById('set-list');
+        if (h) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 90);
+    });
     document.getElementById('to-portal').addEventListener('click', function () { showTab(PORTAL); });
     window.addEventListener('resize', layoutPortal);
     loadPortalHealth();
@@ -1640,8 +1735,9 @@ window.lumAdmin = {
       return document.querySelector('#pnode-' + t.id + ' .pn-chip').classList.contains('off');
     }).length;
     sub.textContent = off ? (TABS.length - off) + ' / ' + TABS.length + ' 利用可' : 'すべて利用可';
+    document.getElementById('portal-keys').classList.toggle('urgent', !!off);
     document.getElementById('portal-note').textContent = off
-      ? off + ' 件が未設定です。設定状況から手順を確認できます。' : '';
+      ? off + ' 件が未設定です。キーを入れればその場で使えます。' : '';
   }
 
   document.getElementById('sign-out').addEventListener('click', function () {
@@ -2615,6 +2711,46 @@ window.lumAdmin = {
     }).join('');
   }
 
+  /* 発信量。An answer engine can only cite what exists, so a mention rate
+     read on its own invites the wrong fix: the same 8% means "write more" if
+     nothing went out this month and "the writing is not landing" if thirty
+     posts did. */
+  function socialBlock(act, sum) {
+    var host = el('seo-social');
+    if (!act) { host.innerHTML = ''; return; }
+    var byNet = act.byNet || {};
+    var names = { x: 'X', facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', linkedin: 'LinkedIn' };
+    var mix = Object.keys(byNet).map(function (k) { return (names[k] || k) + ' ' + byNet[k]; }).join(' / ');
+    var items = [
+      ['投稿した回数（30日）', String(act.posts) + ' 回'],
+      ['送信できた数', String(act.sent) + ' 件' + (act.failed ? '（失敗 ' + act.failed + '）' : '')],
+      ['直近7日', String(act.last7) + ' 回'],
+      ['最後の投稿', act.lastAt ? new Date(act.lastAt).toLocaleDateString('ja-JP') : 'なし']
+    ];
+    var read = '';
+    if (sum) {
+      var rate = sum.openMentionRate || 0;
+      read = !act.posts
+        ? '直近30日、この画面からの発信は0件です。非指名の出現率が ' + pct(rate) +
+          ' に留まっているのは、AIが拾える新しい一次情報が出ていないことが原因である可能性があります。'
+        : rate < 0.2
+          ? '発信はしているのに、非指名での出現率は ' + pct(rate) +
+            ' です。量より先に、出し先・書き方・自サイトへの導線を疑う段階です。'
+          : '発信量と出現率が揃っています。いまの出し方を続け、月ごとの推移で見てください。';
+    }
+    host.innerHTML =
+      '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">発信量（SNS投稿・直近30日）</h3>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px">' +
+      items.map(function (i) {
+        return '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
+          '<div style="font-size:11px;color:var(--sub)">' + esc(i[0]) + '</div>' +
+          '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + esc(i[1]) + '</div></div>';
+      }).join('') + '</div>' +
+      (mix ? '<p class="share-note" style="margin-bottom:6px">内訳：' + esc(mix) + '</p>' : '') +
+      (read ? '<p class="share-note" style="margin-bottom:6px">' + esc(read) + '</p>' : '') +
+      '<p class="share-note">数えているのは「SNS投稿」タブから出した分だけです。手で直接投稿した分は入りません。</p>';
+  }
+
   function bars(id, rows, opt) {
     opt = opt || {};
     var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
@@ -2683,6 +2819,7 @@ window.lumAdmin = {
 
   function draw(data) {
     var run = data.latest;
+    socialBlock(data.social, run && run.summary);
     if (run && !run.summary && (run.results || []).length) {
       // Closing the tab mid-run left the answers in storage but the run
       // unfinalised, and the panel then reported "no results" as if the work
@@ -3047,10 +3184,46 @@ window.lumAdmin = {
     m.classList.toggle('info', !!info);
   }
 
-  function renderSettings(list, ready) {
+  var setGroups = [{ id: 'site', label: '', note: '' }];
+
+  function renderSettings(list, ready, groups) {
+    if (groups && groups.length) setGroups = groups;
     var host = el('set-list');
     host.innerHTML = '';
-    list.forEach(function (s) {
+    var head = null;
+    var seen = {};
+    // One long list of fifteen fields is a wall; the headings let you stop
+    // reading at the block you do not use.
+    setGroups.forEach(function (g) {
+      var mine = list.filter(function (x) { return (x.group || 'site') === g.id; });
+      if (!mine.length) return;
+      seen[g.id] = true;
+      if (setGroups.length > 1) {
+        head = document.createElement('div');
+        head.className = 'set-group';
+        var h = document.createElement('h4');
+        h.textContent = g.label;
+        var tally = document.createElement('span');
+        tally.className = 'tally';
+        tally.textContent = mine.filter(function (x) { return x.set; }).length + ' / ' + mine.length + ' 設定済み';
+        h.appendChild(tally);
+        head.appendChild(h);
+        if (g.note) {
+          var np = document.createElement('p');
+          np.textContent = g.note;
+          head.appendChild(np);
+        }
+        host.appendChild(head);
+      }
+      mine.forEach(function (s) { host.appendChild(setRow(s, ready)); });
+    });
+    // Anything whose group the client has not heard of still has to appear.
+    list.filter(function (x) { return !seen[x.group || 'site']; })
+      .forEach(function (s) { host.appendChild(setRow(s, ready)); });
+  }
+
+  function setRow(s, ready) {
+    {
       var row = document.createElement('div');
       row.className = 'set-row';
 
@@ -3062,10 +3235,29 @@ window.lumAdmin = {
         : s.from === 'env' ? '環境変数で設定済み ' + s.hint
         : '未設定';
       h.appendChild(st);
-      var code = document.createElement('code');
-      code.textContent = s.name;
-      code.style.cssText = 'font-size:10.5px;color:var(--sub);font-weight:500';
-      h.appendChild(code);
+      if (ready) {
+        var code = document.createElement('code');
+        code.textContent = s.name;
+        code.style.cssText = 'font-size:10.5px;color:var(--sub);font-weight:500';
+        h.appendChild(code);
+      } else {
+        // Without a store this field cannot be saved from here, but the same
+        // value in Vercel under this exact name works — so hand over the name
+        // rather than only explaining why the box is greyed out.
+        var cp = document.createElement('button');
+        cp.type = 'button';
+        cp.className = 'env-copy';
+        cp.textContent = s.name + ' ⧉';
+        cp.title = 'Vercel の環境変数名としてコピー';
+        cp.onclick = function () {
+          try {
+            navigator.clipboard.writeText(s.name);
+            cp.textContent = s.name + ' ✓';
+            setTimeout(function () { cp.textContent = s.name + ' ⧉'; }, 1200);
+          } catch (_) { setSay('コピーできませんでした。手で入力してください：' + s.name); }
+        };
+        h.appendChild(cp);
+      }
       row.appendChild(h);
 
       var why = document.createElement('p');
@@ -3106,8 +3298,8 @@ window.lumAdmin = {
       where.textContent = '取得元：' + s.where;
       row.appendChild(where);
 
-      host.appendChild(row);
-    });
+      return row;
+    }
   }
 
   async function put(name, value, btn, input) {
@@ -3121,15 +3313,39 @@ window.lumAdmin = {
     if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || '保存できませんでした。'); return; }
     if (input) input.value = '';
     setSay(r.data.message, true);
-    renderSettings(r.data.settings, true);
+    renderSettings(r.data.settings, true, r.data.groups);
     load();   // what is switched on has just changed
+  }
+
+  /* Two ways in, and the greyed-out box only explains the one that is shut.
+     Connecting the store takes about a minute and unlocks this screen; until
+     then the same names in Vercel do the same job. */
+  function steps(ready) {
+    var host = el('set-steps');
+    host.style.display = ready ? 'none' : 'block';
+    if (ready) return;
+    host.innerHTML =
+      '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
+      '<p style="font-size:12.5px;font-weight:700;margin-bottom:6px">この画面から入力できるようにする（約1分・再デプロイ不要）</p>' +
+      '<ol style="font-size:12px;color:var(--sub);line-height:1.9;padding-left:1.2em">' +
+      '<li>vercel.com › このプロジェクト › <b>Storage</b> タブ</li>' +
+      '<li><b>Create Database</b> › Upstash の <b>Redis</b> を選ぶ（無料枠あり）</li>' +
+      '<li>作成したら <b>Connect Project</b> でこのプロジェクトに接続</li>' +
+      '<li>この画面を再読み込み。以降はキーをここに貼るだけで有効になります</li>' +
+      '</ol>' +
+      '<p style="font-size:12px;color:var(--sub);line-height:1.9;margin-top:8px">' +
+      '接続せずに進めることもできます。その場合は各項目の名前（右のグレーの文字）を押してコピーし、' +
+      'Vercel の Settings › Environment Variables に同じ名前で貼って再デプロイしてください。' +
+      'アクセス解析・AIO計測・失効できる共有リンク・SNS投稿の履歴だけは、保存先が無いと記録できません。</p>' +
+      '</div>';
   }
 
   async function loadSettings() {
     var r = await window.lumAdmin.fetch('/api/settings');
     if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || 'キーの状態を取得できませんでした。'); return; }
-    renderSettings(r.data.settings || [], r.data.ready);
+    renderSettings(r.data.settings || [], r.data.ready, r.data.groups);
     setSay(r.data.ready ? '' : r.data.message, true);
+    steps(r.data.ready);
   }
 
   async function load() {
@@ -3150,6 +3366,228 @@ window.lumAdmin = {
     loaded = true;
     load();
     loadSettings();
+  };
+})();
+</script>
+
+<script>
+/* ---- SNS投稿 ----
+   One box, five destinations. Each network is only selectable once its
+   credentials are in, and the row says which ones are missing rather than
+   failing at send time. Nothing here claims a post succeeded: the per-network
+   result is whatever that platform answered. */
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var nets = [];
+  var started = false;
+
+  function say(t, info) {
+    var m = el('social-msg');
+    m.textContent = t || '';
+    m.classList.toggle('show', !!t);
+    m.classList.toggle('info', !!info);
+  }
+
+  function body() {
+    return {
+      text: el('social-text').value,
+      link: el('social-link').value.trim(),
+      imageUrl: el('social-image').value.trim(),
+    };
+  }
+
+  /* What each network will actually receive, so the counter is not a guess:
+     the link is appended to the body on every one of them. */
+  function payloadLen() {
+    var b = body();
+    return (b.text + (b.link ? '\n' + b.link : '')).length;
+  }
+
+  function renderNets() {
+    var host = el('social-nets');
+    host.innerHTML = '';
+    nets.forEach(function (n) {
+      var lab = document.createElement('label');
+      lab.className = 'soc-net' + (n.ready ? '' : ' off');
+      lab.id = 'soc-' + n.id;
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.disabled = !n.ready;
+      cb.dataset.net = n.id;
+      cb.addEventListener('change', function () {
+        lab.classList.toggle('on', cb.checked);
+        count();
+      });
+      lab.appendChild(cb);
+      var nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = n.label;
+      lab.appendChild(nm);
+      var left = document.createElement('span');
+      left.className = 'left';
+      left.title = 'あと何文字書けるか（リンクの分を含む）';
+      lab.appendChild(left);
+      var sub = document.createElement('span');
+      sub.className = 'sub';
+      sub.textContent = n.ready
+        ? n.note
+        : '未設定：' + n.missing.join('・') + ' が要ります。';
+      lab.appendChild(sub);
+      host.appendChild(lab);
+    });
+    count();
+  }
+
+  function count() {
+    var len = payloadLen();
+    var img = el('social-image').value.trim();
+    var picked = 0, over = 0, needImg = 0;
+    nets.forEach(function (n) {
+      var lab = el('soc-' + n.id);
+      if (!lab) return;
+      var cb = lab.querySelector('input');
+      var left = lab.querySelector('.left');
+      var rest = n.limit - len;
+      left.textContent = n.ready ? String(rest) : '';
+      left.classList.toggle('over', rest < 0);
+      if (!cb.checked) return;
+      picked++;
+      if (rest < 0) over++;
+      if (n.image === 'required' && !img) needImg++;
+    });
+    var notes = [];
+    if (!picked) notes.push('投稿先を選んでください');
+    if (over) notes.push(over + ' 件が文字数超過');
+    if (needImg) notes.push('Instagram は画像URLが必要です');
+    el('social-hint').textContent = notes.length ? notes.join(' / ') : (picked + ' 件に投稿します');
+    el('social-post').disabled = !picked || !!over || !!needImg;
+  }
+
+  function renderResults(list) {
+    var host = el('social-results');
+    host.innerHTML = '';
+    (list || []).forEach(function (r) {
+      var d = document.createElement('div');
+      d.className = 'soc-res ' + (r.ok ? 'ok' : 'ng');
+      var b = document.createElement('b');
+      b.textContent = (r.ok ? '✓ ' : '✗ ') + r.label;
+      d.appendChild(b);
+      var sp = document.createElement('span');
+      if (r.ok && r.url) {
+        sp.innerHTML = '投稿しました — ';
+        var a = document.createElement('a');
+        a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = '開く';
+        sp.appendChild(a);
+      } else {
+        sp.textContent = r.ok ? '投稿しました。' : r.message;
+      }
+      d.appendChild(sp);
+      host.appendChild(d);
+    });
+  }
+
+  function renderLog(list, stored) {
+    var host = el('social-log');
+    host.innerHTML = '';
+    if (!stored) {
+      host.innerHTML = '<p class="share-note">保存先（Upstash Redis）が未接続のため、投稿の履歴は残せません。' +
+        '投稿そのものは動きますが、SEO / AIO 分析の「発信量」も 0 のままになります。</p>';
+      return;
+    }
+    if (!list || !list.length) {
+      host.innerHTML = '<p class="share-note">まだこの画面からの投稿はありません。</p>';
+      return;
+    }
+    list.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'soc-post';
+      var w = document.createElement('div');
+      w.className = 'when';
+      w.textContent = new Date(p.at).toLocaleString('ja-JP');
+      d.appendChild(w);
+      var t = document.createElement('div');
+      t.className = 'body';
+      t.textContent = p.text || '（本文なし）';
+      d.appendChild(t);
+      var tags = document.createElement('div');
+      tags.className = 'tags';
+      (p.results || []).forEach(function (r) {
+        var tag;
+        if (r.ok && r.url) {
+          tag = document.createElement('a');
+          tag.href = r.url; tag.target = '_blank'; tag.rel = 'noopener noreferrer';
+        } else {
+          tag = document.createElement('span');
+          if (!r.ok) tag.title = r.message || '';
+        }
+        tag.className = 'tag ' + (r.ok ? 'ok' : 'ng');
+        tag.textContent = r.label + (r.ok ? '' : ' 失敗');
+        tags.appendChild(tag);
+      });
+      d.appendChild(tags);
+      host.appendChild(d);
+    });
+  }
+
+  async function load() {
+    var r = await window.lumAdmin.fetch('/api/social');
+    if (!r.res.ok || !r.data.ok) { say((r.data && r.data.message) || '状態を取得できませんでした。'); return; }
+    nets = r.data.networks || [];
+    renderNets();
+    renderLog(r.data.recent, r.data.stored);
+    var ready = nets.filter(function (n) { return n.ready; }).length;
+    say(ready ? '' : 'まだどのSNSも投稿できません。上の「キーの入力」から、使うSNSのトークンを入れてください。', true);
+  }
+
+  async function post() {
+    var picked = [];
+    nets.forEach(function (n) {
+      var lab = el('soc-' + n.id);
+      if (lab && lab.querySelector('input').checked) picked.push(n.id);
+    });
+    if (!picked.length) return;
+    var b = body();
+    if (!confirm(picked.length + ' 件のSNSに実際に投稿します。よろしいですか？')) return;
+    var btn = el('social-post');
+    btn.disabled = true;
+    say('投稿中…', true);
+    var r = await window.lumAdmin.fetch('/api/social', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: b.text, link: b.link, imageUrl: b.imageUrl, targets: picked }),
+    });
+    btn.disabled = false;
+    var d = r.data || {};
+    renderResults(d.results);
+    renderLog(d.recent, true);
+    say(d.message || '投稿できませんでした。', !!d.posted);
+    // Only clear when everything went out; a half-failed post still needs its
+    // text to retry with.
+    if (d.posted && d.posted === d.total) {
+      el('social-text').value = '';
+      el('social-link').value = '';
+      el('social-image').value = '';
+      count();
+    }
+  }
+
+  ['social-text', 'social-link', 'social-image'].forEach(function (id) {
+    el(id).addEventListener('input', count);
+  });
+  el('social-post').addEventListener('click', post);
+  el('social-reload').addEventListener('click', load);
+  el('social-to-keys').addEventListener('click', function () {
+    if (window.lumShowTab) window.lumShowTab('health-admin');
+    setTimeout(function () {
+      var h = el('set-list');
+      if (h) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  });
+
+  window.lumSocialInit = function () {
+    if (started) return;
+    started = true;
+    load();
   };
 })();
 </script>

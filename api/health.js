@@ -10,17 +10,26 @@ export const config = { runtime: 'edge' }
 // This never returns a secret. Each check reports only whether a value is
 // present, and the counts come from the same store as the analytics.
 
-import { requireAdmin, json, apiKey } from './_admin-auth.js'
+import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
 import { listShares } from './_share.js'
-
-const has = (name) => !!(process.env[name] || '').trim()
+import { settingStatus } from './_settings.js'
+import { socialStatus } from './_social.js'
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
   const store = storeConfig()
+
+  // Read the same way everything else does — what was saved from this screen,
+  // else the environment. Reading process.env directly meant a key entered in
+  // the admin, and working, was still reported here as 未設定. And the AI row
+  // asked `apiKey() ? ...`, which became a Promise when keys moved into the
+  // store: always truthy, so the one row that was supposed to say "no AI key"
+  // said 利用可 whatever was set.
+  const settings = await settingStatus()
+  const has = (name) => settings.some((s) => s.name === name && s.set)
 
   const checks = [
     {
@@ -51,8 +60,8 @@ export async function GET(req) {
     },
     {
       id: 'ai', label: 'AI（SEO/AIO分析・アドバイザー）', env: 'ANTHROPIC_API_KEY',
-      state: apiKey() ? 'ok' : 'warn',
-      note: apiKey()
+      state: has('ANTHROPIC_API_KEY') ? 'ok' : 'warn',
+      note: has('ANTHROPIC_API_KEY')
         ? 'AIO計測とアドバイザーが使えます。'
         : '未設定のため、AIO計測とAIアドバイザーが使えません。console.anthropic.com で発行してください。',
     },
@@ -81,6 +90,20 @@ export async function GET(req) {
         : '未設定のため、リポジトリに公開されている既定の鍵が使われています。ログイン状態を偽造できる状態なので、SESSION_SECRET を設定してください。',
     },
   ]
+
+  // The networks, as one row: which of the five can be posted to right now.
+  const nets = await socialStatus()
+  const live = nets.filter((n) => n.ready)
+  checks.push({
+    id: 'social', label: 'SNS 投稿', env: 'X_ACCESS_TOKEN ほか',
+    state: live.length ? 'ok' : 'warn',
+    note: live.length
+      ? `${live.map((n) => n.label).join('・')} に管理ポータルから直接投稿できます。` +
+        (live.length < nets.length
+          ? `残り（${nets.filter((n) => !n.ready).map((n) => n.label).join('・')}）は資格情報が未入力です。`
+          : '')
+      : '未設定です。各SNSの開発者画面でアクセストークンを発行し、下の「キーの入力」に貼ると、管理ポータルから直接投稿できるようになります。',
+  })
 
   // Live signals, when there is somewhere to have recorded them.
   let contact = null

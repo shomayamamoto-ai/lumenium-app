@@ -192,5 +192,6 @@ export const NO_AI = {
   ok: false,
   code: 'AI_NOT_CONFIGURED',
   message:
-    'AI機能が未設定です。console.anthropic.com で API キーを発行し、Vercel の環境変数に ANTHROPIC_API_KEY として設定して再デプロイしてください。',
+    'AI機能が未設定です。console.anthropic.com で API キーを発行し、管理画面の「設定状況 › キーの入力」に貼ってください（再デプロイ不要）。' +
+    'キーの保存先（Upstash Redis）が未接続のときは、Vercel の環境変数に ANTHROPIC_API_KEY として設定して再デプロイしてください。',
 }
