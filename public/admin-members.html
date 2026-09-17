@@ -191,6 +191,20 @@
   .pomo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .pomo-actions button { padding: 10px 0; border-radius: 9px; font-size: 12.5px; }
   .pomo-note { font-size: 11px; color: var(--sub); line-height: 1.6; min-height: 1.6em; }
+  /* Only there while it is ringing, and the biggest thing in the card when it
+     is — an alarm you cannot silence in one click is worse than a quiet one. */
+  .pomo-stop { display: none; width: 100%; padding: 12px 0; border-radius: 10px; font-size: 13px;
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); }
+  .pomo.ringing .pomo-stop { display: block; animation: pomoPulse 1.1s ease-in-out infinite; }
+  @keyframes pomoPulse { 50% { filter: brightness(1.25); } }
+  .pomo-sound { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); }
+  .pomo-sound input[type="range"] { flex: 1; min-width: 0; height: 18px; accent-color: #6366f1; }
+  .pomo-sound button { flex: none; padding: 7px 11px; font-size: 11.5px; border-radius: 8px; }
+  .pomo-opt select {
+    margin-left: auto; padding: 5px 9px; border-radius: 8px;
+    background: #1a2038; color: var(--text); border: 1px solid var(--border);
+    font-family: inherit; font-size: 11.5px;
+  }
   .pomo-opt { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--sub); cursor: pointer; }
   .pomo-opt input { width: 14px; height: 14px; accent-color: #6366f1; }
   .pomo-log { border-top: 1px solid var(--border); padding-top: 10px; font-size: 11px; color: var(--sub); }
@@ -518,8 +532,22 @@
             <button type="button" class="ghost" id="pomo-plus">＋1分</button>
             <button type="button" class="ghost" id="pomo-break">休憩 5分</button>
           </div>
+          <button type="button" class="pomo-stop" id="pomo-stop">🔕 アラームを止める</button>
           <p class="pomo-note" id="pomo-note" aria-live="polite"></p>
           <label class="pomo-opt"><input type="checkbox" id="pomo-chime" checked>終了時に音で知らせる</label>
+          <div class="pomo-sound">
+            <span aria-hidden="true">🔊</span>
+            <input type="range" id="pomo-vol" min="0" max="100" step="5" value="85" aria-label="アラームの音量">
+            <button type="button" class="ghost" id="pomo-test">♪ 試聴</button>
+          </div>
+          <label class="pomo-opt" for="pomo-ring">鳴らす長さ
+            <select id="pomo-ring">
+              <option value="10000">10秒</option>
+              <option value="30000" selected>30秒</option>
+              <option value="60000">1分</option>
+              <option value="180000">3分</option>
+            </select>
+          </label>
           <label class="pomo-opt"><input type="checkbox" id="pomo-notify">通知を出す</label>
           <div class="pomo-log" id="pomo-log"></div>
         </section>
@@ -1249,24 +1277,137 @@ window.lumAdmin = {
     return actx;
   }
 
-  function chime() {
-    var a = audio();
-    if (!a) return;
-    [0, 0.3, 0.6].forEach(function (t, i) {
+  /* ---- the alarm ----
+     It was three sine beeps at 0.28 gain, over in nine tenths of a second:
+     inaudible across a room and gone before you looked up. Now it is a rising
+     three-note phrase with its harmonics, through a compressor so it can be
+     loud without tearing, and it keeps ringing until you stop it or the chosen
+     length runs out.
+
+     Everything is scheduled on the audio clock rather than with setTimeout. A
+     background tab throttles timers, and going quiet the moment you look away
+     is the one thing an alarm must not do. */
+  var ALARM = { bus: null, nodes: [], timer: 0, until: 0, waiting: false };
+  var CHUNK = 20000;   // how far ahead to schedule at a time
+  var PHRASE = [[0, 880], [0.28, 1174.66], [0.56, 1567.98]];   // A5 → D6 → G6
+  var GAP = 1.75;
+
+  function alarmVol() {
+    var el = document.getElementById('pomo-vol');
+    return el ? Math.max(0, Math.min(1, Number(el.value) / 100)) : 0.85;
+  }
+
+  function ringMs() {
+    var el = document.getElementById('pomo-ring');
+    return el ? Number(el.value) || 30000 : 30000;
+  }
+
+  function chimeOn() {
+    var el = document.getElementById('pomo-chime');
+    return !el || el.checked;
+  }
+
+  function alarmBus(a) {
+    if (!ALARM.bus || ALARM.bus.context !== a) {
+      var g = a.createGain();
+      // Headroom: three partials ringing together would clip at this level
+      // without it, and clipping reads as noise, not as loud.
+      var comp = a.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 8;
+      comp.attack.value = 0.003; comp.release.value = 0.22;
+      g.connect(comp); comp.connect(a.destination);
+      ALARM.bus = g;
+    }
+    ALARM.bus.gain.cancelScheduledValues(a.currentTime);
+    ALARM.bus.gain.setValueAtTime(alarmVol(), a.currentTime);
+    return ALARM.bus;
+  }
+
+  /** One strike. A single sine carries badly; the octave and the twelfth on
+   *  top are what make it cut through a room. */
+  function ding(a, bus, at, f) {
+    var parts = [[f, 'triangle', 0.5], [f * 2, 'sine', 0.26], [f * 3, 'sine', 0.11]];
+    for (var i = 0; i < parts.length; i++) {
       try {
-        var o = a.createOscillator(), g = a.createGain(), at = a.currentTime + t;
-        o.type = 'sine';
-        o.frequency.value = i === 2 ? 1046.5 : 880;
+        var o = a.createOscillator(), g = a.createGain();
+        o.type = parts[i][1];
+        o.frequency.setValueAtTime(parts[i][0], at);
         g.gain.setValueAtTime(0.0001, at);
-        g.gain.exponentialRampToValueAtTime(0.28, at + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
-        o.connect(g); g.connect(a.destination);
-        o.start(at); o.stop(at + 0.32);
+        g.gain.exponentialRampToValueAtTime(parts[i][2], at + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.52);
+        o.connect(g); g.connect(bus);
+        o.start(at); o.stop(at + 0.56);
+        ALARM.nodes.push(o);
       } catch (_) {}
-    });
+    }
+  }
+
+  function scheduleRing() {
+    var a = audio();
+    if (!a || !ALARM.until) return;
+    var left = ALARM.until - Date.now();
+    if (left <= 0) { alarmStop(); return }
+    var bus = alarmBus(a);
+    ALARM.nodes.length = 0;
+    var span = Math.min(CHUNK, left) / 1000;
+    var t0 = a.currentTime + 0.04;
+    for (var t = 0; t < span; t += GAP) {
+      for (var i = 0; i < PHRASE.length; i++) ding(a, bus, t0 + t + PHRASE[i][0], PHRASE[i][1]);
+    }
+    clearTimeout(ALARM.timer);
+    ALARM.timer = setTimeout(left > CHUNK ? scheduleRing : alarmStop, Math.min(CHUNK - 500, left + 800));
+  }
+
+  /** @returns false if the browser will not let us make a sound yet. */
+  function alarmStart(ms) {
+    var a = audio();
+    if (!a) return false;
+    if (a.state !== 'running') { armGesture(); return false }
+    alarmStop(true);
+    ALARM.until = Date.now() + Math.max(1200, ms || ringMs());
+    scheduleRing();
+    paintPomo();
+    return true;
+  }
+
+  function alarmStop(quiet) {
+    clearTimeout(ALARM.timer);
+    ALARM.timer = 0;
+    ALARM.until = 0;
+    if (ALARM.bus) {
+      try {
+        var a = ALARM.bus.context;
+        ALARM.bus.gain.cancelScheduledValues(a.currentTime);
+        ALARM.bus.gain.setValueAtTime(0, a.currentTime);
+      } catch (_) {}
+    }
+    for (var i = 0; i < ALARM.nodes.length; i++) { try { ALARM.nodes[i].stop() } catch (_) {} }
+    ALARM.nodes.length = 0;
+    if (!quiet) paintPomo();
+  }
+
+  /* A timer restored by a reload finishes without anyone having clicked, and
+     a browser will not make a sound for a page nobody has touched. Wait for
+     the next click instead of silently doing nothing. */
+  function armGesture() {
+    if (ALARM.waiting) return;
+    ALARM.waiting = true;
+    var go = function (e) {
+      document.removeEventListener('pointerdown', go, true);
+      document.removeEventListener('keydown', go, true);
+      ALARM.waiting = false;
+      audio();
+      // If the click was on the timer itself, its own handler decides what
+      // happens — starting the alarm here would fight the stop button.
+      var inCard = e && e.target && e.target.closest && e.target.closest('#pomo, #pomo-pill');
+      if (!inCard && pomo.rang && chimeOn()) alarmStart(ringMs());
+    };
+    document.addEventListener('pointerdown', go, true);
+    document.addEventListener('keydown', go, true);
   }
 
   function pomoStart(mins) {
+    alarmStop(true);
     if (mins) { pomo.mins = mins; pomo.left = mins * 60000; }
     if (pomo.rang) { pomo.rang = false; pomo.left = pomo.mins * 60000; }
     if (!pomo.left) pomo.left = pomo.mins * 60000;
@@ -1289,6 +1430,7 @@ window.lumAdmin = {
   }
 
   function pomoReset() {
+    alarmStop(true);
     pomo.run = false; pomo.rang = false; pomo.paused = false;
     pomo.left = pomo.mins * 60000; pomo.ends = 0;
     restoreTitle();
@@ -1297,6 +1439,7 @@ window.lumAdmin = {
   }
 
   function pomoAdd(ms) {
+    alarmStop(true);
     if (pomo.rang) { pomo.rang = false; pomo.left = 0; }
     if (pomo.run) pomo.ends += ms; else pomo.left = Math.max(0, pomo.left + ms);
     if (pomo.run && pomo.ends <= Date.now()) pomo.ends = Date.now() + 1000;
@@ -1313,8 +1456,11 @@ window.lumAdmin = {
   function pomoFinish() {
     pomo.run = false; pomo.rang = true; pomo.paused = false; pomo.left = 0;
     pomoLog(pomo.mins);
-    note(pomo.mins + '分が終わりました。おつかれさまです。');
-    if (document.getElementById('pomo-chime').checked) chime();
+    var msg = pomo.mins + '分が終わりました。おつかれさまです。';
+    if (chimeOn() && !alarmStart(ringMs())) {
+      msg += '（ブラウザが音を止めています。画面をクリックすると鳴ります）';
+    }
+    note(msg);
     if (document.getElementById('pomo-notify').checked &&
         window.Notification && Notification.permission === 'granted') {
       try { new Notification('⏱ ' + pomo.mins + '分が終わりました', { body: 'Lumenium 管理', tag: 'lum-pomo' }); } catch (_) {}
@@ -1379,6 +1525,7 @@ window.lumAdmin = {
 
     var card = document.getElementById('pomo');
     card.classList.toggle('rang', pomo.rang);
+    card.classList.toggle('ringing', ALARM.until > 0);
     document.getElementById('pomo-left').firstChild.nodeValue = txt;
     document.getElementById('pomo-state').textContent = pomo.rang ? '完了' :
       pomo.run ? (hhmm(new Date(pomo.ends)) + ' まで') :
@@ -1394,7 +1541,8 @@ window.lumAdmin = {
     var away = !document.getElementById('portal').classList.contains('on');
     pill.classList.toggle('on', live && away);
     pill.classList.toggle('rang', pomo.rang);
-    document.getElementById('pomo-pill-left').textContent = pomo.rang ? '完了' : txt;
+    document.getElementById('pomo-pill-left').textContent =
+      ALARM.until > 0 ? '🔔 止める' : pomo.rang ? '完了' : txt;
   }
 
   function buildPomo() {
@@ -1411,7 +1559,27 @@ window.lumAdmin = {
     document.getElementById('pomo-reset').addEventListener('click', pomoReset);
     document.getElementById('pomo-plus').addEventListener('click', function () { pomoAdd(60000); });
     document.getElementById('pomo-break').addEventListener('click', function () { pomoStart(5); });
-    document.getElementById('pomo-pill').addEventListener('click', function () { showTab(PORTAL); });
+    document.getElementById('pomo-pill').addEventListener('click', function () {
+      if (ALARM.until > 0) alarmStop();
+      showTab(PORTAL);
+    });
+    document.getElementById('pomo-stop').addEventListener('click', function () {
+      alarmStop();
+      note('アラームを止めました。');
+    });
+    document.getElementById('pomo-test').addEventListener('click', function () {
+      // Hearing it now beats finding out in twenty-five minutes.
+      if (!alarmStart(2400)) note('ブラウザが音を止めています。もう一度押すと鳴ります。');
+    });
+    document.getElementById('pomo-vol').addEventListener('input', function (e) {
+      try { localStorage.setItem('lum_pomo_vol', e.target.value) } catch (_) {}
+      if (ALARM.bus) {
+        try { ALARM.bus.gain.setValueAtTime(alarmVol(), ALARM.bus.context.currentTime) } catch (_) {}
+      }
+    });
+    document.getElementById('pomo-ring').addEventListener('change', function (e) {
+      try { localStorage.setItem('lum_pomo_ring', e.target.value) } catch (_) {}
+    });
     document.getElementById('pomo-notify').addEventListener('change', function (e) {
       if (!e.target.checked) return;
       if (!window.Notification) { e.target.checked = false; note('このブラウザは通知に対応していません。'); return; }
@@ -1422,9 +1590,16 @@ window.lumAdmin = {
     });
     try {
       document.getElementById('pomo-chime').checked = localStorage.getItem('lum_pomo_mute') !== '1';
+      var v = localStorage.getItem('lum_pomo_vol');
+      if (v !== null && v !== '') document.getElementById('pomo-vol').value = v;
+      var rg = localStorage.getItem('lum_pomo_ring');
+      if (rg && document.querySelector('#pomo-ring option[value="' + rg + '"]')) {
+        document.getElementById('pomo-ring').value = rg;
+      }
     } catch (_) {}
     document.getElementById('pomo-chime').addEventListener('change', function (e) {
       try { localStorage.setItem('lum_pomo_mute', e.target.checked ? '0' : '1'); } catch (_) {}
+      if (!e.target.checked) alarmStop();
     });
     window.addEventListener('focus', restoreTitle);
 
