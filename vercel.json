@@ -16,10 +16,6 @@
       "destination": "/api/members-territory"
     },
     {
-      "source": "/members/states",
-      "destination": "/api/members-states"
-    },
-    {
       "source": "/game.html",
       "destination": "/game.html"
     },

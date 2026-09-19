@@ -123,11 +123,9 @@ const CALLS = [
   ['members-game', 'GET', '', {}],
   ['members-puzzle', 'GET', '', {}],
   ['members-territory', 'GET', '', {}],
-  ['members-states', 'GET', '', {}],
   ['members-game', 'GET', '', MEMBER],
   ['members-puzzle', 'GET', '', MEMBER],
   ['members-territory', 'GET', '', MEMBER],
-  ['members-states', 'GET', '', MEMBER],
   // These two write through GitHub, which is stubbed above — nothing leaves
   // the process. They are called with a body that passes validation, because a
   // 400 would stop short of the part that was broken elsewhere.

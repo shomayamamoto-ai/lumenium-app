@@ -10,7 +10,7 @@
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
     "deploy:logs": "vercel logs --follow",
-    "prebuild": "node scripts/build-arena.mjs && node scripts/build-puzzle.mjs && node scripts/build-territory.mjs && node scripts/build-states.mjs && node scripts/smoke-api.mjs && node scripts/check-copy-reach.mjs && node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs",
+    "prebuild": "node scripts/build-arena.mjs && node scripts/build-puzzle.mjs && node scripts/build-territory.mjs && node scripts/smoke-api.mjs && node scripts/check-copy-reach.mjs && node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs",
     "indexnow": "node scripts/indexnow.mjs",
     "check:api": "node scripts/smoke-api.mjs",
     "check:copy": "node scripts/check-copy-render.mjs"

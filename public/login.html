@@ -129,8 +129,7 @@
     racing: '/racing.html',
     arena: '/members/arena',
     puzzle: '/members/puzzle',
-    territory: '/members/territory',
-    states: '/members/states'
+    territory: '/members/territory'
   };
   var key = new URLSearchParams(location.search).get('next');
   var dest = Object.prototype.hasOwnProperty.call(NEXT, key) ? NEXT[key] : NEXT.arena;
