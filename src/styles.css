@@ -9317,7 +9317,16 @@ body[data-dial-hot] .lumen-dot {
    it reads as part of the page furniture rather than an announcement. */
 .hero-news {
   display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-  gap: 4px 12px; max-width: 720px; margin: 0 auto 14px; padding: 0 20px;
+  gap: 4px 14px;
+  width: fit-content; max-width: min(720px, calc(100% - 32px));
+  margin: 0 auto 22px; padding: 8px 18px;
+  /* Its own frame. Two centred blocks of plain text 10px apart on a starfield
+     read as one six-line wall — which is what 「被っていて見にくい」 was. */
+  background: rgba(10, 15, 33, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .hero-news-label {
   flex: none; font-size: 10px; font-weight: 800; letter-spacing: 0.18em;
@@ -9338,9 +9347,20 @@ body[data-dial-hot] .lumen-dot {
 @media (max-width: 640px) {
   /* Two is what fits above the fold on a phone without pushing the footer
      off; the third is one tap away on the 一覧. */
-  .hero-news { gap: 2px 10px; margin-bottom: 10px; }
+  .hero-news { gap: 2px 10px; margin-bottom: 14px; padding: 6px 13px; }
   .hero-news-list li:nth-child(3) { display: none; }
-  .hero-news-item { font-size: 12px; }
+  .hero-news-item { font-size: 12px; padding: 2px 0; }
+}
+@media (max-width: 380px) {
+  /* The frame costs height the smallest screens do not have; the sentence
+     needs three lines down here and the footer was landing past the fold —
+     it always did at this width, and the frame must not make it worse. The
+     一覧 link wraps to a line of its own here, and the panel a headline opens
+     carries the same link, so it goes. */
+  .hero-news { margin-bottom: 10px; padding: 5px 11px; }
+  .hero-news-all { display: none; }
+  .search-home-bottom { margin-top: 20px; }
+  .search-home { padding-bottom: 30px; }
 }
 
 /* The item itself, rather than a trip to another page for two sentences. */
@@ -9374,7 +9394,14 @@ body[data-dial-hot] .lumen-dot {
 .news-modal-all:hover { color: #c7d2fe; }
 
 .search-home-def {
-  max-width: 640px;
+  /* Japanese wraps anywhere by default, so a two-line sentence can split
+     日本 down the middle. auto-phrase breaks at phrase boundaries instead;
+     browsers that do not know it simply wrap as before. */
+  word-break: auto-phrase;
+  /* 623px of glyphs plus the 40px of padding this box carries: at 640 the
+     content area was 600 and 「／DX支援カンパニーです。」 fell to a second line
+     on a desktop that had room for all of it. */
+  max-width: 700px;
   padding-top: 10px;
   margin: 0 auto;
   padding: 0 20px;
@@ -9394,17 +9421,11 @@ body[data-dial-hot] .lumen-dot {
 @media (max-width: 640px) {
   .search-home { padding-bottom: 40px; }
   .search-home-bottom { margin-top: 28px; }
-  /* The sentence is written as three lines and should read as three. The page
-     already carries 20px of side padding; this element's own 20px on top of it
-     left 300px for a line that needs 303, so the last line broke with two
-     characters stranded on a fourth. */
+  /* The page already carries 20px of side padding; this element's own 20px on
+     top of it left the sentence 300px to wrap in. */
   .search-home-def { padding-left: 0; padding-right: 0; }
 }
-@media (max-width: 359px) {
-  /* Narrower than any current phone. Nothing fits at 13px here, and losing
-     the letter-spacing costs less than losing a line. */
-  .search-home-def { font-size: 12px; letter-spacing: 0; }
-}
+
 .search-home-footer {
   position: static;
   display: flex;
