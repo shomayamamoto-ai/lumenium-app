@@ -90,11 +90,31 @@
   #toast.on { opacity:1; }
 
   /* Overlays */
+  /* Centred when it fits, scrollable when it does not. It used to be a
+     centred flex column with no overflow, so on a 390x664 phone the 「はじめる」
+     button sat at y=682 — off the bottom of the screen with nothing to scroll.
+     The game could not be started on a phone at all. The auto margins on the
+     pseudo-elements keep the centring without taking the scroll away. */
   .overlay {
     position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; gap:14px; padding:24px;
+    align-items:center; justify-content:flex-start; text-align:center; gap:14px; padding:24px;
+    overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
     background:radial-gradient(ellipse 70% 60% at 50% 45%, rgba(20,24,56,0.94), rgba(5,7,18,0.97));
   }
+  .overlay::before, .overlay::after { content:''; flex:0 0 0; margin-block:auto; }
+  .overlay > * { flex:none; max-width:100%; }
+  /* On a phone the rules pushed 「はじめる」 off the bottom of the screen, so
+     they fold away: the two things you came for — the settings and the button
+     — are on screen without scrolling. */
+  #rules { max-width:560px; }
+  #rules summary {
+    cursor:pointer; font-size:12.5px; color:rgba(245,247,251,0.62);
+    border:1px solid rgba(245,247,251,0.18); border-radius:999px;
+    padding:6px 14px; display:inline-block; list-style:none;
+  }
+  #rules summary::-webkit-details-marker { display:none; }
+  #rules[open] summary { margin-bottom:10px; }
+  #rules summary:hover { color:#fff; border-color:rgba(245,247,251,0.45); }
   .overlay[hidden] { display:none; }
   .overlay h1 {
     font-size:clamp(26px,5vw,42px); font-weight:800; letter-spacing:0.06em;
@@ -163,12 +183,40 @@
   .result .row.me { background:rgba(79,70,229,0.28); }
   .result .rk { width:22px; font-weight:800; color:rgba(245,247,251,0.6); }
 
+  /* A 320px phone has to fit a score panel, a pad and a minimap without any
+     of them sitting on top of another — measured overlapping at 320px, the
+     pad's ◀ landing on the standings. Everything shrinks together. */
+  @media (max-width:400px) {
+    .top { padding:8px 10px; gap:6px; }
+    .top a { font-size:0; padding:6px 10px; }
+    .top a::before { content:'←'; font-size:13px; }
+    .badge { font-size:8.5px; padding:4px 8px; letter-spacing:0.12em; }
+    .btns button { padding:5px 9px; }
+    #pad { width:150px; height:150px; right:10px; bottom:10px; }
+    #pad button { width:50px; height:50px; font-size:17px; border-radius:12px; }
+    #pad .up { left:50px; top:0; }
+    #pad .left { left:0; top:50px; }
+    #pad .right { left:100px; top:50px; }
+    #pad .down { left:50px; top:100px; }
+    /* Capped against the pad's edge: the panel sizes to its widest row, and
+       at 320px that ran under the ◀ whatever the minimum was. */
+    body.touch #board-list { min-width:108px; max-width:calc(100vw - 172px); padding:6px 8px; }
+    body.touch #board-list .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    body.touch #board-list .row { font-size:10px; gap:5px; }
+    body.touch #mini { width:84px; height:84px; top:52px; right:10px; }
+    body.touch #effects { max-width:140px; font-size:10px; }
+    #clock { font-size:17px; }
+  }
   @media (max-width:760px) {
     #hud { left:10px; bottom:10px; }
     #board-list { min-width:150px; }
     .row { font-size:11px; }
     #mini { right:10px; bottom:10px; }
     #clock { font-size:19px; }
+    /* Less to scroll past before the button you came for. */
+    .overlay { gap:10px; padding:18px 14px; }
+    .overlay p { font-size:12.5px; line-height:1.85; }
+    .overlay .levels button { padding:8px 11px; font-size:12px; }
   }
 </style>
 </head>
@@ -206,17 +254,20 @@
 <div class="overlay" id="startOv">
   <h1>LUMEN TERRITORY</h1>
   <div class="sub">MEMBERS EXCLUSIVE</div>
-  <p>
-    自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
-    線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、相手も同じだけ失います。<br>
-    <b>残機は4人とも同じ</b>。使い切った者はそこで脱落し、相手が全員いなくなればその時点で勝ちです。<br>
-    盤面の<b>9割</b>を取った時点でも、その場で勝ち。<br>
-    時間切れの時点で、いちばん広い陣地を持っていた者が勝ち。<br>
-    盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
-  </p>
-  <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
-    操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下の十字キー、またはスワイプ
-  </p>
+  <details id="rules">
+    <summary>ルールと操作を見る</summary>
+    <p>
+      自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
+      線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、相手も同じだけ失います。<br>
+      <b>残機は4人とも同じ</b>。使い切った者はそこで脱落し、相手が全員いなくなればその時点で勝ちです。<br>
+      盤面の<b>9割</b>を取った時点でも、その場で勝ち。<br>
+      時間切れの時点で、いちばん広い陣地を持っていた者が勝ち。<br>
+      盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
+    </p>
+    <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
+      操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下の十字キー、またはスワイプ
+    </p>
+  </details>
   <div class="levels" id="lengths">
     <button type="button" data-ln="2">2分<span>全員 残機3</span></button>
     <button type="button" data-ln="4">4分<span>全員 残機5</span></button>
@@ -312,6 +363,8 @@
   var flash = null       // cells just taken, lit briefly so a capture registers
   var shakeUntil = 0     // a hit you can feel
   var danger = 0         // 0..1, how close the nearest threat is to your line
+  var pops = []          // "+2.4%" rising from where it was won
+  var lastPulse = 0      // the chased-heartbeat, so danger is audible too
 
   var idx = function (x, y) { return y * W + x }
   var inBounds = function (x, y) { return x >= 0 && y >= 0 && x < W && y < H }
@@ -622,7 +675,17 @@
     if (owner[c] === p.id) {
       if (p.trailCells.length) {
         var g = claim(p)
-        if (p.human && g > 0) { toast('+' + g); SFX.claim(g) }
+        if (p.human && g > 0) {
+          // At the head, not in a bar at the top of the screen: on a phone
+          // the number and the thing that earned it have to be in the same
+          // place or the capture does not register as yours.
+          pops.push({
+            x: p.cx, y: p.cy, at: performance.now(),
+            text: '+' + ((g / N) * 100).toFixed(1) + '%',
+            big: g / N > 0.02
+          })
+          SFX.claim(g)
+        }
       }
     } else if (!trail[c]) {
       trail[c] = p.id
@@ -841,6 +904,12 @@
     var h = headPos(me.alive ? me : players[0])
     var ox = vw / 2 - (h.x + 0.5) * cell
     var oy = vh / 2 - (h.y + 0.5) * cell
+    // Keep the board in the window. Near an edge the camera used to carry on
+    // past it, and on a tall phone that meant a third of the screen was empty
+    // space outside the map with the play squeezed into what was left.
+    var bw = W * cell, bh = H * cell
+    ox = bw <= vw ? (vw - bw) / 2 : Math.min(0, Math.max(vw - bw, ox))
+    oy = bh <= vh ? (vh - bh) / 2 : Math.min(0, Math.max(vh - bh, oy))
     var now = performance.now()
     if (now < shakeUntil) {
       var k2 = (shakeUntil - now) / 380
@@ -1034,6 +1103,26 @@
       ctx.globalAlpha = 1
     }
 
+    // What the last loop was worth, rising from where it was won.
+    var nowP = performance.now();
+    for (var pi = pops.length - 1; pi >= 0; pi--) {
+      var pop = pops[pi]
+      var age = (nowP - pop.at) / 1100
+      if (age >= 1) { pops.splice(pi, 1); continue }
+      var px = ox + (pop.x + 0.5) * cell
+      var py = oy + (pop.y + 0.5) * cell - age * 42
+      ctx.save()
+      ctx.globalAlpha = 1 - age * age
+      ctx.font = '800 ' + (pop.big ? 26 : 19) + 'px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.lineWidth = 4
+      ctx.strokeStyle = 'rgba(7,10,22,0.85)'
+      ctx.strokeText(pop.text, px, py)
+      ctx.fillStyle = pop.big ? '#fde68a' : '#67e8f9'
+      ctx.fillText(pop.text, px, py)
+      ctx.restore()
+    }
+
     // …and when one of them is closing on the line you are drawing.
     if (danger > 0.02) {
       var g = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.max(vw, vh) * 0.62)
@@ -1212,7 +1301,11 @@
     die: function () { beep(300, 0.42, 'sawtooth', 0.09, 70) },
     tick: function () { beep(880, 0.05, 'sine', 0.05) },
     go: function () { beep(523, 0.1, 'triangle', 0.08); setTimeout(function () { beep(784, 0.2, 'triangle', 0.09) }, 110) },
-    item: function () { beep(1046, 0.08, 'triangle', 0.07); setTimeout(function () { beep(1568, 0.12, 'triangle', 0.06) }, 70) }
+    item: function () { beep(1046, 0.08, 'triangle', 0.07); setTimeout(function () { beep(1568, 0.12, 'triangle', 0.06) }, 70) },
+    // Being chased was only a red tint at the edge of the screen — easy to
+    // miss on a phone held at arm's length, and it is the one thing you have
+    // to notice.
+    pulse: function (d) { beep(150 + 90 * d, 0.07, 'sine', 0.05 + 0.05 * d) }
   }
 
   var muteBtn = document.getElementById('muteBtn')
@@ -1253,6 +1346,9 @@
   // A swipe needs a drag, and a drag needs the hand that is holding the phone.
   // The pad is there for the thumb that is already on that corner.
   if (window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch')
+  // Open where there is room for them; folded where there is not.
+  var rules = document.getElementById('rules')
+  if (rules && window.innerHeight >= 760) rules.open = true
   var padEls = document.querySelectorAll('#pad button')
   for (var pi2 = 0; pi2 < padEls.length; pi2++) {
     (function (el) {
@@ -1434,6 +1530,11 @@
         var lvl = Math.max(0, 1 - best / 16)
         if (lvl > danger) danger = lvl
       }
+    }
+    // A heartbeat that quickens as they close. Silence until it matters.
+    if (danger > 0.35 && now - lastPulse > 700 - danger * 420) {
+      lastPulse = now
+      SFX.pulse(danger)
     }
 
     updateHud()
