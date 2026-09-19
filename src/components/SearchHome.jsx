@@ -2,6 +2,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
+import HeroNews from './HeroNews'
 import RadialMenu from './RadialMenu'
 import { events } from '../lib/analytics'
 
@@ -367,6 +368,9 @@ export default function SearchHome() {
       {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}
 
       <div className="search-home-bottom">
+        {/* The latest headlines, on the screen everyone lands on. */}
+        <HeroNews />
+
         {/* One crawlable definition sentence on the page that actually ranks —
             answer engines lift the passage, not the whole site. */}
         <p className="search-home-def">
