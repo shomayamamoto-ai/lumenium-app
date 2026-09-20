@@ -862,6 +862,7 @@
       </div>
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
       <div id="stats-body" style="display:none">
+        <div id="stats-note"></div>
         <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px"></div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
@@ -2567,7 +2568,30 @@ window.lumAdmin = {
   var n = function (v) { return Number(v || 0).toLocaleString('ja-JP') };
   function esc(t) { var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML }
 
+  /* Zeros mean two completely different things, and the screen has to say
+     which: a pair held in this browser can read this page but can never fill
+     it, because a pageview is recorded while serving the visitor's request.
+     Without this note the operator watches an empty chart and waits. */
+  function storeNote(d) {
+    var host = el('stats-note');
+    if (!host) return;
+    var empty = !d.totals || !d.totals.allTime;
+    if (d.storeFrom === 'device') {
+      host.innerHTML = '<p class="share-note" style="color:#fbbf24;line-height:1.85">' +
+        '⚠ 保存先は<strong>この端末に保存した値</strong>で読んでいます。閲覧数の記録は訪問者のリクエストで行うため、' +
+        'このままでは数字は増えません。Vercel › Settings › Environment Variables に ' +
+        '<code>UPSTASH_REDIS_REST_URL</code> と <code>UPSTASH_REDIS_REST_TOKEN</code> を設定して再デプロイすると、そこから先の訪問が数えられます。</p>';
+    } else if (empty) {
+      host.innerHTML = '<p class="share-note" style="line-height:1.85">' +
+        '記録は有効です。数えられるのは<strong>これから先の訪問</strong>だけで、過去にさかのぼって数えることはできません。' +
+        '数分後に訪問してから「更新」を押すと入り始めます。</p>';
+    } else {
+      host.innerHTML = '';
+    }
+  }
+
   function cards(d) {
+    storeNote(d);
     var items = [
       ['今日の閲覧数', n(d.totals.today)],
       ['今日の訪問者', n(d.totals.todayVisitors)],
@@ -2978,7 +3002,8 @@ window.lumAdmin = {
       return { name: (r.finishedAt || '').slice(0, 10), value: r.openMentionRate, note: pct(r.openMentionRate), us: false };
     }), { labelWidth: 100 });
     el('seo-body').style.display = 'block';
-    say(run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '', true);
+    say((run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '') +
+      (data.localOnly ? '（この端末に保存されている結果です。次の計測から保存先にも残ります）' : ''), true);
   }
 
   async function load(runId) {
@@ -2999,7 +3024,12 @@ window.lumAdmin = {
       el('seo-run').disabled = !data.meta.aiReady;
       // Nothing came from the server because there is nowhere to keep it —
       // draw what this browser kept instead.
-      if (data.meta.stored === false && !data.latest) {
+      /* Reports this browser is holding. They were kept here while there was
+         no database; connecting one must not make them disappear — the screen
+         went back to 「まだ計測結果がありません」 for someone who had just run
+         a measurement. Shown whenever the store has nothing of its own, and
+         the next run writes to the store from then on. */
+      if (!data.latest) {
         var mine = localRuns();
         if (mine.length) {
           var want = runId ? mine.filter(function (r) { return r.id === runId; })[0] : null;
@@ -3008,6 +3038,7 @@ window.lumAdmin = {
             return { id: r.id, finishedAt: r.finishedAt, openMentionRate: r.summary.openMentionRate };
           });
           data.runs = data.history;
+          data.localOnly = true;
         }
       }
     }

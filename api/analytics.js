@@ -145,6 +145,12 @@ export async function GET(req) {
     ok: true,
     generatedAt: new Date().toISOString(),
     keepDays: KEEP_DAYS,
+    // Which kind of connection this is. A pageview is recorded while serving
+    // the visitor's request, which carries nothing of the admin's — so a pair
+    // held in the admin's browser can read this screen but can never fill it.
+    // Zeros that will stay zero look exactly like zeros that are about to
+    // fill up, and the screen has to be able to tell the operator which.
+    storeFrom: storeConfig() ? 'env' : 'device',
     range: { days, from: dates[0], to: dates[dates.length - 1] },
     funnel,
     funnelSeries: dates.map((date, n) => ({
