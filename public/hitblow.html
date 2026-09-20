@@ -65,9 +65,35 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
 .stat-l{font-size:9px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase}
 .stat-v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--amber);text-shadow:0 0 16px rgba(251,191,36,.35)}
 
+/* ---- the play area ----
+   Ten rows stacked under a keypad came to 1237px whatever the window was:
+   at 1440x900 that is 337px past the bottom with the keypad entirely off
+   screen. On a wide screen the rows split into two columns and the keypad
+   moves alongside them, so the whole game is one screenful. */
+.play{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
+.side{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:330px}
+
 /* ---- 3D board ---- */
 .board{perspective:1100px;perspective-origin:50% 22%;width:100%;max-width:440px;margin-bottom:14px}
 .rows{display:flex;flex-direction:column;gap:9px;transform:rotateX(9deg);transform-style:preserve-3d}
+
+/* ---- digit notes ----
+   Three states per digit: unknown, in the code, not in the code. Clicking
+   cycles them, and a guess that comes back 0/0 marks its digits out on its
+   own — the bookkeeping everyone does on paper, done on the screen. */
+.notes{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;width:100%}
+.note{position:relative;padding:7px 0;border:1px solid rgba(248,250,252,.16);background:rgba(8,11,26,.6);
+  color:rgba(248,250,252,.72);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  border-radius:7px;transition:background .15s,border-color .15s,color .15s}
+.note:hover{border-color:rgba(248,250,252,.4)}
+.note .mk{position:absolute;top:-1px;right:2px;font-size:9px;line-height:1}
+.note.in{border-color:var(--cyan);color:#fff;background:rgba(6,182,212,.22)}
+.note.out{opacity:.4;color:rgba(248,250,252,.5);text-decoration:line-through}
+.notes-t{display:flex;align-items:baseline;justify-content:space-between;width:100%;margin-top:4px;
+  font-size:9.5px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase}
+.notes-t span{letter-spacing:.04em;text-transform:none;font-size:10px;opacity:.7}
+.cands{font-size:11.5px;letter-spacing:.08em;color:rgba(248,250,252,.6);min-height:1.2em;text-align:center}
+.cands b{color:var(--amber);font-size:14px;font-variant-numeric:tabular-nums}
 .row{display:flex;align-items:center;gap:8px;justify-content:center;transform-style:preserve-3d;opacity:.4;transition:opacity .3s}
 .row.is-active{opacity:1}
 .row.is-done{opacity:1}
@@ -193,10 +219,47 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
      max-height still overflowed short ones. Make the stage exactly one
      viewport tall and let the board absorb whatever is left, so the keypad
      is reachable without scrolling at any height. */
+  /* The stage is one viewport and the rows absorb whatever is left, so the
+     keypad keeps its place. The chain has to run through .play now that the
+     keypad sits in a panel rather than directly under the board. */
   #stage{height:100dvh;overflow:hidden}
-  .board{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:3px 0;scrollbar-width:none;margin-bottom:8px}
+  .play{flex:1 1 auto;min-height:0;width:100%;gap:8px}
+  .board{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:3px 0;scrollbar-width:none;margin-bottom:0}
   .board::-webkit-scrollbar{display:none}
-  .head,.status,.pad,.msg{flex:0 0 auto}
+  .side{flex:0 0 auto;gap:7px;max-width:none}
+  .head,.status{flex:0 0 auto}
+  .notes{gap:3px}
+  .note{padding:5px 0;font-size:12px}
+  .cands{font-size:11px}
+}
+/* One screenful from 900px up: the rows in two columns, the keypad beside
+   them, and nothing below the fold. */
+@media (min-width:900px){
+  #stage{height:100dvh;overflow:hidden;padding-top:86px;justify-content:center}
+  /* The board was finishing two thirds up a tall window. Spend the rest on
+     the tiles: bigger numbers are the whole reading surface of this game. */
+  .tile{width:clamp(44px,4.4vh,64px);height:clamp(52px,6.4vh,78px);font-size:clamp(20px,3vh,30px)}
+  .pill{min-width:clamp(44px,4.6vh,58px)}
+  .head{margin-bottom:10px}
+  h1{font-size:clamp(28px,3.4vw,44px);margin:6px 0 4px}
+  .sub{font-size:12px}
+  .status{margin:8px 0 12px}
+  /* The play block takes the rest of the window and sits in the middle of
+     it, rather than finishing two thirds up with a field of stars below. */
+  .play{flex:0 1 auto;min-height:0;flex-direction:row;align-items:flex-start;justify-content:center;gap:26px}
+  .board{max-width:none;width:auto;margin-bottom:0;max-height:100%;overflow:visible}
+  .rows{display:grid;grid-auto-flow:column;grid-template-rows:repeat(var(--percol,5),auto);
+    grid-template-columns:repeat(var(--cols,2),auto);gap:8px 26px}
+  .side{padding-top:2px}
+}
+@media (min-width:900px) and (max-height:820px){
+  /* Shorter windows: the board loses the tilt and some air rather than the
+     keypad losing its place on screen. */
+  #stage{padding-top:74px}
+  .head{margin-bottom:4px}
+  .sub{display:none}
+  .rows{gap:6px 22px}
+  .tile{height:clamp(40px,5.4vh,54px)}
 }
 @media (prefers-reduced-motion:reduce){
   .tile.reveal,.tile.pop{animation:none}
@@ -227,10 +290,21 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     <div class="stat"><span class="stat-l">Time</span><span class="stat-v" id="sTime">0:00</span></div>
   </div>
 
-  <div class="board"><div class="rows" id="rows"></div></div>
+  <div class="play">
+    <div class="board"><div class="rows" id="rows"></div></div>
 
-  <div class="pad" id="pad"></div>
-  <p class="msg" id="msg"></p>
+    <aside class="side">
+      <div class="pad" id="pad"></div>
+      <!-- The deduction aids: what each digit is known to be, and how many
+           codes are still possible. Both are derived from the guesses that
+           have already been answered — neither tells you anything you could
+           not work out on paper. -->
+      <p class="notes-t">メモ<span>タップで ○含む / ×含まない</span></p>
+      <div class="notes" id="notes" aria-label="数字メモ"></div>
+      <p class="cands" id="cands"></p>
+      <p class="msg" id="msg"></p>
+    </aside>
+  </div>
 </div>
 
 <!-- start -->
@@ -305,7 +379,7 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
 
   const $ = (id) => document.getElementById(id)
   const el = {
-    rows: $('rows'), pad: $('pad'), msg: $('msg'),
+    rows: $('rows'), pad: $('pad'), msg: $('msg'), notes: $('notes'), cands: $('cands'),
     sMode: $('sMode'), sTurn: $('sTurn'), sTime: $('sTime'),
     ovStart: $('ovStart'), ovEnd: $('ovEnd'), diffs: $('diffs'),
     endEyebrow: $('endEyebrow'), endTitle: $('endTitle'), endLead: $('endLead'),
@@ -325,6 +399,8 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   let timerId = 0
   let ruledOut = new Set()
   let lastScore = 0
+  let history = []            // every answered guess, for the candidate count
+  let marks = {}              // 0-9 -> '' | 'in' | 'out'
 
   /* ---- storage helpers (private mode can throw) ---- */
   const load = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v) } catch (_) { return fb } }
@@ -418,6 +494,105 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     el.pad.appendChild(go)
   }
 
+  /* ---- the notes ----
+     Click a digit to cycle unknown → in the code → not in the code. A guess
+     answered 0/0 marks its digits out by itself, and one answered with as
+     many hits+blows as there are places marks them all in: both are things
+     you would write down anyway. */
+  function buildNotes() {
+    el.notes.innerHTML = ''
+    for (let d = 0; d <= 9; d++) {
+      const b2 = document.createElement('button')
+      b2.type = 'button'
+      b2.className = 'note'
+      b2.dataset.d = String(d)
+      b2.innerHTML = String(d) + '<span class="mk"></span>'
+      b2.addEventListener('click', () => {
+        marks[d] = marks[d] === 'in' ? 'out' : marks[d] === 'out' ? '' : 'in'
+        paintNotes()
+        beep(marks[d] === 'in' ? 880 : marks[d] === 'out' ? 320 : 560, 0.05, 0.05)
+      })
+      el.notes.appendChild(b2)
+    }
+    paintNotes()
+  }
+
+  function paintNotes() {
+    el.notes.querySelectorAll('.note').forEach((n) => {
+      const st = marks[n.dataset.d] || ''
+      n.className = 'note' + (st ? ' ' + st : '')
+      n.querySelector('.mk').textContent = st === 'in' ? '○' : st === 'out' ? '×' : ''
+    })
+  }
+
+  /* ---- how many codes are still possible ----
+     Enumerated against every answer so far. It tells you how much ground is
+     left, which is the thing this game never said out loud — and it is only
+     ever what the answers already imply. */
+  function candidateCount() {
+    if (!history.length) return null
+    const n = cfg.len
+    let total = 0
+    const digits = [0,1,2,3,4,5,6,7,8,9]
+    const code = new Array(n)
+    const used = new Array(10).fill(false)
+    const walk = (i) => {
+      if (total > 20000) return
+      if (i === n) {
+        for (const h of history) {
+          const r = judge(code, h.g)
+          if (r.hit !== h.hit || r.blow !== h.blow) return
+        }
+        total++
+        return
+      }
+      for (const d of digits) {
+        if (!cfg.dup && used[d]) continue
+        code[i] = d
+        used[d] = true
+        walk(i + 1)
+        used[d] = false
+      }
+    }
+    walk(0)
+    return total
+  }
+
+  function paintCands() {
+    const c = candidateCount()
+    el.cands.innerHTML = c === null
+      ? '<span style="opacity:.5">1回目を入力してください</span>'
+      : (c === 0 ? '<span style="color:#fca5a5">矛盾しています</span>'
+        : '残りの候補 <b>' + c + '</b> 通り')
+  }
+
+  /* ---- sound ----
+     Nothing here had a voice, and a code-breaking game lives on the moment
+     the answer comes back. */
+  let actx = null
+  function beep(freq, dur, vol, type) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)()
+      if (actx.state === 'suspended') actx.resume()
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime
+      o.type = type || 'triangle'
+      o.frequency.setValueAtTime(freq, t)
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(vol || 0.08, t + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12))
+      o.connect(g); g.connect(actx.destination)
+      o.start(t); o.stop(t + (dur || 0.12) + 0.02)
+    } catch (_) {}
+  }
+  // One note per hit, climbing: you hear how well you did before you read it.
+  function sfxResult(hit, blow) {
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    for (let i = 0; i < Math.max(1, hit); i++) {
+      setTimeout(() => beep(hit ? notes[Math.min(3, i)] : 196, hit ? 0.16 : 0.22, 0.09, hit ? 'triangle' : 'sine'), i * 95)
+    }
+    if (!hit && blow) setTimeout(() => beep(392, 0.14, 0.06, 'sine'), 110)
+  }
+
   function flashKey(d) {
     const k = el.pad.querySelector('[data-digit="' + d + '"]')
     if (!k) return
@@ -427,7 +602,8 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
 
   function pushDigit(d) {
     if (!playing || guess.length >= cfg.len) return
-    if (!cfg.dup && guess.includes(d)) { note('このモードは同じ数字を2回使えません', true); return }
+    if (!cfg.dup && guess.includes(d)) { note('このモードは同じ数字を2回使えません', true); beep(180, 0.1, 0.05, 'square'); return }
+    beep(520 + d * 18, 0.05, 0.05)
     guess.push(d)
     flashKey(d)
     const t = currentRow().querySelectorAll('.tile')[guess.length - 1]
@@ -449,6 +625,14 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   }
 
   /* ---- a digit absent from a 0-hit 0-blow guess can be crossed off ---- */
+  /* A guess that comes back with nothing rules its digits out; one that comes
+     back full rules them all in. Both are deductions the player would write
+     down without thinking, so the sheet writes them. */
+  function autoMark(gs, hit, blow) {
+    if (hit + blow === 0) gs.forEach((d) => { marks[d] = 'out' })
+    else if (hit + blow === cfg.len && !cfg.dup) gs.forEach((d) => { if (marks[d] !== 'out') marks[d] = 'in' })
+  }
+
   function updateRuledOut(gs, hit, blow) {
     if (hit + blow !== 0) return
     gs.forEach((d) => ruledOut.add(d))
@@ -477,7 +661,12 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     pills[1].className = 'pill' + (blow > 0 ? ' blow' : '')
     pills[1].innerHTML = blow + ' <small>BLOW</small>'
 
+    history.push({ g: gs, hit: hit, blow: blow })
     updateRuledOut(gs, hit, blow)
+    autoMark(gs, hit, blow)
+    paintNotes()
+    paintCands()
+    sfxResult(hit, blow)
 
     turn++
     guess = []
@@ -492,7 +681,10 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     }
     el.sTurn.textContent = (turn + 1) + ' / ' + cfg.turns
     paintGuess()
-    note(hit + blow === 0 ? 'どの数字も含まれていません。候補を絞れます。' : '')
+    note(hit + blow === 0 ? 'どの数字も含まれていません。4つとも候補から外れます。'
+      : hit + blow === cfg.len && !cfg.dup ? '数字はすべて合っています。あとは並びだけ。'
+      : hit === 0 && blow ? '位置はすべて違います。'
+      : '')
   }
 
   /* ---- timing ---- */
@@ -505,10 +697,17 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   /* ---- lifecycle ---- */
   function start() {
     cfg = MODES[mode]
+    // Two columns of rows on a wide screen; the split follows the turn count
+    // so eight turns do not leave a ragged column.
+    var cols = window.matchMedia('(min-width:900px)').matches ? 2 : 1
+    el.rows.style.setProperty('--cols', cols)
+    el.rows.style.setProperty('--percol', Math.ceil(MODES[mode].turns / cols))
     secret = makeSecret()
     guess = []
     turn = 0
     ruledOut = new Set()
+    history = []
+    marks = {}
     playing = true
     startedAt = Date.now()
     clearInterval(timerId)
@@ -519,6 +718,8 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     el.sTime.textContent = '0:00'
     buildBoard()
     buildPad()
+    buildNotes()
+    paintCands()
     paintGuess()
     note('')
     el.ovStart.classList.add('hide')
