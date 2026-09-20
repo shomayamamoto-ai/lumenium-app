@@ -333,6 +333,14 @@
   ]
 
   var DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+
+  // Scratch for the frame, one bucket per colour, allocated once and emptied
+  // rather than rebuilt: a new array every frame for sixty frames a second is
+  // work for the garbage collector and nothing else.
+  var groundRuns = COLORS.map(function () { return [] })
+  var edgeSegs = COLORS.map(function () { return [] })
+  var markPts = []
+  var dangerGrad = null, dangerKey = ''
   var SPEED = 7.4          // cells per second, for the person
   // A longer round needs more lives, or you spend it watching: the round ends
   // the moment the person is out, and three lives does not last six minutes.
@@ -933,11 +941,24 @@
   // Where the head is being held against the wall, so the edge can say so.
   var wallBump = null
 
-  function resize() {
-    dpr = Math.min(2, window.devicePixelRatio || 1)
-    vw = window.innerWidth; vh = window.innerHeight
+  // How many device pixels per screen pixel the canvas is drawn at. A phone
+  // reports 3 and this has always asked for 2, which on a 390x844 screen is
+  // 1.3 million pixels to fill sixty times a second — and on a slow device
+  // that, not the drawing itself, is the frame. It steps down only when
+  // frames are actually arriving late, and only within a round, so a machine
+  // that can hold 60 never sees it and one that cannot is not made to choose
+  // between sharpness and moving at all.
+  var dprCap = 2
+
+  function applyDpr() {
+    dpr = Math.min(dprCap, window.devicePixelRatio || 1)
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+
+  function resize() {
+    vw = window.innerWidth; vh = window.innerHeight
+    applyDpr()
     // A new window is a new frame of reference; easing into it would slide
     // the whole board across the screen for no reason.
     camX = null; camY = null
@@ -1060,8 +1081,16 @@
     var x1 = Math.min(W - 1, Math.ceil((vw - ox) / cell) + 1)
     var y1 = Math.min(H - 1, Math.ceil((vh - oy) / cell) + 1)
 
-    // Ground, a row-run at a time. Filling cell by cell left hairline seams
-    // between them wherever the edges landed between device pixels.
+    // Ground and outlines are gathered first and drawn once per colour.
+    //
+    // They used to be drawn cell by cell as they were found: a fillRect per
+    // row-run, and — the expensive one — a beginPath and a stroke for every
+    // held cell on screen. Counted late in a round that came to 1507 strokes
+    // and 1646 paths in a single frame, which is most of what made the game
+    // heavy. The drawing is identical; it is the number of times the canvas is
+    // asked to do something that changes.
+    for (var si = 1; si < groundRuns.length; si++) { groundRuns[si].length = 0; edgeSegs[si].length = 0 }
+    markPts.length = 0
     for (var y = y0; y <= y1; y++) {
       var x = x0
       while (x <= x1) {
@@ -1072,55 +1101,80 @@
         // Snapped to whole pixels at both edges. Adding a half pixel of
         // overlap instead left a brighter seam wherever two rows met.
         var px = Math.round(ox + x * cell), py = Math.round(oy + y * cell)
-        ctx.fillStyle = COLORS[o].deep
-        ctx.fillRect(px, py, Math.round(ox + (e + 1) * cell) - px, Math.round(oy + (y + 1) * cell) - py)
+        groundRuns[o].push(px, py, Math.round(ox + (e + 1) * cell) - px, Math.round(oy + (y + 1) * cell) - py)
+        // The outline of the holding, and the sparse mark over it, while the
+        // run's owner is already in hand. A stretch of cells with the same
+        // side exposed becomes one line rather than one per cell: the top of a
+        // forty-cell holding is one segment, not forty. Every cell in a run
+        // has the same neighbours left and right by definition, so the upright
+        // edges can only be at its two ends.
+        var es = edgeSegs[o]
+        var ey = oy + y * cell
+        var topFrom = -1, botFrom = -1
+        for (var cx2 = x; cx2 <= e; cx2++) {
+          if (y === 0 || owner[idx(cx2, y - 1)] !== o) { if (topFrom < 0) topFrom = cx2 }
+          else if (topFrom >= 0) { es.push(ox + topFrom * cell, ey + 1, ox + cx2 * cell, ey + 1); topFrom = -1 }
+          if (y === H - 1 || owner[idx(cx2, y + 1)] !== o) { if (botFrom < 0) botFrom = cx2 }
+          else if (botFrom >= 0) { es.push(ox + botFrom * cell, ey + cell - 1, ox + cx2 * cell, ey + cell - 1); botFrom = -1 }
+          if (!((cx2 * 5 + y * 3) % 11)) markPts.push(ox + (cx2 + 0.5) * cell, ey + cell * 0.5)
+        }
+        if (topFrom >= 0) es.push(ox + topFrom * cell, ey + 1, ox + (e + 1) * cell, ey + 1)
+        if (botFrom >= 0) es.push(ox + botFrom * cell, ey + cell - 1, ox + (e + 1) * cell, ey + cell - 1)
+        if (x === 0 || owner[idx(x - 1, y)] !== o) es.push(ox + x * cell + 1, ey, ox + x * cell + 1, ey + cell)
+        if (e === W - 1 || owner[idx(e + 1, y)] !== o) es.push(ox + (e + 1) * cell - 1, ey, ox + (e + 1) * cell - 1, ey + cell)
         x = e + 1
       }
     }
+    for (si = 1; si < groundRuns.length; si++) {
+      var runs = groundRuns[si]
+      if (!runs.length) continue
+      ctx.fillStyle = COLORS[si].deep
+      ctx.beginPath()
+      for (var ri = 0; ri < runs.length; ri += 4) ctx.rect(runs[ri], runs[ri + 1], runs[ri + 2], runs[ri + 3])
+      ctx.fill()
+    }
     // A sparse mark over held ground, so a large holding reads as a surface
     // rather than a flat colour.
-    ctx.globalAlpha = 0.14
-    ctx.fillStyle = '#ffffff'
-    for (y = y0; y <= y1; y++) {
-      for (x = x0; x <= x1; x++) {
-        if (!owner[idx(x, y)]) continue
-        if ((x * 5 + y * 3) % 11) continue
-        var mx = ox + (x + 0.5) * cell, my = oy + (y + 0.5) * cell, mr = cell * 0.2
-        ctx.beginPath()
+    if (markPts.length) {
+      var mr = cell * 0.2
+      ctx.globalAlpha = 0.14
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      for (var mi = 0; mi < markPts.length; mi += 2) {
+        var mx = markPts[mi], my = markPts[mi + 1]
         ctx.moveTo(mx, my - mr); ctx.lineTo(mx + mr, my)
         ctx.lineTo(mx, my + mr); ctx.lineTo(mx - mr, my)
-        ctx.closePath(); ctx.fill()
+        ctx.closePath()
       }
+      ctx.fill()
+      ctx.globalAlpha = 1
     }
-    ctx.globalAlpha = 1
     // The edge of a holding, so the shape reads rather than a wash of colour
-    for (y = y0; y <= y1; y++) {
-      for (x = x0; x <= x1; x++) {
-        var oo = owner[idx(x, y)]
-        if (!oo) continue
-        var px = ox + x * cell, py = oy + y * cell
-        ctx.strokeStyle = COLORS[oo].base
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        if (y === 0 || owner[idx(x, y - 1)] !== oo) { ctx.moveTo(px, py + 1); ctx.lineTo(px + cell, py + 1) }
-        if (y === H - 1 || owner[idx(x, y + 1)] !== oo) { ctx.moveTo(px, py + cell - 1); ctx.lineTo(px + cell, py + cell - 1) }
-        if (x === 0 || owner[idx(x - 1, y)] !== oo) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + cell) }
-        if (x === W - 1 || owner[idx(x + 1, y)] !== oo) { ctx.moveTo(px + cell - 1, py); ctx.lineTo(px + cell - 1, py + cell) }
-        ctx.stroke()
+    ctx.lineWidth = 2
+    for (si = 1; si < edgeSegs.length; si++) {
+      var segs = edgeSegs[si]
+      if (!segs.length) continue
+      ctx.strokeStyle = COLORS[si].base
+      ctx.beginPath()
+      for (var gi = 0; gi < segs.length; gi += 4) {
+        ctx.moveTo(segs[gi], segs[gi + 1]); ctx.lineTo(segs[gi + 2], segs[gi + 3])
       }
+      ctx.stroke()
     }
-    // Lines
+    // Lines — one path per player rather than a fill per cell of the line.
     ctx.globalAlpha = 0.72
     for (var pi = 0; pi < players.length; pi++) {
       var p = players[pi]
-      if (!p.alive) continue
+      if (!p.alive || !p.trailCells.length) continue
       ctx.fillStyle = COLORS[p.id].base
+      ctx.beginPath()
       for (var i = 0; i < p.trailCells.length; i++) {
         var c = p.trailCells[i]
         var tx = c % W, ty = (c / W) | 0
         if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue
-        ctx.fillRect(ox + tx * cell + cell * 0.18, oy + ty * cell + cell * 0.18, cell * 0.64, cell * 0.64)
+        ctx.rect(ox + tx * cell + cell * 0.18, oy + ty * cell + cell * 0.18, cell * 0.64, cell * 0.64)
       }
+      ctx.fill()
     }
     ctx.globalAlpha = 1
 
@@ -1302,16 +1356,28 @@
       ctx.restore()
     }
 
-    // …and when one of them is closing on the line you are drawing.
+    // …and when one of them is closing on the line you are drawing. The
+    // gradient is built once per window size and its strength comes from the
+    // alpha, so the tensest moments are not also the ones where the frame
+    // stops to compose a new gradient.
     if (danger > 0.02) {
-      var g = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.max(vw, vh) * 0.62)
-      g.addColorStop(0, 'rgba(244,63,94,0)')
-      g.addColorStop(1, 'rgba(244,63,94,' + (0.42 * danger).toFixed(3) + ')')
-      ctx.fillStyle = g
+      var gkey = vw + 'x' + vh
+      if (dangerKey !== gkey) {
+        dangerKey = gkey
+        dangerGrad = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.max(vw, vh) * 0.62)
+        dangerGrad.addColorStop(0, 'rgba(244,63,94,0)')
+        dangerGrad.addColorStop(1, 'rgba(244,63,94,0.42)')
+      }
+      ctx.globalAlpha = danger
+      ctx.fillStyle = dangerGrad
       ctx.fillRect(0, 0, vw, vh)
+      ctx.globalAlpha = 1
     }
 
-    drawMini(cell)
+    // The map is a 72x72 thumbnail of a board that changes a few cells a
+    // second. It was being rebuilt pixel by pixel — all 5184 of them — sixty
+    // times a second. Eight is more than enough to watch a game by.
+    if (now - miniAt > 125) { miniAt = now; drawMini(cell) }
   }
 
   function round(c, x, y, w, h, r) {
@@ -1324,7 +1390,7 @@
     c.closePath()
   }
 
-  var miniImg = null, miniBuf = null, mbctx = null
+  var miniImg = null, miniBuf = null, mbctx = null, miniAt = 0
   function drawMini() {
     if (!miniBuf) {
       miniBuf = document.createElement('canvas')
@@ -1383,7 +1449,8 @@
   }
 
   var rowEls = []
-  var lastSec = -1
+  var lastSec = -1, lastFx = null
+  var fxEl = document.getElementById('effects')
   function buildHud() {
     listEl.innerHTML = ''
     rowEls = []
@@ -1402,7 +1469,16 @@
       bar.innerHTML = '<i style="background:' + COLORS[p.id].base + '"></i>'
       holder.appendChild(bar)
       listEl.appendChild(holder)
-      rowEls.push({ row: row, nm: row.querySelector('.nm'), pc: row.querySelector('.pc'), fill: bar.querySelector('i') })
+      // The swatch is looked up here, not on every frame. So is everything
+      // last written to this row: a scoreboard that rewrites four names, two
+      // colours and a bar width sixty times a second is asking the browser to
+      // restyle that corner of the screen sixty times a second, to say the
+      // same thing it said last time.
+      rowEls.push({
+        row: row, nm: row.querySelector('.nm'), pc: row.querySelector('.pc'),
+        swatch: row.querySelector('.swatch'), fill: bar.querySelector('i'),
+        was: { cls: '', col: '', nm: '', pc: '', w: '' }
+      })
       void wrapBar
     }
   }
@@ -1412,17 +1488,23 @@
     for (var i = 0; i < order.length; i++) {
       var p = order[i]
       var el = rowEls[i]
-      el.row.className = 'row' + (p.human ? ' me' : '') + (p.alive && !p.out ? '' : ' dead')
-      el.row.querySelector('.swatch').style.background = COLORS[p.id].base
-      // The rows are re-sorted every frame, so the bar has to be recoloured
-      // too — it was keeping the colour of whoever held the slot at build time.
-      el.fill.style.background = COLORS[p.id].base
-      el.nm.textContent = (i + 1) + '. ' + p.name +
+      var was = el.was
+      var cls = 'row' + (p.human ? ' me' : '') + (p.alive && !p.out ? '' : ' dead')
+      if (cls !== was.cls) { was.cls = cls; el.row.className = cls }
+      // The rows are re-sorted as the lead changes, so the swatch and the bar
+      // have to be recoloured with them — they kept the colour of whoever held
+      // the slot at build time.
+      var col = COLORS[p.id].base
+      if (col !== was.col) { was.col = col; el.swatch.style.background = col; el.fill.style.background = col }
+      var nm = (i + 1) + '. ' + p.name +
         '　♥' + Math.max(0, p.lives) + (p.human ? '' : '　' + p.style.tag) +
         (p.out ? '　脱落' : p.alive ? '' : '　復帰中')
+      if (nm !== was.nm) { was.nm = nm; el.nm.textContent = nm }
       var pct = (p.area / N) * 100
-      el.pc.textContent = pct.toFixed(1) + '%'
-      el.fill.style.width = Math.min(100, pct * 2.2) + '%'
+      var pc = pct.toFixed(1) + '%'
+      if (pc !== was.pc) { was.pc = pc; el.pc.textContent = pc }
+      var wide = Math.min(100, pct * 2.2).toFixed(1) + '%'
+      if (wide !== was.w) { was.w = wide; el.fill.style.width = wide }
     }
     // What you are holding, and for how long. An effect you cannot see the end
     // of is an effect you cannot plan around.
@@ -1431,19 +1513,24 @@
     if (tnow < me.boostUntil) fx.push(['speed', ((me.boostUntil - tnow) / 1000).toFixed(1) + 's'])
     if (tnow < me.shieldUntil) fx.push(['shield', ((me.shieldUntil - tnow) / 1000).toFixed(1) + 's'])
     if (me.wide > 0) fx.push(['wide', '次の占領'])
-    var fxEl = document.getElementById('effects')
-    fxEl.style.display = fx.length ? 'flex' : 'none'
-    if (fx.length) {
-      fxEl.innerHTML = fx.map(function (f) {
-        return '<span style="color:' + ITEMS[f[0]].color + '">' + ITEMS[f[0]].mark + ' ' +
-          ITEMS[f[0]].tag + ' <b>' + f[1] + '</b></span>'
-      }).join('')
+    // Parsing a line of HTML is not free, and this was parsing one on every
+    // frame to change a number that moves ten times a second at most.
+    var html = fx.length ? fx.map(function (f) {
+      return '<span style="color:' + ITEMS[f[0]].color + '">' + ITEMS[f[0]].mark + ' ' +
+        ITEMS[f[0]].tag + ' <b>' + f[1] + '</b></span>'
+    }).join('') : ''
+    if (html !== lastFx) {
+      lastFx = html
+      fxEl.style.display = fx.length ? 'flex' : 'none'
+      if (html) fxEl.innerHTML = html
     }
 
     var left = Math.max(0, ROUND_MS - elapsed())
     var s = Math.ceil(left / 1000)
-    clockEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
-    clockEl.classList.toggle('warn', s <= 15)
+    if (s !== lastSec) {
+      clockEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+      clockEl.classList.toggle('warn', s <= 15)
+    }
     if (s !== lastSec) {
       if (s <= 10 && s > 0 && running && !paused && !over) SFX.tick()
       lastSec = s
@@ -1659,6 +1746,12 @@
   /** Three seconds to find yourself on the board before anything moves. The
    *  round used to start with you already travelling. */
   function begin() {
+    // A fresh round asks for the sharp picture again — the last round may have
+    // been slow because of something that has since gone away.
+    dprCap = 2
+    gapN = 0
+    qualityAt = 0
+    applyDpr()
     measureMini()
     reset()
     buildHud()
@@ -1746,12 +1839,27 @@
   document.getElementById('pauseBtn').addEventListener('click', togglePause)
 
   // ---------------------------------------------------------------- loop
-  var thinkAcc = 0
+  var thinkAcc = 0, hudAt = 0, dangerAt = 0
+  var gaps = new Float32Array(90), gapN = 0, qualityAt = 0
   function frame(now) {
     requestAnimationFrame(frame)
     var dt = Math.min(0.05, (now - lastFrame) / 1000)
+    var gap = now - lastFrame
     lastFrame = now
     if (!running || paused) { if (players.length) draw(); return }
+
+    // Are frames arriving on time? Judged over a second and a half of play,
+    // on the middle frame rather than the worst, so one hitch does not cost
+    // the picture its sharpness.
+    if (dprCap > 1.25 && gap > 0 && gap < 400) {
+      gaps[gapN++ % gaps.length] = gap
+      if (gapN >= gaps.length && now - qualityAt > 1500) {
+        qualityAt = now
+        gapN = 0
+        var sorted = gaps.slice().sort(function (a, b) { return a - b })
+        if (sorted[sorted.length >> 1] > 21) { dprCap = dprCap > 1.5 ? 1.5 : 1.25; applyDpr() }
+      }
+    }
 
     if (!nextItemAt) nextItemAt = now + 3000
     if (now >= nextItemAt) { spawnItem(now); nextItemAt = now + 6000 + Math.random() * 4000 }
@@ -1773,19 +1881,25 @@
     // How close the nearest rival is to the line you are drawing. Being cut is
     // the way this game is lost, and until now it arrived with no warning at
     // all: whoever did it was usually off the edge of the screen.
-    danger = 0
-    if (me.alive && me.trailCells.length) {
-      for (i = 0; i < players.length; i++) {
-        var q = players[i]
-        if (q === me || !q.alive) continue
-        var best = 99
-        for (var k = 0; k < me.trailCells.length; k += 2) {
-          var c = me.trailCells[k]
-          var dd = Math.abs((c % W) - q.cx) + Math.abs(((c / W) | 0) - q.cy)
-          if (dd < best) best = dd
+    // Ten times a second, not sixty: this walks the whole of your own line
+    // once per rival, and nobody closes sixteen cells in a hundredth of a
+    // second. The value is held between checks, so the warning looks the same.
+    if (now - dangerAt > 100) {
+      dangerAt = now
+      danger = 0
+      if (me.alive && me.trailCells.length) {
+        for (i = 0; i < players.length; i++) {
+          var q = players[i]
+          if (q === me || !q.alive) continue
+          var best = 99
+          for (var k = 0; k < me.trailCells.length; k += 2) {
+            var c = me.trailCells[k]
+            var dd = Math.abs((c % W) - q.cx) + Math.abs(((c / W) | 0) - q.cy)
+            if (dd < best) best = dd
+          }
+          var lvl = Math.max(0, 1 - best / 16)
+          if (lvl > danger) danger = lvl
         }
-        var lvl = Math.max(0, 1 - best / 16)
-        if (lvl > danger) danger = lvl
       }
     }
     // A heartbeat that quickens as they close. Silence until it matters.
@@ -1794,7 +1908,9 @@
       SFX.pulse(danger)
     }
 
-    updateHud()
+    // The scoreboard is read, not watched. Twelve times a second is past the
+    // point where a number looks live, and each pass touches the document.
+    if (now - hudAt > 80) { hudAt = now; updateHud() }
     draw()
 
     decided()
