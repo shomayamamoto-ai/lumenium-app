@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useFocusTrap } from '../lib/focusTrap'
+// Card copy goes through rich(): it turns a \n into a break and cuts the rest
+// at 。、 so a line can only end where a clause does. Printed raw, the desc
+// came apart mid-phrase — 「企画から納品まで / 一貫対応。」.
+import { rich } from '../lib/rich'
 import { SECTION } from '../data/text'
 import { events, funnel } from '../lib/analytics'
 import { SERVICES } from '../data/services'
@@ -522,7 +526,7 @@ export default function RadialMenu() {
                       }}
                     >
                       <span className="rcard-title">{c.title || n.label.replace('\n', '・')}</span>
-                      {c.desc && <span className="rcard-desc">{c.desc}</span>}
+                      {c.desc && <span className="rcard-desc">{rich(c.desc)}</span>}
                       {c.price && <span className="rcard-price">{c.price}</span>}
                       <span className="rcard-go" aria-hidden="true">詳しく見る →</span>
                     </a>

@@ -68,7 +68,7 @@ export default function Services() {
               )}
               <div className="card-icon-lg">{s.icon}</div>
               <h3 className="card-title">{s.title}</h3>
-              <p className="card-text">{s.desc}</p>
+              <p className="card-text">{rich(s.desc)}</p>
               <div className="card-bottom">
                 <div className="card-tags">
                   {s.tags.map((t) => <span key={t} className="tag">{t}</span>)}

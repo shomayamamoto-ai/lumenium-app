@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
 import { funnel } from '../lib/analytics'
+import { rich } from '../lib/rich'
 
 export default function ServiceDetail({ service, onClose }) {
   const panelRef = useRef(null)
@@ -50,7 +51,7 @@ export default function ServiceDetail({ service, onClose }) {
           <div className="service-detail-icon">{service.icon}</div>
           <p className="service-detail-label">SERVICE</p>
           <h2 id="service-detail-title" className="service-detail-title">{service.title}</h2>
-          <p className="service-detail-lead">{service.desc}</p>
+          <p className="service-detail-lead">{rich(service.desc)}</p>
         </header>
 
         {service.highlights?.length > 0 && (

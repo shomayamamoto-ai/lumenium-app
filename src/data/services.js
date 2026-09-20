@@ -75,7 +75,7 @@ export const SERVICES = [
   {
     id: 'cast',
     title: 'キャスト手配・イベント',
-    desc: '在籍150名のモデル・アクター手配。MC、イベント企画運営。',
+    desc: '在籍150名のモデル・アクター手配。\nMC、イベント企画運営。',
     partner: 'AdvoVisions',
     partnerUrl: 'https://advovisions.com/bcd31-home/',
     tags: ['モデル手配', 'MC', 'イベント企画'],
