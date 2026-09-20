@@ -66,6 +66,7 @@
     <a href="/">← lumenium.net</a>
     <span class="badge">MEMBERS ONLY</span>
     <span class="btns">
+      <button id="gamesBtn" type="button" aria-label="メニュー">☰</button>
       <button id="pauseBtn" type="button">❚❚</button>
       <button id="muteBtn" type="button">🔊</button>
     </span>
@@ -362,6 +363,16 @@ function togglePause(){
   paused=!paused; pauseBtn.textContent=paused?'▶':'❚❚';
 }
 pauseBtn.onclick=togglePause;
+/* The menu in /games.js calls this when it opens and closes: a game should not
+   carry on being played while its player is reading a list of other games. It
+   only resumes what it paused — a game already paused by hand stays paused. */
+
+var menuPaused=false;
+window.lumenPause=function(on){
+  if(on){ if(state==='play'&&!paused){ menuPaused=true; togglePause(); } }
+  else if(menuPaused){ menuPaused=false; if(paused) togglePause(); }
+};
+
 document.addEventListener('visibilitychange',function(){
   if(document.hidden&&state==='play'){ paused=true; pauseBtn.textContent='▶'; }
 });
@@ -918,5 +929,6 @@ function loop(){
 loop();
 })();
 </script>
+<script src="/games.js" data-game="arena" data-attach="#gamesBtn" defer></script>
 </body>
 </html>

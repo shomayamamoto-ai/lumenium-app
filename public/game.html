@@ -114,11 +114,6 @@ body{
 <div class="bg-glow bg-glow-1"></div>
 <div class="bg-glow bg-glow-2"></div>
 <a href="/" class="back-link">← EXIT</a>
-<nav aria-label="ミニゲーム切り替え" class="game-switch">
-  <span class="game-switch-active"><span class="game-switch-icon"></span>シューティング</span>
-  <a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
-  <a href="/racing.html"><span class="game-switch-icon"></span>ディフェンス</a> <a href="/hitblow.html"><span class="game-switch-icon"></span>コード解読</a>
-</nav>
 <section class="game-page">
   <div class="fade-up section-header">
     <span class="section-tag">LUMENIUM · MINI GAME</span>
@@ -423,6 +418,16 @@ function togglePause() {
   else if (state === 'paused') { state = 'playing'; }
 }
 document.getElementById('pause-btn').addEventListener('click', togglePause);
+/* The menu in /games.js calls this when it opens and closes: a game should not
+   carry on being played while its player is reading a list of other games. It
+   only resumes what it paused — a game already paused by hand stays paused. */
+
+var menuPaused = false
+window.lumenPause = function (on) {
+  if (on) { if (state === 'playing') { menuPaused = true; togglePause() } }
+  else if (menuPaused) { menuPaused = false; if (state === 'paused') togglePause() }
+}
+
 
 /* ---------- Input: touch joystick + fire button ---------- */
 var joystick = document.getElementById('joystick');
@@ -1666,5 +1671,6 @@ function loop() {
 }
 loop();
 </script>
+<script src="/games.js" data-game="shooter" data-corner="top-center" defer></script>
 </body>
 </html>

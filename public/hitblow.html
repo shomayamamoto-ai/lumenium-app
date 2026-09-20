@@ -271,12 +271,6 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
 <canvas id="stars" aria-hidden="true"></canvas>
 <div id="stage">
   <a class="back-link" href="/">← EXIT</a>
-  <nav class="game-switch" aria-label="ミニゲーム切り替え">
-    <a href="/game.html"><span class="game-switch-icon"></span>シューティング</a>
-    <a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
-    <a href="/racing.html"><span class="game-switch-icon"></span>ディフェンス</a>
-    <span class="game-switch-active"><span class="game-switch-icon"></span>コード解読</span>
-  </nav>
 
   <div class="head">
     <p class="eyebrow">LUMENIUM · MINI GAME</p>
@@ -893,5 +887,6 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   renderRank(el.rankStart, null)
 })()
 </script>
+<script src="/games.js" data-game="hitblow" data-corner="top-center" defer></script>
 </body>
 </html>

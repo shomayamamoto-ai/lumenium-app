@@ -90,11 +90,6 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 </head>
 <body>
 <a href="/" class="back-link">← EXIT</a>
-<nav aria-label="ミニゲーム切り替え" class="game-switch">
-<a href="/game.html"><span class="game-switch-icon"></span>シューティング</a>
-<a href="/runner.html"><span class="game-switch-icon"></span>ランナー</a>
-<span class="game-switch-active"><span class="game-switch-icon"></span>ディフェンス</span> <a href="/hitblow.html"><span class="game-switch-icon"></span>コード解読</a>
-</nav>
 <section class="pg">
 <div class="hd">
 <div class="tg">LUMENIUM · MINI GAME</div>
@@ -1255,6 +1250,14 @@ function togglePause(){
   var b=document.getElementById('pauseBtn');
   if(b)b.textContent=paused?'▶ 再開':'⏸ 一時停止';
 }
+/* The menu in /games.js calls this when it opens and closes: a game should not
+   carry on being played while its player is reading a list of other games. It
+   only resumes what it paused — a game already paused by hand stays paused. */
+var menuPaused=false;
+window.lumenPause=function(on){
+  if(on){ if(st==='play'&&!paused){ menuPaused=true; togglePause(); } }
+  else if(menuPaused){ menuPaused=false; if(paused) togglePause(); }
+};
 function toggleSpeed(){
   gameSpeed=gameSpeed===1?2:gameSpeed===2?3:1;
   var b=document.getElementById('ffBtn');
@@ -1369,5 +1372,6 @@ ni.addEventListener('keydown',function(e){if(e.key==='Enter')subN();});
   loop();
 })();
 </script>
+<script src="/games.js" data-game="defense" data-corner="top-center" defer></script>
 </body>
 </html>

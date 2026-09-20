@@ -18,7 +18,14 @@
   #cv { display:block; width:100%; height:100%; touch-action:none; }
 
   .top {
-    position:fixed; top:0; left:0; right:0; z-index:20;
+    /* Above the overlays, not under them. The start screen and the result
+       screen are fixed and cover the whole window at z-index 30, so the way
+       out of the game — and the menu beside it — were unreachable at exactly
+       the two moments a player is most likely to want them: before starting,
+       and after the round has ended. The bar passes pointer events through
+       everywhere except its own controls, so the screen underneath is still
+       fully usable. */
+    position:fixed; top:0; left:0; right:0; z-index:40;
     display:flex; align-items:center; gap:10px; padding:12px 16px;
     background:linear-gradient(180deg, rgba(7,10,22,0.82), rgba(7,10,22,0));
     pointer-events:none;
@@ -250,6 +257,7 @@
   <a href="/">← lumenium.net</a>
   <span class="badge">MEMBERS ONLY</span>
   <span class="btns">
+    <button id="gamesBtn" type="button" aria-label="メニュー">☰</button>
     <button id="pauseBtn" type="button">❚❚</button>
     <button id="muteBtn" type="button">🔊</button>
   </span>
@@ -1838,6 +1846,20 @@
   document.getElementById('againBtn').addEventListener('click', begin)
   document.getElementById('pauseBtn').addEventListener('click', togglePause)
 
+  /* The menu in /games.js calls this when it opens and closes: a round should
+     not carry on being played while its player is reading a list of other
+     games. It only resumes what it paused — a round already paused by hand
+     stays paused. */
+  var menuPaused = false
+  window.lumenPause = function (on) {
+    if (on) {
+      if (running && !over && !paused) { menuPaused = true; togglePause() }
+    } else if (menuPaused) {
+      menuPaused = false
+      if (paused) togglePause()
+    }
+  }
+
   // ---------------------------------------------------------------- loop
   var thinkAcc = 0, hudAt = 0, dangerAt = 0
   var gaps = new Float32Array(90), gapN = 0, qualityAt = 0
@@ -1924,5 +1946,6 @@
   requestAnimationFrame(frame)
 })()
 </script>
+<script src="/games.js" data-game="territory" data-attach="#gamesBtn" defer></script>
 </body>
 </html>
