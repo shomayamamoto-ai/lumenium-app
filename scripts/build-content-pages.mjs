@@ -134,6 +134,52 @@ footer a { color:var(--sub); text-decoration:none; }
 footer a:hover { color:var(--text); }
 `
 
+/* The company, stated on every page rather than referenced from them.
+   Pages carried publisher: { '@id': '…/#organization' } while the node itself
+   existed only on the home page and 会社概要 — a dangling reference to an
+   engine reading one page on its own. The AIO run came back with 「実在が確認
+   できない」 for the branded questions; a page that names the company, where
+   it is, who runs it and since when is the cheapest possible answer to that. */
+const ORG_NODE = {
+  '@type': 'Organization',
+  '@id': `${SITE}/#organization`,
+  name: 'Lumenium',
+  alternateName: ['ルメニウム', 'Lumenium（ルメニウム）'],
+  url: SITE,
+  foundingDate: '2026',
+  founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
+  address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
+  areaServed: { '@type': 'Country', name: 'Japan' },
+  logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
+}
+
+/** Whatever the page had, plus the company, where it sits, and when it was
+ *  last true — the three things every page should carry and most did not. */
+function withOrg(ld, canonical, title) {
+  const path = String(canonical || '').replace(SITE, '') || '/'
+  const crumbs = {
+    '@type': 'BreadcrumbList',
+    itemListElement: [{ '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE }].concat(
+      /^\/blog\/post-/.test(path)
+        ? [
+            { '@type': 'ListItem', position: 2, name: 'ブログ', item: `${SITE}/blog/index.html` },
+            { '@type': 'ListItem', position: 3, name: title, item: canonical },
+          ]
+        : path === '/' ? [] : [{ '@type': 'ListItem', position: 2, name: title, item: canonical }]
+    ),
+  }
+  const base = ld
+    ? (Array.isArray(ld['@graph']) ? ld['@graph'] : [{ ...ld, '@context': undefined }])
+    : []
+  const graph = [...base]
+  if (!graph.some((n) => n && n['@id'] === ORG_NODE['@id'])) graph.push(ORG_NODE)
+  if (!graph.some((n) => n && n['@type'] === 'BreadcrumbList') && crumbs.itemListElement.length > 1) graph.push(crumbs)
+  if (!graph.some((n) => n && (n.dateModified || n.datePublished))) {
+    graph.push({ '@type': 'WebPage', '@id': canonical + '#page', url: canonical, name: title, dateModified: TODAY, isPartOf: { '@id': `${SITE}/#organization` } })
+  }
+  return { '@context': 'https://schema.org', '@graph': graph }
+}
+
 function shell({ title, desc, canonical, ld, eyebrow, body }) {
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -155,7 +201,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script type="application/ld+json">${ldJson(ld)}</script>
+<script type="application/ld+json">${ldJson(withOrg(ld, canonical, title))}</script>
 <style>${STYLE}</style>
 </head>
 <body>
@@ -188,6 +234,28 @@ ${body}
 `
 }
 
+/* A one-line summary is a fine headline and a useless description: the blog
+   posts were shipping 「投稿前に整えるべきことを解説。」 — fifteen characters —
+   as the snippet a search engine or an answer engine reads. The summary plus
+   the article's own opening gives a hundred-odd characters of what the page
+   actually says, which is what that field is for. */
+function articleDesc(a) {
+  const plain = String(a.content || '')
+    .replace(/^##.*$/gm, ' ')
+    .replace(/[#*`>\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const want = 120
+  let out = String(a.summary || '').trim()
+  for (const sentence of plain.split(/(?<=。)/)) {
+    if (out.length >= want) break
+    const t = sentence.trim()
+    if (t.length < 8) continue
+    out += (out ? '' : '') + t
+  }
+  return out.slice(0, 150)
+}
+
 mkdirSync('public/blog', { recursive: true })
 const urls = []
 
@@ -201,8 +269,9 @@ for (const a of articles) {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: a.title,
-    description: a.summary,
+    description: articleDesc(a),
     datePublished: isoDate(a.date),
+    dateModified: isoDate(a.date),
     inLanguage: 'ja-JP',
     author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
     publisher: { '@id': `${SITE}/#organization` },
@@ -224,7 +293,7 @@ ${md(a.content)}
   </ul>`
   writeFileSync('public' + path, shell({
     title: `${a.title} | Lumenium（ルメニウム）ブログ`,
-    desc: a.summary,
+    desc: articleDesc(a),
     canonical: url,
     ld,
     eyebrow: 'LUMENIUM BLOG',
@@ -252,7 +321,7 @@ ${md(a.content)}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/blog/index.html', shell({
     title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium（ルメニウム）',
-    desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを発信するLumeniumのブログ。',
+    desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを、実際の案件で使っている手順のまま公開しています。東京拠点のルメニウム（Lumenium）が、中小企業の担当者向けに書いた記事の一覧です。',
     canonical: url,
     ld,
     eyebrow: 'LUMENIUM BLOG',
@@ -283,7 +352,7 @@ ${md(a.content)}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/news.html', shell({
     title: 'お知らせ | Lumenium（ルメニウム）',
-    desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。',
+    desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。サービスの追加、制作実績、サイトの更新など、東京拠点のクリエイティブ／DX支援カンパニーの動きをこのページにまとめています。',
     canonical: url,
     ld,
     eyebrow: 'LUMENIUM NEWS',
@@ -315,7 +384,7 @@ ${md(a.content)}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/faq.html', shell({
     title: 'よくある質問（料金・納期・進め方）| Lumenium（ルメニウム）',
-    desc: 'Lumeniumへのご依頼に関するよくある質問。料金目安・納期・修正対応・NDA・オンライン対応などにお答えします。',
+    desc: 'ルメニウム（Lumenium）へのご依頼に関するよくある質問。料金の目安は動画制作3万円〜、Web制作30万円〜。納期・修正対応・NDA・オンライン対応・全国対応まで、実際にいただく質問に答えています。',
     canonical: url,
     ld,
     eyebrow: 'LUMENIUM FAQ',
@@ -458,6 +527,7 @@ ${md(a.content)}
       <li>キャスト手配・イベント — モデル・アクター手配、MC、イベント企画運営</li>
       <li>クリエイティブ制作 — ロゴ、バナー、ポスター、イラスト、作詞作曲</li>
     </ul>
+    <p>料金の目安は、動画制作 3万円〜、生成AI研修 講師1回 10万円〜、SNS運用・LINE構築 初期20万円〜（月額10万円〜）、Web制作・システム開発 30万円〜、キャスト手配 1名5,000円〜、クリエイティブ制作 3万円〜です。お見積りは無料で、ご相談から48時間以内にご返信します。</p>
 
     <h2>ルメニウムについてよくある質問</h2>
     <dl class="qa">

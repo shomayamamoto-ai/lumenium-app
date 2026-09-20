@@ -8,6 +8,8 @@ import { applyOverrides } from '../src/lib/content-registry.js'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
+// Answer engines prefer a page that says when it was last true.
+const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
 const SERVICES = [
   {
@@ -137,11 +139,73 @@ footer a { color:var(--sub); text-decoration:none; }
 footer a:hover { color:var(--text); }
 `
 
+/* The questions a customer actually types, with answers that carry the facts
+   an answer engine can quote: what it costs, where we work, how fast we reply.
+   The AIO probe measures exactly these questions and this site scored 0% on
+   the non-branded ones — a page that does not answer the question in the
+   question's own words gives an engine nothing to lift. Visible on the page
+   and repeated as FAQPage data, because both are read. */
+/* The company, on every page of this generator too. A page that references
+   an organization defined somewhere else is, to an engine reading that page
+   alone, a page that says nothing about who is behind it. */
+const ORG_NODE = {
+  '@type': 'Organization',
+  '@id': `${SITE}/#organization`,
+  name: 'Lumenium',
+  alternateName: ['ルメニウム', 'Lumenium（ルメニウム）'],
+  url: SITE,
+  foundingDate: '2026',
+  founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
+  address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
+  areaServed: { '@type': 'Country', name: 'Japan' },
+  logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
+}
+
+const FAQ = {
+  video: [
+    ['東京で採用動画の制作を依頼できる会社はありますか？', '東京都を拠点とするルメニウム（Lumenium）が、採用動画の企画・撮影・編集・納品まで一貫して対応します。オンライン打ち合わせで全国からご依頼いただけます。料金は3万円〜、お見積りは無料です。'],
+    ['動画制作の相場はどれくらいですか？', 'SNS向けの短尺動画は3万円前後から、採用動画・企業PR動画は10万円前後からが目安です。撮影日数・出演者の有無・編集の作り込みで変わるため、内容を伺ってから確定したお見積りをお出しします。'],
+    ['納期はどれくらいかかりますか？', '短尺動画で1〜2週間、企画から撮影を伴う採用動画で3〜4週間が目安です。公開日が決まっている場合はその日から逆算して進行表をお出しします。'],
+    ['撮影は東京以外でも対応できますか？', '対応します。打ち合わせはオンライン、撮影は現地へ伺う形で全国のご依頼を受けています。交通費は別途お見積りに含めてご提示します。'],
+  ],
+  ai: [
+    ['社員向けの生成AI研修を依頼できる会社はありますか？', 'ルメニウム（Lumenium）が企業向けの生成AI研修・AIリテラシー教育を行っています。現場の業務を伺ったうえで、その会社の仕事に即した教材を作って実施します。講師1回10万円〜（教材費込）です。'],
+    ['AI導入は何から始めればよいですか？', '「何を解決したいか」を先に決め、1つの業務・1チームから小さく始めるのが失敗しない順序です。議事録作成や下書き生成など、繰り返し発生して時間がかかっている作業が最初の候補になります。'],
+    ['研修はオンラインでも実施できますか？', '可能です。オンライン・対面のどちらにも対応し、録画の共有や、受講後の質問対応もあわせてご提案します。'],
+    ['費用はどれくらいかかりますか？', '講師派遣は1回10万円〜（教材費込・交通費別途）。教材制作のみ、導入コンサルティングのみのご依頼も承ります。お見積りは無料です。'],
+  ],
+  sns: [
+    ['企業のLINE公式アカウントの構築を代行してもらえますか？', 'ルメニウム（Lumenium）が公式LINEの開設から、シナリオ配信・セグメント配信・Bot制作まで代行します。初期20万円〜、運用は月額10万円〜です。'],
+    ['SNS運用代行の費用はどれくらいですか？', '初期費用20万円〜、月額10万円〜が目安です。投稿本数・撮影の有無・レポートの頻度によって変わるため、目的を伺ってからご提案します。'],
+    ['どのSNSに対応していますか？', 'Instagram・X・Facebook・Threads・LINE公式アカウントに対応します。企画構成から投稿、効果の振り返りまで一貫して代行します。'],
+    ['何を投稿すればよいか決まっていなくても相談できますか？', 'その状態からのご相談がほとんどです。誰に何を届けたいかを整理するところから一緒に決め、投稿の型を作ってお渡しします。'],
+  ],
+  web: [
+    ['企業のホームページ制作を東京の会社に依頼したいのですが', '東京都を拠点とするルメニウム（Lumenium）が、企業サイト・LP・Webアプリの設計から公開・運用まで対応します。30万円〜、オンラインで全国からご依頼いただけます。'],
+    ['費用と納期はどれくらいですか？', '企業サイトは30万円〜・1〜2ヶ月、キャンペーンLPは短納期で2週間前後が目安です。内容を伺ったうえで、確定したお見積りと進行表をお出しします。'],
+    ['業務システムの開発を小規模から相談できますか？', 'できます。予算に合わせて、まず1つの業務だけを自動化する小さな範囲から作り、効果を見て広げる進め方をおすすめしています。'],
+    ['公開後の運用も任せられますか？', '更新・改修・計測まで継続して対応します。自社で運用したい場合は、更新できる形でお渡しし、操作の説明も行います。'],
+  ],
+  cast: [
+    ['イベントのMCやキャストを手配してくれる会社はありますか？', 'ルメニウム（Lumenium）が在籍150名のモデル・アクター・MCのネットワークから手配します。キャスト1名5,000円〜、イベントの企画運営ごとお任せいただけます。'],
+    ['料金はどれくらいですか？', 'キャスト1名5,000円〜が目安です。拘束時間・役割・人数によって変わるため、実施内容を伺ってからお見積りします。イベント企画の費用は別途です。'],
+    ['何名まで手配できますか？', '在籍150名のネットワークから、撮影の数名規模からイベントの大人数まで対応します。ご希望の条件（年齢層・雰囲気・経験）を伺って候補をお出しします。'],
+    ['地方のイベントでも対応できますか？', '対応します。打ち合わせはオンライン、当日は現地へ伺う形で全国のご依頼を受けています。'],
+  ],
+  creative: [
+    ['会社のロゴやバナーのデザインを依頼できる制作会社はありますか？', 'ルメニウム（Lumenium）がロゴ・バナー・ポスター・イラスト・教材までクリエイティブ全般を制作します。3万円〜、オンラインで全国からご依頼いただけます。'],
+    ['料金はどれくらいですか？', '3万円〜が目安です。ロゴは用途の広さ（名刺・看板・Web）で、バナーは点数で変わります。内容に応じてご提案します。'],
+    ['修正は何回まで対応してもらえますか？', '通常2〜3回の修正をお見積りに含めています。大きな方針転換の場合は別途ご相談となりますが、納得いただけるまで丁寧に対応します。'],
+    ['作詞作曲も依頼できますか？', 'できます。イベント用の楽曲やブランドのテーマソングなど、用途を伺って制作します。'],
+  ],
+}
+
 function page(s) {
   const others = SERVICES.filter((o) => o.id !== s.id)
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [
+      ORG_NODE,
       {
         '@type': 'Service',
         '@id': `${SITE}/services/${s.id}.html#service`,
@@ -151,6 +215,16 @@ function page(s) {
         areaServed: { '@type': 'Country', name: 'Japan' },
         offers: { '@type': 'Offer', description: s.price, priceCurrency: 'JPY' },
         url: `${SITE}/services/${s.id}.html`,
+        dateModified: TODAY,
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${SITE}/services/${s.id}.html#faq`,
+        mainEntity: (FAQ[s.id] || []).map(([q, a]) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
       },
       {
         '@type': 'BreadcrumbList',
@@ -206,6 +280,10 @@ function page(s) {
   <h2>料金目安</h2>
   <div class="price">${esc(s.price)}<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
 
+  <h2>よくある質問</h2>
+  ${(FAQ[s.id] || []).map(([q, a]) => `<h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">${esc(q)}</h3>
+  <p style="font-size:13.5px;line-height:2;color:var(--sub)">${esc(a)}</p>`).join('\n  ')}
+
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
@@ -217,6 +295,7 @@ function page(s) {
   </div>
 
   <p class="lead" style="margin-top:34px;font-size:13px;opacity:.8">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を手がけています。米国のエンジン開発企業 Lumenium, LLC や Lumentum とは無関係の別組織です。</p>
+  <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/">lumenium.net</a>
@@ -248,6 +327,7 @@ function hub() {
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [
+      ORG_NODE,
       {
         '@type': 'CollectionPage',
         '@id': `${SITE}/services/index.html#webpage`,
@@ -255,7 +335,17 @@ function hub() {
         name: 'サービス一覧',
         description: DESC,
         inLanguage: 'ja-JP',
+        dateModified: TODAY,
         isPartOf: { '@id': `${SITE}/#website` },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${SITE}/services/index.html#faq`,
+        mainEntity: [
+          ['どのサービスから相談すればよいですか？', '決まっていない状態でのご相談がほとんどです。困っていることを伺ったうえで、動画・AI研修・SNS/LINE・Web制作・キャスト手配・クリエイティブのどれが要るか、あるいは要らないかからご提案します。お見積りは無料、48時間以内にご返信します。'],
+          ['複数のサービスをまとめて依頼できますか？', 'できます。動画とWebとSNSを別々の会社に頼むと、窓口も進行もばらばらになります。6領域すべてを社内で対応しているため、一社にまとめてお任せいただけます。'],
+          ['東京以外からでも依頼できますか？', '東京都を拠点に、打ち合わせはオンラインで全国からご依頼いただいています。撮影やイベントなど現地対応が必要な場合は伺います。'],
+        ].map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
       },
       {
         '@type': 'ItemList',
@@ -313,6 +403,16 @@ ${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inher
     <a class="ghost" href="/pricing.html">料金の目安を見る</a>
   </div>
 
+  <h2>よくある質問</h2>
+  <h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">どのサービスから相談すればよいですか？</h3>
+  <p style="font-size:13.5px;line-height:2;color:var(--sub)">決まっていない状態でのご相談がほとんどです。困っていることを伺ったうえで、動画・AI研修・SNS/LINE・Web制作・キャスト手配・クリエイティブのどれが要るか、あるいは要らないかからご提案します。お見積りは無料、48時間以内にご返信します。</p>
+  <h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">複数のサービスをまとめて依頼できますか？</h3>
+  <p style="font-size:13.5px;line-height:2;color:var(--sub)">できます。動画とWebとSNSを別々の会社に頼むと、窓口も進行もばらばらになります。6領域すべてを社内で対応しているため、一社にまとめてお任せいただけます。</p>
+  <h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">東京以外からでも依頼できますか？</h3>
+  <p style="font-size:13.5px;line-height:2;color:var(--sub)">東京都を拠点に、打ち合わせはオンラインで全国からご依頼いただいています。撮影やイベントなど現地対応が必要な場合は伺います。</p>
+
+  <p style="font-size:12px;color:var(--sub);margin-top:22px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
+
   <h2>Lumeniumの他のページ</h2>
   <div class="others">
     <a href="/about.html">ルメニウムとは</a>
@@ -331,6 +431,7 @@ ${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inher
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>
+<script>(function(){try{var p=location.pathname.replace(/\\/$/,'')||'/';fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:p,r:document.referrer||''}),keepalive:true,credentials:'omit'}).catch(function(){});}catch(e){}})();</script>
 </body>
 </html>
 `
