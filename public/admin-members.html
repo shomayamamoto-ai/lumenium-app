@@ -809,6 +809,9 @@
       <div id="seo-body" style="display:none">
         <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px"></div>
         <div id="seo-breakdown" style="margin-bottom:18px"></div>
+        <!-- The part that is worth reading: what the numbers above mean you
+             should do, each item naming the evidence it came from. -->
+        <div id="seo-actions" style="margin-bottom:20px"></div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">カテゴリ別の出現率</h3>
           <div id="seo-cats"></div>
@@ -2870,13 +2873,20 @@ window.lumAdmin = {
     });
     // A percentage built on a minority of the questions is worth saying out
     // loud, rather than leaving it to be inferred from a count in a corner.
-    var thin = s.unjudged && s.unjudged >= s.asked;
+    // Questions that never came back are as important as the ones that did: a
+    // rate over 7 of 16 looks exactly like a rate over 16 of 16 unless it says
+    // so. Both numbers are now named, next to the total.
+    var missing = (s.unjudged || 0) + (s.failed || 0);
+    var total = s.asked + missing;
+    var thin = missing && missing >= s.asked;
     host.innerHTML = '<p style="font-size:12px;color:var(--sub);line-height:1.9">' +
       '内訳: ' + (parts.length ? parts.join(' ／ ') : '—') +
       (s.unjudged ? ' ／ 判定できず <b>' + s.unjudged + '</b>' : '') +
+      (s.failed ? ' ／ 取得できず <b>' + s.failed + '</b>' : '') +
+      '<br>この回で数えられたのは <b>' + s.asked + '</b> / ' + total + ' 問です。' +
       '</p>' +
       (thin ? '<p style="font-size:11.5px;color:#fbbf24;line-height:1.7">⚠ ' + s.asked +
-        '問しか判定できていません（' + s.unjudged + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
+        '問しか判定できていません（' + missing + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
       '<p style="font-size:11px;color:var(--sub);line-height:1.7">' +
       '「出現」は、回答が実在する会社として扱ったものを数えています。社名が本文にあるだけでは数えません' +
       '（新しいサイトでは「見つかりませんでした」という回答こそ社名を含むためです）。</p>';
@@ -2890,7 +2900,15 @@ window.lumAdmin = {
         : r.verdict
           ? VERDICT_LABEL[r.verdict] + (r.cited ? '・自社サイトが情報源' : '')
           : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
-      var co = (r.companies || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">同時に挙がった会社: ' + esc(r.companies.join('、')) + '</div>' : '';
+      /* Who took the slot. When we did not appear, these are the answer to
+         「誰が出たのか」 — the shortlist to be compared against, which is the
+         only part of a miss that can be acted on. */
+      var rivals = (r.companies || []).filter(function (c) { return !/lumenium|ルメニウム/i.test(c); });
+      var co = rivals.length
+        ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">' +
+          (r.verdict === 'recommended' ? '同時に挙がった会社: ' : 'ここで挙がっていた会社: ') +
+          esc(rivals.join('、')) + '</div>'
+        : '';
       return '<details style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
         '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
         '<div style="font-size:12px;color:var(--sub);margin-top:8px">' + note + '</div>' + co +
@@ -2898,6 +2916,31 @@ window.lumAdmin = {
         ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '') +
       '</details>';
     }).join('');
+  }
+
+  /* 次の一手. Deterministic — every line of this came out of the run, and the
+     evidence under each one is what it was read from, so it can be checked. */
+  function actions(run) {
+    var list = run.actions || [];
+    var host = el('seo-actions');
+    if (!list.length) { host.innerHTML = ''; return; }
+    var ICON = { coverage: '⚠️', exists: '🧾', category: '🥊', sources: '📚', cited: '🔗', publish: '📣' };
+    host.innerHTML =
+      '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">' +
+      'この計測から分かる、次の一手</h3>' +
+      list.map(function (a) {
+        var ev = (a.evidence || []).length
+          ? '<ul style="margin:8px 0 0 18px;padding:0;font-size:11.5px;color:var(--sub);line-height:1.8">' +
+            a.evidence.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>'
+          : '';
+        return '<div style="background:#151b31;border:1px solid var(--border);border-left:3px solid var(--accent,#6366f1);' +
+          'border-radius:10px;padding:12px 14px;margin-bottom:8px">' +
+          '<div style="font-size:13.5px;font-weight:700;margin-bottom:6px">' +
+          (ICON[a.kind] || '•') + ' ' + esc(a.title) + '</div>' +
+          '<div style="font-size:12px;color:var(--sub);line-height:1.85">' + esc(a.why) + '</div>' +
+          '<div style="font-size:12.5px;line-height:1.85;margin-top:6px"><strong>やること：</strong>' + esc(a.how) + '</div>' +
+          ev + '</div>';
+      }).join('');
   }
 
   function draw(data) {
@@ -2922,6 +2965,7 @@ window.lumAdmin = {
     var s = run.summary;
     cards(s);
     breakdown(s);
+    actions(run);
     bars('seo-cats', s.byCategory.map(function (c) {
       return { name: c.cat, value: c.rate, note: c.mentions + '/' + c.asked, us: false };
     }), { labelWidth: 150 });
@@ -3013,17 +3057,39 @@ window.lumAdmin = {
     for (var i = 0; i < total; i++) {
       el('seo-bar').style.width = (i / total * 100) + '%';
       el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
-      try {
-        var r = await post({ action: 'ask', runId: started.runId, index: i });
-        if (r.result) collected.push(r.result);
-        if (r.result && r.result.named) hit++;
-      } catch (e) {
-        el('seo-progress-text').textContent = (i + 1) + '問目でエラー: ' + e.message + '（続行します）';
+      /* Twice more on failure, with a wait between. A web-searched answer can
+         take half a minute and these go out back to back, so a question that
+         fails once usually succeeds on the next try — and a question that
+         fails is not silently dropped any more: it goes into the report as a
+         failure, with its reason. The last run kept 7 of 16 questions and the
+         report never said where the other 9 went. */
+      var got = null, lastErr = '';
+      for (var attempt = 0; attempt < 3 && !got; attempt++) {
+        if (attempt) {
+          el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を再試行中…（' + attempt + '回目）';
+          await new Promise(function (ok) { setTimeout(ok, attempt * 2500); });
+        }
+        try {
+          var r = await post({ action: 'ask', runId: started.runId, index: i });
+          if (r.result) got = r.result;
+        } catch (e) { lastErr = e.message; }
+      }
+      if (got) {
+        collected.push(got);
+        if (got.named) hit++;
+      } else {
+        var qq = started.questions[i];
+        collected.push({ id: qq.id, cat: qq.cat, q: qq.q, answer: '', named: false, verdict: null,
+                         cited: false, sources: [], searched: 0, companies: [],
+                         error: lastErr || '応答がありませんでした' });
+        el('seo-progress-text').textContent = (i + 1) + '問目は取得できませんでした（続行します）';
       }
     }
     el('seo-bar').style.width = '100%';
     el('seo-progress-text').textContent = '集計中…';
     try {
+      // Sent in both cases: with a store it fills in the questions that never
+      // reached it, without one it is the whole run.
       var done = await post({
         action: 'finalize', runId: started.runId,
         startedAt: started.startedAt, results: collected

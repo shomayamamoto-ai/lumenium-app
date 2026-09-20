@@ -125,6 +125,26 @@ async function analyseAnswers(client, results) {
   const usable = results.filter((r) => r.answer && !r.error)
   if (!usable.length) return {}
 
+  // In batches, because this used to be one call for every answer in the run
+  // with a 4,000 token ceiling on its reply. Sixteen answers do not fit: the
+  // tool call was cut off part way through the list and the run reported
+  // 「判定できた質問 7」 out of sixteen — more than half the work measured,
+  // paid for, and then thrown away, which is most of why the report had
+  // nothing in it. Four at a time fits with room to spare, and a batch that
+  // fails now costs four verdicts instead of all of them.
+  const out = {}
+  const SIZE = 4
+  for (let i = 0; i < usable.length; i += SIZE) {
+    const batch = usable.slice(i, i + SIZE)
+    try {
+      Object.assign(out, await analyseBatch(client, batch))
+    } catch (_) { /* the other batches still stand */ }
+  }
+  return out
+}
+
+async function analyseBatch(client, usable) {
+
   const tool = {
     name: 'record_analysis',
     description: '各回答について、挙がっていた会社名と、ルメニウムの扱われ方を記録する。',
@@ -161,13 +181,16 @@ async function analyseAnswers(client, results) {
     },
   }
 
+  // Long answers are trimmed: the verdict and the company names are decided in
+  // the first part of an answer, and the whole of one can be several thousand
+  // tokens of citations.
   const payload = usable
-    .map((r) => `### ${r.id}\n質問: ${r.q}\n回答: ${r.answer}`)
+    .map((r) => `### ${r.id}\n質問: ${r.q}\n回答: ${String(r.answer).slice(0, 4000)}`)
     .join('\n\n')
 
   const res = await client.messages.create({
     model: MODEL,
-    max_tokens: 4000,
+    max_tokens: 3000,
     output_config: { effort: 'low' },
     system:
       '与えられた各回答について、2つのことを記録してください。\n' +
@@ -283,6 +306,114 @@ function summarise(results, fallback) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 12),
   }
+}
+
+/** What to do next, read out of the run rather than guessed at.
+ *
+ *  The report used to stop at the rates: 「非指名 0%」 is a fact, not an
+ *  instruction, and a list of fifteen competitors each named once says who is
+ *  winning without saying what they did. Every item below names the evidence
+ *  it came from — the questions, the companies, the pages the answer actually
+ *  read — so it can be checked rather than believed. Nothing here is written
+ *  by a model; it is arithmetic over what came back, which is why it can be
+ *  trusted to say 「まだ分からない」 when the run did not measure enough. */
+function buildActions(results, s, social) {
+  const done = results.filter((r) => r && !r.error && r.answer)
+  const open = done.filter((r) => r.cat !== 'ブランド指名')
+  const out = []
+
+  // 1. Questions where the answer said we could not be found. That is not a
+  //    ranking problem — the page exists and says so — it is an evidence
+  //    problem, and it is the one thing that blocks every other question.
+  const denied = done.filter((r) => r.verdict === 'denied')
+  if (denied.length) {
+    out.push({
+      rank: 1,
+      title: `「実在が確認できない」と答えられた質問が ${denied.length} 件`,
+      why: 'サイトの中で何を書いても、外に裏づけが無いと答えるエンジンには確認できません。自社サイトだけが情報源の会社は、存在を疑われる側に置かれます。',
+      how: '第三者の面に社名・所在地・代表者・URLを同じ表記で載せる（法人番号公表サイト、求人・発注系のディレクトリ、取引先の実績ページ、プレスリリース）。1件ずつ増やすたびにこの数字は下がります。',
+      evidence: denied.map((r) => r.q).slice(0, 4),
+      kind: 'exists',
+    })
+  }
+
+  // 2. Where competitors are named and we are not. Per category, with the
+  //    names that took the slot — that is the shortlist to be measured against.
+  const lost = (s.byCategory || [])
+    .filter((c) => c.cat !== 'ブランド指名' && c.asked > 0 && c.mentions === 0)
+    .map((c) => {
+      const rows = open.filter((r) => r.cat === c.cat)
+      const names = [...new Set(rows.flatMap((r) => r.companies || []).filter((n) => !namesBrand(n)))]
+      return { cat: c.cat, asked: c.asked, names: names.slice(0, 6), qs: rows.map((r) => r.q) }
+    })
+    .filter((c) => c.names.length)
+  if (lost.length) {
+    out.push({
+      rank: 2,
+      title: `他社だけが挙がったカテゴリ ${lost.length} 件`,
+      why: 'そのカテゴリの質問には答えが出ていて、そこに自社が入っていないということです。需要が無いのではなく、候補として持っていないだけなので、ここは埋められます。',
+      how: '挙がった会社のページと自社の該当ページを並べ、答えに必要な具体（料金の幅・対応範囲・実績数・所在地・連絡手段）が抜けている項目を足す。質問文そのものを見出しにしたページが最短です。',
+      evidence: lost.map((c) => `${c.cat}：${c.names.join('、')}`),
+      kind: 'category',
+    })
+  }
+
+  // 3. The pages the answer engine actually read. Being on them is the only
+  //    lever here that does not depend on our own site at all.
+  const ours = (s.topSources || []).filter((h) => h.name === BRAND.domain || h.name.endsWith('.' + BRAND.domain))
+  const theirs = (s.topSources || []).filter((h) => !ours.includes(h) && h.count > 1)
+  if (theirs.length) {
+    out.push({
+      rank: 3,
+      title: `複数の質問で読まれていた情報源 ${theirs.length} 件`,
+      why: '答えを組み立てる材料にされている面です。そこに載っていない会社は、そもそも材料に入りません。',
+      how: '掲載条件を確認して、載せられるものから載せる（多くは無料の事業者登録）。載ったら次の計測で、その質問の出現率が動くかを見ます。',
+      evidence: theirs.slice(0, 6).map((h) => `${h.name}（${h.count}問で参照）`),
+      kind: 'sources',
+    })
+  }
+
+  // 4. Our own pages: read at all?
+  if (done.length) {
+    const cites = done.filter((r) => r.cited).length
+    out.push({
+      rank: 4,
+      title: `自社サイトが情報源になった質問 ${cites} / ${done.length} 件`,
+      why: cites
+        ? '読まれている質問があるということは、ページの作りではなく中身の不足で落ちている質問があるということです。'
+        : '一度も読まれていません。ページが無いか、その質問に答える形になっていないかのどちらかです。',
+      how: '計測している質問文を、そのままページの見出しにする。答えは最初の2〜3行に置き、そこに金額・対応地域・期間・連絡先を数字で書く。',
+      evidence: done.filter((r) => r.cited).map((r) => r.q).slice(0, 4),
+      kind: 'cited',
+    })
+  }
+
+  // 5. Publishing rate. An engine can only find what was published.
+  if (social && social.posts === 0) {
+    out.push({
+      rank: 5,
+      title: '直近30日の発信が0件',
+      why: '新しい一次情報が出ていない期間は、答えに使える新しい材料も増えません。',
+      how: '案件が終わるたびに1件、事実だけの短い記録を出す（何を・どの業種に・どのくらいの期間で）。SNS投稿タブから出した分はこの数字に入ります。',
+      evidence: [],
+      kind: 'publish',
+    })
+  }
+
+  // 6. How much of the run is actually usable. Said out loud, because a report
+  //    built on half a run looks the same as one built on all of it.
+  if (s.failed || s.unjudged) {
+    out.push({
+      rank: 0,
+      title: `今回の計測で使えなかった質問 ${s.failed + s.unjudged} 件`,
+      why: '失敗した質問は「出てこなかった」ではなく「測れなかった」なので、出現率の分母から外してあります。数が多い回の数字は、少ない回と比べないでください。',
+      how: 'もう一度計測すると、失敗分だけ取り直せます。続くようなら時間帯を変えてください。',
+      evidence: results.filter((r) => r && r.error).map((r) => `${r.q}（${r.error}）`).slice(0, 4),
+      kind: 'coverage',
+    })
+  }
+
+  return out.sort((a, b) => a.rank - b.rank)
 }
 
 export async function GET(req) {
@@ -419,6 +550,16 @@ export async function POST(req) {
     // answers it collected question by question.
     const run = cfg ? await readRun(cfg, body.runId) : runFromBody(body)
     if (!run) return json({ ok: false, message: '集計セッションが見つかりません。' }, 404)
+    // A question whose request never came back was written nowhere, so the
+    // report could not tell a question that failed from one that was never
+    // asked. The browser knows which ones those were; take them from it.
+    const sent = Array.isArray(body && body.results) ? body.results : []
+    if (cfg && sent.length) {
+      const have = new Set(run.results.map((r) => r.id))
+      for (const r of sent) {
+        if (r && typeof r.id === 'string' && !have.has(r.id)) run.results.push(r)
+      }
+    }
     if (!run.results.length) return json({ ok: false, message: '集計できる回答がありません。' }, 400)
 
     let fallback = false
@@ -441,6 +582,7 @@ export async function POST(req) {
     run.companiesFailed = fallback
 
     run.summary = summarise(run.results, fallback)
+    run.actions = buildActions(run.results, run.summary, await socialActivity(30))
     // Frozen with the run: comparing this month's mention rate against last
     // month's only means something if you can also see what was published in
     // between, and that number moves.
