@@ -56,7 +56,7 @@ export async function GET(req) {
       state: store ? 'ok' : 'warn',
       note: store
         ? 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'
-        : '未接続のため、アクセス解析も導線もAIO計測も一切記録されていません。会員リストの共有リンクも、管理キー入りのURL（個別に失効できない）しか作れません。Vercel の Storage から Upstash Redis を接続してください。',
+        : '未接続のため、アクセス解析と導線は一切記録されていません。AIO計測は実行できますが、結果はこの端末にだけ残り、別の端末からは見られません。会員リストの共有リンクも、管理キー入りのURL（個別に失効できない）しか作れません。Vercel の Storage から Upstash Redis を接続してください。',
     },
     {
       id: 'ai', label: 'AI（SEO/AIO分析・アドバイザー）', env: 'ANTHROPIC_API_KEY',

@@ -30,11 +30,32 @@ const RUN_TTL = 400 * 24 * 60 * 60
 const RK = (id) => `lum:aio:run:${id}`
 const INDEX = 'lum:aio:index'
 
+// Kept for the store's own errors. A missing store is no longer one of them:
+// a run used to need a database as well as a key, so an admin who had pasted
+// the key still met 「保存先が未設定です」 and a disabled button, with nothing
+// on the key's own row to say a second thing was required. The run now keeps
+// its state in the request while it is going, and the browser keeps the
+// finished report — the database, when there is one, is what makes that
+// history shared between devices rather than what makes the run possible.
 const NO_STORE = {
   ok: false,
   code: 'STORE_NOT_CONFIGURED',
   message:
     '保存先が未設定です。Vercel の Storage から Upstash Redis を接続し、UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を環境変数に設定して再デプロイしてください。',
+}
+
+/** The shape a run has to have, whether it came from the store or from the
+ *  browser that is running it. Anything else in the body is ignored. */
+function runFromBody(body) {
+  const results = Array.isArray(body && body.results) ? body.results : []
+  return {
+    id: String((body && body.runId) || '').slice(0, 64) || `${jstDate()}-local`,
+    startedAt: String((body && body.startedAt) || new Date().toISOString()).slice(0, 40),
+    finishedAt: null,
+    model: MODEL,
+    results: results.filter((r) => r && typeof r.id === 'string').slice(0, 64),
+    summary: null,
+  }
 }
 
 async function readRun(cfg, id) {
@@ -281,7 +302,9 @@ export async function GET(req) {
   // recent to find; a mention rate read without the publishing rate beside it
   // invites the wrong fix.
   const social = await socialActivity(30)
-  if (!cfg) return json({ ...NO_STORE, meta, social }, 503)
+  // Without a store there is no shared history to send; the browser keeps its
+  // own and draws that. The panel is otherwise fully usable.
+  if (!cfg) return json({ ok: true, meta, social, latest: null, history: [], runs: [] })
 
   let ids = []
   try {
@@ -333,7 +356,6 @@ export async function POST(req) {
   if (!key) return json(NO_AI, 503)
 
   const cfg = storeConfig()
-  if (!cfg) return json(NO_STORE, 503)
 
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
@@ -353,9 +375,14 @@ export async function POST(req) {
       results: [],
       summary: null,
     }
-    await writeRun(cfg, run)
-    await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
-    return json({ ok: true, runId: run.id, questions: QUESTIONS.map(({ id, cat, q }) => ({ id, cat, q })) })
+    if (cfg) {
+      await writeRun(cfg, run)
+      await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
+    }
+    return json({
+      ok: true, runId: run.id, startedAt: run.startedAt, stored: !!cfg,
+      questions: QUESTIONS.map(({ id, cat, q }) => ({ id, cat, q })),
+    })
   }
 
   const client = new Anthropic({ apiKey: key })
@@ -364,8 +391,10 @@ export async function POST(req) {
     const index = Number(body.index)
     const item = QUESTIONS[index]
     if (!item) return json({ ok: false, message: '質問が見つかりません。' }, 400)
-    const run = await readRun(cfg, body.runId)
-    if (!run) return json({ ok: false, message: '集計セッションが見つかりません。最初からやり直してください。' }, 404)
+    // With a store the run is kept there between questions; without one the
+    // answer goes straight back to the browser, which is holding the run.
+    const run = cfg ? await readRun(cfg, body.runId) : null
+    if (cfg && !run) return json({ ok: false, message: '集計セッションが見つかりません。最初からやり直してください。' }, 404)
 
     let result
     try {
@@ -378,14 +407,19 @@ export async function POST(req) {
       }
     }
 
-    run.results = run.results.filter((r) => r.id !== result.id).concat(result)
-    await writeRun(cfg, run)
+    if (run) {
+      run.results = run.results.filter((r) => r.id !== result.id).concat(result)
+      await writeRun(cfg, run)
+    }
     return json({ ok: true, index, total: QUESTIONS.length, result })
   }
 
   if (action === 'finalize') {
-    const run = await readRun(cfg, body.runId)
+    // From the store if there is one; otherwise the browser sends back the
+    // answers it collected question by question.
+    const run = cfg ? await readRun(cfg, body.runId) : runFromBody(body)
     if (!run) return json({ ok: false, message: '集計セッションが見つかりません。' }, 404)
+    if (!run.results.length) return json({ ok: false, message: '集計できる回答がありません。' }, 400)
 
     let fallback = false
     try {
@@ -412,8 +446,8 @@ export async function POST(req) {
     // between, and that number moves.
     run.social = await socialActivity(30)
     run.finishedAt = new Date().toISOString()
-    await writeRun(cfg, run)
-    return json({ ok: true, run })
+    if (cfg) await writeRun(cfg, run)
+    return json({ ok: true, run, stored: !!cfg })
   }
 
   return json({ ok: false, message: '不明な操作です。' }, 400)

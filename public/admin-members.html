@@ -1056,7 +1056,11 @@ window.lumAdmin = {
       desc: 'サイトの文章を直す', accent: '#f9a8d4', tint: 'rgba(236,72,153,0.13)' },
     { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
       desc: '訪問と問い合わせ導線', accent: '#67e8f9', tint: 'rgba(6,182,212,0.14)' },
-    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: ['ai', 'store'],
+    /* The key alone. A run keeps its state in the request and the report in
+       this browser, so a missing database no longer makes this door say
+       「未設定」 to someone who has pasted their key — it only means the
+       reports are not shared with another machine. */
+    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: 'ai',
       desc: 'AI検索での見え方', accent: '#fcd34d', tint: 'rgba(245,158,11,0.14)' },
     { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
       desc: '次の一手を相談する', accent: '#fdba74', tint: 'rgba(249,115,22,0.14)' }
@@ -2729,6 +2733,26 @@ window.lumAdmin = {
   var el = function (id) { return document.getElementById(id); };
   var loaded = false, running = false, meta = null, pending = null;
 
+  /* Reports kept in this browser, for when there is no database to keep them
+     in. Six of them: the panel compares the latest against the ones before it,
+     and that comparison is the reason the measurement is repeated at all.
+     They live only here — another machine sees none of them, which is what
+     connecting Upstash Redis changes. */
+  var LOCAL = 'lum_aio_runs';
+  function localRuns() {
+    try {
+      var v = JSON.parse(localStorage.getItem(LOCAL) || '[]');
+      return Array.isArray(v) ? v.filter(function (r) { return r && r.summary; }) : [];
+    } catch (_) { return []; }
+  }
+  function saveLocal(run) {
+    try {
+      var all = localRuns().filter(function (r) { return r.id !== run.id; });
+      all.unshift(run);
+      localStorage.setItem(LOCAL, JSON.stringify(all.slice(0, 6)));
+    } catch (_) { /* private mode: the report still shows, it just is not kept */ }
+  }
+
   function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
   function say(text, info) {
     var m = el('seo-msg');
@@ -2924,10 +2948,24 @@ window.lumAdmin = {
       meta = data.meta;
       el('seo-cost').textContent = '1回あたり約 $' + data.meta.estimateUsd.toFixed(2) +
         '（' + data.meta.questions + '問）' + (data.meta.aiReady ? '' : '・APIキー未設定') +
-        (data.meta.stored === false ? '・保存先が未接続' : '');
-      // A run writes its answers down as it goes; with nowhere to write, the
-      // button used to be pressable and then fail on the first question.
-      el('seo-run').disabled = !data.meta.aiReady || data.meta.stored === false;
+        (data.meta.stored === false ? '・結果はこの端末に保存' : '');
+      // The key is the only thing a run needs. Without a database the run is
+      // driven from here and the report is kept in this browser; it used to be
+      // refused outright, which is what "キーを入れたのに動かない" was.
+      el('seo-run').disabled = !data.meta.aiReady;
+      // Nothing came from the server because there is nowhere to keep it —
+      // draw what this browser kept instead.
+      if (data.meta.stored === false && !data.latest) {
+        var mine = localRuns();
+        if (mine.length) {
+          var want = runId ? mine.filter(function (r) { return r.id === runId; })[0] : null;
+          data.latest = want || mine[0];
+          data.history = mine.map(function (r) {
+            return { id: r.id, finishedAt: r.finishedAt, openMentionRate: r.summary.openMentionRate };
+          });
+          data.runs = data.history;
+        }
+      }
     }
     if (!res.ok || data.ok !== true) { say(data.message || '表示できませんでした。', res.status === 503); return; }
     // Past runs: comparing with a month ago is why it is measured repeatedly.
@@ -2969,11 +3007,15 @@ window.lumAdmin = {
     } catch (e) { say('開始できませんでした: ' + e.message); running = false; el('seo-run').disabled = false; return; }
 
     var total = started.questions.length, hit = 0;
+    // Held here as well as in the store, because without a store this is the
+    // only copy — it is what gets sent back to be summarised.
+    var collected = [];
     for (var i = 0; i < total; i++) {
       el('seo-bar').style.width = (i / total * 100) + '%';
       el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
       try {
         var r = await post({ action: 'ask', runId: started.runId, index: i });
+        if (r.result) collected.push(r.result);
         if (r.result && r.result.named) hit++;
       } catch (e) {
         el('seo-progress-text').textContent = (i + 1) + '問目でエラー: ' + e.message + '（続行します）';
@@ -2982,7 +3024,11 @@ window.lumAdmin = {
     el('seo-bar').style.width = '100%';
     el('seo-progress-text').textContent = '集計中…';
     try {
-      await post({ action: 'finalize', runId: started.runId });
+      var done = await post({
+        action: 'finalize', runId: started.runId,
+        startedAt: started.startedAt, results: collected
+      });
+      if (done.stored === false && done.run) saveLocal(done.run);
     } catch (e) { say('集計に失敗しました: ' + e.message); }
     el('seo-progress').style.display = 'none';
     running = false;
