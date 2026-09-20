@@ -9498,6 +9498,11 @@ body[data-dial-hot] .lumen-dot {
 /* A clause — text up to and including its 。 or 、 — kept whole, so a line
    can only break where the punctuation already ends one. See lib/rich.jsx. */
 .cl { display: inline-block; max-width: 100%; word-break: auto-phrase; }
+/* A phrase inside a clause. Only load-bearing where the clause is wider than
+   its box and the browser has to break somewhere: it breaks between these
+   rather than inside a word. Chrome would do it with auto-phrase; Safari has
+   no such thing, which is where 「具体的な企 / 画書に。」 came from. */
+.ph { display: inline-block; max-width: 100%; }
 /* And everywhere else — card copy, labels, anything not routed through
    rich() — Japanese breaks between phrases rather than mid-word. Browsers
    that do not know this value wrap as they did before. */

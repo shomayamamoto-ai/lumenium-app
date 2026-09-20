@@ -67,7 +67,11 @@ export default function Testimonials() {
                     <div className="testimonial-head">
                       <div className="testimonial-avatar" aria-hidden="true">{t.initial}</div>
                     </div>
-                    <p className="testimonial-text">{t.text}</p>
+                    {/* Through rich(), so a line ends at 。or 、 rather than
+                        wherever the card runs out: printed raw it came apart
+                        as 「具体的な企 / 画書に。」 in any browser without
+                        auto-phrase, which means Safari. */}
+                    <p className="testimonial-text">{rich(t.text)}</p>
                     <div className="testimonial-author">
                       <span className="testimonial-name">{t.name}</span>
                       <span className="testimonial-detail">{t.detail}</span>
