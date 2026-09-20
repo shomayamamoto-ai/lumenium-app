@@ -157,23 +157,35 @@
   }
   #count3.on { display:flex; }
 
-  #pad {
+  /* A thumb stick rather than four keys: on a phone you steer this game by
+     feel, and four separate targets means looking down to find one. The base
+     moves to wherever the thumb lands in the corner, so it is never in the
+     wrong place. */
+  #stick {
     position:fixed; right:14px; bottom:14px; z-index:18; display:none;
-    width:174px; height:174px;
+    width:166px; height:166px; touch-action:none;
   }
-  body.touch #pad { display:block; }
-  #pad button {
-    position:absolute; width:58px; height:58px; padding:0;
-    background:rgba(10,13,28,0.66); border:1px solid rgba(245,247,251,0.22);
-    color:rgba(245,247,251,0.86); border-radius:14px;
-    font-size:20px; font-family:inherit; line-height:1;
+  body.touch #stick { display:block; }
+  #stick .stick-base, #stick .stick-knob {
+    position:absolute; border-radius:50%; pointer-events:none;
+    transition:opacity 0.18s ease;
   }
-  #pad button:active { background:rgba(79,70,229,0.55); color:#fff; }
-  #pad .up { left:58px; top:0; }
-  #pad .left { left:0; top:58px; }
-  #pad .right { left:116px; top:58px; }
-  #pad .down { left:58px; top:116px; }
-  /* With a pad in the corner the map has to move, and the score panel shrinks. */
+  #stick .stick-base {
+    left:0; top:0; width:166px; height:166px;
+    background:radial-gradient(circle at 50% 50%, rgba(79,70,229,0.12), rgba(10,13,28,0.5) 62%, rgba(10,13,28,0.28));
+    border:1px solid rgba(245,247,251,0.18);
+    opacity:0.65;
+  }
+  #stick .stick-knob {
+    left:50%; top:50%; width:66px; height:66px; margin:-33px 0 0 -33px;
+    background:radial-gradient(circle at 38% 34%, rgba(255,255,255,0.9), rgba(148,163,184,0.75) 45%, rgba(79,70,229,0.75));
+    border:1px solid rgba(255,255,255,0.45);
+    box-shadow:0 4px 14px rgba(0,0,0,0.45);
+    opacity:0.8;
+  }
+  #stick.is-on .stick-base { opacity:0.95; }
+  #stick.is-on .stick-knob { opacity:1; }
+  /* With a stick in the corner the map has to move, and the score panel shrinks. */
   body.touch #mini { top:64px; right:12px; bottom:auto; width:112px; height:112px; }
   body.touch #hud { bottom:12px; left:12px; }
   body.touch #board-list { min-width:138px; padding:8px 10px; }
@@ -185,19 +197,16 @@
 
   /* A 320px phone has to fit a score panel, a pad and a minimap without any
      of them sitting on top of another — measured overlapping at 320px, the
-     pad's ◀ landing on the standings. Everything shrinks together. */
+     stick landing on the standings. Everything shrinks together. */
   @media (max-width:400px) {
     .top { padding:8px 10px; gap:6px; }
     .top a { font-size:0; padding:6px 10px; }
     .top a::before { content:'←'; font-size:13px; }
     .badge { font-size:8.5px; padding:4px 8px; letter-spacing:0.12em; }
     .btns button { padding:5px 9px; }
-    #pad { width:150px; height:150px; right:10px; bottom:10px; }
-    #pad button { width:50px; height:50px; font-size:17px; border-radius:12px; }
-    #pad .up { left:50px; top:0; }
-    #pad .left { left:0; top:50px; }
-    #pad .right { left:100px; top:50px; }
-    #pad .down { left:50px; top:100px; }
+    #stick { width:140px; height:140px; right:10px; bottom:10px; }
+    #stick .stick-base { width:140px; height:140px; }
+    #stick .stick-knob { width:58px; height:58px; margin:-29px 0 0 -29px; }
     /* Capped against the pad's edge: the panel sizes to its widest row, and
        at 320px that ran under the ◀ whatever the minimum was. */
     body.touch #board-list { min-width:108px; max-width:calc(100vw - 172px); padding:6px 8px; }
@@ -238,11 +247,9 @@
 <div id="toast"></div>
 <div id="count3"></div>
 
-<div id="pad" aria-hidden="true">
-  <button class="up" type="button" data-d="3">▲</button>
-  <button class="left" type="button" data-d="2">◀</button>
-  <button class="right" type="button" data-d="0">▶</button>
-  <button class="down" type="button" data-d="1">▼</button>
+<div id="stick" aria-hidden="true">
+  <span class="stick-base"></span>
+  <span class="stick-knob"></span>
 </div>
 
 <div id="hud">
@@ -265,7 +272,7 @@
       盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
     </p>
     <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
-      操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下の十字キー、またはスワイプ
+      操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下のスティック、またはスワイプ
     </p>
   </details>
   <div class="levels" id="lengths">
@@ -365,6 +372,15 @@
   var danger = 0         // 0..1, how close the nearest threat is to your line
   var pops = []          // "+2.4%" rising from where it was won
   var lastPulse = 0      // the chased-heartbeat, so danger is audible too
+
+  // Measured once and on resize — reading it every frame is a layout each time.
+  var miniBox = null
+  function measureMini() {
+    var el = document.getElementById('mini')
+    if (!el || getComputedStyle(el).display === 'none') { miniBox = null; return }
+    var r = el.getBoundingClientRect()
+    miniBox = { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+  }
 
   var idx = function (x, y) { return y * W + x }
   var inBounds = function (x, y) { return x >= 0 && y >= 0 && x < W && y < H }
@@ -887,6 +903,7 @@
     vw = window.innerWidth; vh = window.innerHeight
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    measureMini()
   }
   window.addEventListener('resize', resize)
   resize()
@@ -910,6 +927,46 @@
     var bw = W * cell, bh = H * cell
     ox = bw <= vw ? (vw - bw) / 2 : Math.min(0, Math.max(vw - bw, ox))
     oy = bh <= vh ? (vh - bh) / 2 : Math.min(0, Math.max(vh - bh, oy))
+
+    // …but not at the cost of seeing yourself. Holding the board still at an
+    // edge pushed the head under the chrome: measured at the four corners, it
+    // came out beneath the minimap, beneath the stick, and 33px from the
+    // bottom of the screen where the browser's own bar sits. Where the two
+    // rules disagree, the head wins and a strip of off-board shows.
+    var touchUi = document.body.classList.contains('touch')
+    var padH = touchUi ? (vw <= 400 ? 150 : 166) + 26 : 0
+    var safe = {
+      l: 22,
+      r: 22,
+      t: 62,
+      b: Math.max(58, padH)
+    }
+    var hx = ox + (h.x + 0.5) * cell, hy = oy + (h.y + 0.5) * cell
+    if (hx < safe.l) ox += safe.l - hx
+    else if (hx > vw - safe.r) ox -= hx - (vw - safe.r)
+    if (hy < safe.t) oy += safe.t - hy
+    else if (hy > vh - safe.b) oy -= hy - (vh - safe.b)
+
+    // The minimap is a box in a corner rather than a band, so it needs its own
+    // rule. Which way to step around it depends on where it is: it sits top
+    // right with a stick on screen and bottom right without one, and pushing
+    // the head "below the map" on a desktop put it 4px from the bottom of the
+    // window. Take whichever side is the shorter move and still lands inside
+    // the safe band.
+    if (miniBox) {
+      hx = ox + (h.x + 0.5) * cell
+      hy = oy + (h.y + 0.5) * cell
+      var inX = hx > miniBox.left - 10 && hx < miniBox.right + 10
+      var inY = hy > miniBox.top - 12 && hy < miniBox.bottom + 12
+      if (inX && inY) {
+        var up = (miniBox.top - 12) - hy      // negative: move the view up
+        var down = (miniBox.bottom + 12) - hy // positive: move the view down
+        var upOk = hy + up >= safe.t
+        var downOk = hy + down <= vh - safe.b
+        var pick = upOk && (!downOk || Math.abs(up) <= Math.abs(down)) ? up : (downOk ? down : 0)
+        oy += pick
+      }
+    }
     var now = performance.now()
     if (now < shakeUntil) {
       var k2 = (shakeUntil - now) / 380
@@ -1346,22 +1403,79 @@
   // A swipe needs a drag, and a drag needs the hand that is holding the phone.
   // The pad is there for the thumb that is already on that corner.
   if (window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch')
+  // After the touch class, not before: the minimap moves to the top corner
+  // only once that class is on, and measuring it first captured its desktop
+  // position at the bottom of the screen — which then pushed the head off the
+  // bottom edge instead of below the map.
+  measureMini()
   // Open where there is room for them; folded where there is not.
   var rules = document.getElementById('rules')
   if (rules && window.innerHeight >= 760) rules.open = true
-  var padEls = document.querySelectorAll('#pad button')
-  for (var pi2 = 0; pi2 < padEls.length; pi2++) {
-    (function (el) {
-      var d = Number(el.dataset.d)
-      var go2 = function (e) {
-        e.preventDefault()
-        if (!running || paused || !me.alive) return
-        if ((d + 2) % 4 !== me.dir) me.next = d
-      }
-      el.addEventListener('pointerdown', go2)
-      el.addEventListener('contextmenu', function (e) { e.preventDefault() })
-    })(padEls[pi2])
+  /* ---- the stick ----
+     The base follows the thumb into the corner rather than waiting in one
+     place, and the direction is the angle snapped to the four the grid has,
+     with a dead zone so resting a thumb does not steer. */
+  var stick = document.getElementById('stick')
+  var stickId = null
+  var stickHome = { x: 0, y: 0 }
+  var stickKnob = stick.querySelector('.stick-knob')
+  var stickBase = stick.querySelector('.stick-base')
+  var DEAD = 14
+  var REACH = 52
+
+  function stickPlace(x, y) {
+    var r = stick.getBoundingClientRect()
+    // Keep the base wholly inside its corner, wherever the thumb landed.
+    var half = stickBase.offsetWidth / 2
+    var lx = Math.max(half, Math.min(r.width - half, x - r.left))
+    var ly = Math.max(half, Math.min(r.height - half, y - r.top))
+    stickBase.style.left = (lx - half) + 'px'
+    stickBase.style.top = (ly - half) + 'px'
+    stickKnob.style.left = lx + 'px'
+    stickKnob.style.top = ly + 'px'
+    stickHome = { x: r.left + lx, y: r.top + ly }
   }
+
+  function stickMove(x, y) {
+    var dx = x - stickHome.x, dy = y - stickHome.y
+    var d = Math.hypot(dx, dy)
+    var k = d > REACH ? REACH / d : 1
+    var r = stick.getBoundingClientRect()
+    stickKnob.style.left = (stickHome.x - r.left + dx * k) + 'px'
+    stickKnob.style.top = (stickHome.y - r.top + dy * k) + 'px'
+    if (d < DEAD) return
+    // Nearest of the four, from the angle.
+    var dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
+    if (!running || paused || !me.alive) return
+    if ((dir + 2) % 4 !== me.dir) me.next = dir
+  }
+
+  function stickEnd() {
+    stickId = null
+    stick.classList.remove('is-on')
+    var r = stick.getBoundingClientRect()
+    stickBase.style.left = ''
+    stickBase.style.top = ''
+    stickKnob.style.left = '50%'
+    stickKnob.style.top = '50%'
+    void r
+  }
+
+  stick.addEventListener('pointerdown', function (e) {
+    e.preventDefault()
+    stickId = e.pointerId
+    stick.setPointerCapture(e.pointerId)
+    stick.classList.add('is-on')
+    stickPlace(e.clientX, e.clientY)
+  })
+  stick.addEventListener('pointermove', function (e) {
+    if (stickId !== e.pointerId) return
+    e.preventDefault()
+    stickMove(e.clientX, e.clientY)
+  })
+  stick.addEventListener('pointerup', stickEnd)
+  stick.addEventListener('pointercancel', stickEnd)
+  stick.addEventListener('contextmenu', function (e) { e.preventDefault() })
 
   // ---- level ----
   var lenBtns = document.querySelectorAll('#lengths button')
@@ -1403,6 +1517,7 @@
   /** Three seconds to find yourself on the board before anything moves. The
    *  round used to start with you already travelling. */
   function begin() {
+    measureMini()
     reset()
     buildHud()
     startOv.hidden = true
