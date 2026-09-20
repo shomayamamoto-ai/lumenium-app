@@ -3987,6 +3987,36 @@ html[data-theme="dark"] .hero-video {
 }
 .testimonial-stars svg { display: block; }
 
+/* Who said it, and what they asked us for — two lines, always.
+   These two were markup with no styling at all: plain inline spans, so the
+   name and the request ran together as one stream and broke wherever the
+   card's width happened to end — 「教育系企業 / 広報担当採用動画・Web制作を
+   ご依頼」. The break now falls between the two, which is the one place it
+   belongs, and each of them is a block of its own so neither can be split. */
+.testimonial-author {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+}
+.testimonial-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text);
+}
+.testimonial-detail {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+html[data-theme="dark"] .testimonial-name { color: var(--text); }
+html[data-theme="dark"] .testimonial-detail { color: var(--text-muted); }
+
 /* ===== Flow ===== */
 .flow-steps { max-width: 720px; margin: 0 auto; }
 
