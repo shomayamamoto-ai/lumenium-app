@@ -76,7 +76,13 @@
     display:block; width:150px; height:150px;
     border-radius:12px; border:1px solid rgba(245,247,251,0.14);
     background:rgba(10,13,28,0.72);
+    transition:opacity 0.22s ease;
   }
+  /* The map sits in the same corner of the screen that the top-right corner of
+     the world arrives in. It used to be dodged by moving the camera, which is
+     a whole board shifting under you to get out of the way of a thumbnail; it
+     gets out of the way itself now. */
+  #mini.shy { opacity:0.18; }
   #effects { display:flex; gap:8px; flex-wrap:wrap; font-size:11.5px; font-weight:700; }
   body.touch #effects { max-width:170px; gap:4px 8px; font-size:11px; }
   #effects span { display:flex; align-items:center; gap:4px; }
@@ -380,9 +386,10 @@
   var lastPulse = 0      // the chased-heartbeat, so danger is audible too
 
   // Measured once and on resize — reading it every frame is a layout each time.
-  var miniBox = null
+  var miniBox = null, miniEl = null, miniShy = false
   function measureMini() {
     var el = document.getElementById('mini')
+    miniEl = el
     if (!el || getComputedStyle(el).display === 'none') { miniBox = null; return }
     var r = el.getBoundingClientRect()
     miniBox = { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
@@ -734,9 +741,23 @@
       var d = DIRS[p.dir]
       var nx = p.cx + d[0], ny = p.cy + d[1]
       if (!inBounds(nx, ny)) {
-        // The edge of the world is a wall, not a cliff: turn rather than die.
-        p.dir = (p.dir + (Math.random() < 0.5 ? 1 : 3)) % 4
-        p.next = p.dir
+        if (p.human) {
+          // The wall does not steer for you. It used to turn you a random
+          // quarter turn, so running into an edge sent you off in a direction
+          // you had not chosen — and in a corner that random turn was usually
+          // into your own line, which is a death nobody asked for. Hold at the
+          // edge instead. Any turn you ask for is taken at the top of this
+          // loop on the very next step, so nothing is lost but the tempo.
+          p.t = 0
+          wallBump = { at: performance.now(), x: p.cx, y: p.cy, dir: p.dir }
+          return
+        }
+        // A bot turns, but not blindly: away from its own line where it can.
+        var wallTurn = escape(p)
+        if (wallTurn === -1) wallTurn = (p.dir + (Math.random() < 0.5 ? 1 : 3)) % 4
+        p.dir = wallTurn
+        p.next = wallTurn
+        p.plan.length = 0
         d = DIRS[p.dir]
         nx = p.cx + d[0]; ny = p.cy + d[1]
         if (!inBounds(nx, ny)) { p.t = 0; return }
@@ -903,16 +924,48 @@
   var mini = document.getElementById('mini')
   var mctx = mini.getContext('2d')
   var dpr = 1, vw = 0, vh = 0
+  // Where the view actually is, as against where the rules say it should be.
+  // Every rule below is a step function — the board clamp stops the camera
+  // dead, the minimap rule moves it by the height of the map in a single
+  // frame — and stepping the camera is what made touching an edge feel like
+  // the screen had been snatched away. The view is eased to the target.
+  var camX = null, camY = null, camAt = 0, camHead = null
+  // Where the head is being held against the wall, so the edge can say so.
+  var wallBump = null
 
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1)
     vw = window.innerWidth; vh = window.innerHeight
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    // A new window is a new frame of reference; easing into it would slide
+    // the whole board across the screen for no reason.
+    camX = null; camY = null
     measureMini()
   }
   window.addEventListener('resize', resize)
   resize()
+
+  /** The hatch for everything beyond the board, built once. Drawn in canvas
+   *  space rather than board space on purpose: it does not scroll, so it reads
+   *  as the edge of the paper instead of as ground you could be standing on. */
+  var voidPat = null
+  function voidPattern() {
+    if (voidPat) return voidPat
+    var tile = document.createElement('canvas')
+    tile.width = 12; tile.height = 12
+    var g = tile.getContext('2d')
+    g.fillStyle = '#0b0e1d'
+    g.fillRect(0, 0, 12, 12)
+    g.strokeStyle = 'rgba(165,180,252,0.17)'
+    g.lineWidth = 2
+    g.beginPath()
+    g.moveTo(-2, 10); g.lineTo(10, -2)
+    g.moveTo(4, 16); g.lineTo(16, 4)
+    g.stroke()
+    voidPat = ctx.createPattern(tile, 'repeat')
+    return voidPat
+  }
 
   function headPos(p) {
     var d = DIRS[p.dir]
@@ -927,18 +980,23 @@
     var h = headPos(me.alive ? me : players[0])
     var ox = vw / 2 - (h.x + 0.5) * cell
     var oy = vh / 2 - (h.y + 0.5) * cell
-    // Keep the board in the window. Near an edge the camera used to carry on
-    // past it, and on a tall phone that meant a third of the screen was empty
-    // space outside the map with the play squeezed into what was left.
+    // How far past the end of the world the view may travel. Clamping hard to
+    // the board held the head 22px from the screen edge for the whole run
+    // along one — you could see everything except what you were about to hit,
+    // and in a corner both of those at once. A band of off-board instead: the
+    // head stays near the middle at an edge, the band is drawn as the end of
+    // the world rather than as nothing, and it is capped so a phone never
+    // gives more than a fifth of its screen to it.
     var bw = W * cell, bh = H * cell
-    ox = bw <= vw ? (vw - bw) / 2 : Math.min(0, Math.max(vw - bw, ox))
-    oy = bh <= vh ? (vh - bh) / 2 : Math.min(0, Math.max(vh - bh, oy))
+    var slack = Math.max(60, Math.min(cell * 7, Math.min(vw, vh) * 0.2))
+    ox = bw + slack * 2 <= vw ? (vw - bw) / 2 : Math.min(slack, Math.max(vw - bw - slack, ox))
+    oy = bh + slack * 2 <= vh ? (vh - bh) / 2 : Math.min(slack, Math.max(vh - bh - slack, oy))
 
-    // …but not at the cost of seeing yourself. Holding the board still at an
-    // edge pushed the head under the chrome: measured at the four corners, it
-    // came out beneath the minimap, beneath the stick, and 33px from the
-    // bottom of the screen where the browser's own bar sits. Where the two
-    // rules disagree, the head wins and a strip of off-board shows.
+    // The chrome still gets the last word. Measured at the four corners, the
+    // head came out beneath the minimap, beneath the stick, and 33px from the
+    // bottom of the screen where the browser's own bar sits. With the slack
+    // above these rarely have anything left to correct, which is the point:
+    // what is left is a nudge rather than a lurch.
     var touchUi = document.body.classList.contains('touch')
     var padH = touchUi ? (vw <= 400 ? 150 : 166) + 26 : 0
     var safe = {
@@ -953,27 +1011,41 @@
     if (hy < safe.t) oy += safe.t - hy
     else if (hy > vh - safe.b) oy -= hy - (vh - safe.b)
 
-    // The minimap is a box in a corner rather than a band, so it needs its own
-    // rule. Which way to step around it depends on where it is: it sits top
-    // right with a stick on screen and bottom right without one, and pushing
-    // the head "below the map" on a desktop put it 4px from the bottom of the
-    // window. Take whichever side is the shorter move and still lands inside
-    // the safe band.
-    if (miniBox) {
-      hx = ox + (h.x + 0.5) * cell
-      hy = oy + (h.y + 0.5) * cell
-      var inX = hx > miniBox.left - 10 && hx < miniBox.right + 10
-      var inY = hy > miniBox.top - 12 && hy < miniBox.bottom + 12
-      if (inX && inY) {
-        var up = (miniBox.top - 12) - hy      // negative: move the view up
-        var down = (miniBox.bottom + 12) - hy // positive: move the view down
-        var upOk = hy + up >= safe.t
-        var downOk = hy + down <= vh - safe.b
-        var pick = upOk && (!downOk || Math.abs(up) <= Math.abs(down)) ? up : (downOk ? down : 0)
-        oy += pick
-      }
+    // The map used to be dodged: when the head landed on it the camera moved
+    // the whole board out from under you by the height of the thumbnail, in
+    // one frame. That is the single largest unasked-for camera move in the
+    // game — and it fires exactly where the top-right corner of the world
+    // appears, so it arrived at the moment you were trying to read a corner.
+    // The map steps aside instead.
+    if (miniEl && miniBox) {
+      var mhx = ox + (h.x + 0.5) * cell
+      var mhy = oy + (h.y + 0.5) * cell
+      var nearMini = mhx > miniBox.left - 30 && mhx < miniBox.right + 30 &&
+                     mhy > miniBox.top - 30 && mhy < miniBox.bottom + 30
+      if (nearMini !== miniShy) { miniShy = nearMini; miniEl.classList.toggle('shy', nearMini) }
     }
     var now = performance.now()
+
+    // Ease to it. A time constant near a sixth of a second is short enough
+    // that following the head still feels direct — the view trails it by
+    // about fifteen pixels at running speed — and long enough that a
+    // correction of a hundred pixels arrives as a glide.
+    var cdt = Math.min(0.05, (now - camAt) / 1000)
+    camAt = now
+    // Snap, do not glide, when the head is not where it was: a respawn and the
+    // start of a round both put it somewhere else entirely, and easing across
+    // the board would be a camera move nobody asked for.
+    var jump = camX === null || !camHead ||
+      Math.abs(h.x - camHead.x) + Math.abs(h.y - camHead.y) > 6
+    camHead = { x: h.x, y: h.y }
+    if (jump) { camX = ox; camY = oy }
+    else {
+      var ck = 1 - Math.pow(0.0025, cdt)
+      camX += (ox - camX) * ck
+      camY += (oy - camY) * ck
+    }
+    ox = camX; oy = camY
+
     if (now < shakeUntil) {
       var k2 = (shakeUntil - now) / 380
       ox += (Math.random() - 0.5) * 18 * k2
@@ -1052,8 +1124,12 @@
     }
     ctx.globalAlpha = 1
 
-    // Outside the world
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'
+    // Outside the world. It used to be the board's own colour at 55% black —
+    // which, against a board that is already #070a16, is the same darkness to
+    // the eye. Hatched instead: off-board now looks like the margin of a map
+    // rather than like more room to run into, and that is readable out of the
+    // corner of an eye, which is where an edge is usually noticed.
+    ctx.fillStyle = voidPattern()
     if (ox > 0) ctx.fillRect(0, 0, ox, vh)
     if (oy > 0) ctx.fillRect(0, 0, vw, oy)
     var rx = ox + W * cell, ry = oy + H * cell
@@ -1061,9 +1137,49 @@
     if (ry < vh) ctx.fillRect(0, ry, vw, vh - ry)
     // Without this the space beyond the board is just darker, which looks like
     // something failed to draw rather than like the end of the world.
-    ctx.strokeStyle = 'rgba(165,180,252,0.5)'
-    ctx.lineWidth = 2
+    ctx.strokeStyle = 'rgba(165,180,252,0.68)'
+    ctx.lineWidth = 3
     ctx.strokeRect(ox, oy, W * cell, H * cell)
+
+    // The corners get a bracket of their own. Two edges meeting at a right
+    // angle look the same as one edge until you are already in them, and a
+    // corner is the one place on the board where a turn you did not mean is
+    // fatal — you want to see it coming from a long way off.
+    var bL = ox, bT = oy, bR = ox + W * cell, bB = oy + H * cell
+    var arm = Math.min(cell * 3.2, 62)
+    ctx.strokeStyle = 'rgba(199,210,254,0.95)'
+    ctx.lineWidth = 5
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    var corners = [[bL, bT, 1, 1], [bR, bT, -1, 1], [bL, bB, 1, -1], [bR, bB, -1, -1]]
+    for (var ci = 0; ci < 4; ci++) {
+      var cc = corners[ci]
+      if (cc[0] < -arm || cc[0] > vw + arm || cc[1] < -arm || cc[1] > vh + arm) continue
+      ctx.moveTo(cc[0] + cc[2] * arm, cc[1])
+      ctx.lineTo(cc[0], cc[1])
+      ctx.lineTo(cc[0], cc[1] + cc[3] * arm)
+    }
+    ctx.stroke()
+    ctx.lineCap = 'butt'
+
+    // Held against the wall: the edge lights where you are pressing. Standing
+    // still used to be indistinguishable from the game having frozen, now
+    // that the wall no longer turns you itself.
+    if (wallBump && now - wallBump.at < 360) {
+      var wk = 1 - (now - wallBump.at) / 360
+      var wd = DIRS[wallBump.dir]
+      var wx = ox + wallBump.x * cell, wy = oy + wallBump.y * cell
+      ctx.strokeStyle = 'rgba(255,214,150,' + (0.95 * wk).toFixed(3) + ')'
+      ctx.lineWidth = 6
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      if (wd[0] === 1) { ctx.moveTo(wx + cell, wy - cell * 0.5); ctx.lineTo(wx + cell, wy + cell * 1.5) }
+      else if (wd[0] === -1) { ctx.moveTo(wx, wy - cell * 0.5); ctx.lineTo(wx, wy + cell * 1.5) }
+      else if (wd[1] === 1) { ctx.moveTo(wx - cell * 0.5, wy + cell); ctx.lineTo(wx + cell * 1.5, wy + cell) }
+      else { ctx.moveTo(wx - cell * 0.5, wy); ctx.lineTo(wx + cell * 1.5, wy) }
+      ctx.stroke()
+      ctx.lineCap = 'butt'
+    }
 
     // What was just taken, lit for a moment. A capture used to be a number in
     // the corner; this is the thing you actually did.
@@ -1381,6 +1497,19 @@
   })
 
   // ---------------------------------------------------------------- input
+  /** Which of the two axes a push is on, with a bias toward the one already
+   *  chosen. A thumb never pushes exactly along an axis, and comparing |dx|
+   *  with |dy| straight flips between them every few pixels near the diagonal
+   *  — which is how a turn nobody meant to make gets sent, and next to a wall
+   *  that is a death. The new axis has to beat the old one by a third before
+   *  it is taken. */
+  function axisOf(dx, dy, prev) {
+    var ax = Math.abs(dx), ay = Math.abs(dy)
+    if (prev === 'x') return ay > ax * 1.35 ? 'y' : 'x'
+    if (prev === 'y') return ax > ay * 1.35 ? 'x' : 'y'
+    return ax > ay ? 'x' : 'y'
+  }
+
   var KEYS = {
     ArrowRight: 0, ArrowDown: 1, ArrowLeft: 2, ArrowUp: 3,
     d: 0, s: 1, a: 2, w: 3, D: 0, S: 1, A: 2, W: 3
@@ -1394,17 +1523,19 @@
   }, { passive: false })
 
   var touch = null
-  cv.addEventListener('pointerdown', function (e) { touch = { x: e.clientX, y: e.clientY } })
+  var swipeAxis = null
+  cv.addEventListener('pointerdown', function (e) { touch = { x: e.clientX, y: e.clientY }; swipeAxis = null })
   cv.addEventListener('pointermove', function (e) {
     if (!touch || !running || !me.alive) return
     var dx = e.clientX - touch.x, dy = e.clientY - touch.y
     if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return
-    var d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
+    swipeAxis = axisOf(dx, dy, swipeAxis)
+    var d = swipeAxis === 'x' ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
     if ((d + 2) % 4 !== me.dir) me.next = d
     touch = { x: e.clientX, y: e.clientY }
   })
-  cv.addEventListener('pointerup', function () { touch = null })
-  cv.addEventListener('pointercancel', function () { touch = null })
+  cv.addEventListener('pointerup', function () { touch = null; swipeAxis = null })
+  cv.addEventListener('pointercancel', function () { touch = null; swipeAxis = null })
 
   // A swipe needs a drag, and a drag needs the hand that is holding the phone.
   // The pad is there for the thumb that is already on that corner.
@@ -1428,6 +1559,7 @@
   var stickBase = stick.querySelector('.stick-base')
   var DEAD = 14
   var REACH = 52
+  var stickAxis = null
 
   function stickPlace(x, y) {
     var r = stick.getBoundingClientRect()
@@ -1449,15 +1581,19 @@
     var r = stick.getBoundingClientRect()
     stickKnob.style.left = (stickHome.x - r.left + dx * k) + 'px'
     stickKnob.style.top = (stickHome.y - r.top + dy * k) + 'px'
-    if (d < DEAD) return
-    // Nearest of the four, from the angle.
-    var dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
+    // Inside the dead zone the thumb is resting, not steering — and the axis
+    // is forgotten there, so the next push starts fresh rather than being
+    // held to whichever way the last one happened to end.
+    if (d < DEAD) { stickAxis = null; return }
+    stickAxis = axisOf(dx, dy, stickAxis)
+    var dir = stickAxis === 'x' ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3)
     if (!running || paused || !me.alive) return
     if ((dir + 2) % 4 !== me.dir) me.next = dir
   }
 
   function stickEnd() {
     stickId = null
+    stickAxis = null
     stick.classList.remove('is-on')
     var r = stick.getBoundingClientRect()
     stickBase.style.left = ''
