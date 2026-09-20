@@ -115,6 +115,12 @@
   #rules summary::-webkit-details-marker { display:none; }
   #rules[open] summary { margin-bottom:10px; }
   #rules summary:hover { color:#fff; border-color:rgba(245,247,251,0.45); }
+  /* Japanese wraps anywhere by default, so a rule ran on to the next line in
+     the middle of a phrase — 「…すべて自分のもの / になります。」. Each clause
+     up to its 。 or 、 is one inline block, so a line can only break where the
+     punctuation already does. auto-phrase is the fallback for a clause too
+     long for the width on its own: it breaks between phrases, never mid-word. */
+  .overlay .cl { display:inline-block; word-break:auto-phrase; }
   .overlay[hidden] { display:none; }
   .overlay h1 {
     font-size:clamp(26px,5vw,42px); font-weight:800; letter-spacing:0.06em;
@@ -264,15 +270,15 @@
   <details id="rules">
     <summary>ルールと操作を見る</summary>
     <p>
-      自分の色の外に出ると<b>線</b>が伸びます。自分の陣地に戻ると、<b>囲んだ内側がすべて自分のもの</b>になります。<br>
-      線に触れられると1機失い、<b>陣地が外側から半分</b>削られます。相手の線を横切れば、相手も同じだけ失います。<br>
-      <b>残機は4人とも同じ</b>。使い切った者はそこで脱落し、相手が全員いなくなればその時点で勝ちです。<br>
-      盤面の<b>9割</b>を取った時点でも、その場で勝ち。<br>
-      時間切れの時点で、いちばん広い陣地を持っていた者が勝ち。<br>
-      盤上に落ちている <b style="color:#67e8f9">»加速</b> ・ <b style="color:#a5b4fc">◇無敵</b>（線を切られない） ・ <b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）は拾えます。
+      <span class="cl">自分の色の外に出ると<b>線</b>が伸びます。</span><span class="cl">自分の陣地に戻ると、</span><span class="cl"><b>囲んだ内側がすべて自分のもの</b>になります。</span><br>
+      <span class="cl">線に触れられると1機失い、</span><span class="cl"><b>陣地が外側から半分</b>削られます。</span><span class="cl">相手の線を横切れば、</span><span class="cl">相手も同じだけ失います。</span><br>
+      <span class="cl"><b>残機は4人とも同じ</b>。</span><span class="cl">使い切った者はそこで脱落し、</span><span class="cl">相手が全員いなくなればその時点で勝ちです。</span><br>
+      <span class="cl">盤面の<b>9割</b>を取った時点でも、</span><span class="cl">その場で勝ち。</span><br>
+      <span class="cl">時間切れの時点で、</span><span class="cl">いちばん広い陣地を持っていた者が勝ち。</span><br>
+      <span class="cl">盤上に落ちているものは拾えます：</span><span class="cl"><b style="color:#67e8f9">»加速</b>、</span><span class="cl"><b style="color:#a5b4fc">◇無敵</b>（線を切られない）、</span><span class="cl"><b style="color:#fbbf24">✦拡張</b>（次の占領が一回り大きくなる）。</span>
     </p>
     <p style="font-size:12.5px;color:rgba(245,247,251,0.55)">
-      操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>　スマホは画面右下のスティック、またはスワイプ
+      <span class="cl">操作：<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> または <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>。</span><span class="cl">スマホは画面右下のスティック、</span><span class="cl">またはスワイプ。</span>
     </p>
   </details>
   <div class="levels" id="lengths">

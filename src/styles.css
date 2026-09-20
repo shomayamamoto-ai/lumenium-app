@@ -7066,9 +7066,12 @@ html[data-theme="dark"] .company-card {
   font-weight: 700;
   letter-spacing: 0.16em;
   color: #fffceb;
+  /* Close to the letters. An 80px glow around a long row of capitals is not
+     a halo, it is a lit rectangle the size of the word — which is the frame
+     that showed up behind the name. These follow the glyphs instead. */
   text-shadow:
-    0 0 30px rgba(255, 230, 180, 0.9),
-    0 0 80px rgba(255, 200, 120, 0.5);
+    0 0 10px rgba(255, 238, 205, 0.75),
+    0 0 26px rgba(255, 214, 150, 0.4);
   opacity: 0;
 }
 .lx-tag {
@@ -7084,9 +7087,13 @@ html[data-theme="dark"] .company-card {
 .phase-3 .lx-name { animation: lxTextIn 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; }
 .phase-2 .lx-tag,
 .phase-3 .lx-tag { animation: lxTagIn 1s ease 0.5s forwards; }
+/* No filter on the way in. A filtered element is rasterised into a layer of
+   its own, and a glow that reaches past that layer gets cut off at its edge —
+   a straight line across the dark, which is what the name was sitting in.
+   The spacing and the rise carry the entrance on their own. */
 @keyframes lxTextIn {
-  from { opacity: 0; transform: translateY(10px); filter: blur(8px); letter-spacing: 0.4em; }
-  to   { opacity: 1; transform: translateY(0); filter: blur(0); letter-spacing: 0.16em; }
+  from { opacity: 0; transform: translateY(10px); letter-spacing: 0.4em; }
+  to   { opacity: 1; transform: translateY(0); letter-spacing: 0.16em; }
 }
 @keyframes lxTagIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -9379,6 +9386,14 @@ body[data-dial-hot] .lumen-dot {
   margin-top: 34px;
   z-index: 2;
 }
+/* A clause — text up to and including its 。 or 、 — kept whole, so a line
+   can only break where the punctuation already ends one. See lib/rich.jsx. */
+.cl { display: inline-block; max-width: 100%; word-break: auto-phrase; }
+/* And everywhere else — card copy, labels, anything not routed through
+   rich() — Japanese breaks between phrases rather than mid-word. Browsers
+   that do not know this value wrap as they did before. */
+body { word-break: auto-phrase; }
+
 /* ---- お知らせ on the hero ----
    Quiet enough not to compete with the dial, close enough to the footer that
    it reads as part of the page furniture rather than an announcement. */
