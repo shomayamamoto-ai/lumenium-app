@@ -25,6 +25,7 @@ import {
   settingStatus, saveSetting, storeReady, deviceReady, canGoOnDevice, SETTINGS, GROUPS,
 } from './_settings.js'
 import { cookieFor } from './_keybag.js'
+import { storeConfig } from './_analytics-store.js'
 
 const NO_HOME = {
   ok: false,
@@ -38,7 +39,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const ready = storeReady()
+  const ready = await storeReady(req)
   const device = await deviceReady()
   const settings = await settingStatus(req)
   return json({
@@ -70,9 +71,19 @@ export async function POST(req) {
 
   // The shared store first: a key everyone should see belongs where everyone
   // can see it.
-  if (storeReady()) {
+  // Not for the store's own address: saving that into the store it addresses
+  // is circular, and the browser is where it belongs.
+  const STORE_KEYS = ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN']
+  // A store reachable only because this browser is carrying its address is a
+  // store that visitors' requests cannot reach either. Writing a visitor-side
+  // key into it would report 「保存しました」 for something the contact form
+  // still cannot read, so those keys are refused here exactly as they are
+  // when there is no store at all — with the message that names the remedy.
+  const envStore = !!storeConfig()
+  const usable = envStore || (canGoOnDevice(name) && await storeReady(req))
+  if (!STORE_KEYS.includes(name) && usable) {
     try {
-      const res = await saveSetting(name, value)
+      const res = await saveSetting(name, value, req)
       if (!res.ok) return json({ ok: false, message: res.message }, 502)
       return json({
         ok: true,

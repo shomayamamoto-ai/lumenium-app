@@ -13,14 +13,17 @@
 // never sent back to the browser; the status says only whether one is set and
 // shows the last four characters so you can tell one key from another.
 //
-// Two cannot live here, and the UI says so:
-//   · UPSTASH_REDIS_REST_URL / _TOKEN — this store itself. Nothing can save
-//     the address of the place it saves things to.
+// One cannot live here, and the UI says so:
 //   · ADMIN_KEY — it is what authorises the page that would change it.
+//
+// The store's own address is a special case rather than an impossible one: it
+// cannot be saved into the store, but it can be held by the admin's browser,
+// and admin requests carry that. Counting visits still needs it in the
+// environment, because visitors' requests carry nothing of the admin's.
 //
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
-import { storeConfig, pipeline } from './_analytics-store.js'
+import { storeConfig, storeFor, pipeline } from './_analytics-store.js'
 import { bag, bagReady } from './_keybag.js'
 
 const K = (name) => `lum:cfg:${name}`
@@ -33,6 +36,23 @@ export const GROUPS = [
 
 /** What the admin can set, in the order it is shown. */
 export const SETTINGS = [
+  {
+    // The store's own address. It had no row at all, because saved values live
+    // in the store and the store cannot hold its own address — so the screen
+    // that asks for every other key had nowhere to type these two, while the
+    // panels that need them said 「未設定です」. They are device-savable: the
+    // admin's own screens carry the admin's cookie, so history, saved settings
+    // and the AIO reports can use a pair held here. Pageview counting cannot,
+    // because it happens on visitors' requests, and `why` says so.
+    name: 'UPSTASH_REDIS_REST_URL', label: '保存先のURL（Upstash Redis）', kind: 'text', group: 'site',
+    where: 'Vercel › Storage › Upstash Redis › REST URL（https://…upstash.io）',
+    why: 'この端末に保存すると、AIO計測の履歴と設定の保存がこの保存先に入ります。訪問者の閲覧数を数えるのは訪問者側のリクエストなので、アクセス解析まで動かすには Vercel の環境変数にも同じ値が必要です。',
+  },
+  {
+    name: 'UPSTASH_REDIS_REST_TOKEN', label: '保存先のトークン（Upstash Redis）', kind: 'secret', group: 'site',
+    where: 'Vercel › Storage › Upstash Redis › REST TOKEN',
+    why: 'URLと対で使います。片方だけでは保存先は有効になりません。',
+  },
   {
     // device:false — these are read while serving somebody else's request (a
     // visitor sending the contact form, a member logging in), and that browser
@@ -127,8 +147,9 @@ let cache = null
 let cacheAt = 0
 const TTL = 30000
 
-async function all() {
-  const cfg = storeConfig()
+async function all(req) {
+  // The admin's own pair counts here: it is their request, and their cookie.
+  const cfg = await storeFor(req)
   if (!cfg) return {}
   const now = Date.now()
   if (cache && now - cacheAt < TTL) return cache
@@ -152,7 +173,7 @@ async function all() {
  *  `req` is optional — without it the browser's own keys are simply not seen,
  *  which is the correct answer on a visitor's request. */
 export async function setting(name, fallback, req) {
-  const saved = (await all())[name]
+  const saved = (await all(req))[name]
   if (saved) return saved
   if (req) {
     const mine = (await bag(req))[name]
@@ -165,7 +186,7 @@ export async function setting(name, fallback, req) {
 /** Where each value is coming from, and enough of it to tell keys apart —
  *  never the value itself. */
 export async function settingStatus(req) {
-  const saved = await all()
+  const saved = await all(req)
   const mine = req ? await bag(req) : {}
   return SETTINGS.map((s) => {
     const env = (process.env[s.name] || '').trim()
@@ -187,9 +208,9 @@ export async function settingStatus(req) {
   })
 }
 
-export async function saveSetting(name, value) {
+export async function saveSetting(name, value, req) {
   if (!NAMES.has(name)) return { ok: false, message: '設定できない項目です。' }
-  const cfg = storeConfig()
+  const cfg = await storeFor(req)
   if (!cfg) return { ok: false, message: 'NO_STORE' }
   const v = String(value || '').trim()
   await pipeline(cfg, [v ? ['SET', K(name), v] : ['DEL', K(name)]])
@@ -197,8 +218,8 @@ export async function saveSetting(name, value) {
   return { ok: true, cleared: !v }
 }
 
-export function storeReady() {
-  return !!storeConfig()
+export async function storeReady(req) {
+  return !!(await storeFor(req))
 }
 
 /** Can a key be kept in this browser? Only if there is an ADMIN_KEY to

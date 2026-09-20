@@ -18,7 +18,7 @@ export const config = { runtime: 'edge' }
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
-import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
+import { storeFor, pipeline, jstDate } from './_analytics-store.js'
 import { socialActivity } from './_social.js'
 import {
   QUESTIONS, CATEGORIES, BRAND, costEstimateUsd,
@@ -420,7 +420,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const cfg = storeConfig()
+  const cfg = await storeFor(req)
   const meta = {
     questions: QUESTIONS.length,
     categories: CATEGORIES,
@@ -486,7 +486,7 @@ export async function POST(req) {
   const key = await apiKey(req)
   if (!key) return json(NO_AI, 503)
 
-  const cfg = storeConfig()
+  const cfg = await storeFor(req)
 
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }

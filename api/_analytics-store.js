@@ -16,6 +16,40 @@ export function storeConfig() {
   return url && token ? { url, token } : null
 }
 
+/** The same, but also accepting the pair the admin pasted into their own
+ *  browser. Every other key has a box on the settings screen; these two had
+ *  none at all, because the place saved keys live is this very store — there
+ *  is nowhere to put the store's own address except the environment or the
+ *  browser holding it.
+ *
+ *  What this does and does not turn on: admin screens make their own requests
+ *  and carry the admin's cookie, so history, saved settings and the AIO
+ *  reports can all use a pair held here. Pageview recording cannot — it runs
+ *  on visitors' requests, which carry nothing of the admin's — so counting
+ *  visits still needs the two environment variables. The settings row says so
+ *  rather than letting the admin discover it from an empty chart. */
+export async function storeFor(req) {
+  const env = storeConfig()
+  if (env || !req) return env
+  const { bag } = await import('./_keybag.js')
+  const mine = await bag(req)
+  const url = String(mine.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/$/, '')
+  const token = String(mine.UPSTASH_REDIS_REST_TOKEN || '').trim()
+  return url && token ? { url, token } : null
+}
+
+/** Is this pair usable? Asked before it is trusted, so the settings screen can
+ *  answer 「つながりました」 rather than leaving it to be discovered later. */
+export async function storePing(cfg) {
+  if (!cfg) return { ok: false, message: '値が足りません。' }
+  try {
+    const out = await pipeline(cfg, [['SET', 'lum:ping', String(Date.now()), 'EX', 60], ['GET', 'lum:ping']])
+    return out && out.length === 2 && out[1] ? { ok: true } : { ok: false, message: '応答が想定と違います。' }
+  } catch (e) {
+    return { ok: false, message: String((e && e.message) || e).slice(0, 120) }
+  }
+}
+
 /** Run several Redis commands in one HTTPS round trip. */
 export async function pipeline(cfg, commands) {
   if (!commands.length) return []

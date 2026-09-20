@@ -5,7 +5,7 @@ import { requireAdmin } from './_admin-auth.js'
 // Reads the pageview counters back for the admin page. Same admin-key auth
 // and rate limiting as the member endpoints.
 
-import { storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
+import { storeFor, storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
 
 // The enquiry path, and the two things that are measured but are not steps on
 // it. They used to be one flat list of seven, which made the report say things
@@ -50,7 +50,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const cfg = storeConfig()
+  const cfg = await storeFor(req)
   if (!cfg) {
     return json({
       ok: false, code: 'STORE_NOT_CONFIGURED',

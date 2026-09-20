@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' }
 // present, and the counts come from the same store as the analytics.
 
 import { requireAdmin, json } from './_admin-auth.js'
-import { storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
+import { storeFor, storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
 import { listShares } from './_share.js'
 import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
@@ -20,7 +20,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const store = storeConfig()
+  const store = await storeFor(req)
 
   // Read the same way everything else does — what was saved from this screen,
   // else the environment. Reading process.env directly meant a key entered in
@@ -52,11 +52,17 @@ export async function GET(req) {
         : '未設定のため既定の shoma.yamamoto@lumenium.net に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。',
     },
     {
+      // Two different kinds of "connected": in the environment it serves
+      // everybody, including the visitor whose pageview is being counted; held
+      // in this browser it serves only the admin's own screens. Saying just
+      // 「接続済み」 for the second would promise counting that cannot happen.
       id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN',
-      state: store ? 'ok' : 'warn',
-      note: store
+      state: storeConfig() ? 'ok' : (store ? 'warn' : 'warn'),
+      note: storeConfig()
         ? 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'
-        : '未接続のため、アクセス解析と導線は一切記録されていません。AIO計測は実行できますが、結果はこの端末にだけ残り、別の端末からは見られません。会員リストの共有リンクも、管理キー入りのURL（個別に失効できない）しか作れません。Vercel の Storage から Upstash Redis を接続してください。',
+        : store
+          ? 'この端末に保存した値で、AIO計測の履歴と設定の保存は動いています。ただし閲覧数の記録は訪問者のリクエストで行うため、アクセス解析を動かすには Vercel の環境変数に同じ2つを設定してください（値はこの画面の「保存先のURL／トークン」に入っています）。'
+          : '未接続のため、アクセス解析と導線は一切記録されていません。AIO計測は実行できますが、結果はこの端末にだけ残り、別の端末からは見られません。会員リストの共有リンクも、管理キー入りのURL（個別に失効できない）しか作れません。Vercel の Storage から Upstash Redis を接続してください。',
     },
     {
       id: 'ai', label: 'AI（SEO/AIO分析・アドバイザー）', env: 'ANTHROPIC_API_KEY',
