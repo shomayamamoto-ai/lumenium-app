@@ -155,7 +155,13 @@ export default function Splash({ onComplete }) {
 
       {/* Content */}
       <div className="lx-content">
-        <img src="/favicon.svg" alt="Lumenium（ルメニウム）" className="lx-logo" width="260" height="260" />
+        <span className="lx-logo-wrap">
+          {/* The bloom is its own round layer. Making it out of the logo —
+              brightness() plus a white drop-shadow — lit up the heptagon
+              plate and its rim, so the mark arrived inside a glowing frame. */}
+          <span className="lx-logo-glow" aria-hidden="true" />
+          <img src="/favicon.svg" alt="Lumenium（ルメニウム）" className="lx-logo" width="260" height="260" />
+        </span>
         <h1 className="lx-name">LUMENIUM</h1>
         <p className="lx-tag">目的に、焦点を当てる。</p>
       </div>
