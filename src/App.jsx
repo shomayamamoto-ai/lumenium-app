@@ -208,6 +208,31 @@ export default function App() {
       b.addEventListener('mouseleave', onMagneticLeave)
     })
 
+    // --- Pressed state, for fingers ---
+    // :active is unreliable for touch: measured with a real touch through the
+    // browser's own input pipeline, holding a finger on a button changed
+    // nothing — no transform, no background, no border. Mobile engines only
+    // apply :active under conditions a page cannot count on, so the pressed
+    // look is set here instead, on pointerdown, before any state changes or
+    // any render runs. One listener for the whole document; it adds a class
+    // and nothing else, so it costs a touch nothing.
+    const PRESSABLE = 'button, a[href], [role="button"], .pricing-sim-item, .pricing-refine-opt'
+    let held = null
+    const release = () => { if (held) { held.classList.remove('is-pressing'); held = null } }
+    const onPressDown = (e) => {
+      const el = e.target instanceof Element ? e.target.closest(PRESSABLE) : null
+      release()
+      if (!el || el.hasAttribute('disabled')) return
+      held = el
+      el.classList.add('is-pressing')
+    }
+    document.addEventListener('pointerdown', onPressDown, { passive: true, capture: true })
+    document.addEventListener('pointerup', release, { passive: true, capture: true })
+    // A scroll that starts on a button cancels the press, which is what the
+    // finger meant — and what the browser tells us by cancelling the pointer.
+    document.addEventListener('pointercancel', release, { passive: true, capture: true })
+    window.addEventListener('blur', release)
+
     // --- Image lazy fade-in ---
     document.querySelectorAll('img[loading="lazy"]').forEach((img) => {
       if (img.complete) { img.classList.add('loaded') }
@@ -368,6 +393,11 @@ export default function App() {
 
     return () => {
       lateComers.disconnect()
+      release()
+      document.removeEventListener('pointerdown', onPressDown, { capture: true })
+      document.removeEventListener('pointerup', release, { capture: true })
+      document.removeEventListener('pointercancel', release, { capture: true })
+      window.removeEventListener('blur', release)
       observer.disconnect(); counterObserver.disconnect(); painObserver.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', recalcOffsets)

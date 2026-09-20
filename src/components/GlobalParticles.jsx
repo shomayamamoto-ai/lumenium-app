@@ -31,6 +31,32 @@ export default function GlobalParticles({ show }) {
     }))
     pts.forEach(p => { p.ovx = p.vx; p.ovy = p.vy })
 
+    // Each mote is drawn once, into its own little canvas, and from then on it
+    // is stamped. It used to be built from scratch on every frame: a new
+    // radial gradient object, two colour stops, an arc and a fill, per mote,
+    // sixty times a second — which is why createRadialGradient and addColorStop
+    // showed up in a profile of *tapping a button*. This runs on every page, so
+    // whatever it costs is subtracted from everything else the page does.
+    const sprite = (p) => {
+      const R = Math.ceil(p.r * 4)
+      const c = document.createElement('canvas')
+      c.width = c.height = R * 2
+      const g2 = c.getContext('2d')
+      const grad = g2.createRadialGradient(R, R, 0, R, R, R)
+      grad.addColorStop(0, `hsla(${p.hue}, 70%, 70%, ${p.opacity * 1.5})`)
+      grad.addColorStop(1, 'transparent')
+      g2.beginPath()
+      g2.arc(R, R, R, 0, Math.PI * 2)
+      g2.fillStyle = grad
+      g2.fill()
+      g2.beginPath()
+      g2.arc(R, R, p.r * 0.6, 0, Math.PI * 2)
+      g2.fillStyle = `hsla(${p.hue}, 80%, 80%, ${p.opacity * 2})`
+      g2.fill()
+      return { c, R }
+    }
+    pts.forEach((p) => { p.img = sprite(p) })
+
     const onMouse = (e) => {
       mouse.x = e.clientX
       mouse.y = e.clientY
@@ -58,8 +84,19 @@ export default function GlobalParticles({ show }) {
     }
     document.addEventListener('visibilitychange', onVisibility)
 
-    const draw = () => {
+    // Thirty frames a second. These motes drift a fifth of a pixel per frame;
+    // drawing them sixty times a second says exactly as much as thirty, and
+    // leaves half the budget to whatever the page is actually for.
+    const FRAME = 1000 / 30
+    let lastAt = 0
+    // Reused every frame: four buckets of line ends, emptied rather than
+    // rebuilt, so the loop allocates nothing.
+    const bands = [[], [], [], []]
+
+    const draw = (now) => {
       if (!running) return
+      if (now - lastAt < FRAME) { raf = requestAnimationFrame(draw); return }
+      lastAt = now
       ctx.clearRect(0, 0, w, h)
 
       pts.forEach(p => {
@@ -86,37 +123,33 @@ export default function GlobalParticles({ show }) {
         if (p.x < -10) p.x = w + 10
         if (p.x > w + 10) p.x = -10
 
-        // Glow
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4)
-        g.addColorStop(0, `hsla(${p.hue}, 70%, 70%, ${p.opacity * 1.5})`)
-        g.addColorStop(1, 'transparent')
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2)
-        ctx.fillStyle = g
-        ctx.fill()
-
-        // Core
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r * 0.6, 0, Math.PI * 2)
-        ctx.fillStyle = `hsla(${p.hue}, 80%, 80%, ${p.opacity * 2})`
-        ctx.fill()
+        // Glow and core, stamped in one go.
+        ctx.drawImage(p.img.c, p.x - p.img.R, p.y - p.img.R)
       })
 
-      // Connections
+      // Connections. The fade with distance is kept, but in four steps rather
+      // than continuously, so the whole web is four paths instead of a
+      // beginPath and a stroke for every pair — at eighty motes that was up to
+      // three thousand stroke calls in a frame.
+      bands.forEach((b) => { b.length = 0 })
       for (let i = 0; i < pts.length; i++) {
         for (let j = i + 1; j < pts.length; j++) {
           const dx = pts[i].x - pts[j].x
           const dy = pts[i].y - pts[j].y
           const dist = dx * dx + dy * dy
-          if (dist < 10000) {
-            ctx.beginPath()
-            ctx.moveTo(pts[i].x, pts[i].y)
-            ctx.lineTo(pts[j].x, pts[j].y)
-            ctx.strokeStyle = `rgba(79, 70, 229, ${0.03 * (1 - dist / 10000)})`
-            ctx.lineWidth = 0.4
-            ctx.stroke()
-          }
+          if (dist >= 10000) continue
+          const b = bands[Math.min(3, (((1 - dist / 10000) * 4) | 0))]
+          b.push(pts[i].x, pts[i].y, pts[j].x, pts[j].y)
         }
+      }
+      ctx.lineWidth = 0.4
+      for (let band = 0; band < 4; band++) {
+        const seg = bands[band]
+        if (!seg.length) continue
+        ctx.strokeStyle = `rgba(79, 70, 229, ${((0.03 * (band + 0.5)) / 4).toFixed(4)})`
+        ctx.beginPath()
+        for (let k = 0; k < seg.length; k += 4) { ctx.moveTo(seg[k], seg[k + 1]); ctx.lineTo(seg[k + 2], seg[k + 3]) }
+        ctx.stroke()
       }
 
       raf = requestAnimationFrame(draw)

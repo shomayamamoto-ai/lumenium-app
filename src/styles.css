@@ -1532,7 +1532,22 @@ html[data-theme="dark"] .quiz-option { background: var(--bg-card); }
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  transition: transform 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  /* The state change is quick; only the lift keeps the slower curve. A tap
+     that takes three tenths of a second to finish looking different reads as
+     a tap the page did not notice. */
+  transition: transform 0.3s var(--ease), border-color 0.14s var(--ease), background 0.14s var(--ease), box-shadow 0.14s var(--ease);
+  /* No waiting to see whether a second tap is coming. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Pressed: immediate, before any state has changed or any render has run —
+   this is the browser answering the finger by itself. */
+.pricing-sim-item:active,
+.pricing-sim-item.is-pressing {
+  transform: scale(0.985);
+  border-color: rgba(79,70,229,0.55);
+  background: rgba(79,70,229,0.06);
+  transition-duration: 0s;
 }
 .pricing-sim-item:hover {
   transform: translateY(-2px);
@@ -1672,6 +1687,13 @@ html[data-theme="dark"] .pricing-sim-item {
 html[data-theme="dark"] .pricing-sim-item.is-on,
 html[data-theme="dark"] .pricing-sim-item.is-on {
   background: linear-gradient(135deg, rgba(79,70,229,0.2) 0%, rgba(6,182,212,0.12) 100%);
+}
+/* The dark theme sets its own background and border here, so the pressed look
+   needs to be stated at the same weight or it never appears. */
+html[data-theme="dark"] .pricing-sim-item:active,
+html[data-theme="dark"] .pricing-sim-item.is-pressing {
+  background: rgba(99,102,241,0.22);
+  border-color: rgba(165,180,252,0.75);
 }
 
 @media (max-width: 640px) {
@@ -2842,6 +2864,16 @@ p, .card-text, .hero-desc, .section-desc, .cta-desc, .banner-desc, .testimonial-
   text-wrap: pretty;
 }
 
+/* Anything you tap answers the finger rather than waiting to find out whether
+   a second tap is coming, and none of them flash the browser's own grey box
+   over their own pressed state. */
+button, a, [role="button"], label, summary, input[type="checkbox"], input[type="radio"], select {
+  touch-action: manipulation;
+}
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
 h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title, .banner-title, .cta-title, .profile-name {
   font-family: 'Schibsted Grotesk', 'Noto Sans JP', -apple-system, BlinkMacSystemFont,
     'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
@@ -2993,7 +3025,7 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
 }
 .btn-accent:hover::before { transform: translateX(100%); }
 .btn-accent:hover svg { transform: translateX(4px); }
-.btn-accent:active { transform: translateY(0) scale(0.98); transition-duration: 0.12s; }
+.btn-accent:active, .btn-accent.is-pressing { transform: translateY(0) scale(0.98); transition-duration: 0.12s; }
 
 .btn-ghost-w {
   background: transparent;
@@ -3016,7 +3048,7 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
   box-shadow: 0 6px 16px rgba(79,70,229,0.1);
 }
 .btn-ghost-w:hover::before { opacity: 1; }
-.btn-ghost-w:active { transform: translateY(0); transition-duration: 0.12s; }
+.btn-ghost-w:active, .btn-ghost-w.is-pressing { transform: translateY(0); transition-duration: 0.12s; }
 
 .btn-primary {
   background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
@@ -3031,7 +3063,7 @@ h1, h2, h3, h4, h5, h6, .section-title, .card-title, .card-title-lg, .hero-title
   background-position: 100% 50%;
 }
 .btn-primary:hover svg { transform: translateX(4px); }
-.btn-primary:active { transform: translateY(0) scale(0.98); transition-duration: 0.12s; }
+.btn-primary:active, .btn-primary.is-pressing { transform: translateY(0) scale(0.98); transition-duration: 0.12s; }
 
 .btn-outline {
   background: #fff;
@@ -4998,8 +5030,14 @@ img[loading="lazy"]:not([data-src]) {
    Wobble removed — a gentle lift + scale reads as intentional, not shaky. */
 
 /* ===== Footer Logo Breathe ===== */
+/* will-change hands these two to the compositor. They animate nothing but a
+   transform, yet as ordinary style animations they made the browser
+   recalculate style on the main thread on every single frame — measured at
+   120 recalculations in two idle seconds, which is the thread a tap has to
+   wait for. Promoted, they cost the main thread nothing and look identical. */
 .footer-logo img, .nav-logo-img {
   animation: logoBreathe 4s ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes logoBreathe {
@@ -5094,7 +5132,8 @@ img[loading="lazy"]:not([data-src]) {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.btn:active {
+.btn:active,
+.btn.is-pressing {
   transform: scale(0.97);
   transition: transform 0.1s ease;
 }
@@ -5305,6 +5344,7 @@ button:focus-visible {
   opacity: 0.5;
   z-index: -1;
   animation: fabPulse 2.4s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 @keyframes fabPulse {
@@ -9844,7 +9884,15 @@ body { word-break: auto-phrase; }
   background: none; color: inherit;
   font-family: inherit; font-size: 13px; font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pricing-refine-opt:active,
+.pricing-refine-opt.is-pressing {
+  transform: scale(0.97);
+  border-color: rgba(129,140,248,0.7);
+  transition-duration: 0s;
 }
 .pricing-refine-opt:hover { border-color: rgba(255,255,255,0.45); }
 .pricing-refine-opt.is-on {
