@@ -24,7 +24,7 @@ import { requireAdmin, json } from './_admin-auth.js'
 import {
   settingStatus, saveSetting, storeReady, deviceReady, canGoOnDevice, SETTINGS, GROUPS,
 } from './_settings.js'
-import { cookieFor } from './_keybag.js'
+import { cookieFor, packKeys, unpackKeys } from './_keybag.js'
 import { storeConfig } from './_analytics-store.js'
 
 const NO_HOME = {
@@ -61,6 +61,45 @@ export async function POST(req) {
 
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
+
+  // ---- moving this browser's keys to another browser ----
+  // Keys live in the browser that typed them, so the same admin on a phone
+  // saw 未設定 for everything set up on a Mac. This hands them over.
+  if (body && body.action === 'handoff') {
+    const token = await packKeys(req)
+    if (!token) {
+      return json({ ok: false, message: 'この端末に引き継げる設定がありません。先にこの画面でキーを保存してください。' }, 400)
+    }
+    const origin = new URL(req.url).origin
+    return json({
+      ok: true,
+      url: `${origin}/admin-members.html#handoff=${token}`,
+      minutes: 15,
+      count: Object.keys(await (await import('./_keybag.js')).bag(req)).length,
+    })
+  }
+
+  if (body && body.action === 'handoff-apply') {
+    const parcel = await unpackKeys(String(body.token || ''))
+    if (!parcel) return json({ ok: false, message: '引き継ぎリンクが読めませんでした。発行し直してください。' }, 400)
+    if (parcel.expired) return json({ ok: false, message: '引き継ぎリンクの有効期限が切れています（15分）。発行し直してください。' }, 400)
+    const names = Object.keys(parcel.keys).filter((n) => SETTINGS.some((s) => s.name === n))
+    const cookies = []
+    for (const n of names) {
+      const c = await cookieFor(n, parcel.keys[n])
+      if (c) cookies.push(c)
+    }
+    if (!cookies.length) return json({ ok: false, message: '引き継げる設定がありませんでした。' }, 400)
+    const res = json({
+      ok: true,
+      applied: names.length,
+      groups: GROUPS,
+      settings: await settingStatus(req),
+      message: `${names.length} 件をこの端末に引き継ぎました。`,
+    })
+    for (const c of cookies) res.headers.append('set-cookie', c)
+    return res
+  }
 
   const name = String((body && body.name) || '')
   if (!SETTINGS.some((s) => s.name === name)) {

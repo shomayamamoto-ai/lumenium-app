@@ -786,6 +786,26 @@
       <p class="msg" id="set-msg" style="margin-bottom:10px"></p>
       <div id="set-steps" style="display:none"></div>
       <div id="set-list"></div>
+      <!-- Keys typed here live in this browser. The same admin on a phone saw
+           未設定 for everything set up on a Mac; this hands them over. -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:4px">📱 別の端末に引き継ぐ</h3>
+        <p class="share-note" style="margin-bottom:10px">
+          この端末に保存したキーを、スマホなど別の端末の管理画面にそのまま移します。
+          リンクを発行して、その端末で開いてください（15分で無効になります）。
+          ※ 保存先（Upstash Redis）を環境変数に設定すれば、この引き継ぎは要らなくなります。
+        </p>
+        <div class="toolbar">
+          <button class="ghost" id="handoff-make" type="button">引き継ぎリンクを発行</button>
+          <span class="share-note" id="handoff-msg"></span>
+        </div>
+        <div id="handoff-out" style="display:none;margin-top:10px">
+          <input id="handoff-url" readonly style="width:100%;padding:10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:12px;font-family:inherit">
+          <div class="toolbar" style="margin-top:8px">
+            <button class="ghost" id="handoff-copy" type="button">リンクをコピー</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
@@ -3571,12 +3591,58 @@ window.lumAdmin = {
       '</div>';
   }
 
+  /* ---- handing this browser's keys to another one ---- */
+  async function makeHandoff() {
+    var btn = el('handoff-make');
+    btn.disabled = true;
+    el('handoff-msg').textContent = '発行しています…';
+    var r = await window.lumAdmin.fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'handoff' })
+    });
+    btn.disabled = false;
+    if (!r.res.ok || !r.data.ok) { el('handoff-msg').textContent = (r.data && r.data.message) || '発行できませんでした。'; return; }
+    el('handoff-msg').textContent = r.data.count + ' 件を引き継げます。15分以内に、移したい端末でこのリンクを開いてください。';
+    el('handoff-out').style.display = 'block';
+    el('handoff-url').value = r.data.url;
+    el('handoff-url').select();
+  }
+
+  /* The other end: the link was opened here. The admin key is still required,
+     so a link on its own is not enough to install anything. */
+  async function applyHandoff(token) {
+    setSay('別の端末からの引き継ぎを読み込んでいます…', true);
+    var r = await window.lumAdmin.fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'handoff-apply', token: token })
+    });
+    if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || '引き継げませんでした。'); return; }
+    if (location.hash.indexOf('handoff=') >= 0) history.replaceState(null, '', location.pathname);
+    setSay(r.data.message, true);
+    await loadSettings();
+  }
+
   async function loadSettings() {
     var r = await window.lumAdmin.fetch('/api/settings');
     if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || 'キーの状態を取得できませんでした。'); return; }
     renderSettings(r.data.settings || [], r.data.ready, r.data.groups, r.data.device);
     setSay(r.data.ready ? '' : r.data.message, true);
     steps(r.data.ready, r.data.device);
+    var btn = el('handoff-make');
+    if (btn && !btn.dataset.wired) { btn.dataset.wired = '1'; btn.addEventListener('click', makeHandoff); }
+    var copy = el('handoff-copy');
+    if (copy && !copy.dataset.wired) {
+      copy.dataset.wired = '1';
+      copy.addEventListener('click', function () {
+        var f = el('handoff-url');
+        f.select();
+        try { navigator.clipboard.writeText(f.value); } catch (_) { document.execCommand('copy'); }
+        el('handoff-msg').textContent = 'コピーしました。移したい端末に送って開いてください。';
+      });
+    }
+    // Arrived by the link from the other device.
+    var m = /handoff=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+    if (m && !window.__handoffDone) { window.__handoffDone = true; applyHandoff(m[1]); }
   }
 
   async function load() {

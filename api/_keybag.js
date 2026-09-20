@@ -109,6 +109,37 @@ export async function cookieFor(name, value) {
   return `${PREFIX}${name}=${sealed}${ATTRS}; Max-Age=${MAX_AGE}`
 }
 
+/* Moving a browser's keys to another browser.
+ *
+ * Keys typed on a Mac are in that Mac's cookie and nowhere else, so the same
+ * admin opening the same page on a phone sees 未設定 — which is what happened.
+ * The honest fix for everything is the environment, but that is a trip to
+ * Vercel; this is the trip between two devices the same person already owns.
+ *
+ * The parcel is the keys encrypted with the same ADMIN_KEY-derived key as the
+ * cookies, so the link carries ciphertext rather than secrets, and it is only
+ * ever opened for a request that has already proved it is the admin. It
+ * expires, because a link that works forever is a key that was published. */
+export async function packKeys(req, minutes = 15) {
+  const mine = await bag(req)
+  if (!Object.keys(mine).length) return ''
+  return seal(JSON.stringify({ k: mine, exp: Date.now() + minutes * 60000 }))
+}
+
+/** The keys inside a parcel, if it is still valid. */
+export async function unpackKeys(token) {
+  const key = await aesKey()
+  if (!key || !token) return null
+  const plain = await unseal(key, String(token))
+  if (!plain) return null
+  try {
+    const parsed = JSON.parse(plain)
+    if (!parsed || typeof parsed.k !== 'object') return null
+    if (!parsed.exp || Date.now() > parsed.exp) return { expired: true, keys: {} }
+    return { expired: false, keys: parsed.k }
+  } catch (_) { return null }
+}
+
 export async function bagReady() {
   return !!(await aesKey())
 }
