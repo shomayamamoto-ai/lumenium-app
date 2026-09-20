@@ -112,7 +112,10 @@ export const SECTION = {
     tagline: '散文化した目的に焦点を当てる',
     exploreButton: '探す',
     exploreHint: '押すと、対応領域が放射状に展開します',
-    definition: 'ルメニウム（Lumenium）とは、東京都を拠点とする日本のクリエイティブ／DX支援カンパニーです。',
+    // The two breaks are honoured on a phone and hidden on anything wider —
+    // see .search-home-def br in styles.css. A desktop has room for the whole
+    // sentence on one line, and that is how it should read there.
+    definition: 'ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／\nDX支援カンパニーです。',
     definitionLink: 'ルメニウムとは →',
   },
 }

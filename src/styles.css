@@ -9531,6 +9531,10 @@ body { word-break: auto-phrase; }
   line-height: 1.9;
   color: var(--text-muted);
 }
+/* The sentence carries its own breaks for the phone. A desktop fits all 623px
+   of it on one line, so the breaks are taken out of the box tree there and the
+   clauses flow together — a hidden <br> is not a line break. */
+.search-home-def br { display: none; }
 .search-home-def a {
   display: block;
   margin-top: 3px;
@@ -9545,6 +9549,10 @@ body { word-break: auto-phrase; }
   /* The page already carries 20px of side padding; this element's own 20px on
      top of it left the sentence 300px to wrap in. */
   .search-home-def { padding-left: 0; padding-right: 0; }
+  /* 「ルメニウム（Lumenium）とは、」「東京都を拠点とする日本のクリエイティブ／」
+     「DX支援カンパニーです。」 — three lines that each end somewhere a reader
+     would pause, instead of wherever the width happened to run out. */
+  .search-home-def br { display: inline; }
 }
 
 .search-home-footer {
