@@ -151,6 +151,24 @@ export default function App() {
     )
     counters.forEach((c) => counterObserver.observe(c))
 
+    // Anything that arrives after this point. Every [data-animate] element
+    // starts at opacity 0 and only this observer ever adds .visible, and the
+    // observer took its list once — so a section that waits on a fetch was
+    // invisible for ever. Measured on 「一覧 →」: /#/info/news rendered 698px
+    // of お知らせ at opacity 0, which is why the page looked empty.
+    const lateComers = new MutationObserver((records) => {
+      for (const rec of records) {
+        for (const node of rec.addedNodes) {
+          if (node.nodeType !== 1) continue
+          if (node.matches?.('[data-animate]') && !node.classList.contains('visible')) observer.observe(node)
+          node.querySelectorAll?.('[data-animate]:not(.visible)').forEach((el) => observer.observe(el))
+          if (node.matches?.('[data-count]')) counterObserver.observe(node)
+          node.querySelectorAll?.('[data-count]:not(.counter-done)').forEach((el) => counterObserver.observe(el))
+        }
+      }
+    })
+    lateComers.observe(document.body, { childList: true, subtree: true })
+
     // --- Button ripple effect ---
     const btns = document.querySelectorAll('.btn-accent, .btn-primary')
     const handleBtnClick = (e) => {
@@ -349,6 +367,7 @@ export default function App() {
     document.addEventListener('click', onOutboundClick, { capture: true })
 
     return () => {
+      lateComers.disconnect()
       observer.disconnect(); counterObserver.disconnect(); painObserver.disconnect()
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', recalcOffsets)
