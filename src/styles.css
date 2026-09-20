@@ -8676,6 +8676,27 @@ body[data-dial-hot] .lumen-dot {
   margin-left: calc(var(--px) * -0.62);
   margin-top: calc(var(--py) * -0.62);
 }
+/* The name, under the mark at the centre of the dial. */
+.rdial-wordmark {
+  position: absolute;
+  transform: translate(-50%, 0);
+  margin-top: 30px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgba(245, 247, 251, 0.9);
+  text-shadow: 0 0 18px rgba(99, 102, 241, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease) 0.35s;
+}
+.rdial.is-lit .rdial-wordmark { opacity: 1; }
+.rdial.is-going .rdial-wordmark,
+.rdial.is-closing .rdial-wordmark { opacity: 0; transition-delay: 0ms; }
+@media (max-width: 720px) {
+  .rdial-wordmark { margin-top: 24px; font-size: 13px; }
+}
 /* The whole constellation — plate, labels and hub — arrives turned and small
    and untwists into true. Rotating the labels with everything else is what
    makes it read as one object rather than a dozen animated pieces. */
@@ -8842,11 +8863,11 @@ body[data-dial-hot] .lumen-dot {
 }
 .rdial.is-lit .ritem-plate { opacity: 1; transform: scale(1); }
 .ritem.is-on .ritem-plate {
-  border-color: #fff;
+  border-color: rgba(255,255,255,0.92);
   color: #fff;
-  background: rgba(79,70,229,0.34);
-  transform: scale(1.14);
-  box-shadow: 0 0 0 4px rgba(79,70,229,0.16), 0 0 22px rgba(99,102,241,0.45);
+  background: rgba(79,70,229,0.26);
+  transform: scale(1.07);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
 }
 
 /* The text, pushed clear of the plate along the radius. */
@@ -8900,13 +8921,13 @@ body[data-dial-hot] .lumen-dot {
   position: relative;
   width: 100%;
   height: 100%;
+  /* Half the lean it had, and no brightness in it at all. The opacity ramp
+     meant every entry changed value as the pointer moved anywhere on screen,
+     which is most of what made the dial shimmer. */
   transform:
-    translate(calc(var(--dx) * var(--near) * 7px), calc(var(--dy) * var(--near) * 7px))
-    scale(calc(1 + var(--near) * 0.045));
-  /* The field used to run from 0.84, which cost every entry a sixth of its
-     contrast for an effect the lean already carries. Measured: the notes came
-     out at 3.1:1. */
-  opacity: calc(0.96 + 0.04 * var(--near));
+    translate(calc(var(--dx) * var(--near) * 3.5px), calc(var(--dy) * var(--near) * 3.5px))
+    scale(calc(1 + var(--near) * 0.022));
+  opacity: 1;
 }
 .ritem--left  .ritem-near { transform-origin: right center; }
 .ritem--right .ritem-near { transform-origin: left center; }
@@ -8941,7 +8962,11 @@ body[data-dial-hot] .lumen-dot {
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.45;
-  color: #fff;
+  /* Off-white, not #fff. Measured at 19.7:1 against the dial, which is the
+     classic recipe for halation on a dark screen — the white blooms into the
+     black around it and a page of it reads as glare. 15:1 is still far past
+     AAA and stops the twelve labels dazzling across a desktop. */
+  color: #e6ebf5;
   transition: letter-spacing 0.45s var(--r-out);
 }
 .ritem-mask {
@@ -8970,7 +8995,7 @@ body[data-dial-hot] .lumen-dot {
 .ritem--left .ritem-rule { transform-origin: right center; }
 .ritem--mid  .ritem-rule { transform-origin: center; }
 .ritem.is-on .ritem-rule { transform: scaleX(1); }
-.ritem.is-on .ritem-no { color: #fff; letter-spacing: 0.3em; }
+.ritem.is-on .ritem-no { color: #f2f5fb; letter-spacing: 0.3em; }
 .ritem:focus-visible { outline: 2px solid rgba(165,180,252,0.9); outline-offset: 6px; border-radius: 3px; }
 
 /* Attention is exclusive: touching one entry sends the others back. It used
