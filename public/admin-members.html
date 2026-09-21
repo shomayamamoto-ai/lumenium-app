@@ -3985,6 +3985,35 @@ window.lumAdmin = {
       mine.forEach(function (s) { host.appendChild(setRow(s, ready)); });
       // 鍵を並べただけでは接続は終わらない。同意画面へ行くボタンと、いま
       // 何が起きているか（接続状態・入った予約）を同じ場所に置く。
+      /* 保存先が「Vercel の環境変数に」入っているかどうかだけを、独立して
+         出します。ここが埋まっているかで、訪問者側の機能（アクセス解析・
+         予約・問い合わせの記録）が動くかどうかが決まります。しかも片方
+         だけでは無効なので、2つまとめて見ないと判断できません。 */
+      if (g.id === 'site') {
+        var pick = function (n) { return list.filter(function (x) { return x.name === n; })[0] || {}; };
+        var u = pick('UPSTASH_REDIS_REST_URL');
+        var t = pick('UPSTASH_REDIS_REST_TOKEN');
+        var both = u.inEnv && t.inEnv;
+        var none = !u.inEnv && !t.inEnv;
+        var sb = document.createElement('div');
+        sb.style.cssText = 'background:' + (both ? 'rgba(20,184,166,.10)' : none ? '#151b31' : 'rgba(251,191,36,.10)') +
+          ';border:1px solid ' + (both ? '#14b8a6' : none ? 'var(--border)' : 'rgba(251,191,36,.45)') +
+          ';border-radius:11px;padding:12px 14px;margin:2px 0 14px';
+        sb.innerHTML =
+          '<div style="font-size:12.5px;font-weight:700">Vercel の環境変数（訪問者側が使うのはこちら）</div>' +
+          '<div style="font-size:12.5px;line-height:1.95;margin-top:4px">' +
+            (u.inEnv ? '✓' : '✗') + ' UPSTASH_REDIS_REST_URL　／　' +
+            (t.inEnv ? '✓' : '✗') + ' UPSTASH_REDIS_REST_TOKEN' +
+          '</div>' +
+          '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:4px">' +
+            (both
+              ? '両方入っています。アクセス解析・商談予約・お問い合わせの記録が動きます。'
+              : none
+                ? 'どちらも入っていません。Vercel › Settings › Environment Variables に2つとも登録し、再デプロイしてください。'
+                : '片方しか入っていません。対で使うため、これでは保存先は有効になりません。足りないほうを Vercel に登録して再デプロイしてください。') +
+          '</div>';
+        host.appendChild(sb);
+      }
       if (g.id === 'search') {
         var sbox = document.createElement('div');
         sbox.id = 'search-box';
