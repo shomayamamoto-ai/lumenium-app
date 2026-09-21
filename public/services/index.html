@@ -38,6 +38,11 @@ h2 { font-size:17px; font-weight:700; margin:36px 0 14px; padding-left:12px; bor
 ul { list-style:none; }
 li { padding:10px 0 10px 26px; position:relative; border-bottom:1px solid rgba(255,255,255,.06); font-size:14.5px; }
 li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.contact-strip { margin-top:44px; padding:22px 22px 24px; background:var(--card);
+  border:1px solid var(--border); border-radius:16px; }
+.contact-strip h2 { font-size:17px; font-weight:800; margin:0 0 8px; padding:0; border:0; }
+.contact-strip p { font-size:14px; color:var(--sub); line-height:1.95; margin:0; }
+.contact-strip .cta { margin:16px 0 4px; }
 .price { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px;
   font-size:15px; font-weight:700; margin-top:8px; }
 .price small { display:block; font-size:11.5px; color:var(--sub); font-weight:500; margin-top:4px; }
@@ -118,6 +123,17 @@ footer a:hover { color:var(--text); }
   <p style="font-size:13.5px;line-height:2;color:var(--sub)">東京都を拠点に、打ち合わせはオンラインで全国からご依頼いただいています。撮影やイベントなど現地対応が必要な場合は伺います。</p>
 
   <p style="font-size:12px;color:var(--sub);margin-top:22px">最終更新: 2026-09-21　／　東京都を拠点に、オンラインで全国対応しています。</p>
+
+
+  <section class="contact-strip" id="contact">
+    <h2>お問い合わせはこちら</h2>
+    <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
+    <div class="cta">
+      <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
+      <a class="ghost" href="/pricing.html">料金の目安を見る</a>
+    </div>
+    <p class="lead" style="margin-top:10px;font-size:12.5px;opacity:.85">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
+  </section>
 
   <h2>Lumeniumの他のページ</h2>
   <div class="others">

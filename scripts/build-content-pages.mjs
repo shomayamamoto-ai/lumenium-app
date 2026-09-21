@@ -129,6 +129,13 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 /* Definition block — the passage an answer engine should lift verbatim. */
 article p.keypoint { background:var(--card); border:1px solid var(--border); border-left:4px solid #06b6d4;
   border-radius:12px; padding:16px 18px; margin:6px 0 8px; font-size:14.5px; color:var(--text); line-height:1.95; }
+/* ページの終わりの案内。本文と地続きに見えないよう、枠で囲って区切ります。 */
+.contact-strip { margin-top:44px; padding:22px 22px 24px; background:var(--card);
+  border:1px solid var(--border); border-radius:16px; }
+.contact-strip h2 { font-size:17px; font-weight:800; margin:0 0 8px; padding:0; border:0; }
+.contact-strip p { font-size:14px; color:var(--sub); line-height:1.95; margin:0; }
+.contact-strip .cta { margin:16px 0 10px; }
+.contact-strip .note { border:0; padding:0; font-size:12.5px; opacity:.85; }
 footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,255,.08);
   font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
 footer a { color:var(--sub); text-decoration:none; }
@@ -169,6 +176,21 @@ function withOrg(ld, canonical, title) {
   return { '@context': 'https://schema.org', '@graph': graph }
 }
 
+/* どのページの終わりにも同じものを置く。
+   読み終えた人が次に何をすればよいかを、毎回同じ場所・同じ言葉で示します。
+   ついでに、回答エンジンが引用しやすい事実（無料・48時間・東京・全国・
+   最低発注額なし）が全ページの末尾に載ることになります。 */
+const CONTACT_STRIP = `
+  <section class="contact-strip" id="contact">
+    <h2>お問い合わせはこちら</h2>
+    <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
+    <div class="cta">
+      <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
+      <a class="ghost" href="/pricing.html">料金の目安を見る</a>
+    </div>
+    <p class="note">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
+  </section>`
+
 function shell({ title, desc, canonical, ld, eyebrow, body }) {
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -198,6 +220,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
   <header><a href="/">← Lumenium（ルメニウム）トップへ</a></header>
   <p class="eyebrow">${esc(eyebrow)}</p>
 ${body}
+${CONTACT_STRIP}
   <p style="margin-top:34px;font-size:13px;line-height:1.9;color:var(--sub);opacity:.85">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を、企画から運用までワンストップで手がけています。米国のエンジン開発企業 Lumenium, LLC や光通信機器メーカー Lumentum とは無関係の別組織です。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>

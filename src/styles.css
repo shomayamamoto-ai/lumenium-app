@@ -4783,11 +4783,15 @@ html[data-theme="dark"] .testimonial-detail { color: var(--text-muted); }
   }
 
   .nav-cta {
-    margin-top: 20px;
+    /* 引き出しの一番上へ。DOM の順番は変えずに order で動かしています——
+       画面が広いときの並び（右端の行動ボタン）はそのままにしたいので。 */
+    order: -1;
+    margin: 0 0 18px;
     text-align: center;
     align-self: stretch;
-    position: sticky;
-    bottom: 0;
+    /* 追従はさせません。引き出しの上端には閉じるボタンがあり、そこへ
+       貼り付くと指が重なります。一番上に置く、それだけで十分です。 */
+    position: static;
   }
 
   .nav-toggle {

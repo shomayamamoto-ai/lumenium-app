@@ -122,6 +122,11 @@ h2 { font-size:17px; font-weight:700; margin:36px 0 14px; padding-left:12px; bor
 ul { list-style:none; }
 li { padding:10px 0 10px 26px; position:relative; border-bottom:1px solid rgba(255,255,255,.06); font-size:14.5px; }
 li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-weight:700; }
+.contact-strip { margin-top:44px; padding:22px 22px 24px; background:var(--card);
+  border:1px solid var(--border); border-radius:16px; }
+.contact-strip h2 { font-size:17px; font-weight:800; margin:0 0 8px; padding:0; border:0; }
+.contact-strip p { font-size:14px; color:var(--sub); line-height:1.95; margin:0; }
+.contact-strip .cta { margin:16px 0 4px; }
 .price { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px;
   font-size:15px; font-weight:700; margin-top:8px; }
 .price small { display:block; font-size:11.5px; color:var(--sub); font-weight:500; margin-top:4px; }
@@ -160,6 +165,20 @@ footer a:hover { color:var(--text); }
 
 /* 事業者情報カードに出す納期。FAQに明記してあるものだけを持ちます。
    書いていないサービスに「目安」を作ると、それは新しい約束になります。 */
+/* 内容は build-content-pages.mjs の CONTACT_STRIP と同じものです。
+   生成器が2本に分かれているので、文言だけ持ってきています。片方を直したら
+   もう片方も、という状態は良くないので、変えるときは両方まとめて。 */
+const CONTACT_STRIP = `
+  <section class="contact-strip" id="contact">
+    <h2>お問い合わせはこちら</h2>
+    <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
+    <div class="cta">
+      <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
+      <a class="ghost" href="/pricing.html">料金の目安を見る</a>
+    </div>
+    <p class="lead" style="margin-top:10px;font-size:12.5px;opacity:.85">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
+  </section>`
+
 const LEAD_TIME = {
   video: '短尺動画は1〜2週間、撮影を伴う採用動画は3〜4週間',
   ai: '1〜2週間',
@@ -314,6 +333,7 @@ function page(s) {
     ${others.map((o) => `<a href="/services/${o.id}.html">${esc(o.name)}</a>`).join('\n    ')}
   </div>
 
+${CONTACT_STRIP}
   <p class="lead" style="margin-top:34px;font-size:13px;opacity:.8">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を手がけています。米国のエンジン開発企業 Lumenium, LLC や Lumentum とは無関係の別組織です。</p>
   <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
   <footer>
@@ -437,6 +457,8 @@ ${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inher
   <p style="font-size:13.5px;line-height:2;color:var(--sub)">東京都を拠点に、打ち合わせはオンラインで全国からご依頼いただいています。撮影やイベントなど現地対応が必要な場合は伺います。</p>
 
   <p style="font-size:12px;color:var(--sub);margin-top:22px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
+
+${CONTACT_STRIP}
 
   <h2>Lumeniumの他のページ</h2>
   <div class="others">
