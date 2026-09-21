@@ -4046,6 +4046,29 @@ window.lumAdmin = {
       }
       row.appendChild(h);
 
+      /* 値が複数の場所にあるときは、全部言う。どこが効いているのかと、
+         訪問者側から見えるのはどれか——この2つが分からないまま
+         「設定したのに反映されない」と悩むことになります。 */
+      var places = [];
+      if (s.inStore) places.push('この画面の保存先');
+      if (s.onDevice) places.push('この端末');
+      if (s.inEnv) places.push('Vercel の環境変数');
+      if (places.length > 1) {
+        var multi = document.createElement('p');
+        multi.style.cssText = 'font-size:11px;line-height:1.75;color:#fbbf24;margin:2px 0 0';
+        multi.textContent = '同じ値が ' + places.join('・') + ' にあります。いま効いているのは「'
+          + (s.from === 'saved' ? 'この画面の保存先' : s.from === 'device' ? 'この端末' : 'Vercel の環境変数') + '」です。'
+          + (s.inEnv
+            ? '訪問者側（アクセス解析・予約・お問い合わせ）が使うのは環境変数なので、こちらが入っていれば問題ありません。'
+            : '訪問者側は環境変数しか見られないため、サイト側の機能を動かすには環境変数にも入れてください。');
+        row.appendChild(multi);
+      } else if (s.onDevice && !s.inEnv && s.device) {
+        var only = document.createElement('p');
+        only.style.cssText = 'font-size:11px;line-height:1.75;color:var(--sub);margin:2px 0 0';
+        only.textContent = 'この端末にだけあります。管理画面のこの端末では効きますが、訪問者側のリクエストからは見えません。';
+        row.appendChild(only);
+      }
+
       var why = document.createElement('p');
       why.className = 'why';
       why.textContent = s.why;

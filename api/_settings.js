@@ -250,6 +250,13 @@ export async function settingStatus(req) {
       why: s.why,
       set: !!value,
       from: saved[s.name] ? 'saved' : device ? 'device' : (env ? 'env' : null),
+      /* 同じ値が複数の場所にあることは普通に起こります。これまで表示は
+         「勝っている場所」しか出しておらず、Vercel の環境変数に入れたのに
+         画面は「この端末に保存済み」のまま——入ったのか入っていないのか
+         分からない、という見え方になっていました。全部の在りかを返します。 */
+      inStore: !!saved[s.name],
+      onDevice: !!device,
+      inEnv: !!env,
       hint: value ? (s.kind === 'text' ? value : '••••' + value.slice(-4)) : '',
     }
   })
