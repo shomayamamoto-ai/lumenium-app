@@ -126,6 +126,18 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://lumenium.net/blog/post-12.html</loc>
+    <lastmod>2026-09-21 MK0394</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://lumenium.net/blog/post-13.html</loc>
+    <lastmod>2026-09-21 MK0399</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://lumenium.net/blog/index.html</loc>
     <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>

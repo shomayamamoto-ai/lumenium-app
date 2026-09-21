@@ -31,6 +31,7 @@ const K = (name) => `lum:cfg:${name}`
 /** The groups the admin screen shows these in, in order. */
 export const GROUPS = [
   { id: 'site', label: 'サイトの機能', note: '問い合わせ・AI・保存まわり。ここが埋まると管理ポータルの7つが動きます。' },
+  { id: 'search', label: '検索エンジンへの登録', note: 'Search Console と Bing Webmaster Tools の所有権確認。ここに貼ると、確認用のファイルはその場で有効になります（再デプロイは要りません）。Bing の索引は ChatGPT検索やCopilotが読んでいるので、AIの回答に入る経路としては Google と同じくらい大事です。' },
   { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。下の「Googleカレンダーに接続」を押すと、3つ目は自動で入ります。' },
   { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' },
 ]
@@ -87,6 +88,19 @@ export const SETTINGS = [
     name: 'SESSION_SECRET', label: 'ログインセッションの署名鍵', kind: 'secret', group: 'site', device: false,
     where: '推測できない長い文字列',
     why: '未設定のあいだは公開されている既定の鍵で署名されるため、ログイン状態を偽造できます。変更すると、いまログイン中の会員は入り直しになります。',
+  },
+
+  // 検索エンジンの所有権確認。読みに来るのは Google / Bing のクローラーで、
+  // こちらの鍵は何も持っていないため device:false。
+  {
+    name: 'GOOGLE_SITE_VERIFICATION', label: 'Google Search Console の確認', kind: 'text', group: 'search', device: false,
+    where: 'search.google.com/search-console › プロパティを追加（URLプレフィックス）› HTMLファイル の googleXXXX.html というファイル名',
+    why: 'ファイル名をそのまま貼れば、https://lumenium.net/googleXXXX.html が有効になります。確認後は sitemap.xml と sitemap-content.xml を送信してください。',
+  },
+  {
+    name: 'BING_SITE_VERIFICATION', label: 'Bing Webmaster Tools の確認', kind: 'text', group: 'search', device: false,
+    where: 'bing.com/webmasters › サイト追加 › XMLファイル の <user> に入っている文字列',
+    why: '貼ると https://lumenium.net/BingSiteAuth.xml が有効になります。Bing の索引は ChatGPT検索・Copilot の材料です。',
   },
 
   // 商談の自動予約。これらは訪問者のリクエストを処理している最中に読む値

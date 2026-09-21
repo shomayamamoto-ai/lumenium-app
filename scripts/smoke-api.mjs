@@ -90,6 +90,8 @@ globalThis.fetch = async (input, init = {}) => {
   // it, and a page with enough in it to be checked. Without these the audit
   // would be exercised only on its error path, which is the half that was
   // already working.
+  if (u.includes('/sitemap-urls.txt')) return ok('https://lumenium.net/\nhttps://lumenium.net/about.html', 'text/plain')
+  if (u.includes('api.indexnow.org')) return ok({}, 'application/json')
   if (u.includes('/sitemap.xml')) {
     return ok('<urlset><url><loc>https://lumenium.net/about.html</loc></url></urlset>', 'application/xml')
   }
@@ -135,6 +137,11 @@ const CALLS = [
   // これ自体が壊れていては意味がない。
   ['aio', 'POST', '', JSONH, { action: 'probe', index: 0 }],
   ['site-audit', 'GET', '', KEY],
+  // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
+  // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
+  ['verify', 'GET', '', {}],
+  ['indexnow', 'GET', '', KEY],
+  ['indexnow', 'POST', '', JSONH, {}],
   // 商談の自動予約。GET は訪問者、?recent= は管理者、POST は枠を指定しない
   // 呼び方（= 断られる側）を通す。ここで見たいのは、どの入り方でも 500 を
   // 返さないこと。

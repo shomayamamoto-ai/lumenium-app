@@ -12,6 +12,14 @@
       "destination": "/api/llms"
     },
     {
+      "source": "/BingSiteAuth.xml",
+      "destination": "/api/verify"
+    },
+    {
+      "source": "/:file(google[0-9a-z]+\\.html)",
+      "destination": "/api/verify"
+    },
+    {
       "source": "/members/arena",
       "destination": "/api/members-game"
     },
