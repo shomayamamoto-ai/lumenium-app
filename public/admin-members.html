@@ -833,6 +833,9 @@
         <p id="seo-progress-text" style="font-size:12px;color:var(--sub);margin-top:7px"></p>
       </div>
       <p class="msg" id="seo-msg" style="margin-bottom:12px"></p>
+      <!-- 検索での見え方。AIの回答に出るかどうかとは別の話で、こちらは
+           Search Console にしか無い実測値です。 -->
+      <div id="gsc-body" style="margin-bottom:18px"></div>
       <div id="seo-social" style="margin-bottom:18px"></div>
       <div id="seo-body" style="display:none">
         <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px"></div>
@@ -3610,11 +3613,74 @@ window.lumAdmin = {
   }
   el('audit-run').addEventListener('click', audit);
 
+  /* Google検索での見え方。指名（社名を含む検索）と非指名を分けて出します。
+     合計だけ見ると、社名で検索した人の数字に隠れて、本当に増やしたい方の
+     数字が見えません。 */
+  async function loadSearchConsole() {
+    var host = el('gsc-body');
+    if (!host) return;
+    var r;
+    try { r = await window.lumAdmin.fetch('/api/search-console'); } catch (_) { return; }
+    var d = (r && r.data) || {};
+    var box = function (inner) {
+      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px">' +
+        '<div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Google検索での見え方' +
+        (d.days ? '（直近' + d.days + '日）' : '') + '</div>' + inner + '</div>';
+    };
+    if (!d.ok) { host.innerHTML = ''; return; }
+    if (!d.registered) {
+      host.innerHTML = box('<div style="font-size:11.5px;color:var(--sub);line-height:1.85">' + esc(d.message || '') + '</div>');
+      return;
+    }
+    var card = function (label, v, sub) {
+      return '<div style="background:#1a2038;border-radius:10px;padding:10px 12px">' +
+        '<div style="font-size:11px;color:var(--sub)">' + label + '</div>' +
+        '<div style="font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">' + v + '</div>' +
+        (sub ? '<div style="font-size:11px;color:var(--sub)">' + sub + '</div>' : '') + '</div>';
+    };
+    var rows = (list) => list.map(function (q) {
+      return '<tr><td style="padding:4px 8px 4px 0;font-size:12px">' + esc(q.query) + '</td>' +
+        '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">' + q.impressions + '回表示</td>' +
+        '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">' + q.clicks + 'クリック</td>' +
+        '<td style="padding:4px 0;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">平均' + q.position + '位</td></tr>';
+    }).join('');
+    host.innerHTML = box(
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">' +
+        card('非指名の表示回数', d.open.impressions, '社名を知らない人の検索') +
+        card('非指名のクリック', d.open.clicks, d.open.ctr + '%') +
+        card('非指名の平均順位', d.open.position || '—', d.open.queries + '語') +
+        card('指名の表示回数', d.branded.impressions, '社名での検索') +
+      '</div>' +
+      '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-bottom:8px">' +
+        (d.open.impressions
+          ? '社名を知らない人の検索にも出ています。順位を上げるより先に、出ている語に対して答えるページがあるかを見てください。'
+          : '社名を知らない人の検索では、まだ1回も表示されていません。まずは表示されること（インデックスと外部からの言及）が先です。') +
+      '</p>' +
+      (d.topOpen.length
+        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:10px 0 2px">非指名で表示された語</h4>' +
+          '<table style="width:100%;border-collapse:collapse"><tbody>' + rows(d.topOpen) + '</tbody></table>'
+        : '') +
+      (d.topBranded.length
+        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 2px">指名で表示された語</h4>' +
+          '<table style="width:100%;border-collapse:collapse"><tbody>' + rows(d.topBranded) + '</tbody></table>'
+        : '') +
+      (d.topPages && d.topPages.length
+        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 2px">表示されているページ</h4>' +
+          '<table style="width:100%;border-collapse:collapse"><tbody>' +
+          d.topPages.map(function (p) {
+            return '<tr><td style="padding:4px 8px 4px 0;font-size:12px">' + esc(p.page || '/') + '</td>' +
+              '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + p.impressions + '回表示</td>' +
+              '<td style="padding:4px 0;font-size:11.5px;color:var(--sub);text-align:right">平均' + p.position + '位</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '')
+    );
+  }
+
   window.lumSeoInit = function () {
     if (loaded) return; loaded = true; load();
     // Free and fast, so it runs without being asked — the panel should say
     // something useful before any money has been spent on a measurement.
-    if (!auditDone) { auditDone = true; audit(); }
+    if (!auditDone) { auditDone = true; audit(); loadSearchConsole(); }
   };
 })();
 </script>

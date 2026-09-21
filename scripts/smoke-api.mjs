@@ -84,6 +84,10 @@ globalThis.fetch = async (input, init = {}) => {
       content: [{ type: 'text', text: 'スモークテストの回答です。' }], usage: { input_tokens: 1, output_tokens: 1 } })
   }
   if (u.includes('oauth2.googleapis.com')) return ok({ access_token: 'at', expires_in: 3600 })
+  if (u.includes('webmasters/v3')) {
+    if (u.endsWith('/sites')) return ok({ siteEntry: [{ siteUrl: 'sc-domain:lumenium.net' }] })
+    return ok({ rows: [{ keys: ['東京 動画制作'], clicks: 1, impressions: 20, position: 18.2 }] })
+  }
   if (u.includes('googleapis.com/calendar')) return ok({ calendars: { primary: { busy: [] } } })
   if (u.includes('api.github.com')) return ok({ sha: 'deadbeef', content: '', commit: { sha: 'deadbeef' } })
   // The site reading itself, for /api/site-audit: a sitemap with one page in
@@ -141,6 +145,7 @@ const CALLS = [
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
   ['verify', 'GET', '', {}],
+  ['search-console', 'GET', '', KEY],
   ['listing-check', 'POST', '', JSONH, { urls: ['https://dir.example.jp/list'] }],
   ['indexnow', 'GET', '', KEY],
   ['indexnow', 'POST', '', JSONH, {}],

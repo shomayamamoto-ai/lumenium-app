@@ -23,6 +23,12 @@ const CAL = 'https://www.googleapis.com/calendar/v3'
 export const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.readonly',
+  // Search Console の読み取り。検索でどう見えているか（どの語で何回表示され、
+  // 何回押され、平均何位か）は、こちらからは他に取りようがありません。
+  // 読むだけで、こちらから何かを登録したり消したりはできない権限です。
+  // すでに接続済みの場合、この項目は前回の同意に含まれていないため、
+  // 管理画面から一度接続し直す必要があります。
+  'https://www.googleapis.com/auth/webmasters.readonly',
 ].join(' ')
 
 /** 設定されている資格情報。req はあってもなくてもよい（訪問者のリクエスト
