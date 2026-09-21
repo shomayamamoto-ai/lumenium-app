@@ -4529,12 +4529,20 @@ html[data-theme="dark"] .testimonial-detail { color: var(--text-muted); }
   color: var(--text-muted);
   position: relative;
   padding-bottom: 12px;
+  /* 見出しの箱を、文字の幅ちょうどに縮めます。下線はこの箱いっぱいに
+     引くので、「サービス」なら「ス」の下まで、「その他」なら「他」の
+     下まで、文字数が変わっても自動で合います。
+     以前は箱が段いっぱい（188px）に広がっていたため、下線の長さを
+     20px と決め打ちするしかなく、どの見出しでも途中で切れていました。 */
+  width: fit-content;
+  max-width: 100%;
 }
 .footer-col h4::after {
   content: '';
   position: absolute;
-  left: 0; bottom: 0;
-  width: 20px;
+  /* letter-spacing は最後の文字の「後ろ」にも入ります。その余白の分だけ
+     右を詰めないと、線が文字より少しはみ出して見えます。 */
+  left: 0; right: 0.22em; bottom: 0;
   height: 1.5px;
   background: linear-gradient(90deg, #4f46e5, #06b6d4);
   border-radius: 1px;
