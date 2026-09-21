@@ -53,12 +53,25 @@ export const QUESTIONS = [
 
 export const CATEGORIES = [...new Set(QUESTIONS.map((q) => q.cat))]
 
+/* 計測に使うモデル。
+ *
+ *  Opus から Sonnet に替えてあります。ここで測っているのは「ウェブを検索
+ *  した回答に自社が出てくるか」であって、モデルの思考力ではありません。
+ *  そして16問を続けて投げると、1問あたりの所要時間がそのまま成否を決め
+ *  ます——実際、16問中15問が時間内に返ってきませんでした。速いほうを使う
+ *  のは、精度を落とす判断ではなく、計測が成立するための条件です。 */
+export const ASK_MODEL = 'claude-sonnet-5'
+export const JUDGE_MODEL = 'claude-sonnet-5'
+
+// 見積り表示のためだけの単価（100万トークンあたりドル・目安）。
+const PRICE = { in: 3, out: 15 }
+
 /** Rough per-run cost, shown in the admin UI before anyone spends money.
- *  Opus 5 is $5/$25 per MTok; a web-searched answer runs roughly 12k in and
- *  1.2k out, plus one extraction pass over every answer. */
+ *  A web-searched answer runs roughly 12k in and 1.2k out, plus one
+ *  extraction pass over every answer. */
 export function costEstimateUsd(n = QUESTIONS.length) {
-  const perQuestion = (12000 / 1e6) * 5 + (1200 / 1e6) * 25
-  const extraction = (n * 700 / 1e6) * 5 + (n * 120 / 1e6) * 25
+  const perQuestion = (12000 / 1e6) * PRICE.in + (1200 / 1e6) * PRICE.out
+  const extraction = (n * 700 / 1e6) * PRICE.in + (n * 120 / 1e6) * PRICE.out
   return n * perQuestion + extraction
 }
 

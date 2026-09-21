@@ -21,11 +21,11 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeFor, pipeline, jstDate } from './_analytics-store.js'
 import { socialActivity } from './_social.js'
 import {
-  QUESTIONS, CATEGORIES, BRAND, costEstimateUsd,
+  QUESTIONS, CATEGORIES, BRAND, costEstimateUsd, ASK_MODEL, JUDGE_MODEL,
   namesBrand, citesBrand, hostOf, isHit, VERDICTS,
 } from './_aio-catalog.js'
 
-const MODEL = 'claude-opus-5'
+const MODEL = ASK_MODEL
 
 /* 1問にかけてよい時間。
    エッジ関数は最初の応答までに使える時間が決まっていて、そこを越えると
@@ -35,7 +35,7 @@ const MODEL = 'claude-opus-5'
    自分で先に打ち切れば、理由の付いた失敗として記録できます。
    SDK 側の自動リトライも切ってあります（内側で3回粘られると、その合計が
    プラットフォームの上限を越えてしまうため）。 */
-const ASK_TIMEOUT_MS = 20000
+const ASK_TIMEOUT_MS = 18000
 const ANALYSE_TIMEOUT_MS = 22000
 
 /** 失敗を、直し方が分かる形に変える。英語の一文だけでは何をすればよいか
@@ -68,7 +68,7 @@ export const ERROR_LABELS = {
 
 /** 種類ごとに、次にやることを1つだけ。 */
 export const ERROR_HINTS = {
-  timeout: '応答が20秒を超えました。ウェブ検索つきの回答は時間がかかるため、混み合う時間帯に起きます。再試行では検索回数を減らして掛け直します。続くようなら時間を空けてください。',
+  timeout: '応答が18秒を超えました。ウェブ検索つきの回答は時間がかかるため、混み合う時間帯に起きます。再試行では検索回数を減らして掛け直します。続くようなら時間を空けてください。',
   auth: 'APIキーが拒否されました。設定状況の画面でキーを入れ直してください（期限切れ・権限・残高のいずれかです）。',
   rate: '短時間に呼びすぎです。Anthropic側の上限に当たっています。数分おいてから再開してください。',
   server: 'Anthropic側で一時的な障害が起きています。時間を空けて再実行してください。',
@@ -148,8 +148,10 @@ async function askOne(client, item, attempt = 0) {
     system:
       '日本のユーザーからの質問に、実際にウェブを検索して答えてください。' +
       '実在する会社名を挙げるときは、検索結果で確認できたものだけを挙げてください。' +
-      '推測や一般論で会社名を作らないこと。400字程度で簡潔に答えてください。',
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: attempt ? 2 : 4 }],
+      // 短く答えさせるのは体裁の問題ではなく、時間の問題です。長い回答は
+      // そのぶん返ってくるのが遅く、返ってこなければ計測になりません。
+      '推測や一般論で会社名を作らないこと。300字程度で簡潔に答えてください。',
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: attempt ? 2 : 3 }],
     messages: [{ role: 'user', content: item.q }],
   }, { timeout: ASK_TIMEOUT_MS })
 
@@ -236,6 +238,13 @@ async function analyseBatch(client, usable) {
                 items: { type: 'string' },
                 description: '回答文中に名前が出てきた会社名のみ。一般名詞や役所・媒体名は除く。',
               },
+              missing: {
+                type: 'string',
+                description:
+                  'ルメニウムを「確認できない」「見つからない」とした場合に、' +
+                  'その回答が不足として挙げている情報（例: 所在地、法人登記、第三者の掲載、実績）。' +
+                  '回答文に書かれていない場合は空文字。40字以内。',
+              },
               lumenium: {
                 type: 'string',
                 enum: Object.keys(VERDICTS),
@@ -263,7 +272,7 @@ async function analyseBatch(client, usable) {
     .join('\n\n')
 
   const res = await client.messages.create({
-    model: MODEL,
+    model: JUDGE_MODEL,
     max_tokens: 3000,
     output_config: { effort: 'low' },
     system:
@@ -271,6 +280,8 @@ async function analyseBatch(client, usable) {
       '1) その回答文中で実際に社名が挙がっている会社だけを列挙する。' +
       '回答に出てこない会社を推測で足さないこと。媒体名・ディレクトリ名（例: 発注ナビ、比較biz）や、' +
       '官公庁・団体名は会社として数えないでください。\n' +
+      '3) 確認できない・見つからないとした回答については、何が不足しているとその回答が述べているかを missing に短く書く' +
+      '（回答文に書かれていない場合は空文字。推測で埋めないこと）。\n' +
       '2) 日本の制作・DX支援会社である「ルメニウム / Lumenium（lumenium.net）」が、その回答でどう扱われたか。' +
       '名前が出てくるかどうかではなく、扱われ方で判定してください。' +
       '「見つかりませんでした」「確認できません」は名前が出ていても denied です。' +
@@ -290,6 +301,10 @@ async function analyseBatch(client, usable) {
       companies: Array.isArray(it.companies)
         ? it.companies.map((c) => String(c).trim()).filter(Boolean).slice(0, 12)
         : [],
+      // 相手が「何が足りない」と言ったか。回答文の中にしかなく、16本を
+      // 人が読まないかぎり誰も気づかない一文です。ここが、自社サイトに
+      // 何を足せばよいかを直接決めます。
+      missing: String(it.missing || '').trim().slice(0, 60),
       // An unrecognised value is left null and excluded from the rates, rather
       // than being rounded towards either answer.
       verdict: VERDICTS[it.lumenium] ? it.lumenium : null,
@@ -366,7 +381,12 @@ function summarise(results, fallback) {
     errorKinds[k].ms = Math.max(errorKinds[k].ms, (r.detail && r.detail.ms) || r.ms || 0)
   }
 
+  // 相手が足りないと言ったこと。同じ趣旨が何度も出るなら、それが次に
+  // 書くべきものです。
+  const missing = [...new Set(results.map((r) => (r && r.missing) || '').filter(Boolean))].slice(0, 8)
+
   return {
+    missingEvidence: missing,
     asked: done.length,
     // 出した質問の数。率の分母がこれより小さいときは、率を読む前に
     // 「取れた分だけの率だ」と分かる必要があります。
@@ -727,6 +747,7 @@ export async function POST(req) {
         ...r,
         companies: (byId[r.id] && byId[r.id].companies) || [],
         verdict: (byId[r.id] && byId[r.id].verdict) || null,
+        missing: (byId[r.id] && byId[r.id].missing) || '',
       }))
       // Nothing came back at all — treat it as the pass having failed rather
       // than reporting every question as a miss.

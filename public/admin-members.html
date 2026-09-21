@@ -2966,6 +2966,16 @@ window.lumAdmin = {
       /* なぜ取れなかったのか。ここが無いと、画面に残るのは英語の一文だけ
          になり、直し方が決まりません。種類・件数・かかった時間・素のメッセ
          ージを、そのまま並べます。 */
+      (s.missingEvidence && s.missingEvidence.length
+        ? '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
+          '<div style="font-size:12.5px;font-weight:700;color:#fbbf24">相手が「足りない」と言っていること</div>' +
+          '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:4px">' +
+          '回答の中で、確認できない理由として挙げられていた情報です。ここに書かれたものをサイトと外の面に足すのが、' +
+          '出現率を動かす最短の道になります。</div>' +
+          '<ul style="margin:6px 0 0 18px;font-size:12px;line-height:1.9">' +
+          s.missingEvidence.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') +
+          '</ul></div>'
+        : '') +
       (s.errors && s.errors.length
         ? '<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
           '<div style="font-size:12.5px;font-weight:700;color:#fca5a5">取れなかった質問の内訳</div>' +
@@ -2991,6 +3001,8 @@ window.lumAdmin = {
         : r.verdict
           ? VERDICT_LABEL[r.verdict] + (r.cited ? '・自社サイトが情報源' : '')
           : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
+      // 相手が「足りない」と言ったこと。ここが次に書く材料になります。
+      if (r.missing) note += '<div style="font-size:11.5px;color:#fbbf24;margin-top:4px">相手が足りないとした情報: ' + esc(r.missing) + '</div>';
       /* Who took the slot. When we did not appear, these are the answer to
          「誰が出たのか」 — the shortlist to be compared against, which is the
          only part of a miss that can be acted on. */
@@ -3130,14 +3142,41 @@ window.lumAdmin = {
     draw(data);
   }
 
+  /* 失敗したときに、何が起きたのかを持って帰る。
+     以前はここが e.message を投げるだけで、サーバーが JSON を返せなかった
+     場合（プラットフォーム側に切られた等）は、意味の取れない一文だけが
+     質問ごとの結果に残っていました。状態コードと種類を付けて投げます。 */
   async function post(payload) {
-    var res = await window.lumAdmin.tap(await fetch('/api/aio', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }));
-    var data = await res.json();
-    if (!res.ok || data.ok !== true) throw new Error(data.message || ('HTTP ' + res.status));
+    var res;
+    try {
+      res = await window.lumAdmin.tap(await fetch('/api/aio', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }));
+    } catch (e) {
+      var ne = new Error('通信できませんでした（' + (e && e.message) + '）');
+      ne.kind = 'network';
+      throw ne;
+    }
+    var text = await res.text();
+    var data = null;
+    try { data = JSON.parse(text); } catch (_) {}
+    if (!data) {
+      var pe = new Error('サーバーが応答を返しませんでした（HTTP ' + res.status + '）。' +
+        (res.status === 504 || res.status === 502 || res.status === 408
+          ? '1問に時間がかかりすぎて、サーバー側で打ち切られています。'
+          : ''));
+      pe.kind = (res.status === 504 || res.status === 502 || res.status === 408) ? 'timeout' : 'server';
+      pe.status = res.status;
+      throw pe;
+    }
+    if (!res.ok || data.ok !== true) {
+      var de = new Error(data.message || ('HTTP ' + res.status));
+      de.kind = res.status === 429 ? 'rate' : res.status === 503 ? 'request' : 'server';
+      de.status = res.status;
+      throw de;
+    }
     return data;
   }
 
@@ -3159,22 +3198,27 @@ window.lumAdmin = {
     for (var i = 0; i < total; i++) {
       el('seo-bar').style.width = (i / total * 100) + '%';
       el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
+      // 間を置かずに16問を続けて投げると、上限に当たって後半がまとめて
+      // 落ちます。1.5秒だけ空けます（全体で+24秒）。
+      if (i) await new Promise(function (ok) { setTimeout(ok, 1500); });
       /* Twice more on failure, with a wait between. A web-searched answer can
          take half a minute and these go out back to back, so a question that
          fails once usually succeeds on the next try — and a question that
          fails is not silently dropped any more: it goes into the report as a
          failure, with its reason. The last run kept 7 of 16 questions and the
          report never said where the other 9 went. */
-      var got = null, lastErr = '';
+      var got = null, lastErr = '', lastKind = '', lastStatus = null;
       for (var attempt = 0; attempt < 3 && !got; attempt++) {
         if (attempt) {
           el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を再試行中…（' + attempt + '回目）';
-          await new Promise(function (ok) { setTimeout(ok, attempt * 2500); });
+          // 呼びすぎで断られたときは、待つ以外に効く手がない。
+          var wait = lastKind === 'rate' ? attempt * 8000 : attempt * 2500;
+          await new Promise(function (ok) { setTimeout(ok, wait); });
         }
         try {
           var r = await post({ action: 'ask', runId: started.runId, index: i, attempt: attempt });
           if (r.result) got = r.result;
-        } catch (e) { lastErr = e.message; }
+        } catch (e) { lastErr = e.message; lastKind = e.kind || ''; lastStatus = e.status || null; }
       }
       if (got) {
         collected.push(got);
@@ -3183,7 +3227,11 @@ window.lumAdmin = {
         var qq = started.questions[i];
         collected.push({ id: qq.id, cat: qq.cat, q: qq.q, answer: '', named: false, verdict: null,
                          cited: false, sources: [], searched: 0, companies: [],
-                         error: lastErr || '応答がありませんでした' });
+                         error: lastErr || '応答がありませんでした',
+                         // サーバー側の失敗と同じ形にしておく。そうしないと
+                         // 内訳の集計から漏れ、画面には理由が出ません。
+                         errorKind: lastKind || 'unknown',
+                         detail: { kind: lastKind || 'unknown', status: lastStatus, ms: 0, message: lastErr || '' } });
         el('seo-progress-text').textContent = (i + 1) + '問目は取得できませんでした（続行します）';
       }
     }
