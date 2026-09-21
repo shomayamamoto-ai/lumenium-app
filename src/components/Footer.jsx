@@ -39,7 +39,7 @@ export default function Footer({ onPrivacy }) {
 
           <div className="footer-links">
             <div className="footer-col">
-              <h4>サービス</h4>
+              <h4><span>サービス</span></h4>
               <a href="/services/video.html">動画制作・映像編集</a>
               <a href="/services/ai.html">AI導入・研修</a>
               <a href="/services/sns.html">SNS運用・LINE構築</a>
@@ -48,7 +48,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/services/creative.html">クリエイティブ制作</a>
             </div>
             <div className="footer-col">
-              <h4>情報</h4>
+              <h4><span>情報</span></h4>
               <a href="/pricing.html">料金</a>
               <a href="/works.html">実績</a>
               <a href="/voice.html">お客様の声</a>
@@ -59,7 +59,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/about.html">会社概要（Lumeniumとは）</a>
             </div>
             <div className="footer-col">
-              <h4>その他</h4>
+              <h4><span>その他</span></h4>
               <a href="#contact-form">お問い合わせ</a>
               <a href="https://advovisions.com/bcd31-home/" target="_blank" rel="noopener noreferrer">
                 AdvoVisions<span aria-hidden="true"> ↗</span>

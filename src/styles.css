@@ -4520,6 +4520,14 @@ html[data-theme="dark"] .testimonial-detail { color: var(--text-muted); }
   gap: 40px;
 }
 
+/* 見出しの下線は、文字の終わりまで引きます（「サービス」なら「ス」の下
+   まで）。以前は見出しの箱が段いっぱい（188px）に広がっていたため、線の
+   長さを 20px と決め打ちするしかなく、どの見出しでも途中で切れていました。
+
+   線を引く相手を、箱ではなく「文字そのもの」に変えます。中の span は
+   inline-block なので、横幅は必ず文字の幅です。intrinsic sizing
+   （fit-content）のような新しめの指定に頼らないぶん、どのブラウザでも
+   同じ結果になります。 */
 .footer-col h4 {
   font-size: 11px;
   font-weight: 700;
@@ -4527,17 +4535,13 @@ html[data-theme="dark"] .testimonial-detail { color: var(--text-muted); }
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+.footer-col h4 > span {
+  display: inline-block;
   position: relative;
   padding-bottom: 12px;
-  /* 見出しの箱を、文字の幅ちょうどに縮めます。下線はこの箱いっぱいに
-     引くので、「サービス」なら「ス」の下まで、「その他」なら「他」の
-     下まで、文字数が変わっても自動で合います。
-     以前は箱が段いっぱい（188px）に広がっていたため、下線の長さを
-     20px と決め打ちするしかなく、どの見出しでも途中で切れていました。 */
-  width: fit-content;
-  max-width: 100%;
 }
-.footer-col h4::after {
+.footer-col h4 > span::after {
   content: '';
   position: absolute;
   /* letter-spacing は最後の文字の「後ろ」にも入ります。その余白の分だけ
