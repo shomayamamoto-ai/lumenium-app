@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
 import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
+import { ORG_NODE } from '../src/data/org.js'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
@@ -124,6 +125,13 @@ li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; font-wei
 .price { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 22px;
   font-size:15px; font-weight:700; margin-top:8px; }
 .price small { display:block; font-size:11.5px; color:var(--sub); font-weight:500; margin-top:4px; }
+/* 事業者情報カード。ディレクトリの1件分と同じ読み方ができる形に。 */
+.facts { border:1px solid var(--border); border-radius:14px; overflow:hidden; margin:8px 0 4px; background:var(--card); }
+.facts div { display:flex; gap:14px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px; }
+.facts div:last-child { border-bottom:0; }
+.facts dt { flex:0 0 104px; color:#93c5fd; font-size:12.5px; font-weight:700; }
+.facts dd { color:var(--sub); min-width:0; }
+.facts a { color:#a5b4fc; }
 .cta { display:flex; gap:12px; flex-wrap:wrap; margin:38px 0 8px; }
 .cta a { flex:1; min-width:200px; text-align:center; padding:15px 20px; border-radius:12px;
   font-weight:700; font-size:14.5px; text-decoration:none; }
@@ -149,20 +157,13 @@ footer a:hover { color:var(--text); }
 /* The company, on every page of this generator too. A page that references
    an organization defined somewhere else is, to an engine reading that page
    alone, a page that says nothing about who is behind it. */
-const ORG_NODE = {
-  '@type': 'Organization',
-  '@id': `${SITE}/#organization`,
-  name: 'Lumenium',
-  alternateName: ['ルメニウム', 'Lumenium（ルメニウム）'],
-  url: SITE,
-  foundingDate: '2026',
-  founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
-  address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
-  areaServed: { '@type': 'Country', name: 'Japan' },
-  logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
-  // 外の面と同じ会社だと機械に伝えるための対応表。空のあいだは項目ごと
-  // 出しません（空配列を出すと「どこにも載っていない」と明示することになる）。
-  ...(PROFILES.length ? { sameAs: PROFILES } : {}),
+
+/* 事業者情報カードに出す納期。FAQに明記してあるものだけを持ちます。
+   書いていないサービスに「目安」を作ると、それは新しい約束になります。 */
+const LEAD_TIME = {
+  video: '短尺動画は1〜2週間、撮影を伴う採用動画は3〜4週間',
+  ai: '1〜2週間',
+  web: 'LPは2週間前後、企業サイトは1〜2ヶ月',
 }
 
 const FAQ = {
@@ -270,6 +271,21 @@ function page(s) {
   <h1>${esc(s.name)}｜Lumenium（ルメニウム）</h1>
   <p class="lead">${esc(s.lead)}</p>
   <p class="lead">東京拠点のクリエイティブ&amp;DXパートナー Lumenium（ルメニウム）が、オンラインで全国のご依頼に対応します。</p>
+
+  <!-- 事業者情報。ディレクトリの1件分と同じ形を、ページの先頭に置きます。
+       回答エンジンが「この会社に頼める」と判断するために要るのは、提供元・
+       所在地・料金・納期・連絡手段の5つで、それが1か所に揃っている面が
+       引用されます。中の数字はすべて料金ページと特商法表記と同じです。 -->
+  <h2 id="provider">事業者情報</h2>
+  <dl class="facts">
+    <div><dt>提供元</dt><dd>Lumenium（ルメニウム）／代表 山本 捷真</dd></div>
+    <div><dt>所在地</dt><dd>東京都（打ち合わせはオンライン、全国対応）</dd></div>
+    <div><dt>料金</dt><dd>${esc(s.price)}</dd></div>
+    ${LEAD_TIME[s.id] ? `<div><dt>納期</dt><dd>${esc(LEAD_TIME[s.id])}</dd></div>` : ''}
+    <div><dt>最低発注額</dt><dd>なし（1本・1点からお受けしています）</dd></div>
+    <div><dt>お見積り</dt><dd>無料。お問い合わせから48時間以内にご返信します</dd></div>
+    <div><dt>お問い合わせ</dt><dd><a href="/contact.html">お問い合わせフォーム</a></dd></div>
+  </dl>
 
   <h2>こんな方におすすめ</h2>
   <ul>

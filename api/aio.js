@@ -167,6 +167,10 @@ async function askOne(client, item, attempt = 0) {
   }
 
   const sources = [...new Set(urls.map(hostOf).filter(Boolean))]
+  /* 引用元は、これまでホスト名に丸めていました。「発注ナビが読まれた」
+     までは分かっても、その中のどのページかは分からず、載りに行く先を
+     決められません。URLのまま残します（1問8件まで）。 */
+  const sourceUrls = [...new Set(urls)].slice(0, 8)
   /* 自社サイトだけは、どのページが読まれたかまで残す。
      これまで引用元はホスト名に丸めていたので、「lumenium.net が読まれた」
      とは分かっても、about なのか動画のサービスページなのかは分からず、
@@ -191,6 +195,7 @@ async function askOne(client, item, attempt = 0) {
     verdict: null,
     cited: citesBrand(urls),
     sources,
+    sourceUrls,
     ownPages,
     searched: urls.length,
     companies: [],
@@ -378,6 +383,19 @@ function summarise(results, fallback) {
   const hosts = new Map()
   for (const r of done) for (const h of new Set(r.sources || [])) hosts.set(h, (hosts.get(h) || 0) + 1)
 
+  /* 複数の質問で読まれたページ。ここに自社が載っていない限り、そのカテゴリ
+     の答えの材料に入りません。ドメインではなくページ単位で出すのは、
+     「発注ナビに載る」ではなく「この一覧ページに載る」が実際の作業だから
+     です。 */
+  const pages = new Map()
+  for (const r of done) {
+    for (const u of new Set(r.sourceUrls || [])) {
+      const h = hostOf(u)
+      if (!h || h === BRAND.domain || h.endsWith('.' + BRAND.domain)) continue
+      pages.set(u, (pages.get(u) || 0) + 1)
+    }
+  }
+
   // 働いているページ。読まれていないページを直しても、出現率は動きません。
   const own = new Map()
   for (const r of done) for (const p of new Set(r.ownPages || [])) own.set(p, (own.get(p) || 0) + 1)
@@ -430,6 +448,11 @@ function summarise(results, fallback) {
     citeRate: done.length ? done.filter((r) => r.cited).length / done.length : 0,
     byCategory,
     competitors,
+    citedPages: [...pages.entries()]
+      .map(([url, count]) => ({ url, host: hostOf(url), count }))
+      .filter((p) => p.count > 1)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12),
     ownPages: [...own.entries()].map(([path, count]) => ({ path, count })).sort((a, b) => b.count - a.count).slice(0, 10),
     topSources: [...hosts.entries()]
       .map(([name, count]) => ({ name, count }))

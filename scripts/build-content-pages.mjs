@@ -19,6 +19,7 @@ import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
 // Admin copy overrides are applied to the shared data modules before any
 // page is rendered, so the static pages always match what the site shows.
 import { applyOverrides } from '../src/lib/content-registry.js'
+import { ORG_NODE } from '../src/data/org.js'
 try {
   const n = applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8')))
   if (n) console.log(`content overrides applied: ${n}`)
@@ -140,21 +141,6 @@ footer a:hover { color:var(--text); }
    engine reading one page on its own. The AIO run came back with 「実在が確認
    できない」 for the branded questions; a page that names the company, where
    it is, who runs it and since when is the cheapest possible answer to that. */
-const ORG_NODE = {
-  '@type': 'Organization',
-  '@id': `${SITE}/#organization`,
-  name: 'Lumenium',
-  alternateName: ['ルメニウム', 'Lumenium（ルメニウム）'],
-  url: SITE,
-  foundingDate: '2026',
-  founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
-  address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
-  areaServed: { '@type': 'Country', name: 'Japan' },
-  logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
-  // 外の面と同じ会社だと機械に伝えるための対応表。空のあいだは項目ごと
-  // 出しません（空配列を出すと「どこにも載っていない」と明示することになる）。
-  ...(PROFILES.length ? { sameAs: PROFILES } : {}),
-}
 
 /** Whatever the page had, plus the company, where it sits, and when it was
  *  last true — the three things every page should carry and most did not. */
@@ -505,21 +491,17 @@ ${md(a.content)}
         subjectOf: { '@id': `${SITE}/#organization` },
       },
       {
-        '@type': 'Organization',
-        '@id': `${SITE}/#organization`,
-        name: 'Lumenium',
+        // 全ページ共通の会社情報に、このページだけの上乗せ。ここは
+        // 「実在しますか」と聞かれたときに読まれるページなので、いちばん
+        // 厚い記述であるべきで、逆に他ページより薄いのはおかしい——
+        // 独自に書いていたせいで、料金や連絡先が抜けていました。
+        ...ORG_NODE,
         alternateName: ['ルメニウム', 'Lumenium（ルメニウム）', 'ルメニウム 東京'],
-        url: SITE,
         mainEntityOfPage: url,
         description: DEFINITION,
         disambiguatingDescription:
-          '東京都を拠点とする日本のクリエイティブ／DX支援カンパニー。米国の光通信・レーザー機器メーカー Lumentum（ルメンタム）、米国バージニア州のエンジン開発企業 Lumenium, LLC、植物のリモニウム（Limonium）、デジタルアート作品 Rumenium、架空の国家「ルメニウム王国」とは、いずれも無関係の別の存在です。',
-        foundingDate: '2026',
-        founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },
-        address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
-        areaServed: { '@type': 'Country', name: 'Japan' },
+          '東京都を拠点とする日本のクリエイティブ／DX支援カンパニー。米国の光通信・レーザー機器メーカー Lumentum（ルメンタム）、米国バージニア州のエンジン開発企業 Lumenium, LLC、株式会社ルミネ（LUMINE）、植物のリモニウム（Limonium）、デジタルアート作品 Rumenium、架空の国家「ルメニウム王国」とは、いずれも無関係の別の存在です。',
         knowsLanguage: ['ja', 'en'],
-        logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
       },
       {
         '@type': 'FAQPage',

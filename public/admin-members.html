@@ -857,6 +857,9 @@
           <p class="share-note" style="margin-bottom:8px">AIが答えを作るために実際に開いた、このサイトのページです。ここに出ないページは、いま答えに使われていません。</p>
           <div id="seo-own"></div>
         </div>
+        <!-- 載りに行く先。ドメインではなくページ単位で出す。実際の作業は
+             「発注ナビに載る」ではなく「この一覧ページに載る」なので。 -->
+        <div id="seo-cited" style="margin-bottom:20px"></div>
         <!-- どの面が読まれて答えが作られたか。名前が挙がった会社より、
              ここに載ることのほうが直接効きます（載っていない会社は、
              そもそも材料に入らないため）。計測のたびに集まっているのに、
@@ -2958,6 +2961,30 @@ window.lumAdmin = {
       '</div>';
   }
 
+  /* 複数の質問で読まれたページ。ここに載ることが、非指名で名前が出るための
+     最短の道です（載っていない会社は材料に入りません）。 */
+  function cited(s) {
+    var host = el('seo-cited');
+    if (!host) return;
+    var list = s.citedPages || [];
+    if (!list.length) {
+      host.innerHTML = '';
+      return;
+    }
+    host.innerHTML =
+      '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">載りに行くべきページ</h3>' +
+      '<p class="share-note" style="margin-bottom:8px">2問以上でAIが実際に開いたページです。ここに自社が載っていない限り、そのカテゴリの答えの材料に入りません。多くは無料の事業者登録で載ります。</p>' +
+      '<table style="width:100%;border-collapse:collapse"><tbody>' +
+      list.map(function (p) {
+        return '<tr>' +
+          '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap">' + p.count + '問</td>' +
+          '<td style="padding:5px 0;font-size:12px;word-break:break-all">' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a>' +
+            '<div style="font-size:11px;color:var(--sub)">' + esc(p.host) + '</div>' +
+          '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
   function bars(id, rows, opt) {
     opt = opt || {};
     var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
@@ -3061,7 +3088,12 @@ window.lumAdmin = {
         '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
         '<div style="font-size:12px;color:var(--sub);margin-top:8px">' + note + '</div>' + co +
         '<div style="font-size:12.5px;margin-top:8px;white-space:pre-wrap;line-height:1.7">' + esc(r.answer || '') + '</div>' +
-        ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '') +
+        ((r.sourceUrls || []).length
+          ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">この質問で読まれたページ:<br>' +
+            r.sourceUrls.map(function (u) {
+              return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
+            }).join('<br>') + '</div>'
+          : ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '')) +
       '</details>';
     }).join('');
   }
@@ -3124,6 +3156,7 @@ window.lumAdmin = {
       return { name: o.path, value: o.count, note: o.count + '問で参照', us: true };
     }), { labelWidth: 200 });
     diff(data.prev, s);
+    cited(s);
     bars('seo-sources', (s.topSources || []).map(function (h) {
       var mine = /(^|\.)lumenium\.net$/.test(h.name);
       return { name: h.name + (mine ? '（自社）' : ''), value: h.count, note: h.count + '問で参照', us: mine };
