@@ -3882,6 +3882,24 @@ window.lumAdmin = {
 
   var MARK = { ok: ['✅', '#6ee7b7'], warn: ['⚠️', '#fcd34d'], error: ['⛔️', '#fca5a5'] };
 
+  /* 「直したはずなのに画面が変わらない」ときに、まずここを見ます。
+     直っていないのか、まだデプロイされていないのか、環境変数がこの
+     関数に届いていないのか——3つとも見え方が同じなので、区別できる
+     材料を出します。値は出しません（名前だけ）。 */
+  function deployLine(dep) {
+    if (!dep) return '';
+    var bits = [];
+    if (dep.commit) bits.push('いま動いているコード: ' + esc(dep.commit) +
+      (dep.message ? '「' + esc(dep.message) + '」' : ''));
+    var seen = dep.storeEnvSeen || [];
+    bits.push('保存先の環境変数でこのサーバーが読めている名前: ' +
+      (seen.length ? esc(seen.join('、')) : 'なし'));
+    var using = dep.using || {};
+    if (using.url && using.token) bits.push('実際に使っている組: ' + esc(using.url) + ' ＋ ' + esc(using.token));
+    return '<div style="font-size:11.5px;color:var(--sub);line-height:1.9;margin-top:8px;' +
+      'border-top:1px solid var(--border);padding-top:8px">' + bits.join('<br>') + '</div>';
+  }
+
   function draw(d) {
     var counts = { ok: 0, warn: 0, error: 0 };
     d.checks.forEach(function (c) { counts[c.state] = (counts[c.state] || 0) + 1; });
@@ -3898,7 +3916,7 @@ window.lumAdmin = {
         '<div style="font-size:12.5px;color:var(--sub)">正常 ' + counts.ok + ' / 注意 ' + (counts.warn || 0) +
           ' / 要対応 ' + (counts.error || 0) +
           (d.contact ? '　｜　問い合わせ 直近30日: 成功 ' + d.contact.ok + ' 件・失敗 ' + d.contact.fail + ' 件' : '') +
-        '</div></div>';
+        '</div>' + deployLine(d.deploy) + '</div>';
 
     var order = { error: 0, warn: 1, ok: 2 };
     var rows = d.checks.slice().sort(function (a, b) { return order[a.state] - order[b.state]; });

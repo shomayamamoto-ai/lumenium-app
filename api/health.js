@@ -187,5 +187,34 @@ export async function GET(req) {
     worst,
     checks,
     contact,
+    deploy: deployInfo(),
   })
+}
+
+/* 「直したはずなのに画面が変わらない」を、推測で終わらせないための情報。
+   これが無いと、直っていないのか・まだデプロイされていないのか・
+   ブラウザが古い画面を見せているのかが、どれも同じ見え方をします。
+
+   ・いま動いているコードのコミット
+   ・保存先まわりの環境変数のうち、この関数が実際に読める名前（値は出さない）
+
+   2つ目が要るのは、Vercel の画面に変数が並んでいても、それがこの関数に
+   届いているとは限らないからです（連携した直後のデプロイには入りません）。
+   並んでいるかではなく、読めているかを見ます。 */
+const STORE_ENV_NAMES = [
+  'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
+  'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'KV_URL', 'REDIS_URL',
+]
+
+function deployInfo() {
+  const v = (n) => (process.env[n] || '').trim()
+  return {
+    commit: v('VERCEL_GIT_COMMIT_SHA').slice(0, 7) || null,
+    message: v('VERCEL_GIT_COMMIT_MESSAGE').split('\n')[0].slice(0, 80) || null,
+    branch: v('VERCEL_GIT_COMMIT_REF') || null,
+    env: v('VERCEL_ENV') || null,
+    // 値は返しません。名前が見えているかどうかだけです。
+    storeEnvSeen: STORE_ENV_NAMES.filter((n) => v(n)),
+    using: storeEnvNames(),
+  }
 }
