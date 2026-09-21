@@ -124,7 +124,14 @@
   }
   .portal-hub.timing { border-color: #818cf8; box-shadow: 0 0 0 10px rgba(129,140,248,0.09), 0 0 46px rgba(129,140,248,0.26); }
   .portal-hub.rang { border-color: #34d399; box-shadow: 0 0 0 10px rgba(52,211,153,0.12), 0 0 46px rgba(52,211,153,0.3); }
-  .hub-face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  /* Above the readout, the way a watch works: hands pass over whatever is
+     printed on the dial. This was the other way round — the digital box sits
+     at z-index 2 and the face had none, so the hour, minute and second hands
+     disappeared behind it whenever they swept the lower half of the dial. */
+  .hub-face {
+    position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+    z-index: 3; pointer-events: none;
+  }
   .hub-face .tick { stroke: var(--sub); stroke-width: 1; opacity: 0.45; }
   .hub-face .mark { fill: #e2e8f0; opacity: 0.88; }
   /* Polished on one side, shaded on the other: that split is the only thing
