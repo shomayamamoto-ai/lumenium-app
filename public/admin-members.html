@@ -844,10 +844,20 @@
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">質問ごとの結果</h3>
           <div id="seo-rows"></div>
         </div>
-        <div>
+        <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">推移</h3>
           <div id="seo-trend"></div>
         </div>
+      </div>
+      <!-- The other half of the question: not "did we come back in the answer"
+           but "is there anything on our pages for an answer to be built from".
+           Free to run — the site reads itself — so it runs on open. -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
+        <div class="toolbar" style="margin-bottom:10px">
+          <button class="ghost" id="audit-run" type="button">サイト側を点検</button>
+          <span class="share-note" id="audit-note">公開中のページを読み、AIが答えを作るのに要る要素が揃っているかを調べます（無料・数秒）。</span>
+        </div>
+        <div id="audit-body"></div>
       </div>
     </div>
 
@@ -3170,7 +3180,77 @@ window.lumAdmin = {
     await load();
   });
 
-  window.lumSeoInit = function () { if (loaded) return; loaded = true; load(); };
+  /* ---- サイト側の点検 ---- */
+  var auditDone = false;
+  var WHY = {
+    '説明文': '検索結果や回答に引用される短い紹介文。60〜160字で、何をいくらで提供しているかを書きます。',
+    'FAQ': '質問と答えの組。AIはこの形をそのまま引用できるので、出現率に最も効きます。',
+    '会社情報': '社名・所在地・代表・設立。「実在が確認できない」と答えられる原因はここです。',
+    'パンくず': 'そのページがサイトのどこにあるか。検索結果の表示にも使われます。',
+    '更新日': 'いつ時点の情報か。古いと判断されたページは候補から外れます。',
+    '金額': '計測している質問のほとんどが料金を聞いています。幅でよいので数字を書きます。',
+    '対応地域': '「東京で」「全国対応」。地域を聞く質問に答えるために要ります。',
+    '本文量': '1000字未満は、答えを作る材料としては薄いページです。',
+    '計測タグ': 'このページの訪問がアクセス解析に入りません。',
+    'タイトルの長さ': '15〜62字が目安。長いと途中で切られます。',
+    '見出しH1': '1ページに1つ。何のページかの宣言です。'
+  };
+  async function audit() {
+    var btn = el('audit-run');
+    btn.disabled = true;
+    el('audit-note').textContent = '点検しています…';
+    var data;
+    try {
+      var res = await window.lumAdmin.tap(await fetch('/api/site-audit', { headers: { Authorization: 'Bearer ' + key() } }));
+      data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || ('HTTP ' + res.status));
+    } catch (e) {
+      el('audit-note').textContent = '点検できませんでした: ' + e.message;
+      btn.disabled = false; return;
+    }
+    el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）。';
+    var top = (data.issues || []).map(function (i) {
+      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
+        '<div style="font-size:13px;font-weight:700">' + esc(i.name) + ' が無いページ: ' + i.count + ' / ' + data.total + '</div>' +
+        '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(WHY[i.name] || '') + '</div></div>';
+    }).join('');
+    /* The join: each measured question next to the page that should answer it.
+       A 0% with no page behind it is a different instruction from a 0% with a
+       page that says nothing. */
+    var cov = (data.coverage || []).map(function (c) {
+      var mark = !c.exists ? '✗' : (c.ready ? '✓' : '△');
+      var note = !c.exists ? '答えるページが無い'
+        : c.ready ? '答える形になっている'
+        : ('足りない: ' + (c.missing || []).join('、'));
+      return '<tr><td style="padding:5px 8px;font-size:12px">' + mark + ' ' + esc(c.cat) +
+        '<span style="color:var(--sub);font-size:11px"> ' + c.asked + '問</span></td>' +
+        '<td style="padding:5px 8px;font-size:11.5px">' + (c.pages || []).map(function (u) {
+          return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(u) + '</a>';
+        }).join('、') + '</td>' +
+        '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc(note) + '</td></tr>';
+    }).join('');
+    var worst = (data.pages || []).filter(function (p) { return (p.missing || []).length; }).slice(0, 12).map(function (p) {
+      return '<tr><td style="padding:5px 8px;font-size:12px"><a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a></td>' +
+        '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc((p.missing || []).join('、') || p.error || '') + '</td>' +
+        '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + (p.chars || 0) + '字</td></tr>';
+    }).join('');
+    el('audit-body').innerHTML =
+      '<p style="font-size:12.5px;line-height:1.9;margin-bottom:10px">揃っているページ <b>' + data.clean + '</b> / ' + data.total + '。</p>' +
+      (cov ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:6px 0 8px">計測している質問と、それに答えるページ</h3>' +
+        '<table style="width:100%;border-collapse:collapse"><tbody>' + cov + '</tbody></table>' : '') +
+      (top ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">足りない要素</h3>' + top : '') +
+      (worst ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">直すと効くページ</h3>' +
+        '<table style="width:100%;border-collapse:collapse"><tbody>' + worst + '</tbody></table>' : '');
+    btn.disabled = false;
+  }
+  el('audit-run').addEventListener('click', audit);
+
+  window.lumSeoInit = function () {
+    if (loaded) return; loaded = true; load();
+    // Free and fast, so it runs without being asked — the panel should say
+    // something useful before any money has been spent on a measurement.
+    if (!auditDone) { auditDone = true; audit(); }
+  };
 })();
 </script>
 

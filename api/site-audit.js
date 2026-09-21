@@ -19,6 +19,23 @@ export const config = { runtime: 'edge' }
 //   ・計測タグ   whether we would even see the visit
 
 import { requireAdmin, json } from './_admin-auth.js'
+import { QUESTIONS } from './_aio-catalog.js'
+
+/* Which page is supposed to answer each measured question. The two halves of
+   this screen never met: the probe reported 「動画制作 0%」 and the audit
+   reported 「/services/video.html にFAQが無い」 on the same page, and nobody
+   joined them. Joined here, a miss reads as an instruction — this question
+   has no page, or has one that does not answer it. */
+const ANSWERS = {
+  'ブランド指名': ['/about.html', '/profile.html'],
+  '動画制作': ['/services/video.html'],
+  'AI導入・研修': ['/services/ai.html'],
+  'SNS・LINE': ['/services/sns.html'],
+  'Web制作・システム開発': ['/services/web.html'],
+  'キャスト手配': ['/services/cast.html'],
+  'クリエイティブ': ['/services/creative.html'],
+  '横断・比較': ['/onestop.html', '/choose.html'],
+}
 
 const SITE = 'https://lumenium.net'
 const LIMIT = 45
@@ -141,9 +158,30 @@ export async function GET(req) {
     .map(([name, count]) => ({ name, count, share: ok.length ? count / ok.length : 0 }))
     .sort((a, b) => b.count - a.count)
 
+  // Per measured question: is there a page for it, and does that page answer
+  // in the form an engine can lift?
+  const byPath = new Map(ok.map((p) => [p.url, p]))
+  const seen = new Set()
+  const coverage = []
+  for (const q of QUESTIONS) {
+    if (seen.has(q.cat)) continue
+    seen.add(q.cat)
+    const wants = ANSWERS[q.cat] || []
+    const rows = wants.map((w) => byPath.get(w)).filter(Boolean)
+    coverage.push({
+      cat: q.cat,
+      asked: QUESTIONS.filter((x) => x.cat === q.cat).length,
+      pages: wants,
+      exists: rows.length > 0,
+      ready: rows.length > 0 && rows.every((r) => !r.missing.includes('FAQ') && !r.missing.includes('金額')),
+      missing: [...new Set(rows.flatMap((r) => r.missing))],
+    })
+  }
+
   return json({
     ok: true,
     checkedAt: new Date().toISOString(),
+    coverage,
     pages: pages.sort((a, b) => (b.missing || []).length - (a.missing || []).length).slice(0, 40),
     total: pages.length,
     clean: ok.filter((p) => !p.missing.length).length,
