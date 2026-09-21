@@ -313,13 +313,43 @@ ${md(a.content)}
     url,
     publisher: { '@id': `${SITE}/#organization` },
   }
+  /* A hub page used to be a headline and a list of links: 943 characters, of
+     which almost all were the titles of other pages. A page with nothing of
+     its own on it is not a page an answer can be built from, and it is the
+     entry point for every article under it — so it says what is here, who
+     wrote it, how it is grouped, and what each group is for. */
+  const cats = [...new Set(articles.map((a) => a.category))]
+  const CAT_NOTE = {
+    'AI活用': '生成AIを業務に入れるときに最初に決めること、社内で使わせるときの線引き、研修で実際に扱っている内容。',
+    'SNS運用': '投稿を作る前に決める設計の話。伸ばす小手先ではなく、続けられる運用の形から書いています。',
+    '動画制作': '企画・構成・撮影・編集それぞれの判断基準。最初の3秒の設計や、社内で撮る場合の落とし穴まで。',
+    'LINE構築': '公式LINEの初期設計。配信の中身より先に、何を自動化して何を人が返すかを決める話です。',
+    'LINE運用': '配信が「ただの通知」にならないための組み立て方と、開封率が落ちたときに見る数字。',
+    'Web制作': 'リニューアルの判断、ページ構成、公開後に手を入れ続けられる作りにしておくこと。',
+    '採用・ブランディング': '採用動画や会社紹介で、条件だけでなく「会社の空気」まで伝えるための構成。',
+  }
+  const byCat = cats.map((c) => ({ cat: c, items: articles.filter((a) => a.category === c) }))
+  // The data file is in the order the posts were written, not in date order,
+  // so the list has to be sorted before it can be called 新しい順.
+  const recent = [...articles].sort((a, b) => isoDate(b.date).localeCompare(isoDate(a.date)))
   const body = `
   <h1>ブログ</h1>
-  <p class="meta">動画・AI・SNS・Webの実務ノウハウをお届けします。</p>
+  <p class="meta">動画・AI・SNS・Webの実務ノウハウを、実際の案件で使っている手順のまま公開しています。</p>
+  <article>
+  <p class="keypoint">このブログは、東京都を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作を手がけるルメニウム（Lumenium）が、中小企業のご担当者向けに書いている実務記事の一覧です。現在 ${articles.length} 本を公開しており、いずれも実際にお受けした案件で使っている判断基準・手順をそのまま書いています。一般論ではなく、依頼する側が判断するために要る情報だけを載せる方針です。</p>
+  <h2>どんな記事を書いているか</h2>
+  <p>扱っているのは ${cats.length} 分野です。どの記事も、①何を先に決めるか ②決めるために見る数字 ③外注する場合に確認すること、の順で書いています。読んだその日に社内で使えることを目安にしているため、ツールの紹介や流行の解説は入れていません。</p>
+  <dl class="facts">
+    ${byCat.map((g) => `<div><dt style="flex:0 0 132px">${esc(g.cat)}（${g.items.length}本）</dt><dd>${esc(CAT_NOTE[g.cat] || '実務で使っている手順をまとめています。')}</dd></div>`).join('\n    ')}
+  </dl>
+  <h2>ご依頼をお考えの方へ</h2>
+  <p>記事を読んで「自社の場合はどうか」を相談したい場合は、そのままお問い合わせください。お見積りは無料、最低発注額はなく、動画1本・LP1枚からお受けしています。目安は動画制作3万円〜、AI導入・研修10万円〜、SNS運用・LINE構築20万円〜、Web制作30万円〜です。お問い合わせから48時間以内にご返信します。料金の詳細は<a href="/pricing.html">料金ページ</a>、進め方は<a href="/flow.html">ご依頼の流れ</a>に書いています。</p>
+  <h2>記事一覧（新しい順）</h2>
+  </article>
   <ul class="list">
-    ${articles.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="/blog/post-${a.id}.html">${esc(a.title)}</a><p>${esc(a.summary)}</p></li>`).join('\n    ')}
+    ${recent.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="/blog/post-${a.id}.html">${esc(a.title)}</a><p>${esc(a.category)}｜${esc(a.summary)}</p></li>`).join('\n    ')}
   </ul>
-  <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
+  <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a><a class="ghost" href="/faq.html">よくある質問</a></div>`
   writeFileSync('public/blog/index.html', shell({
     title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium（ルメニウム）',
     desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを、実際の案件で使っている手順のまま公開しています。東京拠点のルメニウム（Lumenium）が、中小企業の担当者向けに書いた記事の一覧です。',
@@ -436,7 +466,7 @@ ${md(a.content)}
     ['ルメニウムは何をしている会社ですか?', '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE公式アカウント構築、Web制作・システム開発、キャスト手配とイベント企画、ロゴ・バナーなどのクリエイティブ制作の6領域を、企画から納品・運用までワンストップで手がけています。'],
     ['ルメニウムとルメンタム（Lumentum）は同じ会社ですか?', 'いいえ、別の会社です。ルメンタム（Lumentum Holdings）は米国の光通信・レーザー機器メーカーです。ルメニウム（Lumenium）は東京都を拠点とする日本のクリエイティブ／DX支援カンパニーで、両社に資本関係も人的関係もありません。'],
     ['ルメニウムは化学元素ですか?', 'いいえ、化学元素ではありません。ルメニウム（Lumenium）は東京都を拠点とする日本の企業の名称です。名前の響きが似ている元素としてルテニウム（Ruthenium、原子番号44）やレニウム（Rhenium、原子番号75）がありますが、いずれも別のものです。'],
-    ['ルメニウムは実在する会社ですか?', 'はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。'],
+    ['Lumenium（ルメニウム）は実在する日本の会社ですか? 公式サイトはどこですか?', 'はい、実在します。公式サイトは https://lumenium.net です。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。'],
     ['ルメニウムに依頼するにはどうすればよいですか?', '公式サイト lumenium.net のお問い合わせフォームからご連絡ください。初回のご相談とお見積りは無料で、お問い合わせから48時間以内にご返信します。'],
   ]
 
@@ -506,6 +536,11 @@ ${md(a.content)}
   <p class="meta">東京発のクリエイティブ &amp; DX パートナー</p>
   <article>
     <p class="keypoint">${esc(DEFINITION)}</p>
+    <!-- The four facts every measured question ends up asking for — price,
+         where, how long, how to reach us — in the opening rather than in the
+         footer. An answer is built from the top of a page: a price further
+         down is a price that does not get quoted. -->
+    <p class="note">料金は動画制作3万円〜、AI導入・研修10万円〜、SNS運用・LINE構築20万円〜、Web制作30万円〜。東京都を拠点に、打ち合わせはオンラインで全国対応。短い制作なら2週間前後で納品し、お見積りは無料、お問い合わせから48時間以内にご返信します。</p>
 
     <h2 id="names">「ルメニウム」と呼ばれるもの一覧（同名・類似名称との違い）</h2>
     <p>「ルメニウム」という言葉は、企業名のほか、響きの似た化学元素の言い間違いや、創作上の名称としても使われています。それぞれの違いは次のとおりです。<strong>ルメニウムは化学元素や架空の物質ではなく、実在する企業の名称です。</strong></p>
@@ -574,7 +609,7 @@ const TOPIC_PAGES = [
     title: '料金・費用の目安 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）の料金・費用の目安',
     desc: 'ルメニウム（Lumenium）の料金目安。動画制作3万円〜、AI導入・研修10万円〜、SNS/LINE構築20万円〜、Web制作30万円〜、キャスト手配5,000円〜。お見積りは無料です。',
-    lead: '内容と規模によって変わるため、まずは下の目安レンジをご覧ください。お見積りは無料で、内容を伺った上で正確にご提案します。',
+    lead: '内容と規模によって変わるため、まずは下の目安レンジをご覧ください。東京都を拠点にオンラインで全国対応、短い制作なら2週間前後で納品します。お見積りは無料で、お問い合わせから48時間以内にご返信します。',
     ld: () => ({
       '@context': 'https://schema.org',
       '@type': 'OfferCatalog',
@@ -594,14 +629,23 @@ const TOPIC_PAGES = [
     <dl class="facts">
       ${PRICE_OPTIONS.map((o) => `<div><dt>${esc(o.label)}</dt><dd>${yen(o.min)} 〜 ${yen(o.max)}<br><span style="font-size:12.5px;opacity:.75">${esc(o.sub)}</span></dd></div>`).join('\n      ')}
     </dl>
-    <p class="note">複数サービスをまとめてご依頼の場合、全部入りでも最小構成なら ${yen(priceMin)} 前後から組めます。ご予算を先に伺って、その中で優先順位をつけたプランを作ることも可能です。</p>
-    <h2>料金について、よくいただく質問</h2>
-    <ul>
-      <li>お見積りは無料です。他社比較・社内稟議用の概算だけでも承ります</li>
-      <li>見積り段階での強引な営業は一切いたしません</li>
-      <li>通常2〜3回の修正は見積りに含まれています</li>
-      <li>着手前のキャンセルは無償です</li>
-    </ul>`,
+    <p class="note">複数サービスをまとめてご依頼の場合、全部入りでも最小構成なら ${yen(priceMin)} 前後から組めます。ご予算を先に伺って、その中で優先順位をつけたプランを作ることも可能です。</p>`,
+    /* The measured questions ask for a number — 「相場も教えてください」 is
+       one of them verbatim. This used to be four bullet points, which reads
+       fine and cannot be lifted: an engine quotes a question with its answer
+       attached, so the same four facts are written in that shape. */
+    faq: [
+      ['動画制作やWeb制作の相場はいくらくらいですか?',
+       '内容によりますが、ルメニウム（Lumenium）の目安は動画制作が3万円〜30万円、AI導入・研修が10万円〜30万円、SNS運用・LINE構築が20万円〜50万円、Web / LP制作が30万円〜200万円、キャスト手配が5,000円〜10万円、ロゴやバナーなどのクリエイティブ制作が3万円〜50万円です。撮影日数・ページ数・運用期間で変わるため、内容を伺ってから正式にお見積りします。'],
+      ['最低発注額はありますか?',
+       'ありません。動画1本、LP1枚、ロゴ1点といった単位からお受けしています。最低契約期間の縛りも設けていないため、まず小さく試してから広げることができます。'],
+      ['見積りは無料ですか?',
+       '無料です。他社と比較検討中の概算や、社内稟議に使う見積りだけでもお出しします。見積り段階での強引な営業は一切いたしません。お問い合わせから48時間以内にご返信します。'],
+      ['見積り後に追加費用が発生することはありますか?',
+       '通常2〜3回の修正は見積りに含まれており、その範囲では追加費用はいただきません。撮影日の追加やページ数の増加など、当初の範囲を超える場合のみ、着手前に金額をお伝えして合意してから進めます。着手前のキャンセルは無償です。'],
+      ['予算が決まっている場合でも相談できますか?',
+       `できます。ご予算を先に伺い、その中で効果の出る順に優先順位をつけたプランをご提案します。複数サービスをまとめる場合、最小構成なら ${yen(priceMin)} 前後から組めます。`],
+    ],
   },
   {
     file: 'works.html',
@@ -891,7 +935,7 @@ TOPIC_PAGES.push(
     title: '代表紹介 山本捷真 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）代表 山本 捷真',
     desc: 'ルメニウム（Lumenium）代表・山本捷真の経歴と得意領域。慶應義塾大学文学部卒業、在学中から個人事業主として動画・AI・Web・SNSを横断し、企業向けAI研修の講師も歴任。',
-    lead: '慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。動画、AI、Web、SNSなど幅広く活動し、企業向けAI研修の講師も歴任しています。',
+    lead: '慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。動画、AI、Web、SNSなど幅広く活動し、企業向けAI研修の講師も歴任しています。東京都を拠点に、オンラインで全国からのご依頼に対応。動画1本3万円〜・最低発注額なしで、お見積りは無料、48時間以内にご返信します。',
     ld: () => ({
       '@context': 'https://schema.org',
       '@type': 'Person',
@@ -914,16 +958,41 @@ TOPIC_PAGES.push(
     <dl class="facts">
       ${CAREER.map((c) => `<div><dt>${esc(c.year)}</dt><dd>${esc(c.detail)}${c.sub ? `<br><span style="font-size:12.5px;opacity:.75">${esc(c.sub)}</span>` : ''}</dd></div>`).join('\n      ')}
     </dl>`,
+    /* This page and /about.html are where the branded questions land, and the
+       branded questions are the ones that came back 「実在が確認できない」.
+       A career list does not answer that: who runs it, where, since when,
+       what it costs to ask, and how to reach a person — in question form, so
+       the answer can be quoted with its question. */
+    faq: [
+      ['ルメニウム（Lumenium）の代表は誰ですか?',
+       'ルメニウム（Lumenium）の代表は山本 捷真（やまもと しょうま / Shoma Yamamoto）です。慶應義塾大学 文学部を卒業し、在学中から個人事業主として動画・AI・Web・SNSを横断して活動、企業向けの生成AI研修の講師も務めています。拠点は東京都、設立は2026年です。'],
+      ['代表が直接担当してもらえますか?',
+       'はい。ご相談からヒアリング、企画の設計までは代表の山本が直接担当します。撮影・編集・開発など人手が必要な工程は案件ごとにチームを組みますが、窓口は最後まで一本のままで、伝言のやり取りは発生しません。'],
+      ['個人に依頼するのと制作会社に依頼するのと、何が違いますか?',
+       'ルメニウムは、窓口は個人と同じ一人のまま、工程ごとに必要なメンバーを組める体制です。動画1本3万円〜、Web制作30万円〜といった単位から最低発注額なしでお受けしつつ、動画・Web・AI研修・SNSを一社でまとめて引き受けられるため、複数社に分けたときの調整をお客様が抱える必要がありません。'],
+      ['どこまでの領域を相談できますか?',
+       '動画制作・映像編集、AI導入と生成AI研修、SNS運用代行とLINE構築、Web制作・システム開発、キャスト手配・イベント、ロゴやバナーなどのクリエイティブ制作の6領域です。「何をしたいかはっきりしないが困っている」という段階からのご相談も承ります。'],
+      ['連絡するとどのくらいで返事が来ますか?',
+       'お問い合わせから48時間以内にご返信します。打ち合わせはZoomやGoogle Meetなどオンラインで行うため、全国どこからでもご依頼いただけます。見積りは無料で、着手前のキャンセルは無償です。'],
+    ],
   },
 )
 
 for (const t of TOPIC_PAGES) {
   const url = `${SITE}/${t.file}`
+  /* Written twice on purpose: once as a <dl> for a reader, once as FAQPage
+     data for a machine. An engine lifts the pair, so the question has to be
+     phrased the way it is asked, not summarised. */
+  const faq = t.faq || []
+  const faqHtml = faq.length ? `\n    <h2>よくある質問</h2>
+    <dl class="qa">
+      ${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join('\n      ')}
+    </dl>` : ''
   const body = `
   <h1>${esc(t.h1)}</h1>
   <p class="meta">${esc(t.lead)}</p>
   <article${t.serif ? ' class="serif"' : ''}>
-${t.body()}
+${t.body()}${faqHtml}
   </article>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
@@ -946,6 +1015,15 @@ ${t.body()}
         about: { '@id': `${SITE}/#organization` },
       },
       t.ld(),
+      ...(faq.length ? [{
+        '@type': 'FAQPage',
+        '@id': `${url}#faq`,
+        mainEntity: faq.map(([q, a]) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
+      }] : []),
       {
         '@type': 'BreadcrumbList',
         itemListElement: [

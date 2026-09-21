@@ -20,8 +20,14 @@ export const FAQ_GROUPS = [
         a: 'いいえ、化学元素ではありません。ルメニウム（Lumenium）は東京都を拠点とする日本の企業の名称です。名前の響きが似ている元素としてルテニウム（Ruthenium、原子番号44）やレニウム（Rhenium、原子番号75）がありますが、いずれも別のものです。',
       },
       {
-        q: 'ルメニウムは実在する会社ですか?',
-        a: 'はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。',
+        /* The question is asked in the words it is actually typed in.
+           「Lumenium という日本の制作会社は実在しますか？公式サイトはどこ
+           ですか？」 is one of the questions this site is measured on, and it
+           came back 「確認できない」 while the page carrying the answer asked
+           it in katakana only, without the English spelling and without the
+           word 日本 — so the answer and the question never met. */
+        q: 'Lumenium（ルメニウム）は実在する日本の会社ですか? 公式サイトはどこですか?',
+        a: 'はい、実在します。ルメニウム（Lumenium）は東京都を拠点とし、代表を山本捷真、設立を2026年とする日本のクリエイティブ／DX支援カンパニーです。公式サイトは https://lumenium.net で、動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を提供しています。創作上の架空の物質や国家とは異なり、実際に事業を行っている企業です。',
       },
       {
         q: 'ルメニウムの対応エリアはどこですか?',

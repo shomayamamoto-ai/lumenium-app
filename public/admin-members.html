@@ -864,6 +864,11 @@
           <button class="ghost" id="audit-run" type="button">サイト側を点検</button>
           <span class="share-note" id="audit-note">公開中のページを読み、AIが答えを作るのに要る要素が揃っているかを調べます（無料・数秒）。</span>
         </div>
+        <!-- Who actually came to read the site. Recorded by /robots.txt and
+             /llms.txt, which are served by a function for this reason. It is
+             the only measurement on this screen that is not inference, so it
+             is placed before the ones that are. -->
+        <div id="crawl-body"></div>
         <div id="audit-body"></div>
       </div>
     </div>
@@ -3236,19 +3241,118 @@ window.lumAdmin = {
         }).join('、') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc(note) + '</td></tr>';
     }).join('');
+    /* 質問ごとの語の一致率。The category rows above say whether a page
+       exists and carries the right parts; this says whether that page is
+       about the question. The two came apart on this site: every page
+       passed and nothing was found. Only the rows that are not already
+       right are listed — a full list of 100% is not a to-do list. */
+    var fitRows = (data.questions || []).filter(function (q) { return q.head < 80; })
+      .sort(function (a, b) { return a.head - b.head; }).map(function (q) {
+        return '<tr><td style="padding:5px 8px;font-size:11.5px;color:var(--sub);white-space:nowrap">' +
+            '<b style="color:' + (q.head < 40 ? '#f87171' : '#fbbf24') + '">' + q.head + '%</b></td>' +
+          '<td style="padding:5px 8px;font-size:11.5px">' + esc(q.q) +
+            '<div style="color:var(--sub);font-size:11px;margin-top:2px">' +
+            (q.page ? '答えるページ: ' + esc(q.page) : '答えるページがありません') +
+            ((q.leadMissing || []).length ? '／冒頭に無い: ' + esc(q.leadMissing.join('、')) : '') +
+            '</div></td></tr>';
+      }).join('');
     var worst = (data.pages || []).filter(function (p) { return (p.missing || []).length; }).slice(0, 12).map(function (p) {
       return '<tr><td style="padding:5px 8px;font-size:12px"><a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a></td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc((p.missing || []).join('、') || p.error || '') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + (p.chars || 0) + '字</td></tr>';
     }).join('');
+    var H = function (t) {
+      return '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">' + t + '</h3>';
+    };
+    var TABLE = function (rows) { return '<table style="width:100%;border-collapse:collapse"><tbody>' + rows + '</tbody></table>'; };
+
+    /* サイト全体。These four are invisible from inside a single page and are
+       the reasons a page that is fine never gets read: two pages claiming the
+       same title, a page nothing links to, a page that opens without saying
+       anything, a page that takes too long to come back. */
+    var s = data.site || {};
+    var whole = [];
+    (s.duplicateTitles || []).forEach(function (d) {
+      whole.push(['同じタイトルのページ', d.urls.join('、'), '検索側はどちらか1つしか出しません。片方を書き換えます。']);
+    });
+    (s.duplicateDescs || []).forEach(function (d) {
+      whole.push(['同じ説明文のページ', d.urls.join('、'), '引用される紹介文が同じだと、別のページとして扱われません。']);
+    });
+    if ((s.orphans || []).length) {
+      whole.push(['どこからもリンクされていないページ', s.orphans.join('、'),
+        'サイトマップにしか載っていないページです。リンクをたどるAIには見つかりません。']);
+    }
+    (s.thinLead || []).forEach(function (t) {
+      whole.push(['冒頭に事実が無いページ', t.url, '最初の500字に ' + t.missing.join('・') + ' がありません。答えはページの先頭から作られます。']);
+    });
+    (s.slow || []).forEach(function (t) {
+      whole.push(['表示が遅いページ', t.url, t.ms + 'ミリ秒かかりました。']);
+    });
+    var wholeHtml = whole.map(function (w) {
+      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
+        '<div style="font-size:12.5px;font-weight:700">' + esc(w[0]) + '</div>' +
+        '<div style="font-size:11.5px;color:#a5b4fc;margin-top:3px;word-break:break-all">' + esc(w[1]) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(w[2]) + '</div></div>';
+    }).join('');
+
     el('audit-body').innerHTML =
-      '<p style="font-size:12.5px;line-height:1.9;margin-bottom:10px">揃っているページ <b>' + data.clean + '</b> / ' + data.total + '。</p>' +
-      (cov ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:6px 0 8px">計測している質問と、それに答えるページ</h3>' +
-        '<table style="width:100%;border-collapse:collapse"><tbody>' + cov + '</tbody></table>' : '') +
-      (top ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">足りない要素</h3>' + top : '') +
-      (worst ? '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">直すと効くページ</h3>' +
-        '<table style="width:100%;border-collapse:collapse"><tbody>' + worst + '</tbody></table>' : '');
+      '<p style="font-size:12.5px;line-height:1.9;margin-bottom:10px">揃っているページ <b>' + data.clean + '</b> / ' + data.total + '。' +
+        (s.medianMs ? '表示にかかる時間は中央値 ' + s.medianMs + 'ミリ秒。' : '') + '</p>' +
+      (cov ? H('計測している質問と、それに答えるページ') + TABLE(cov) : '') +
+      (fitRows
+        ? H('質問の言葉が、答えるページに載っていない') +
+          '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin:-2px 0 8px">' +
+          '質問文とページの見出しで、使われている語がどれだけ重なるかです（語の重なりであって、意味の一致ではありません）。' +
+          '低い行は、質問文をそのまま見出しにして、その下に2〜3行で答えを書くと上がります。</p>' + TABLE(fitRows)
+        : H('質問の言葉と、答えるページ') +
+          '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin:-2px 0 8px">' +
+          '計測中の質問はすべて、答えるページの見出しに同じ言葉で載っています。</p>') +
+      (top ? H('足りない要素') + top : '') +
+      (wholeHtml ? H('サイト全体の問題') + wholeHtml : '') +
+      (worst ? H('直すと効くページ') + TABLE(worst) : '');
     btn.disabled = false;
+    crawlBox(data);
+  }
+
+  /* クローラーの来訪。The one number on this screen that is not inference:
+     /robots.txt と /llms.txt はCDNではなく関数が返しているので、誰が取りに
+     来たかがそのまま記録されます。*/
+  function crawlBox(data) {
+    var box = el('crawl-body');
+    if (!data.crawlStore) {
+      box.innerHTML = '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">' +
+        '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪：記録できていません</div>' +
+        '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:5px">' +
+        '「誰にも読まれていない」ではなく「記録する先が無い」状態です。Vercel の環境変数に ' +
+        'UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を設定すると、' +
+        'GPTBot・ClaudeBot・PerplexityBot・Googlebot などがいつ来たかが、この場所に出ます。</div></div>';
+      return;
+    }
+    var c = data.crawlers || { total: 0, agents: [], missing: [] };
+    var KIND = { ai: '回答エンジン', search: '検索エンジン', visit: 'AIが人の代わりに開いた', social: 'SNSのリンク展開', tool: '調査ツール', other: 'その他' };
+    var rows = (c.agents || []).map(function (a) {
+      var when = a.lastAt ? new Date(a.lastAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+      return '<tr><td style="padding:5px 8px;font-size:12px;font-weight:700">' + esc(a.id) + '</td>' +
+        '<td style="padding:5px 8px;font-size:11px;color:var(--sub)">' + esc(KIND[a.kind] || '') + '</td>' +
+        '<td style="padding:5px 8px;font-size:11.5px;text-align:right">' + a.hits + '回</td>' +
+        '<td style="padding:5px 8px;font-size:11px;color:var(--sub);text-align:right;white-space:nowrap">' + esc(when) + '</td></tr>';
+    }).join('');
+    box.innerHTML =
+      '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">' +
+      '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪（直近30日）' +
+        '<span style="color:var(--sub);font-weight:400;font-size:11px">　回答エンジン ' + (c.ai || 0) + '回・検索 ' + (c.search || 0) + '回</span></div>' +
+      (c.total
+        ? '<table style="width:100%;border-collapse:collapse;margin-top:8px"><tbody>' + rows + '</tbody></table>' +
+          ((c.missing || []).length
+            ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:8px">まだ一度も来ていない回答エンジン: ' +
+              esc(c.missing.join('、')) + '</div>' : '')
+        : '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:5px">' +
+          'まだ1件も記録がありません。記録は /robots.txt と /llms.txt が読まれた時点から貯まります。' +
+          '数日経っても0のままなら、サイトがまだどのクローラーにも見つかっていないということです。' +
+          'その場合に効くのは、ページを直すことではなく、外部から1本でもリンクを張ることです。</div>') +
+      '<div style="font-size:11px;color:var(--sub);line-height:1.8;margin-top:8px;opacity:.85">' +
+      '記録しているのは、robots.txt と llms.txt を取りに来たbotの名前・時刻・どちらのファイルかだけです。' +
+      'ページ本文がどこまで読まれたかまでは分かりません。</div></div>';
   }
   el('audit-run').addEventListener('click', audit);
 

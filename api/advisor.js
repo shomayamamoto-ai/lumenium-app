@@ -17,6 +17,7 @@ import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './analytics.js'
 import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'
+import { readCrawls } from './_crawlers.js'
 
 const MODEL = 'claude-opus-5'
 const MAX_TURNS = 16
@@ -36,7 +37,13 @@ async function liveNumbers(req) {
   const social = { activity: await socialActivity(30), networks: await socialStatus(req) }
 
   const cfg = storeConfig()
-  if (!cfg) return { analytics: null, aio: null, social }
+  if (!cfg) return { analytics: null, aio: null, social, crawl: null }
+
+  // Who actually fetched anything. Without this the advisor can only reason
+  // about what our pages say, and will keep proposing page edits to a site
+  // that no crawler has been to — which is the one situation where editing
+  // pages changes nothing.
+  const crawl = await readCrawls(cfg, 30).catch(() => null)
 
   const dates = lastDays(30)
   try {
@@ -105,14 +112,26 @@ async function liveNumbers(req) {
       },
       aio,
       social,
+      crawl,
     }
   } catch (_) {
-    return { analytics: null, aio: null, social }
+    return { analytics: null, aio: null, social, crawl: null }
   }
 }
 
 function systemPrompt(live) {
   const services = SERVICES.map((s) => `- ${s.title}（${s.price}）`).join('\n')
+
+  const c = live.crawl
+  const crawl = !c
+    ? '記録できていません（Upstash Redis 未設定のため、来訪を保存する先がありません）。'
+    : c.total === 0
+      ? '直近30日で0件。どのクローラーも robots.txt / llms.txt を取りに来ていません。'
+      : [
+          `合計 ${c.total}回（回答エンジン ${c.ai}回 / 検索エンジン ${c.search}回 / AIが人の代わりに開いた ${c.visit}回）`,
+          '内訳: ' + c.agents.map((a) => `${a.id} ${a.hits}回（最終 ${String(a.lastAt || '').slice(0, 10)}）`).join(' / '),
+          c.missing.length ? '一度も来ていない回答エンジン: ' + c.missing.join('、') : '',
+        ].filter(Boolean).join('\n')
 
   const aio = live.aio
     ? [
@@ -223,6 +242,13 @@ function systemPrompt(live) {
     '',
     '## AIO出現率（answer engine に実際に質問した結果）',
     aio,
+    '',
+    '## クローラーの来訪（robots.txt / llms.txt を取りに来た記録・直近30日）',
+    crawl,
+    'これは推測ではなく、サーバーに残った取得記録です。0なら「内容が弱い」のではなく「まだ見つかっていない」状態で、',
+    'そのときページの書き直しを勧めても数字は動きません。外部からのリンク、事業者ディレクトリへの登録、',
+    'プレスリリース、Google ビジネスプロフィールなど、サイトの外に足がかりを作る提案を優先してください。',
+    '回答エンジンのクローラーが来ているのに出現率が低い場合は、逆に内容と形式（質問文の見出し・金額・地域の明記）の問題です。',
     '',
     '## SNS発信量（管理画面から投稿した分）',
     sns,

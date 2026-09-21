@@ -74,6 +74,19 @@ globalThis.fetch = async (input, init = {}) => {
     return ok({ id: 'smoke' })
   }
   if (u.includes('api.github.com')) return ok({ sha: 'deadbeef', content: '', commit: { sha: 'deadbeef' } })
+  // The site reading itself, for /api/site-audit: a sitemap with one page in
+  // it, and a page with enough in it to be checked. Without these the audit
+  // would be exercised only on its error path, which is the half that was
+  // already working.
+  if (u.includes('/sitemap.xml')) {
+    return ok('<urlset><url><loc>https://lumenium.net/about.html</loc></url></urlset>', 'application/xml')
+  }
+  if (u.includes('lumenium.net/about.html')) {
+    return ok('<html><head><title>ルメニウム（Lumenium）とは | 東京の制作会社</title>' +
+      '<meta name="description" content="' + 'あ'.repeat(80) + '"></head>' +
+      '<body><h1>ルメニウム（Lumenium）とは</h1><p>東京都・3万円〜・お問い合わせから48時間以内。</p>' +
+      '<script>fetch("/api/track")</scr' + 'ipt></body></html>', 'text/html')
+  }
   // The publishing endpoints. Shapes match what each platform documents, so a
   // handler that reads the wrong field here reads the wrong field in
   // production too.
@@ -106,6 +119,11 @@ const CALLS = [
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
+  ['site-audit', 'GET', '', KEY],
+  // Served to crawlers, so they are called the way a crawler calls them: no
+  // key, and a user-agent that gets recorded.
+  ['robots', 'GET', '', { 'user-agent': 'Mozilla/5.0 (compatible; GPTBot/1.2)' }],
+  ['llms', 'GET', '', { 'user-agent': 'Mozilla/5.0 (compatible; ClaudeBot/1.0)' }],
   ['social', 'GET', '', KEY],
   ['social', 'POST', '', JSONH,
     { text: 'スモークテストの投稿です。', link: 'https://lumenium.net/',
