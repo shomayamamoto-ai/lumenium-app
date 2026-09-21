@@ -10,10 +10,35 @@
 export const KEEP_DAYS = 400
 const TTL = KEEP_DAYS * 24 * 60 * 60
 
+/* 同じものが2通りの名前で置かれます。
+   Vercel の Storage から Upstash をつないだ場合、作られる環境変数は
+   KV_REST_API_URL と KV_REST_API_TOKEN。Upstash の画面から手で入れた場合は
+   UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN。中身は同じ REST の
+   アドレスとトークンです。
+   前者しか無い環境で「保存先が未設定です」と言い続けていました——入って
+   いるのに動かない、が一番たちが悪いので、どちらの名前でも読みます。 */
+export const STORE_ENV = {
+  url: ['UPSTASH_REDIS_REST_URL', 'KV_REST_API_URL'],
+  token: ['UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_TOKEN'],
+}
+
+const fromEnv = (names) => {
+  for (const n of names) {
+    const v = (process.env[n] || '').trim()
+    if (v) return { name: n, value: v }
+  }
+  return null
+}
+
+/** どの名前で見つかったか。画面に「この名前で入っています」と出すため。 */
+export function storeEnvNames() {
+  return { url: fromEnv(STORE_ENV.url)?.name || null, token: fromEnv(STORE_ENV.token)?.name || null }
+}
+
 export function storeConfig() {
-  const url = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/$/, '')
-  const token = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim()
-  return url && token ? { url, token } : null
+  const url = fromEnv(STORE_ENV.url)
+  const token = fromEnv(STORE_ENV.token)
+  return url && token ? { url: url.value.replace(/\/$/, ''), token: token.value } : null
 }
 
 /** The same, but also accepting the pair the admin pasted into their own

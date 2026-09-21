@@ -23,7 +23,7 @@
 //
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
-import { storeConfig, storeFor, pipeline } from './_analytics-store.js'
+import { storeConfig, storeFor, pipeline, STORE_ENV } from './_analytics-store.js'
 import { bag, bagReady } from './_keybag.js'
 
 const K = (name) => `lum:cfg:${name}`
@@ -219,6 +219,13 @@ async function all(req) {
  *  everyone, then what this browser is carrying, then the environment.
  *  `req` is optional — without it the browser's own keys are simply not seen,
  *  which is the correct answer on a visitor's request. */
+/* 保存先の2つだけ、Vercel の Upstash 連携が別の名前で作ります。
+   同じ値なので、どちらの名前でも読みます（_analytics-store.js に一覧）。 */
+const ENV_ALIASES = {
+  UPSTASH_REDIS_REST_URL: STORE_ENV.url,
+  UPSTASH_REDIS_REST_TOKEN: STORE_ENV.token,
+}
+
 export async function setting(name, fallback, req) {
   const saved = (await all(req))[name]
   if (saved) return saved
@@ -226,8 +233,12 @@ export async function setting(name, fallback, req) {
     const mine = (await bag(req))[name]
     if (mine) return mine
   }
-  const env = (process.env[name] || '').trim()
-  return env || fallback || ''
+  // 保存先の2つだけ、Vercel の連携が作る名前も見ます。
+  for (const n of (ENV_ALIASES[name] || [name])) {
+    const v = (process.env[n] || '').trim()
+    if (v) return v
+  }
+  return fallback || ''
 }
 
 /** Where each value is coming from, and enough of it to tell keys apart —
@@ -235,8 +246,17 @@ export async function setting(name, fallback, req) {
 export async function settingStatus(req) {
   const saved = await all(req)
   const mine = req ? await bag(req) : {}
+  // 入っているのに「未設定」と出さないよう、別名も見ます。
+  const envValue = (name) => {
+    for (const n of (ENV_ALIASES[name] || [name])) {
+      const v = (process.env[n] || '').trim()
+      if (v) return { name: n, value: v }
+    }
+    return null
+  }
   return SETTINGS.map((s) => {
-    const env = (process.env[s.name] || '').trim()
+    const found = envValue(s.name)
+    const env = found ? found.value : ''
     const device = s.device !== false ? mine[s.name] : ''
     const value = saved[s.name] || device || env
     return {
@@ -257,6 +277,9 @@ export async function settingStatus(req) {
       inStore: !!saved[s.name],
       onDevice: !!device,
       inEnv: !!env,
+      // 別名で入っているときは、その名前を返します（画面で「この名前で
+      // 入っています」と言えるように）。
+      envName: found ? found.name : null,
       hint: value ? (s.kind === 'text' ? value : '••••' + value.slice(-4)) : '',
     }
   })

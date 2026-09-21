@@ -92,7 +92,7 @@ const NO_STORE = {
   ok: false,
   code: 'STORE_NOT_CONFIGURED',
   message:
-    '保存先が未設定です。Vercel の Storage から Upstash Redis を接続し、UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を環境変数に設定して再デプロイしてください。',
+    '保存先が未設定です。Vercel の Storage から Upstash Redis を接続してください（KV_REST_API_URL と KV_REST_API_TOKEN が自動で入ります）。手で入れる場合は UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN でも構いません。',
 }
 
 /** The shape a run has to have, whether it came from the store or from the

@@ -11,7 +11,7 @@ export const config = { runtime: 'edge' }
 // present, and the counts come from the same store as the analytics.
 
 import { requireAdmin, json } from './_admin-auth.js'
-import { storeFor, storeConfig, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
+import { storeFor, storeConfig, storeEnvNames, pipeline, lastDays, jstDate, K } from './_analytics-store.js'
 import { listShares } from './_share.js'
 import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
@@ -56,7 +56,11 @@ export async function GET(req) {
       // everybody, including the visitor whose pageview is being counted; held
       // in this browser it serves only the admin's own screens. Saying just
       // 「接続済み」 for the second would promise counting that cannot happen.
-      id: 'store', label: 'アクセス解析・AIOの保存先', env: 'UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN',
+      // 名前は2通りあります（Vercel の Storage 連携なら KV_…）。実際に
+      // 見つかったほうを出さないと、入っているのに違う名前を探しに行く
+      // ことになります。
+      id: 'store', label: 'アクセス解析・AIOの保存先',
+      env: [storeEnvNames().url || 'UPSTASH_REDIS_REST_URL', storeEnvNames().token || 'UPSTASH_REDIS_REST_TOKEN'].join(', '),
       state: storeConfig() ? 'ok' : (store ? 'warn' : 'warn'),
       note: storeConfig()
         ? 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'
