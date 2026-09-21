@@ -29,6 +29,11 @@ Object.assign(process.env, {
   SESSION_SECRET: 'smoke-secret',
   GITHUB_TOKEN: 'smoke-token',
   GITHUB_REPO: 'smoke/smoke',
+  // 商談の自動予約。接続済みのつもりで呼ぶ（枠の計算と同意画面URLの組み立て
+  // まで通すため）。実際の Google へは出ない — 上の fetch が受け止める。
+  GOOGLE_CLIENT_ID: 'smoke.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'smoke',
+  GOOGLE_REFRESH_TOKEN: 'smoke',
   UPSTASH_REDIS_REST_URL: REDIS,
   UPSTASH_REDIS_REST_TOKEN: 'smoke',
   // The five networks, so POST /api/social is exercised on the path where it
@@ -73,6 +78,8 @@ globalThis.fetch = async (input, init = {}) => {
     }
     return ok({ id: 'smoke' })
   }
+  if (u.includes('oauth2.googleapis.com')) return ok({ access_token: 'at', expires_in: 3600 })
+  if (u.includes('googleapis.com/calendar')) return ok({ calendars: { primary: { busy: [] } } })
   if (u.includes('api.github.com')) return ok({ sha: 'deadbeef', content: '', commit: { sha: 'deadbeef' } })
   // The site reading itself, for /api/site-audit: a sitemap with one page in
   // it, and a page with enough in it to be checked. Without these the audit
@@ -120,6 +127,15 @@ const CALLS = [
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
   ['site-audit', 'GET', '', KEY],
+  // 商談の自動予約。GET は訪問者、?recent= は管理者、POST は枠を指定しない
+  // 呼び方（= 断られる側）を通す。ここで見たいのは、どの入り方でも 500 を
+  // 返さないこと。
+  ['booking', 'GET', '', {}],
+  ['booking', 'GET', '?recent=1', KEY],
+  ['booking', 'POST', '', { 'content-type': 'application/json' },
+    { key: '2099-01-01T01:00:00.000Z', name: 'スモーク', email: 'smoke@example.com', message: 'テスト' }],
+  ['google-oauth', 'GET', '?start=1', KEY],
+  ['google-oauth', 'GET', '', {}],
   // Served to crawlers, so they are called the way a crawler calls them: no
   // key, and a user-agent that gets recorded.
   ['robots', 'GET', '', { 'user-agent': 'Mozilla/5.0 (compatible; GPTBot/1.2)' }],

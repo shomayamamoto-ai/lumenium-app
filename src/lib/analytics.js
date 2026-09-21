@@ -26,6 +26,8 @@ export const funnel = {
   contactView: () => sendEvent('contact_view'),
   contactStart: () => sendEvent('contact_start'),
   contactSubmit: () => sendEvent('contact_submit'),
+  bookingView: () => sendEvent('booking_view'),
+  bookingConfirm: () => sendEvent('booking_confirm'),
 }
 
 // Named conversion shortcuts — keep names stable for GA dashboards

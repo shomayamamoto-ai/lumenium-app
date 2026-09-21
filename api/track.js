@@ -46,6 +46,8 @@ export const EVENTS = new Set([
   'contact_view',    // the enquiry form was reached
   'contact_start',   // the first field was filled
   'contact_submit',  // an enquiry was sent
+  'booking_view',    // candidate meeting times were shown
+  'booking_confirm', // a meeting was booked
 ])
 
 /** Keep the path list bounded and free of anything identifying. */

@@ -17,10 +17,14 @@ export const MAIN = [
   ['contact_view', '問い合わせ画面'],
   ['contact_start', '入力を始めた'],
   ['contact_submit', '送信した'],
+  // 送信で終わりにしない。送った人のうち何人がその場で日程まで決めたかが、
+  // この導線がうまくいっているかどうかの本当の答えです。
+  ['booking_confirm', '商談を予約した'],
 ]
 export const SIDE = [
   ['estimate_start', '見積りを開いた'],
   ['estimate_done', '概算を出した'],
+  ['booking_view', '日程候補を見た'],
 ]
 export const ENGAGE = [['menu_open', 'メニューを開いた']]
 export const STEP_KEYS = [...MAIN, ...SIDE, ...ENGAGE].map(([k]) => k)

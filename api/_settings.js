@@ -31,6 +31,7 @@ const K = (name) => `lum:cfg:${name}`
 /** The groups the admin screen shows these in, in order. */
 export const GROUPS = [
   { id: 'site', label: 'サイトの機能', note: '問い合わせ・AI・保存まわり。ここが埋まると管理ポータルの7つが動きます。' },
+  { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。下の「Googleカレンダーに接続」を押すと、3つ目は自動で入ります。' },
   { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' },
 ]
 
@@ -86,6 +87,31 @@ export const SETTINGS = [
     name: 'SESSION_SECRET', label: 'ログインセッションの署名鍵', kind: 'secret', group: 'site', device: false,
     where: '推測できない長い文字列',
     why: '未設定のあいだは公開されている既定の鍵で署名されるため、ログイン状態を偽造できます。変更すると、いまログイン中の会員は入り直しになります。',
+  },
+
+  // 商談の自動予約。これらは訪問者のリクエストを処理している最中に読む値
+  // （予約するのは訪問者で、その人のブラウザはこちらの鍵を何も持っていない）
+  // なので device:false。端末保存を許すと、保存できたように見えて実際には
+  // 何も動かない、という一番たちの悪い壊れ方をします。
+  {
+    name: 'GOOGLE_CLIENT_ID', label: 'Google クライアントID', kind: 'text', group: 'booking', device: false,
+    where: 'console.cloud.google.com › APIとサービス › 認証情報 › OAuth 2.0 クライアント（種類: ウェブアプリケーション）',
+    why: '承認済みのリダイレクトURIに https://lumenium.net/api/google-oauth を登録してください。Google Calendar API の有効化も必要です。',
+  },
+  {
+    name: 'GOOGLE_CLIENT_SECRET', label: 'Google クライアントシークレット', kind: 'secret', group: 'booking', device: false,
+    where: '同じ画面のクライアントシークレット',
+    why: 'IDと対で使います。片方だけでは接続できません。',
+  },
+  {
+    name: 'GOOGLE_REFRESH_TOKEN', label: 'Google 接続トークン', kind: 'secret', group: 'booking', device: false,
+    where: '下の「Googleカレンダーに接続」を押すと自動で入ります',
+    why: 'OAuth同意画面が「テスト」のままだと7日で失効します。「公開」または「内部」にしてから接続してください。切れた場合は接続し直すだけで戻ります。',
+  },
+  {
+    name: 'GOOGLE_CALENDAR_ID', label: '使うカレンダー', kind: 'text', group: 'booking', device: false,
+    where: '空欄なら primary（そのアカウントの既定のカレンダー）',
+    why: '商談だけ別カレンダーで管理したい場合は、そのカレンダーIDを入れます。空き時間の判定もそのカレンダーで行われます。',
   },
 
   // SNS. Every one of these is a token the platform hands you in its own

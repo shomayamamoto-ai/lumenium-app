@@ -2,6 +2,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import { events, funnel } from '../lib/analytics'
+import BookingPicker from './BookingPicker'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LIMITS = { name: 50, email: 100, message: 1000 }
@@ -35,6 +36,9 @@ export default function ContactForm() {
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState(null) // {type, text}
+  // 送った内容は、フォームを空にする前に控えておく。日程を確定するときに
+  // 名前とメールをもう一度打たせるようでは、その場で決める意味が無い。
+  const [lastSent, setLastSent] = useState(null)
   const startedRef = useRef(false)
 
   useEffect(() => {
@@ -100,8 +104,9 @@ export default function ContactForm() {
       })
       if (!res.ok) throw new Error(`status ${res.status}`)
       setSent(true)
+      setLastSent({ name: form.name, email: form.email, message: form.message })
       showToast('success', 'お問い合わせを送信しました。48時間以内にご返信いたします。')
-      setForm({ name: '', email: '', message: '' })
+      setForm({ name: '', email: '', message: '', company: '' })
       setTouched({})
       setErrors({})
       setTimeout(() => setSent(false), 8000)
@@ -239,6 +244,9 @@ export default function ContactForm() {
             <p className="form-note">✓ 48時間以内に返信 ✓ 見積り無料 ✓ 秘密厳守</p>
           </div>
         </form>
+        {/* 送信できたときだけ、その下に日程の候補が出る。予約の仕組みが
+            動いていなければ、この欄は何も描きません。 */}
+        {lastSent ? <BookingPicker contact={lastSent} /> : null}
         {toast && (
           <div
             className={`form-toast form-toast--${toast.type}`}
