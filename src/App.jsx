@@ -259,7 +259,14 @@ export default function App() {
       const y = target.getBoundingClientRect().top + window.scrollY - 80
       window.scrollTo({ top: y, behavior: 'smooth' })
     }
-    document.addEventListener('click', onAnchorClick)
+    // 捕捉フェーズで受ける。子孫が stopPropagation() を呼ぶと、この
+    // listener は document に付いている以上まったく動かない — そして
+    // React のリスナーは root に付くので、React の onClick 内の
+    // stopPropagation() はネイティブのイベントごと止めてしまう。実際に
+    // サービス詳細のパネルがそれをしていて、中のリンクは全部ブラウザ既定の
+    // 動き（#contact-form へ移動 → ルーターが知らない住所 → ホーム）に
+    // なっていた。捕捉なら誰よりも先に受け取れる。
+    document.addEventListener('click', onAnchorClick, true)
 
     // --- Staggered card entrance for pain cards ---
     const painCards = document.querySelectorAll('.card--pain')
@@ -410,7 +417,7 @@ export default function App() {
         b.style.removeProperty('--mag-x')
         b.style.removeProperty('--mag-y')
       })
-      document.removeEventListener('click', onAnchorClick)
+      document.removeEventListener('click', onAnchorClick, true)
       document.removeEventListener('click', onCtaDelegatedClick, { capture: true })
       document.removeEventListener('click', onOutboundClick, { capture: true })
       progressBar.remove()

@@ -28,16 +28,18 @@ export default function ServiceDetail({ service, onClose }) {
   return (
     <div
       className="service-detail-overlay"
-      onClick={onClose}
+      // 背景そのものを押したときだけ閉じる。以前はパネル側で
+      // stopPropagation() していたが、React のリスナーは root に付くため、
+      // これはネイティブのイベントごと止めてしまう。結果、パネルの中の
+      // クリックは document に届かず、アプリ側のリンク処理（#… を正しい
+      // 画面へ振り分けている所）が一度も動かなかった。「このサービスで
+      // 相談する」がホームに戻っていたのはこれが理由。
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="service-detail-title"
     >
-      <aside
-        className="service-detail-panel"
-        ref={panelRef}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <aside className="service-detail-panel" ref={panelRef}>
         <button
           className="service-detail-close"
           onClick={onClose}
@@ -94,8 +96,11 @@ export default function ServiceDetail({ service, onClose }) {
         </section>
 
         <footer className="service-detail-footer">
+          {/* 行き先はページ内のアンカーではなく画面そのものなので、
+              ルーターのアドレスをそのまま書く。#contact-form のままだと、
+              間に立つ仕組みが1つでも欠けた瞬間にホームへ落ちる。 */}
           <a
-            href="#contact-form"
+            href="#/info/contact-form"
             className="btn btn-accent"
             data-cta={`service-detail-consult-${service.id || service.title}`}
             onClick={onClose}
@@ -103,7 +108,7 @@ export default function ServiceDetail({ service, onClose }) {
             このサービスで相談する
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </a>
-          <a href="#contact-form" className="btn btn-ghost-w" onClick={onClose}>
+          <a href="#/info/contact-form" className="btn btn-ghost-w" onClick={onClose}>
             お問い合わせフォーム
           </a>
         </footer>
