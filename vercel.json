@@ -2,6 +2,19 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "line-bot-omega-liard.vercel.app"
+        }
+      ],
+      "destination": "https://lumenium.net/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/robots.txt",
@@ -137,6 +150,21 @@
     }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*\\.vercel\\.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
