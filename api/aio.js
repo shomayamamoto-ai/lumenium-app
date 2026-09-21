@@ -26,6 +26,57 @@ import {
 } from './_aio-catalog.js'
 
 const MODEL = 'claude-opus-5'
+
+/* 1問にかけてよい時間。
+   エッジ関数は最初の応答までに使える時間が決まっていて、そこを越えると
+   プラットフォーム側に切られます。切られ方が悪く、返ってくるのはJSONでは
+   ないので、ブラウザ側では「なぜ落ちたか分からない失敗」になります。実際
+   16問中9問がそれで消えていて、画面には英語の一文だけが残っていました。
+   自分で先に打ち切れば、理由の付いた失敗として記録できます。
+   SDK 側の自動リトライも切ってあります（内側で3回粘られると、その合計が
+   プラットフォームの上限を越えてしまうため）。 */
+const ASK_TIMEOUT_MS = 20000
+const ANALYSE_TIMEOUT_MS = 22000
+
+/** 失敗を、直し方が分かる形に変える。英語の一文だけでは何をすればよいか
+ *  決まらない。種類・HTTPステータス・かかった時間の3つが分かれば、時間
+ *  切れなのか、キーなのか、呼びすぎなのかが区別できます。 */
+export function describeError(e, ms) {
+  const name = (e && (e.name || (e.constructor && e.constructor.name))) || 'Error'
+  const status = (e && (e.status || e.statusCode)) || null
+  const raw = String((e && e.message) || e)
+  let kind = 'unknown'
+  if (name === 'AbortError' || /timed out|timeout|aborted/i.test(raw)) kind = 'timeout'
+  else if (status === 401 || status === 403) kind = 'auth'
+  else if (status === 429) kind = 'rate'
+  else if (status && status >= 500) kind = 'server'
+  else if (status === 400) kind = 'request'
+  else if (/fetch failed|network|connection|socket/i.test(raw)) kind = 'network'
+  return { kind, name, status, ms: ms || 0, message: raw.slice(0, 300) }
+}
+
+export const ERROR_LABELS = {
+  timeout: '時間切れ',
+  auth: 'APIキーが拒否された',
+  rate: '短時間に呼びすぎ',
+  server: 'Anthropic側の障害',
+  request: 'リクエストが受け付けられない',
+  network: '通信が切れた',
+  store: '保存先への書き込み失敗',
+  unknown: '原因不明',
+}
+
+/** 種類ごとに、次にやることを1つだけ。 */
+export const ERROR_HINTS = {
+  timeout: '応答が20秒を超えました。ウェブ検索つきの回答は時間がかかるため、混み合う時間帯に起きます。再試行では検索回数を減らして掛け直します。続くようなら時間を空けてください。',
+  auth: 'APIキーが拒否されました。設定状況の画面でキーを入れ直してください（期限切れ・権限・残高のいずれかです）。',
+  rate: '短時間に呼びすぎです。Anthropic側の上限に当たっています。数分おいてから再開してください。',
+  server: 'Anthropic側で一時的な障害が起きています。時間を空けて再実行してください。',
+  request: '送っている内容をAPIが受け付けませんでした。モデル名かウェブ検索機能の指定が、いまのAPIと合っていない可能性があります。',
+  network: '通信が途中で切れました。再実行すれば通ることがほとんどです。',
+  store: '回答は取得できましたが、保存先への書き込みに失敗しました。結果はこの端末に残っています。',
+  unknown: '原因を特定できませんでした。下の詳細をそのまま伝えてください。',
+}
 const RUN_TTL = 400 * 24 * 60 * 60
 const RK = (id) => `lum:aio:run:${id}`
 const INDEX = 'lum:aio:index'
@@ -58,8 +109,20 @@ function runFromBody(body) {
   }
 }
 
+/** 保存先から読む。読めないときは null ではなく、読めなかったという事実を
+ *  返す（null は「そんな計測は無い」の意味で使われていて、区別が要る）。
+ *
+ *  ここが素直に例外を投げていたのが、計測が壊れていた原因のひとつです。
+ *  保存先が一瞬でも応答しないと、質問を投げる前に関数ごと落ち、ブラウザ
+ *  には理由の分からない失敗だけが残っていました。保存はあくまで便利のため
+ *  で、計測そのものは保存先が無くても成立します。 */
 async function readRun(cfg, id) {
-  const [raw] = await pipeline(cfg, [['GET', RK(id)]])
+  let raw
+  try {
+    ;[raw] = await pipeline(cfg, [['GET', RK(id)]])
+  } catch (e) {
+    return { unreachable: describeError(e, 0).message }
+  }
   if (!raw) return null
   try { return JSON.parse(raw) } catch (_) { return null }
 }
@@ -68,8 +131,13 @@ async function writeRun(cfg, run) {
   await pipeline(cfg, [['SET', RK(run.id), JSON.stringify(run), 'EX', RUN_TTL]])
 }
 
-/** Ask one question with web search on, and score the answer. */
-async function askOne(client, item) {
+/** Ask one question with web search on, and score the answer.
+ *
+ *  `attempt` > 0 means this question already failed once. The retry searches
+ *  less: the overwhelming majority of failures are the answer taking longer
+ *  than the function is allowed to live, and fewer searches is the one dial
+ *  that shortens it without changing what is being measured. */
+async function askOne(client, item, attempt = 0) {
   const res = await client.messages.create({
     model: MODEL,
     max_tokens: 1200,
@@ -81,9 +149,9 @@ async function askOne(client, item) {
       '日本のユーザーからの質問に、実際にウェブを検索して答えてください。' +
       '実在する会社名を挙げるときは、検索結果で確認できたものだけを挙げてください。' +
       '推測や一般論で会社名を作らないこと。400字程度で簡潔に答えてください。',
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: attempt ? 2 : 4 }],
     messages: [{ role: 'user', content: item.q }],
-  })
+  }, { timeout: ASK_TIMEOUT_MS })
 
   // A server tool that fails returns HTTP 200 with an error object where the
   // result list would be, so branch on the shape before indexing it.
@@ -133,14 +201,20 @@ async function analyseAnswers(client, results) {
   // nothing in it. Four at a time fits with room to spare, and a batch that
   // fails now costs four verdicts instead of all of them.
   const out = {}
+  const failures = []
   const SIZE = 4
   for (let i = 0; i < usable.length; i += SIZE) {
     const batch = usable.slice(i, i + SIZE)
+    const t0 = Date.now()
     try {
       Object.assign(out, await analyseBatch(client, batch))
-    } catch (_) { /* the other batches still stand */ }
+    } catch (e) {
+      // 他のまとまりは残る。ただし「なぜこの4問だけ判定されなかったのか」は
+      // 残さないと、判定できた質問 7/16 の意味が分からないままになります。
+      failures.push({ ids: batch.map((r) => r.id), ...describeError(e, Date.now() - t0) })
+    }
   }
-  return out
+  return { out, failures }
 }
 
 async function analyseBatch(client, usable) {
@@ -205,7 +279,7 @@ async function analyseBatch(client, usable) {
     tools: [tool],
     tool_choice: { type: 'tool', name: 'record_analysis' },
     messages: [{ role: 'user', content: payload }],
-  })
+  }, { timeout: ANALYSE_TIMEOUT_MS })
 
   const call = (res.content || []).find((b) => b.type === 'tool_use')
   const out = {}
@@ -279,8 +353,26 @@ function summarise(results, fallback) {
   const answered = results.filter((r) => r && !r.error && r.answer)
   const counted = (v) => done.filter((r) => r.verdict === v).length
 
+  /* 失敗の内訳。「出現率 0%」と「16問中7問しか返ってこなかった」は、
+     同じ画面に並んでいても意味がまるで違います。前者は結果、後者は結果が
+     無いということ。種類ごとに数えて、率と一緒に必ず出します。 */
+  const errorKinds = {}
+  for (const r of results) {
+    if (!r || !r.error) continue
+    const k = r.errorKind || 'unknown'
+    if (!errorKinds[k]) errorKinds[k] = { kind: k, label: ERROR_LABELS[k] || k, hint: ERROR_HINTS[k] || '', count: 0, sample: '', ms: 0 }
+    errorKinds[k].count++
+    errorKinds[k].sample = errorKinds[k].sample || ((r.detail && r.detail.message) || r.error || '')
+    errorKinds[k].ms = Math.max(errorKinds[k].ms, (r.detail && r.detail.ms) || r.ms || 0)
+  }
+
   return {
     asked: done.length,
+    // 出した質問の数。率の分母がこれより小さいときは、率を読む前に
+    // 「取れた分だけの率だ」と分かる必要があります。
+    total: results.length,
+    coverage: results.length ? done.length / results.length : 0,
+    errors: Object.values(errorKinds).sort((a, b) => b.count - a.count),
     // Answers that came back but could not be judged, kept apart from the ones
     // that never came back at all.
     unjudged: answered.length - done.length,
@@ -506,17 +598,52 @@ export async function POST(req) {
       results: [],
       summary: null,
     }
+    let storeWarning = null
     if (cfg) {
-      await writeRun(cfg, run)
-      await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
+      try {
+        await writeRun(cfg, run)
+        await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
+      } catch (e) {
+        // 保存できないだけ。計測は回せるので、そのまま回して最後に
+        // ブラウザ側へ返します（そちらが原本を持っています）。
+        storeWarning = describeError(e, 0).message
+      }
     }
     return json({
-      ok: true, runId: run.id, startedAt: run.startedAt, stored: !!cfg,
+      ok: true, runId: run.id, startedAt: run.startedAt, stored: !!cfg && !storeWarning, storeWarning,
       questions: QUESTIONS.map(({ id, cat, q }) => ({ id, cat, q })),
     })
   }
 
-  const client = new Anthropic({ apiKey: key })
+  // 自動リトライは切る。内側で3回粘られると、その合計がエッジ関数の持ち
+  // 時間を越えて、外から切られる。再試行はこちら側（1問ずつ）で行います。
+  const client = new Anthropic({ apiKey: key, maxRetries: 0 })
+
+  /* 1問だけ、その場で試す。
+     16問を$1.54かけて回して、返ってきたのが英語の一文だけ——という回り方を
+     もう一度させないための入口です。壊れているかどうかを確かめるのに、
+     毎回フルの計測を走らせる必要はありません。約$0.10。 */
+  if (action === 'probe') {
+    const capped = await spendGuard('aio-probe', 20)
+    if (capped) return capped
+    const item = QUESTIONS[Math.max(0, Math.min(QUESTIONS.length - 1, Number(body.index) || 0))]
+    const t0 = Date.now()
+    try {
+      const r = await askOne(client, item, 0)
+      return json({
+        ok: true,
+        probe: {
+          ok: true, q: item.q, ms: Date.now() - t0,
+          named: r.named, cited: r.cited, searched: r.searched,
+          sources: (r.sources || []).slice(0, 6),
+          preview: String(r.answer || '').slice(0, 200),
+        },
+      })
+    } catch (e) {
+      const d = describeError(e, Date.now() - t0)
+      return json({ ok: true, probe: { ok: false, q: item.q, ...d, hint: ERROR_HINTS[d.kind] } })
+    }
+  }
 
   if (action === 'ask') {
     const index = Number(body.index)
@@ -524,31 +651,60 @@ export async function POST(req) {
     if (!item) return json({ ok: false, message: '質問が見つかりません。' }, 400)
     // With a store the run is kept there between questions; without one the
     // answer goes straight back to the browser, which is holding the run.
-    const run = cfg ? await readRun(cfg, body.runId) : null
-    if (cfg && !run) return json({ ok: false, message: '集計セッションが見つかりません。最初からやり直してください。' }, 404)
+    let run = cfg ? await readRun(cfg, body.runId) : null
+    let storeWarning = null
+    if (run && run.unreachable) {
+      // 保存先が落ちている。質問は投げられるので投げる。
+      storeWarning = run.unreachable
+      run = null
+    } else if (cfg && !run) {
+      return json({ ok: false, message: '集計セッションが見つかりません。最初からやり直してください。' }, 404)
+    }
 
+    const attempt = Math.max(0, Math.min(3, Number(body.attempt) || 0))
+    const t0 = Date.now()
     let result
     try {
-      result = await askOne(client, item)
+      result = await askOne(client, item, attempt)
+      result.ms = Date.now() - t0
     } catch (e) {
+      const d = describeError(e, Date.now() - t0)
       result = {
         id: item.id, cat: item.cat, q: item.q, answer: '',
-        mention: false, cited: false, sources: [], searched: 0, companies: [],
-        error: String((e && e.message) || e).slice(0, 200),
+        named: false, verdict: null, cited: false, sources: [], searched: 0, companies: [],
+        // 画面に出るのは短い日本語、原因の特定に要る素の文は detail に。
+        error: ERROR_HINTS[d.kind] || d.message,
+        errorKind: d.kind,
+        detail: d,
+        ms: d.ms,
       }
     }
 
+    // 保存に失敗しても、取れた回答は捨てない。ここで例外を投げていたので、
+    // 料金を払って取れた回答がそのまま消え、ブラウザ側には理由の分からない
+    // 失敗だけが残っていました。
     if (run) {
       run.results = run.results.filter((r) => r.id !== result.id).concat(result)
-      await writeRun(cfg, run)
+      try {
+        await writeRun(cfg, run)
+      } catch (e) {
+        storeWarning = describeError(e, 0).message
+      }
     }
-    return json({ ok: true, index, total: QUESTIONS.length, result })
+    return json({ ok: true, index, total: QUESTIONS.length, result, storeWarning })
   }
 
   if (action === 'finalize') {
     // From the store if there is one; otherwise the browser sends back the
     // answers it collected question by question.
-    const run = cfg ? await readRun(cfg, body.runId) : runFromBody(body)
+    let run = cfg ? await readRun(cfg, body.runId) : runFromBody(body)
+    // 保存先が読めないときは、ブラウザが持っている分だけで集計する。
+    // 取れている回答を、保存先の不調だけで捨てるいわれはありません。
+    if (run && run.unreachable) run = runFromBody(body)
+    // 保存先にその計測が無い（開始時の書き込みに失敗していた等）ときも、
+    // ブラウザが答えを持っていれば、それで集計する。最後の一歩で、取れて
+    // いる回答を全部捨てるのが一番もったいない。
+    if (!run && Array.isArray(body && body.results) && body.results.length) run = runFromBody(body)
     if (!run) return json({ ok: false, message: '集計セッションが見つかりません。' }, 404)
     // A question whose request never came back was written nowhere, so the
     // report could not tell a question that failed from one that was never
@@ -563,8 +719,10 @@ export async function POST(req) {
     if (!run.results.length) return json({ ok: false, message: '集計できる回答がありません。' }, 400)
 
     let fallback = false
+    let analysisFailures = []
     try {
-      const byId = await analyseAnswers(client, run.results)
+      const { out: byId, failures } = await analyseAnswers(client, run.results)
+      analysisFailures = failures
       run.results = run.results.map((r) => ({
         ...r,
         companies: (byId[r.id] && byId[r.id].companies) || [],
@@ -580,6 +738,7 @@ export async function POST(req) {
       fallback = true
     }
     run.companiesFailed = fallback
+    run.analysisFailures = analysisFailures
 
     run.summary = summarise(run.results, fallback)
     run.actions = buildActions(run.results, run.summary, await socialActivity(30))
@@ -588,8 +747,12 @@ export async function POST(req) {
     // between, and that number moves.
     run.social = await socialActivity(30)
     run.finishedAt = new Date().toISOString()
-    if (cfg) await writeRun(cfg, run)
-    return json({ ok: true, run, stored: !!cfg })
+    let saved = false
+    if (cfg) {
+      try { await writeRun(cfg, run); saved = true } catch (_) { saved = false }
+    }
+    // stored:false のとき、ブラウザはこの結果を自分の端末に残します。
+    return json({ ok: true, run, stored: saved })
   }
 
   return json({ ok: false, message: '不明な操作です。' }, 400)

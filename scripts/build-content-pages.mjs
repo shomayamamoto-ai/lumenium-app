@@ -14,7 +14,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
-  PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS } from '../src/data/site.js'
+  PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS, PROFILES } from '../src/data/site.js'
 
 // Admin copy overrides are applied to the shared data modules before any
 // page is rendered, so the static pages always match what the site shows.
@@ -151,6 +151,9 @@ const ORG_NODE = {
   address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
   areaServed: { '@type': 'Country', name: 'Japan' },
   logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
+  // 外の面と同じ会社だと機械に伝えるための対応表。空のあいだは項目ごと
+  // 出しません（空配列を出すと「どこにも載っていない」と明示することになる）。
+  ...(PROFILES.length ? { sameAs: PROFILES } : {}),
 }
 
 /** Whatever the page had, plus the company, where it sits, and when it was

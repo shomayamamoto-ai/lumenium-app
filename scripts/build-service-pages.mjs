@@ -4,6 +4,7 @@
 // the app. Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
+import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
@@ -159,6 +160,9 @@ const ORG_NODE = {
   address: { '@type': 'PostalAddress', addressRegion: '東京都', addressCountry: 'JP' },
   areaServed: { '@type': 'Country', name: 'Japan' },
   logo: { '@type': 'ImageObject', url: `${SITE}/favicon.svg` },
+  // 外の面と同じ会社だと機械に伝えるための対応表。空のあいだは項目ごと
+  // 出しません（空配列を出すと「どこにも載っていない」と明示することになる）。
+  ...(PROFILES.length ? { sameAs: PROFILES } : {}),
 }
 
 const FAQ = {

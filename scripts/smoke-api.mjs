@@ -23,6 +23,7 @@ const REDIS = 'https://redis.smoke.invalid'
 Object.assign(process.env, {
   ADMIN_KEY: 'smoke-admin-key',
   RESEND_API_KEY: 'smoke',
+  ANTHROPIC_API_KEY: 'sk-ant-smoke',
   RESEND_AUDIENCE_ID: 'aud_smoke',
   CONTACT_TO_EMAIL: 'smoke@example.com',
   MEMBER_CODE: 'SMOKE',
@@ -78,6 +79,10 @@ globalThis.fetch = async (input, init = {}) => {
     }
     return ok({ id: 'smoke' })
   }
+  if (u.includes('api.anthropic.com')) {
+    return ok({ id: 'm', type: 'message', role: 'assistant', model: 'claude-opus-5', stop_reason: 'end_turn',
+      content: [{ type: 'text', text: 'スモークテストの回答です。' }], usage: { input_tokens: 1, output_tokens: 1 } })
+  }
   if (u.includes('oauth2.googleapis.com')) return ok({ access_token: 'at', expires_in: 3600 })
   if (u.includes('googleapis.com/calendar')) return ok({ calendars: { primary: { busy: [] } } })
   if (u.includes('api.github.com')) return ok({ sha: 'deadbeef', content: '', commit: { sha: 'deadbeef' } })
@@ -126,6 +131,9 @@ const CALLS = [
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
+  // 1問だけのお試し。壊れているかどうかを $1.54 払わずに確かめる入口なので、
+  // これ自体が壊れていては意味がない。
+  ['aio', 'POST', '', JSONH, { action: 'probe', index: 0 }],
   ['site-audit', 'GET', '', KEY],
   // 商談の自動予約。GET は訪問者、?recent= は管理者、POST は枠を指定しない
   // 呼び方（= 断られる側）を通す。ここで見たいのは、どの入り方でも 500 を

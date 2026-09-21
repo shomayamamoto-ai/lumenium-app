@@ -188,6 +188,9 @@ export function extract(path, html, extra = {}) {
   return {
     url: path,
     kind,
+    // 外の面と同じ会社だと示す対応表があるか。1ページでも入っていれば、
+    // 全ページに入る作りになっています。
+    hasSameAs: /"sameAs"\s*:/.test(html),
     chars: body.length,
     desc: desc.length,
     descText: desc,
@@ -238,6 +241,10 @@ export function crossCheck(pages) {
   const slow = ok.filter((p) => p.ms > 1200).map((p) => ({ url: p.url, ms: p.ms })).sort((a, b) => b.ms - a.ms)
 
   return {
+    // 公式プロフィールが1つも登録されていない状態。AIO計測で
+    // 「実在が確認できない」と返ってくる質問がある限り、これが最初の一手に
+    // なります（自社サイトだけが情報源の会社は、裏が取れない）。
+    noProfiles: ok.length > 0 && !ok.some((p) => p.hasSameAs),
     duplicateTitles: group('title'),
     duplicateDescs: group('descText'),
     orphans,

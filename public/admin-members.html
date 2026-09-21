@@ -820,6 +820,7 @@
       <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答にルメニウムが出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
+        <button class="ghost" id="seo-probe" type="button">1問だけ試す（約$0.10）</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
         <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
         <select id="seo-pick" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
@@ -846,6 +847,15 @@
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">競合とのシェア（非指名の質問で名前が挙がった回数）</h3>
           <div id="seo-comp"></div>
+        </div>
+        <!-- どの面が読まれて答えが作られたか。名前が挙がった会社より、
+             ここに載ることのほうが直接効きます（載っていない会社は、
+             そもそも材料に入らないため）。計測のたびに集まっているのに、
+             これまで画面に出していませんでした。 -->
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">答えに使われた面（引用元ドメイン）</h3>
+          <p class="share-note" style="margin-bottom:8px">AIがこの回の答えを作るために実際に読んだサイトです。複数の質問で読まれている面ほど、載る価値があります。</p>
+          <div id="seo-sources"></div>
         </div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">質問ごとの結果</h3>
@@ -2953,6 +2963,21 @@ window.lumAdmin = {
       '</p>' +
       (thin ? '<p style="font-size:11.5px;color:#fbbf24;line-height:1.7">⚠ ' + s.asked +
         '問しか判定できていません（' + missing + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
+      /* なぜ取れなかったのか。ここが無いと、画面に残るのは英語の一文だけ
+         になり、直し方が決まりません。種類・件数・かかった時間・素のメッセ
+         ージを、そのまま並べます。 */
+      (s.errors && s.errors.length
+        ? '<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
+          '<div style="font-size:12.5px;font-weight:700;color:#fca5a5">取れなかった質問の内訳</div>' +
+          s.errors.map(function (e) {
+            return '<div style="margin-top:7px">' +
+              '<div style="font-size:12px;font-weight:700">' + esc(e.label || e.kind) + ' <b>' + e.count + '</b> 件' +
+              (e.ms ? '<span style="font-weight:400;color:var(--sub)"> ／ 最長 ' + Math.round(e.ms / 1000) + '秒</span>' : '') + '</div>' +
+              (e.hint ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.8">' + esc(e.hint) + '</div>' : '') +
+              (e.sample ? '<div style="font-size:10.5px;color:var(--sub);opacity:.75;word-break:break-all;margin-top:2px">' + esc(e.sample) + '</div>' : '') +
+              '</div>';
+          }).join('') + '</div>'
+        : '') +
       '<p style="font-size:11px;color:var(--sub);line-height:1.7">' +
       '「出現」は、回答が実在する会社として扱ったものを数えています。社名が本文にあるだけでは数えません' +
       '（新しいサイトでは「見つかりませんでした」という回答こそ社名を含むためです）。</p>';
@@ -3038,6 +3063,10 @@ window.lumAdmin = {
     bars('seo-comp', (s.competitors || []).map(function (c) {
       return { name: c.name, value: c.count, note: String(c.count) + '回', us: c.us };
     }), { labelWidth: 170 });
+    bars('seo-sources', (s.topSources || []).map(function (h) {
+      var mine = /(^|\.)lumenium\.net$/.test(h.name);
+      return { name: h.name + (mine ? '（自社）' : ''), value: h.count, note: h.count + '問で参照', us: mine };
+    }), { labelWidth: 200 });
     rows(run);
     var h = (data.history || []).slice(0, 12).reverse();
     bars('seo-trend', h.map(function (r) {
@@ -3143,7 +3172,7 @@ window.lumAdmin = {
           await new Promise(function (ok) { setTimeout(ok, attempt * 2500); });
         }
         try {
-          var r = await post({ action: 'ask', runId: started.runId, index: i });
+          var r = await post({ action: 'ask', runId: started.runId, index: i, attempt: attempt });
           if (r.result) got = r.result;
         } catch (e) { lastErr = e.message; }
       }
@@ -3182,6 +3211,32 @@ window.lumAdmin = {
   });
   el('seo-reload').addEventListener('click', function () { load(); });
   el('seo-pick').addEventListener('change', function () { load(el('seo-pick').value); });
+  /* 動くかどうかを確かめるのに、毎回16問$1.54を払う必要はない。
+     1問だけ投げて、返ってきたもの（かかった時間・検索の回数・引用元・
+     失敗ならその種類）をそのまま出します。 */
+  el('seo-probe').addEventListener('click', async function () {
+    var btn = el('seo-probe');
+    btn.disabled = true;
+    say('1問だけ試しています…（20秒ほどかかります）', true);
+    var d;
+    try {
+      d = await post({ action: 'probe', index: 0 });
+    } catch (e) {
+      say('試せませんでした: ' + e.message);
+      btn.disabled = false; return;
+    }
+    btn.disabled = false;
+    var p = d.probe || {};
+    if (p.ok) {
+      say('通りました（' + Math.round(p.ms / 1000) + '秒・検索 ' + p.searched + '件' +
+        (p.cited ? '・自社サイトが引用元に入っています' : '・自社サイトは引用元に入っていません') + '）。' +
+        '回答の冒頭: ' + String(p.preview || '').slice(0, 80), true);
+    } else {
+      say('失敗しました（' + (p.kind || '不明') + '・' + Math.round((p.ms || 0) / 1000) + '秒）。' +
+        (p.hint || '') + ' 詳細: ' + (p.message || ''));
+    }
+  });
+
   el('seo-resume').addEventListener('click', async function () {
     if (!pending) return;
     el('seo-resume').disabled = true;
@@ -3278,6 +3333,12 @@ window.lumAdmin = {
     (s.duplicateDescs || []).forEach(function (d) {
       whole.push(['同じ説明文のページ', d.urls.join('、'), '引用される紹介文が同じだと、別のページとして扱われません。']);
     });
+    if (s.noProfiles) {
+      whole.push(['公式アカウントのURLが構造化データに入っていない', 'sameAs（全ページの会社情報）',
+        '外の面と同じ会社だと機械に伝える項目です。ここが空だと、答えるエンジンから見て裏の取れない会社になり、' +
+        '「実在が確認できない」と返る原因になります。X・Instagram・YouTube・法人番号公表サイト・事業者ディレクトリなど、' +
+        '実在する公式ページのURLを教えてください（持っていないものは入れません）。']);
+    }
     if ((s.orphans || []).length) {
       whole.push(['どこからもリンクされていないページ', s.orphans.join('、'),
         'サイトマップにしか載っていないページです。リンクをたどるAIには見つかりません。']);
