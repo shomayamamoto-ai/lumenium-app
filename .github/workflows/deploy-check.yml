@@ -1,0 +1,69 @@
+# 公開サイトに、いま何が出ているか。
+#
+# 「直したはずなのに画面が変わらない」ときに押すボタンです。
+#
+# 手元のコードが正しいことは、ビルドして実際のブラウザで描画すれば確かめ
+# られます。確かめられないのは「それが lumenium.net に届いているか」で、
+# ここが分からないと、CSS を直すべきなのか Vercel を見るべきなのかが
+# 判断できません。見え方はどちらも同じ「変わらない」だからです。
+#
+# GitHub Actions は外に出られるので、公開中のページを取ってきて、
+# 手元の最新と同じものが出ているかを突き合わせます。
+#
+# 使い方: GitHub の Actions タブ →「公開サイトの確認」→ Run workflow
+
+name: 公開サイトの確認
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: いまの main
+        run: git log --oneline -3
+
+      - name: 公開されているページを取ってくる
+        run: |
+          set -eu
+          echo "── トップページの応答 ──"
+          curl -sS --max-time 20 -D headers.txt https://lumenium.net/ -o index.html
+          grep -i -E '^(date|age|cache-control|x-vercel-id|x-vercel-cache):' headers.txt || true
+          echo
+          echo "── 読み込んでいる CSS ──"
+          CSS=$(grep -o '/assets/[A-Za-z0-9._-]*\.css' index.html | head -1)
+          echo "$CSS"
+          test -n "$CSS"
+          curl -sS --max-time 20 "https://lumenium.net$CSS" -o site.css
+
+      - name: フッター見出しの下線が、新しい書き方になっているか
+        run: |
+          set -eu
+          echo "── 公開中の CSS にある指定 ──"
+          grep -o '\.footer-col h4[^}]*}' site.css || echo '(.footer-col h4 が見つかりません)'
+          echo
+          # 新しい書き方は .footer-col h4>span。古い書き方は width:20px の
+          # 決め打ち。どちらが出ているかで、届いているかどうかが分かります。
+          if grep -q '\.footer-col h4>span' site.css; then
+            echo '結果: 新しいコードが公開されています。'
+            echo '      それでも画面が古い場合は、ブラウザに残っている表示です'
+            echo '      （Safari なら ⌥⌘R、またはプライベートウインドウで開く）。'
+          else
+            echo '結果: 公開されているのは古いコードです。'
+            echo '      push した内容が Vercel に届いていません。'
+            echo '      Vercel › Deployments で、最新のコミットが Ready か確認してください。'
+            exit 1
+          fi
+
+      - name: 手元のビルドと同じ中身か（念のため）
+        if: always()
+        run: |
+          set -eu
+          echo "── 手元の src での指定 ──"
+          grep -A 12 '^\.footer-col h4 {' src/styles.css || true
