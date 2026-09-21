@@ -167,6 +167,18 @@ async function askOne(client, item, attempt = 0) {
   }
 
   const sources = [...new Set(urls.map(hostOf).filter(Boolean))]
+  /* 自社サイトだけは、どのページが読まれたかまで残す。
+     これまで引用元はホスト名に丸めていたので、「lumenium.net が読まれた」
+     とは分かっても、about なのか動画のサービスページなのかは分からず、
+     どのページが働いているかを知る手段がありませんでした。他社のURLは
+     そこまで要らないので丸めたままにします。 */
+  const ownPages = [...new Set(urls
+    .filter((u) => {
+      const h = hostOf(u)
+      return h === BRAND.domain || h.endsWith('.' + BRAND.domain)
+    })
+    .map((u) => { try { return new URL(u).pathname || '/' } catch (_) { return '' } })
+    .filter(Boolean))]
   return {
     id: item.id,
     cat: item.cat,
@@ -179,6 +191,7 @@ async function askOne(client, item, attempt = 0) {
     verdict: null,
     cited: citesBrand(urls),
     sources,
+    ownPages,
     searched: urls.length,
     companies: [],
     error: res.stop_reason === 'refusal' ? 'refusal' : null,
@@ -365,6 +378,10 @@ function summarise(results, fallback) {
   const hosts = new Map()
   for (const r of done) for (const h of new Set(r.sources || [])) hosts.set(h, (hosts.get(h) || 0) + 1)
 
+  // 働いているページ。読まれていないページを直しても、出現率は動きません。
+  const own = new Map()
+  for (const r of done) for (const p of new Set(r.ownPages || [])) own.set(p, (own.get(p) || 0) + 1)
+
   const answered = results.filter((r) => r && !r.error && r.answer)
   const counted = (v) => done.filter((r) => r.verdict === v).length
 
@@ -413,6 +430,7 @@ function summarise(results, fallback) {
     citeRate: done.length ? done.filter((r) => r.cited).length / done.length : 0,
     byCategory,
     competitors,
+    ownPages: [...own.entries()].map(([path, count]) => ({ path, count })).sort((a, b) => b.count - a.count).slice(0, 10),
     topSources: [...hosts.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
@@ -567,11 +585,37 @@ export async function GET(req) {
   // whole point of measuring repeatedly, and only the newest was reachable.
   const wanted = new URL(req.url).searchParams.get('run')
   const latest = (wanted && runs.find((r) => r.id === wanted)) || runs[0] || null
+
+  /* 前の回。繰り返し測る意味は、前と比べられることにしかありません。
+     同じ0%でも「前も0%」と「前は12%だった」では話がまったく違い、
+     競合や引用元の出入りは、何かが動いたかどうかの最初の兆候です。 */
+  const before = latest ? runs.filter((r) => r.summary && r.id !== latest.id)[0] : null
+  const names = (list) => new Set((list || []).map((c) => c.name))
+  const prev = before ? {
+    id: before.id,
+    finishedAt: before.finishedAt,
+    asked: before.summary.asked,
+    total: before.summary.total || before.summary.asked,
+    openMentionRate: before.summary.openMentionRate,
+    citeRate: before.summary.citeRate,
+    // 前回に無くて今回いる会社／面と、その逆。
+    newCompetitors: latest && latest.summary
+      ? [...names(latest.summary.competitors)].filter((n) => !names(before.summary.competitors).has(n) && n !== 'Lumenium').slice(0, 8)
+      : [],
+    goneCompetitors: latest && latest.summary
+      ? [...names(before.summary.competitors)].filter((n) => !names(latest.summary.competitors).has(n) && n !== 'Lumenium').slice(0, 8)
+      : [],
+    newSources: latest && latest.summary
+      ? [...names(latest.summary.topSources)].filter((n) => !names(before.summary.topSources).has(n)).slice(0, 8)
+      : [],
+  } : null
+
   return json({
     ok: true,
     meta,
     social,
     latest,
+    prev,
     runs: runs.filter((r) => r.summary).map((r) => ({
       id: r.id,
       finishedAt: r.finishedAt,

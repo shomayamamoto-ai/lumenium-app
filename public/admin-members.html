@@ -848,6 +848,15 @@
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">競合とのシェア（非指名の質問で名前が挙がった回数）</h3>
           <div id="seo-comp"></div>
         </div>
+        <!-- 前回との差。繰り返し測る意味はここにしかない。 -->
+        <div id="seo-diff" style="margin-bottom:18px"></div>
+        <!-- 自社のどのページが読まれたか。読まれていないページを直しても
+             出現率は動かないので、手を入れる先を決めるのはこの表です。 -->
+        <div style="margin-bottom:20px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">読まれた自社ページ</h3>
+          <p class="share-note" style="margin-bottom:8px">AIが答えを作るために実際に開いた、このサイトのページです。ここに出ないページは、いま答えに使われていません。</p>
+          <div id="seo-own"></div>
+        </div>
         <!-- どの面が読まれて答えが作られたか。名前が挙がった会社より、
              ここに載ることのほうが直接効きます（載っていない会社は、
              そもそも材料に入らないため）。計測のたびに集まっているのに、
@@ -2913,6 +2922,42 @@ window.lumAdmin = {
       '<p class="share-note">数えているのは「SNS投稿」タブから出した分だけです。手で直接投稿した分は入りません。</p>';
   }
 
+  /* 前回との差。数字が動いたのか、動いていないのかを最初に言う。
+     0% が続いているなら「変わっていない」と書くのが正確で、それ自体が
+     「サイトの中はもう効いていない」という報せになります。 */
+  function diff(prev, s) {
+    var host = el('seo-diff');
+    if (!host) return;
+    if (!prev) {
+      host.innerHTML = '<p class="share-note">前回の計測がまだありません。2回目から、ここに前回との差が出ます。</p>';
+      return;
+    }
+    var d = (s.openMentionRate || 0) - (prev.openMentionRate || 0);
+    var dc = (s.citeRate || 0) - (prev.citeRate || 0);
+    var arrow = function (n) {
+      if (Math.abs(n) < 0.005) return '<span style="color:var(--sub)">変わらず</span>';
+      return n > 0
+        ? '<span style="color:#86efac">+' + Math.round(n * 100) + 'pt</span>'
+        : '<span style="color:#fca5a5">' + Math.round(n * 100) + 'pt</span>';
+    };
+    var when = prev.finishedAt ? new Date(prev.finishedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    host.innerHTML =
+      '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
+      '<div style="font-size:12.5px;font-weight:700">前回（' + esc(when) + '）との差</div>' +
+      '<div style="font-size:12.5px;line-height:1.9;margin-top:5px">' +
+        '非指名の出現率 ' + arrow(d) + '（' + Math.round((prev.openMentionRate || 0) * 100) + '% → ' + Math.round((s.openMentionRate || 0) * 100) + '%）' +
+        '　／　自社サイトが情報源 ' + arrow(dc) +
+        '　／　取れた質問 ' + prev.asked + '問 → ' + s.asked + '問' +
+      '</div>' +
+      ((prev.newCompetitors || []).length
+        ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">今回から挙がった会社: ' + esc(prev.newCompetitors.join('、')) + '</div>' : '') +
+      ((prev.goneCompetitors || []).length
+        ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.8">前回は挙がっていた会社: ' + esc(prev.goneCompetitors.join('、')) + '</div>' : '') +
+      ((prev.newSources || []).length
+        ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.8">今回から読まれた面: ' + esc(prev.newSources.join('、')) + '</div>' : '') +
+      '</div>';
+  }
+
   function bars(id, rows, opt) {
     opt = opt || {};
     var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
@@ -3075,6 +3120,10 @@ window.lumAdmin = {
     bars('seo-comp', (s.competitors || []).map(function (c) {
       return { name: c.name, value: c.count, note: String(c.count) + '回', us: c.us };
     }), { labelWidth: 170 });
+    bars('seo-own', (s.ownPages || []).map(function (o) {
+      return { name: o.path, value: o.count, note: o.count + '問で参照', us: true };
+    }), { labelWidth: 200 });
+    diff(data.prev, s);
     bars('seo-sources', (s.topSources || []).map(function (h) {
       var mine = /(^|\.)lumenium\.net$/.test(h.name);
       return { name: h.name + (mine ? '（自社）' : ''), value: h.count, note: h.count + '問で参照', us: mine };
@@ -3233,6 +3282,25 @@ window.lumAdmin = {
                          errorKind: lastKind || 'unknown',
                          detail: { kind: lastKind || 'unknown', status: lastStatus, ms: 0, message: lastErr || '' } });
         el('seo-progress-text').textContent = (i + 1) + '問目は取得できませんでした（続行します）';
+      }
+    }
+    /* 落ちた質問を、最後にもう一度だけ拾い直す。
+       上限で断られる失敗は、時間が経てば通ります。本編の16問を投げ終えた
+       頃には窓が空いているので、そこでまとめて掛け直すのが一番よく効きます
+       （16問中7問が落ちたまま集計に回っていました）。 */
+    var missed = collected.filter(function (r) { return r.error; });
+    if (missed.length) {
+      for (var m = 0; m < missed.length; m++) {
+        var idx = started.questions.findIndex(function (q) { return q.id === missed[m].id; });
+        if (idx < 0) continue;
+        el('seo-progress-text').textContent = '取れなかった ' + missed.length + ' 問を拾い直しています…（' + (m + 1) + '/' + missed.length + '）';
+        await new Promise(function (ok) { setTimeout(ok, 5000); });
+        try {
+          var again = await post({ action: 'ask', runId: started.runId, index: idx, attempt: 1 });
+          if (again.result && !again.result.error) {
+            collected = collected.map(function (r) { return r.id === missed[m].id ? again.result : r; });
+          }
+        } catch (_) { /* 拾えなければそのまま。理由は既に記録済み */ }
       }
     }
     el('seo-bar').style.width = '100%';
