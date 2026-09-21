@@ -4199,7 +4199,11 @@ window.lumAdmin = {
               'Meetの自動発行と予定の自動登録まで行うには、上のクライアントIDとシークレットを入れて「Googleカレンダーに接続」を押してください。'
             : d.stored
               ? 'いまは営業時間の決まりだけで候補を出し、確定は仮予約です。Googleにログインして「非公開の iCal 形式の URL」をコピーし、上の欄に貼るだけで、候補が本当の空きから出るようになります（読み取りのみ・Cloud Console は不要）。'
-              : '保存先（Upstash Redis）が未設定のため、予約欄はサイトに表示されません。二重予約を防げない状態で予約を受けるわけにいかないためです。') +
+              : d.storedHere
+                ? '保存先（Upstash Redis）は、この端末には設定されていますが、Vercel の環境変数には入っていません。予約欄は訪問者のブラウザで動くもので、訪問者のリクエストはこの端末の設定を持っていません。' +
+                  'Vercel › Settings › Environment Variables に UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を登録して再デプロイすると、予約欄が表示され、Googleの接続もこの画面から完了できるようになります。'
+                : '保存先（Upstash Redis）が未設定のため、予約欄はサイトに表示されません。二重予約を防げない状態で予約を受けるわけにいかないためです。' +
+                  'Vercel › Settings › Environment Variables に UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を登録してください。') +
       '</p>' +
       (rows
         ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 4px">直近の予約</h4>' +
@@ -4220,8 +4224,25 @@ window.lumAdmin = {
     // 新しいタブで許可 → 戻ってきたら「状態を再確認」で反映。ポップアップが
     // 塞がれている場合に備えて、URL をこの画面にも出しておく。
     var w = window.open(r.data.url, '_blank', 'noopener');
-    setSay(w ? '別のタブで許可してから、この画面の「接続し直す」の横をもう一度お確かめください。'
-            : 'ポップアップが塞がれています。この画面の手順に従って、同意画面を開いてください。', true);
+    if (!w) {
+      // ポップアップが塞がれていると、押しても何も起きないように見えます。
+      // URLをその場に出して、手で開けるようにします。
+      setSay('ポップアップが塞がれました。下のリンクから開いてください。');
+      var box = document.getElementById('booking-box');
+      if (box) {
+        var a = document.createElement('a');
+        a.href = r.data.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = 'Googleの同意画面を開く →';
+        a.style.cssText = 'display:inline-block;margin-top:10px;color:#a5b4fc;font-size:12.5px;word-break:break-all';
+        box.appendChild(a);
+      }
+    } else {
+      setSay(r.data.willSave === false
+        ? '別のタブで許可すると、保存先が無いため「値を貼ってください」という画面が出ます。表示された値を Vercel の環境変数に登録してください。'
+        : '別のタブで許可してから、この画面の「接続できたか確認する」を押してください。', true);
+    }
     var box = document.getElementById('booking-box');
     if (box) {
       var again = document.createElement('button');

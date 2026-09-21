@@ -18,7 +18,7 @@ export const config = { runtime: 'edge' }
 //   ・どちらも無い（保存先もGoogleも無い）ときは枠を出さない。二重予約を
 //     防げない状態で予約を受けるのは、受けないより悪い。
 
-import { storeConfig, pipeline } from './_analytics-store.js'
+import { storeConfig, storeFor, pipeline } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { requireAdmin } from './_admin-auth.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
@@ -110,7 +110,13 @@ export async function GET(req) {
       connected: connected(c),
       // 簡易接続（非公開iCal URL）だけの状態も、はっきり分けて返します。
       ics: !!(await setting('GOOGLE_CALENDAR_ICS_URL', '', req)),
+      // 訪問者のリクエストから見える保存先（＝環境変数）。予約が動くために
+      // 要るのはこちらです。
       stored: !!store,
+      // この管理画面から見える保存先。端末に保存した分も含みます。両方を
+      // 返すのは、「この端末では設定済みに見えるのに予約欄が出ない」という
+      // 食い違いを、画面の側で説明できるようにするためです。
+      storedHere: !!(await storeFor(req)),
       calendarId: c.calendarId,
       bookings: await recentBookings(store, pipeline, 20),
     })
