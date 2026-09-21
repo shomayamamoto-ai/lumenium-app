@@ -12,7 +12,12 @@ const robots = readFileSync('private/robots.txt', 'utf8')
 // 「いつ時点の情報か」は、回答に使うかどうかの判断材料になります。毎回の
 // ビルドで入れ替わるので、書き忘れることがありません。
 const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
-const llms = readFileSync('private/llms.txt', 'utf8').replace(/\{\{UPDATED\}\}/g, TODAY)
+// 記事数のような「増えていく数」を手で書くと、必ずどこかで古くなります。
+// 実際の本数をビルド時に入れます。
+const { articles } = await import('../src/data/articles.js')
+const llms = readFileSync('private/llms.txt', 'utf8')
+  .replace(/\{\{UPDATED\}\}/g, TODAY)
+  .replace(/\{\{ARTICLES\}\}/g, String(articles.length))
 
 writeFileSync(
   'api/_crawl-assets.js',

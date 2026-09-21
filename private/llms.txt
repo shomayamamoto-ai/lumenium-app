@@ -92,6 +92,6 @@
 
 ## コンテンツ
 
-- [ブログ記事一覧](https://lumenium.net/blog/index.html): AI導入・SNS集客・動画制作・Web制作の実務ノウハウ（11記事以上）
+- [ブログ記事一覧](https://lumenium.net/blog/index.html): AI導入・SNS集客・動画制作・Web制作の実務ノウハウ（{{ARTICLES}}記事）
 - [よくある質問](https://lumenium.net/faq.html): 料金・納期・修正対応・NDA等
 - [お知らせ](https://lumenium.net/news.html)

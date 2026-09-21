@@ -2974,15 +2974,59 @@ window.lumAdmin = {
     host.innerHTML =
       '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">載りに行くべきページ</h3>' +
       '<p class="share-note" style="margin-bottom:8px">2問以上でAIが実際に開いたページです。ここに自社が載っていない限り、そのカテゴリの答えの材料に入りません。多くは無料の事業者登録で載ります。</p>' +
+      '<div class="toolbar" style="margin-bottom:8px">' +
+        '<button type="button" id="listing-run" class="ghost" style="font-size:12px;padding:6px 12px">いま載っているか調べる</button>' +
+        '<span id="listing-note" class="share-note">各ページを開いて、本文に社名があるかを見ます（無料・十数秒）。</span>' +
+      '</div>' +
       '<table style="width:100%;border-collapse:collapse"><tbody>' +
       list.map(function (p) {
-        return '<tr>' +
-          '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap">' + p.count + '問</td>' +
+        return '<tr data-url="' + esc(p.url) + '">' +
+          '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap;vertical-align:top">' + p.count + '問</td>' +
           '<td style="padding:5px 0;font-size:12px;word-break:break-all">' +
             '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a>' +
-            '<div style="font-size:11px;color:var(--sub)">' + esc(p.host) + '</div>' +
+            '<div style="font-size:11px;color:var(--sub)"><span class="listing-host">' + esc(p.host) + '</span><span class="listing-state"></span></div>' +
           '</td></tr>';
       }).join('') + '</tbody></table>';
+    var btn = document.getElementById('listing-run');
+    if (btn) btn.addEventListener('click', function () { checkListings(list.map(function (p) { return p.url; })); });
+  }
+
+  /* そのページに、いま自社が載っているか。開いて本文を見るだけなので費用は
+     かかりません。「載っていない」と「読めなかった」は分けて出します——
+     一覧を後からJavaScriptで描くページや、取得を断るページがあるためで、
+     そこを「載っていない」と断じると、無い作業を作ることになります。 */
+  async function checkListings(urls) {
+    var btn = document.getElementById('listing-run');
+    var note = document.getElementById('listing-note');
+    btn.disabled = true;
+    note.textContent = '調べています…';
+    var r;
+    try {
+      r = await window.lumAdmin.fetch('/api/listing-check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: urls }),
+      });
+    } catch (e) {
+      note.textContent = '調べられませんでした。';
+      btn.disabled = false; return;
+    }
+    btn.disabled = false;
+    var d = r.data || {};
+    if (!d.ok) { note.textContent = d.message || '調べられませんでした。'; return; }
+    note.textContent = '載っている ' + d.listed + '件 ／ 見当たらない ' + d.absent + '件 ／ 読めなかった ' + d.unreadable + '件';
+    (d.results || []).forEach(function (res) {
+      var row = document.querySelector('#seo-cited tr[data-url="' + res.url.replace(/"/g, '\\"') + '"]');
+      if (!row) return;
+      var cell = row.querySelector('.listing-state');
+      if (!cell) return;
+      if (res.state === 'listed') {
+        cell.innerHTML = '　<span style="color:#86efac">✓ 載っています' + (res.hasLink ? '（リンクあり）' : '') + '</span>';
+      } else if (res.state === 'absent') {
+        cell.innerHTML = '　<span style="color:#fbbf24">✗ 見当たりません — ここが作業先です</span>';
+      } else {
+        cell.innerHTML = '　<span style="color:var(--sub)">? 読めませんでした（' + esc(res.note || '') + '）。開いて目で確かめてください</span>';
+      }
+    });
   }
 
   function bars(id, rows, opt) {

@@ -90,6 +90,7 @@ globalThis.fetch = async (input, init = {}) => {
   // it, and a page with enough in it to be checked. Without these the audit
   // would be exercised only on its error path, which is the half that was
   // already working.
+  if (u.includes('dir.example.jp')) return ok('<html><title>一覧</title><body>ルメニウム（Lumenium）</body></html>', 'text/html')
   if (u.includes('/sitemap-urls.txt')) return ok('https://lumenium.net/\nhttps://lumenium.net/about.html', 'text/plain')
   if (u.includes('api.indexnow.org')) return ok({}, 'application/json')
   if (u.includes('/sitemap.xml')) {
@@ -140,6 +141,7 @@ const CALLS = [
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
   ['verify', 'GET', '', {}],
+  ['listing-check', 'POST', '', JSONH, { urls: ['https://dir.example.jp/list'] }],
   ['indexnow', 'GET', '', KEY],
   ['indexnow', 'POST', '', JSONH, {}],
   // 商談の自動予約。GET は訪問者、?recent= は管理者、POST は枠を指定しない
