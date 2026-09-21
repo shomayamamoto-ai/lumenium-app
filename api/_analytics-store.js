@@ -16,29 +16,45 @@ const TTL = KEEP_DAYS * 24 * 60 * 60
    UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN。中身は同じ REST の
    アドレスとトークンです。
    前者しか無い環境で「保存先が未設定です」と言い続けていました——入って
-   いるのに動かない、が一番たちが悪いので、どちらの名前でも読みます。 */
+   いるのに動かない、が一番たちが悪いので、どちらの名前でも読みます。
+
+   ただし URL とトークンは必ず「同じ組」から取ります。片方の名前だけが
+   古い設定として残っていることがあり（例: 手で入れた
+   UPSTASH_REDIS_REST_TOKEN だけが残り、URL は新しい KV_REST_API_URL）、
+   名前ごとに別々に選ぶと、別のデータベースのトークンで新しい URL を
+   叩くことになります。認証エラーになるだけならまだしも、原因が
+   「名前の取り違え」だと気づけません。 */
+export const STORE_ENV_PAIRS = [
+  { url: 'UPSTASH_REDIS_REST_URL', token: 'UPSTASH_REDIS_REST_TOKEN' },
+  { url: 'KV_REST_API_URL', token: 'KV_REST_API_TOKEN' },
+]
+
+/** 画面表示用の、名前の一覧（組をほどいたもの）。 */
 export const STORE_ENV = {
-  url: ['UPSTASH_REDIS_REST_URL', 'KV_REST_API_URL'],
-  token: ['UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_TOKEN'],
+  url: STORE_ENV_PAIRS.map((p) => p.url),
+  token: STORE_ENV_PAIRS.map((p) => p.token),
 }
 
-const fromEnv = (names) => {
-  for (const n of names) {
-    const v = (process.env[n] || '').trim()
-    if (v) return { name: n, value: v }
-  }
-  return null
-}
+const env = (name) => (process.env[name] || '').trim()
 
-/** どの名前で見つかったか。画面に「この名前で入っています」と出すため。 */
+/** 2つとも揃っている最初の組。揃っていない名前は無視します。 */
+const wholePair = () => STORE_ENV_PAIRS.find((p) => env(p.url) && env(p.token)) || null
+
+/** どの名前で見つかったか。画面に「この名前で入っています」と出すため。
+ *  組が揃っていないときは、値のある名前だけを返します（「片方しか
+ *  入っていません」と正しく言えるように）。 */
 export function storeEnvNames() {
-  return { url: fromEnv(STORE_ENV.url)?.name || null, token: fromEnv(STORE_ENV.token)?.name || null }
+  const pair = wholePair()
+  if (pair) return { url: pair.url, token: pair.token }
+  return {
+    url: STORE_ENV.url.find((n) => env(n)) || null,
+    token: STORE_ENV.token.find((n) => env(n)) || null,
+  }
 }
 
 export function storeConfig() {
-  const url = fromEnv(STORE_ENV.url)
-  const token = fromEnv(STORE_ENV.token)
-  return url && token ? { url: url.value.replace(/\/$/, ''), token: token.value } : null
+  const pair = wholePair()
+  return pair ? { url: env(pair.url).replace(/\/$/, ''), token: env(pair.token) } : null
 }
 
 /** The same, but also accepting the pair the admin pasted into their own

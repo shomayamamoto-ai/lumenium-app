@@ -23,7 +23,7 @@
 //
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
-import { storeConfig, storeFor, pipeline, STORE_ENV } from './_analytics-store.js'
+import { storeConfig, storeFor, pipeline, storeEnvNames } from './_analytics-store.js'
 import { bag, bagReady } from './_keybag.js'
 
 const K = (name) => `lum:cfg:${name}`
@@ -219,11 +219,13 @@ async function all(req) {
  *  everyone, then what this browser is carrying, then the environment.
  *  `req` is optional — without it the browser's own keys are simply not seen,
  *  which is the correct answer on a visitor's request. */
-/* 保存先の2つだけ、Vercel の Upstash 連携が別の名前で作ります。
-   同じ値なので、どちらの名前でも読みます（_analytics-store.js に一覧）。 */
-const ENV_ALIASES = {
-  UPSTASH_REDIS_REST_URL: STORE_ENV.url,
-  UPSTASH_REDIS_REST_TOKEN: STORE_ENV.token,
+/* 保存先の2つだけ、Vercel の Upstash 連携が別の名前で作ります。同じ値なので
+   どちらの名前でも読みますが、URL とトークンは必ず同じ組から取ります
+   （組の選び方は _analytics-store.js の storeEnvNames）。 */
+const envAlias = (name) => {
+  if (name === 'UPSTASH_REDIS_REST_URL') return storeEnvNames().url
+  if (name === 'UPSTASH_REDIS_REST_TOKEN') return storeEnvNames().token
+  return name
 }
 
 export async function setting(name, fallback, req) {
@@ -234,11 +236,9 @@ export async function setting(name, fallback, req) {
     if (mine) return mine
   }
   // 保存先の2つだけ、Vercel の連携が作る名前も見ます。
-  for (const n of (ENV_ALIASES[name] || [name])) {
-    const v = (process.env[n] || '').trim()
-    if (v) return v
-  }
-  return fallback || ''
+  const n = envAlias(name)
+  const v = n ? (process.env[n] || '').trim() : ''
+  return v || fallback || ''
 }
 
 /** Where each value is coming from, and enough of it to tell keys apart —
@@ -248,11 +248,9 @@ export async function settingStatus(req) {
   const mine = req ? await bag(req) : {}
   // 入っているのに「未設定」と出さないよう、別名も見ます。
   const envValue = (name) => {
-    for (const n of (ENV_ALIASES[name] || [name])) {
-      const v = (process.env[n] || '').trim()
-      if (v) return { name: n, value: v }
-    }
-    return null
+    const n = envAlias(name)
+    const v = n ? (process.env[n] || '').trim() : ''
+    return v ? { name: n, value: v } : null
   }
   return SETTINGS.map((s) => {
     const found = envValue(s.name)
