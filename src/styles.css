@@ -9998,3 +9998,39 @@ html[data-theme="dark"] .booking--done .booking-title { color: #86efac; }
   .booking-slots { grid-template-columns: 1fr 1fr; }
   .booking-slot { padding: 11px 12px; flex-direction: column; gap: 2px; }
 }
+
+/* ===== 選ぶだけの欄（ご依頼元・ご相談の内容） =====
+   打たずに済むものは打たせない。押した／押していないが、色だけでなく
+   枠と太さでも分かるようにしてあります（色だけで区別すると、色覚特性に
+   よっては同じに見えます）。 */
+.form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.form-chip {
+  padding: 9px 15px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-sub);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), color .15s var(--ease), transform .12s var(--ease);
+  touch-action: manipulation;
+}
+.form-chip:hover { border-color: var(--accent); color: var(--text); }
+.form-chip:active { transform: scale(.97); }
+.form-chip.is-on {
+  border-color: var(--accent);
+  border-width: 2px;
+  padding: 8px 14px;   /* 枠が太くなった分を戻して、位置をずらさない */
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 700;
+}
+html[data-theme="dark"] .form-chip { background: var(--bg-card); }
+html[data-theme="dark"] .form-chip.is-on { color: #c7d2fe; }

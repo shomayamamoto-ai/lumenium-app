@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' }
 import { storeConfig, pipeline, jstDate, K } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
+import { orgLabel, pickTopics } from './_form-options.js'
 
 // Per IP. Three enquiries in ten minutes is well past what a real person
 // sends; the daily cap stops a slow drip from adding up to a flooded inbox
@@ -36,7 +37,9 @@ async function record(ok, reason, field) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const LIMITS = { name: 50, email: 100, message: 1000 }
+const LIMITS = { name: 50, email: 100, company: 80, message: 1000 }
+
+
 
 export async function POST(req) {
   let payload
@@ -48,11 +51,16 @@ export async function POST(req) {
 
   // A field no visitor can see and no visitor fills. Answer 200 so a bot
   // cannot tell it was caught and start probing for the reason.
-  if (String(payload?.company ?? '').trim()) return json({ ok: true })
+  // 罠は website。company は本当に会社名を受け取る欄になりました——ここを
+  // 取り違えると、会社名を書いた人の問い合わせが黙って捨てられます。
+  if (String(payload?.website ?? '').trim()) return json({ ok: true })
 
   const name = String(payload?.name ?? '').trim()
   const email = String(payload?.email ?? '').trim()
   const message = String(payload?.message ?? '').trim()
+  const company = String(payload?.company ?? '').trim().slice(0, LIMITS.company)
+  const org = orgLabel(payload?.orgType)
+  const topics = pickTopics(payload?.topics)
 
   if (!name || name.length > LIMITS.name) return json({ error: 'invalid_name' }, 400)
   if (!email || !EMAIL_RE.test(email) || email.length > LIMITS.email) return json({ error: 'invalid_email' }, 400)
@@ -92,10 +100,14 @@ export async function POST(req) {
   const from_page = String(payload?.page ?? '').slice(0, 120)
   const withEstimate = /概算見積り|概算:/.test(message)
 
-  const subject = `【お問い合わせ】${name}様より${withEstimate ? '（見積り付き）' : ''}`
+  // 件名で仕分けられるように、区分と会社名を先に出します。
+  const who = company ? `${company} ${name}様` : `${name}様`
+  const subject = `【お問い合わせ】${who}より${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}${withEstimate ? '（見積り付き）' : ''}`
   const text = [
     `お名前: ${name}`,
     `メール: ${email}`,
+    org ? `ご依頼元: ${org}${company ? ` / ${company}` : ''}` : (company ? `会社名: ${company}` : null),
+    topics.length ? `ご相談の内容: ${topics.join('、')}` : null,
     `受信: ${jst} (JST)`,
     from_page ? `流入ページ: ${from_page}` : null,
     withEstimate ? '見積りシミュレーターの内容が含まれています。' : null,

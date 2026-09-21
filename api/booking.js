@@ -22,6 +22,7 @@ import { storeConfig, pipeline } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { requireAdmin } from './_admin-auth.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
+import { pickTopics } from './_form-options.js'
 import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.js'
 import {
   RULES, candidates, removeBusy, toWire, label,
@@ -107,13 +108,18 @@ export async function POST(req) {
   try { body = await req.json() } catch (_) { return json({ error: 'invalid_json' }, 400) }
 
   // 見えない欄。人は空のまま、botは埋める。
-  if (String(body?.company ?? '').trim()) return json({ ok: true })
+  // （罠は website。company はフォームで実際に入力される会社名です）
+  if (String(body?.website ?? '').trim()) return json({ ok: true })
 
   const key = String(body?.key ?? '').trim()
   const name = String(body?.name ?? '').trim()
   const email = String(body?.email ?? '').trim()
   const note = String(body?.message ?? '').trim().slice(0, LIMITS.message)
   const page = String(body?.page ?? '').slice(0, 120)
+  // フォームで選んだ内容を、そのまま予定に持っていく。当日は「何の話か」が
+  // 分かった状態で始められます。
+  const company = String(body?.company ?? '').trim().slice(0, 80)
+  const topics = pickTopics(body?.topics)
 
   if (!name || name.length > LIMITS.name) return json({ error: 'invalid_name' }, 400)
   if (!email || !EMAIL_RE.test(email) || email.length > LIMITS.email) return json({ error: 'invalid_email' }, 400)
@@ -143,10 +149,12 @@ export async function POST(req) {
   const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
   const when = label(slot.start, slot.end)
   const owner = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net', req)
-  const summary = `商談: ${name}様 × Lumenium`
+  const summary = `商談: ${company ? `${company} ` : ''}${name}様 × Lumenium${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
   const description = [
     `お名前: ${name}`,
+    company ? `会社名: ${company}` : null,
     `メール: ${email}`,
+    topics.length ? `ご相談の内容: ${topics.join('、')}` : null,
     page ? `申し込みページ: ${page}` : null,
     note ? `\nご相談内容:\n${note}` : null,
   ].filter(Boolean).join('\n')
@@ -169,7 +177,7 @@ export async function POST(req) {
   }
 
   const rec = {
-    id, key, when, name, email, note, page, mode, meet, eventId,
+    id, key, when, name, email, company, topics, note, page, mode, meet, eventId,
     at: new Date().toISOString(),
   }
   await saveBooking(store, pipeline, rec)
@@ -209,7 +217,9 @@ async function notify(req, rec, owner, ev) {
   const lines = [
     `日時: ${rec.when}（JST）`,
     `お名前: ${rec.name}`,
+    rec.company ? `会社名: ${rec.company}` : null,
     `メール: ${rec.email}`,
+    (rec.topics || []).length ? `ご相談の内容: ${rec.topics.join('、')}` : null,
     rec.meet ? `Meet: ${rec.meet}` : null,
     rec.page ? `申し込みページ: ${rec.page}` : null,
     rec.mode === 'google' ? 'カレンダーに登録済み・相手にも招待を送信しました。' : '仮予約です（Googleカレンダー未接続）。折り返し確定のご連絡が要ります。',
@@ -219,7 +229,7 @@ async function notify(req, rec, owner, ev) {
   await send({
     to: [owner],
     reply_to: rec.email,
-    subject: `【商談予約】${rec.when} ${rec.name}様`,
+    subject: `【商談予約】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
     text: lines.join('\n'),
   })
 

@@ -3,14 +3,24 @@ import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import { events, funnel } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
+import { ORG_TYPES, TOPICS } from '../data/site'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const LIMITS = { name: 50, email: 100, message: 1000 }
+const LIMITS = { name: 50, email: 100, company: 80, message: 1000 }
+
+const orgType = (id) => ORG_TYPES.find((o) => o.id === id) || null
 
 function validate(form) {
   const errors = {}
   if (!form.name.trim()) errors.name = 'お名前を入力してください'
   else if (form.name.length > LIMITS.name) errors.name = `${LIMITS.name}文字以内でお願いします`
+  // 会社名は、法人・個人事業主・その他を選んだときだけ聞きます。個人の方に
+  // 空欄の会社名を見せておいて、あとで「未記入」と扱うのは失礼です。
+  const org = orgType(form.orgType)
+  if (org && org.field) {
+    if (!form.company.trim()) errors.company = `${org.field}を入力してください`
+    else if (form.company.length > LIMITS.company) errors.company = `${LIMITS.company}文字以内でお願いします`
+  }
   if (!form.email.trim()) errors.email = 'メールアドレスを入力してください'
   else if (!EMAIL_RE.test(form.email)) errors.email = 'メールアドレスの形式を確認してください'
   if (!form.message.trim()) errors.message = 'ご相談内容を入力してください'
@@ -26,7 +36,13 @@ export default function ContactForm() {
   const [form, setForm] = useState(() => {
     let spec = ''
     try { spec = sessionStorage.getItem('lum_estimate') || '' } catch (_) {}
-    return { name: '', email: '', message: spec ? spec + '\n\n---\n' : '', company: '' }
+    return {
+      name: '', email: '', company: '', orgType: '', topics: [],
+      message: spec ? spec + '\n\n---\n' : '',
+      // 見えない欄。人は空のまま、botは埋めます。会社名を本当に聞くように
+      // なったので、罠の名前はそちらに譲りました。
+      website: '',
+    }
   })
   const [carried] = useState(() => {
     try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
@@ -66,6 +82,23 @@ export default function ContactForm() {
     if (touched[key]) setErrors(validate(next))
   }
 
+  /* 区分は1つ、ジャンルは複数。押し直しで外せます（選んだら最後まで
+     取り消せない選択は、相手に慎重さを強いるだけです）。 */
+  const pickOrg = (id) => () => {
+    handleStart()
+    const next = { ...form, orgType: form.orgType === id ? '' : id }
+    // 個人に切り替えたら、もう聞かない欄の中身は持ち越さない。
+    if (!orgType(next.orgType) || !orgType(next.orgType).field) next.company = ''
+    setForm(next)
+    if (touched.company) setErrors(validate(next))
+  }
+
+  const toggleTopic = (id) => () => {
+    handleStart()
+    const has = form.topics.includes(id)
+    setForm({ ...form, topics: has ? form.topics.filter((t) => t !== id) : [...form.topics, id] })
+  }
+
   const onBlur = (key) => () => {
     setTouched({ ...touched, [key]: true })
     setErrors(validate(form))
@@ -75,7 +108,7 @@ export default function ContactForm() {
     e.preventDefault()
     const nextErrors = validate(form)
     setErrors(nextErrors)
-    setTouched({ name: true, email: true, message: true })
+    setTouched({ name: true, email: true, company: true, message: true })
     if (Object.keys(nextErrors).length > 0) {
       showToast('error', '入力内容をご確認ください')
       const firstErrKey = Object.keys(nextErrors)[0]
@@ -96,17 +129,25 @@ export default function ContactForm() {
           name: form.name,
           email: form.email,
           message: form.message,
-          // Left empty by anyone who can see the form; bots fill every field.
           company: form.company,
+          orgType: form.orgType,
+          topics: form.topics,
+          // Left empty by anyone who can see the form; bots fill every field.
+          website: form.website,
           // Which page the enquiry came from, so it can be prioritised.
           page: typeof window !== 'undefined' ? window.location.hash || window.location.pathname : '',
         }),
       })
       if (!res.ok) throw new Error(`status ${res.status}`)
       setSent(true)
-      setLastSent({ name: form.name, email: form.email, message: form.message })
+      // 日程を決めるところまで、選んだ内容を持っていく。予定の説明にも入るので、
+      // 当日は何の話をするのかが分かった状態で始められます。
+      setLastSent({
+        name: form.name, email: form.email, message: form.message,
+        company: form.company, orgType: form.orgType, topics: form.topics,
+      })
       showToast('success', 'お問い合わせを送信しました。48時間以内にご返信いたします。')
-      setForm({ name: '', email: '', message: '', company: '' })
+      setForm({ name: '', email: '', company: '', orgType: '', topics: [], message: '', website: '' })
       setTouched({})
       setErrors({})
       setTimeout(() => setSent(false), 8000)
@@ -183,6 +224,61 @@ export default function ContactForm() {
               ) : null}
             </div>
           </div>
+          {/* 打たずに選べるものは、選ぶだけにする。こちらも、どのジャンルの
+              相談が来ているかを文章を読まずに把握できます。 */}
+          <div className="form-group">
+            <label id="orgtype-label">ご依頼元</label>
+            <div className="form-chips" role="group" aria-labelledby="orgtype-label">
+              {ORG_TYPES.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={`form-chip ${form.orgType === o.id ? 'is-on' : ''}`}
+                  aria-pressed={form.orgType === o.id}
+                  onClick={pickOrg(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {orgType(form.orgType) && orgType(form.orgType).field ? (
+            <div className={`form-group form-group--${fieldState('company')}`}>
+              <label htmlFor="company">{orgType(form.orgType).field} <span className="required" aria-hidden="true">*</span></label>
+              <input
+                id="company"
+                type="text"
+                placeholder={form.orgType === 'sole' ? '〇〇デザイン' : '株式会社〇〇'}
+                autoComplete="organization"
+                maxLength={LIMITS.company}
+                aria-invalid={!!errors.company && touched.company}
+                aria-describedby={errors.company && touched.company ? 'err-company' : undefined}
+                value={form.company}
+                onFocus={handleStart}
+                onChange={onChange('company')}
+                onBlur={onBlur('company')}
+              />
+              {errors.company && touched.company ? (
+                <p id="err-company" className="form-error" role="alert">{errors.company}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="form-group">
+            <label id="topics-label">ご相談の内容（複数選べます）</label>
+            <div className="form-chips" role="group" aria-labelledby="topics-label">
+              {TOPICS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`form-chip ${form.topics.includes(t.id) ? 'is-on' : ''}`}
+                  aria-pressed={form.topics.includes(t.id)}
+                  onClick={toggleTopic(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className={`form-group form-group--${fieldState('message')}`}>
             <div className="form-label-row">
               <label htmlFor="message">ご相談内容 <span className="required" aria-hidden="true">*</span></label>
@@ -194,14 +290,14 @@ export default function ContactForm() {
               </span>
             </div>
             <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
-              <label htmlFor="company">会社名（入力しないでください）</label>
+              <label htmlFor="website">ウェブサイト（入力しないでください）</label>
               <input
-                id="company"
+                id="website"
                 type="text"
                 tabIndex={-1}
                 autoComplete="off"
-                value={form.company}
-                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                value={form.website}
+                onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
               />
             </div>
             {carried && (

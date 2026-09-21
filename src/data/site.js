@@ -191,6 +191,29 @@ export const POSITIONING_NOTES = [
   { k: 'Lumenium（ルメニウム）', v: '企画〜運用までワンストップ。大手品質のアウトプットを、必要な規模だけで提供します。' },
 ]
 
+/* お問い合わせフォームの選択肢。
+ *
+ *  相手に打たせずに済むものは、打たせないのが親切です。ジャンルと区分は
+ *  選ぶだけにして、文章には「何に困っているか」だけを書いてもらいます。
+ *  こちら側にも効きます——どのジャンルの相談が来ているかが、毎回の文章を
+ *  読まなくても分かるようになります。 */
+export const ORG_TYPES = [
+  { id: 'company', label: '法人', field: '会社名' },
+  { id: 'sole', label: '個人事業主', field: '屋号' },
+  { id: 'personal', label: '個人', field: '' },
+  { id: 'other', label: 'その他', field: '団体名など' },
+]
+
+export const TOPICS = [
+  { id: 'video', label: '動画制作' },
+  { id: 'ai', label: 'AI導入・研修' },
+  { id: 'sns', label: 'SNS運用・LINE' },
+  { id: 'web', label: 'Web制作・システム' },
+  { id: 'cast', label: 'キャスト手配' },
+  { id: 'creative', label: 'ロゴ・バナー' },
+  { id: 'undecided', label: 'まだ決まっていない' },
+]
+
 /* 公式アカウントのURL。
  *
  *  ここが空なことが、AIO計測で「実在が確認できない」と返ってくる理由の

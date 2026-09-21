@@ -50,7 +50,11 @@ export default function BookingPicker({ contact }) {
           name: contact.name,
           email: contact.email,
           message: contact.message,
-          company: '',
+          // フォームで選んだ内容を、そのまま予定に持っていく。
+          company: contact.company || '',
+          topics: contact.topics || [],
+          // 見えない欄（bot よけ）。人の手では空のままです。
+          website: '',
           page: typeof window !== 'undefined' ? window.location.hash || window.location.pathname : '',
         }),
       })
