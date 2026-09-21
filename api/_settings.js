@@ -123,6 +123,13 @@ export const SETTINGS = [
     why: 'OAuth同意画面が「テスト」のままだと7日で失効します。「公開」または「内部」にしてから接続してください。切れた場合は接続し直すだけで戻ります。',
   },
   {
+    // Cloud Console を触らずに済む道。ログインして1本コピーするだけで、
+    // 候補日時が本当の空きから作られるようになります。
+    name: 'GOOGLE_CALENDAR_ICS_URL', label: 'カレンダーの非公開URL（簡易接続）', kind: 'secret', group: 'booking', device: false,
+    where: 'Googleカレンダー › 設定 › 対象のカレンダー › 「カレンダーの統合」 › 「非公開の iCal 形式の URL」',
+    why: 'Googleにログインしてコピーするだけで、空き時間が本物のカレンダーから反映されます（読み取りのみ）。予定の自動登録とMeetの発行には、上のクライアントIDによる接続が必要です。このURLを知る人は予定を読めるので、扱いは鍵と同じにしてください。',
+  },
+  {
     name: 'GOOGLE_CALENDAR_ID', label: '使うカレンダー', kind: 'text', group: 'booking', device: false,
     where: '空欄なら primary（そのアカウントの既定のカレンダー）',
     why: '商談だけ別カレンダーで管理したい場合は、そのカレンダーIDを入れます。空き時間の判定もそのカレンダーで行われます。',

@@ -4176,19 +4176,30 @@ window.lumAdmin = {
         (b.mode === 'google' ? 'Meet発行済み' : '仮予約') + '</td></tr>';
     }).join('');
 
+    /* いまどの段にいるか。3段あって、できることが違います。
+       1. 何もなし   … 営業時間のルールだけで候補を出す（仮予約）
+       2. 簡易接続   … 本当の空きから候補を出す（仮予約のまま）
+       3. 通常の接続 … 空きの反映に加えて、予定の登録とMeetの発行まで */
+    var level = d.connected ? 3 : d.ics ? 2 : 1;
+    var levelText = level === 3
+      ? '✓ Googleカレンダーに接続済み（' + esc(d.calendarId || 'primary') + '）'
+      : level === 2 ? '✓ 簡易接続（カレンダーの空きのみ反映）' : '未接続';
     box.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
-        '<span style="font-size:12.5px;font-weight:700;color:' + (d.connected ? '#67e8f9' : 'var(--sub)') + '">' +
-          (d.connected ? '✓ Googleカレンダーに接続済み（' + esc(d.calendarId || 'primary') + '）' : '未接続') + '</span>' +
+        '<span style="font-size:12.5px;font-weight:700;color:' + (level === 3 ? '#67e8f9' : level === 2 ? '#fbbf24' : 'var(--sub)') + '">' +
+          levelText + '</span>' +
         '<button type="button" id="booking-connect" class="ghost" style="font-size:12px;padding:6px 12px">' +
           (d.connected ? '接続し直す' : 'Googleカレンダーに接続') + '</button>' +
       '</div>' +
       '<p style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:7px">' +
-        (d.connected
+        (level === 3
           ? 'フォーム送信の直後に、このカレンダーの空きから候補が出ます。予約されると Meet 付きの予定が入り、相手にも招待が飛びます。'
-          : d.stored
-            ? 'いまは「仮予約」として動きます（候補は営業時間から作り、こちらに通知が届きます）。接続すると、空き状況の反映と Meet の自動発行まで行われます。'
-            : '保存先（Upstash Redis）が未設定のため、予約欄はサイトに表示されません。二重予約を防げない状態で予約を受けるわけにいかないためです。') +
+          : level === 2
+            ? '候補日時は、あなたのカレンダーの本当の空きから出ています。ただし予定の書き込みはできないため、確定は「仮予約」（.ics付きのメール）です。' +
+              'Meetの自動発行と予定の自動登録まで行うには、上のクライアントIDとシークレットを入れて「Googleカレンダーに接続」を押してください。'
+            : d.stored
+              ? 'いまは営業時間の決まりだけで候補を出し、確定は仮予約です。Googleにログインして「非公開の iCal 形式の URL」をコピーし、上の欄に貼るだけで、候補が本当の空きから出るようになります（読み取りのみ・Cloud Console は不要）。'
+              : '保存先（Upstash Redis）が未設定のため、予約欄はサイトに表示されません。二重予約を防げない状態で予約を受けるわけにいかないためです。') +
       '</p>' +
       (rows
         ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 4px">直近の予約</h4>' +

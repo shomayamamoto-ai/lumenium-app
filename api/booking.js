@@ -24,6 +24,7 @@ import { requireAdmin } from './_admin-auth.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { pickTopics } from './_form-options.js'
 import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.js'
+import { busyFromUrl } from './_ics.js'
 import {
   RULES, candidates, removeBusy, toWire, label,
   takeSlot, releaseSlot, saveBooking, recentBookings, icsFile,
@@ -58,16 +59,41 @@ async function openSlots(req, wanted) {
     }
   }
 
-  if (!store) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
+  /* 簡易接続（非公開iCal URL）。Cloud Console を通さずに、空きだけ本物に
+     します。書き込みはできないので、確定は仮予約のままです。 */
+  const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
+  let icsBusy = null
+  if (icsUrl) {
+    icsBusy = await busyFromUrl(icsUrl, all[0].start, all[all.length - 1].end)
+  }
+
+  if (!store && !icsBusy) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
+
+  if (icsBusy) {
+    const free = removeBusy(all, icsBusy)
+    // 保存先があれば、既に取られた枠も除く。
+    const taken = store ? await takenKeys(store, free) : []
+    const open = free.filter((s) => !taken.includes(new Date(s.start).toISOString()))
+    return { mode: 'ics', slots: open.slice(0, wanted), total: open.length }
+  }
+
   // 仮予約モード: 既に取られた枠だけは除く。
-  const keys = all.map((s) => new Date(s.start).toISOString())
-  let taken = []
-  try {
-    const out = await pipeline(store, keys.map((k) => ['GET', `lum:bk:lock:${k}`]))
-    taken = keys.filter((_, i) => out[i])
-  } catch (_) { /* 取れなければ全部出す */ }
+  const taken = await takenKeys(store, all)
   const free = all.filter((s) => !taken.includes(new Date(s.start).toISOString()))
   return { mode: 'local', slots: free.slice(0, wanted), total: free.length }
+}
+
+/** 既に押さえられている枠。保存先が答えなければ、空として扱います
+ *  （二重予約は確定時にもう一度見ます）。 */
+async function takenKeys(store, slots) {
+  const keys = slots.map((s) => new Date(s.start).toISOString())
+  if (!keys.length) return []
+  try {
+    const out = await pipeline(store, keys.map((k) => ['GET', `lum:bk:lock:${k}`]))
+    return keys.filter((_, i) => out[i])
+  } catch (_) {
+    return []
+  }
 }
 
 export async function GET(req) {
@@ -82,6 +108,8 @@ export async function GET(req) {
     return json({
       ok: true,
       connected: connected(c),
+      // 簡易接続（非公開iCal URL）だけの状態も、はっきり分けて返します。
+      ics: !!(await setting('GOOGLE_CALENDAR_ICS_URL', '', req)),
       stored: !!store,
       calendarId: c.calendarId,
       bookings: await recentBookings(store, pipeline, 20),
