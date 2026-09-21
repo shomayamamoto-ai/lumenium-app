@@ -897,7 +897,7 @@
 
     <div class="panel" id="advisor-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🤖 AIアドバイザー</h2>
-      <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析を渡してあります。「次に何をすべきか」を具体的に聞いてください。ウェブ検索も使って答えます。</p>
+      <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析を渡してあります。「次に何をすべきか」を具体的に聞いてください。ウェブ検索も使って答えます。答えは記号を使わない文章で返すので、そのままコピーして別のAIや担当者に渡せます。</p>
       <div id="advisor-log" style="max-height:52vh;overflow-y:auto;background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13.5px;line-height:1.75"></div>
       <div id="advisor-chips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px"></div>
       <form id="advisor-form" style="display:flex;gap:9px">
@@ -3598,6 +3598,20 @@ window.lumAdmin = {
     m.classList.toggle('show', !!text);
   }
 
+  /* 見出しや強調の記号を落として、ふつうの文章に戻す。
+     答え方は指示してあるが、混ざったものがそのまま画面に出ると、
+     コピーして別のAIに貼ったときにも記号だけが残る。表示の直前で落とす。 */
+  function plain(t) {
+    return String(t == null ? '' : t)
+      .replace(/^[ \t]{0,3}#{1,6}[ \t]*/gm, '')      // 見出し
+      .replace(/\*\*([^*]+)\*\*/g, '$1')            // 強調
+      .replace(/(^|[^\w*])\*([^*\n]+)\*/g, '$1$2')  // 斜体
+      .replace(/^[ \t]{0,3}[-*+][ \t]+/gm, '・')      // 箇条書き
+      .replace(/^[ \t]{0,3}>[ \t]?/gm, '')          // 引用
+      .replace(/`+/g, '')                          // コード記号
+      .replace(/^[ \t]*[-–—]{3,}[ \t]*$/gm, '');    // 区切り線
+  }
+
   function bubble(role, text) {
     var log = el('advisor-log');
     var wrap = document.createElement('div');
@@ -3605,7 +3619,10 @@ window.lumAdmin = {
     wrap.innerHTML =
       '<div style="font-size:10.5px;letter-spacing:.12em;font-weight:800;color:var(--sub);margin-bottom:4px">' +
         (role === 'user' ? 'あなた' : 'ADVISOR') + '</div>' +
-      '<div class="advisor-text" style="white-space:pre-wrap">' + esc(text) + '</div>';
+      '<div class="advisor-text" style="white-space:pre-wrap">' + esc(plain(text)) + '</div>' +
+      (role === 'assistant'
+        ? '<button type="button" class="advisor-copy ghost" style="display:none;margin-top:7px;font-size:11.5px;padding:5px 11px">この回答をコピー</button>'
+        : '');
     log.appendChild(wrap);
     log.scrollTop = log.scrollHeight;
     return wrap.querySelector('.advisor-text');
@@ -3657,12 +3674,24 @@ window.lumAdmin = {
         if (line.indexOf('data: ') !== 0) continue;
         var ev;
         try { ev = JSON.parse(line.slice(6)); } catch (_) { continue; }
-        if (ev.t) { acc += ev.t; target.textContent = acc; el('advisor-log').scrollTop = el('advisor-log').scrollHeight; }
-        if (ev.error) { target.textContent = acc + '\n\n（エラー: ' + ev.error + '）'; }
+        if (ev.t) { acc += ev.t; target.textContent = plain(acc); el('advisor-log').scrollTop = el('advisor-log').scrollHeight; }
+        if (ev.error) { target.textContent = plain(acc) + '\n\n（エラー: ' + ev.error + '）'; }
       }
     }
     if (acc) history.push({ role: 'assistant', content: acc });
     saveChat();
+    /* 別のAIや人に渡すためのコピー。記号を落とした、そのまま貼れる形で渡す。 */
+    var copyBtn = target.parentElement && target.parentElement.querySelector('.advisor-copy');
+    if (copyBtn && acc) {
+      copyBtn.style.display = 'inline-block';
+      copyBtn.onclick = function () {
+        try {
+          navigator.clipboard.writeText(plain(acc));
+          copyBtn.textContent = 'コピーしました';
+          setTimeout(function () { copyBtn.textContent = 'この回答をコピー'; }, 1600);
+        } catch (_) { say('コピーできませんでした。文章を選んでコピーしてください。'); }
+      };
+    }
     finish();
   }
 
