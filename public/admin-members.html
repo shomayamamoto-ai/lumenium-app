@@ -2465,6 +2465,25 @@ window.lumAdmin = {
   /* その文章がサイトのどこで使われるか。出る大きさが違うので、
      同じ見た目で並べると「短いのに大きく出てしまった」が防げません。
      道の名前（パスの末尾）から見当をつけます。 */
+  /* その項目が「文章」かどうか。
+     リンク先のURLやメールアドレスは、サイトでは文章として表示されず、
+     そのまま href などに入ります。そこに ** を入れるとリンクが壊れます。
+     実際、パートナーURLの欄で太字ボタンが押せてしまい、URLの末尾に
+     記号混じりの文字列が入りました。文章でないものには、書式も書き直しも
+     出しません——押せてしまう時点で、それは仕掛けた側の落ち度です。 */
+  function valueKind(path, value) {
+    var p = String(path || ''), v = String(value == null ? '' : value).trim();
+    if (/(url|link|href|src)$/i.test(p) || /^https?:\/\/\S+$/.test(v)) return 'url';
+    if (/mail/i.test(p) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'email';
+    if (/(^|\.)(tel|phone)$/i.test(p)) return 'tel';
+    return 'prose';
+  }
+  var KIND_NOTE = {
+    url: ['リンク先のURL', 'サイトでは文字として出ず、リンクの行き先に使われます。記号を入れるとリンクが開かなくなるため、書式と書き直しは使えません。'],
+    email: ['メールアドレス', '宛先として使われます。書式と書き直しは使えません。'],
+    tel: ['電話番号', '発信先として使われます。書式と書き直しは使えません。'],
+  };
+
   function kindOf(path) {
     var p = String(path || '');
     if (/titleLine|\.h1$|\.title$/.test(p)) return 'title';
@@ -2498,14 +2517,67 @@ window.lumAdmin = {
       .replace(/\n/g, '<br>');
   }
 
-  /** 選んだところを ** で囲む。選んでいなければ、その場に囲みだけ入れる。 */
-  function wrapSel(ta, a, b) {
+  /* 太字の入り切り。
+     以前は、何も選んでいないときに「ここを太字に」という文字を本文へ
+     入れていました。押した人が書いていない言葉が本文に混ざるので、
+     消し忘れればそのままサイトに出ます。実際そうなりました。
+
+     いまは、選んでいなければカーソルのある行を対象にします。押した
+     結果が必ず「いま書いてある文字が太字になる」になり、文章は増えません。
+     すでに太字なら外します——同じボタンで戻せないと、外し方を覚える
+     必要が出てきます。 */
+  function toggleBold(ta) {
     var s0 = ta.selectionStart, s1 = ta.selectionEnd, v = ta.value;
-    var sel = v.slice(s0, s1) || 'ここを太字に';
-    ta.value = v.slice(0, s0) + a + sel + b + v.slice(s1);
+    if (s0 === s1) {
+      var ls = v.lastIndexOf('\n', s0 - 1) + 1;
+      var le = v.indexOf('\n', s0);
+      if (le < 0) le = v.length;
+      s0 = ls; s1 = le;
+    }
+    // 前後の空白は太字に含めない（「 太字 」だと見た目がずれます）
+    while (s0 < s1 && /\s/.test(v[s0])) s0++;
+    while (s1 > s0 && /\s/.test(v[s1 - 1])) s1--;
+    if (s0 === s1) { ta.focus(); return; }
+
+    var sel = v.slice(s0, s1);
+    if (/^\*\*[\s\S]+\*\*$/.test(sel)) {           // 選んだ範囲ごと太字
+      var inner = sel.slice(2, -2);
+      ta.value = v.slice(0, s0) + inner + v.slice(s1);
+      ta.setSelectionRange(s0, s0 + inner.length);
+    } else if (v.slice(Math.max(0, s0 - 2), s0) === '**' && v.slice(s1, s1 + 2) === '**') {
+      ta.value = v.slice(0, s0 - 2) + sel + v.slice(s1 + 2);   // 外側が太字
+      ta.setSelectionRange(s0 - 2, s0 - 2 + sel.length);
+    } else {
+      /* 中にすでに太字があるときは、その印を外してから囲みます。
+         外さずに囲むと **企画から**ワンストップ**で。** のように入れ子に
+         なり、読む側（** を太字に変える処理）は最初の組で切るので、
+         真ん中だけ太字が外れた妙な見た目になります。全部を太字にすると
+         決めた以上、中の印はもう要りません。 */
+      var flat = sel.replace(/\*\*/g, '');
+      ta.value = v.slice(0, s0) + '**' + flat + '**' + v.slice(s1);
+      ta.setSelectionRange(s0 + 2, s0 + 2 + flat.length);
+    }
     ta.focus();
-    ta.setSelectionRange(s0 + a.length, s0 + a.length + sel.length);
   }
+  /* リンク・メール・電話の見え方。文章ではないので、読ませるのではなく
+     「これで本当に開くか」を見せます。開けない形なら、その場で言います
+     ——保存してから気づくと、リンク切れが1〜2分間そのまま出ます。 */
+  function linkPreview(kind, raw) {
+    var v = String(raw == null ? '' : raw).trim();
+    if (!v) return '<span style="color:var(--sub)">（空欄。元の値が使われます）</span>';
+    var bad = '';
+    if (/\*\*/.test(v)) bad = '太字の記号（**）が混ざっています。このままだと正しく開きません。';
+    else if (kind === 'url' && !/^https?:\/\/[^\s]+$/.test(v)) bad = 'http:// か https:// で始まる形になっていません。';
+    else if (kind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) bad = 'メールアドレスの形になっていません。';
+    var shown = kind === 'url' && /^https?:\/\//.test(v)
+      ? '<a href="' + esc(v) + '" target="_blank" rel="noopener" style="color:#93c5fd">' + esc(v) + '</a>' +
+        '<span style="font-size:11px;color:var(--sub)">　← 押すと開きます</span>'
+      : esc(v);
+    return shown + (bad
+      ? '<div style="font-size:11.5px;color:#fbbf24;margin-top:6px;line-height:1.7">⚠ ' + esc(bad) + '</div>'
+      : '');
+  }
+
   function insertAt(ta, t) {
     var s0 = ta.selectionStart, v = ta.value;
     ta.value = v.slice(0, s0) + t + v.slice(ta.selectionEnd);
@@ -2609,11 +2681,14 @@ window.lumAdmin = {
       ta.style.cssText = 'width:100%;padding:10px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
       wrap.appendChild(ta);
 
+      var vkind = valueKind(f.path, f.value);
+
       /* 書式ボタン。** を手で打てというのは、覚えている人にしか使えません。 */
       var tools = document.createElement('div');
       tools.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px';
-      tools.innerHTML =
-        '<button type="button" class="ghost cp-bold" style="font-size:11px;padding:4px 10px;font-weight:800">太字</button>' +
+      tools.innerHTML = vkind !== 'prose' ? '' :
+        '<button type="button" class="ghost cp-bold" title="文字を選んでから押すとその部分が、選ばずに押すとその行が太字になります。もう一度押すと戻ります。"' +
+          ' style="font-size:11px;padding:4px 10px;font-weight:800">太字にする／戻す</button>' +
         '<button type="button" class="ghost cp-br" style="font-size:11px;padding:4px 10px">改行</button>' +
         '<span style="width:9px"></span>' +
         '<span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>' +
@@ -2631,15 +2706,27 @@ window.lumAdmin = {
       var demo = document.createElement('div');
       demo.style.cssText = 'margin-top:8px;background:#11162a;border:1px solid var(--border);border-radius:9px;padding:10px 13px';
       var demoHead = document.createElement('div');
-      demoHead.textContent = '見え方（' + kindLabel(f.path) + '）';
+      demoHead.textContent = vkind === 'prose'
+        ? '見え方（' + kindLabel(f.path) + '）'
+        : '見え方（' + KIND_NOTE[vkind][0] + '）';
       demoHead.style.cssText = 'font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--sub);margin-bottom:6px';
       var demoBody = document.createElement('div');
-      demoBody.style.cssText = kindStyle(f.path);
+      demoBody.style.cssText = vkind === 'prose' ? kindStyle(f.path)
+        : 'font-size:13px;line-height:1.8;word-break:break-all;color:var(--text)';
       demo.appendChild(demoHead);
       demo.appendChild(demoBody);
+      if (vkind !== 'prose') {
+        var why = document.createElement('div');
+        why.textContent = KIND_NOTE[vkind][1];
+        why.style.cssText = 'font-size:11px;color:var(--sub);line-height:1.75;margin-top:6px';
+        demo.appendChild(why);
+      }
       wrap.appendChild(demo);
 
-      function paint() { demoBody.innerHTML = asSite(ta.value); }
+      function paint() {
+        if (vkind === 'prose') { demoBody.innerHTML = asSite(ta.value); return; }
+        demoBody.innerHTML = linkPreview(vkind, ta.value);
+      }
       paint();
 
       function mark() {
@@ -2655,8 +2742,10 @@ window.lumAdmin = {
       ta.addEventListener('input', function () { mark(); paint(); });
       reset.addEventListener('click', function () { ta.value = f.value; mark(); paint(); ta.focus(); });
 
-      tools.querySelector('.cp-bold').addEventListener('click', function () { wrapSel(ta, '**', '**'); mark(); paint(); });
-      tools.querySelector('.cp-br').addEventListener('click', function () { insertAt(ta, '\n'); mark(); paint(); });
+      if (vkind === 'prose') {
+        tools.querySelector('.cp-bold').addEventListener('click', function () { toggleBold(ta); mark(); paint(); });
+        tools.querySelector('.cp-br').addEventListener('click', function () { insertAt(ta, '\n'); mark(); paint(); });
+      }
 
       Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (b) {
         b.addEventListener('click', async function () {
