@@ -9,8 +9,7 @@ export const config = { runtime: 'edge' }
 // So the admin page can answer "how many people, on what pages" and cannot
 // answer "who", which is the only question worth refusing to answer.
 
-import { storeConfig, pipeline, jstDate, K } from './_analytics-store.js'
-import { refKind } from './_referrers.js'
+import { storeConfig, pipeline, jstDate, jstHour, K } from './_analytics-store.js'
 
 const enc = new TextEncoder()
 
@@ -124,6 +123,10 @@ export async function POST(req) {
         // be divided by the visitor count to get a rate.
         ['PFADD', K.dayEventUsers(date, ev), vid],
         ['EXPIRE', K.dayEventUsers(date, ev), K.expire],
+        // …そして、どのページで起きたか。全体の読了率だけでは
+        // 「どのページを書き直すか」が決まりません。
+        ['HINCRBY', K.dayEventPaths(date, ev), path, 1],
+        ['EXPIRE', K.dayEventPaths(date, ev), K.expire],
       ])
     } catch (_) { /* a beacon must never surface an error */ }
     return ok()
@@ -144,13 +147,10 @@ export async function POST(req) {
       ['EXPIRE', K.dayPaths(date), K.expire],
       ['HINCRBY', K.dayRefs(date), ref, 1],
       ['EXPIRE', K.dayRefs(date), K.expire],
-      // ホスト名そのものと、それを5種類にまとめたもの。両方を残すのは、
-      // 「AI検索から何人」と「そのうち Perplexity は何人」の両方を
-      // 答えられるようにするためです。
-      ['HINCRBY', K.dayRefKinds(date), refKind(ref), 1],
-      ['EXPIRE', K.dayRefKinds(date), K.expire],
       ['HINCRBY', K.dayDevices(date), dev, 1],
       ['EXPIRE', K.dayDevices(date), K.expire],
+      ['HINCRBY', K.dayHours(date), String(jstHour()), 1],
+      ['EXPIRE', K.dayHours(date), K.expire],
     ])
   } catch {
     /* counting is best-effort; never surface a store outage to a visitor */

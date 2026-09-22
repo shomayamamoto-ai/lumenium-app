@@ -949,6 +949,12 @@
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこまで読まれたか</h3>
           <p class="share-note" style="margin-bottom:10px">閲覧数は「開かれた」までしか言いません。開いてすぐ閉じたのか、最後まで読んだのか。文章を直す場所は、ここで決まります。</p>
           <div id="stats-read"></div>
+          <div id="stats-readpaths" style="margin-top:14px"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">いつ見られているか</h3>
+          <p class="share-note" style="margin-bottom:10px">日本時間の時間帯別。お知らせや SNS を出す時刻、問い合わせに気づいておくべき時間帯を、勘ではなく山で決められます。</p>
+          <div id="stats-hours"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">問い合わせまでの導線</h3>
@@ -2836,6 +2842,72 @@ window.lumAdmin = {
       (thin ? '<p class="share-note">訪問が ' + arrivals + '人のため、割合は出していません。人数はそのまま読めます。</p>' : '');
   }
 
+  /* ページごとの読了率。全体の読了率は「どこが悪いか」までしか言わず、
+     「どれを書き直すか」を教えてくれません。
+     開かれた回数が少ないページは率が跳ねる（1回開かれて1回読了＝100%）
+     ので、率は5回以上開かれたページにだけ出します。それ以外は回数だけ。 */
+  function readPaths(rows) {
+    var host = el('stats-readpaths');
+    if (!host) return;
+    if (!rows.length) { host.innerHTML = ''; return; }
+    var MIN = 5;
+    var enough = rows.filter(function (r) { return r.opened >= MIN; });
+    host.innerHTML =
+      '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin-bottom:6px">' +
+        'ページ別（終わりまで読まれた割合）</h4>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      rows.slice(0, 10).map(function (r) {
+        var few = r.opened < MIN;
+        var pct = Math.round(r.rate * 100);
+        return '<tr>' +
+          /* width:100% と max-width:0 の組み合わせで、余った幅いっぱいに
+             広がりつつ、長いURLは「…」で切れます。max-width:0 だけだと
+             列が潰れて、ページ名が一文字も出ません。 */
+          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            '<a href="https://lumenium.net' + esc(r.name) + '" target="_blank" rel="noopener" ' +
+            'style="color:var(--text);text-decoration:underline;text-underline-offset:2px">' + esc(r.name) + '</a></td>' +
+          '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
+            r.ended + ' / ' + r.opened + '</td>' +
+          '<td style="padding:5px 0 5px 12px;text-align:right;white-space:nowrap;width:70px;' +
+            'font-variant-numeric:tabular-nums;color:' + (few ? 'var(--sub)' : pct >= 50 ? '#6ee7b7' : pct >= 20 ? 'inherit' : '#fcd34d') + '">' +
+            (few ? '—' : pct + '%') + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</table>' +
+      '<p class="share-note" style="margin-top:6px">' +
+        (enough.length
+          ? '「終わりまで / 開かれた」回数と、その割合です。低いページは、読み始めの数行か、途中の長さに原因があります。'
+          : 'まだどのページも ' + MIN + '回に届いていないため、割合は出していません（1回開いて1回読了が100%になってしまうためです）。回数はそのまま読めます。') +
+      '</p>';
+  }
+
+  /* いつ見られているか。0時から23時まで、来ていない時間も残します——
+     穴が空いている時間帯こそ読みたいものだからです。 */
+  function hours(rows) {
+    var host = el('stats-hours');
+    if (!host) return;
+    var total = rows.reduce(function (a, b) { return a + b.count; }, 0);
+    if (!total) { host.innerHTML = '<p class="share-note">まだデータがありません。</p>'; return; }
+    var max = Math.max.apply(null, rows.map(function (r) { return r.count; }).concat([1]));
+    var peak = rows.filter(function (r) { return r.count === max; })[0];
+    host.innerHTML =
+      '<div style="display:flex;align-items:flex-end;gap:2px;height:96px;background:#151b31;' +
+        'border:1px solid var(--border);border-radius:12px;padding:10px 10px 6px">' +
+      rows.map(function (r) {
+        var h = Math.max(2, Math.round((r.count / max) * 70));
+        return '<div title="' + r.hour + '時　' + r.count + '回" style="flex:1;display:flex;flex-direction:column;' +
+          'align-items:center;justify-content:flex-end;gap:3px;height:100%">' +
+          '<div style="width:100%;height:' + h + 'px;border-radius:3px;background:' +
+            (r.count ? 'linear-gradient(180deg,#818cf8,#4f46e5)' : 'rgba(255,255,255,.07)') + '"></div>' +
+          '<span style="font-size:8.5px;color:var(--sub);font-variant-numeric:tabular-nums">' +
+            (r.hour % 6 === 0 ? r.hour : '') + '</span>' +
+        '</div>';
+      }).join('') +
+      '</div>' +
+      '<p class="share-note" style="margin-top:6px">いちばん多いのは <b>' + peak.hour + '時台</b>（' + peak.count + '回）。' +
+        '数字は日本時間です。閲覧数の合計は ' + total + ' 回。</p>';
+  }
+
   async function load() {
     var key = sessionStorage.getItem('lum_admin_key');
     if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
@@ -2861,6 +2933,8 @@ window.lumAdmin = {
     chart(data.series || []);
     kinds(data.referrerKinds || []);
     readDepth(data.funnel || {});
+    readPaths(data.readByPath || []);
+    hours(data.hours || []);
     funnelBars(data.funnel || []);
     bars('stats-paths', data.topPaths, { link: true });
     bars('stats-refs', data.topReferrers);

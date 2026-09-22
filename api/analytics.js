@@ -6,7 +6,7 @@ import { requireAdmin } from './_admin-auth.js'
 // and rate limiting as the member endpoints.
 
 import { storeFor, storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
-import { REF_KINDS } from './_referrers.js'
+import { REF_KINDS, refKind } from './_referrers.js'
 
 // The enquiry path, and the two things that are measured but are not steps on
 // it. They used to be one flat list of seven, which made the report say things
@@ -85,9 +85,12 @@ export async function GET(req) {
       ...dates.map((d) => ['PFCOUNT', K.dayVisitors(d)]),
       ...dates.map((d) => ['HGETALL', K.dayPaths(d)]),
       ...dates.map((d) => ['HGETALL', K.dayRefs(d)]),
-      ...dates.map((d) => ['HGETALL', K.dayRefKinds(d)]),
       ...dates.map((d) => ['HGETALL', K.dayDevices(d)]),
       ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
+      ...dates.map((d) => ['HGETALL', K.dayHours(d)]),
+      // ページごとの「開かれた／終わりまで読まれた」。読了率を
+      // ページ単位で出すのに要ります。
+      ...dates.map((d) => ['HGETALL', K.dayEventPaths(d, 'read_end')]),
       // One union per step. PFCOUNT over many keys returns the cardinality of
       // their union, so this is 8 commands rather than 8 × days.
       ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
@@ -103,9 +106,10 @@ export async function GET(req) {
   const visitors = dates.map(() => Number(raw[i++]) || 0)
   const paths = dates.map(() => toPairs(raw[i++]))
   const refs = dates.map(() => toPairs(raw[i++]))
-  const refKinds = dates.map(() => toPairs(raw[i++]))
   const devices = dates.map(() => toPairs(raw[i++]))
   const evDays = dates.map(() => toPairs(raw[i++]))
+  const hours = dates.map(() => toPairs(raw[i++]))
+  const readEndPaths = dates.map(() => toPairs(raw[i++]))
   const arrivals = Number(raw[i++]) || 0
   const people = {}
   for (const ev of STEP_KEYS) people[ev] = Number(raw[i++]) || 0
@@ -186,19 +190,56 @@ export async function GET(req) {
     series,
     topPaths: merge(paths, 20),
     topReferrers: merge(refs, 12),
-    // 紹介元を種類でまとめたもの。ホスト名の一覧と違って、来ていない
-    // 種類も 0 のまま並べます——「AI検索から 0」は空欄ではなく結果で、
-    // 対策が効き始めたかどうかはその行が動くかで分かるからです。
+    /* 紹介元を種類でまとめたもの。来ていない種類も 0 のまま並べます——
+       「AI検索から 0」は空欄ではなく結果で、対策が効き始めたかどうかは
+       その行が動くかで分かるからです。
+
+       数え方は、保存してあるホスト名を読み直して分類します。種類ごとの
+       集計も別に持っていますが、そちらは記録を始めた日からのぶんしか
+       ありません。両方を足すと二重に数えるので、記録を始める前のぶんが
+       ある期間では、ホスト名から数え直したほうを使います。
+
+       これをやらないと、同じ画面で「どこから来たか 全部0」と
+       「流入元 direct 4」が並びます。どちらかが嘘に見えて、どちらを
+       信じればいいのか分からなくなります。 */
     referrerKinds: (() => {
-      const got = Object.fromEntries(merge(refKinds, 10).map((r) => [r.name, r.count]))
-      const total = Object.values(got).reduce((a, b) => a + b, 0)
+      const byKind = {}
+      // ホスト名から数え直す（上限なし。表示は12件でも、集計は全部）。
+      for (const { name, count } of merge(refs, Infinity)) {
+        const k = refKind(name)
+        byKind[k] = (byKind[k] || 0) + count
+      }
+      const total = Object.values(byKind).reduce((a, b) => a + b, 0)
       return REF_KINDS.map((k) => ({
         ...k,
-        count: got[k.key] || 0,
-        share: total ? (got[k.key] || 0) / total : 0,
+        count: byKind[k.key] || 0,
+        share: total ? (byKind[k.key] || 0) / total : 0,
       }))
     })(),
     devices: merge(devices, 5),
+    /* いつ見られているか。0時から23時まで、来ていない時間も 0 で残します
+       ——穴が空いている時間帯こそ読みたいものだからです。 */
+    hours: (() => {
+      const got = Object.fromEntries(merge(hours, Infinity).map((h) => [Number(h.name), h.count]))
+      return Array.from({ length: 24 }, (_, h) => ({ hour: h, count: got[h] || 0 }))
+    })(),
+    /* ページごとの読了率。開かれた回数のうち、終わりまで来た回数。
+       全体の読了率は「直すべきページ」を教えてくれないので、ページ単位で
+       出します。開かれた回数が少ないページは率が跳ねるので、回数も一緒に
+       返して画面側で判断できるようにします。 */
+    readByPath: (() => {
+      const opened = Object.fromEntries(merge(paths, Infinity).map((p) => [p.name, p.count]))
+      const ended = Object.fromEntries(merge(readEndPaths, Infinity).map((p) => [p.name, p.count]))
+      return Object.keys(opened)
+        .map((name) => ({
+          name,
+          opened: opened[name],
+          ended: ended[name] || 0,
+          rate: opened[name] ? (ended[name] || 0) / opened[name] : 0,
+        }))
+        .sort((a, b) => b.opened - a.opened)
+        .slice(0, 12)
+    })(),
   })
 }
 
