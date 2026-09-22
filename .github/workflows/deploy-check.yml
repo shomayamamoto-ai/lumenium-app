@@ -1,69 +1,93 @@
 # 公開サイトに、いま何が出ているか。
 #
-# 「直したはずなのに画面が変わらない」ときに押すボタンです。
+# 「直したはずなのに画面が変わらない」ときに答えを出すための確認です。
 #
 # 手元のコードが正しいことは、ビルドして実際のブラウザで描画すれば確かめ
 # られます。確かめられないのは「それが lumenium.net に届いているか」で、
-# ここが分からないと、CSS を直すべきなのか Vercel を見るべきなのかが
-# 判断できません。見え方はどちらも同じ「変わらない」だからです。
+# 開発している作業環境からは外部サイトに接続できません。そのせいで
+# 「コードを直すべきなのか、配信側を見るべきなのか」が判断できず、同じ
+# 修正を何度も出す状態になっていました。見え方はどちらも同じ
+# 「変わらない」だからです。
 #
-# GitHub Actions は外に出られるので、公開中のページを取ってきて、
-# 手元の最新と同じものが出ているかを突き合わせます。
+# GitHub Actions は外に出られるので、代わりに見てもらいます。push のたび
+# に自動で動き、配信が終わるのを待ってから答えを出します。
 #
-# 使い方: GitHub の Actions タブ →「公開サイトの確認」→ Run workflow
+# 失敗では終わらせません。ここが赤くなると、持ち主あてに GitHub から
+# 「Run failed」のメールが飛びます（それが嫌で死活監視を止めた経緯が
+# あります）。知らせたいのは結果であって、警報ではありません。
 
 name: 公開サイトの確認
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: deploy-check
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: いまの main
+      - name: いま main にあるもの
         run: git log --oneline -3
 
-      - name: 公開されているページを取ってくる
+      - name: 誰が配信しているか
         run: |
-          set -eu
-          echo "── トップページの応答 ──"
-          curl -sS --max-time 20 -D headers.txt https://lumenium.net/ -o index.html
-          grep -i -E '^(date|age|cache-control|x-vercel-id|x-vercel-cache):' headers.txt || true
+          set -u
+          curl -sS --max-time 20 -D headers.txt -o index.html https://lumenium.net/ || true
+          echo "── 応答ヘッダ ──"
+          grep -i -E '^(HTTP/|server|date|age|cache-control|x-vercel-id|x-vercel-cache|x-github-request-id|via):' headers.txt || true
           echo
-          echo "── 読み込んでいる CSS ──"
-          CSS=$(grep -o '/assets/[A-Za-z0-9._-]*\.css' index.html | head -1)
-          echo "$CSS"
-          test -n "$CSS"
-          curl -sS --max-time 20 "https://lumenium.net$CSS" -o site.css
-
-      - name: フッター見出しの下線が、新しい書き方になっているか
-        run: |
-          set -eu
-          echo "── 公開中の CSS にある指定 ──"
-          grep -o '\.footer-col h4[^}]*}' site.css || echo '(.footer-col h4 が見つかりません)'
-          echo
-          # 新しい書き方は .footer-col h4>span。古い書き方は width:20px の
-          # 決め打ち。どちらが出ているかで、届いているかどうかが分かります。
-          if grep -q '\.footer-col h4>span' site.css; then
-            echo '結果: 新しいコードが公開されています。'
-            echo '      それでも画面が古い場合は、ブラウザに残っている表示です'
-            echo '      （Safari なら ⌥⌘R、またはプライベートウインドウで開く）。'
+          if grep -qi '^x-vercel' headers.txt; then
+            echo '配信元: Vercel'
+          elif grep -qi 'GitHub.com' headers.txt; then
+            echo '配信元: GitHub Pages ← Vercel ではありません。これだけで原因が確定します。'
           else
-            echo '結果: 公開されているのは古いコードです。'
-            echo '      push した内容が Vercel に届いていません。'
-            echo '      Vercel › Deployments で、最新のコミットが Ready か確認してください。'
-            exit 1
+            echo '配信元: 判別できませんでした（上のヘッダを見てください）'
           fi
 
-      - name: 手元のビルドと同じ中身か（念のため）
-        if: always()
+      - name: 新しいコードが出るまで待つ（最大5分）
         run: |
-          set -eu
-          echo "── 手元の src での指定 ──"
-          grep -A 12 '^\.footer-col h4 {' src/styles.css || true
+          set -u
+          # 新しい書き方は .footer-col h4>span、古いのは width:20px の決め打ち。
+          # push 直後は配信がまだ終わっていないので、少し待ちながら見ます。
+          NEEDLE='.footer-col h4>span'
+          FOUND=no
+          for i in $(seq 1 15); do
+            curl -sS --max-time 20 -o index.html "https://lumenium.net/?cachebust=$(date +%s)" || true
+            CSS=$(grep -o '/assets/[A-Za-z0-9._-]*\.css' index.html | head -1)
+            if [ -n "$CSS" ]; then
+              curl -sS --max-time 20 -o site.css "https://lumenium.net$CSS" || true
+              if grep -qF "$NEEDLE" site.css; then FOUND=yes; fi
+            fi
+            echo "[$i/15] CSS=${CSS:-見つからず}  新しいコード=${FOUND}"
+            [ "$FOUND" = yes ] && break
+            sleep 20
+          done
+          echo
+          echo "── 公開中の CSS にあるフッター見出しの指定 ──"
+          grep -o '\.footer-col h4[^}]*}' site.css || echo '(.footer-col h4 が見つかりません)'
+          echo
+          if [ "$FOUND" = yes ]; then
+            echo '===================================================='
+            echo ' 結果: 新しいコードが公開されています。'
+            echo '===================================================='
+          else
+            echo '===================================================='
+            echo ' 結果: 5分待っても古いコードのままです。'
+            echo ' push した内容が公開サイトに届いていません。'
+            echo ' 配信側（Vercel の Deployments）を見る必要があります。'
+            echo '===================================================='
+          fi
+
+      - name: 手元の src はどうなっているか（突き合わせ用）
+        if: always()
+        run: sed -n '/^\.footer-col h4 {/,/^}/p;/^\.footer-col h4 > span/,/^}/p' src/styles.css
