@@ -21,7 +21,7 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeFor, pipeline, jstDate } from './_analytics-store.js'
 import { socialActivity } from './_social.js'
 import {
-  QUESTIONS, CATEGORIES, BRAND, costEstimateUsd, ASK_MODEL, JUDGE_MODEL,
+  QUESTIONS, CATEGORIES, BRAND, costEstimateUsd, ASK_MODEL, JUDGE_MODEL, MIN_FOR_RATE,
   namesBrand, citesBrand, hostOf, isHit, VERDICTS,
 } from './_aio-catalog.js'
 
@@ -344,16 +344,28 @@ function summarise(results, fallback) {
   const done = results.filter(judged)
   const rate = (list) => (list.length ? list.filter(hit).length / list.length : 0)
 
+  /* 分野ごとの成績。
+     率は、答えが返ってきた数が MIN_FOR_RATE に届いた分野にだけ付けます。
+     1問しか返っていない分野の率は 0% か 100% にしかならず、分野の傾向
+     としては読めないのに、他の分野と同じ顔で並んでしまうからです
+     （アクセス解析で割合を伏せたのと同じ理由です）。
+     質問を出した数そのものが少ないときだけでなく、失敗して返って
+     こなかったときにも効きます——8問中1問しか返らなかった分野は、
+     8問ぶんの信頼性を持ちません。 */
   const byCategory = CATEGORIES.map((cat) => {
     const list = done.filter((r) => r.cat === cat)
+    const planned = results.filter((r) => r && r.cat === cat).length
+    const thin = list.length < MIN_FOR_RATE
     return {
       cat,
       asked: list.length,
+      planned,
       mentions: list.filter(hit).length,
       cites: list.filter((r) => r.cited).length,
-      rate: rate(list),
+      thin,
+      rate: thin ? null : rate(list),
     }
-  }).filter((c) => c.asked > 0)
+  }).filter((c) => c.planned > 0)
 
   // Share of voice: how often each company was named, us included, across the
   // questions where nobody typed our name. The 指名 questions are excluded —

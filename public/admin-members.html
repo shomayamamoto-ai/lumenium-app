@@ -3566,8 +3566,15 @@ window.lumAdmin = {
     cards(s);
     breakdown(s);
     actions(run);
+    /* 分野ごとの成績。返ってきた答えが少ない分野は、率ではなく
+       「3問中1問」だけを出します。1問の率は 0% か 100% にしかならず、
+       分野の傾向としては読めないのに、他と同じ顔で並んでしまうからです。
+       返ってこなかった問がある分野には、その旨も書きます。 */
     bars('seo-cats', s.byCategory.map(function (c) {
-      return { name: c.cat, value: c.rate, note: c.mentions + '/' + c.asked, us: false };
+      var lost = (c.planned || c.asked) - c.asked;
+      var note = c.mentions + '/' + c.asked + (c.thin ? '（率は出せません）' : '');
+      if (lost > 0) note += '　' + lost + '問未取得';
+      return { name: c.cat, value: c.thin ? 0 : c.rate, note: note, us: false };
     }), { labelWidth: 150 });
     bars('seo-comp', (s.competitors || []).map(function (c) {
       return { name: c.name, value: c.count, note: String(c.count) + '回', us: c.us };

@@ -33,8 +33,12 @@ import { SITE, extract, crossCheck, questionCoverage } from './_audit-rules.js'
    reported 「/services/video.html にFAQが無い」 on the same page, and nobody
    joined them. Joined here, a miss reads as an instruction — this question
    has no page, or has one that does not answer it. */
-const ANSWERS = {
+export const ANSWERS = {
   'ブランド指名': ['/about.html', '/profile.html'],
+  /* 評判・信頼性。候補に残ったあと最後に確かめられることで、ここで
+     止まったことは問い合わせ数には出ません。答える材料は1ページでは
+     足りず、お客様の声・実績・事業者情報の3つに分かれています。 */
+  '評判・信頼性': ['/voice.html', '/works.html', '/about.html'],
   '動画制作': ['/services/video.html'],
   'AI導入・研修': ['/services/ai.html'],
   'SNS・LINE': ['/services/sns.html'],
