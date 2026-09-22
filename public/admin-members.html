@@ -904,9 +904,9 @@
 
     <div class="panel" id="advisor-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🤖 AIアドバイザー</h2>
-      <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析を渡してあります。「次に何をすべきか」を具体的に聞いてください。ウェブ検索も使って答えます。答えは記号を使わない文章で返すので、そのままコピーして別のAIや担当者に渡せます。</p>
+      <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析・クローラーの来訪記録を渡してあります。ウェブ検索も使って答えます。<b>打たなくても、下のボタンだけで進められます</b>——答えるたびに、その続きになる質問もボタンで出ます。答えは記号を使わない文章なので、そのままコピーして別のAIや担当者に渡せます。</p>
       <div id="advisor-log" style="max-height:52vh;overflow-y:auto;background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13.5px;line-height:1.75"></div>
-      <div id="advisor-chips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px"></div>
+      <div id="advisor-chips" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
       <form id="advisor-form" style="display:flex;gap:9px">
         <input type="text" id="advisor-input" placeholder="例：非指名の検索で出てこないのはなぜ？" autocomplete="off"
           style="flex:1;min-width:0;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit">
@@ -4091,8 +4091,32 @@ window.lumAdmin = {
   /* 見出しや強調の記号を落として、ふつうの文章に戻す。
      答え方は指示してあるが、混ざったものがそのまま画面に出ると、
      コピーして別のAIに貼ったときにも記号だけが残る。表示の直前で落とす。 */
+  /* 答えの最後に付く「次に押せる質問」の行。
+     これは画面に出さずボタンに変えるので、表示にもコピーにも混ぜません。
+     途中まで届いた状態（NEX だけ来ている等）でも出さないよう、行の
+     書きかけも落とします——1文字ずつ増える様子が本文に見えると、
+     壊れているように見えるからです。 */
+  var NEXT_RE = /\n?NEXT::.*$/s;
+  // 書きかけを落とすほうは改行を必須にします。省略可にすると、本文が
+  // たまたま N で終わったときにその1文字が消えます。
+  var NEXT_PARTIAL = /\nN(E(X(T(:(:.*)?)?)?)?)?$/;
+
+  function cutNext(t) {
+    return String(t == null ? '' : t).replace(NEXT_RE, '').replace(NEXT_PARTIAL, '');
+  }
+
+  /** 「次に押せる質問」を取り出す。無ければ空。 */
+  function nextQuestions(t) {
+    var m = /\nNEXT::(.*)$/s.exec(String(t || ''));
+    if (!m) return [];
+    return m[1].split('||')
+      .map(function (q) { return q.replace(/\s+/g, ' ').trim(); })
+      .filter(function (q) { return q && q.length <= 40; })
+      .slice(0, 4);
+  }
+
   function plain(t) {
-    return String(t == null ? '' : t)
+    return String(cutNext(t))
       .replace(/^[ \t]{0,3}#{1,6}[ \t]*/gm, '')      // 見出し
       .replace(/\*\*([^*]+)\*\*/g, '$1')            // 強調
       .replace(/(^|[^\w*])\*([^*\n]+)\*/g, '$1$2')  // 斜体
@@ -4111,7 +4135,8 @@ window.lumAdmin = {
         (role === 'user' ? 'あなた' : 'ADVISOR') + '</div>' +
       '<div class="advisor-text" style="white-space:pre-wrap">' + esc(plain(text)) + '</div>' +
       (role === 'assistant'
-        ? '<button type="button" class="advisor-copy ghost" style="display:none;margin-top:7px;font-size:11.5px;padding:5px 11px">この回答をコピー</button>'
+        ? '<button type="button" class="advisor-copy ghost" style="display:none;margin-top:7px;font-size:11.5px;padding:5px 11px">この回答をコピー</button>' +
+          '<div class="advisor-next" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px"></div>'
         : '');
     log.appendChild(wrap);
     log.scrollTop = log.scrollHeight;
@@ -4170,6 +4195,10 @@ window.lumAdmin = {
     }
     if (acc) history.push({ role: 'assistant', content: acc });
     saveChat();
+    /* 続きの質問をボタンにする。
+       打つより押すほうが速く、何を聞けばいいか分からないときに
+       いちばん詰まるので、答えのたびに次の一手を出します。 */
+    showNext(target.parentElement, nextQuestions(acc));
     /* 別のAIや人に渡すためのコピー。記号を落とした、そのまま貼れる形で渡す。 */
     var copyBtn = target.parentElement && target.parentElement.querySelector('.advisor-copy');
     if (copyBtn && acc) {
@@ -4185,6 +4214,24 @@ window.lumAdmin = {
     finish();
   }
 
+  /* 続きの質問ボタン。押したら、その文言をそのまま質問として送ります。
+     古い答えのボタンは消します——下に新しい会話が続いているのに、
+     上のボタンがまだ押せると、どこの続きなのか分からなくなるからです。 */
+  function showNext(wrap, list) {
+    Array.prototype.forEach.call(document.querySelectorAll('.advisor-next'), function (n) { n.innerHTML = ''; });
+    if (!wrap || !list.length) return;
+    var host = wrap.querySelector('.advisor-next');
+    if (!host) return;
+    host.innerHTML = '<span style="font-size:11px;color:var(--sub);align-self:center;margin-right:2px">次に聞く:</span>' +
+      list.map(function (q) {
+        return '<button type="button" class="advisor-chip ghost" style="font-size:12px;padding:6px 10px">' + esc(q) + '</button>';
+      }).join('');
+    Array.prototype.forEach.call(host.querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { ask(b.textContent); });
+    });
+    el('advisor-log').scrollTop = el('advisor-log').scrollHeight;
+  }
+
   function finish() {
     busy = false;
     controller = null;
@@ -4192,11 +4239,33 @@ window.lumAdmin = {
     el('advisor-stop').style.display = 'none';
   }
 
-  var CHIPS = [
-    '今いちばん効く打ち手を3つ、優先順に教えて',
-    '非指名の検索で出てこない原因は？',
-    '競合と比べて何が足りない？',
-    '今週やるべきことを教えて'
+  /* 押すだけで相談が進むように。
+     以前は4つを平らに並べていましたが、何を聞けるのかが伝わらず、
+     結局その4つしか使われませんでした。やりたいことで分けます。
+     ・調べる … いま何が起きているか
+     ・決める … 次に何をするか
+     ・書く   … そのまま使える文章をもらう
+     最後の「書く」が実務では一番効きます。助言だけ受け取っても、
+     文章を書く手間が残っているうちは、結局その日には終わらないからです。 */
+  var CHIP_GROUPS = [
+    ['調べる', [
+      'いま何がいちばん問題？',
+      '非指名の検索で出てこない原因は？',
+      '競合と比べて足りないものは？',
+      'この1か月で何が変わった？',
+    ]],
+    ['決める', [
+      '今週やることを3つ、順番に',
+      'お金をかけずにできることは？',
+      'どのページから直すべき？',
+      '外部サイトへの掲載は何から？',
+    ]],
+    ['書く', [
+      'お知らせの文案を書いて',
+      'SNS投稿の文案を書いて',
+      '会社紹介の一段落を書いて',
+      '掲載依頼のメール文を書いて',
+    ]],
   ];
 
   el('advisor-stop').addEventListener('click', function () {
@@ -4221,10 +4290,16 @@ window.lumAdmin = {
   window.lumAdvisorInit = function () {
     if (started) return;
     started = true;
-    el('advisor-chips').innerHTML = CHIPS.map(function (c) {
-      return '<button type="button" class="ghost advisor-chip" style="font-size:12px;padding:7px 11px">' + esc(c) + '</button>';
+    el('advisor-chips').innerHTML = CHIP_GROUPS.map(function (g) {
+      return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%">' +
+        '<span style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:var(--sub);' +
+          'flex:none;width:44px">' + esc(g[0]) + '</span>' +
+        g[1].map(function (c) {
+          return '<button type="button" class="ghost advisor-preset" style="font-size:12px;padding:7px 11px">' + esc(c) + '</button>';
+        }).join('') +
+      '</div>';
     }).join('');
-    Array.prototype.forEach.call(document.querySelectorAll('.advisor-chip'), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll('.advisor-preset'), function (b) {
       b.addEventListener('click', function () { ask(b.textContent); });
     });
     // A long answer was lost on reload, and with it the context of the
@@ -4233,10 +4308,17 @@ window.lumAdmin = {
     try { saved = JSON.parse(sessionStorage.getItem(CHAT_KEY) || 'null'); } catch (_) {}
     if (Array.isArray(saved) && saved.length) {
       history = saved;
-      saved.forEach(function (m) { bubble(m.role === 'user' ? 'user' : 'assistant', m.content); });
+      var lastWrap = null, lastText = '';
+      saved.forEach(function (m) {
+        var t = bubble(m.role === 'user' ? 'user' : 'assistant', m.content);
+        if (m.role !== 'user') { lastWrap = t.parentElement; lastText = m.content; }
+      });
+      // 読み込み直しても、続きのボタンは残します。ここで消えると、
+      // せっかく出した次の一手を、もう一度自分で考えることになります。
+      showNext(lastWrap, nextQuestions(lastText));
       return;
     }
-    bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・問い合わせ導線を見ています。何を聞いていただいても構いません。下のボタンからでもどうぞ。');
+    bubble('assistant', 'このサイトの事業内容・ページ構成・AIO計測値・アクセス解析・クローラーの来訪記録を見ています。\n\n下のボタンを押すだけで進められます。答えるたびに、その続きになる質問もボタンで出します。打ち込んでいただいても構いません。');
   };
 })();
 </script>
