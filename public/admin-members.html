@@ -24,29 +24,35 @@
   body.is-in .wrap { max-width: 1220px; }
 
   /* Six panels stacked made one very long page where nothing could be found.
-     The nav sits beside them and only one panel is mounted at a time. It is on
-     the right because that is where it was asked for; swapping the two grid
-     columns is the only change needed to move it left. */
-  .shell { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 20px; align-items: start; }
-  /* The nav stays first in the source so that on a narrow screen, where the
-     grid collapses to one column, it sits above the panel rather than below
-     it. On a wide screen it is placed into the second column explicitly —
-     left to source order it took the 1fr column and the panel got 232px. */
-  .shell-main { min-width: 0; grid-column: 1; grid-row: 1; }
-  .shell-nav { grid-column: 2; grid-row: 1; }
+     The nav names them and only one panel is mounted at a time.
+
+     It used to be a column down the right-hand side. It is now a row across
+     the top: with nine entries the column was taller than most of the panels
+     it pointed at, and it pushed the content — charts, tables, the funnel —
+     into a narrower well than the screen could give it. Across the top it
+     costs one line and hands the full width back. */
+  .shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+  .shell-main { min-width: 0; }
   .shell-main > .panel { margin-top: 0 !important; }
   .shell-nav {
-    position: sticky; top: 24px;
-    display: flex; flex-direction: column; gap: 4px;
+    /* 画面に貼り付いて付いてきます。長い画面を下まで見たあと、別の項目に
+       移るのに一番上まで戻らずに済みます。背景を敷いているので下の内容は
+       透けません。 */
+    position: sticky; top: 12px; z-index: 5;
+    display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; padding: 10px;
+    border-radius: 14px; padding: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
   }
   .shell-tab {
-    display: flex; align-items: center; gap: 10px;
-    padding: 11px 12px;
-    border: none; border-radius: 10px;
+    /* 9つが一列に収まるかどうかは、ここの余白で決まります。ノートPCの
+       幅（1180px前後）で2行に割れないところまで詰めてあります。 */
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 10px;
+    border: none; border-radius: 9px;
     background: none; color: var(--sub);
-    font-family: inherit; font-size: 13.5px; font-weight: 600; text-align: left;
+    font-family: inherit; font-size: 13px; font-weight: 600; text-align: left;
+    white-space: nowrap;
     cursor: pointer;
     transition: background 0.18s ease, color 0.18s ease;
   }
@@ -306,18 +312,16 @@
   #sign-out:hover { color: var(--text); border-color: var(--sub); }
   body.is-in header a { margin-left: 14px; }
 
-  /* Narrow: the nav becomes a scrollable row above the panel. */
+  /* 狭い画面では折り返すより横スクロールのほうが読めます。9つが3行に
+     割れると、どこまでがメニューなのかが分からなくなるためです。 */
   @media (max-width: 860px) {
-    .shell { grid-template-columns: 1fr; }
-    .shell-main, .shell-nav { grid-column: auto; grid-row: auto; }
     .shell-nav {
       position: static;
-      flex-direction: row; gap: 6px;
+      flex-wrap: nowrap;
       overflow-x: auto; -webkit-overflow-scrolling: touch;
-      border-radius: 12px; padding: 8px;
+      border-radius: 12px; box-shadow: none;
     }
-    .shell-tab { flex: none; padding: 9px 12px; font-size: 13px; }
-    .shell-tab span:last-child { white-space: nowrap; }
+    .shell-tab { flex: none; padding: 9px 12px; }
   }
   header { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
   header img { width: 30px; height: 30px; }
@@ -571,7 +575,7 @@
     </div>
 
     <div class="shell" id="shell" style="display:none">
-    <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="vertical"></div>
+    <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="horizontal"></div>
     <div class="shell-main">
 
     <!-- The portal. One screen that shows every part of the admin at once,
