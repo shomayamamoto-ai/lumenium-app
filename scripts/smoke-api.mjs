@@ -231,10 +231,20 @@ for (const [name, method, query, headers, body] of CALLS) {
 // refuse rather than appear to save. Both paths are one endpoint, so a change
 // to either can break the other silently.
 {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
-  delete process.env.UPSTASH_REDIS_REST_URL
-  delete process.env.UPSTASH_REDIS_REST_TOKEN
+  /* 「保存先なし」を作るには、保存先を指す環境変数を “全部” 外す必要が
+     あります。同じものが2通りの名前で置かれるからです（Vercel の Upstash
+     連携が作る KV_… と、手で入れる UPSTASH_…）。片方だけ消すと、本番の
+     ビルド環境ではもう片方が残っていて「保存先あり」のまま動きます。
+
+     実際そうなりました。この確認が本番のビルドでだけ落ち、ビルドごと
+     止まり、それ以降 push したものが何一つ公開サイトに届かなくなって
+     いました。手元と GitHub では環境変数が無いので通り、原因の見えない
+     止まり方をします。名前は _analytics-store.js から取るので、名前が
+     増えてもここは直さずに済みます。 */
+  const { STORE_ENV } = await import(new URL('../api/_analytics-store.js', import.meta.url))
+  const names = [...STORE_ENV.url, ...STORE_ENV.token]
+  const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]))
+  for (const n of names) delete process.env[n]
   try {
     const mod = await import(new URL('../api/settings.js', import.meta.url))
     const call = (body) => mod.POST(new Request('https://lumenium.net/api/settings', {
@@ -264,8 +274,12 @@ for (const [name, method, query, headers, body] of CALLS) {
     console.error(`✗ 端末保存 — threw ${e && e.message}`)
     failed++
   }
-  process.env.UPSTASH_REDIS_REST_URL = url
-  process.env.UPSTASH_REDIS_REST_TOKEN = token
+  // 元に戻します。無かったものは「無い」に戻す——代入すると文字列の
+  // "undefined" が入り、次の確認からは「設定済み」に見えてしまいます。
+  for (const n of names) {
+    if (saved[n] === undefined) delete process.env[n]
+    else process.env[n] = saved[n]
+  }
 }
 
 if (failed) {
