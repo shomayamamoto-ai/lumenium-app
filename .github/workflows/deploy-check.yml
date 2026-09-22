@@ -1,4 +1,4 @@
-# 公開サイトに、いま何が出ているか。
+# 公開サイトに、いま何が出ているか。そして、ビルドは通るのか。
 #
 # 「直したはずなのに画面が変わらない」ときに答えを出すための確認です。
 #
@@ -7,12 +7,15 @@
 # 開発している作業環境からは外部サイトに接続できません。そのせいで
 # 「コードを直すべきなのか、配信側を見るべきなのか」が判断できず、同じ
 # 修正を何度も出す状態になっていました。見え方はどちらも同じ
-# 「変わらない」だからです。
+# 「変わらない」だからです。GitHub Actions は外に出られるので、代わりに
+# 見てもらいます。
 #
-# GitHub Actions は外に出られるので、代わりに見てもらいます。push のたび
-# に自動で動き、配信が終わるのを待ってから答えを出します。
+# もうひとつ、届かない理由として一番ありそうなのが「配信側でビルドが
+# 失敗していて、前の版が出たままになっている」です。手元では通るビルドが
+# まっさらな環境では通らない、はよくあります。なので npm ci から本番と
+# 同じ手順でビルドし、通るかどうかをここで確かめます。
 #
-# 失敗では終わらせません。ここが赤くなると、持ち主あてに GitHub から
+# 失敗では終わらせません。ここが赤くなると持ち主あてに GitHub から
 # 「Run failed」のメールが飛びます（それが嫌で死活監視を止めた経緯が
 # あります）。知らせたいのは結果であって、警報ではありません。
 
@@ -28,7 +31,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # まっさらな環境でビルドが通るか。配信側が失敗する理由の筆頭。
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: npm ci
+        id: install
+        continue-on-error: true
+        run: npm ci
+
+      - name: npm run build（本番と同じ手順）
+        id: build
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: npm run build
+
+      - name: 結果
+        run: |
+          set -u
+          echo "npm ci    : ${{ steps.install.outcome }}"
+          echo "npm run build: ${{ steps.build.outcome }}"
+          echo
+          if [ "${{ steps.build.outcome }}" = success ]; then
+            echo '結果: まっさらな環境でもビルドは通ります。'
+            echo '      配信側でビルドが落ちているわけではなさそうです。'
+            echo
+            echo '── できあがった CSS ──'
+            ls dist/assets/*.css
+            grep -o '\.footer-col h4[^}]*}' dist/assets/*.css || true
+          else
+            echo '結果: まっさらな環境でビルドが通りません。'
+            echo '      配信側でも同じところで落ちている可能性が高いです。'
+            echo '      上のログに失敗した箇所が出ています。'
+          fi
+
+  # 公開中のページが、いまのコードになっているか。
+  live:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
@@ -49,26 +96,26 @@ jobs:
           if grep -qi '^x-vercel' headers.txt; then
             echo '配信元: Vercel'
           elif grep -qi 'GitHub.com' headers.txt; then
-            echo '配信元: GitHub Pages ← Vercel ではありません。これだけで原因が確定します。'
+            echo '配信元: GitHub Pages ← Vercel ではありません。'
           else
             echo '配信元: 判別できませんでした（上のヘッダを見てください）'
           fi
 
-      - name: 新しいコードが出るまで待つ（最大5分）
+      - name: 新しいコードが出るまで待つ（最大3分）
         run: |
           set -u
           # 新しい書き方は .footer-col h4>span、古いのは width:20px の決め打ち。
           # push 直後は配信がまだ終わっていないので、少し待ちながら見ます。
           NEEDLE='.footer-col h4>span'
           FOUND=no
-          for i in $(seq 1 15); do
+          for i in $(seq 1 9); do
             curl -sS --max-time 20 -o index.html "https://lumenium.net/?cachebust=$(date +%s)" || true
             CSS=$(grep -o '/assets/[A-Za-z0-9._-]*\.css' index.html | head -1)
             if [ -n "$CSS" ]; then
               curl -sS --max-time 20 -o site.css "https://lumenium.net$CSS" || true
               if grep -qF "$NEEDLE" site.css; then FOUND=yes; fi
             fi
-            echo "[$i/15] CSS=${CSS:-見つからず}  新しいコード=${FOUND}"
+            echo "[$i/9] CSS=${CSS:-見つからず}  新しいコード=${FOUND}"
             [ "$FOUND" = yes ] && break
             sleep 20
           done
@@ -77,17 +124,8 @@ jobs:
           grep -o '\.footer-col h4[^}]*}' site.css || echo '(.footer-col h4 が見つかりません)'
           echo
           if [ "$FOUND" = yes ]; then
-            echo '===================================================='
             echo ' 結果: 新しいコードが公開されています。'
-            echo '===================================================='
           else
-            echo '===================================================='
-            echo ' 結果: 5分待っても古いコードのままです。'
+            echo ' 結果: 3分待っても古いコードのままです。'
             echo ' push した内容が公開サイトに届いていません。'
-            echo ' 配信側（Vercel の Deployments）を見る必要があります。'
-            echo '===================================================='
           fi
-
-      - name: 手元の src はどうなっているか（突き合わせ用）
-        if: always()
-        run: sed -n '/^\.footer-col h4 {/,/^}/p;/^\.footer-col h4 > span/,/^}/p' src/styles.css
