@@ -6,6 +6,7 @@ import { requireAdmin } from './_admin-auth.js'
 // and rate limiting as the member endpoints.
 
 import { storeFor, storeConfig, pipeline, lastDays, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
+import { REF_KINDS } from './_referrers.js'
 
 // The enquiry path, and the two things that are measured but are not steps on
 // it. They used to be one flat list of seven, which made the report say things
@@ -26,7 +27,15 @@ export const SIDE = [
   ['estimate_done', '概算を出した'],
   ['booking_view', '日程候補を見た'],
 ]
-export const ENGAGE = [['menu_open', 'メニューを開いた']]
+// 読まれた深さは導線の段ではありません。問い合わせに向かう順序の一部では
+// なく、どのページでも起きるからです。同じ列に混ぜると「半分まで読んだ人
+// より問い合わせ画面に来た人が多い」といった、段として読めない並びに
+// なります。別の欄に出します。
+export const ENGAGE = [
+  ['read_half', '半分まで読んだ'],
+  ['read_end', '終わりまで読んだ'],
+  ['menu_open', 'メニューを開いた'],
+]
 export const STEP_KEYS = [...MAIN, ...SIDE, ...ENGAGE].map(([k]) => k)
 
 /** Upstash returns hashes as a flat [field, value, ...] array. */
@@ -76,6 +85,7 @@ export async function GET(req) {
       ...dates.map((d) => ['PFCOUNT', K.dayVisitors(d)]),
       ...dates.map((d) => ['HGETALL', K.dayPaths(d)]),
       ...dates.map((d) => ['HGETALL', K.dayRefs(d)]),
+      ...dates.map((d) => ['HGETALL', K.dayRefKinds(d)]),
       ...dates.map((d) => ['HGETALL', K.dayDevices(d)]),
       ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
       // One union per step. PFCOUNT over many keys returns the cardinality of
@@ -93,6 +103,7 @@ export async function GET(req) {
   const visitors = dates.map(() => Number(raw[i++]) || 0)
   const paths = dates.map(() => toPairs(raw[i++]))
   const refs = dates.map(() => toPairs(raw[i++]))
+  const refKinds = dates.map(() => toPairs(raw[i++]))
   const devices = dates.map(() => toPairs(raw[i++]))
   const evDays = dates.map(() => toPairs(raw[i++]))
   const arrivals = Number(raw[i++]) || 0
@@ -175,6 +186,18 @@ export async function GET(req) {
     series,
     topPaths: merge(paths, 20),
     topReferrers: merge(refs, 12),
+    // 紹介元を種類でまとめたもの。ホスト名の一覧と違って、来ていない
+    // 種類も 0 のまま並べます——「AI検索から 0」は空欄ではなく結果で、
+    // 対策が効き始めたかどうかはその行が動くかで分かるからです。
+    referrerKinds: (() => {
+      const got = Object.fromEntries(merge(refKinds, 10).map((r) => [r.name, r.count]))
+      const total = Object.values(got).reduce((a, b) => a + b, 0)
+      return REF_KINDS.map((k) => ({
+        ...k,
+        count: got[k.key] || 0,
+        share: total ? (got[k.key] || 0) / total : 0,
+      }))
+    })(),
     devices: merge(devices, 5),
   })
 }

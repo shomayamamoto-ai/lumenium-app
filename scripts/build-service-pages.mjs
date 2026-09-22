@@ -3,6 +3,7 @@
 // BreadcrumbList JSON-LD, crawlable body copy, cross-links, and CTAs into
 // the app. Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { BEACON } from './_beacon.mjs'
 import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
 import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
@@ -355,7 +356,7 @@ ${CONTACT_STRIP}
      literal, where \/ collapses to /. It used to be written as \/ and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and
      every static page record nothing at all. -->
-<script>(function(){try{var p=location.pathname.replace(/\\/$/,'')||'/';fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:p,r:document.referrer||''}),keepalive:true,credentials:'omit'}).catch(function(){});}catch(e){}})();</script>
+${BEACON}
 </body>
 </html>
 `
@@ -478,7 +479,7 @@ ${CONTACT_STRIP}
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>
-<script>(function(){try{var p=location.pathname.replace(/\\/$/,'')||'/';fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:p,r:document.referrer||''}),keepalive:true,credentials:'omit'}).catch(function(){});}catch(e){}})();</script>
+${BEACON}
 </body>
 </html>
 `

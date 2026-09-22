@@ -10,6 +10,7 @@ export const config = { runtime: 'edge' }
 // answer "who", which is the only question worth refusing to answer.
 
 import { storeConfig, pipeline, jstDate, K } from './_analytics-store.js'
+import { refKind } from './_referrers.js'
 
 const enc = new TextEncoder()
 
@@ -39,6 +40,11 @@ function refHost(ref, selfHost) {
  *  is a Redis hash, and letting callers name their own fields would let one
  *  grow without bound. */
 export const EVENTS = new Set([
+  // 読まれた深さ。閲覧数は「開かれた」までしか言いません。開いてすぐ
+  // 閉じたのか最後まで読んだのかが分からないと、書いた文章が効いて
+  // いるのかを判断できません。
+  'read_half',       // そのページの半分まで来た
+  'read_end',        // 終わりまで来た
   'menu_open',       // the hero menu was opened
   'service_view',    // a service detail was opened
   'estimate_start',  // the estimator was opened
@@ -82,6 +88,13 @@ export async function POST(req) {
 
   const ua = req.headers.get('user-agent') || ''
   if (!ua || BOT.test(ua)) return ok()
+
+  /* 自分のアクセスを数えない仕組みは、送る前——訪問者の端末側——に
+     あります（src/lib/pageview.js）。ここで cookie を見ないのは、
+     この beacon が credentials: 'omit' で送られ、cookie がそもそも
+     届かないからです。届かないものを調べる行を置くと、効いている
+     ように見えて実は何もしていない、という一番たちの悪いコードに
+     なります。 */
 
   let body
   try {
@@ -131,6 +144,11 @@ export async function POST(req) {
       ['EXPIRE', K.dayPaths(date), K.expire],
       ['HINCRBY', K.dayRefs(date), ref, 1],
       ['EXPIRE', K.dayRefs(date), K.expire],
+      // ホスト名そのものと、それを5種類にまとめたもの。両方を残すのは、
+      // 「AI検索から何人」と「そのうち Perplexity は何人」の両方を
+      // 答えられるようにするためです。
+      ['HINCRBY', K.dayRefKinds(date), refKind(ref), 1],
+      ['EXPIRE', K.dayRefKinds(date), K.expire],
       ['HINCRBY', K.dayDevices(date), dev, 1],
       ['EXPIRE', K.dayDevices(date), K.expire],
     ])

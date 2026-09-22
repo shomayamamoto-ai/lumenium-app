@@ -930,10 +930,21 @@
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
       <div id="stats-body" style="display:none">
         <div id="stats-note"></div>
+        <div id="stats-self"></div>
         <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px"></div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
           <div id="stats-chart" style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこから来たか</h3>
+          <p class="share-note" style="margin-bottom:10px">対策が効いているかは、ここが動くかで分かります。来ていない経路も 0 のまま並べます——「AI検索から 0」は空欄ではなく結果だからです。</p>
+          <div id="stats-kinds"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこまで読まれたか</h3>
+          <p class="share-note" style="margin-bottom:10px">閲覧数は「開かれた」までしか言いません。開いてすぐ閉じたのか、最後まで読んだのか。文章を直す場所は、ここで決まります。</p>
+          <div id="stats-read"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">問い合わせまでの導線</h3>
@@ -2723,6 +2734,104 @@ window.lumAdmin = {
     }).join('');
   }
 
+  /* 自分のアクセスを数えない切り替え。
+     サイトを作っている本人が一番よく見るので、放っておくと数字の大半が
+     自分の動作確認になります。1人しか来ていない日にその1人が自分なら、
+     この画面に出ているものは全部ノイズです。
+     印はこの端末にだけ置きます（訪問者側には何も置きません）。端末ごとに
+     押す必要があるので、いま押されているかどうかをそのまま出します。 */
+  function selfSwitch() {
+    var host = el('stats-self');
+    if (!host) return;
+    var on = false;
+    try { on = localStorage.getItem('lum_notrack') === '1'; } catch (_) {}
+    host.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:' +
+        (on ? 'rgba(20,184,166,.10)' : '#151b31') + ';border:1px solid ' +
+        (on ? '#14b8a6' : 'var(--border)') + ';border-radius:11px;padding:10px 13px;margin-bottom:14px">' +
+        '<span style="font-size:12.5px;font-weight:700">' +
+          (on ? '✓ この端末のアクセスは数えていません' : 'この端末のアクセスも数えています') + '</span>' +
+        '<button type="button" id="stats-self-btn" class="ghost" style="font-size:12px;padding:6px 12px">' +
+          (on ? '数に入れる' : 'この端末を数から外す') + '</button>' +
+        '<span style="font-size:11.5px;color:var(--sub);line-height:1.8;flex:1;min-width:220px">' +
+          (on
+            ? '動作確認で開いたぶんは記録されません。他の端末（携帯など）では別に設定が必要です。'
+            : '自分で開いたぶんも閲覧数に入ります。訪問がまだ少ないうちは、これだけで数字の意味が変わります。') +
+        '</span>' +
+      '</div>';
+    var btn = el('stats-self-btn');
+    if (btn) btn.addEventListener('click', function () {
+      try {
+        if (on) localStorage.removeItem('lum_notrack');
+        else localStorage.setItem('lum_notrack', '1');
+      } catch (_) {
+        alert('このブラウザでは設定を保存できません（プライベートウインドウなどでは使えません）。');
+        return;
+      }
+      selfSwitch();
+    });
+  }
+
+  /* どこから来たか。0 の行も消さずに並べます——「AI検索から 0」は
+     空欄ではなく結果で、対策が効き始めたかはその行が動くかで分かります。 */
+  function kinds(rows) {
+    var host = el('stats-kinds');
+    if (!host) return;
+    if (!rows.length) { host.innerHTML = '<p class="share-note">まだデータがありません。</p>'; return; }
+    var max = Math.max.apply(null, rows.map(function (r) { return r.count; }).concat([1]));
+    host.innerHTML = rows.map(function (r) {
+      var pct = Math.round((r.count / max) * 100);
+      var hot = r.key === 'ai' && r.count > 0;
+      return '<div style="margin-bottom:11px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px">' +
+          '<span style="font-weight:700;color:' + (hot ? '#67e8f9' : 'inherit') + '">' + esc(r.label) + '</span>' +
+          '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + r.count +
+            (r.count ? '　' + Math.round(r.share * 100) + '%' : '') + '</span>' +
+        '</div>' +
+        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+          '<div style="height:100%;width:' + pct + '%;background:' +
+            (hot ? 'linear-gradient(90deg,#0891b2,#67e8f9)' : 'linear-gradient(90deg,#4f46e5,#818cf8)') +
+            ';border-radius:99px"></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + esc(r.note) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* どこまで読まれたか。半分と終わりの2点だけ。割合の母数は訪問者数です。 */
+  function readDepth(funnel) {
+    var host = el('stats-read');
+    if (!host) return;
+    var all = (funnel.main || []).concat(funnel.side || [], funnel.engagement || []);
+    var find = function (k) { return all.filter(function (s) { return s.key === k; })[0]; };
+    var half = find('read_half');
+    var end = find('read_end');
+    var arrivals = funnel.arrivals || 0;
+    if (!half && !end) { host.innerHTML = '<p class="share-note">まだデータがありません。</p>'; return; }
+    // 導線と同じ理由で、人数が少ないうちは割合を出しません。
+    // 「1人中1人が読んだ＝100%」は、数字としては正しくても判断には使えません。
+    var thin = arrivals < 20;
+    var row = function (label, s, note) {
+      var people = s ? s.people : 0;
+      var pct = arrivals ? Math.round((people / arrivals) * 100) : 0;
+      return '<div style="margin-bottom:10px">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px">' +
+          '<span style="font-weight:700">' + label + '</span>' +
+          '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + people + '人' +
+            (arrivals && !thin ? '　' + pct + '%' : '') + '</span>' +
+        '</div>' +
+        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+          '<div style="height:100%;width:' + (thin ? 0 : pct) + '%;background:linear-gradient(90deg,#4f46e5,#06b6d4);border-radius:99px"></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + note + '</div>' +
+      '</div>';
+    };
+    host.innerHTML =
+      row('半分まで読んだ', half, '見出しだけ見て離れたのか、本文に入ったのか。ここが低いページは、最初の数行が効いていません。') +
+      row('終わりまで読んだ', end, '最後まで来た人。ここが高いのに問い合わせが無いなら、足りないのは文章ではなく、終わりに置く次の一歩です。') +
+      (thin ? '<p class="share-note">訪問が ' + arrivals + '人のため、割合は出していません。人数はそのまま読めます。</p>' : '');
+  }
+
   async function load() {
     var key = sessionStorage.getItem('lum_admin_key');
     if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
@@ -2744,7 +2853,10 @@ window.lumAdmin = {
       return;
     }
     cards(data);
+    selfSwitch();
     chart(data.series || []);
+    kinds(data.referrerKinds || []);
+    readDepth(data.funnel || {});
     funnelBars(data.funnel || []);
     bars('stats-paths', data.topPaths, { link: true });
     bars('stats-refs', data.topReferrers);
@@ -2761,13 +2873,17 @@ window.lumAdmin = {
      printed as '−' + drop, which for a step that grew rendered as '−-1700%'.
      The endpoint now sends 到達 as the denominator and marks a step that grew
      as direct arrivals, so neither is possible. */
+  /* share に null を渡すと、割合の列も帯も出しません（「0%」と書くと
+     「誰も来なかった」に読めますが、実際は「まだ数えられるほど人が
+     来ていない」で、意味がまるで違います）。 */
   function fBar(label, people, times, share, right, warn) {
-    var w = Math.max(0, Math.min(100, share * 100)).toFixed(1);
+    var mute = share === null || share === undefined;
+    var w = mute ? 0 : Math.max(0, Math.min(100, share * 100)).toFixed(1);
     return '<div class="f-row">' +
       '<span class="f-label">' + label + '</span>' +
       '<span class="f-track"><span class="f-fill" style="width:' + w + '%"></span></span>' +
       '<span class="f-people">' + people + '</span>' +
-      '<span class="f-rate">' + Math.round(share * 100) + '%</span>' +
+      '<span class="f-rate">' + (mute ? '' : Math.round(share * 100) + '%') + '</span>' +
       '<span class="f-times">' + (times && times !== people ? times + '回' : '') + '</span>' +
       '<span class="f-drop' + (warn ? ' warn' : '') + '">' + right + '</span>' +
     '</div>';
@@ -2781,26 +2897,44 @@ window.lumAdmin = {
       return;
     }
     var pct = function (v) { return Math.round(v * 100) + '%'; };
-    var out = fBar('訪問', f.arrivals, 0, 1, '', false);
+    /* 人数が少ないうちは、割合を出しません。
+       訪問1人・サービス0人は「−100%」と表示できますが、それは
+       「100%が離脱した」ではなく「1人のうち1人が押さなかった」です。
+       赤い −100% はサイトが壊れているように読めてしまい、直す必要の
+       ないものを直しにいくことになります。数えられるだけの人数が
+       集まるまでは、人数だけを出して黙っているほうが正確です。 */
+    var THIN = 20;
+    var thin = (f.arrivals || 0) < THIN;
+    var out = '';
+    if (thin) {
+      out += '<p style="font-size:11.5px;color:var(--sub);background:#151b31;border:1px solid var(--border);' +
+        'border-radius:10px;padding:9px 12px;margin-bottom:10px;line-height:1.8">' +
+        'この期間の訪問は ' + (f.arrivals || 0) + '人です。' + THIN + '人に届くまで、割合と離脱率は出していません——' +
+        '1人の行動が100%として表示され、直す必要のないものを直しにいくことになるためです。人数はそのまま読めます。</p>';
+    }
+    out += fBar('訪問', f.arrivals, 0, thin ? null : 1, '', false);
     out += (f.main || []).map(function (r) {
-      var right = r.direct ? '直接到達あり'
+      var right = thin ? ''
+        : r.direct ? '直接到達あり'
         : r.drop === null ? ''
         : '−' + Math.round(r.drop * 100) + '%';
-      return fBar(r.label, r.people, r.count, r.rate, right, r.drop !== null && r.drop >= 0.5);
+      return fBar(r.label, r.people, r.count, thin ? null : r.rate, right, !thin && r.drop !== null && r.drop >= 0.5);
     }).join('');
 
     var side = f.side || [];
     if (side.some(function (r) { return r.people; })) {
       out += '<p style="font-size:11.5px;color:var(--sub);margin:12px 0 6px">見積り（通らない人が多い任意の経路です。上の導線とは別に見てください）</p>';
-      out += side.map(function (r) { return fBar(r.label, r.people, r.count, r.rate, '', false); }).join('');
+      out += side.map(function (r) { return fBar(r.label, r.people, r.count, thin ? null : r.rate, '', false); }).join('');
       if (f.sideCompletion !== null && f.sideCompletion !== undefined) {
         out += '<p style="font-size:11.5px;color:var(--sub);margin:2px 0 0">開いた人のうち ' + pct(f.sideCompletion) + ' が概算まで到達</p>';
       }
     }
-    var eng = f.engagement || [];
+    // 読まれた深さは、すぐ上に専用の欄があります。同じ数字を二度出すと、
+    // 別のものを見ていると思って読んでしまいます。
+    var eng = (f.engagement || []).filter(function (r) { return !/^read_/.test(r.key); });
     if (eng.some(function (r) { return r.people; })) {
       out += '<p style="font-size:11.5px;color:var(--sub);margin:12px 0 6px">そのほか</p>';
-      out += eng.map(function (r) { return fBar(r.label, r.people, r.count, r.rate, '', false); }).join('');
+      out += eng.map(function (r) { return fBar(r.label, r.people, r.count, thin ? null : r.rate, '', false); }).join('');
     }
     out += '<p style="font-size:11px;color:var(--sub);margin-top:10px;line-height:1.7">' +
       '太字は人数（同じ日に何度やっても1人）、その右は回数です。割合はすべて「訪問」に対する人数の割合で、' +

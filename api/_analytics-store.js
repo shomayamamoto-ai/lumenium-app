@@ -121,6 +121,9 @@ export const K = {
   dayVisitors: (d) => `lum:uv:d:${d}`,   // HyperLogLog — counts uniques, stores no ids
   dayPaths: (d) => `lum:pv:p:${d}`,
   dayRefs: (d) => `lum:pv:r:${d}`,
+  // 紹介元を5種類にまとめたもの。ホスト名の一覧だけでは「AI の回答から
+  // 来た人がいるか」が読み取れないので、種類でも数えます。
+  dayRefKinds: (d) => `lum:pv:rk:${d}`,
   dayDevices: (d) => `lum:pv:dev:${d}`,
   // Conversion steps. Kept in the same daily hash shape as the rest so the
   // report reads them the same way.

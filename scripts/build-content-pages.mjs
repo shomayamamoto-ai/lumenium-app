@@ -11,6 +11,7 @@
 //   /sitemap-content.xml  (all of the above; referenced from robots.txt)
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { BEACON } from './_beacon.mjs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
@@ -241,7 +242,7 @@ ${CONTACT_STRIP}
      literal, where \/ collapses to /. It used to be written as \/ and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and
      every static page record nothing at all. -->
-<script>(function(){try{var p=location.pathname.replace(/\\/$/,'')||'/';fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p:p,r:document.referrer||''}),keepalive:true,credentials:'omit'}).catch(function(){});}catch(e){}})();</script>
+${BEACON}
 </body>
 </html>
 `
