@@ -738,7 +738,7 @@
 
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">✍️ サイトの文章編集</h2>
-      <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。改行はそのまま改行、<code>**強調**</code> で太字になります。</p>
+      <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。打つと<strong>すぐ下の「見え方」</strong>に、サイトでの出方が出ます（記号を覚える必要はありません。太字は選んでボタンを押すだけです）。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
       <div class="toolbar" style="margin-bottom:10px">
         <select id="copy-group" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
         <input type="search" id="copy-search" placeholder="サイト全体から文章を検索（例：ワンストップ）">
@@ -2447,6 +2447,100 @@ window.lumAdmin = {
   function dirtyCount() { return Object.keys(edited).length; }
   window.lumDirtyCopy = dirtyCount;
 
+  /* --- 見え方（デモ）と、編集を助ける小道具 --- */
+
+  var WAYS = {
+    short: ['短く', '言いたいことは変えずに短くします'],
+    plain: ['やさしく', '専門語を減らし、高校生でも分かる言葉にします'],
+    concrete: ['具体的に', '曖昧な言い方を、元の文にある事実で具体化します'],
+    polish: ['整える', '意味はそのままに、読みやすく直します'],
+  };
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* その文章がサイトのどこで使われるか。出る大きさが違うので、
+     同じ見た目で並べると「短いのに大きく出てしまった」が防げません。
+     道の名前（パスの末尾）から見当をつけます。 */
+  function kindOf(path) {
+    var p = String(path || '');
+    if (/titleLine|\.h1$|\.title$/.test(p)) return 'title';
+    if (/\.label$|eyebrow|typingLabel|\.name$|\.k$/.test(p)) return 'label';
+    if (/\.lead$|\.desc$|\.sub$/.test(p)) return 'lead';
+    if (/\.q$|question/.test(p)) return 'q';
+    return 'body';
+  }
+  function kindLabel(path) {
+    return { title: '大見出し', label: '小さなラベル', lead: 'リード文', q: '質問の見出し', body: '本文' }[kindOf(path)];
+  }
+  function kindStyle(path) {
+    var base = 'line-height:1.8;color:var(--text);word-break:break-word;';
+    return base + {
+      title: 'font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.35;',
+      label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:#818cf8;',
+      lead: 'font-size:14.5px;color:#c7cfe2;',
+      q: 'font-size:14px;font-weight:700;',
+      body: 'font-size:13.5px;',
+    }[kindOf(path)];
+  }
+
+  /* サイトと同じ読み方にする。**は太字、改行は改行。
+     ここで HTML を作るので、先に必ず escape します——文章の中の < が
+     タグとして効くと、見え方の欄だけ壊れて原因が分かりません。 */
+  function asSite(text) {
+    var v = String(text == null ? '' : text);
+    if (!v.trim()) return '<span style="color:var(--sub)">（空欄。元の文章が使われます）</span>';
+    return esc(v)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
+
+  /** 選んだところを ** で囲む。選んでいなければ、その場に囲みだけ入れる。 */
+  function wrapSel(ta, a, b) {
+    var s0 = ta.selectionStart, s1 = ta.selectionEnd, v = ta.value;
+    var sel = v.slice(s0, s1) || 'ここを太字に';
+    ta.value = v.slice(0, s0) + a + sel + b + v.slice(s1);
+    ta.focus();
+    ta.setSelectionRange(s0 + a.length, s0 + a.length + sel.length);
+  }
+  function insertAt(ta, t) {
+    var s0 = ta.selectionStart, v = ta.value;
+    ta.value = v.slice(0, s0) + t + v.slice(ta.selectionEnd);
+    ta.focus();
+    ta.setSelectionRange(s0 + t.length, s0 + t.length);
+  }
+
+  /* 書き直しの案。置き換えるかどうかは人が決めます。
+     押した瞬間に本文が変わる作りにすると、元の文が分からなくなり、
+     気に入らなかったときに戻せません。 */
+  function offer(wrap, ta, before, after, label, done) {
+    var old = wrap.querySelector('.cp-offer');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.className = 'cp-offer';
+    box.style.cssText = 'margin-top:8px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:9px;padding:10px 13px';
+    box.innerHTML =
+      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#67e8f9;margin-bottom:6px">' +
+        esc(label) + 'した案（まだ反映していません）</div>' +
+      '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;margin-bottom:9px">' + asSite(after) + '</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+        '<button type="button" class="cp-take" style="font-size:11.5px;padding:5px 12px">この案にする</button>' +
+        '<button type="button" class="ghost cp-drop" style="font-size:11.5px;padding:5px 12px">使わない</button>' +
+      '</div>';
+    wrap.appendChild(box);
+    box.querySelector('.cp-take').addEventListener('click', function () {
+      ta.value = after;
+      box.remove();
+      done();
+      ta.focus();
+    });
+    box.querySelector('.cp-drop').addEventListener('click', function () { box.remove(); });
+    void before;
+  }
+
   function render() {
     if (!schema) return;
     var gk = groupSel.value;
@@ -2515,6 +2609,39 @@ window.lumAdmin = {
       ta.style.cssText = 'width:100%;padding:10px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
       wrap.appendChild(ta);
 
+      /* 書式ボタン。** を手で打てというのは、覚えている人にしか使えません。 */
+      var tools = document.createElement('div');
+      tools.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px';
+      tools.innerHTML =
+        '<button type="button" class="ghost cp-bold" style="font-size:11px;padding:4px 10px;font-weight:800">太字</button>' +
+        '<button type="button" class="ghost cp-br" style="font-size:11px;padding:4px 10px">改行</button>' +
+        '<span style="width:9px"></span>' +
+        '<span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>' +
+        Object.keys(WAYS).map(function (k) {
+          return '<button type="button" class="ghost cp-way" data-way="' + k + '" title="' + esc(WAYS[k][1]) +
+            '" style="font-size:11px;padding:4px 10px">' + esc(WAYS[k][0]) + '</button>';
+        }).join('') +
+        '<span class="cp-busy" style="font-size:11px;color:var(--sub);display:none">書き直しています…</span>';
+      wrap.appendChild(tools);
+
+      /* 見え方。打った文字が、サイトでどう出るか。
+         ** を太字に、改行を改行にして、その文章が使われる場所の大きさで
+         出します。保存してデプロイを待たないと分からない、という状態が
+         いちばん手が止まります。 */
+      var demo = document.createElement('div');
+      demo.style.cssText = 'margin-top:8px;background:#11162a;border:1px solid var(--border);border-radius:9px;padding:10px 13px';
+      var demoHead = document.createElement('div');
+      demoHead.textContent = '見え方（' + kindLabel(f.path) + '）';
+      demoHead.style.cssText = 'font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--sub);margin-bottom:6px';
+      var demoBody = document.createElement('div');
+      demoBody.style.cssText = kindStyle(f.path);
+      demo.appendChild(demoHead);
+      demo.appendChild(demoBody);
+      wrap.appendChild(demo);
+
+      function paint() { demoBody.innerHTML = asSite(ta.value); }
+      paint();
+
       function mark() {
         var v = ta.value;
         if (v === f.value) edited[f.path] = null;   // back to the built-in wording
@@ -2525,8 +2652,35 @@ window.lumAdmin = {
         changedTag.hidden = v === f.value;
         updateCount();
       }
-      ta.addEventListener('input', mark);
-      reset.addEventListener('click', function () { ta.value = f.value; mark(); ta.focus(); });
+      ta.addEventListener('input', function () { mark(); paint(); });
+      reset.addEventListener('click', function () { ta.value = f.value; mark(); paint(); ta.focus(); });
+
+      tools.querySelector('.cp-bold').addEventListener('click', function () { wrapSel(ta, '**', '**'); mark(); paint(); });
+      tools.querySelector('.cp-br').addEventListener('click', function () { insertAt(ta, '\n'); mark(); paint(); });
+
+      Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (b) {
+        b.addEventListener('click', async function () {
+          if (!ta.value.trim()) return;
+          var busy = tools.querySelector('.cp-busy');
+          var before = ta.value;
+          Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (x) { x.disabled = true; });
+          busy.style.display = 'inline';
+          var d = null;
+          try {
+            var res = await fetch('/api/rewrite', {
+              method: 'POST',
+              headers: { Authorization: 'Bearer ' + (sessionStorage.getItem('lum_admin_key') || ''), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: before, way: b.dataset.way, where: humanLabel(f.path) }),
+            });
+            d = await res.json();
+          } catch (_) { d = { ok: false, message: '通信に失敗しました。' }; }
+          busy.style.display = 'none';
+          Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (x) { x.disabled = false; });
+          if (!d || d.ok !== true) { say((d && d.message) || '書き直せませんでした。'); return; }
+          /* 黙って置き換えない。案として出し、採るかどうかは人が決めます。 */
+          offer(wrap, ta, before, d.text, d.label, function () { mark(); paint(); });
+        });
+      });
 
       fieldsEl.appendChild(wrap);
     });

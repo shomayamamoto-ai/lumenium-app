@@ -142,6 +142,9 @@ const CALLS = [
   // これ自体が壊れていては意味がない。
   ['aio', 'POST', '', JSONH, { action: 'probe', index: 0 }],
   ['site-audit', 'GET', '', KEY],
+  // 文章編集の「AIに書き直してもらう」。押すのが手軽なぶん、壊れていると
+  // 編集の手が止まります。
+  ['rewrite', 'POST', '', JSONH, { text: 'とても豊富な実績があります。', way: 'short', where: 'hero · リード文' }],
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
   ['verify', 'GET', '', {}],
