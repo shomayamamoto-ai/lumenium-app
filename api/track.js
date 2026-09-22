@@ -44,6 +44,16 @@ export const EVENTS = new Set([
   // いるのかを判断できません。
   'read_half',       // そのページの半分まで来た
   'read_end',        // 終わりまで来た
+  // サイトの外へ出ていく操作。フォームを通らない連絡はここにしか
+  // 出てきません。
+  'click_tel',       // 電話番号
+  'click_line',      // LINE
+  'click_mail',      // メール
+  'click_out',       // よそのサイトへのリンク
+  // そのページを最後にサイトを離れた。
+  'exit',
+  // 存在しないURLに着いた（404 のページから送られます）。
+  'not_found',
   'menu_open',       // the hero menu was opened
   'service_view',    // a service detail was opened
   'estimate_start',  // the estimator was opened
@@ -54,6 +64,18 @@ export const EVENTS = new Set([
   'booking_view',    // candidate meeting times were shown
   'booking_confirm', // a meeting was booked
 ])
+
+/** 出ていった先の呼び名。呼び出し側の文字列をそのまま鍵にすると、
+ *  いくらでも増やせてしまいます。電話・LINE・メールは固定、外部リンクは
+ *  ホスト名だけを（英数字と記号に限って）通します。 */
+function linkLabel(ev, raw) {
+  if (ev === 'click_tel') return 'tel'
+  if (ev === 'click_line') return 'line'
+  if (ev === 'click_mail') return 'mail'
+  const h = String(raw || '').toLowerCase().replace(/^www\./, '')
+  if (!/^[a-z0-9.-]{3,60}$/.test(h)) return 'other'
+  return h
+}
 
 /** Keep the path list bounded and free of anything identifying. */
 function cleanPath(raw) {
@@ -115,6 +137,12 @@ export async function POST(req) {
   const ev = typeof body?.e === 'string' ? body.e : ''
   if (ev) {
     if (!EVENTS.has(ev)) return ok()
+    /* 出ていった先。tel / line / mail、外部リンクなら相手のホスト名。
+       ページ名と同じ hash に混ぜず、専用の一覧に入れます——「どのページで
+       押されたか」と「どこへ出ていったか」は別の問いで、混ぜると
+       どちらの答えにもならないからです。呼び出し側が好きな文字列を
+       入れられないよう、ここで形を決めます。 */
+    const dest = /^click_/.test(ev) ? linkLabel(ev, body?.d) : ''
     try {
       await pipeline(cfg, [
         ['HINCRBY', K.dayEvents(date), ev, 1],
@@ -127,6 +155,10 @@ export async function POST(req) {
         // 「どのページを書き直すか」が決まりません。
         ['HINCRBY', K.dayEventPaths(date, ev), path, 1],
         ['EXPIRE', K.dayEventPaths(date, ev), K.expire],
+        ...(dest ? [
+          ['HINCRBY', K.dayLinks(date), dest, 1],
+          ['EXPIRE', K.dayLinks(date), K.expire],
+        ] : []),
       ])
     } catch (_) { /* a beacon must never surface an error */ }
     return ok()

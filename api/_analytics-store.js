@@ -146,6 +146,11 @@ export const K = {
      お知らせや SNS を出す時刻、問い合わせに気づくべき時間帯を、
      勘ではなく実際の山で決められるようにするためです。 */
   dayHours: (d) => `lum:pv:h:${d}`,
+  /* 出ていったリンク。電話・LINE・メール・外部サイト。
+     問い合わせフォームを通らずに直接連絡する人は、導線の数字に一切
+     出てきません。いちばん取りこぼしの大きいところが見えないままに
+     なるので、押された先を数えます（tel / line / mail / 相手のホスト名）。 */
+  dayLinks: (d) => `lum:lk:d:${d}`,
   // Enquiry outcomes, so a form that has stopped working is visible.
   dayContact: (d) => `lum:ct:d:${d}`,
   contactLastError: 'lum:ct:lasterr',

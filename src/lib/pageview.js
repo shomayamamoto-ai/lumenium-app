@@ -31,9 +31,10 @@ function currentPath() {
 }
 
 /** Report a funnel step. Same endpoint, same privacy properties — no cookie,
- *  no IP, just a counter per day. Exported so analytics.js can reach it. */
-export function sendEvent(name) {
-  post(JSON.stringify({ p: currentPath(), e: name }))
+ *  no IP, just a counter per day. Exported so analytics.js can reach it.
+ *  `dest` は「出ていった先」。リンクのクリックだけで使います。 */
+export function sendEvent(name, dest) {
+  post(JSON.stringify({ p: currentPath(), e: name, ...(dest ? { d: dest } : {}) }))
 }
 
 function post(body) {
@@ -89,6 +90,60 @@ function startReadDepth() {
   setTimeout(check, 1500)
 }
 
+/* サイトの外へ出ていく操作。
+   電話をかける、LINEを開く、メールを書く、よそのサイトへ行く——これらは
+   問い合わせフォームを通らないので、導線の数字には一切出てきません。
+   「送信した 0」のまま、実は電話が鳴っていた、ということが起こります。
+   いちばん取りこぼしの大きいところなので、別に数えます。
+
+   リンクの押下そのものではなく、押された「先」を見ます。どこへ出て
+   いったかが分かって初めて、どのリンクを目立たせるかを決められます。 */
+function startLinkClicks() {
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null
+    if (!a) return
+    const href = a.getAttribute('href') || ''
+    if (href.startsWith('tel:')) return sendEvent('click_tel')
+    if (href.startsWith('mailto:')) return sendEvent('click_mail')
+    let u
+    try { u = new URL(href, location.href) } catch (_) { return }
+    if (!/^https?:$/.test(u.protocol)) return
+    const host = u.hostname.replace(/^www\./, '')
+    if (host === location.hostname.replace(/^www\./, '')) return   // サイト内
+    if (/(^|\.)line\.me$|(^|\.)lin\.ee$/.test(host)) return sendEvent('click_line')
+    sendEvent('click_out', host)
+  }, true)
+}
+
+/* そのページを最後にサイトを離れた、を数えます。
+   完全には分かりません——ブラウザは「閉じた」と「次のページへ進んだ」を
+   同じ合図で伝えてくるからです。そこで、サイト内のリンクを押したときに
+   印を付けておき、印が無いまま画面が隠れたときだけ離脱として数えます。
+   近似であることは画面にも書いてあります。 */
+function startExit() {
+  let internal = false
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null
+    if (!a) return
+    try {
+      const u = new URL(a.getAttribute('href') || '', location.href)
+      if (u.hostname === location.hostname) internal = true
+    } catch (_) { /* tel: や mailto: は内部移動ではありません */ }
+  }, true)
+  // 内部移動の印は、移動が起きなかったとき（別タブで開いた等）に
+  // 残り続けないよう、少ししたら消します。
+  document.addEventListener('click', () => { setTimeout(() => { internal = false }, 2000) }, true)
+
+  let sent = false
+  const leave = () => {
+    if (sent || internal || document.visibilityState !== 'hidden') return
+    sent = true
+    sendEvent('exit')
+  }
+  document.addEventListener('visibilitychange', leave)
+  window.addEventListener('pagehide', leave)
+}
+
 export function startPageviews() {
   if (typeof window === 'undefined') return
   // Don't count the operator's own visits to the admin screens.
@@ -98,4 +153,6 @@ export function startPageviews() {
   window.addEventListener('hashchange', fire)
   window.addEventListener('popstate', fire)
   startReadDepth()
+  startLinkClicks()
+  startExit()
 }

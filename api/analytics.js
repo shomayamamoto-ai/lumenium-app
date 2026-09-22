@@ -91,6 +91,10 @@ export async function GET(req) {
       // ページごとの「開かれた／終わりまで読まれた」。読了率を
       // ページ単位で出すのに要ります。
       ...dates.map((d) => ['HGETALL', K.dayEventPaths(d, 'read_end')]),
+      // そのページを最後に離れた回数、見つからなかったURL、出ていった先。
+      ...dates.map((d) => ['HGETALL', K.dayEventPaths(d, 'exit')]),
+      ...dates.map((d) => ['HGETALL', K.dayEventPaths(d, 'not_found')]),
+      ...dates.map((d) => ['HGETALL', K.dayLinks(d)]),
       // One union per step. PFCOUNT over many keys returns the cardinality of
       // their union, so this is 8 commands rather than 8 × days.
       ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
@@ -110,6 +114,9 @@ export async function GET(req) {
   const evDays = dates.map(() => toPairs(raw[i++]))
   const hours = dates.map(() => toPairs(raw[i++]))
   const readEndPaths = dates.map(() => toPairs(raw[i++]))
+  const exitPaths = dates.map(() => toPairs(raw[i++]))
+  const notFound = dates.map(() => toPairs(raw[i++]))
+  const links = dates.map(() => toPairs(raw[i++]))
   const arrivals = Number(raw[i++]) || 0
   const people = {}
   for (const ev of STEP_KEYS) people[ev] = Number(raw[i++]) || 0
@@ -240,6 +247,27 @@ export async function GET(req) {
         .sort((a, b) => b.opened - a.opened)
         .slice(0, 12)
     })(),
+    /* 出ていったリンク。電話・LINE・メールは固定の名前、外部リンクは
+       相手のホスト名です。フォームを通らない連絡はここにしか出ません。 */
+    links: merge(links, 15),
+    /* 離脱ページ。そのページを最後にサイトを離れた回数と、開かれた回数に
+       対する割合。近似です（ブラウザは「閉じた」と「次へ進んだ」を同じ
+       合図で伝えるため、サイト内リンクを押した場合は除いています）。 */
+    exits: (() => {
+      const opened = Object.fromEntries(merge(paths, Infinity).map((p) => [p.name, p.count]))
+      return merge(exitPaths, Infinity)
+        .map((e) => ({
+          name: e.name,
+          exits: e.count,
+          opened: opened[e.name] || 0,
+          rate: opened[e.name] ? e.count / opened[e.name] : 0,
+        }))
+        .sort((a, b) => b.exits - a.exits)
+        .slice(0, 10)
+    })(),
+    /* 見つからなかったURL。リンク切れ、消したページ、打ち間違い、
+       よそのサイトからの古いリンク。多いものから直せます。 */
+    notFound: merge(notFound, 12),
   })
 }
 

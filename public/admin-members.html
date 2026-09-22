@@ -957,6 +957,28 @@
           <div id="stats-hours"></div>
         </div>
         <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">サイトの外へ出ていった操作</h3>
+          <p class="share-note" style="margin-bottom:10px">電話・LINE・メールは問い合わせフォームを通らないので、上の導線には一切出てきません。取りこぼしが一番大きいのはここです。</p>
+          <div id="stats-links"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">検索キーワード</h3>
+          <p class="share-note" style="margin-bottom:10px">何と検索して来たか。Google Search Console から取ります。</p>
+          <div id="stats-queries"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:22px">
+          <div>
+            <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どのページで帰ったか</h3>
+            <p class="share-note" style="margin-bottom:10px">最後に見たページ。割合が高いページは、次に行く先が置かれていません。</p>
+            <div id="stats-exits"></div>
+          </div>
+          <div>
+            <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">見つからなかったURL</h3>
+            <p class="share-note" style="margin-bottom:10px">リンク切れ、消したページ、よそに残っている古いリンク。多いものから直せます。</p>
+            <div id="stats-404"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">問い合わせまでの導線</h3>
           <p class="share-note" style="margin-bottom:10px">訪問したうち何人がどこまで進んだか。数字が落ちている段が、いちばん改善の効くところです。</p>
           <div id="stats-funnel"></div>
@@ -2908,6 +2930,141 @@ window.lumAdmin = {
         '数字は日本時間です。閲覧数の合計は ' + total + ' 回。</p>';
   }
 
+  /* 出ていったリンク。tel / line / mail は名前を日本語に直し、それ以外は
+     相手のホスト名をそのまま出します。 */
+  var LINK_NAMES = {
+    tel: ['📞 電話をかけた', 'フォームを通らない連絡です。ここが動いているなら、電話番号はもっと目立たせる価値があります。'],
+    line: ['💬 LINEを開いた', '友だち追加やトーク。返事のはやさがそのまま結果に出るところです。'],
+    mail: ['✉️ メールを書いた', 'メールソフトが開かれました。送ったかどうかまでは分かりません。'],
+    other: ['↗ そのほかの外部リンク', ''],
+  };
+  function links(rows, funnel) {
+    var host = el('stats-links');
+    if (!host) return;
+    if (!rows.length) {
+      host.innerHTML = '<p class="share-note">まだ記録がありません。電話・LINE・メール・外部リンクが押されると、ここに出ます。</p>';
+      return;
+    }
+    var max = Math.max.apply(null, rows.map(function (r) { return r.count; }).concat([1]));
+    var direct = rows.filter(function (r) { return /^(tel|line|mail)$/.test(r.name); })
+      .reduce(function (a, b) { return a + b.count; }, 0);
+    var sent = (funnel.main || []).filter(function (s) { return s.key === 'contact_submit'; })[0];
+    host.innerHTML = rows.map(function (r) {
+      var known = LINK_NAMES[r.name];
+      var label = known ? known[0] : '↗ ' + r.name;
+      var note = known ? known[1] : 'このサイトから出ていった先です。';
+      var pct = Math.round((r.count / max) * 100);
+      return '<div style="margin-bottom:10px">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px">' +
+          '<span style="font-weight:700">' + esc(label) + '</span>' +
+          '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + r.count + '回</span>' +
+        '</div>' +
+        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+          '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#0891b2,#67e8f9);border-radius:99px"></div>' +
+        '</div>' +
+        (note ? '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + esc(note) + '</div>' : '') +
+      '</div>';
+    }).join('') +
+    (direct
+      ? '<p class="share-note" style="margin-top:8px">直接の連絡（電話・LINE・メール）が <b>' + direct + '回</b>。' +
+        'フォームからの送信は ' + (sent ? sent.people : 0) + '人です。導線の数字だけを見ていると、この ' + direct + '回は無かったことになります。</p>'
+      : '');
+  }
+
+  /* どのページで帰ったか。近似であることは隠しません。 */
+  function exits(rows) {
+    var host = el('stats-exits');
+    if (!host) return;
+    if (!rows.length) { host.innerHTML = '<p class="share-note">まだ記録がありません。</p>'; return; }
+    host.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      rows.map(function (r) {
+        var few = r.opened < 5;
+        var pct = Math.round(r.rate * 100);
+        return '<tr>' +
+          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            '<a href="https://lumenium.net' + esc(r.name) + '" target="_blank" rel="noopener" ' +
+            'style="color:var(--text);text-decoration:underline;text-underline-offset:2px">' + esc(r.name) + '</a></td>' +
+          '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
+            r.exits + ' / ' + r.opened + '</td>' +
+          '<td style="padding:5px 0 5px 12px;text-align:right;white-space:nowrap;width:64px;font-variant-numeric:tabular-nums;color:' +
+            (few ? 'var(--sub)' : pct >= 70 ? '#fcd34d' : 'inherit') + '">' + (few ? '—' : pct + '%') + '</td>' +
+        '</tr>';
+      }).join('') + '</table>' +
+      '<p class="share-note" style="margin-top:6px">「離れた / 開かれた」回数。サイト内のリンクを押した場合は除いていますが、' +
+        'ブラウザは「閉じた」と「次へ進んだ」を同じ合図で伝えるため、これは近似です。</p>';
+  }
+
+  function notFound(rows) {
+    var host = el('stats-404');
+    if (!host) return;
+    if (!rows.length) {
+      host.innerHTML = '<p class="share-note">ありません。リンク切れは起きていません。</p>';
+      return;
+    }
+    host.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      rows.map(function (r) {
+        return '<tr>' +
+          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fcd34d">' +
+            esc(r.name) + '</td>' +
+          '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
+            r.count + '回</td>' +
+        '</tr>';
+      }).join('') + '</table>' +
+      '<p class="share-note" style="margin-top:6px">よそのサイトに残っている古いリンクなら、そのURLから正しいページへ転送する手があります。</p>';
+  }
+
+  /* 検索キーワード。SEO/AIO の画面と同じ窓口から取ります。つながって
+     いないときは、何をすれば出るのかをその場に書きます——空欄のまま
+     置くと「データが無い」のか「設定がまだ」なのか分かりません。 */
+  var queriesDone = false;
+  async function queries(key) {
+    var host = el('stats-queries');
+    if (!host || queriesDone) return;
+    queriesDone = true;
+    host.innerHTML = '<p class="share-note">確認しています…</p>';
+    var d;
+    try {
+      var r = await fetch('/api/search-console', { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
+      d = await r.json();
+    } catch (_) {
+      host.innerHTML = '<p class="share-note">取得できませんでした。</p>';
+      return;
+    }
+    if (!d || d.ok !== true) { host.innerHTML = '<p class="share-note">取得できませんでした。</p>'; return; }
+    if (!d.connected || !d.authorised || !d.registered) {
+      host.innerHTML = '<p class="share-note">' +
+        (!d.connected ? 'Googleカレンダーの接続がまだです。「設定状況」の商談予約の欄から接続すると、検索キーワードも同時に読めるようになります（同じGoogleアカウントの権限で取ります）。'
+          : !d.authorised ? 'Google の接続はできていますが、Search Console を読む権限がありません。接続し直してください。'
+          : 'このサイトが Search Console に登録されていません。「設定状況」の検索エンジン登録の欄に確認用ファイル名を貼ると、登録できます。') +
+        '</p>';
+      return;
+    }
+    /* 指名（社名で探された）と非指名を分けて、非指名を上に置きます。
+       「Lumenium」で見つかるのは当たり前で、知らない人に届いたかどうかは
+       非指名の語が出るかで決まるからです。 */
+    var list = (d.topOpen || []).slice(0, 10).map(function (q) { return { q: q, brand: false }; })
+      .concat((d.topBranded || []).slice(0, 4).map(function (q) { return { q: q, brand: true }; }));
+    if (!list.length) { host.innerHTML = '<p class="share-note">まだ検索での表示がありません。登録してから数日かかります。</p>'; return; }
+    host.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      '<tr style="color:var(--sub);font-size:11px"><td style="padding:3px 0">キーワード</td>' +
+        '<td style="padding:3px 0;text-align:right">表示</td><td style="padding:3px 0 3px 10px;text-align:right">click</td>' +
+        '<td style="padding:3px 0 3px 10px;text-align:right">掲載順位</td></tr>' +
+      list.map(function (row) {
+        var q = row.q;
+        return '<tr>' +
+          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            esc(q.query || '') +
+            (row.brand ? '<span style="font-size:10px;color:var(--sub);margin-left:6px">指名</span>' : '') + '</td>' +
+          '<td style="padding:5px 0;text-align:right;color:var(--sub);font-variant-numeric:tabular-nums">' + (q.impressions || 0) + '</td>' +
+          '<td style="padding:5px 0 5px 10px;text-align:right;color:var(--sub);font-variant-numeric:tabular-nums">' + (q.clicks || 0) + '</td>' +
+          '<td style="padding:5px 0 5px 10px;text-align:right;font-variant-numeric:tabular-nums">' +
+            (q.position ? Number(q.position).toFixed(1) : '—') + '</td>' +
+        '</tr>';
+      }).join('') + '</table>' +
+      '<p class="share-note" style="margin-top:6px">「指名」は社名で探された検索です。知らない人に届いたかどうかは、' +
+        'それ以外の語が出てくるかで決まります。</p>';
+  }
+
   async function load() {
     var key = sessionStorage.getItem('lum_admin_key');
     if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
@@ -2935,6 +3092,10 @@ window.lumAdmin = {
     readDepth(data.funnel || {});
     readPaths(data.readByPath || []);
     hours(data.hours || []);
+    links(data.links || [], data.funnel || {});
+    exits(data.exits || []);
+    notFound(data.notFound || []);
+    queries(key);
     funnelBars(data.funnel || []);
     bars('stats-paths', data.topPaths, { link: true });
     bars('stats-refs', data.topReferrers);
