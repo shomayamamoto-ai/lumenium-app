@@ -467,6 +467,11 @@
   .linkish:hover { color: #c7d2fe; }
 
   /* ---- SNS composer ---- */
+  .soc-step {
+    font-size: 11.5px; letter-spacing: .06em; font-weight: 800; color: var(--sub);
+    margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .soc-step::first-letter { color: #818cf8; font-size: 14px; }
   .soc-nets { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 8px; margin-bottom: 12px; }
   .soc-net {
     display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 9px;
@@ -755,21 +760,43 @@
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📣 SNS投稿</h2>
       <p class="share-note" style="margin-bottom:14px">
-        ここから X・Facebook・Instagram・Threads・LinkedIn に直接投稿します。各SNSの開発者画面で発行したアクセストークンを
-        <button type="button" class="linkish" id="social-to-keys">「設定状況 › キーの入力」</button>に貼ると、その SNS が選べるようになります。
-        送信結果は各SNSからの返答をそのまま表示します。投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
+        ここから X・Facebook・Instagram・Threads・LinkedIn に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
+        投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
       </p>
       <p class="msg" id="social-msg" style="margin-bottom:12px"></p>
-      <div id="social-nets" class="soc-nets"></div>
-      <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
-      <div class="soc-fields">
-        <input type="url" id="social-link" placeholder="リンク（任意 / https://）" autocomplete="off">
-        <input type="url" id="social-image" placeholder="画像URL（任意 / https:// · Instagramは必須）" autocomplete="off">
-      </div>
-      <div class="toolbar" style="margin:12px 0">
-        <button type="button" id="social-post">選んだSNSに投稿</button>
-        <button type="button" class="ghost" id="social-reload">状態を再取得</button>
-        <span id="social-hint"></span>
+
+      <!-- まだ1つも使えないときは、投稿欄より先にここが出ます。
+           何をすれば使えるのかが分からないまま、空の投稿欄を見せても仕方が
+           ないためです。 -->
+      <div id="social-setup" style="display:none;margin-bottom:16px"></div>
+
+      <div id="social-compose">
+        <h3 class="soc-step">1　どこに出すか</h3>
+        <div id="social-nets" class="soc-nets"></div>
+
+        <h3 class="soc-step">2　何を書くか</h3>
+        <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
+        <div id="social-tools" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px">
+          <span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>
+          <button type="button" class="ghost soc-way" data-way="short" style="font-size:11px;padding:4px 10px">短く</button>
+          <button type="button" class="ghost soc-way" data-way="plain" style="font-size:11px;padding:4px 10px">やさしく</button>
+          <button type="button" class="ghost soc-way" data-way="concrete" style="font-size:11px;padding:4px 10px">具体的に</button>
+          <button type="button" class="ghost soc-way" data-way="polish" style="font-size:11px;padding:4px 10px">整える</button>
+          <span class="soc-busy" style="font-size:11px;color:var(--sub);display:none">書き直しています…</span>
+        </div>
+        <div class="soc-fields" style="margin-top:10px">
+          <input type="url" id="social-link" placeholder="リンク（任意 / https://）" autocomplete="off">
+          <input type="url" id="social-image" placeholder="画像URL（任意 / https://）" autocomplete="off">
+        </div>
+        <div id="social-urlnote" style="margin-top:6px"></div>
+
+        <h3 class="soc-step">3　確認して送る</h3>
+        <div id="social-preview" style="margin-bottom:12px"></div>
+        <div class="toolbar" style="margin:12px 0">
+          <button type="button" id="social-post">選んだSNSに投稿</button>
+          <button type="button" class="ghost" id="social-reload">状態を再取得</button>
+          <span id="social-hint"></span>
+        </div>
       </div>
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">これまでの投稿</h3>
@@ -5177,6 +5204,12 @@ window.lumAdmin = {
   var nets = [];
   var started = false;
 
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
   function say(t, info) {
     var m = el('social-msg');
     m.textContent = t || '';
@@ -5225,13 +5258,61 @@ window.lumAdmin = {
       lab.appendChild(left);
       var sub = document.createElement('span');
       sub.className = 'sub';
-      sub.textContent = n.ready
-        ? n.note
-        : '未設定：' + n.missing.join('・') + ' が要ります。';
+      if (n.ready) {
+        sub.textContent = n.note;
+      } else {
+        /* 変数名だけでは一歩も進めません。何が要るのか、どこで取るのかを
+           そのまま書きます。名前は「キーの入力」で探すときに要るので
+           残しますが、主役にはしません。 */
+        var st = n.setup || {};
+        sub.innerHTML = '<span style="color:#fbbf24;font-weight:700">まだ使えません</span>　' +
+          esc(st.what || (n.missing.join('・') + ' が要ります。')) +
+          (st.effort ? '<br><span style="opacity:.85">' + esc(st.effort) + '</span>' : '');
+      }
       lab.appendChild(sub);
       host.appendChild(lab);
     });
     count();
+  }
+
+  /* まだ1つも使えないときの案内。投稿欄より先に、これを出します。
+     5つの灰色のカードと空の入力欄を見せられても、次に何をすればいいのかは
+     分かりません。 */
+  function renderSetup() {
+    var box = el('social-setup');
+    var ready = nets.filter(function (n) { return n.ready; });
+    if (ready.length) { box.style.display = 'none'; el('social-compose').style.display = ''; return; }
+    box.style.display = 'block';
+    el('social-compose').style.display = 'none';
+    box.innerHTML =
+      '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.45);border-radius:12px;padding:14px 16px">' +
+        '<div style="font-size:13.5px;font-weight:700;margin-bottom:6px">まだ、どのSNSにも投稿できません</div>' +
+        '<div style="font-size:12.5px;color:var(--sub);line-height:1.85;margin-bottom:12px">' +
+          'SNSに投稿するには、各社から「鍵」を取ってきて、この管理画面に貼る必要があります。' +
+          '1つ設定すれば、そのSNSだけ先に使えます。全部そろえる必要はありません。' +
+          '<br>いちばん手間が少ないのは Threads、次が X です。' +
+        '</div>' +
+        nets.map(function (n) {
+          var st = n.setup || {};
+          return '<div style="border-top:1px solid var(--border);padding:11px 0">' +
+            '<div style="font-size:13px;font-weight:700;margin-bottom:3px">' + esc(n.label) +
+              '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
+            '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
+              esc(st.what || '') + '<br>' + esc(st.where || '') +
+              (st.url ? ' <a href="' + esc(st.url) + '" target="_blank" rel="noopener" style="color:#93c5fd">取りに行く ↗</a>' : '') +
+              '<br><span style="opacity:.75">貼る場所の名前: ' + esc(n.needs.join('・')) + '</span>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+        '<button type="button" class="soc-to-keys" style="margin-top:12px;font-size:12.5px;padding:8px 14px">' +
+          '取ってきた鍵を貼る（設定状況 › キーの入力）</button>' +
+      '</div>';
+    var b = box.querySelector('.soc-to-keys');
+    if (b) b.addEventListener('click', function () {
+      if (window.lumShowTab) window.lumShowTab('health-admin');
+      var t = document.getElementById('set-list');
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   function count() {
@@ -5257,6 +5338,59 @@ window.lumAdmin = {
     if (needImg) notes.push('Instagram は画像URLが必要です');
     el('social-hint').textContent = notes.length ? notes.join(' / ') : (picked + ' 件に投稿します');
     el('social-post').disabled = !picked || !!over || !!needImg;
+    preview();
+    urlNotes();
+  }
+
+  /* 出す前の見え方。本文・リンク・画像が、実際どう並ぶか。
+     送ってからでは直せないので、送る前に一度だけ見えるようにします。 */
+  function preview() {
+    var host = el('social-preview');
+    if (!host) return;
+    var b = body();
+    var picked = nets.filter(function (n) {
+      var lab = el('soc-' + n.id);
+      return lab && lab.querySelector('input').checked;
+    });
+    if (!b.text.trim()) {
+      host.innerHTML = '<p class="share-note">本文を書くと、ここに出方が表示されます。</p>';
+      return;
+    }
+    host.innerHTML =
+      '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:13px 15px">' +
+        '<div style="font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--sub);margin-bottom:7px">出方の確認</div>' +
+        '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;word-break:break-word">' + esc(b.text) + '</div>' +
+        (b.link ? '<div style="font-size:12.5px;margin-top:6px;color:#93c5fd;word-break:break-all">' + esc(b.link) + '</div>' : '') +
+        (b.imageUrl && /^https?:\/\//.test(b.imageUrl)
+          ? '<img src="' + esc(b.imageUrl) + '" alt="" style="margin-top:9px;max-height:150px;max-width:100%;border-radius:9px;border:1px solid var(--border);display:block"' +
+            ' onerror="this.style.display=\'none\';this.nextSibling &amp;&amp; (this.nextSibling.style.display=\'block\')">' +
+            '<div style="display:none;font-size:11.5px;color:#fbbf24;margin-top:6px">⚠ この画像URLは開けませんでした。公開されているURLか確かめてください。</div>'
+          : '') +
+        '<div style="font-size:11px;color:var(--sub);margin-top:9px;line-height:1.8;border-top:1px solid var(--border);padding-top:8px">' +
+          (picked.length
+            ? picked.map(function (n) {
+                var rest = n.limit - payloadLen();
+                var img = n.image === 'required' ? '画像が必要' : n.image === 'ignored' ? '画像は送られません' : '画像は任意';
+                return esc(n.label) + '：残り ' + rest + ' 文字（上限 ' + n.limit + '）・' + img;
+              }).join('<br>')
+            : '出す先が選ばれていません。') +
+        '</div>' +
+      '</div>';
+  }
+
+  /* リンクと画像URLの形。送ってから気づくと、投稿を消して出し直すことに
+     なります。 */
+  function urlNotes() {
+    var host = el('social-urlnote');
+    if (!host) return;
+    var bad = [];
+    var lk = el('social-link').value.trim();
+    var im = el('social-image').value.trim();
+    if (lk && !/^https?:\/\/\S+$/.test(lk)) bad.push('リンクが http:// か https:// で始まる形になっていません。');
+    if (im && !/^https?:\/\/\S+$/.test(im)) bad.push('画像URLが http:// か https:// で始まる形になっていません。');
+    host.innerHTML = bad.length
+      ? '<div style="font-size:11.5px;color:#fbbf24;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>'
+      : '';
   }
 
   function renderResults(list) {
@@ -5331,9 +5465,11 @@ window.lumAdmin = {
     if (!r.res.ok || !r.data.ok) { say((r.data && r.data.message) || '状態を取得できませんでした。'); return; }
     nets = r.data.networks || [];
     renderNets();
+    renderSetup();
     renderLog(r.data.recent, r.data.stored);
-    var ready = nets.filter(function (n) { return n.ready; }).length;
-    say(ready ? '' : 'まだどのSNSも投稿できません。上の「キーの入力」から、使うSNSのトークンを入れてください。', true);
+    // 使えるものが1つも無いときの案内は renderSetup が画面の主役として
+    // 出すので、ここで同じことを二度言いません。
+    say('', true);
   }
 
   async function post() {
@@ -5372,13 +5508,51 @@ window.lumAdmin = {
   });
   el('social-post').addEventListener('click', post);
   el('social-reload').addEventListener('click', load);
-  el('social-to-keys').addEventListener('click', function () {
-    if (window.lumShowTab) window.lumShowTab('health-admin');
-    setTimeout(function () {
-      var h = el('set-list');
-      if (h) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 80);
+
+  /* 本文の書き直し。文章編集と同じ窓口を使います。
+     返ってくるのは案で、採るかどうかは押した人が決めます——SNSは出したら
+     取り消せないので、黙って書き換わる作りにはできません。 */
+  Array.prototype.forEach.call(document.querySelectorAll('.soc-way'), function (b) {
+    b.addEventListener('click', async function () {
+      var ta = el('social-text');
+      if (!ta.value.trim()) { say('先に本文を書いてください。'); return; }
+      var busy = document.querySelector('.soc-busy');
+      var ways = document.querySelectorAll('.soc-way');
+      Array.prototype.forEach.call(ways, function (x) { x.disabled = true; });
+      busy.style.display = 'inline';
+      var r = await window.lumAdmin.fetch('/api/rewrite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: ta.value, way: b.dataset.way, where: 'SNSへの投稿本文' }),
+      });
+      busy.style.display = 'none';
+      Array.prototype.forEach.call(ways, function (x) { x.disabled = false; });
+      var d = r.data || {};
+      if (!d.ok) { say(d.message || '書き直せませんでした。'); return; }
+      offerText(ta, d.text, d.label);
+    });
   });
+
+  /* 案は本文の下に出します。「この案にする」を押すまで本文は変わりません。 */
+  function offerText(ta, after, label) {
+    var old = document.getElementById('soc-offer');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'soc-offer';
+    box.style.cssText = 'margin-top:8px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:10px;padding:11px 14px';
+    box.innerHTML =
+      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#67e8f9;margin-bottom:6px">' +
+        esc(label) + 'した案（まだ本文には入れていません）</div>' +
+      '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;margin-bottom:9px">' + esc(after) + '</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+        '<button type="button" id="soc-take" style="font-size:11.5px;padding:5px 12px">この案にする</button>' +
+        '<button type="button" class="ghost" id="soc-drop" style="font-size:11.5px;padding:5px 12px">使わない</button>' +
+      '</div>';
+    el('social-tools').insertAdjacentElement('afterend', box);
+    document.getElementById('soc-take').addEventListener('click', function () {
+      ta.value = after; box.remove(); count(); ta.focus();
+    });
+    document.getElementById('soc-drop').addEventListener('click', function () { box.remove(); });
+  }
 
   window.lumSocialInit = function () {
     if (started) return;

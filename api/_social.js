@@ -18,31 +18,65 @@ import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 const GRAPH = 'https://graph.facebook.com/v21.0'
 const THREADS = 'https://graph.threads.net/v1.0'
 
+/* 各SNSの決まりごとと、使えるようにするまでの道順。
+   `setup` は管理画面にそのまま出ます。画面に X_ACCESS_TOKEN とだけ
+   書いてあっても、どこで取るのか分からなければ一歩も進めません。
+   取りに行く先と、取るのにかかる手間まで書いておきます。 */
 export const NETWORKS = [
   {
     id: 'x', label: 'X', mark: '𝕏', limit: 280, needs: ['X_ACCESS_TOKEN'],
     image: 'ignored',
     note: '画像はAPIの別枠（メディアアップロード）が要るため、本文とリンクのみ送ります。',
+    setup: {
+      what: 'Xに投稿するための鍵が1つ要ります。',
+      where: 'X の開発者ポータル（developer.x.com）でアプリを作り、Read and write 権限にしたうえで Access Token を発行します。',
+      url: 'https://developer.x.com/en/portal/dashboard',
+      effort: '無料枠で可。30分ほど',
+    },
   },
   {
     id: 'facebook', label: 'Facebook', mark: 'f', limit: 5000, needs: ['FB_PAGE_ID', 'FB_PAGE_TOKEN'],
     image: 'optional',
     note: 'ページへの投稿です。個人のタイムラインへはAPIから投稿できません。',
+    setup: {
+      what: 'Facebookページの番号と、そのページ用の鍵が要ります。',
+      where: 'Meta for Developers でアプリを作り、グラフAPIエクスプローラから pages_manage_posts 権限のページアクセストークンを取ります。ページ番号は同じ画面で確認できます。',
+      url: 'https://developers.facebook.com/tools/explorer/',
+      effort: '個人のタイムラインには投稿できません。ページが要ります',
+    },
   },
   {
     id: 'instagram', label: 'Instagram', mark: '◎', limit: 2200, needs: ['IG_USER_ID', 'IG_TOKEN'],
     image: 'required',
     note: '画像URLが必須です（公開URLのみ）。プロアカウントとFacebookページの連携が要ります。',
+    setup: {
+      what: 'Instagramの利用者番号と鍵が要ります。',
+      where: 'Instagramをプロアカウントにし、Facebookページと連携してから、Facebookと同じ Meta for Developers で取ります。',
+      url: 'https://developers.facebook.com/tools/explorer/',
+      effort: 'Facebookの設定が先に要ります。画像が無いと投稿できません',
+    },
   },
   {
     id: 'threads', label: 'Threads', mark: '@', limit: 500, needs: ['THREADS_USER_ID', 'THREADS_TOKEN'],
     image: 'optional',
     note: '作成と公開の2段階で送ります。',
+    setup: {
+      what: 'Threadsの利用者番号と鍵が要ります。',
+      where: 'Meta for Developers で Threads API のアプリを作り、threads_basic と threads_content_publish の権限でトークンを取ります。',
+      url: 'https://developers.facebook.com/docs/threads',
+      effort: '5つの中では比較的かんたんです',
+    },
   },
   {
     id: 'linkedin', label: 'LinkedIn', mark: 'in', limit: 3000, needs: ['LI_AUTHOR_URN', 'LI_TOKEN'],
     image: 'ignored',
     note: '画像はアセット登録が別途必要なため、本文とリンクのみ送ります。',
+    setup: {
+      what: '投稿者を表す文字列（urn:li:person:… など）と鍵が要ります。',
+      where: 'LinkedIn Developers でアプリを作り、Share on LinkedIn の製品を追加してアクセストークンを取ります。',
+      url: 'https://www.linkedin.com/developers/apps',
+      effort: 'アプリの審査が要る場合があります',
+    },
   },
 ]
 
@@ -73,7 +107,7 @@ export async function socialStatus(req) {
     const missing = await missingFor(n, req)
     rows.push({
       id: n.id, label: n.label, mark: n.mark, limit: n.limit,
-      image: n.image, note: n.note, needs: n.needs,
+      image: n.image, note: n.note, needs: n.needs, setup: n.setup,
       ready: !missing.length,
       missing,
     })
