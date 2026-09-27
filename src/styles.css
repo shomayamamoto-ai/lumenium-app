@@ -10229,7 +10229,8 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   letter-spacing: -0.005em;
   /* No descenders in the name, so the line box can sit close around it —
      the reading under it follows right on. */
-  line-height: 0.95;
+  --wm-lh: 0.95;
+  line-height: var(--wm-lh);
   white-space: nowrap;
   -webkit-font-smoothing: antialiased;
 }
@@ -10242,14 +10243,25 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
-.wm-iw { position: relative; }
+/* The i and its star share one box that is the same in every state.
+   It used to be an inline span, which the opening swaps to inline-block
+   while the letters resolve and back again at the end; the star is placed
+   against that box, and inline and inline-block boxes differ in height,
+   so the star shifted as the opening finished. Safari also resolves
+   positions inside an inline box differently, which on iPhone left the
+   star well off the i. An inline-block, always, avoids both. */
+.wm-iw { position: relative; display: inline-block; }
 /* Everything above the stem is cut away; the star takes the dot's place. */
 .wm-i { clip-path: inset(34% 0 0 0); }
 .wm-iw::after {
   content: '';
   position: absolute;
-  left: 47%;
-  top: 25%;
+  /* Where the dot of the i sits, measured in this face: 0.131em from the
+     glyph's left edge and 0.28em below the top of its 1.1075em-tall text
+     box. The box here is the line box (--wm-lh), which centres the text
+     box in it, so the offset is corrected by half the difference. */
+  left: 0.131em;
+  top: calc(0.28em - (1.1075em - var(--wm-lh) * 1em) / 2);
   width: 0.24em;
   height: 0.24em;
   transform: translate(-50%, -50%);
