@@ -42,7 +42,21 @@ try {
 }
 
 const before = existsSync(OVERRIDES) ? readFileSync(OVERRIDES, 'utf8') : '{}'
-const restore = () => writeFileSync(OVERRIDES, before)
+// The marked build also regenerates the static pages under public/, which
+// are committed. Restoring content.json alone left those pages carrying the
+// markers (and they got committed once), so rebuild clean on the way out.
+let restored = false
+const restore = () => {
+  if (restored) return
+  restored = true
+  writeFileSync(OVERRIDES, before)
+  try {
+    execSync('npm run build', { cwd: ROOT, stdio: 'ignore' })
+    console.log('印のない状態でビルドし直しました。')
+  } catch (_) {
+    console.log('印を外したビルドに失敗しました。npm run build を実行してください。')
+  }
+}
 process.on('exit', restore)
 process.on('SIGINT', () => { restore(); process.exit(130) })
 
