@@ -59,9 +59,13 @@ const StepIcon5 = () => (
 )
 
 const STEP_ICONS = [<StepIcon1 />, <StepIcon2 />, <StepIcon5 />, <StepIcon3 />, <StepIcon4 />]
-const steps = FLOW_STEPS.map((s, i) => ({ ...s, icon: STEP_ICONS[i] }))
+/* Built when the component renders, not when this file loads: the admin's
+   copy overrides (content.json) are applied to the data just before the
+   first render, and a copy taken at load time would miss them. */
+const getSteps = () => FLOW_STEPS.map((s, i) => ({ ...s, icon: STEP_ICONS[i] }))
 
 export default function Flow() {
+  const steps = getSteps()
   return (
     <section className="section section--gray" id="flow">
       <div className="container">

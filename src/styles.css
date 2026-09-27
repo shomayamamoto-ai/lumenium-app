@@ -10610,3 +10610,240 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
    footer headings' gradient underline, in the quiet palette. */
 .chat-widget-btn::before { display: none !important; }
 .footer-col h4 > span::after { background: rgba(180, 189, 246, 0.55) !important; }
+
+/* =========================================================================
+   Landing — first view, mid-page call, phone call bar
+   ========================================================================= */
+.hero.hero--plain {
+  min-height: auto;
+  display: block;
+  text-align: left;
+  padding: clamp(112px, 14vw, 160px) 0 clamp(64px, 8vw, 104px);
+  background:
+    radial-gradient(ellipse 55% 60% at 78% 30%, rgba(129, 140, 248, 0.14), transparent 70%),
+    var(--bg);
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+}
+.hero--plain .hero-eyebrow {
+  font-family: 'Instrument Serif', 'Zen Old Mincho', serif;
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  color: var(--lav);
+  margin-bottom: 20px;
+}
+.hero--plain .hero-title {
+  font-size: clamp(36px, 5.2vw, 62px);
+  line-height: 1.3;
+  margin-bottom: 24px;
+  text-align: left;
+}
+.hero--plain .hero-desc {
+  font-size: clamp(15px, 1.25vw, 17px);
+  line-height: 2;
+  color: var(--ink-soft);
+  margin: 0 0 32px;
+  max-width: 34em;
+  text-align: left;
+}
+.hero--plain .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+  margin-bottom: 24px;
+}
+.hero--plain .hero-actions .btn { min-height: 52px; padding-inline: 28px; }
+.hero-assure {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.hero-assure li::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: var(--lav);
+}
+
+/* The offer: six areas and where each starts, visible without scrolling. */
+.hero-offer {
+  background: rgba(18, 22, 51, 0.6);
+  border: 1px solid rgba(180, 189, 246, 0.16);
+  border-radius: 20px;
+  padding: 22px 22px 16px;
+}
+.hero-offer-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  color: var(--lav);
+  margin: 0 0 10px 4px;
+}
+.hero-offer-list { list-style: none; margin: 0; padding: 0; }
+.hero-offer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 6px;
+  border-bottom: 1px solid rgba(180, 189, 246, 0.1);
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+}
+.hero-offer-list li:last-child .hero-offer-item { border-bottom: 0; }
+.hero-offer-item:hover { background: rgba(180, 189, 246, 0.07); }
+.hero-offer-icon {
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lav);
+  background: rgba(180, 189, 246, 0.08);
+  border: 1px solid rgba(180, 189, 246, 0.2);
+}
+.hero-offer-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hero-offer-name { font-size: 15px; font-weight: 600; }
+.hero-offer-sub { font-size: 12px; color: var(--ink-mute); }
+.hero-offer-price {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.hero-offer-note { margin: 12px 4px 0; font-size: 11.5px; color: var(--ink-mute); }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero.hero--plain { padding-top: 104px; }
+}
+@media (max-width: 480px) {
+  .hero--plain .hero-actions .btn { flex: 1 1 100%; justify-content: center; }
+  .hero-offer { padding: 16px 12px 12px; }
+  .hero-offer-sub { display: none; }
+}
+
+/* Mid-page call, after the results. */
+.inline-cta { padding: clamp(40px, 5vw, 64px) 0; }
+.inline-cta-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px 40px;
+  flex-wrap: wrap;
+  padding: clamp(24px, 3vw, 36px) clamp(22px, 3.4vw, 44px);
+  border: 1px solid rgba(180, 189, 246, 0.18);
+  border-radius: 20px;
+  background: radial-gradient(ellipse 70% 120% at 0% 0%, rgba(129, 140, 248, 0.12), transparent 70%), #121633;
+}
+.inline-cta-title { font-family: var(--font-display); font-size: clamp(19px, 2.1vw, 24px); color: var(--ink); margin: 0 0 6px; }
+.inline-cta-sub { font-size: 14px; color: var(--ink-soft); margin: 0; }
+
+/* Phone call bar: appears once the first view has scrolled away; fades,
+   never slides. The chat button moves up out of its way. */
+.mobile-cta { display: none; }
+@media (max-width: 768px) {
+  .mobile-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 950;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(13, 16, 38, 0.92);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(180, 189, 246, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  .mobile-cta.is-on { opacity: 1; visibility: visible; }
+  .mobile-cta .btn { flex: 1; justify-content: center; min-height: 48px; }
+  .mobile-cta-note { font-size: 11px; color: var(--ink-mute); white-space: nowrap; }
+  body:has(.mobile-cta.is-on) .chat-widget-btn { bottom: calc(84px + env(safe-area-inset-bottom)) !important; }
+  body:has(.mobile-cta.is-on) .scroll-top-btn { bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+}
+
+/* Content is simply there. Sections used to fade and slide up as they
+   scrolled in, their titles wiped in from the left and the pain cards
+   dropped in one by one — which also left half-drawn titles on screen and
+   blank areas after a jump. None of it helped anyone read. */
+[data-animate], [data-animate].visible, .card--pain {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+[data-animate] .section-title, [data-animate] .section-header > * { clip-path: none !important; }
+.char-reveal { opacity: 1 !important; transform: none !important; animation: none !important; }
+
+/* A tighter rhythm: the page read as a series of islands. */
+:root {
+  --space-section: clamp(72px, 9vw, 120px);
+  --space-header: clamp(36px, 5vw, 64px);
+}
+
+/* Client voices: all at once, no carousel. */
+.testimonial-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.testimonial-grid .testimonial-card { height: 100%; }
+.inline-cta-label {
+  font-family: 'Instrument Serif', serif;
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  color: var(--lav);
+  margin: 0 0 8px;
+}
+.inline-cta-copy { max-width: 40em; }
+.inline-cta-assure {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.inline-cta-assure li::before { content: '・'; color: var(--lav); }
+
+/* 「ルメニウムとは」 — the one-sentence definition, right under the hero. */
+.hero-define {
+  margin-top: clamp(28px, 4vw, 44px);
+  padding-top: 18px;
+  border-top: 1px solid rgba(180, 189, 246, 0.12);
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.hero-define br { display: none; }
+@media (max-width: 480px) { .hero-define br { display: inline; } }
+.hero-define a { color: var(--lav); margin-left: 10px; text-decoration: none; }
+.hero-define a:hover { text-decoration: underline; }
+/* On a phone the call bar already offers the next step; the back-to-top
+   disc was one more floating thing over the content. */
+@media (max-width: 768px) { .scroll-top-btn { display: none !important; } }

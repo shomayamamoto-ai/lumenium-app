@@ -1,21 +1,23 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import Wordmark from './Wordmark'
-export default function Footer({ onPrivacy }) {
+export default function Footer({ onPrivacy, cta = true }) {
   return (
     <footer className="footer">
-      <div className="footer-cta-bar">
-        <div className="container footer-cta-inner">
-          <div className="footer-cta-copy">
-            <p className="footer-cta-label">{SECTION.footer.ctaLabel}</p>
-            <p className="footer-cta-title">{rich(SECTION.footer.ctaTitle)}</p>
+      {cta && (
+        <div className="footer-cta-bar">
+          <div className="container footer-cta-inner">
+            <div className="footer-cta-copy">
+              <p className="footer-cta-label">{SECTION.footer.ctaLabel}</p>
+              <p className="footer-cta-title">{rich(SECTION.footer.ctaTitle)}</p>
+            </div>
+            <a href="#contact-form" className="btn btn-white" data-cta="footer-consult">
+              {SECTION.footer.ctaButton}
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </a>
           </div>
-          <a href="#contact-form" className="btn btn-white" data-cta="footer-consult">
-            {SECTION.footer.ctaButton}
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </a>
         </div>
-      </div>
+      )}
 
       <div className="container">
         <div className="footer-top">

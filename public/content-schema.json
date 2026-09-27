@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-27T10:13:06.092Z",
-  "count": 403,
+  "generatedAt": "2026-09-27T16:40:48.764Z",
+  "count": 399,
   "groups": [
     {
       "key": "text",
@@ -275,24 +275,8 @@
           "value": "東京 / オンライン全国対応"
         },
         {
-          "path": "text.home.eyebrow",
-          "value": "TOKYO ・ CREATIVE & DX STUDIO"
-        },
-        {
           "path": "text.home.yomi",
           "value": "ルメニウム"
-        },
-        {
-          "path": "text.home.tagline",
-          "value": "散文化した目的に焦点を当てる"
-        },
-        {
-          "path": "text.home.exploreButton",
-          "value": "探す"
-        },
-        {
-          "path": "text.home.exploreHint",
-          "value": "押すと、対応領域が放射状に展開します"
         },
         {
           "path": "text.home.definition",

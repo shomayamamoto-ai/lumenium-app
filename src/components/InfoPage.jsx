@@ -1,11 +1,9 @@
 import { useEffect, lazy, Suspense } from 'react'
 import Hero from './Hero'
 import News from './News'
-import TrustStrip from './TrustStrip'
 import Stats from './Stats'
 import ServicesIntro from './ServicesIntro'
 import Why from './Why'
-import Banner from './Banner'
 import BrandStory from './BrandStory'
 import Positioning from './Positioning'
 import Services from './Services'
@@ -16,10 +14,9 @@ import Flow from './Flow'
 import FAQ from './FAQ'
 import Profile from './Profile'
 import ContactForm from './ContactForm'
-import SocialShare from './SocialShare'
 import Company from './Company'
-import CTA from './CTA'
 import Footer from './Footer'
+import InlineCTA from './InlineCTA'
 import SkeletonSection from './Skeleton'
 
 const Blog = lazy(() => import('./Blog'))
@@ -67,32 +64,30 @@ export default function InfoPage({ section = '', onPrivacy, onMounted }) {
     )
   }
 
+  /* トップ（ランディング）の並び。初めての人が「自分に関係あるか →
+     何をしてくれるか → 本当にできるのか → なぜここか → いくらか →
+     どう進むか → 頼んだ人はどうだったか → 気になる点 → 相談」と
+     迷わず進めるように、判断の順に並べています。
+     お知らせ・ブランドストーリー・ミッション・代表紹介・会社概要・
+     ブログは、ここからは外しました（メニューからそれぞれのページで
+     読めます）。同じ数字の並びや、お問い合わせの案内が二重になって
+     いたところも1つにしています。 */
   return (
     <>
       <Hero />
-      <News />
-      <TrustStrip />
       <Stats />
       <Why />
-      <BrandStory />
-      <Positioning />
-      <Banner />
-      <ServicesIntro />
       <Services />
       <Results />
+      <InlineCTA />
+      <Positioning />
       <PricingSimulator />
-      <Testimonials />
       <Flow />
-      <Suspense fallback={<SkeletonSection title="Blog" cards={3} columns={3} />}>
-        <Blog />
-      </Suspense>
+      <Testimonials />
       <FAQ />
-      <Profile />
-      <Company />
       <ContactForm />
-      <CTA />
-      <div className="container"><SocialShare /></div>
-      <Footer onPrivacy={onPrivacy} />
+      {/* フォームのすぐ下に、同じ相談の案内をもう一度出さない */}
+      <Footer onPrivacy={onPrivacy} cta={false} />
     </>
   )
 }

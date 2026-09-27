@@ -1,5 +1,6 @@
-// Scroll-triggered animated counters — shows scale of service in hard numbers.
-// Uses the existing global data-count IntersectionObserver hook in App.jsx.
+// The scale of the service in hard numbers. Shown as they are: the numbers
+// used to count up from 0 as they scrolled in, which only delayed reading
+// them.
 
 const STATS = [
   {
@@ -36,7 +37,7 @@ export default function Stats() {
           {STATS.map((s, i) => (
             <div key={s.label} className="stat" data-animate data-delay={i}>
               <span className="stat-value">
-                <span data-count={s.value}>0</span>
+                <span>{Number(s.value).toLocaleString('ja-JP')}</span>
                 <span className="stat-suffix">{s.suffix}</span>
               </span>
               <span className="stat-label">{s.label}</span>

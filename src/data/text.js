@@ -107,14 +107,9 @@ export const SECTION = {
     base: '東京 / オンライン全国対応',
   },
   home: {
-    eyebrow: 'TOKYO ・ CREATIVE & DX STUDIO',
     yomi: 'ルメニウム',
-    tagline: '散文化した目的に焦点を当てる',
-    exploreButton: '探す',
-    exploreHint: '押すと、対応領域が放射状に展開します',
-    // The two breaks are honoured on a phone and hidden on anything wider —
-    // see .search-home-def br in styles.css. A desktop has room for the whole
-    // sentence on one line, and that is how it should read there.
+    // Shown as the one-line 「ルメニウムとは」 under the landing page's hero.
+    // The breaks are honoured on a phone and hidden on anything wider.
     definition: 'ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／\nDX支援カンパニーです。',
     definitionLink: 'ルメニウムとは →',
   },

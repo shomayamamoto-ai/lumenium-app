@@ -86,7 +86,7 @@ footer { margin-top:44px; padding-top:20px; border-top:1px solid rgba(255,255,25
   font-size:12px; color:var(--sub); display:flex; gap:18px; flex-wrap:wrap; }
 footer a { color:var(--sub); text-decoration:none; }
 footer a:hover { color:var(--text); }
-.lumen3d-page{position:absolute;top:0;left:0;width:100%;height:100vh;z-index:-1;pointer-events:none;opacity:0;transition:opacity 1.2s ease}.lumen3d-page.is-on{opacity:1}</style>
+</style>
 <link rel="stylesheet" href="/brand.css">
 </head>
 <body>
@@ -187,13 +187,6 @@ footer a:hover { color:var(--text); }
      literal, where / collapses to /. It used to be written as / and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and
      every static page record nothing at all. -->
-<canvas class="lumen3d-page" aria-hidden="true"></canvas>
-<script type="module">(()=>{const c=document.querySelector('.lumen3d-page');if(!c)return;
-const place=()=>{const w=c.clientWidth,h=c.clientHeight;
-if(w>=1100){const g=(w-760)/2;return{x:w/2+380+g/2,y:Math.min(h*0.34,300),r:Math.min(g*0.34,120)}}
-return{x:w-44,y:44,r:Math.min(30,w*0.08)}};
-const go=()=>import('/lumen3d.js').then(m=>m.mountLumen3D(c,{mode:'subtle',focus:place,onFirstFrame:()=>c.classList.add('is-on')})).catch(()=>{});
-(window.requestIdleCallback||((f)=>setTimeout(f,400)))(go,{timeout:2500})})()</script>
 <script>(function(){try{/* 「数から外す」は送るたびに見ます。開いた時に一度だけ見る作りだと、   管理画面で外した直後に、既に開いているページが送り続けます。 */var off=function(){try{return localStorage.getItem('lum_notrack')==='1'}catch(e){return false}};if(off())return;var s=function(b){if(off())return;try{fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b),keepalive:true,credentials:'omit'}).catch(function(){})}catch(e){}};var p=location.pathname.replace(/\/$/,'')||'/';s({p:p,r:document.referrer||''});var seen={},c=function(){var d=document.documentElement,h=d.scrollHeight-innerHeight,r=h<=40?1:(scrollY||0)/h;if(r>=0.5&&!seen.h){seen.h=1;s({p:p,e:'read_half'})}if(r>=0.9&&!seen.e){seen.e=1;s({p:p,e:'read_end'})}};var w=0;addEventListener('scroll',function(){if(w)return;w=1;requestAnimationFrame(function(){w=0;c()})},{passive:true});setTimeout(c,1500);var host=location.hostname.replace(/^www\./,''),inside=false;document.addEventListener('click',function(ev){var a=ev.target&&ev.target.closest?ev.target.closest('a[href]'):null;if(!a)return;var href=a.getAttribute('href')||'';if(href.indexOf('tel:')===0){s({p:p,e:'click_tel'});return}if(href.indexOf('mailto:')===0){s({p:p,e:'click_mail'});return}var u;try{u=new URL(href,location.href)}catch(x){return}if(!/^https?:$/.test(u.protocol))return;var h=u.hostname.replace(/^www\./,'');if(h===host){inside=true;setTimeout(function(){inside=false},2000);return}if(/(^|\.)line\.me$|(^|\.)lin\.ee$/.test(h)){s({p:p,e:'click_line'});return}s({p:p,e:'click_out',d:h});},true);var gone=false,leave=function(){if(gone||inside||document.visibilityState!=='hidden')return;gone=true;s({p:p,e:'exit'})};document.addEventListener('visibilitychange',leave);addEventListener('pagehide',leave);}catch(e){}})();</script>
 </body>
 </html>

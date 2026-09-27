@@ -4,11 +4,15 @@ import { IconSNSPain, IconVideoPain, IconLINEPain } from './Icons'
 import { PAIN_POINTS } from '../data/site'
 
 const PAIN_ICONS = [<IconSNSPain />, <IconVideoPain />, <IconLINEPain />]
-const painPoints = PAIN_POINTS.map((p, i) => ({ ...p, icon: PAIN_ICONS[i] }))
+/* Built when the component renders, not when this file loads: the admin's
+   copy overrides (content.json) are applied to the data just before the
+   first render, and a copy taken at load time would miss them. */
+const getPainPoints = () => PAIN_POINTS.map((p, i) => ({ ...p, icon: PAIN_ICONS[i] }))
 
 import { useEffect, useRef } from 'react'
 
 export default function Why() {
+  const painPoints = getPainPoints()
   const gridRef = useRef(null)
 
   useEffect(() => {

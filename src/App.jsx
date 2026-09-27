@@ -1,10 +1,7 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
-import { supports3D } from './lib/lumen3d-support'
-import Splash from './components/Splash'
-import Intro3D from './components/Intro3D'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import Navbar from './components/Navbar'
-import SearchHome from './components/SearchHome'
-import GlobalParticles from './components/GlobalParticles'
+import InfoPage from './components/InfoPage'
+import MobileCTA from './components/MobileCTA'
 import ErrorBoundary from './components/ErrorBoundary'
 import NetworkStatus from './components/NetworkStatus'
 import { SpeedInsights } from '@vercel/speed-insights/react'
@@ -12,48 +9,34 @@ import { events } from './lib/analytics'
 import { initWebVitals } from './lib/webVitals'
 import { scrollBehavior } from './lib/motion'
 
-// Lazy-loaded: the whole サービス案内 page ships as its own chunk so the
-// search home stays light; it is prefetched on idle below so navigating
-// to it is still instant. ChatWidget/Privacy stay on-demand.
-const InfoPage = lazy(() => import('./components/InfoPage'))
+// The landing page is the site now, so it ships in the main bundle.
+// ChatWidget/Privacy stay on-demand.
 const ChatWidget = lazy(() => import('./components/ChatWidget'))
 const Privacy = lazy(() => import('./components/Privacy'))
 
 export default function App() {
-  // phase 0 = light-convergence splash, phase 2 = main page.
-  // The PR video is no longer a forced full-screen interstitial; it lives in the
-  // Hero as a clickable showcase, so the splash hands straight off to the page.
-  const [phase, setPhase] = useState(0)
+  /* The opening movie, the logo-only search home and its dial are gone.
+     Every visitor lands straight on the page that says what Lumenium does,
+     for whom, for how much and how to ask — nothing to wait through first.
+     `phase` stays (2 = page shown) so the effects below keep their guards. */
+  const phase = 2
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
 
-  /* オープニング。3Dが使える端末では、光が集まって結晶になる3Dの
-     オープニング（'3d'）。トップを後ろに描かせてから幕を消すので、
-     トップが表示されたあとも少しのあいだ残ります。使えない端末では
-     平面のオープニング（'flat'）。 */
-  const [intro, setIntro] = useState(() => (supports3D() ? '3d' : 'flat'))
-
-  // Hash routing: '' / '#' → Google-style search home, '#/info(/<section>)'
-  // → the full content page all former top-page sections moved to.
-  // A reload / direct visit ALWAYS starts on the search home: any leftover
-  // router hash is stripped before the first render (replaceState, so no
-  // extra history entry). In-session navigation is untouched.
-  const [route, setRoute] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    if (window.location.hash.startsWith('#/')) {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search)
-      return ''
-    }
-    return window.location.hash
-  })
+  // Hash routing: '' / '#' / '#/info' → the landing page; '#/info/<section>'
+  // → that section on its own. Deep links are honoured on a fresh visit:
+  // they used to be stripped, so every 「お問い合わせフォームを開く」 on the
+  // static pages (/#/info/contact-form) landed on the logo-only home instead
+  // of the form.
+  const [route, setRoute] = useState(() => (typeof window === 'undefined' ? '' : window.location.hash))
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash)
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
   const infoMatch = route.match(/^#\/info(?:\/([a-z-]+))?$/)
-  const isInfo = !!infoMatch
+  const isInfo = true
   const infoSection = infoMatch?.[1] || ''
 
   // Set when the lazy InfoPage chunk has actually mounted — observers and
@@ -62,16 +45,6 @@ export default function App() {
   useEffect(() => {
     if (!isInfo) setInfoMounted(false)
   }, [isInfo])
-
-  // Prefetch the info chunk while the browser is idle so the first
-  // navigation to サービス案内 is instant despite the code split.
-  useEffect(() => {
-    if (phase !== 2) return
-    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 1200))
-    const cic = window.cancelIdleCallback || clearTimeout
-    const id = ric(() => import('./components/InfoPage'), { timeout: 4000 })
-    return () => cic(id)
-  }, [phase])
 
   // On route change: jump to the requested section (info) or back to top (home)
   useEffect(() => {
@@ -90,14 +63,8 @@ export default function App() {
     }
   }, [route, phase, isInfo, infoSection, infoMounted])
 
-  const handleSplashComplete = useCallback(() => {
-    setPhase(2) // Skip the old PR-video interstitial — go straight to the page
-    document.body.classList.remove('splash-active')
-    setTimeout(() => setPageReady(true), 50)
-  }, [])
-
   useEffect(() => {
-    document.body.classList.add('splash-active')
+    setPageReady(true)
     initWebVitals()
   }, [])
 
@@ -395,33 +362,16 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {intro === '3d' && (
-        <Intro3D
-          onHandoff={handleSplashComplete}
-          onDone={() => setIntro('none')}
-          onFail={() => setIntro('flat')}
-        />
-      )}
-      {intro === 'flat' && phase === 0 && <Splash onComplete={handleSplashComplete} />}
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
-      <GlobalParticles show={pageReady} />
-      {phase === 2 && (
-        <div id="main" className={pageReady ? 'page-enter' : ''}>
-          <Navbar />
-          {isInfo ? (
-            <Suspense fallback={<div className="info-loading" aria-label="読み込み中" />}>
-              <InfoPage
-                section={infoSection}
-                onPrivacy={() => setShowPrivacy(true)}
-                onMounted={() => setInfoMounted(true)}
-              />
-            </Suspense>
-          ) : (
-            // Google-style minimal home
-            <SearchHome />
-          )}
-        </div>
-      )}
+      <div id="main">
+        <Navbar />
+        <InfoPage
+          section={infoSection}
+          onPrivacy={() => setShowPrivacy(true)}
+          onMounted={() => setInfoMounted(true)}
+        />
+      </div>
+      {infoSection !== 'contact-form' && <MobileCTA />}
       {chatReady && (
         <Suspense fallback={null}>
           <ChatWidget />

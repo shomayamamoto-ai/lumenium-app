@@ -1,307 +1,74 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
-import { useEffect, useState, useRef } from 'react'
-import VideoModal from './VideoModal'
-import Lumen3D from './Lumen3D'
-import { events } from '../lib/analytics'
+import { PRICE_OPTIONS } from '../data/site'
+import LineIcon from './LineIcon'
 
-const typingWords = ['SNS集客', '動画制作', 'AI導入', 'LINE構築', 'Web制作', 'システム開発']
-
-function useTypingEffect(words, pauseTime = 2200) {
-  const [text, setText] = useState('')
-  const [wordIndex, setWordIndex] = useState(0)
-  const [isDeleting, setIsDeleting] = useState(false)
-  useEffect(() => {
-    const currentWord = words[wordIndex]
-    let timeout
-    if (!isDeleting && text === currentWord) {
-      timeout = setTimeout(() => setIsDeleting(true), pauseTime)
-    } else if (isDeleting && text === '') {
-      setIsDeleting(false)
-      setWordIndex((prev) => (prev + 1) % words.length)
-    } else {
-      // Realistic speed: fast in middle, slow at start/end
-      const progress = text.length / currentWord.length
-      let speed
-      if (isDeleting) {
-        speed = 30 + Math.random() * 20
-      } else {
-        speed = progress < 0.3 ? 120 - Math.random() * 30
-             : progress < 0.7 ? 60 + Math.random() * 20
-             : 100 + Math.random() * 40
-      }
-      timeout = setTimeout(() => {
-        setText(currentWord.substring(0, text.length + (isDeleting ? -1 : 1)))
-      }, speed)
-    }
-    return () => clearTimeout(timeout)
-  }, [text, isDeleting, wordIndex, words, pauseTime])
-  return text
-}
-
-/* サービス案内の最初の画面の3D。動画の上、文字の下に置きます。
-   広い画面では、中央の文章の左側の空いたところ。狭い画面には空いた
-   場所が無い（角に置くとメニューのボタンに重なる）ので、トップと同じく
-   見出しの後ろに薄く置きます（薄さは CSS 側）。スクロールすると回ります。 */
-const placeHero3D = (w, h) => (w >= 900
-  ? { x: w * 0.14, y: h * 0.52, r: Math.min(w, h) * 0.15 }
-  : { x: w * 0.5, y: h * 0.19, r: w * 0.3 })
-
-function HeroParticles() {
-  const canvasRef = useRef(null)
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let w = canvas.width = canvas.parentElement.offsetWidth
-    let h = canvas.height = canvas.parentElement.offsetHeight
-
-    // Calm ambient drift only — fewer, slower particles, no cursor chasing.
-    const pts = Array.from({ length: 22 }, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      r: 1 + Math.random() * 2,
-      vx: (Math.random() - 0.5) * 0.12,
-      vy: (Math.random() - 0.5) * 0.12,
-      opacity: 0.08 + Math.random() * 0.16,
-      hue: 230 + Math.random() * 30,
-    }))
-
-    const onResize = () => {
-      w = canvas.width = canvas.parentElement.offsetWidth
-      h = canvas.height = canvas.parentElement.offsetHeight
-    }
-
-    window.addEventListener('resize', onResize)
-
-    let raf
-    let running = false
-    let inView = true
-    const start = () => {
-      if (running || !inView || document.visibilityState === 'hidden') return
-      running = true
-      raf = requestAnimationFrame(draw)
-    }
-    const stop = () => {
-      running = false
-      if (raf) cancelAnimationFrame(raf)
-      raf = 0
-    }
-    const io = new IntersectionObserver(([entry]) => {
-      inView = entry.isIntersecting
-      if (inView) start(); else stop()
-    }, { threshold: 0 })
-    io.observe(canvas)
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') stop()
-      else start()
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-
-    const draw = () => {
-      if (!running) return
-      ctx.clearRect(0, 0, w, h)
-
-      pts.forEach(p => {
-        p.x += p.vx
-        p.y += p.vy
-
-        // Wrap around
-        if (p.x < -10) p.x = w + 10
-        if (p.x > w + 10) p.x = -10
-        if (p.y < -10) p.y = h + 10
-        if (p.y > h + 10) p.y = -10
-
-        // Glow
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4)
-        g.addColorStop(0, `hsla(${p.hue}, 70%, 70%, ${p.opacity * 1.5})`)
-        g.addColorStop(1, 'transparent')
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2)
-        ctx.fillStyle = g
-        ctx.fill()
-
-        // Core
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `hsla(${p.hue}, 80%, 80%, ${p.opacity})`
-        ctx.fill()
-      })
-
-      // Draw connections between nearby particles
-      for (let i = 0; i < pts.length; i++) {
-        for (let j = i + 1; j < pts.length; j++) {
-          const dx = pts[i].x - pts[j].x
-          const dy = pts[i].y - pts[j].y
-          const dist = dx * dx + dy * dy
-          if (dist < 8000) {
-            ctx.beginPath()
-            ctx.moveTo(pts[i].x, pts[i].y)
-            ctx.lineTo(pts[j].x, pts[j].y)
-            ctx.strokeStyle = `rgba(79, 70, 229, ${0.04 * (1 - dist / 8000)})`
-            ctx.lineWidth = 0.5
-            ctx.stroke()
-          }
-        }
-      }
-
-      raf = requestAnimationFrame(draw)
-    }
-    start()
-
-    return () => {
-      stop()
-      io.disconnect()
-      window.removeEventListener('resize', onResize)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
-  }, [])
-  return <canvas ref={canvasRef} className="hero-particles" />
-}
-
-function useLiveStatus() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000)
-    return () => clearInterval(id)
-  }, [])
-  const h = now.getHours()
-  let greeting = 'こんにちは'
-  let status = '返信受付中'
-  let statusColor = '#10b981' // green
-  if (h >= 5 && h < 11) { greeting = 'おはようございます' }
-  else if (h >= 11 && h < 17) { greeting = 'こんにちは' }
-  else if (h >= 17 && h < 22) { greeting = 'こんばんは' }
-  else { greeting = 'お疲れさまです' }
-  // Offline hours: show softer status
-  if (h >= 22 || h < 9) { status = '48時間以内に返信'; statusColor = '#eab308' }
-  return { greeting, status, statusColor }
-}
-
-function openChatWidget() {
-  // ChatWidget button exists in DOM. Click it to open.
-  const btn = document.querySelector('.chat-widget-btn')
-  if (btn) btn.click()
-}
+/**
+ * ファーストビュー。
+ *
+ * 初めて来た人が数秒で知りたいのは「何をしている会社か」「自分に関係
+ * あるか」「いくらくらいか」「どう相談すればいいか」の4つです。以前は
+ * 3Dの結晶・背景動画・粒子・文字が打たれる演出が並び、その答えは画面の
+ * 下のほうにありました。ここでは演出をやめて、左に一言と相談ボタン、
+ * 右に6つの領域と目安の料金を置き、スクロールしなくても答えがそろう
+ * ようにしています。動くものは置きません。
+ *
+ * 右の一覧は料金シミュレーターと同じデータ（PRICE_OPTIONS）から作るので、
+ * 管理画面で料金を直せば、ここも一緒に変わります。
+ */
+const yen = (n) => `¥${n.toLocaleString('ja-JP')}〜`
 
 export default function Hero() {
-  const typingText = useTypingEffect(typingWords)
-  const [videoOpen, setVideoOpen] = useState(false)
-  const { greeting, status, statusColor } = useLiveStatus()
-
-  const openVideo = () => {
-    events.ctaClick('hero-video', 'PR動画を見る')
-    setVideoOpen(true)
-  }
-
-  const onChatNudge = () => {
-    events.ctaClick('hero-chat', 'AIチャット')
-    openChatWidget()
-  }
-
   return (
-    <section className="hero" id="top">
-      <div className="hero-bg" />
-      {/* 背景の動画は「視差効果を減らす」設定では流さない（画面いっぱいに
-          動き続ける映像は、酔いの原因になりやすいため）。 */}
-      {typeof window !== 'undefined' && window.innerWidth > 768 &&
-        !window.matchMedia('(prefers-reduced-motion: reduce)').matches && (
-        <video
-          className="hero-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="none"
-          poster="/intro-poster.jpg"
-          aria-hidden="true"
-          tabIndex={-1}
-        >
-          <source src="/intro.mp4" type="video/mp4" />
-        </video>
-      )}
-      <HeroParticles />
-      {/* 狭い画面では見出しの後ろに来るので、下半分を薄くして紫の見出しを
-          結晶の光に埋もれさせない。広い画面では横にあるので不要。 */}
-      <Lumen3D mode="ambient" place={placeHero3D} scrollDriven className="hero-3d"
-        fadeBelow={typeof window !== 'undefined' && window.innerWidth < 900} />
-      <div className="hero-content">
-        <p className="hero-lead animate-fade-up">
-          <span className="hero-lead-dot" aria-hidden="true" />
-          {SECTION.hero.lead}
-        </p>
-        <h1 className="hero-title animate-fade-up delay-1">
-          {SECTION.hero.titleLine1.split('').map((ch, i) => (
-            <span key={i} className="char-reveal" style={{ animationDelay: `${0.3 + i * 0.04}s` }}>{ch}</span>
-          ))}
-          <br />
-          <span className="text-accent">
-            {SECTION.hero.titleLine2.split('').map((ch, i) => (
-              <span key={i} className="char-reveal" style={{ animationDelay: `${0.7 + i * 0.04}s` }}>{ch}</span>
+    <section className="hero hero--plain" id="top">
+      <div className="container hero-grid">
+        <div className="hero-copy">
+          <p className="hero-eyebrow">{SECTION.hero.lead}</p>
+          <h1 className="hero-title">
+            {SECTION.hero.titleLine1}
+            <br />
+            <span className="text-accent">{SECTION.hero.titleLine2}</span>
+          </h1>
+          <p className="hero-desc">{rich(SECTION.hero.desc)}</p>
+          <div className="hero-actions">
+            <a href="#contact-form" className="btn btn-accent" data-cta="hero-consult">
+              無料で相談する
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </a>
+            <a href="#pricing" className="btn btn-ghost-w" data-cta="hero-pricing">料金の目安を見る</a>
+          </div>
+          <ul className="hero-assure" aria-label="ご相談について">
+            <li>相談・見積りは無料</li>
+            <li>48時間以内にご返信</li>
+            <li>動画1本・LP1枚から</li>
+          </ul>
+        </div>
+
+        <div className="hero-offer">
+          <p className="hero-offer-title">{SECTION.hero.typingLabel}</p>
+          <ul className="hero-offer-list">
+            {PRICE_OPTIONS.map((o) => (
+              <li key={o.key}>
+                <a href="#services" className="hero-offer-item" data-cta={`hero-offer-${o.key}`}>
+                  <span className="hero-offer-icon" aria-hidden="true"><LineIcon name={o.key} size={20} /></span>
+                  <span className="hero-offer-text">
+                    <span className="hero-offer-name">{o.label}</span>
+                    <span className="hero-offer-sub">{o.sub}</span>
+                  </span>
+                  <span className="hero-offer-price">{yen(o.min)}</span>
+                </a>
+              </li>
             ))}
-          </span>
-        </h1>
-        <p className="hero-desc animate-fade-up delay-2">
-          {rich(SECTION.hero.desc)}
+          </ul>
+          <p className="hero-offer-note">料金は目安です。内容を伺ってから正確にお見積りします。</p>
+        </div>
+      </div>
+      <div className="container">
+        <p className="hero-define">
+          {rich(SECTION.home.definition)}
+          <a href="/about.html">{SECTION.home.definitionLink}</a>
         </p>
-        <div className="hero-typing animate-fade-up delay-2">
-          <span className="typing-label">{SECTION.hero.typingLabel}</span>
-          <span className="typing-arrow">→</span>
-          <span className="typing-text">{typingText}</span>
-          <span className="typing-cursor" />
-        </div>
-        <div className="hero-actions animate-fade-up delay-3">
-          <a href="#contact-form" className="btn btn-accent" data-cta="hero-consult">
-            無料でご相談する
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </a>
-          <a href="#services" className="btn btn-ghost-w" data-cta="hero-services">サービスを見る</a>
-          <button type="button" className="hero-chat-nudge" onClick={onChatNudge} aria-label="AIチャットで質問する">
-            <span className="hero-chat-nudge-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1C4.13 1 1 3.91 1 7.5c0 1.4.48 2.7 1.3 3.76L1.3 14.5a.5.5 0 00.6.62l3.6-1.1c.76.31 1.61.48 2.5.48 3.87 0 7-2.91 7-6.5S11.87 1 8 1z"/></svg>
-            </span>
-            <span>AI に聞いてみる</span>
-          </button>
-          <button
-            type="button"
-            className="hero-video-card"
-            onClick={openVideo}
-            aria-label="PR動画を再生する"
-            data-cta="hero-video"
-          >
-            <span className="hero-video-card-thumb" aria-hidden="true">
-              {/* Static poster — preview no longer autoplays (motion felt busy) */}
-              <img className="hero-video-card-poster" src="/intro-poster.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" />
-              <span className="hero-video-card-play">
-                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M5 3.5v9l7-4.5z" />
-                </svg>
-              </span>
-            </span>
-            <span className="hero-video-card-body">
-              <span className="hero-video-card-label">LUMENIUM · PR MOVIE</span>
-              <span className="hero-video-card-title">
-                10秒で知る、Lumeniumの世界観
-                <svg className="hero-video-card-arrow" width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <span className="hero-video-card-meta">
-                <span className="hero-video-card-dot" aria-hidden="true" /> AI生成 · 約10秒
-              </span>
-            </span>
-          </button>
-        </div>
-        <div className="hero-badges animate-fade-up delay-4">
-          <span>✓ 初回相談無料</span>
-          <span>✓ 見積り無料</span>
-          <span>✓ 秘密厳守</span>
-        </div>
       </div>
-      <div className="hero-scroll animate-fade-up delay-4">
-        <span>SCROLL</span>
-        <div className="hero-scroll-line" />
-      </div>
-      {videoOpen && <VideoModal onClose={() => setVideoOpen(false)} />}
     </section>
   )
 }

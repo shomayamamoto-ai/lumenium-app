@@ -20,7 +20,7 @@ export default function Results() {
               <p className="card-text">{c.desc}</p>
               {c.metric && (
                 <div className="case-metric">
-                  <span className="case-metric-value" data-count={c.metric}>0</span>
+                  <span className="case-metric-value">{Number(c.metric).toLocaleString('ja-JP')}</span>
                   <span className="case-metric-label">{c.metricLabel}</span>
                 </div>
               )}

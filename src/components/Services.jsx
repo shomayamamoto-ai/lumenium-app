@@ -10,9 +10,13 @@ const ICONS = {
   video: <IconVideo />, ai: <IconAI />, sns: <IconSNS />,
   web: <IconWeb />, cast: <IconCast />, creative: <IconCreative />,
 }
-const services = SERVICES.map((s) => ({ ...s, icon: ICONS[s.id] }))
+/* Built when the component renders, not when this file loads: the admin's
+   copy overrides (content.json) are applied to the data just before the
+   first render, and a copy taken at load time would miss them. */
+const getServices = () => SERVICES.map((s) => ({ ...s, icon: ICONS[s.id] }))
 
 export default function Services() {
+  const services = getServices()
   const [active, setActive] = useState(null)
 
   const openDetail = (s) => {

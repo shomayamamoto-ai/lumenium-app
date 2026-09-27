@@ -4,7 +4,6 @@
 // the app. Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { BEACON } from './_beacon.mjs'
-import { LUMEN3D_TAG, LUMEN3D_STYLE } from './_lumen3d-tag.mjs'
 import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
 import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
@@ -290,7 +289,7 @@ function page(s) {
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${ldJson(ld)}</script>
-<style>${STYLE}${LUMEN3D_STYLE}</style>
+<style>${STYLE}</style>
 <link rel="stylesheet" href="/brand.css">
 </head>
 <body>
@@ -365,7 +364,6 @@ ${CONTACT_STRIP}
      literal, where \/ collapses to /. It used to be written as \/ and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and
      every static page record nothing at all. -->
-${LUMEN3D_TAG}
 ${BEACON}
 </body>
 </html>
@@ -440,7 +438,7 @@ function hub() {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
-<style>${STYLE}${LUMEN3D_STYLE}</style>
+<style>${STYLE}</style>
 <link rel="stylesheet" href="/brand.css">
 </head>
 <body>
@@ -493,7 +491,6 @@ ${CONTACT_STRIP}
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
   </footer>
 </div>
-${LUMEN3D_TAG}
 ${BEACON}
 </body>
 </html>
