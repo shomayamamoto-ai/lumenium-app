@@ -10089,9 +10089,9 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
 }
 
 /* ============================================================
-   Opening (3D) — light gathers into the crystal
-   The crystal itself is drawn by src/lib/lumen3d.js; this is the
-   stage around it and the wordmark that resolves over it.
+   Opening (3D) — "focus"
+   The bokeh / aperture scene is drawn by src/lib/intro-scene.js and the
+   crystal by src/lib/lumen3d.js; this is the stage and the type over them.
    ============================================================ */
 .ix {
   position: fixed;
@@ -10105,9 +10105,31 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 45%, rgba(49, 46, 129, 0.28) 0%, rgba(8, 10, 32, 0.4) 45%, transparent 75%),
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(30, 27, 90, 0.35) 0%, rgba(6, 8, 26, 0.5) 50%, transparent 80%),
     #010104;
 }
+.ix-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 46%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
+}
+/* Film grain: a small noise tile, jittered a few times a second. */
+.ix-grain {
+  position: absolute;
+  inset: -50%;
+  opacity: 0.07;
+  background-size: 128px 128px;
+  animation: ixGrain 0.6s steps(5) infinite;
+}
+@keyframes ixGrain {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-7%, 4%); }
+  40%  { transform: translate(5%, -6%); }
+  60%  { transform: translate(-3%, 8%); }
+  80%  { transform: translate(8%, 2%); }
+  100% { transform: translate(0, 0); }
+}
+.ix-scene,
 .ix-canvas {
   position: absolute;
   inset: 0;
@@ -10115,6 +10137,35 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   height: 100%;
   display: block;
 }
+.ix-words { position: absolute; inset: 0; pointer-events: none; }
+.ix-word {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  white-space: nowrap;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(199, 210, 254, 0.95);
+  text-shadow: 0 0 18px rgba(99, 102, 241, 0.6);
+  will-change: transform, filter, opacity;
+}
+.ix-caption {
+  position: absolute;
+  left: 50%;
+  top: 80%;
+  transform: translateX(-50%);
+  opacity: 0;
+  margin: 0;
+  white-space: nowrap;
+  font-size: clamp(16px, 2.6vw, 24px);
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: rgba(214, 223, 245, 0.92);
+}
+.ix-caption span { display: inline-block; }
 /* Same type as .search-home-logo, so it can land on it exactly. */
 .ix-name {
   position: absolute;
@@ -10130,7 +10181,20 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
+}
+/* While the letters resolve one by one, each carries its own slice of the
+   word's gradient (sized and offset from JS), so the colour runs across
+   the word exactly as it does on the page. */
+.ix-name.is-split { background: none; }
+.ix-name.is-split .ix-ch {
+  display: inline-block;
+  opacity: 0;
+  background-image: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .ix-tag {
   position: absolute;
@@ -10147,3 +10211,6 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   color: rgba(214, 223, 245, 0.9);
 }
 .ix-skip { z-index: 2; font-family: 'Schibsted Grotesk', monospace; }
+@media (prefers-reduced-motion: reduce) {
+  .ix-grain { animation: none; }
+}

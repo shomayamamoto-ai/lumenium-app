@@ -264,7 +264,11 @@ void main() {
   float halo = exp(-d * 3.0) * 0.25;
   float v = ((longR + shortR) * (1.0 - smoothstep(0.8, 1.0, d)) + core + halo) * uAlpha;
   vec3 col = mix(vec3(0.55, 0.78, 1.0), vec3(1.0), clamp(core * 1.6, 0.0, 1.0));
-  gl_FragColor = vec4(col * v + vec3(0.45, 0.75, 1.0) * wave, v + wave);
+  // 映画のレンズのような、横に長く伸びる青い光の筋
+  float streak = exp(-abs(vQ.y) * 70.0) * exp(-abs(vQ.x) * 1.6) * uAlpha * 0.9;
+  float thin = exp(-abs(vQ.y) * 400.0) * exp(-abs(vQ.x) * 0.9) * uAlpha * 0.6;
+  vec3 sc = vec3(0.35, 0.55, 1.0) * streak + vec3(0.8, 0.9, 1.0) * thin;
+  gl_FragColor = vec4(col * v + vec3(0.45, 0.75, 1.0) * wave + sc, v + wave + streak + thin);
 }`
 
 /* オープニングの時間割（秒）。
@@ -277,7 +281,7 @@ const easeOut = (x) => 1 - Math.pow(1 - x, 3)
 const easeBack = (x) => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2) }
 const NO_INTRO = { crystalA: 1, crystalS: 1, ringA: 1, ringS: 1, dustA: 1, gatherA: 0, flash: 0, spin: 0, core: 1, wave: 1 }
 export const INTRO_LENGTH = 3.2
-function introAt(T, gentle) {
+function introAt(T, gentle, iris) {
   if (gentle) {
     // 動きを減らす設定: 集まる・弾ける演出は出さず、静かに現れるだけ
     const a = easeOut(clamp01(T / 0.7))
@@ -288,14 +292,15 @@ function introAt(T, gentle) {
   return {
     crystalA: easeOut(c),
     crystalS: 0.3 + 0.7 * easeBack(c),
-    ringA: easeOut(r),
-    ringS: 1 + 0.9 * (1 - easeOut(r)),
+    // 絞りが閉じた場所にそのまま枠が現れる場合は、大きさを変えない
+    ringA: iris ? easeOut(clamp01((T - 2.2) / 0.35)) : easeOut(r),
+    ringS: iris ? 1 : 1 + 0.9 * (1 - easeOut(r)),
     dustA: easeOut(d),
     gatherA: 1 - clamp01((T - 2.45) / 0.35),
     flash,
     spin: 3 * Math.PI * (1 - easeOut(clamp01(T / 3.0))),
     // 集まってくる光で、中心が少しずつ明るくなっていく
-    core: 0.12 + 0.88 * Math.pow(clamp01(T / 2.3), 2.2),
+    core: Math.pow(clamp01((T - 0.8) / 1.5), 2),
     wave: clamp01((T - 2.25) / 1.0),
   }
 }
@@ -361,7 +366,7 @@ export function mountLumen3D(canvas, opts = {}) {
     dust = program(DUST_VS, DUST_FS)
     glow = program(GLOW_VS, GLOW_FS)
     if (opts.intro) {
-      gather = program(GATHER_VS, GATHER_FS)
+      if (opts.introGather !== false) gather = program(GATHER_VS, GATHER_FS)
       rays = program(GLOW_VS, RAYS_FS)
     }
   } catch (_) {
@@ -447,13 +452,14 @@ export function mountLumen3D(canvas, opts = {}) {
   let t0 = null
   const draw = (time) => {
     /* 回転の時計。ページを開いてからの時刻で決まるので、同じページの
-       どの結晶も同じ向きで回ります。開いて4秒ほど（オープニングで名前が
+       どの結晶も同じ向きで回ります。開いて5秒ほど（オープニングで名前が
        出るころ）に、星と枠がちょうどこちらを向くように合わせてあります。 */
-    const t = FACE_T + (time / 1000 - 4) * SPEED
+    const t = FACE_T + (time / 1000 - 4.8) * SPEED
     // オープニングの経過時間（最初の1枚から）
     if (t0 === null) t0 = time
     const T = (time - t0) / 1000
-    const I = opts.intro ? introAt(T, gentle) : NO_INTRO
+    // introDelay … 結晶が光るまでの前置き（オープニングの前半を別に描くとき）
+    const I = opts.intro ? introAt(T - (opts.introDelay || 0), gentle, !!opts.introIris) : NO_INTRO
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -668,7 +674,7 @@ export function mountLumen3D(canvas, opts = {}) {
 
   return {
     /** オープニングを飛ばして、いつもの姿にします。 */
-    skip() { if (opts.intro) t0 = performance.now() - INTRO_LENGTH * 1000 },
+    skip() { if (opts.intro) t0 = performance.now() - (INTRO_LENGTH + (opts.introDelay || 0)) * 1000 },
     /** 0〜1。スクロールの進み具合を渡すと、結晶と粒の角度に反映します。 */
     setScroll(p) { if (!gentle) scroll = Math.max(0, Math.min(1, p || 0)) },
     resize: onResize,
