@@ -12,6 +12,7 @@
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { BEACON } from './_beacon.mjs'
+import { LUMEN3D_TAG, LUMEN3D_STYLE } from './_lumen3d-tag.mjs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
@@ -214,7 +215,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${ldJson(withOrg(ld, canonical, title))}</script>
-<style>${STYLE}</style>
+<style>${STYLE}${LUMEN3D_STYLE}</style>
 </head>
 <body>
 <div class="wrap">
@@ -242,6 +243,7 @@ ${CONTACT_STRIP}
      literal, where \/ collapses to /. It used to be written as \/ and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and
      every static page record nothing at all. -->
+${LUMEN3D_TAG}
 ${BEACON}
 </body>
 </html>

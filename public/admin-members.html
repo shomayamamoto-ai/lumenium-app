@@ -104,6 +104,11 @@
     aspect-ratio: 1 / 1;
   }
   .portal-rings { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .portal-3d {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; opacity: 0; transition: opacity 1.2s ease;
+  }
+  .portal-3d.is-on { opacity: 1; }
   .portal-rings circle, .portal-rings line { stroke: var(--border); fill: none; }
   .portal-rings circle { opacity: 0.5; }
   .portal-rings line { opacity: 0.32; }
@@ -272,6 +277,8 @@
       gap: 10px; padding-top: 4px;
     }
     .portal-rings { display: none; }
+    /* 円の並びでなくなるので、時計の後ろの結晶も置けません。 */
+    .portal-3d { display: none; }
     .portal-hub, .pnode {
       position: static; transform: none;
       width: auto; height: auto; border-radius: 16px;
@@ -595,6 +602,10 @@
       </div>
       <div class="portal-body">
         <div class="portal-stage" id="portal-stage">
+          <!-- 3Dの結晶。時計の真後ろに置き、星の光条が時計の縁から放射状に
+               のぞき、八角形の枠が時計のまわりを回ります。先頭に置くので、
+               輪・時計・各機能のボタンより下に描かれます。 -->
+          <canvas class="portal-3d" id="portal-3d" aria-hidden="true"></canvas>
           <svg class="portal-rings" id="portal-rings" aria-hidden="true" focusable="false"></svg>
           <div class="portal-hub" id="portal-hub">
             <svg class="hub-face" id="hub-face" viewBox="0 0 200 200" aria-hidden="true" focusable="false"></svg>
@@ -5559,6 +5570,28 @@ window.lumAdmin = {
     started = true;
     load();
   };
+})();
+</script>
+<script type="module">
+/* 管理ポータルの3D（描画は /lumen3d.js。元は src/lib/lumen3d.js）。
+   結晶の大きさは、中央の時計の半径より少し大きくします。星の先は時計の
+   縁からのぞき、八角形の枠は時計の外を回ります。仕事の画面なので、
+   強さは控えめの設定です。見えていないタブのあいだは止まります。 */
+(() => {
+  const c = document.getElementById('portal-3d');
+  const hub = document.getElementById('portal-hub');
+  if (!c || !hub) return;
+  // 狭い画面ではポータルが格子の並びになり、結晶を置く円がありません。
+  if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) return;
+  const focus = () => {
+    const a = c.getBoundingClientRect(), h = hub.getBoundingClientRect();
+    if (!h.width) return null;
+    return { x: h.left + h.width / 2 - a.left, y: h.top + h.height / 2 - a.top, r: (h.width / 2) * 1.42 };
+  };
+  const go = () => import('/lumen3d.js')
+    .then((m) => m.mountLumen3D(c, { mode: 'ambient', focus, onFirstFrame: () => c.classList.add('is-on') }))
+    .catch(() => {});
+  (window.requestIdleCallback || ((f) => setTimeout(f, 500)))(go, { timeout: 3000 });
 })();
 </script>
 </body>
