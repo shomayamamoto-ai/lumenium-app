@@ -212,6 +212,94 @@ void main() {
   gl_FragColor = vec4(uColor * a, a);
 }`
 
+/* オープニングで、散らばった光が中心へ集まってくる粒。
+   1粒ずつ「出発点・動き出す時刻・かかる時間・大きさ」を持ち、渦を
+   巻きながら中心へ吸い込まれて、着いたら消えます。これも位置の計算は
+   シェーダの中で、JS からは経過時間を1つ渡すだけです。 */
+const GATHER_VS = `
+attribute vec3 aStart; attribute vec4 aTim;
+uniform mat4 uProj; uniform mat4 uModel; uniform float uT; uniform float uPx;
+varying float vA; varying float vE;
+float eio(float x) { return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 3.0) / 2.0; }
+void main() {
+  float e = clamp((uT - aTim.x) / aTim.y, 0.0, 1.0);
+  float k = eio(e);
+  float sw = (1.0 - k) * 2.6;
+  vec3 p = aStart * (1.0 - k);
+  float c = cos(sw), s = sin(sw);
+  p = vec3(c * p.x - s * p.z, p.y, s * p.x + c * p.z);
+  vec4 w = uModel * vec4(p, 1.0);
+  gl_Position = uProj * w;
+  float appear = smoothstep(0.0, 0.6, uT - aTim.w);
+  vA = appear * (0.3 + 0.7 * k) * (1.0 - smoothstep(0.88, 1.0, e));
+  vE = k;
+  gl_PointSize = uPx * aTim.z * (1.0 + 2.4 * k) / max(0.6, -w.z);
+}`
+
+const GATHER_FS = `
+precision mediump float;
+varying float vA; varying float vE; uniform float uAlpha;
+void main() {
+  float d = length(gl_PointCoord - 0.5);
+  float a = smoothstep(0.5, 0.0, d); a *= a;
+  vec3 col = mix(mix(vec3(0.36, 0.38, 0.95), vec3(0.13, 0.78, 0.93), smoothstep(0.1, 0.6, vE)), vec3(1.0), smoothstep(0.7, 1.0, vE));
+  float al = a * vA * uAlpha;
+  gl_FragColor = vec4(col * al, al);
+}`
+
+/* 光が集まりきった瞬間の閃光。ロゴと同じく、縦横の4本が長く、斜めの
+   4本が短い光条を放ちます。 */
+const RAYS_FS = `
+precision mediump float;
+varying vec2 vQ; uniform float uAlpha; uniform float uWave;
+void main() {
+  float d = length(vQ);
+  float a = atan(vQ.y, vQ.x);
+  // 閃光と一緒に外へ広がる光の輪
+  float q = (d - uWave) * 16.0;
+  float wave = exp(-q * q) * 0.35 * (1.0 - uWave);
+  float longR = pow(max(0.0, cos(4.0 * a)), 90.0) * exp(-d * 2.4);
+  float shortR = pow(max(0.0, cos(4.0 * a - 3.14159265)), 140.0) * exp(-d * 5.0) * 0.7;
+  float core = exp(-d * 8.0);
+  float halo = exp(-d * 3.0) * 0.25;
+  float v = ((longR + shortR) * (1.0 - smoothstep(0.8, 1.0, d)) + core + halo) * uAlpha;
+  vec3 col = mix(vec3(0.55, 0.78, 1.0), vec3(1.0), clamp(core * 1.6, 0.0, 1.0));
+  gl_FragColor = vec4(col * v + vec3(0.45, 0.75, 1.0) * wave, v + wave);
+}`
+
+/* オープニングの時間割（秒）。
+   0.0〜2.25 光が集まる / 2.3 閃光 / 2.2〜2.9 閃光の中から結晶が形になる /
+   2.35〜3.15 枠が収まる / 2.4〜 いつもの光の粒 / 〜3.0 回転の勢いが落ちて、
+   いつもの向きに収まる（トップの結晶と同じ向きになるので、切り替えが
+   見えない） */
+const clamp01 = (x) => Math.max(0, Math.min(1, x))
+const easeOut = (x) => 1 - Math.pow(1 - x, 3)
+const easeBack = (x) => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2) }
+const NO_INTRO = { crystalA: 1, crystalS: 1, ringA: 1, ringS: 1, dustA: 1, gatherA: 0, flash: 0, spin: 0, core: 1, wave: 1 }
+export const INTRO_LENGTH = 3.2
+function introAt(T, gentle) {
+  if (gentle) {
+    // 動きを減らす設定: 集まる・弾ける演出は出さず、静かに現れるだけ
+    const a = easeOut(clamp01(T / 0.7))
+    return { crystalA: a, crystalS: 1, ringA: a, ringS: 1, dustA: a, gatherA: 0, flash: 0, spin: 0, core: a, wave: 1 }
+  }
+  const c = clamp01((T - 2.2) / 0.7), r = clamp01((T - 2.35) / 0.8), d = clamp01((T - 2.4) / 1.2)
+  const flash = T < 2.12 ? 0 : T < 2.3 ? Math.pow((T - 2.12) / 0.18, 2) : Math.exp(-(T - 2.3) * 3.0)
+  return {
+    crystalA: easeOut(c),
+    crystalS: 0.3 + 0.7 * easeBack(c),
+    ringA: easeOut(r),
+    ringS: 1 + 0.9 * (1 - easeOut(r)),
+    dustA: easeOut(d),
+    gatherA: 1 - clamp01((T - 2.45) / 0.35),
+    flash,
+    spin: 3 * Math.PI * (1 - easeOut(clamp01(T / 3.0))),
+    // 集まってくる光で、中心が少しずつ明るくなっていく
+    core: 0.12 + 0.88 * Math.pow(clamp01(T / 2.3), 2.2),
+    wave: clamp01((T - 2.25) / 1.0),
+  }
+}
+
 /* ---------------- 設定 ---------------- */
 
 const MODES = {
@@ -230,6 +318,8 @@ export { supports3D, reducedMotion }
  *   opts.mode  … 'hero' | 'ambient' | 'subtle'
  *   opts.focus … () => ({ x, y, r })  結晶を置く位置（canvas 内の CSS px）と半径
  *   opts.onFirstFrame … 最初の1枚を描いたとき（ロゴ画像を隠す合図などに）
+ *   opts.intro … オープニングとして描く（光が集まって結晶になる）。
+ *                最初の1枚から INTRO_LENGTH 秒で、いつもの姿に落ち着きます。
  */
 export function mountLumen3D(canvas, opts = {}) {
   if (!canvas || !supports3D()) return null
@@ -265,11 +355,15 @@ export function mountLumen3D(canvas, opts = {}) {
     return b
   }
 
-  let solid, dust, glow
+  let solid, dust, glow, gather = null, rays = null
   try {
     solid = program(SOLID_VS, SOLID_FS(derivs))
     dust = program(DUST_VS, DUST_FS)
     glow = program(GLOW_VS, GLOW_FS)
+    if (opts.intro) {
+      gather = program(GATHER_VS, GATHER_FS)
+      rays = program(GLOW_VS, RAYS_FS)
+    }
   } catch (_) {
     return null
   }
@@ -289,6 +383,30 @@ export function mountLumen3D(canvas, opts = {}) {
   }
   const seedB = buffer(seeds), speedB = buffer(speeds)
   const quadB = buffer(new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]))
+
+  /* オープニングで集まってくる光。出発点は結晶のまわりの球の上（画面の
+     外まで届く大きさは描くときに掛けます）。着く時刻を閃光の直前に寄せて、
+     最後に一気に集まるように見せます。 */
+  let gatherN = 0, gStartB = null, gTimB = null
+  if (gather) {
+    gatherN = small ? 700 : 1400
+    const st = new Float32Array(gatherN * 3), tm = new Float32Array(gatherN * 4)
+    for (let i = 0; i < gatherN; i++) {
+      const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2
+      const rr = 0.3 + 0.7 * Math.pow(Math.random(), 0.6)
+      const q = Math.sqrt(1 - u * u)
+      st[i * 3] = Math.cos(th) * q * rr
+      st[i * 3 + 1] = u * rr
+      st[i * 3 + 2] = Math.sin(th) * q * rr * 0.6
+      const arrive = 1.15 + 1.1 * Math.sqrt(Math.random())
+      const dur = 0.9 + Math.random() * 0.5
+      tm[i * 4] = arrive - dur
+      tm[i * 4 + 1] = dur
+      tm[i * 4 + 2] = 0.5 + Math.random()
+      tm[i * 4 + 3] = Math.min(arrive - dur, Math.random() * 0.6)
+    }
+    gStartB = buffer(st); gTimB = buffer(tm)
+  }
 
   /* 「動きを減らす」設定の端末。以前はここで1枚だけ描いて止めていましたが、
      Mac の「視差効果を減らす」をオンにしている人には、3D がまったく動かない
@@ -324,8 +442,18 @@ export function mountLumen3D(canvas, opts = {}) {
   let scroll = 0
 
   const FOV = 0.6, CAM = 6.0
+  // 星（毎秒0.32）と枠（毎秒0.12）が両方こちらを向く時刻: 8π/0.32 = 3π/0.12
+  const FACE_T = (8 * Math.PI) / 0.32
+  let t0 = null
   const draw = (time) => {
-    const t = 7.5 + (time / 1000) * SPEED
+    /* 回転の時計。ページを開いてからの時刻で決まるので、同じページの
+       どの結晶も同じ向きで回ります。開いて4秒ほど（オープニングで名前が
+       出るころ）に、星と枠がちょうどこちらを向くように合わせてあります。 */
+    const t = FACE_T + (time / 1000 - 4) * SPEED
+    // オープニングの経過時間（最初の1枚から）
+    if (t0 === null) t0 = time
+    const T = (time - t0) / 1000
+    const I = opts.intro ? introAt(T, gentle) : NO_INTRO
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -340,10 +468,10 @@ export function mountLumen3D(canvas, opts = {}) {
 
     pointer.x += (pointer.tx - pointer.x) * 0.04
     pointer.y += (pointer.ty - pointer.y) * 0.04
-    const ry = t * 0.32 + pointer.x * 0.7 + scroll * 2.4
+    const ry = t * 0.32 + pointer.x * 0.7 + scroll * 2.4 + I.spin
     const rx = Math.sin(t * 0.21) * 0.18 + pointer.y * 0.4 + scroll * 0.4
     const rot = mul(rotY(ry), rotX(rx))
-    const model = mul(trs(cx, cy, -CAM, sc), rot)
+    const model = mul(trs(cx, cy, -CAM, sc * I.crystalS), rot)
 
     // にじみ（奥）
     gl.disable(gl.DEPTH_TEST)
@@ -357,7 +485,7 @@ export function mountLumen3D(canvas, opts = {}) {
     gl.uniform3f(glow.loc('uCenter'), cx, cy, -CAM - 0.5)
     gl.uniform1f(glow.loc('uSize'), sc * 2.6)
     gl.uniform3f(glow.loc('uColor'), 0.34, 0.33, 0.95)
-    gl.uniform1f(glow.loc('uAlpha'), 0.32 * cfg.glow)
+    gl.uniform1f(glow.loc('uAlpha'), 0.32 * cfg.glow * Math.max(I.crystalA, I.core * 0.6) + I.flash * 0.45)
     gl.uniform1f(glow.loc('uPow'), 2.2)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
@@ -390,11 +518,11 @@ export function mountLumen3D(canvas, opts = {}) {
       bind('aPos', m.pos, 3); bind('aNor', m.nor, 3); bind('aBar', m.bar, 3); bind('aFace', m.face, 1)
       gl.drawArrays(gl.TRIANGLES, 0, m.count)
     }
-    drawMesh(starM, model, rot, cfg.alpha)
-    if (cfg.ring) {
+    if (I.crystalA > 0.003) drawMesh(starM, model, rot, cfg.alpha * I.crystalA)
+    if (cfg.ring && I.ringA > 0.003) {
       // 枠は星と別の軸でゆっくり回し、奥行きを見せます
       const rr = mul(rotY(-t * 0.12 + pointer.x * 0.3 + scroll * 1.2), rotX(0.35 + Math.sin(t * 0.17) * 0.12))
-      drawMesh(ringM, mul(trs(cx, cy, -CAM, sc), rr), rr, cfg.alpha * 0.85)
+      drawMesh(ringM, mul(trs(cx, cy, -CAM, sc * I.ringS), rr), rr, cfg.alpha * 0.85 * I.ringA)
     }
     gl.disableVertexAttribArray(solid.att('aFace'))
     gl.disableVertexAttribArray(solid.att('aBar'))
@@ -410,7 +538,7 @@ export function mountLumen3D(canvas, opts = {}) {
     gl.uniform1f(dust.loc('uTime'), t)
     gl.uniform1f(dust.loc('uPx'), 17.0 * dpr * cfg.px)
     gl.uniform1f(dust.loc('uSpread'), cfg.spread)
-    gl.uniform1f(dust.loc('uAlpha'), cfg.dustAlpha)
+    gl.uniform1f(dust.loc('uAlpha'), cfg.dustAlpha * I.dustA)
     gl.bindBuffer(gl.ARRAY_BUFFER, seedB)
     gl.enableVertexAttribArray(dust.att('aSeed'))
     gl.vertexAttribPointer(dust.att('aSeed'), 4, gl.FLOAT, false, 0, 0)
@@ -428,12 +556,45 @@ export function mountLumen3D(canvas, opts = {}) {
     gl.enableVertexAttribArray(glow.att('aQ'))
     gl.vertexAttribPointer(glow.att('aQ'), 2, gl.FLOAT, false, 0, 0)
     gl.uniform3f(glow.loc('uCenter'), cx, cy, -CAM + sc * 0.4)
-    gl.uniform1f(glow.loc('uSize'), sc * 0.55)
+    gl.uniform1f(glow.loc('uSize'), sc * 0.55 * (1 + I.flash))
     gl.uniform3f(glow.loc('uColor'), 0.85, 0.9, 1.0)
-    gl.uniform1f(glow.loc('uAlpha'), (0.55 + 0.15 * Math.sin(t * 1.7)) * cfg.glow)
+    gl.uniform1f(glow.loc('uAlpha'), (0.55 + 0.15 * Math.sin(t * 1.7)) * cfg.glow * I.core + I.flash * 0.6)
     gl.uniform1f(glow.loc('uPow'), 3.0)
     gl.drawArrays(gl.TRIANGLES, 0, 6)
     gl.disableVertexAttribArray(glow.att('aQ'))
+
+    // オープニング: 集まってくる光と、閃光（8方向の光条と広がる輪）
+    const reach = Math.max(3, Math.min(14, (Math.max(W, H) * 0.62) / Math.max(1, sc / upp)))
+    if (gather && I.gatherA > 0.003) {
+      gl.useProgram(gather.p)
+      gl.uniformMatrix4fv(gather.loc('uProj'), false, proj)
+      gl.uniformMatrix4fv(gather.loc('uModel'), false, mul(trs(cx, cy, -CAM, sc * reach), rotX(0.25)))
+      gl.uniform1f(gather.loc('uT'), T)
+      gl.uniform1f(gather.loc('uPx'), 17.0 * dpr * cfg.px)
+      gl.uniform1f(gather.loc('uAlpha'), I.gatherA)
+      gl.bindBuffer(gl.ARRAY_BUFFER, gStartB)
+      gl.enableVertexAttribArray(gather.att('aStart'))
+      gl.vertexAttribPointer(gather.att('aStart'), 3, gl.FLOAT, false, 0, 0)
+      gl.bindBuffer(gl.ARRAY_BUFFER, gTimB)
+      gl.enableVertexAttribArray(gather.att('aTim'))
+      gl.vertexAttribPointer(gather.att('aTim'), 4, gl.FLOAT, false, 0, 0)
+      gl.drawArrays(gl.POINTS, 0, Math.min(gatherN, Math.round(gatherN * drawN / N)))
+      gl.disableVertexAttribArray(gather.att('aStart'))
+      gl.disableVertexAttribArray(gather.att('aTim'))
+    }
+    if (rays && (I.flash > 0.003 || (I.wave > 0 && I.wave < 1))) {
+      gl.useProgram(rays.p)
+      gl.uniformMatrix4fv(rays.loc('uProj'), false, proj)
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadB)
+      gl.enableVertexAttribArray(rays.att('aQ'))
+      gl.vertexAttribPointer(rays.att('aQ'), 2, gl.FLOAT, false, 0, 0)
+      gl.uniform3f(rays.loc('uCenter'), cx, cy, -CAM + sc * 0.5)
+      gl.uniform1f(rays.loc('uSize'), sc * reach * 0.9)
+      gl.uniform1f(rays.loc('uAlpha'), I.flash)
+      gl.uniform1f(rays.loc('uWave'), I.wave)
+      gl.drawArrays(gl.TRIANGLES, 0, 6)
+      gl.disableVertexAttribArray(rays.att('aQ'))
+    }
     gl.depthMask(true)
   }
 
@@ -506,6 +667,8 @@ export function mountLumen3D(canvas, opts = {}) {
   loop()
 
   return {
+    /** オープニングを飛ばして、いつもの姿にします。 */
+    skip() { if (opts.intro) t0 = performance.now() - INTRO_LENGTH * 1000 },
     /** 0〜1。スクロールの進み具合を渡すと、結晶と粒の角度に反映します。 */
     setScroll(p) { if (!gentle) scroll = Math.max(0, Math.min(1, p || 0)) },
     resize: onResize,

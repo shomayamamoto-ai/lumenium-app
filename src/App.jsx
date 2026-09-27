@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { supports3D } from './lib/lumen3d-support'
 import Splash from './components/Splash'
+import Intro3D from './components/Intro3D'
 import Navbar from './components/Navbar'
 import SearchHome from './components/SearchHome'
 import GlobalParticles from './components/GlobalParticles'
@@ -27,12 +28,11 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
 
-  /* オープニングの動画を流しているあいだに、3Dの描画本体を読み込んで
-     おきます。動画が終わってから読み込むと、その待ち時間のあいだトップの
-     ロゴの場所が空いてしまいます。3Dが使えない端末では読み込みません。 */
-  useEffect(() => {
-    if (supports3D()) import('./lib/lumen3d.js').catch(() => {})
-  }, [])
+  /* オープニング。3Dが使える端末では、光が集まって結晶になる3Dの
+     オープニング（'3d'）。トップを後ろに描かせてから幕を消すので、
+     トップが表示されたあとも少しのあいだ残ります。使えない端末では
+     平面のオープニング（'flat'）。 */
+  const [intro, setIntro] = useState(() => (supports3D() ? '3d' : 'flat'))
 
   // Hash routing: '' / '#' → Google-style search home, '#/info(/<section>)'
   // → the full content page all former top-page sections moved to.
@@ -437,7 +437,14 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {phase === 0 && <Splash onComplete={handleSplashComplete} />}
+      {intro === '3d' && (
+        <Intro3D
+          onHandoff={handleSplashComplete}
+          onDone={() => setIntro('none')}
+          onFail={() => setIntro('flat')}
+        />
+      )}
+      {intro === 'flat' && phase === 0 && <Splash onComplete={handleSplashComplete} />}
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
       <GlobalParticles show={pageReady} />
       {phase === 2 && (
