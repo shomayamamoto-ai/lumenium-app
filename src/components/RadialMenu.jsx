@@ -145,8 +145,7 @@ export default function RadialMenu() {
   const sheetRef = useRef(null)
   const stageRef = useRef(null)
   const satsRef = useRef([])
-  const nearRef = useRef([])          // the per-entry nodes the field writes to
-  const pointRef = useRef({ x: 0, y: 0, on: false })
+  const nearRef = useRef([])          // the per-entry wrappers (the pointer field that moved them is gone)
   const placedRef = useRef([])
   const hotRef = useRef(null)
   const exitTimer = useRef(0)
@@ -329,12 +328,6 @@ export default function RadialMenu() {
     let raf = 0
     const t0 = performance.now()
     const ang = [0.6, 3.1]
-    // Measured with the pointer sweeping the open dial: 18.9% of the screen
-    // changed brightness frame to frame, by as much as 247 of 255. Twelve
-    // entries all leaning at once is what 「チカチカして見にくい」 was. A
-    // smaller field means only the two or three entries you are actually
-    // near respond, instead of the whole constellation breathing.
-    const FIELD = 190
     const tick = (now) => {
       const t = (now - t0) / 1000
       const hot = hotRef.current
@@ -362,54 +355,16 @@ export default function RadialMenu() {
       place(0, r1, 0.155, 0.6, 1)
       place(1, r2, -0.092, 3.1, 2)
 
-      // proximity field
-      const p = pointRef.current
-      for (let i = 0; i < nearRef.current.length; i++) {
-        const el = nearRef.current[i]
-        const n = nodes[i]
-        if (!el || !n) continue
-        let v = 0
-        if (p.on) {
-          const d = Math.hypot(p.x - n.tick.x, p.y - n.tick.y)
-          v = Math.max(0, 1 - d / FIELD)
-          v = v * v
-        }
-        el.style.setProperty('--near', v.toFixed(3))
-      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [lit, view, cx, cy, r1.x, r1.y, r2.x, r2.y])
 
-  // A few pixels of pointer parallax gives the plate somewhere to sit. Written
-  // to the node directly and eased by CSS, so a mouse move costs no render.
-  //
-  // Mouse only. A tap on a touchscreen also emits a compatibility mousemove,
-  // so tapping the ✕ in the top right set the parallax for the first time at
-  // the very moment the dial was closing — the whole thing lurched 9px right
-  // on its way out. It is also frozen once we are leaving, so a stray move
-  // cannot shift the dial during the exit.
-  const onStageMove = (e) => {
-    const el = stageRef.current
-    if (!el || reduced() || closing || going !== null || view !== 'dial') return
-    if (e.pointerType && e.pointerType !== 'mouse') return
-    if (!window.matchMedia('(pointer: fine)').matches) return
-    pointRef.current = { x: e.clientX, y: e.clientY, on: true }
-    // Published as a pair of custom properties rather than a finished
-    // transform: the labels take all of it, the plate and the centre mark take
-    // a fraction of it in the other direction, and the dial gets a depth it
-    // cannot have while every layer moves together.
-    const nx = (e.clientX / window.innerWidth - 0.5) * 2
-    const ny = (e.clientY / window.innerHeight - 0.5) * 2
-    // Whole pixels, and a third of the travel it had. At ±12px every label,
-    // ring and hairline on the dial slid with the pointer, and 1px strokes
-    // landing between device pixels re-rasterise on every frame — which is
-    // what 「チカチカして見にくい」 is. Rounding keeps the strokes on the
-    // pixel grid, so what is left is a shift rather than a shimmer.
-    el.style.setProperty('--px', `${Math.round(nx * 4)}px`)
-    el.style.setProperty('--py', `${Math.round(ny * 3)}px`)
-  }
+  /* The dial used to follow the pointer: the whole stage slid a few pixels
+     after the mouse (parallax) and each entry leaned toward the cursor.
+     Reported as the whole page moving slightly, which was unpleasant, so
+     the dial now stays put; hovering an entry still highlights it. */
 
   const onEllipse = (r, deg) => ({ x: cx + r.x * Math.sin(rad(deg)), y: cy - r.y * Math.cos(rad(deg)) })
 
@@ -496,7 +451,6 @@ export default function RadialMenu() {
           aria-modal="true"
           aria-label="サービスとページの一覧"
           ref={sheetRef}
-          onPointerMove={onStageMove}
           style={{ '--ox': `${wipe.x}px`, '--oy': `${wipe.y}px`, '--wipe': `${wipe.r}px` }}
         >
           <button type="button" className="rdial-scrim" onClick={close} tabIndex={-1} aria-hidden="true" />
