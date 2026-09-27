@@ -62,17 +62,20 @@ float eio(float x) { return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0
 void main() {
   // ゆっくり漂う
   vec3 p = aP.xyz;
-  float dr = 1.0 - 0.7 * uCalm;
+  // 「視差効果を減らす」では、粒は一切動かさない（明るさとピントだけで見せる）
+  float dr = 1.0 - uCalm;
   p.x += sin(uT * 0.35 + aS.x * 6.28) * 0.12 * p.z * 0.1 * dr;
   p.y += cos(uT * 0.28 + aS.y * 6.28) * 0.10 * p.z * 0.1 * dr;
   float d = p.z - uDolly;
   // 中心へ流れ込む（1粒ずつ少しずつ遅れて）
+  // （動きを控える設定では、その場で淡く消えて、光は中心の輝きに移る）
   float k = eio(clamp((uT - (uPour + aS.x * uSpread)) / uDur, 0.0, 1.0));
-  float sw = (1.0 - k) * 0.0 + k * 0.9 * (aS.y - 0.5);
-  vec2 xy = mix(p.xy, vec2(0.0), k);
+  float km = k * (1.0 - uCalm);
+  float sw = km * 0.9 * (aS.y - 0.5);
+  vec2 xy = mix(p.xy, vec2(0.0), km);
   float c = cos(sw), s = sin(sw);
   xy = vec2(c * xy.x - s * xy.y, s * xy.x + c * xy.y);
-  d = mix(d, ${LOCK_D.toFixed(1)}, k);
+  d = mix(d, ${LOCK_D.toFixed(1)}, km);
   d = max(d, 0.35);
   vec2 scr = uC + xy * uFpx / d;
   // ボケの大きさ（半径 px）
@@ -92,7 +95,8 @@ void main() {
   // 光の量を保つ: 大きいボケほど薄く
   float a = clamp(pow(base / r, 1.1) * 2.6, 0.05, 1.0);
   // 近すぎる粒・遠すぎる粒は消す。着いた粒は中心の光に溶ける
-  a *= smoothstep(0.35, 1.2, p.z - uDolly + k * 10.0) * (1.0 - smoothstep(0.82, 1.0, k));
+  a *= smoothstep(0.35, 1.2, p.z - uDolly + km * 10.0)
+     * (1.0 - mix(smoothstep(0.82, 1.0, k), smoothstep(0.05, 1.0, k), uCalm));
   // 明るさにむらを付ける（明るい粒は少なく、淡い粒が多い）
   a *= 0.25 + 1.1 * pow(aS.w, 2.2);
   vA = a;
@@ -157,8 +161,9 @@ void main() {
  *   focus … { x, y, r }  結晶の位置と半径（CSS px）
  */
 export function mountIntroScene(canvas, { calm = false } = {}) {
-  // calm … 「視差効果を減らす」設定。カメラが前へ進む動き・光の筋・絞りの
-  //          回転をなくし、ピント送りと光の集まりだけを見せます。
+  // calm … 「視差効果を減らす」設定。画面の上で動くもの（カメラが前へ進む、
+  //          粒が漂う・中心へ流れる、光の筋、絞りが閉じる・回る）をすべて
+  //          なくし、明るさ・ピント・色の変化だけで同じ物語を見せます。
   const dolly = (tl) => (calm ? 0 : dollyAt(tl))
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: 'high-performance' })
   if (!gl) return null
@@ -279,8 +284,10 @@ export function mountIntroScene(canvas, { calm = false } = {}) {
         const far = Math.hypot(canvas.width, canvas.height) * 0.75
         // ロゴの枠の内側の辺まで（枠の外接半径 1.035r × cos(π/8)）
         const end = focus.r * 1.035 * 0.9239 * s
-        const R = lerp(far, end, easeOut(k))
-        const a = clamp01(k * 6) * (1 - clamp01((tl - SCENE.flash) / 0.45))
+        // 動きを控える設定では、絞りは閉じてこない。最初から枠の大きさで、
+        // その外側が静かに暗くなり、縁が灯る（光だけの変化）。
+        const R = calm ? end : lerp(far, end, easeOut(k))
+        const a = (calm ? easeOut(k) : clamp01(k * 6)) * (1 - clamp01((tl - SCENE.flash) / (calm ? 0.8 : 0.45)))
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
         gl.useProgram(iris.p)
         gl.uniform2f(iris.loc('uC'), cx, cy)

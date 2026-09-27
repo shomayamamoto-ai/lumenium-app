@@ -460,7 +460,15 @@ export function mountLumen3D(canvas, opts = {}) {
     // introDelay … 結晶が光るまでの前置き（オープニングの前半を別に描くとき）
     // introCalm … 「視差効果を減らす」設定でも演出は見せる。ただし回転の勢いは付けない
     let I = opts.intro ? introAt(T - (opts.introDelay || 0), gentle && !opts.introCalm, !!opts.introIris) : NO_INTRO
-    if (opts.introCalm && I.spin) I = { ...I, spin: 0 }
+    if (opts.intro && opts.introCalm) {
+      /* 「視差効果を減らす」: 形は動かさず、光だけで見せる。回転の勢い・
+         大きくなりながら現れる動き・外へ広がる光の輪はなし。閃光は
+         半分ほどの明るさで、ゆっくり灯ってゆっくり引く（急な明滅も
+         つらい人がいるため）。 */
+      const Tc = T - (opts.introDelay || 0)
+      const fl = Tc < 1.9 ? 0 : Tc < 2.4 ? Math.pow((Tc - 1.9) / 0.5, 2) * 0.55 : 0.55 * Math.exp(-(Tc - 2.4) * 1.6)
+      I = { ...I, spin: 0, crystalS: 1, ringS: 1, wave: 1, flash: fl, crystalA: easeOut(clamp01((Tc - 2.0) / 1.1)) }
+    }
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)

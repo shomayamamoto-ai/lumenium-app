@@ -70,11 +70,16 @@ export default function LumenCursor() {
     document.addEventListener('mouseover', onOver)
     document.addEventListener('click', onClick)
 
+    // Reduce Motion: the aura stays with the pointer instead of trailing it.
+    // A large glow sliding in after the cursor is motion the eye has to
+    // follow; a glow that is simply where the pointer is, is not.
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const tick = () => {
       const p = posRef.current
       // Aura lags; ring & dot track tightly.
-      p.x += (p.tx - p.x) * 0.18
-      p.y += (p.ty - p.y) * 0.18
+      const f = still ? 1 : 0.18
+      p.x += (p.tx - p.x) * f
+      p.y += (p.ty - p.y) * f
       glow.style.transform = `translate3d(${p.x - 160}px, ${p.y - 160}px, 0)`
       ring.style.transform = `translate3d(${p.tx - 22}px, ${p.ty - 22}px, 0)`
       dot.style.transform  = `translate3d(${p.tx - 5}px,  ${p.ty - 5}px,  0)`

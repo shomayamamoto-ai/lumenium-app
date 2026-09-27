@@ -2784,13 +2784,23 @@ html[data-theme="dark"] button:focus-visible {
 }
 
 /* Respect user's reduced motion preference — expanded */
+/* Reduce Motion: nothing moves, but things still fade.
+   This used to cut every transition to 0.01ms, so under the setting the site
+   did not become calmer, it became abrupt — panels, menus and the 3D mark
+   popped in and out instead of easing. What makes people ill is movement
+   (sliding, zooming, spinning), not a change of light. So transitions keep
+   their timing but only for properties that do not move anything; a
+   transform change lands at once. Keyframe animations still stop, since
+   most of them move things; the few that only change light opt back in
+   below with their own reduced-motion rules. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-property: opacity, color, background-color, border-color, outline-color,
+      fill, stroke, filter, box-shadow, text-shadow, text-decoration-color !important;
     scroll-behavior: auto !important;
   }
   .hero-bg,
@@ -10254,6 +10264,16 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   0%, 86%, 100% { transform: translate(-50%, -50%) scale(1); }
   91%           { transform: translate(-50%, -50%) scale(1.4); }
 }
+/* Under Reduce Motion the star does not swell; it brightens in place. */
+@keyframes wmGlow {
+  0%, 86%, 100% { opacity: 0.85; }
+  91%           { opacity: 1; filter: drop-shadow(0 0 0.05em #fff) drop-shadow(0 0 0.16em rgba(125, 211, 252, 1))
+                                     drop-shadow(0 0 0.34em rgba(129, 140, 248, 0.9)); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .wm-iw::after { animation: none; }
+  .wm-iw::after {
+    animation-name: wmGlow !important;
+    animation-duration: 7s !important;
+    animation-iteration-count: infinite !important;
+  }
 }

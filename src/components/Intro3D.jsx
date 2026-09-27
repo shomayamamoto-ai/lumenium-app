@@ -93,10 +93,14 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
   cb.current = { onHandoff, onDone, onFail }
 
   useEffect(() => {
-    /* 「視差効果を減らす」設定の端末でも、この演出は見せます（以前は結晶が
-       静かに現れるだけにしていて、見どころがすべて抜けていました）。
-       その代わり、酔いやすい動き ―― カメラが前へ進む動き、中心へ伸びる
-       光の筋、絞りと結晶の回転、字の拡大 ―― はなくします。 */
+    /* 「視差効果を減らす」設定の端末（calm）でも、同じ物語を見せます。
+       ただし酔いの原因になる「画面の上で物が動く」ことは一切しません。
+       光の粒・言葉・字はその場から動かず、明るさ・ピント（ぼけ）・色の
+       変化だけで進みます。絞りは閉じてこず、枠の外が静かに暗くなるだけ。
+       結晶も大きくなりながら現れず、その場で灯ります。
+       最後にトップへ移る動きもなくすため、calm では最初からトップの画面を
+       幕の後ろに用意し、結晶と名前をトップのロゴと同じ場所・同じ大きさに
+       置いておきます。終わりは幕が薄れてトップにピントが合うだけです。 */
     const calm = reducedMotion()
     const root = rootRef.current, bg = bgRef.current, canvas = canvasRef.current
     const nameEl = nameRef.current, tagEl = tagRef.current, capEl = capRef.current
@@ -126,7 +130,13 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     let home = layout()
     Object.assign(focus, home)
 
-    let start = 0, jump = 0, handed = false, done = false, raf = 0, skipped = false
+    let start = 0, jump = 0, handed = false, done = false, raf = 0, skipped = false, shown = false, curNy = 0
+    // トップの画面を幕の後ろに描かせる（1回だけ）
+    const showHome = () => {
+      if (shown) return
+      shown = true
+      cb.current.onHandoff && cb.current.onHandoff()
+    }
     let target = null, moveFrom = null, moveAt = 0, onAt = 0, revealAt = 0, whole = false
     const main = () => document.getElementById('main')
 
@@ -179,7 +189,8 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       if (done) return
       done = true
       clearMain()
-      if (!handed) { handed = true; cb.current.onHandoff && cb.current.onHandoff() }
+      handed = true
+      showHome()
       cb.current.onDone && cb.current.onDone()
     }
     const skip = () => {
@@ -198,11 +209,11 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       if (!mark || !logo) return null
       const m = mark.getBoundingClientRect(), l = logo.getBoundingClientRect()
       if (!m.width || !l.width) return null
-      return { x: m.left + m.width / 2, y: m.top + m.height / 2, r: m.width * 0.42, nx: l.left + l.width / 2, ny: l.top + l.height / 2 }
+      return { x: m.left + m.width / 2, y: m.top + m.height / 2, r: m.width * 0.42, nx: l.left + l.width / 2, ny: l.top + l.height / 2, nh: l.height }
     }
 
     const place = (x, y, s, nx, ny) => {
-      focus.x = x; focus.y = y; focus.r = s
+      focus.x = x; focus.y = y; focus.r = s; curNy = ny
       nameEl.style.transform = `translate(${nx}px, ${ny}px) translate(-50%, -50%) scale(${s / (home.r / home.k)})`
     }
 
@@ -219,11 +230,12 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       words.forEach(({ el, w, on }, i) => {
         if (!on) return
         const [, u, v, d0] = w
-        // ピントが合うと、言葉も中心へ吸い込まれる
+        // ピントが合うと、言葉も中心へ吸い込まれる（calm ではその場で消える）
         const k = ease(clamp01((tl - (SCENE.pour[0] + (i % 5) * 0.06)) / 0.6))
-        const d = Math.max(0.8, lerp(d0 - cam.dolly, LOCK_D, k))
-        const x = lerp(u * d0 * tanH * (vw / vh) * 0.82, 0, k)
-        const y = lerp(v * d0 * tanH * 0.82, 0, k)
+        const km = calm ? 0 : k
+        const d = Math.max(0.8, lerp(d0 - cam.dolly, LOCK_D, km))
+        const x = lerp(u * d0 * tanH * (vw / vh) * 0.82, 0, km)
+        const y = lerp(v * d0 * tanH * 0.82, 0, km)
         const p = cam.at(x, y, d)
         const coc = cam.coc(d)
         const sc = (0.42 * cam.fpx) / d / 40
@@ -239,8 +251,10 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       capEl.style.opacity = (cin * cout).toFixed(3)
       capChars.forEach((el, i) => {
         const s = scatter[i]
-        const drift = Math.sin(tl * 0.9 + i) * 4
-        el.style.transform = `translate(${(s.x * (1 - al)).toFixed(1)}px, ${((s.y + drift) * (1 - al)).toFixed(1)}px)`
+        // calm では字は動かさず、ぼけから焦点が合うだけ
+        const drift = calm ? 0 : Math.sin(tl * 0.9 + i) * 4
+        const sx = calm ? 0 : s.x, sy = calm ? 0 : s.y
+        el.style.transform = `translate(${(sx * (1 - al)).toFixed(1)}px, ${((sy + drift) * (1 - al)).toFixed(1)}px)`
         el.style.filter = al >= 1 ? '' : `blur(${(s.b * (1 - al)).toFixed(1)}px)`
         el.style.opacity = (0.45 + 0.55 * al).toFixed(3)
       })
@@ -257,8 +271,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         el.style.opacity = p.toFixed(3)
         el.style.filter = q > 0.001 ? `blur(${(q * 16).toFixed(1)}px)` : ''
         el.style.transform = q > 0.001 && !calm ? `scale(${(1 + 0.4 * q).toFixed(3)})` : ''
+        const ab = (calm ? 3 : 10) * q // 色ずれの幅（calm では控えめ）
         el.style.textShadow = q > 0.001
-          ? `${(-q * 10).toFixed(1)}px 0 rgba(255, 70, 150, ${(0.75 * q).toFixed(2)}), ${(q * 10).toFixed(1)}px 0 rgba(60, 220, 255, ${(0.75 * q).toFixed(2)})`
+          ? `${(-ab).toFixed(1)}px 0 rgba(255, 70, 150, ${(0.75 * q).toFixed(2)}), ${ab.toFixed(1)}px 0 rgba(60, 220, 255, ${(0.75 * q).toFixed(2)})`
           : ''
       })
       if (all) {
@@ -282,19 +297,29 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       const tagOut = handed ? 1 - clamp01((now - onAt) / 350) : 1
       tagEl.style.opacity = g * tagOut
       tagEl.style.filter = g >= 1 ? '' : `blur(${(1 - g) * 10}px)`
-      tagEl.style.letterSpacing = `${lerp(0.4, 0.1, easeOut(g))}em`
+      tagEl.style.letterSpacing = calm ? '' : `${lerp(0.4, 0.1, easeOut(g))}em`
+
+      // calm: トップを最初から後ろに描かせ、その位置に合わせる
+      if (calm && tl >= 0.2) showHome()
 
       if (!handed && tl >= S.handoff) {
         handed = true
         onAt = now
         dropScene()
-        cb.current.onHandoff && cb.current.onHandoff()
+        showHome()
       }
 
       if (!handed) {
-        place(home.x, home.y, home.r, home.x, home.ny)
-        tagEl.style.top = `${home.tagY}px`
-        capEl.style.top = `${home.tagY + 70}px`
+        const t = calm ? measure() : null
+        if (t) {
+          place(t.x, t.y, t.r, t.nx, t.ny)
+          tagEl.style.top = `${t.ny + t.nh / 2 + 16}px`
+          capEl.style.top = `${t.ny + t.nh / 2 + 86}px`
+        } else {
+          place(home.x, home.y, home.r, home.x, home.ny)
+          tagEl.style.top = `${home.tagY}px`
+          capEl.style.top = `${home.tagY + 70}px`
+        }
         return
       }
 
@@ -308,13 +333,14 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
             名前を消す（同じ位置・同じ向きなので、見た目は変わりません）。 */
       if (!target) {
         target = measure()
-        if (target) { moveFrom = { ...focus, ny: home.ny }; moveAt = now }
+        if (target) { moveFrom = { ...focus, ny: curNy }; moveAt = now }
         // トップが見つからないまま1.5秒たったら、その場で消す
-        else if (now - onAt > 1500) { target = { ...focus, nx: focus.x, ny: home.ny }; moveFrom = { ...target }; moveAt = now }
+        else if (now - onAt > 1500) { target = { ...focus, nx: focus.x, ny: curNy }; moveFrom = { ...target }; moveAt = now }
         else return
       }
       const live = measure() || target
-      const moveDur = (skipped ? 0.5 : S.move) * 1000
+      // calm ではすでにトップと同じ場所にいるので、移る動きはない
+      const moveDur = calm ? 1 : (skipped ? 0.5 : S.move) * 1000
       const k = ease(clamp01((now - moveAt) / moveDur))
       place(lerp(moveFrom.x, live.x, k), lerp(moveFrom.y, live.y, k), lerp(moveFrom.r, live.r, k),
         lerp(moveFrom.x, live.nx, k), lerp(moveFrom.ny, live.ny, k))

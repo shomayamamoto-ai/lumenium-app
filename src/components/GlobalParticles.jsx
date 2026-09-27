@@ -28,7 +28,11 @@ export default function GlobalParticles({ show }) {
       opacity: 0.15 + Math.random() * 0.2,
       hue: 230 + Math.random() * 30,
     }))
-    pts.forEach(p => { p.ovx = p.vx; p.ovy = p.vy })
+    pts.forEach(p => { p.ovx = p.vx; p.ovy = p.vy; p.tw = Math.random() * Math.PI * 2 })
+    // Reduce Motion: the motes stay where they are and only glow and fade,
+    // slowly. A whole field drifting upward is exactly the kind of wide,
+    // steady motion that makes people feel sick.
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     // Each mote is drawn once, into its own little canvas, and from then on it
     // is stamped. It used to be built from scratch on every frame: a new
@@ -92,20 +96,25 @@ export default function GlobalParticles({ show }) {
       ctx.clearRect(0, 0, w, h)
 
       pts.forEach(p => {
-        // Damping back to original drift
-        p.vx = p.vx * 0.97 + p.ovx * 0.03
-        p.vy = p.vy * 0.97 + p.ovy * 0.03
+        if (!still) {
+          // Damping back to original drift
+          p.vx = p.vx * 0.97 + p.ovx * 0.03
+          p.vy = p.vy * 0.97 + p.ovy * 0.03
 
-        p.x += p.vx
-        p.y += p.vy
+          p.x += p.vx
+          p.y += p.vy
 
-        if (p.y < -20) { p.y = h + 20; p.x = Math.random() * w }
-        if (p.x < -10) p.x = w + 10
-        if (p.x > w + 10) p.x = -10
+          if (p.y < -20) { p.y = h + 20; p.x = Math.random() * w }
+          if (p.x < -10) p.x = w + 10
+          if (p.x > w + 10) p.x = -10
+        } else {
+          ctx.globalAlpha = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(now * 0.0009 + p.tw))
+        }
 
         // Glow and core, stamped in one go.
         ctx.drawImage(p.img.c, p.x - p.img.R, p.y - p.img.R)
       })
+      ctx.globalAlpha = 1
 
       // Connections. The fade with distance is kept, but in four steps rather
       // than continuously, so the whole web is four paths instead of a
