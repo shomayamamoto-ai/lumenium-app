@@ -1,10 +1,12 @@
+import LineIcon from './LineIcon'
+
 // Trust strip — the industries we've worked with.
 // Sits right after the hero to establish credibility early.
 
 const INDUSTRIES = [
-  { name: 'AI関連企業', icon: '🤖' },
-  { name: '飲食店・レストラン', icon: '🍽️' },
-  { name: '教育・学習塾', icon: '📚' },
+  { name: 'AI関連企業', icon: 'chip' },
+  { name: '飲食店・レストラン', icon: 'cup' },
+  { name: '教育・学習塾', icon: 'book' },
 ]
 
 export default function TrustStrip() {
@@ -20,7 +22,7 @@ export default function TrustStrip() {
       <div className="trust-strip-static">
         {INDUSTRIES.map((item) => (
           <div key={item.name} className="trust-chip">
-            <span className="trust-chip-icon" aria-hidden="true">{item.icon}</span>
+            <span className="trust-chip-icon" aria-hidden="true"><LineIcon name={item.icon} size={18} /></span>
             <span className="trust-chip-name">{item.name}</span>
           </div>
         ))}

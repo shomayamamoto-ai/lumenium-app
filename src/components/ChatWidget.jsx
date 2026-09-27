@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { replyTo } from '../lib/chatbot'
 import { scrollBehavior } from '../lib/motion'
+import LineIcon from './LineIcon'
 
 const INITIAL_MESSAGE = {
   type: 'bot',
@@ -68,7 +69,7 @@ export default function ChatWidget() {
         onClick={() => setIsOpen(!isOpen)}
         aria-label={isOpen ? 'チャットを閉じる' : 'チャットを開く'}
       >
-        {isOpen ? '✕' : '💬'}
+        <LineIcon name={isOpen ? 'close' : 'sns'} size={24} />
       </button>
 
       {/* Chat Panel */}

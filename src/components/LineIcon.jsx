@@ -1,0 +1,52 @@
+/**
+ * 細い線のアイコン。絵文字の代わりに使います。
+ *
+ * 絵文字は端末ごとに絵柄も色も違い、ロゴタイプや明朝の見出しと並ぶと
+ * そこだけ安っぽく見えました。ここのアイコンは 24×24 の枠に 1.5 の線、
+ * 角は丸め、色は文字と同じ（currentColor）。どこに置いても同じ太さ・
+ * 同じ調子で並びます。
+ */
+const PATHS = {
+  // 動画: カメラ
+  video: 'M3.5 7.5h11a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 2 15V9a1.5 1.5 0 0 1 1.5-1.5Z M16 10.5l5-3v9l-5-3',
+  // AI: 光の星（ロゴの星を小さく）
+  ai: 'M12 3v5M12 16v5M3 12h5M16 12h5M6.5 6.5l2.6 2.6M14.9 14.9l2.6 2.6M17.5 6.5l-2.6 2.6M9.1 14.9l-2.6 2.6',
+  // SNS・LINE: 吹き出し
+  sns: 'M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9l-4.5 3.5v-3.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z M8 11h.01M12 11h.01M16 11h.01',
+  // Web: 画面
+  web: 'M3 5h18v11H3z M3 8.5h18 M9 20h6 M12 16v4',
+  // キャスト: 人
+  cast: 'M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M5 20.5c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5',
+  // クリエイティブ: ペン先
+  creative: 'M4 20l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z M13.5 7l3 3',
+  // 業種: AI関連企業（回路）
+  chip: 'M7 7h10v10H7z M10 10h4v4h-4z M9.5 3v4M14.5 3v4M9.5 17v4M14.5 17v4M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4',
+  // 業種: 飲食（カップ）
+  cup: 'M4 9h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V9Z M17 10.5h1.5a2.5 2.5 0 0 1 0 5H17 M8 3.5c0 1.5 1 1.5 1 3M12 3.5c0 1.5 1 1.5 1 3',
+  // 閉じる
+  close: 'M6 6l12 12M18 6L6 18',
+  // 業種: 教育（本）
+  book: 'M4 5.5c2.5-1 5.5-1 8 .8 2.5-1.8 5.5-1.8 8-.8v13c-2.5-1-5.5-1-8 .8-2.5-1.8-5.5-1.8-8-.8v-13Z M12 6.3v13.3',
+}
+
+export default function LineIcon({ name, size = 22, className = '' }) {
+  const d = PATHS[name]
+  if (!d) return null
+  return (
+    <svg
+      className={`line-icon ${className}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={d} />
+    </svg>
+  )
+}

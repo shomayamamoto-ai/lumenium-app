@@ -10496,3 +10496,117 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   0%, 100% { opacity: 0.75; transform: translate(-50%, -50%); }
   50%      { opacity: 1;    transform: translate(-50%, -50%); }
 }
+
+/* =========================================================================
+   Quiet palette
+   -------------------------------------------------------------------------
+   After the type pass, colour was the loudest thing left: saturated indigo
+   → cyan in full-width bands (footer call-to-action, mission, contact),
+   in the positioning map's own tile, in every counted number and price,
+   in the floating buttons, and as text colour on the dark ground, where
+   #4f46e5 is hard to read. One family now: ink for text, lavender for
+   accents and links, and deep navy panels lit by a single soft glow.
+   ========================================================================= */
+
+/* --- Full-width bands become quiet panels -------------------------------- */
+.footer-cta-bar, .section--cta, .banner {
+  background:
+    radial-gradient(ellipse 60% 90% at 50% 0%, rgba(129, 140, 248, 0.16), transparent 70%),
+    #121633 !important;
+  border-top: 1px solid rgba(180, 189, 246, 0.14);
+  border-bottom: 1px solid rgba(180, 189, 246, 0.14);
+}
+.footer-cta-bar::before, .section--cta::before, .section--cta::after,
+.banner::before, .banner::after { display: none !important; }
+.footer-cta-label, .cta-desc, .banner-desc { color: var(--ink-soft) !important; }
+.footer-cta-title { color: var(--ink) !important; font-size: clamp(20px, 2.4vw, 28px); }
+
+/* --- The positioning map's own tile: glass, lit at the rim -------------- */
+.pq--brand {
+  background: rgba(180, 189, 246, 0.08) !important;
+  border-color: rgba(180, 189, 246, 0.45) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 50px -20px rgba(129, 140, 248, 0.6) !important;
+}
+
+/* --- Numbers: set like the titles, in ink ------------------------------ */
+.stat-value, .stat-num, [data-count].counter-done, .case-metric-value,
+.ba-card--after .ba-stat-value, .flow-step-num, .story-chapter-no,
+.pricing-sim-total-from, .pricing-sim-total-to, .services-intro-dl dd,
+.card:hover .card-num, .positioning-notes-k--brand {
+  font-family: var(--font-display);
+  font-weight: 400;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+.story-chapter-quote-mark { background: none !important; -webkit-text-fill-color: currentColor !important; color: rgba(180, 189, 246, 0.35) !important; }
+
+/* --- Accents and links: lavender, readable on the dark ground ---------- */
+.ba-tab.is-active .ba-tab-tag, .blog-toc-list a.is-active, .blog-card:hover .blog-card-title,
+.card-examples li::before, .card-examples-label, .card-more, .company-card-eyebrow,
+.company-card-row dd a, .company-card-row dd a:hover, .company-value a:hover,
+.faq-group-title, .faq-item--open .faq-question, .faq-question:hover,
+.footer-contact li a:hover, .hero-chat-nudge, .hero-video-card-arrow, .hero-video-card-label,
+.newsletter-label, .profile-brick-label, .quiz-back, .quiz-option-arrow,
+.service-detail-label, .service-detail-meta-value a, .service-detail-meta-value a:hover,
+.story-chapter-eyebrow, .testimonial-avatar, .btn-ghost-w:hover, .blog-card-link,
+.blog-tag, .news-tag, .profile-career-year, .career-year {
+  color: var(--lav) !important;
+}
+.blog-article-body li::marker, .privacy-body li::marker { color: var(--lav); }
+
+/* --- Small chips and avatars: tinted, not filled ----------------------- */
+.achievement-chip:hover, .testimonial-arrow:hover, .hero-chat-nudge:hover {
+  background: rgba(180, 189, 246, 0.12) !important;
+  color: var(--ink) !important;
+  border-color: rgba(180, 189, 246, 0.45) !important;
+}
+.testimonial-avatar { background: rgba(180, 189, 246, 0.12) !important; }
+
+/* --- Floating buttons: quiet glass instead of bright blue discs -------- */
+.chat-widget-btn, .scroll-top-btn {
+  background: rgba(18, 22, 51, 0.72) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--lav) !important;
+  border: 1px solid rgba(180, 189, 246, 0.35) !important;
+  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.7) !important;
+}
+.chat-widget-btn:hover, .scroll-top-btn:hover {
+  border-color: rgba(180, 189, 246, 0.7) !important;
+  color: var(--ink) !important;
+}
+
+/* --- The reading-progress line: a thin lavender thread ----------------- */
+.scroll-progress {
+  background: rgba(180, 189, 246, 0.7) !important;
+  box-shadow: none !important;
+  height: 1px;
+}
+
+/* Line icons in place of emoji: lavender strokes in a hairline square. */
+.trust-chip-icon, .pricing-sim-icon {
+  background: rgba(180, 189, 246, 0.08) !important;
+  border: 1px solid rgba(180, 189, 246, 0.22);
+  color: var(--lav);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+}
+.pricing-sim-icon { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; }
+.nav-game-lock {
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  border: 1px solid rgba(180, 189, 246, 0.25);
+  border-radius: 999px;
+  vertical-align: 1px;
+}
+/* The chat button's pulse ring (its animation already stopped) and the
+   footer headings' gradient underline, in the quiet palette. */
+.chat-widget-btn::before { display: none !important; }
+.footer-col h4 > span::after { background: rgba(180, 189, 246, 0.55) !important; }

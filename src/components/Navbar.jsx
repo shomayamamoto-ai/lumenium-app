@@ -192,21 +192,21 @@ export default function Navbar() {
             <p className="nav-group-label">ミニゲーム</p>
             {/* The 3 standard games are free for everyone; the two members
                 games stay behind the login gate. */}
-            <a href="/game.html">🚀 シューティング</a>
-            <a href="/runner.html">🏃 ランナー</a>
-            <a href="/racing.html">🏰 ディフェンス</a>
-            <a href="/hitblow.html">🔦 コード解読（ヒットアンドブロー）</a>
+            <a href="/game.html">シューティング</a>
+            <a href="/runner.html">ランナー</a>
+            <a href="/racing.html">ディフェンス</a>
+            <a href="/hitblow.html">コード解読（ヒットアンドブロー）</a>
             {isMember ? (
               <>
-                <a href="/members/arena">⭐ 会員限定ブレイカー</a>
-                <a href="/members/puzzle">🧩 会員限定2048</a>
-                <a href="/members/territory">🏳️ 会員限定 陣取り</a>
+                <a href="/members/arena">会員限定ブレイカー</a>
+                <a href="/members/puzzle">会員限定2048</a>
+                <a href="/members/territory">会員限定 陣取り</a>
               </>
             ) : (
               <>
-                <a href="/login.html?next=arena" className="nav-game-login">⭐ 会員限定ブレイカー 🔒</a>
-                <a href="/login.html?next=puzzle" className="nav-game-login">🧩 会員限定2048 🔒</a>
-                <a href="/login.html?next=territory" className="nav-game-login">🏳️ 会員限定 陣取り 🔒</a>
+                <a href="/login.html?next=arena" className="nav-game-login">会員限定ブレイカー <span className="nav-game-lock">ログイン</span></a>
+                <a href="/login.html?next=puzzle" className="nav-game-login">会員限定2048 <span className="nav-game-lock">ログイン</span></a>
+                <a href="/login.html?next=territory" className="nav-game-login">会員限定 陣取り <span className="nav-game-lock">ログイン</span></a>
               </>
             )}
           </div>

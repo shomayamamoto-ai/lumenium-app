@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { events, funnel } from '../lib/analytics'
 import { PRICE_OPTIONS as OPTIONS } from '../data/site'
 import { BY_ID, calculate, summarise, yen } from '../data/estimate'
+import LineIcon from './LineIcon'
 
 // Picking the services gives a range like ¥300,000〜¥2,000,000 — a factor of
 // nearly seven, which is not a number anyone can decide on. So when exactly
@@ -93,7 +94,9 @@ export default function PricingSimulator() {
                 onClick={() => toggle(o.key)}
                 aria-pressed={!!selected[o.key]}
               >
-                <span className="pricing-sim-icon" aria-hidden="true">{o.icon}</span>
+                {/* 絵文字ではなく線のアイコン（選択肢の key から決める。o.icon は
+                    管理画面で編集できる値なので、ここでは使わない） */}
+                <span className="pricing-sim-icon" aria-hidden="true"><LineIcon name={o.key} size={18} /></span>
                 <span className="pricing-sim-meta">
                   <span className="pricing-sim-label">{o.label}</span>
                   <span className="pricing-sim-sub">{o.sub}</span>
