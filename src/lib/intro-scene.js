@@ -49,7 +49,7 @@ const VS = `
 attribute vec2 aQ; attribute vec4 aP; attribute vec4 aS;
 uniform vec2 uView; uniform vec2 uC; uniform float uFpx; uniform float uF; uniform float uK;
 uniform float uT; uniform float uDolly; uniform float uPx; uniform float uMaxR;
-uniform float uPour; uniform float uSpread; uniform float uDur;
+uniform float uPour; uniform float uSpread; uniform float uDur; uniform float uCalm;
 varying vec2 vQ; varying float vA; varying vec3 vCol; varying float vR;
 vec3 pal(float i) {
   if (i < 1.0) return vec3(0.39, 0.40, 0.95);
@@ -62,8 +62,9 @@ float eio(float x) { return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0
 void main() {
   // ゆっくり漂う
   vec3 p = aP.xyz;
-  p.x += sin(uT * 0.35 + aS.x * 6.28) * 0.12 * p.z * 0.1;
-  p.y += cos(uT * 0.28 + aS.y * 6.28) * 0.10 * p.z * 0.1;
+  float dr = 1.0 - 0.7 * uCalm;
+  p.x += sin(uT * 0.35 + aS.x * 6.28) * 0.12 * p.z * 0.1 * dr;
+  p.y += cos(uT * 0.28 + aS.y * 6.28) * 0.10 * p.z * 0.1 * dr;
   float d = p.z - uDolly;
   // 中心へ流れ込む（1粒ずつ少しずつ遅れて）
   float k = eio(clamp((uT - (uPour + aS.x * uSpread)) / uDur, 0.0, 1.0));
@@ -82,7 +83,7 @@ void main() {
   vec2 dir = scr - uC;
   float len = length(dir);
   dir = len > 0.001 ? dir / len : vec2(1.0, 0.0);
-  float stretch = sin(3.14159 * k) * (22.0 + 60.0 * aS.w) * (uView.y / 900.0);
+  float stretch = sin(3.14159 * k) * (22.0 + 60.0 * aS.w) * (uView.y / 900.0) * (1.0 - uCalm);
   vec2 perp = vec2(-dir.y, dir.x);
   vec2 off = dir * aQ.x * (r + stretch) + perp * aQ.y * r;
   vec2 pos = scr + off;
@@ -151,10 +152,14 @@ void main() {
 /**
  * 描き始める。使えないときは null。
  *   canvas … 描く先（画面いっぱい）
+ *   calm   … 動きを控えめにする
  * 返り値の draw(tl, focus) を、呼んだ側が毎コマ呼びます。
  *   focus … { x, y, r }  結晶の位置と半径（CSS px）
  */
-export function mountIntroScene(canvas) {
+export function mountIntroScene(canvas, { calm = false } = {}) {
+  // calm … 「視差効果を減らす」設定。カメラが前へ進む動き・光の筋・絞りの
+  //          回転をなくし、ピント送りと光の集まりだけを見せます。
+  const dolly = (tl) => (calm ? 0 : dollyAt(tl))
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: 'high-performance' })
   if (!gl) return null
   const compile = (type, src) => {
@@ -232,7 +237,7 @@ export function mountIntroScene(canvas) {
       const fpx = (H / 2) / tanH
       const F = focusAt(tl)
       return {
-        fpx, F, dolly: dollyAt(tl),
+        fpx, F, dolly: dolly(tl),
         coc: (d) => LENS * Math.abs(1 / F - 1 / d) * H,
         at: (x, y, d) => ({ x: focus.x + (x * fpx) / d, y: focus.y - (y * fpx) / d }),
       }
@@ -255,7 +260,8 @@ export function mountIntroScene(canvas) {
       gl.uniform1f(bokeh.loc('uF'), focusAt(tl))
       gl.uniform1f(bokeh.loc('uK'), LENS)
       gl.uniform1f(bokeh.loc('uT'), tl)
-      gl.uniform1f(bokeh.loc('uDolly'), dollyAt(tl))
+      gl.uniform1f(bokeh.loc('uDolly'), dolly(tl))
+      gl.uniform1f(bokeh.loc('uCalm'), calm ? 1 : 0)
       gl.uniform1f(bokeh.loc('uPx'), 1.1 * s)
       gl.uniform1f(bokeh.loc('uMaxR'), canvas.height * 0.075)
       gl.uniform1f(bokeh.loc('uPour'), SCENE.pour[0])
@@ -279,7 +285,7 @@ export function mountIntroScene(canvas) {
         gl.useProgram(iris.p)
         gl.uniform2f(iris.loc('uC'), cx, cy)
         gl.uniform1f(iris.loc('uR'), R)
-        gl.uniform1f(iris.loc('uRot'), 0.9 * (1 - easeOut(k)))
+        gl.uniform1f(iris.loc('uRot'), calm ? 0 : 0.9 * (1 - easeOut(k)))
         gl.uniform1f(iris.loc('uA'), a)
         gl.uniform1f(iris.loc('uGlow'), 0.35 + 0.65 * k)
         bind(iris, 'aQ', bFull, 2)

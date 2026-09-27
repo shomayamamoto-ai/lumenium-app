@@ -31,15 +31,16 @@ import { SECTION } from '../data/text'
 
 // 時間割（秒）。すべてこの画面が最初に描かれてからの時刻です。
 const DELAY = SCENE.flash - 2.3 // 結晶側の時間割（2.3秒で光る）をずらす量
-const FULL = {
+const S = {
   words: [0.25, 0.9], // 漂う言葉
   caption: [0.35, 0.9, 2.2, 0.7, 2.95], // 現れる, かかる, 揃い始め, かかる, 消え始め
   name: [3.55, 0.065, 0.75], // 1字目の開始, 1字ごとの遅れ, 1字にかかる時間
   tag: [4.25, 0.8],
   handoff: 5.0,
-  move: 0.8, bg: 0.6, out: 0.45,
+  move: 0.9, // 結晶と名前がトップのロゴの位置へ移る
+  reveal: 1.1, // トップの画面が、ぼけた状態からピントが合って現れる（移る途中から）
+  out: 0.5, // 残った結晶と名前を消す
 }
-const GENTLE = { name: [0.25, 0, 0.6], tag: [0.5, 0.6], handoff: 1.8, move: 0, bg: 0.6, out: 0.6 }
 
 /* ピントの合っていない「散文化した目的」。u, v は画面上の位置（-1〜1）、
    d は奥行き。手前の大きな言葉ほど強くぼける。 */
@@ -92,8 +93,11 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
   cb.current = { onHandoff, onDone, onFail }
 
   useEffect(() => {
-    const gentle = reducedMotion()
-    const S = gentle ? GENTLE : FULL
+    /* 「視差効果を減らす」設定の端末でも、この演出は見せます（以前は結晶が
+       静かに現れるだけにしていて、見どころがすべて抜けていました）。
+       その代わり、酔いやすい動き ―― カメラが前へ進む動き、中心へ伸びる
+       光の筋、絞りと結晶の回転、字の拡大 ―― はなくします。 */
+    const calm = reducedMotion()
     const root = rootRef.current, bg = bgRef.current, canvas = canvasRef.current
     const nameEl = nameRef.current, tagEl = tagRef.current, capEl = capRef.current
     const letters = [...nameEl.querySelectorAll('.ix-ch')]
@@ -118,12 +122,14 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     Object.assign(focus, home)
 
     let start = 0, jump = 0, handed = false, done = false, raf = 0, skipped = false
-    let target = null, moveFrom = null, moveAt = 0, onAt = 0, fadeAt = 0, whole = gentle
+    let target = null, moveFrom = null, moveAt = 0, onAt = 0, revealAt = 0, whole = false
+    const main = () => document.getElementById('main')
 
     const api = mountLumen3D(canvas, {
       mode: 'hero',
       intro: true,
-      introDelay: gentle ? 0 : DELAY,
+      introDelay: DELAY,
+      introCalm: calm,
       introGather: false,
       introIris: true,
       fadeBelow: true,
@@ -132,7 +138,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     })
     if (!api) { cb.current.onFail && cb.current.onFail(); return }
     // 前半の場面。描けなくても、結晶のオープニングだけで続けます。
-    let scene = gentle ? null : mountIntroScene(sceneRef.current)
+    let scene = null
+    try { scene = mountIntroScene(sceneRef.current, { calm }) } catch (_) { scene = null }
+    root.dataset.scene = scene ? 'on' : 'off'
     const dropScene = () => {
       if (!scene) return
       scene.destroy()
@@ -141,7 +149,11 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       wordsRef.current.style.display = 'none'
       capEl.style.display = 'none'
     }
-    if (!scene) dropScene()
+    if (!scene) {
+      sceneRef.current.style.display = 'none'
+      wordsRef.current.style.display = 'none'
+      capEl.style.display = 'none'
+    }
 
     if (grainRef.current) {
       const u = grainURL()
@@ -149,18 +161,24 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     }
 
     // 1字ずつに、単語全体の色の流れ（グラデーション）の該当部分を割り当てる
-    if (!gentle) {
-      nameEl.classList.add('is-split')
-      const wW = nameEl.offsetWidth
-      letters.forEach((el) => {
-        el.style.backgroundSize = `${wW}px 100%`
-        el.style.backgroundPosition = `${-el.offsetLeft}px 0`
-      })
+    nameEl.classList.add('is-split')
+    nameEl.style.opacity = '1' // 見え方は1字ずつ（.ix-ch）で決める
+    const wW = nameEl.offsetWidth
+    letters.forEach((el) => {
+      el.style.backgroundSize = `${wW}px 100%`
+      el.style.backgroundPosition = `${-el.offsetLeft}px 0`
+    })
+
+    // トップの画面にかけた「ピントぼけ」を外す
+    const clearMain = () => {
+      const m = main()
+      if (m) { m.style.filter = ''; m.style.transform = ''; m.style.transformOrigin = '' }
     }
 
     const finish = () => {
       if (done) return
       done = true
+      clearMain()
       if (!handed) { handed = true; cb.current.onHandoff && cb.current.onHandoff() }
       cb.current.onDone && cb.current.onDone()
     }
@@ -192,11 +210,12 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     const drawScene = (tl) => {
       if (!scene) return
       if (tl > SCENE.end) { dropScene(); return }
-      scene.draw(tl, focus)
+      // 描画に失敗したら、この場面だけ外して結晶のオープニングで続ける
+      try { scene.draw(tl, focus) } catch (_) { dropScene(); return }
       const cam = scene.camera(tl, focus)
       const vw = window.innerWidth, vh = window.innerHeight
       const tanH = Math.tan(0.4)
-      const fin = easeOut(clamp01((tl - FULL.words[0]) / FULL.words[1]))
+      const fin = easeOut(clamp01((tl - S.words[0]) / S.words[1]))
       words.forEach(({ el, w, on }, i) => {
         if (!on) return
         const [, u, v, d0] = w
@@ -214,9 +233,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         el.style.opacity = (fin * (0.2 + 0.72 * sharp) * (1 - k)).toFixed(3)
       })
       // 「散文化した目的に、」: ばらけて浮かび、ピントが合うと揃って、消える
-      const cin = easeOut(clamp01((tl - FULL.caption[0]) / FULL.caption[1]))
-      const al = ease(clamp01((tl - FULL.caption[2]) / FULL.caption[3]))
-      const cout = 1 - clamp01((tl - FULL.caption[4]) / 0.35)
+      const cin = easeOut(clamp01((tl - S.caption[0]) / S.caption[1]))
+      const al = ease(clamp01((tl - S.caption[2]) / S.caption[3]))
+      const cout = 1 - clamp01((tl - S.caption[4]) / 0.35)
       capEl.style.opacity = (cin * cout).toFixed(3)
       capChars.forEach((el, i) => {
         const s = scatter[i]
@@ -229,10 +248,7 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
 
     // 名前: 1字ずつ、色がずれた光から焦点を結ぶ
     const drawName = (tl) => {
-      if (gentle || whole) {
-        const n = ease(clamp01((tl - S.name[0]) / S.name[2]))
-        return n
-      }
+      if (whole) return
       let all = true
       letters.forEach((el, i) => {
         const p = ease(clamp01((tl - (S.name[0] + i * S.name[1])) / S.name[2]))
@@ -240,7 +256,7 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         const q = 1 - p
         el.style.opacity = p.toFixed(3)
         el.style.filter = q > 0.001 ? `blur(${(q * 16).toFixed(1)}px)` : ''
-        el.style.transform = q > 0.001 ? `scale(${(1 + 0.4 * q).toFixed(3)})` : ''
+        el.style.transform = q > 0.001 && !calm ? `scale(${(1 + 0.4 * q).toFixed(3)})` : ''
         el.style.textShadow = q > 0.001
           ? `${(-q * 10).toFixed(1)}px 0 rgba(255, 70, 150, ${(0.75 * q).toFixed(2)}), ${(q * 10).toFixed(1)}px 0 rgba(60, 220, 255, ${(0.75 * q).toFixed(2)})`
           : ''
@@ -251,7 +267,6 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         nameEl.classList.remove('is-split')
         letters.forEach((el) => el.removeAttribute('style'))
       }
-      return 1
     }
 
     const step = () => {
@@ -261,14 +276,13 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       const tl = (now - start) / 1000 + jump
 
       drawScene(tl)
-      const n = drawName(tl)
-      nameEl.style.opacity = gentle || whole ? n : 1
+      drawName(tl)
       nameEl.style.filter = SHADOW
       const g = ease(clamp01((tl - S.tag[0]) / S.tag[1]))
       const tagOut = handed ? 1 - clamp01((now - onAt) / 350) : 1
       tagEl.style.opacity = g * tagOut
-      tagEl.style.filter = gentle || g >= 1 ? '' : `blur(${(1 - g) * 10}px)`
-      tagEl.style.letterSpacing = gentle ? '' : `${lerp(0.4, 0.1, easeOut(g))}em`
+      tagEl.style.filter = g >= 1 ? '' : `blur(${(1 - g) * 10}px)`
+      tagEl.style.letterSpacing = `${lerp(0.4, 0.1, easeOut(g))}em`
 
       if (!handed && tl >= S.handoff) {
         handed = true
@@ -284,7 +298,14 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         return
       }
 
-      // トップの結晶とロゴの位置へ移る（動きを減らす設定では移らずに消える）
+      /* ここから、トップへの切り替え。
+         1. 結晶と名前が、トップのロゴの位置へ滑るように移る。
+         2. その途中から、幕が薄れ、後ろのトップの画面がぼけた状態から
+            ピントが合って現れる（ロゴを中心に、わずかに引いた位置から）。
+            オープニングと同じ「焦点を当てる」動きで、画面が入れ替わった
+            ようには見せません。
+         3. トップの結晶が表示されきってから、重ねていたこちらの結晶と
+            名前を消す（同じ位置・同じ向きなので、見た目は変わりません）。 */
       if (!target) {
         target = measure()
         if (target) { moveFrom = { ...focus, ny: home.y + 5 * home.k }; moveAt = now }
@@ -293,26 +314,38 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         else return
       }
       const live = measure() || target
-      // 飛ばしたときは、移る時間も短く
-      const k = S.move ? ease(clamp01((now - moveAt) / ((skipped ? 0.45 : S.move) * 1000))) : 0
-      if (S.move) {
-        place(lerp(moveFrom.x, live.x, k), lerp(moveFrom.y, live.y, k), lerp(moveFrom.r, live.r, k),
-          lerp(moveFrom.x, live.nx, k), lerp(moveFrom.ny, live.ny, k))
-      }
-      if (k < 1 && S.move) return
+      const moveDur = (skipped ? 0.5 : S.move) * 1000
+      const k = ease(clamp01((now - moveAt) / moveDur))
+      place(lerp(moveFrom.x, live.x, k), lerp(moveFrom.y, live.y, k), lerp(moveFrom.r, live.r, k),
+        lerp(moveFrom.x, live.nx, k), lerp(moveFrom.ny, live.ny, k))
 
-      // 背景を消して、後ろのトップを見せる。トップの結晶が表示されきって
-      // から、残っていたこちらの結晶と名前を消します。
-      if (!fadeAt) { fadeAt = now; root.classList.add('is-leaving') }
-      const b = clamp01((now - fadeAt) / (S.bg * 1000))
-      bg.style.opacity = 1 - b
+      if (!revealAt && now - moveAt > moveDur * 0.35) {
+        revealAt = now
+        root.classList.add('is-leaving')
+        const m = main()
+        if (m) {
+          // ロゴの中心を軸に寄せる。ロゴ自体の位置はずれません
+          const r = m.getBoundingClientRect()
+          m.style.transformOrigin = `${live.x - r.left}px ${live.y - r.top}px`
+        }
+      }
+      if (!revealAt) return
+      const rv = clamp01((now - revealAt) / ((skipped ? 0.7 : S.reveal) * 1000))
+      const e = easeOut(rv)
+      bg.style.opacity = (1 - e).toFixed(3)
+      const m = main()
+      if (m) {
+        if (rv < 1) {
+          m.style.filter = `blur(${(14 * (1 - e)).toFixed(2)}px)`
+          m.style.transform = calm ? '' : `scale(${(1 + 0.04 * (1 - e)).toFixed(4)})`
+        } else clearMain()
+      }
       const homeOn = document.querySelector('.search-home-3d.is-on')
-      const outAt = gentle ? fadeAt : fadeAt + S.bg * 1000
-      const o = homeOn || now - onAt > 3000 ? clamp01((now - Math.max(outAt, onAt + (skipped ? 1000 : 1300))) / (S.out * 1000)) : 0
-      const keep = gentle ? 1 - b : 1 - o
-      canvas.style.opacity = keep
-      nameEl.style.opacity = keep
-      if (b >= 1 && keep <= 0) finish()
+      const ready = (homeOn || now - onAt > 3000) && rv >= 1 && k >= 1
+      const o = ready ? clamp01((now - Math.max(revealAt + (skipped ? 700 : S.reveal * 1000), onAt + (skipped ? 1000 : 1300))) / (S.out * 1000)) : 0
+      canvas.style.opacity = 1 - o
+      nameEl.style.opacity = 1 - o
+      if (o >= 1) finish()
     }
     raf = requestAnimationFrame(step)
 
@@ -331,6 +364,7 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onResize)
       root.removeEventListener('click', skip)
+      clearMain()
       dropScene()
       api.destroy()
     }

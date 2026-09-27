@@ -459,7 +459,9 @@ export function mountLumen3D(canvas, opts = {}) {
     if (t0 === null) t0 = time
     const T = (time - t0) / 1000
     // introDelay … 結晶が光るまでの前置き（オープニングの前半を別に描くとき）
-    const I = opts.intro ? introAt(T - (opts.introDelay || 0), gentle, !!opts.introIris) : NO_INTRO
+    // introCalm … 「視差効果を減らす」設定でも演出は見せる。ただし回転の勢いは付けない
+    let I = opts.intro ? introAt(T - (opts.introDelay || 0), gentle && !opts.introCalm, !!opts.introIris) : NO_INTRO
+    if (opts.introCalm && I.spin) I = { ...I, spin: 0 }
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
