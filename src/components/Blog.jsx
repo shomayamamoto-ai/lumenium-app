@@ -3,6 +3,7 @@ import { rich } from '../lib/rich'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 import { articles } from '../data/articles'
+import { scrollBehavior } from '../lib/motion'
 
 function ArticleCard({ article, onClick }) {
   return (
@@ -71,7 +72,7 @@ function ArticleView({ article, onBack }) {
     const target = document.getElementById(id)
     if (target) {
       const y = target.getBoundingClientRect().top + window.scrollY - 96
-      window.scrollTo({ top: y, behavior: 'smooth' })
+      window.scrollTo({ top: y, behavior: scrollBehavior() })
     }
   }
 

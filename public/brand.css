@@ -147,3 +147,7 @@ article li::before, li::before { color: var(--lav); font-weight: 400; }
      corner on a phone. */
   header.brandbar .home { display: none; }
 }
+
+/* Link lists (the site map, news and blog index) carry no check marks —
+   they are lists of pages, not of benefits, and the mark sat on the text. */
+.list li::before { content: none !important; }

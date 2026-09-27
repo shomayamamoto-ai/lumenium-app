@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
 import Wordmark from './Wordmark'
+import { scrollBehavior } from '../lib/motion'
 
 // The drawer is grouped by heading rather than one flat list, so every
 // section of the site — and each of the six service areas — has its own
@@ -129,7 +130,7 @@ export default function Navbar() {
         const el = section && document.getElementById(section)
         if (el) {
           const top = el.getBoundingClientRect().top + window.scrollY - 80
-          window.scrollTo({ top, behavior: 'smooth' })
+          window.scrollTo({ top, behavior: scrollBehavior() })
         }
       } else {
         window.location.hash = href
@@ -139,7 +140,7 @@ export default function Navbar() {
     const target = document.querySelector(href)
     if (target) {
       const top = target.getBoundingClientRect().top + window.scrollY - 80
-      window.scrollTo({ top, behavior: 'smooth' })
+      window.scrollTo({ top, behavior: scrollBehavior() })
     }
   }
 

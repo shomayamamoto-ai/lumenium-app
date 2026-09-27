@@ -127,15 +127,17 @@ const SOLID_FS = (derivs) => `
 ${derivs ? '#extension GL_OES_standard_derivatives : enable' : ''}
 precision mediump float;
 varying vec3 vN; varying vec3 vP; varying vec3 vBar; varying float vFace;
-uniform float uTime; uniform float uAlpha; uniform float uGlow; uniform vec2 uFade;
+uniform float uTime; uniform float uAlpha; uniform float uGlow; uniform vec2 uFade; uniform float uLA;
+vec3 ry3(vec3 v, float a) { float c = cos(a), s = sin(a); return vec3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z); }
 void main() {
   vec3 N = normalize(vN);
   if (!gl_FrontFacing) N = -N;
   vec3 V = normalize(-vP);
   float ndv = clamp(dot(N, V), 0.0, 1.0);
   float fres = pow(1.0 - ndv, 2.4);
-  vec3 L1 = normalize(vec3(-0.55, 0.75, 0.65));
-  vec3 L2 = normalize(vec3(0.8, -0.35, 0.45));
+  // uLA … 光の向きを振る角度（動きを控える設定で、形の代わりに光を動かす）
+  vec3 L1 = normalize(ry3(vec3(-0.55, 0.75, 0.65), uLA));
+  vec3 L2 = normalize(ry3(vec3(0.8, -0.35, 0.45), uLA * 0.7));
   float d1 = max(dot(N, L1), 0.0), d2 = max(dot(N, L2), 0.0);
   float s1 = pow(max(dot(N, normalize(L1 + V)), 0.0), 70.0);
   float s2 = pow(max(dot(N, normalize(L2 + V)), 0.0), 38.0);
@@ -167,6 +169,7 @@ void main() {
 const DUST_VS = `
 attribute vec4 aSeed; attribute float aSpeed;
 uniform mat4 uProj; uniform mat4 uModel; uniform float uTime; uniform float uPx; uniform float uSpread;
+uniform float uTw; uniform float uCalm;
 varying float vT; varying float vA;
 void main() {
   float t = fract(uTime * aSpeed + aSeed.w);
@@ -177,6 +180,8 @@ void main() {
   gl_Position = uProj * w;
   vT = t;
   vA = smoothstep(0.0, 0.14, t) * (1.0 - smoothstep(0.9, 1.0, t));
+  // 動きを控える設定: 粒は止めたまま（uTime を止めて渡す）、その場で瞬く
+  vA *= mix(1.0, 0.45 + 0.55 * (0.5 + 0.5 * sin(uTw * 1.1 + aSeed.w * 40.0)), uCalm);
   // 手前にあるほど、中心に近づくほど大きく。遠くの粒は小さく暗く。
   gl_PointSize = uPx * (1.0 + 2.6 * t * t) * (0.6 + 0.8 * fract(aSeed.w * 7.13)) / max(0.6, -w.z);
 }`
@@ -484,8 +489,14 @@ export function mountLumen3D(canvas, opts = {}) {
 
     pointer.x += (pointer.tx - pointer.x) * 0.04
     pointer.y += (pointer.ty - pointer.y) * 0.04
-    const ry = t * 0.32 + pointer.x * 0.7 + scroll * 2.4 + I.spin
-    const rx = Math.sin(t * 0.21) * 0.18 + pointer.y * 0.4 + scroll * 0.4
+    /* 「視差効果を減らす」: 結晶は回さない。形は1つの向きで止め、代わりに
+       光の向きをゆっくり振って、面から面へ光が移っていくのを見せます
+       （以前は回転を遅くしていただけで、見る人によっては酔いの元でした）。
+       止める向きは、星と枠がこちらを向く時刻から少しずらした、立体感の
+       出る角度です。 */
+    const tg = gentle ? FACE_T + 1.1 : t
+    const ry = tg * 0.32 + pointer.x * 0.7 + scroll * 2.4 + I.spin
+    const rx = Math.sin(tg * 0.21) * 0.18 + pointer.y * 0.4 + scroll * 0.4
     const rot = mul(rotY(ry), rotX(rx))
     const model = mul(trs(cx, cy, -CAM, sc * I.crystalS), rot)
 
@@ -512,6 +523,7 @@ export function mountLumen3D(canvas, opts = {}) {
     gl.useProgram(solid.p)
     gl.uniformMatrix4fv(solid.loc('uProj'), false, proj)
     gl.uniform1f(solid.loc('uTime'), t)
+    gl.uniform1f(solid.loc('uLA'), gentle ? Math.sin((time / 1000) * 0.25) * 0.9 : 0)
     gl.uniform1f(solid.loc('uGlow'), cfg.glow)
     // 下側のぼかしの範囲（画面の下から数えた実ピクセル）。使わないときは
     // どの高さでも 1 になる値にしておきます。
@@ -537,7 +549,7 @@ export function mountLumen3D(canvas, opts = {}) {
     if (I.crystalA > 0.003) drawMesh(starM, model, rot, cfg.alpha * I.crystalA)
     if (cfg.ring && I.ringA > 0.003) {
       // 枠は星と別の軸でゆっくり回し、奥行きを見せます
-      const rr = mul(rotY(-t * 0.12 + pointer.x * 0.3 + scroll * 1.2), rotX(0.35 + Math.sin(t * 0.17) * 0.12))
+      const rr = mul(rotY(-tg * 0.12 + pointer.x * 0.3 + scroll * 1.2), rotX(0.35 + Math.sin(tg * 0.17) * 0.12))
       drawMesh(ringM, mul(trs(cx, cy, -CAM, sc * I.ringS), rr), rr, cfg.alpha * 0.85 * I.ringA)
     }
     gl.disableVertexAttribArray(solid.att('aFace'))
@@ -551,7 +563,9 @@ export function mountLumen3D(canvas, opts = {}) {
     gl.uniformMatrix4fv(dust.loc('uProj'), false, proj)
     const dm = mul(trs(cx, cy, -CAM, sc), mul(rotX(0.35 + scroll * 0.3), rotZ(-0.2)))
     gl.uniformMatrix4fv(dust.loc('uModel'), false, dm)
-    gl.uniform1f(dust.loc('uTime'), t)
+    gl.uniform1f(dust.loc('uTime'), tg)
+    gl.uniform1f(dust.loc('uTw'), time / 1000)
+    gl.uniform1f(dust.loc('uCalm'), gentle ? 1 : 0)
     gl.uniform1f(dust.loc('uPx'), 17.0 * dpr * cfg.px)
     gl.uniform1f(dust.loc('uSpread'), cfg.spread)
     gl.uniform1f(dust.loc('uAlpha'), cfg.dustAlpha * I.dustA)

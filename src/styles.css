@@ -10433,3 +10433,66 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
 /* The opening's SKIP button goes as soon as the page starts to show, so it
    never sits on top of the page's own menu button. */
 .ix.is-leaving .ix-skip { opacity: 0; visibility: hidden; }
+
+/* =========================================================================
+   No gimmicks
+   -------------------------------------------------------------------------
+   Asked for: effects that sparkle or move when you touch a card read as
+   cheap, and with motion sensitivity they make people ill. So, for
+   everyone:
+   - A hover answers with colour, outline and shadow only. Nothing lifts,
+     zooms, tilts, rotates, slides or springs.
+   - No light sweeps across cards or buttons (the white sheen on .card was
+     the sparkle on the industry cards), and no accent lines that grow in.
+   - Nothing loops to get attention: no pulsing play/chat/scroll buttons,
+     no breathing logo, no moving card border, no foil shimmer, no ping on
+     「探す」, and the hero background no longer drifts or turns.
+   Kept: loading spinners and skeletons, the chat "typing" dots, the text
+   cursor, and the star on the logotype's i.
+   ========================================================================= */
+.ba-tab:hover, .profile-brick:hover, .testimonial-arrow:hover, .trust-chip:hover,
+.blog-filter:hover, .hero-chat-nudge:hover, .hero-chat-nudge:hover .hero-chat-nudge-icon,
+.quiz-option:hover, .quiz-option:hover .quiz-option-arrow, .pricing-sim-item:hover,
+.hero-video-card:hover, .hero-video-card:hover .hero-video-card-preview,
+.hero-video-card:hover .hero-video-card-arrow, .hero-video-card:hover .hero-video-card-thumb img,
+.video-modal-close:hover, .service-detail-close:hover, .privacy-close:hover,
+.social-share-btn:hover, .newsletter-submit:hover, .portfolio-filter:hover,
+.portfolio-item:hover, .portfolio-item:hover .portfolio-media > img,
+.btn:hover, .btn-accent:hover, .btn-primary:hover, .btn-white:hover, .btn-ghost-w:hover,
+.btn-accent:hover svg, .btn-primary:hover svg, .btn-white:hover svg, .btn-ghost-w:hover svg,
+.btn.is-pressing, .btn-accent:active, .btn-primary:active,
+.card:hover, .card:hover .card-icon-lg, .card--pain:hover .card-icon-lg,
+.media-zoom:hover > video, .testimonial-card:hover, .flow-step:hover, .flow-step:hover .flow-num,
+.scroll-top-btn:hover, .tag:hover, .chat-widget-btn:hover, .profile-photo:hover,
+.blog-card:hover, .blog-card:hover .blog-card-link::after, .blog-back:hover::before,
+.company-value a:hover::after, .pricing-option:hover, .partner-logo:hover,
+.rcard:hover .rcard-go, .rcard:focus-visible .rcard-go, .search-home-btn:hover,
+.achievement-chip:hover {
+  transform: none !important;
+}
+.hero-video-card:hover .hero-video-card-play { transform: translate(-50%, -50%) !important; }
+/* Things that used to slide in on hover now simply appear. */
+.card-more, .footer-col a::before { transform: none !important; }
+.footer-col a:hover { padding-left: 0 !important; }
+.footer-col a:hover::before { opacity: 0 !important; }
+
+/* Light sweeps and growing accent lines. */
+.card::before, .card--service::after, .btn-accent::before, .btn-primary::before,
+.btn-ghost-w::after, .rcore::after, .btn-ripple, .click-ripple,
+.card::after, .testimonial-card::after, .blog-card::after, .company-row::before {
+  display: none !important;
+}
+
+/* Loops that ask for attention. */
+.ba-arrow svg, .hero-video-card::before, .hero-video-card-play::before, .hero-video-card-dot,
+.net-banner-dot, .nav-live-dot, .hero-bg, .hero::before, .hero-lead-dot, .hero-lead-dot::after,
+.hero-scroll-line, .footer-logo img, .nav-logo-img, .chat-widget-btn::before,
+.company-card-foil, .stat-num, .scroll-top-btn--show, .rcore-ping {
+  animation: none !important;
+}
+.hero-video-card-play::before, .rcore-ping, .company-card-foil { opacity: 0 !important; }
+/* The home bloom still breathes, but in light only — it no longer swells. */
+@keyframes lumen-breathe {
+  0%, 100% { opacity: 0.75; transform: translate(-50%, -50%); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%); }
+}

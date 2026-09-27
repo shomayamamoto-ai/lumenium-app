@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { replyTo } from '../lib/chatbot'
+import { scrollBehavior } from '../lib/motion'
 
 const INITIAL_MESSAGE = {
   type: 'bot',
@@ -25,7 +26,7 @@ export default function ChatWidget() {
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: scrollBehavior() })
   }, [messages])
 
   // Home search box hands off queries via this event: open + answer.

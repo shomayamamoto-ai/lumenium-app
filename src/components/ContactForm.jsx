@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { events, funnel } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
 import { ORG_TYPES, TOPICS } from '../data/site'
+import { scrollBehavior } from '../lib/motion'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LIMITS = { name: 50, email: 100, company: 80, message: 1000 }
@@ -113,7 +114,7 @@ export default function ContactForm() {
       showToast('error', '入力内容をご確認ください')
       const firstErrKey = Object.keys(nextErrors)[0]
       const firstInput = document.getElementById(firstErrKey)
-      if (firstInput && firstInput.scrollIntoView) firstInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (firstInput && firstInput.scrollIntoView) firstInput.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
       return
     }
 

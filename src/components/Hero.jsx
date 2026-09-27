@@ -201,7 +201,10 @@ export default function Hero() {
   return (
     <section className="hero" id="top">
       <div className="hero-bg" />
-      {typeof window !== 'undefined' && window.innerWidth > 768 && (
+      {/* 背景の動画は「視差効果を減らす」設定では流さない（画面いっぱいに
+          動き続ける映像は、酔いの原因になりやすいため）。 */}
+      {typeof window !== 'undefined' && window.innerWidth > 768 &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches && (
         <video
           className="hero-video"
           autoPlay

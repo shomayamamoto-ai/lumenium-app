@@ -5,12 +5,12 @@ import Intro3D from './components/Intro3D'
 import Navbar from './components/Navbar'
 import SearchHome from './components/SearchHome'
 import GlobalParticles from './components/GlobalParticles'
-import LumenCursor from './components/LumenCursor'
 import ErrorBoundary from './components/ErrorBoundary'
 import NetworkStatus from './components/NetworkStatus'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { events } from './lib/analytics'
 import { initWebVitals } from './lib/webVitals'
+import { scrollBehavior } from './lib/motion'
 
 // Lazy-loaded: the whole サービス案内 page ships as its own chunk so the
 // search home stays light; it is prefetched on idle below so navigating
@@ -82,7 +82,7 @@ export default function App() {
         const el = document.getElementById(infoSection)
         if (el) {
           const y = el.getBoundingClientRect().top + window.scrollY - 80
-          window.scrollTo({ top: y, behavior: 'smooth' })
+          window.scrollTo({ top: y, behavior: scrollBehavior() })
         }
       })
     } else {
@@ -114,7 +114,6 @@ export default function App() {
     if (!pageReady) return // Wait until page is ready after splash
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const hasFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
     const animateElements = document.querySelectorAll('[data-animate]')
     const observer = new IntersectionObserver(
@@ -177,44 +176,10 @@ export default function App() {
     })
     lateComers.observe(document.body, { childList: true, subtree: true })
 
-    // --- Button ripple effect ---
-    const btns = document.querySelectorAll('.btn-accent, .btn-primary')
-    const handleBtnClick = (e) => {
-      const btn = e.currentTarget
-      const rect = btn.getBoundingClientRect()
-      const ripple = document.createElement('span')
-      ripple.className = 'btn-ripple'
-      const size = Math.max(rect.width, rect.height)
-      ripple.style.width = ripple.style.height = size + 'px'
-      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px'
-      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px'
-      btn.appendChild(ripple)
-      ripple.addEventListener('animationend', () => ripple.remove())
-    }
-    btns.forEach(b => b.addEventListener('click', handleBtnClick))
-
-    // --- Magnetic buttons (desktop only, respects reduced-motion) ---
-    // Primary CTAs subtly follow the cursor when the pointer is near them.
-    const magneticBtns = hasFinePointer && !prefersReduced
-      ? document.querySelectorAll('.btn-accent, .btn-primary, .btn-white, .btn-ghost-w')
-      : []
-    const onMagneticMove = (e) => {
-      const btn = e.currentTarget
-      const rect = btn.getBoundingClientRect()
-      const x = e.clientX - rect.left - rect.width / 2
-      const y = e.clientY - rect.top - rect.height / 2
-      btn.style.setProperty('--mag-x', `${x * 0.18}px`)
-      btn.style.setProperty('--mag-y', `${y * 0.35}px`)
-    }
-    const onMagneticLeave = (e) => {
-      e.currentTarget.style.setProperty('--mag-x', '0px')
-      e.currentTarget.style.setProperty('--mag-y', '0px')
-    }
-    magneticBtns.forEach(b => {
-      b.classList.add('is-magnetic')
-      b.addEventListener('mousemove', onMagneticMove)
-      b.addEventListener('mouseleave', onMagneticLeave)
-    })
+    /* The button ripple, the magnetic buttons (CTAs drifting toward the
+       pointer) and the custom glowing cursor are gone. Asked for: gimmicks
+       that sparkle or move on their own read as cheap and can make people
+       feel sick. Buttons answer a hover with colour and outline only. */
 
     // --- Pressed state, for fingers ---
     // :active is unreliable for touch: measured with a real touch through the
@@ -265,7 +230,7 @@ export default function App() {
       }
       e.preventDefault()
       const y = target.getBoundingClientRect().top + window.scrollY - 80
-      window.scrollTo({ top: y, behavior: 'smooth' })
+      window.scrollTo({ top: y, behavior: prefersReduced ? 'auto' : 'smooth' })
     }
     // 捕捉フェーズで受ける。子孫が stopPropagation() を呼ぶと、この
     // listener は document に付いている以上まったく動かない — そして
@@ -300,7 +265,8 @@ export default function App() {
     topBtn.setAttribute('aria-label', 'ページ上部へスクロール')
     topBtn.setAttribute('type', 'button')
     topBtn.innerHTML = '↑'
-    topBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Reduce Motion: jump instead of gliding the whole page.
+    topBtn.onclick = () => window.scrollTo({ top: 0, behavior: prefersReduced ? 'auto' : 'smooth' })
     document.body.appendChild(topBtn)
 
     // --- Scroll progress bar ---
@@ -417,14 +383,6 @@ export default function App() {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', recalcOffsets)
       if (scrollRaf) cancelAnimationFrame(scrollRaf)
-      btns.forEach(b => b.removeEventListener('click', handleBtnClick))
-      magneticBtns.forEach(b => {
-        b.classList.remove('is-magnetic')
-        b.removeEventListener('mousemove', onMagneticMove)
-        b.removeEventListener('mouseleave', onMagneticLeave)
-        b.style.removeProperty('--mag-x')
-        b.style.removeProperty('--mag-y')
-      })
       document.removeEventListener('click', onAnchorClick, true)
       document.removeEventListener('click', onCtaDelegatedClick, { capture: true })
       document.removeEventListener('click', onOutboundClick, { capture: true })
@@ -464,7 +422,6 @@ export default function App() {
           )}
         </div>
       )}
-      {phase === 2 && <LumenCursor />}
       {chatReady && (
         <Suspense fallback={null}>
           <ChatWidget />
