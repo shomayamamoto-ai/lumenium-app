@@ -75,6 +75,10 @@ const INFO = [
 ]
 
 const VIEW_KEY = 'lum_dial_view'
+const COMPUTER = '(min-width: 900px) and (hover: hover) and (pointer: fine)'
+const isComputer = () => {
+  try { return typeof window !== 'undefined' && window.matchMedia(COMPUTER).matches } catch (_) { return false }
+}
 const TICK = 9        // length of the mark that steps off the orbit
 const SWEEP_LEAD = 300 // when the beam reaches twelve o'clock, and entry 01 lands
 const STEP = 44       // ms between entries, and so 12 x STEP per revolution
@@ -152,7 +156,23 @@ export default function RadialMenu() {
 
   useFocusTrap(sheetRef, open && lit)
 
+  /* On a computer the star-chart view is gone: the list only, and no button
+     to switch to it (asked for, after the dial kept feeling restless under a
+     mouse). Phones keep both. A computer here is a wide screen with a mouse
+     or trackpad; a tablet or a narrow window still gets the choice. */
+  const [dialOK, setDialOK] = useState(() => !isComputer())
   useEffect(() => {
+    let mq = null
+    try { mq = window.matchMedia(COMPUTER) } catch (_) { return }
+    const on = () => setDialOK(!mq.matches)
+    on()
+    mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on)
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on) }
+  }, [])
+  useEffect(() => { if (!dialOK) setView('list') }, [dialOK])
+
+  useEffect(() => {
+    if (isComputer()) return
     try {
       const saved = localStorage.getItem(VIEW_KEY)
       if (saved === 'dial' || saved === 'list') setView(saved)
@@ -510,9 +530,11 @@ export default function RadialMenu() {
             </div>
           )}
 
-          <button type="button" className="rview" onClick={() => switchView(view === 'list' ? 'dial' : 'list')}>
-            {view === 'list' ? '星図で見る' : '一覧で見る'}
-          </button>
+          {dialOK && (
+            <button type="button" className="rview" onClick={() => switchView(view === 'list' ? 'dial' : 'list')}>
+              {view === 'list' ? '星図で見る' : '一覧で見る'}
+            </button>
+          )}
 
           <div className="rdial-stage" ref={stageRef}>
             {/* The beam makes one revolution, and its leading edge arrives at
