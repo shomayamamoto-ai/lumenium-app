@@ -219,24 +219,9 @@ const MODES = {
   subtle:  { dust: 180, spread: 5.5, dustAlpha: 0.5,  alpha: 0.4,  glow: 0.4,  ring: true, dpr: 1.0,  px: 0.8 },
 }
 
-/** 3Dが使えるか。遅い代替描画（ソフトウェア描画）しか無い端末では
- *  「使えない」と答えます。動かないよりも、動いて重いほうが困るからです。 */
-export function supports3D() {
-  try {
-    if (typeof window === 'undefined' || !window.WebGLRenderingContext) return false
-    const c = document.createElement('canvas')
-    // 検証用のブラウザはソフトウェア描画しか持たないので、テストのときだけ
-    // この判定を外せるようにしてあります（本番では誰も立てません）。
-    const gl = c.getContext('webgl', { failIfMajorPerformanceCaveat: !window.__LUMEN3D_TEST })
-    return !!gl
-  } catch (_) {
-    return false
-  }
-}
-
-export function reducedMotion() {
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch (_) { return false }
-}
+// 使えるかの判定は別ファイル（画面を作る時点ですぐ判定できるように）。
+import { supports3D, reducedMotion } from './lumen3d-support.js'
+export { supports3D, reducedMotion }
 
 /**
  * 描き始める。使えないときは null。

@@ -5,6 +5,7 @@ import VideoModal from './VideoModal'
 import HeroNews from './HeroNews'
 import RadialMenu from './RadialMenu'
 import Lumen3D from './Lumen3D'
+import { supports3D } from '../lib/lumen3d-support'
 import { events } from '../lib/analytics'
 
 // Home: the brand lockup over a radial skill tree.
@@ -269,10 +270,15 @@ function StarCanvas() {
 export default function SearchHome() {
   const [q, setQ] = useState('')
   const [videoOpen, setVideoOpen] = useState(false)
-  // ロゴ画像の場所に3Dの結晶が描けたら、平面のロゴを消します。
-  // 描けない端末ではこれが立たず、いままでのロゴがそのまま残ります。
+  /* ロゴの場所には、3Dの結晶か平面のロゴのどちらか一方だけを出します。
+     以前は平面のロゴを先に出し、3Dが描けたら消していました。3Dの準備に
+     少しかかるため、オープニングの動画の直後に止まった平面のロゴが一瞬
+     見えて、そこから3Dに入れ替わっていました。
+     いまは、3Dが使える端末では最初から平面のロゴを出しません（結晶が
+     その場にふわっと現れます）。3Dを始められなかったときだけ、平面の
+     ロゴに戻します。 */
   const markRef = useRef(null)
-  const [mark3d, setMark3d] = useState(false)
+  const [mark3d, setMark3d] = useState(() => supports3D())
 
   // `/?q=...` deep link. The box it used to mirror is gone, but the entry
   // point is still worth keeping for campaign links — it routes to the same
@@ -320,7 +326,7 @@ export default function SearchHome() {
   return (
     <main className="search-home" id="top">
       <StarCanvas />
-      <Lumen3D mode="hero" focusRef={markRef} focusScale={0.42} fadeBelow className="search-home-3d" onReady={() => setMark3d(true)} />
+      <Lumen3D mode="hero" focusRef={markRef} focusScale={0.42} fadeBelow eager className="search-home-3d" onFail={() => setMark3d(false)} />
       <div className="search-home-inner">
         <div className="search-home-brand">
           <p className="search-home-eyebrow">{SECTION.home.eyebrow}</p>

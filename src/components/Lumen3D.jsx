@@ -12,12 +12,17 @@ import { useEffect, useRef } from 'react'
 // 端末では onReady は呼ばれず、平面のロゴがそのまま残ります。
 // place を渡すと、要素ではなく画面の大きさから位置を決めます
 // （例: 右の端に寄せる）。(幅, 高さ) => ({ x, y, r })
-export default function Lumen3D({ mode = 'subtle', focusRef, focusScale = 0.5, place, className, onReady, scrollDriven = false, fadeBelow = false }) {
+// eager … 画面が落ち着くのを待たずに始める（トップのように、結晶が
+//          主役で、代わりの絵を出さずに待つ場所で使います）。
+// onFail … 3Dを始められなかったとき（呼んだ側が平面のロゴに戻すため）。
+export default function Lumen3D({ mode = 'subtle', focusRef, focusScale = 0.5, place, className, onReady, onFail, scrollDriven = false, fadeBelow = false, eager = false }) {
   const ref = useRef(null)
   // 親が描き直すたびに新しい関数が渡ってきても、3Dを作り直さないように
   // 参照で持ちます（作り直すと、そのたびに一瞬消えて最初から回り直します）。
   const readyRef = useRef(onReady)
   readyRef.current = onReady
+  const failRef = useRef(onFail)
+  failRef.current = onFail
 
   useEffect(() => {
     const canvas = ref.current
@@ -43,9 +48,11 @@ export default function Lumen3D({ mode = 'subtle', focusRef, focusScale = 0.5, p
       api.setScroll(window.scrollY / max)
     }
 
+    const fail = () => { if (!cancelled && failRef.current) failRef.current() }
     const start = async () => {
       if (cancelled) return
-      const m = await import('../lib/lumen3d.js')
+      let m
+      try { m = await import('../lib/lumen3d.js') } catch (_) { fail(); return }
       if (cancelled) return
       api = m.mountLumen3D(canvas, {
         mode,
@@ -56,14 +63,15 @@ export default function Lumen3D({ mode = 'subtle', focusRef, focusScale = 0.5, p
           readyRef.current && readyRef.current()
         },
       })
-      if (api && scrollDriven) {
+      if (!api) { fail(); return }
+      if (scrollDriven) {
         window.addEventListener('scroll', onScroll, { passive: true })
         onScroll()
       }
     }
 
     const ric = window.requestIdleCallback || ((f) => setTimeout(f, 300))
-    const id = ric(start, { timeout: 2500 })
+    const id = eager ? (start(), null) : ric(start, { timeout: 2500 })
 
     return () => {
       cancelled = true
@@ -71,7 +79,7 @@ export default function Lumen3D({ mode = 'subtle', focusRef, focusScale = 0.5, p
       window.removeEventListener('scroll', onScroll)
       if (api) api.destroy()
     }
-  }, [mode, focusRef, focusScale, place, scrollDriven, fadeBelow])
+  }, [mode, focusRef, focusScale, place, scrollDriven, fadeBelow, eager])
 
   return <canvas ref={ref} className={'lumen3d ' + (className || '')} aria-hidden="true" />
 }

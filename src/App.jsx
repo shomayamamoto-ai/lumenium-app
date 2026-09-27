@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
+import { supports3D } from './lib/lumen3d-support'
 import Splash from './components/Splash'
 import Navbar from './components/Navbar'
 import SearchHome from './components/SearchHome'
@@ -25,6 +26,13 @@ export default function App() {
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
+
+  /* オープニングの動画を流しているあいだに、3Dの描画本体を読み込んで
+     おきます。動画が終わってから読み込むと、その待ち時間のあいだトップの
+     ロゴの場所が空いてしまいます。3Dが使えない端末では読み込みません。 */
+  useEffect(() => {
+    if (supports3D()) import('./lib/lumen3d.js').catch(() => {})
+  }, [])
 
   // Hash routing: '' / '#' → Google-style search home, '#/info(/<section>)'
   // → the full content page all former top-page sections moved to.
