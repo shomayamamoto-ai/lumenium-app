@@ -5,6 +5,7 @@ import VideoModal from './VideoModal'
 import HeroNews from './HeroNews'
 import RadialMenu from './RadialMenu'
 import Lumen3D from './Lumen3D'
+import Wordmark from './Wordmark'
 import { supports3D } from '../lib/lumen3d-support'
 import { events } from '../lib/analytics'
 
@@ -306,7 +307,7 @@ export default function SearchHome() {
           <p className="search-home-eyebrow">{SECTION.home.eyebrow}</p>
           <div className={'search-home-lockup' + (mark3d ? ' is-3d' : '')}>
             <img ref={markRef} src="/favicon.svg" alt="" width="280" height="280" className="search-home-mark" />
-            <h1 className="search-home-logo">Lumenium</h1>
+            <Wordmark as="h1" className="search-home-logo" />
           </div>
           <p className="search-home-yomi">{SECTION.home.yomi}</p>
           {/* The tagline resolves from blurred to sharp once on load — the

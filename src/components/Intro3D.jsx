@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { mountLumen3D, reducedMotion } from '../lib/lumen3d.js'
 import { mountIntroScene, SCENE, LOCK_D } from '../lib/intro-scene.js'
 import { SECTION } from '../data/text'
+import Wordmark from './Wordmark'
 
 /**
  * オープニング「焦点」。
@@ -57,7 +58,6 @@ const easeOut = (x) => 1 - Math.pow(1 - x, 3)
 const lerp = (a, b, k) => a + (b - a) * k
 const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t) }
 const SHADOW = 'drop-shadow(0 2px 10px rgba(4, 7, 20, 0.9)) drop-shadow(0 0 26px rgba(4, 7, 20, 0.65))'
-const NAME = 'Lumenium'
 const CAPTION = '散文化した目的に、'
 
 /* フィルムの粒子。小さな雑音の絵を1枚作って、敷き詰めて揺らします。 */
@@ -160,14 +160,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       if (u) grainRef.current.style.backgroundImage = `url(${u})`
     }
 
-    // 1字ずつに、単語全体の色の流れ（グラデーション）の該当部分を割り当てる
+    // 1字ずつ焦点を結ばせる
     nameEl.classList.add('is-split')
     nameEl.style.opacity = '1' // 見え方は1字ずつ（.ix-ch）で決める
-    const wW = nameEl.offsetWidth
-    letters.forEach((el) => {
-      el.style.backgroundSize = `${wW}px 100%`
-      el.style.backgroundPosition = `${-el.offsetLeft}px 0`
-    })
 
     // トップの画面にかけた「ピントぼけ」を外す
     const clearMain = () => {
@@ -384,9 +379,7 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       <p className="ix-caption" ref={capRef} aria-hidden="true">
         {[...CAPTION].map((c, i) => <span key={i}>{c}</span>)}
       </p>
-      <span className="ix-name" ref={nameRef} aria-hidden="true">
-        {[...NAME].map((c, i) => <span key={i} className="ix-ch">{c}</span>)}
-      </span>
+      <Wordmark className="ix-name" ref={nameRef} split chClass="ix-ch" aria-hidden="true" />
       <p className="ix-tag" ref={tagRef} aria-hidden="true">{SECTION.home.tagline}</p>
       <button
         type="button"

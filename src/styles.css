@@ -10,6 +10,9 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
+  /* The wordmark's size, shared by the home lockup and the opening so the
+     one can land exactly on the other. */
+  --wm-size: clamp(64px, 13.5vw, 118px);
   /* Editorial serif — the brand narrative and the founder's words only. */
   --font-serif: 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho',
     'Noto Serif JP', serif;
@@ -8413,18 +8416,12 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-logo {
   position: relative;
   z-index: 1;
-  font-size: clamp(52px, 11vw, 92px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  background: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  /* Separates the glyphs from the mark behind them. drop-shadow follows the
-     clipped text shape, which text-shadow cannot do here. */
-  filter: drop-shadow(0 2px 10px rgba(4, 7, 20, 0.9))
-          drop-shadow(0 0 26px rgba(4, 7, 20, 0.65));
+  font-size: var(--wm-size);
+  /* Separates the glyphs from the mark behind them (drop-shadow follows the
+     clipped text shape, which text-shadow cannot do here), plus a faint
+     cool bloom so the letters read as lit rather than printed. */
+  filter: drop-shadow(0 2px 10px rgba(4, 7, 20, 0.85))
+          drop-shadow(0 0 28px rgba(99, 102, 241, 0.28));
 }
 .search-home-yomi,
 .search-home-tag { position: relative; z-index: 1; }
@@ -10166,35 +10163,22 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   color: rgba(214, 223, 245, 0.92);
 }
 .ix-caption span { display: inline-block; }
-/* Same type as .search-home-logo, so it can land on it exactly. */
+/* Same wordmark and size as the home lockup, so it can land on it exactly. */
 .ix-name {
   position: absolute;
   left: 0;
   top: 0;
   opacity: 0;
   white-space: nowrap;
-  font-size: clamp(52px, 11vw, 92px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  background: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: var(--wm-size);
   will-change: transform, opacity;
 }
-/* While the letters resolve one by one, each carries its own slice of the
-   word's gradient (sized and offset from JS), so the colour runs across
-   the word exactly as it does on the page. */
-.ix-name.is-split { background: none; }
+/* While the letters resolve one by one each is its own box, so it can blur
+   and scale on its own. The fill is a vertical gradient, so it is the same
+   on every letter and the word reads as one piece throughout. */
 .ix-name.is-split .ix-ch {
   display: inline-block;
   opacity: 0;
-  background-image: linear-gradient(135deg, #a5b4fc 0%, #93c5fd 45%, #67e8f9 100%);
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 .ix-tag {
   position: absolute;
@@ -10213,4 +10197,53 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
 .ix-skip { z-index: 2; font-family: 'Schibsted Grotesk', monospace; }
 @media (prefers-reduced-motion: reduce) {
   .ix-grain { animation: none; }
+}
+
+/* ============================================================
+   Wordmark — "Lumenium" (src/components/Wordmark.jsx)
+   A fine serif lit from above, with the logo's star as the dot of the i.
+   ============================================================ */
+.wm {
+  display: inline-block;
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+}
+/* Light on metal: white where it faces up, cooling to lavender at the foot.
+   Vertical only, so splitting the word into letters never breaks it. */
+.wm-t {
+  background: linear-gradient(180deg, #ffffff 30%, #e6e9ff 60%, #aeb9f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.wm-iw { position: relative; }
+/* Everything above the stem is cut away; the star takes the dot's place. */
+.wm-i { clip-path: inset(34% 0 0 0); }
+.wm-iw::after {
+  content: '';
+  position: absolute;
+  left: 47%;
+  top: 25%;
+  width: 0.24em;
+  height: 0.24em;
+  transform: translate(-50%, -50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 2 2'%3E%3Cpath fill='white' d='M0.000 -1.000L0.077 -0.185L0.396 -0.396L0.185 -0.077L1.000 0.000L0.185 0.077L0.396 0.396L0.077 0.185L0.000 1.000L-0.077 0.185L-0.396 0.396L-0.185 0.077L-1.000 0.000L-0.185 -0.077L-0.396 -0.396L-0.077 -0.185Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 0 0.03em #fff) drop-shadow(0 0 0.1em rgba(125, 211, 252, 0.95))
+          drop-shadow(0 0 0.22em rgba(129, 140, 248, 0.7));
+  animation: wmGlint 7s ease-in-out 2.5s infinite;
+  pointer-events: none;
+}
+/* Once in a while the star catches the light: a brief swell, then still. */
+@keyframes wmGlint {
+  0%, 86%, 100% { transform: translate(-50%, -50%) scale(1); }
+  91%           { transform: translate(-50%, -50%) scale(1.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wm-iw::after { animation: none; }
 }
