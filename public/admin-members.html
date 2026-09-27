@@ -109,6 +109,7 @@
     pointer-events: none; opacity: 0; transition: opacity 1.2s ease;
   }
   .portal-3d.is-on { opacity: 1; }
+  .portal-3d-state { flex-basis: 100%; font-size: 11px; color: var(--sub); }
   .portal-rings circle, .portal-rings line { stroke: var(--border); fill: none; }
   .portal-rings circle { opacity: 0.5; }
   .portal-rings line { opacity: 0.32; }
@@ -599,6 +600,11 @@
         <button type="button" id="portal-keys">🔑 APIキーを入力</button>
         <span id="portal-hub-sub">読み込み中…</span>
         <span id="portal-note"></span>
+        <!-- 背景の3Dがいまどうなっているか。動いていないとき、その理由
+             （端末の設定なのか、重くて止めたのか）がここで分かります。
+             ここ（上の並び）に置くのは、下の .portal-body が「円｜タイマー」の
+             2列の並びで、そこに1行足すと並びが崩れるためです。 -->
+        <span class="portal-3d-state" id="portal-3d-state" aria-live="polite"></span>
       </div>
       <div class="portal-body">
         <div class="portal-stage" id="portal-stage">
@@ -5588,9 +5594,23 @@ window.lumAdmin = {
     if (!h.width) return null;
     return { x: h.left + h.width / 2 - a.left, y: h.top + h.height / 2 - a.top, r: (h.width / 2) * 1.42 };
   };
+  const note = document.getElementById('portal-3d-state');
+  const say = (t) => { if (note) note.textContent = t; };
+  const TEXT = {
+    running: (f) => '背景の3D: 動作中' + (f ? '（約' + f + 'コマ/秒）' : ''),
+    gentle: () => '背景の3D: この端末は「視差効果を減らす」設定がオンのため、ゆっくり動かしています（システム設定 › アクセシビリティ › ディスプレイ）',
+    heavy: () => '背景の3D: この端末では描画が重く、画面の操作を優先して動きを止めました',
+    lost: () => '背景の3D: 表示が途切れたため止めました（ページを読み込み直すと戻ります）',
+  };
   const go = () => import('/lumen3d.js')
-    .then((m) => m.mountLumen3D(c, { mode: 'ambient', focus, onFirstFrame: () => c.classList.add('is-on') }))
-    .catch(() => {});
+    .then((m) => {
+      const api = m.mountLumen3D(c, { mode: 'ambient', focus, onFirstFrame: () => c.classList.add('is-on') });
+      if (!api) { say('背景の3D: この端末（またはブラウザ）では3Dを使えないため、表示していません'); return; }
+      const tick = () => { const s = api.status(); say((TEXT[s.state] || TEXT.running)(s.fps)); };
+      setTimeout(tick, 1500);
+      setInterval(tick, 4000);
+    })
+    .catch(() => say('背景の3D: 読み込めませんでした'));
   (window.requestIdleCallback || ((f) => setTimeout(f, 500)))(go, { timeout: 3000 });
 })();
 </script>

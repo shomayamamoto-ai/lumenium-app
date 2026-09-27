@@ -305,14 +305,24 @@ export function mountLumen3D(canvas, opts = {}) {
   const seedB = buffer(seeds), speedB = buffer(speeds)
   const quadB = buffer(new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]))
 
-  const still = reducedMotion()
+  /* 「動きを減らす」設定の端末。以前はここで1枚だけ描いて止めていましたが、
+     Mac の「視差効果を減らす」をオンにしている人には、3D がまったく動かない
+     ように見えました。画面が大きく揺れる演出（指に合わせた傾き・スクロール
+     での回転）は出さず、結晶をゆっくり回すだけにします。 */
+  const gentle = reducedMotion()
+  const SPEED = gentle ? 0.3 : 1
   let dpr = Math.min(window.devicePixelRatio || 1, cfg.dpr)
   let drawN = N
   let W = 0, H = 0
+  /* 描く面積の上限。大きな画面（Retina の全画面など）で解像度をそのまま
+     掛けると、1コマごとに数百万ピクセルを塗ることになり、端末によっては
+     ページ全体の操作が重くなります。飾りのために操作を犠牲にはしません。 */
+  const MAX_PIXELS = 2.4e6
   const resize = () => {
     const r = canvas.getBoundingClientRect()
     W = Math.max(1, r.width); H = Math.max(1, r.height)
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr)
+    const d = Math.min(dpr, Math.sqrt(MAX_PIXELS / (W * H)))
+    canvas.width = Math.round(W * d); canvas.height = Math.round(H * d)
   }
   resize()
 
@@ -325,12 +335,12 @@ export function mountLumen3D(canvas, opts = {}) {
     pointer.tx = (p.clientX / window.innerWidth) * 2 - 1
     pointer.ty = (p.clientY / window.innerHeight) * 2 - 1
   }
-  if (!still) window.addEventListener('pointermove', onMove, { passive: true })
+  if (!gentle) window.addEventListener('pointermove', onMove, { passive: true })
   let scroll = 0
 
   const FOV = 0.6, CAM = 6.0
   const draw = (time) => {
-    const t = still ? 7.5 : time / 1000
+    const t = 7.5 + (time / 1000) * SPEED
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -345,8 +355,8 @@ export function mountLumen3D(canvas, opts = {}) {
 
     pointer.x += (pointer.tx - pointer.x) * 0.04
     pointer.y += (pointer.ty - pointer.y) * 0.04
-    const ry = t * 0.32 + pointer.x * 0.5 + scroll * 2.4
-    const rx = Math.sin(t * 0.21) * 0.18 + pointer.y * 0.3 + scroll * 0.4
+    const ry = t * 0.32 + pointer.x * 0.7 + scroll * 2.4
+    const rx = Math.sin(t * 0.21) * 0.18 + pointer.y * 0.4 + scroll * 0.4
     const rot = mul(rotY(ry), rotX(rx))
     const model = mul(trs(cx, cy, -CAM, sc), rot)
 
@@ -444,26 +454,37 @@ export function mountLumen3D(canvas, opts = {}) {
 
   /* 動かすのは、見えていて、タブが表にあるときだけ。 */
   let raf = 0, visible = true, alive = true, first = true
-  let slow = 0, last = 0
+  let slow = 0, last = 0, heavy = 0, stoppedForLoad = false, fps = 0
   const frame = (time) => {
     raf = 0
     if (!alive) return
-    // 重い端末では、自分で画質と粒の数を落とします。
     if (last) {
       const dt = time - last
+      fps = fps ? fps * 0.9 + (1000 / Math.max(1, dt)) * 0.1 : 1000 / Math.max(1, dt)
+      // 少し重い: 画質と粒の数を落とす
       slow = dt > 34 ? slow + 1 : Math.max(0, slow - 1)
       if (slow > 90) {
         slow = 0
         if (dpr > 1) { dpr = 1; resize() } else if (drawN > 120) drawN = Math.round(drawN * 0.6)
       }
+      /* かなり重い（1コマに0.1秒以上かかるのが続く）: まず一気に落とし、
+         それでも重ければ止めます。3Dのせいでボタンやスクロールが効かなく
+         なるのが、いちばん避けたいことです。止めても最後の1枚は残ります。 */
+      if (dt > 100) {
+        heavy++
+        if (heavy === 6) { dpr = 1; drawN = Math.max(60, Math.round(drawN * 0.4)); resize() }
+        if (heavy >= 14) { stoppedForLoad = true; last = 0; return }
+      } else if (heavy > 0 && dt < 40) {
+        heavy = Math.max(0, heavy - 0.25)
+      }
     }
     last = time
     draw(time)
     if (first) { first = false; opts.onFirstFrame && opts.onFirstFrame() }
-    if (!still) loop()
+    loop()
   }
   const loop = () => {
-    if (raf || !alive || !visible || document.visibilityState === 'hidden') return
+    if (raf || !alive || stoppedForLoad || !visible || document.visibilityState === 'hidden') return
     raf = requestAnimationFrame(frame)
   }
   const stop = () => { if (raf) cancelAnimationFrame(raf); raf = 0; last = 0 }
@@ -478,7 +499,7 @@ export function mountLumen3D(canvas, opts = {}) {
     })
     io.observe(canvas)
   }
-  const onResize = () => { resize(); if (still) draw(0) }
+  const onResize = () => { resize(); if (!raf && !first) draw(performance.now()) }
   window.addEventListener('resize', onResize)
   /* 置かれた場所の大きさが変わったときも測り直します。画面の幅が同じでも、
      隠れていた場所が表示された（管理画面のログイン直後など）ときや、
@@ -497,12 +518,20 @@ export function mountLumen3D(canvas, opts = {}) {
   const onLost = (e) => { e.preventDefault(); alive = false; stop(); canvas.style.display = 'none' }
   canvas.addEventListener('webglcontextlost', onLost)
 
-  if (still) { draw(0); first = false; opts.onFirstFrame && opts.onFirstFrame() } else loop()
+  loop()
 
   return {
     /** 0〜1。スクロールの進み具合を渡すと、結晶と粒の角度に反映します。 */
-    setScroll(p) { scroll = Math.max(0, Math.min(1, p || 0)); if (still) draw(0) },
+    setScroll(p) { if (!gentle) scroll = Math.max(0, Math.min(1, p || 0)) },
     resize: onResize,
+    /** いまの状態。管理画面で「なぜ動かないか」を出すために使います。 */
+    status() {
+      return {
+        state: !alive ? 'lost' : stoppedForLoad ? 'heavy' : gentle ? 'gentle' : 'running',
+        fps: Math.round(fps),
+        running: !!raf,
+      }
+    },
     destroy() {
       alive = false
       stop()
