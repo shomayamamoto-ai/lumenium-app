@@ -464,10 +464,10 @@ export function mountLumen3D(canvas, opts = {}) {
     if (opts.intro && opts.introCalm) {
       /* 「視差効果を減らす」: 形は動かさず、光だけで見せる。回転の勢い・
          大きくなりながら現れる動き・外へ広がる光の輪はなし。閃光は
-         半分ほどの明るさで、ゆっくり灯ってゆっくり引く（急な明滅も
+         3分の1ほどの明るさで、ゆっくり灯ってゆっくり引く（急な明滅も
          つらい人がいるため）。 */
       const Tc = T - (opts.introDelay || 0)
-      const fl = Tc < 1.9 ? 0 : Tc < 2.4 ? Math.pow((Tc - 1.9) / 0.5, 2) * 0.55 : 0.55 * Math.exp(-(Tc - 2.4) * 1.6)
+      const fl = Tc < 1.9 ? 0 : Tc < 2.5 ? Math.pow((Tc - 1.9) / 0.6, 2) * 0.35 : 0.35 * Math.exp(-(Tc - 2.5) * 1.4)
       I = { ...I, spin: 0, crystalS: 1, ringS: 1, wave: 1, flash: fl, crystalA: easeOut(clamp01((Tc - 2.0) / 1.1)) }
     }
     gl.viewport(0, 0, canvas.width, canvas.height)

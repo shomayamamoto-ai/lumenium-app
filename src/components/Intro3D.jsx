@@ -241,8 +241,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         const sc = (0.42 * cam.fpx) / d / 40
         const sharp = 1 - smooth(1.5, 16, coc)
         el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${sc})`
-        el.style.filter = `blur(${Math.min(26, coc * 0.26 / Math.max(0.3, sc)).toFixed(1)}px)`
-        el.style.opacity = (fin * (0.2 + 0.72 * sharp) * (1 - k)).toFixed(3)
+        // calm: ぼけは使わず、その場で淡く現れて淡く消えるだけ
+        el.style.filter = calm ? '' : `blur(${Math.min(26, coc * 0.26 / Math.max(0.3, sc)).toFixed(1)}px)`
+        el.style.opacity = (fin * (calm ? 0.55 : 0.2 + 0.72 * sharp) * (1 - k)).toFixed(3)
       })
       // 「散文化した目的に、」: ばらけて浮かび、ピントが合うと揃って、消える
       const cin = easeOut(clamp01((tl - S.caption[0]) / S.caption[1]))
@@ -255,7 +256,7 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         const drift = calm ? 0 : Math.sin(tl * 0.9 + i) * 4
         const sx = calm ? 0 : s.x, sy = calm ? 0 : s.y
         el.style.transform = `translate(${(sx * (1 - al)).toFixed(1)}px, ${((sy + drift) * (1 - al)).toFixed(1)}px)`
-        el.style.filter = al >= 1 ? '' : `blur(${(s.b * (1 - al)).toFixed(1)}px)`
+        el.style.filter = al >= 1 || calm ? '' : `blur(${(s.b * (1 - al)).toFixed(1)}px)`
         el.style.opacity = (0.45 + 0.55 * al).toFixed(3)
       })
     }
@@ -269,10 +270,11 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         if (p < 1) all = false
         const q = 1 - p
         el.style.opacity = p.toFixed(3)
-        el.style.filter = q > 0.001 ? `blur(${(q * 16).toFixed(1)}px)` : ''
+        // calm: ぼけも色ずれも拡大もなし。1字ずつ静かに灯るだけ
+        el.style.filter = q > 0.001 && !calm ? `blur(${(q * 16).toFixed(1)}px)` : ''
         el.style.transform = q > 0.001 && !calm ? `scale(${(1 + 0.4 * q).toFixed(3)})` : ''
-        const ab = (calm ? 3 : 10) * q // 色ずれの幅（calm では控えめ）
-        el.style.textShadow = q > 0.001
+        const ab = 10 * q // 色ずれの幅
+        el.style.textShadow = q > 0.001 && !calm
           ? `${(-ab).toFixed(1)}px 0 rgba(255, 70, 150, ${(0.75 * q).toFixed(2)}), ${ab.toFixed(1)}px 0 rgba(60, 220, 255, ${(0.75 * q).toFixed(2)})`
           : ''
       })
@@ -294,9 +296,10 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       drawName(tl)
       nameEl.style.filter = SHADOW
       const g = ease(clamp01((tl - S.tag[0]) / S.tag[1]))
-      const tagOut = handed ? 1 - clamp01((now - onAt) / 350) : 1
+      // calm ではトップの同じ文にぴったり重なっているので、名前と一緒に消す
+      const tagOut = handed && !calm ? 1 - clamp01((now - onAt) / 350) : 1
       tagEl.style.opacity = g * tagOut
-      tagEl.style.filter = g >= 1 ? '' : `blur(${(1 - g) * 10}px)`
+      tagEl.style.filter = g >= 1 || calm ? '' : `blur(${(1 - g) * 10}px)`
       tagEl.style.letterSpacing = calm ? '' : `${lerp(0.4, 0.1, easeOut(g))}em`
 
       // calm: トップを最初から後ろに描かせ、その位置に合わせる
@@ -313,8 +316,13 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
         const t = calm ? measure() : null
         if (t) {
           place(t.x, t.y, t.r, t.nx, t.ny)
-          tagEl.style.top = `${t.ny + t.nh / 2 + 16}px`
-          capEl.style.top = `${t.ny + t.nh / 2 + 86}px`
+          // キャッチコピーも、トップの同じ文の真上に置く（幕が開くとき
+          // 2行が少しずれて重なって見えないように）
+          const ht = document.querySelector('.search-home-tag')
+          const hr = ht && ht.getBoundingClientRect()
+          tagEl.style.top = hr && hr.height ? `${hr.top}px` : `${t.ny + t.nh / 2 + 16}px`
+          if (hr && hr.width) tagEl.style.left = `${hr.left + hr.width / 2}px`
+          capEl.style.top = `${window.innerHeight * 0.84}px`
         } else {
           place(home.x, home.y, home.r, home.x, home.ny)
           tagEl.style.top = `${home.tagY}px`
@@ -345,32 +353,25 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       place(lerp(moveFrom.x, live.x, k), lerp(moveFrom.y, live.y, k), lerp(moveFrom.r, live.r, k),
         lerp(moveFrom.x, live.nx, k), lerp(moveFrom.ny, live.ny, k))
 
-      if (!revealAt && now - moveAt > moveDur * 0.35) {
+      /* 幕を開けるのは、結晶と名前がトップのロゴにぴったり重なってから。
+         以前は移る途中から開け、しかも後ろのトップをぼかしてからピントを
+         合わせていたため、くっきりした名前の周りに、ぼけたトップの名前が
+         にじんで見えていました。今は重なりきってから、幕の不透明度だけを
+         下げます（トップ側は最初からくっきり）。 */
+      if (!revealAt && k >= 1) {
         revealAt = now
         root.classList.add('is-leaving')
-        const m = main()
-        if (m) {
-          // ロゴの中心を軸に寄せる。ロゴ自体の位置はずれません
-          const r = m.getBoundingClientRect()
-          m.style.transformOrigin = `${live.x - r.left}px ${live.y - r.top}px`
-        }
       }
       if (!revealAt) return
       const rv = clamp01((now - revealAt) / ((skipped ? 0.7 : S.reveal) * 1000))
       const e = easeOut(rv)
       bg.style.opacity = (1 - e).toFixed(3)
-      const m = main()
-      if (m) {
-        if (rv < 1) {
-          m.style.filter = `blur(${(14 * (1 - e)).toFixed(2)}px)`
-          m.style.transform = calm ? '' : `scale(${(1 + 0.04 * (1 - e)).toFixed(4)})`
-        } else clearMain()
-      }
       const homeOn = document.querySelector('.search-home-3d.is-on')
       const ready = (homeOn || now - onAt > 3000) && rv >= 1 && k >= 1
       const o = ready ? clamp01((now - Math.max(revealAt + (skipped ? 700 : S.reveal * 1000), onAt + (skipped ? 1000 : 1300))) / (S.out * 1000)) : 0
       canvas.style.opacity = 1 - o
       nameEl.style.opacity = 1 - o
+      if (calm) tagEl.style.opacity = 1 - o
       if (o >= 1) finish()
     }
     raf = requestAnimationFrame(step)

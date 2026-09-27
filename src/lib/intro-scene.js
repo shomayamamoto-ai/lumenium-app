@@ -99,6 +99,9 @@ void main() {
      * (1.0 - mix(smoothstep(0.82, 1.0, k), smoothstep(0.05, 1.0, k), uCalm));
   // 明るさにむらを付ける（明るい粒は少なく、淡い粒が多い）
   a *= 0.25 + 1.1 * pow(aS.w, 2.2);
+  // 動きを控える設定: ぼけの大きさは変えず（くっきりした星のまま）、
+  // その場でゆっくり瞬くだけにする
+  a *= mix(1.0, 0.55 + 0.45 * sin(uT * 1.3 + aS.y * 6.2832), uCalm);
   vA = a;
   vCol = pal(aP.w);
 }`
@@ -243,7 +246,7 @@ export function mountIntroScene(canvas, { calm = false } = {}) {
       const F = focusAt(tl)
       return {
         fpx, F, dolly: dolly(tl),
-        coc: (d) => LENS * Math.abs(1 / F - 1 / d) * H,
+        coc: (d) => (calm ? 0 : LENS) * Math.abs(1 / F - 1 / d) * H,
         at: (x, y, d) => ({ x: focus.x + (x * fpx) / d, y: focus.y - (y * fpx) / d }),
       }
     },
@@ -263,7 +266,9 @@ export function mountIntroScene(canvas, { calm = false } = {}) {
       gl.uniform2f(bokeh.loc('uC'), cx, cy)
       gl.uniform1f(bokeh.loc('uFpx'), (canvas.height / 2) / tanH)
       gl.uniform1f(bokeh.loc('uF'), focusAt(tl))
-      gl.uniform1f(bokeh.loc('uK'), LENS)
+      // calm: レンズのぼけをなくす。画面いっぱいの光の粒が大きくなったり
+      // 小さくなったりするのも、見る人には「動き」として届くため
+      gl.uniform1f(bokeh.loc('uK'), calm ? 0 : LENS)
       gl.uniform1f(bokeh.loc('uT'), tl)
       gl.uniform1f(bokeh.loc('uDolly'), dolly(tl))
       gl.uniform1f(bokeh.loc('uCalm'), calm ? 1 : 0)

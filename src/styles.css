@@ -10430,3 +10430,6 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   -webkit-text-fill-color: currentColor !important;
   color: var(--lav);
 }
+/* The opening's SKIP button goes as soon as the page starts to show, so it
+   never sits on top of the page's own menu button. */
+.ix.is-leaving .ix-skip { opacity: 0; visibility: hidden; }
