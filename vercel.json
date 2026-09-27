@@ -243,6 +243,15 @@
           "value": "public, max-age=604800"
         }
       ]
+    },
+    {
+      "source": "/build.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=0, must-revalidate, no-store"
+        }
+      ]
     }
   ]
 }

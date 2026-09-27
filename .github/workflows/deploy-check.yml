@@ -113,22 +113,25 @@ jobs:
             echo '配信元: 判別できませんでした（上のヘッダを見てください）'
           fi
 
-      - name: このコミットが公開されるまで待つ（最大4分）
+      - name: このコミットが公開されるまで待つ（最大5分）
         env:
-          WANT: ${{ needs.build.outputs.css }}
+          WANT: ${{ github.sha }}
+          BUILT: ${{ needs.build.outputs.css }}
         run: |
           set -u
-          echo "このコミットの CSS: ${WANT:-（ビルドできず不明）}"
-          if [ -z "${WANT:-}" ]; then
+          echo "確かめるコミット: ${WANT}"
+          if [ -z "${BUILT:-}" ]; then
             echo ' 結果: このコミットはビルドが通らないため、公開されません。上の build を見てください。'
             exit 0
           fi
+          # 公開中のサイトが「どのコミットから作ったか」を build.json で直接見ます。
+          # CSS のファイル名で見る方式は、CSS に触れない変更だと前と同じ名前の
+          # ままで、公開が終わる前に「届いた」と答えてしまいました。
           FOUND=no
-          for i in $(seq 1 12); do
-            curl -sS --max-time 20 -o index.html "https://lumenium.net/?cachebust=$(date +%s)" || true
-            CSS=$(grep -o '/assets/index-[A-Za-z0-9._-]*\.css' index.html | head -1)
-            [ "$CSS" = "$WANT" ] && FOUND=yes
-            echo "[$i/12] 公開中の CSS=${CSS:-見つからず}  一致=${FOUND}"
+          for i in $(seq 1 15); do
+            GOT=$(curl -sS --max-time 20 "https://lumenium.net/build.json?cb=$(date +%s)" | grep -o '"commit":"[0-9a-f]*"' | grep -o '[0-9a-f]\{7,\}' || true)
+            [ "$GOT" = "$WANT" ] && FOUND=yes
+            echo "[$i/15] 公開中のコミット=${GOT:-まだ不明}  一致=${FOUND}"
             [ "$FOUND" = yes ] && break
             sleep 20
           done
@@ -136,6 +139,7 @@ jobs:
           if [ "$FOUND" = yes ]; then
             echo ' 結果: このコミットが公開されています。'
           else
-            echo ' 結果: 4分待っても、このコミットは公開されていません。'
+            echo ' 結果: 5分待っても、このコミットは公開されていません。'
             echo ' Vercel の Deployments で、このコミットのビルドが Error になっていないか確認してください。'
+            echo ' （後から別のコミットを push した場合は、そちらが公開されていれば問題ありません）'
           fi

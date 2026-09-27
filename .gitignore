@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.local
 .vercel
+
+# ビルドのたびに作る（どのコミットから作ったか）
+public/build.json
