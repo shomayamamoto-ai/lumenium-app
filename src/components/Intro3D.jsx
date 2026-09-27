@@ -111,12 +111,17 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
     // 結晶の置き場所（この幕の中の CSS px）。描画側は毎コマこれを読みます。
     const focus = { x: 0, y: 0, r: 0 }
     // トップでのロゴの大きさの見込み（.search-home-mark の幅 × 0.42）。
-    // 幕の中では少し大きく、画面の真ん中に置きます。
+    // 幕の中では少し大きく、画面の真ん中に置きます。名前はトップと同じく
+    // 結晶の中心より下（マークの幅 × 0.34、CSS の --wm-drop）に掛けます。
     const layout = () => {
       const vw = window.innerWidth, vh = window.innerHeight
-      const r1 = Math.max(196, Math.min(0.38 * vw, 340)) * 0.42
+      const markW = Math.max(196, Math.min(0.38 * vw, 340))
+      const r1 = markW * 0.42
       const k = vw < 700 ? 1.15 : 1.25
-      return { x: vw / 2, y: vh * 0.45, r: r1 * k, k }
+      const wmH = Math.max(64, Math.min(0.135 * vw, 118)) * 0.95 * k
+      const y = vh * 0.4
+      const ny = y + markW * 0.34 * k
+      return { x: vw / 2, y, r: r1 * k, k, ny, tagY: ny + wmH / 2 + 16 }
     }
     let home = layout()
     Object.assign(focus, home)
@@ -287,9 +292,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
       }
 
       if (!handed) {
-        place(home.x, home.y, home.r, home.x, home.y + 5 * home.k)
-        tagEl.style.top = `${home.y + home.r * 0.98}px`
-        capEl.style.top = `${home.y + home.r * 1.9}px`
+        place(home.x, home.y, home.r, home.x, home.ny)
+        tagEl.style.top = `${home.tagY}px`
+        capEl.style.top = `${home.tagY + 70}px`
         return
       }
 
@@ -303,9 +308,9 @@ export default function Intro3D({ onHandoff, onDone, onFail }) {
             名前を消す（同じ位置・同じ向きなので、見た目は変わりません）。 */
       if (!target) {
         target = measure()
-        if (target) { moveFrom = { ...focus, ny: home.y + 5 * home.k }; moveAt = now }
+        if (target) { moveFrom = { ...focus, ny: home.ny }; moveAt = now }
         // トップが見つからないまま1.5秒たったら、その場で消す
-        else if (now - onAt > 1500) { target = { ...focus, nx: focus.x, ny: home.y + 5 * home.k }; moveFrom = { ...target }; moveAt = now }
+        else if (now - onAt > 1500) { target = { ...focus, nx: focus.x, ny: home.ny }; moveFrom = { ...target }; moveAt = now }
         else return
       }
       const live = measure() || target

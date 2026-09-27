@@ -8359,14 +8359,22 @@ html[data-theme="dark"] .navbar.scrolled {
   text-indent: 0.42em;
   color: rgba(148, 163, 214, 0.75);
 }
-/* Brand lockup: the mark is dropped behind the wordmark and overlaps it,
-   rather than sitting above it as a separate element. */
+/* Brand lockup: the mark sits behind the wordmark. The name used to sit
+   dead centre on it and covered most of the crystal; it now hangs lower,
+   across the foot of the mark (which fades out there anyway), so the star
+   reads above it. --wm-drop is how far below the mark's centre it sits;
+   the mark keeps its place and the extra room goes above the name. */
 .search-home-lockup {
+  --mark-w: clamp(196px, 38vw, 340px);
+  --wm-drop: calc(var(--mark-w) * 0.34);
+  /* The mark's centre: the name's centre, raised by --wm-drop. The name's
+     line box is 0.95em tall (see .wm). */
+  --mark-y: calc(100% - var(--wm-size) * 0.475 - var(--wm-drop));
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 0 14px;
+  padding: calc(24px + var(--wm-drop)) 0 0;
 }
 /* The name means light. The mark sits inside a slow bloom so it reads as a
    source rather than a sticker — one breath every 9s, nothing more. */
@@ -8374,7 +8382,7 @@ html[data-theme="dark"] .navbar.scrolled {
   content: '';
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: var(--mark-y);
   width: clamp(340px, 76vw, 720px);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
@@ -8395,9 +8403,9 @@ html[data-theme="dark"] .navbar.scrolled {
 .search-home-mark {
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: var(--mark-y);
   transform: translate(-50%, -50%);
-  width: clamp(196px, 38vw, 340px);
+  width: var(--mark-w);
   height: auto;
   /* The mark carries its form in the value difference between facets, and
      at 50% over a dark ground that difference collapsed — the shading was
@@ -10209,7 +10217,9 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
   font-weight: 400;
   font-style: normal;
   letter-spacing: -0.005em;
-  line-height: 1.05;
+  /* No descenders in the name, so the line box can sit close around it —
+     the reading under it follows right on. */
+  line-height: 0.95;
   white-space: nowrap;
   -webkit-font-smoothing: antialiased;
 }
