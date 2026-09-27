@@ -10,7 +10,6 @@ export default function GlobalParticles({ show }) {
     const ctx = canvas.getContext('2d')
     let w, h, raf
     let running = false
-    const mouse = { x: 0, y: 0, active: false }
 
     const resize = () => {
       w = canvas.width = window.innerWidth
@@ -57,16 +56,9 @@ export default function GlobalParticles({ show }) {
     }
     pts.forEach((p) => { p.img = sprite(p) })
 
-    const onMouse = (e) => {
-      mouse.x = e.clientX
-      mouse.y = e.clientY
-      mouse.active = true
-    }
-    const onMouseLeave = () => { mouse.active = false }
-
+    // The motes used to be pulled toward the cursor. It read as the sky
+    // chasing the mouse, which was unpleasant, so they only drift now.
     window.addEventListener('resize', resize)
-    window.addEventListener('mousemove', onMouse, { passive: true })
-    window.addEventListener('mouseleave', onMouseLeave)
 
     const start = () => {
       if (running) return
@@ -100,18 +92,6 @@ export default function GlobalParticles({ show }) {
       ctx.clearRect(0, 0, w, h)
 
       pts.forEach(p => {
-        // Mouse attraction
-        if (mouse.active) {
-          const dx = mouse.x - p.x
-          const dy = mouse.y - p.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 200) {
-            const force = (1 - dist / 200) * 0.02
-            p.vx += dx * force
-            p.vy += dy * force
-          }
-        }
-
         // Damping back to original drift
         p.vx = p.vx * 0.97 + p.ovx * 0.03
         p.vy = p.vy * 0.97 + p.ovy * 0.03
@@ -159,8 +139,6 @@ export default function GlobalParticles({ show }) {
     return () => {
       stop()
       window.removeEventListener('resize', resize)
-      window.removeEventListener('mousemove', onMouse)
-      window.removeEventListener('mouseleave', onMouseLeave)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [show])

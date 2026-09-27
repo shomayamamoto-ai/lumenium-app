@@ -136,20 +136,9 @@ function StarCanvas() {
       }
     }
 
-    const mouse = { x: w / 2, y: h / 2, active: false }
-    const onMove = (e) => {
-      // While the dial is open the field stays put. Stars clustering under the
-      // cursor glow through the scrim and smear whichever label you are
-      // reading — the effect belongs to the hero, not to the overlay.
-      if (document.body.dataset.dialOpen) { mouse.active = false; return }
-      const rect = canvas.getBoundingClientRect()
-      mouse.x = e.clientX - rect.left
-      mouse.y = e.clientY - rect.top
-      mouse.active = true
-    }
-    const onLeave = () => { mouse.active = false }
-    window.addEventListener('pointermove', onMove, { passive: true })
-    document.documentElement.addEventListener('mouseleave', onLeave)
+    // The stars used to lean toward the cursor and gather under it. It read
+    // as the sky being sucked toward the mouse, which was unpleasant, so
+    // the field ignores the pointer and only drifts and twinkles.
     window.addEventListener('resize', resize)
 
     let raf = 0
@@ -168,22 +157,9 @@ function StarCanvas() {
       const hx = s.nx * w
       const hy = s.ny * h
 
-      // Target offset: whole-field parallax toward the cursor + local pull
-      let tx = 0
-      let ty = 0
-      if (mouse.active && !prefersReduced) {
-        tx = (mouse.x - w / 2) * 0.06 * s.depth
-        ty = (mouse.y - h / 2) * 0.06 * s.depth
-        const dx = mouse.x - hx
-        const dy = mouse.y - hy
-        const dist = Math.hypot(dx, dy)
-        const R = 190
-        if (dist < R && dist > 0.01) {
-          const pull = (1 - dist / R) * 30 * s.depth
-          tx += (dx / dist) * pull
-          ty += (dy / dist) * pull
-        }
-      }
+      // Settle any leftover offset back to the star's own place
+      const tx = 0
+      const ty = 0
       s.ox += (tx - s.ox) * 0.07
       s.oy += (ty - s.oy) * 0.07
       const x = hx + s.ox
@@ -257,8 +233,6 @@ function StarCanvas() {
 
     return () => {
       stop()
-      window.removeEventListener('pointermove', onMove)
-      document.documentElement.removeEventListener('mouseleave', onLeave)
       window.removeEventListener('resize', resize)
       document.removeEventListener('visibilitychange', onVis)
     }
