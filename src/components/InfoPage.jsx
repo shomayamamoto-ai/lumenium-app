@@ -24,6 +24,7 @@ import SkeletonSection from './Skeleton'
 
 const Blog = lazy(() => import('./Blog'))
 
+
 // サービス案内 — split into its own chunk (App prefetches it on idle).
 // With a `section`, ONLY that section renders as a standalone page —
 // menu picks show just the chosen content, nothing above or below.

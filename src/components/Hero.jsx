@@ -2,6 +2,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useEffect, useState, useRef } from 'react'
 import VideoModal from './VideoModal'
+import Lumen3D from './Lumen3D'
 import { events } from '../lib/analytics'
 
 const typingWords = ['SNS集客', '動画制作', 'AI導入', 'LINE構築', 'Web制作', 'システム開発']
@@ -37,6 +38,14 @@ function useTypingEffect(words, pauseTime = 2200) {
   }, [text, isDeleting, wordIndex, words, pauseTime])
   return text
 }
+
+/* サービス案内の最初の画面の3D。動画の上、文字の下に置きます。
+   広い画面では、中央の文章の左側の空いたところ。狭い画面には空いた
+   場所が無い（角に置くとメニューのボタンに重なる）ので、トップと同じく
+   見出しの後ろに薄く置きます（薄さは CSS 側）。スクロールすると回ります。 */
+const placeHero3D = (w, h) => (w >= 900
+  ? { x: w * 0.14, y: h * 0.52, r: Math.min(w, h) * 0.15 }
+  : { x: w * 0.5, y: h * 0.19, r: w * 0.3 })
 
 function HeroParticles() {
   const canvasRef = useRef(null)
@@ -208,6 +217,10 @@ export default function Hero() {
         </video>
       )}
       <HeroParticles />
+      {/* 狭い画面では見出しの後ろに来るので、下半分を薄くして紫の見出しを
+          結晶の光に埋もれさせない。広い画面では横にあるので不要。 */}
+      <Lumen3D mode="ambient" place={placeHero3D} scrollDriven className="hero-3d"
+        fadeBelow={typeof window !== 'undefined' && window.innerWidth < 900} />
       <div className="hero-content">
         <p className="hero-lead animate-fade-up">
           <span className="hero-lead-dot" aria-hidden="true" />

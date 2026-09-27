@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import VideoModal from './VideoModal'
 import HeroNews from './HeroNews'
 import RadialMenu from './RadialMenu'
+import Lumen3D from './Lumen3D'
 import { events } from '../lib/analytics'
 
 // Home: the brand lockup over a radial skill tree.
@@ -268,6 +269,10 @@ function StarCanvas() {
 export default function SearchHome() {
   const [q, setQ] = useState('')
   const [videoOpen, setVideoOpen] = useState(false)
+  // ロゴ画像の場所に3Dの結晶が描けたら、平面のロゴを消します。
+  // 描けない端末ではこれが立たず、いままでのロゴがそのまま残ります。
+  const markRef = useRef(null)
+  const [mark3d, setMark3d] = useState(false)
 
   // `/?q=...` deep link. The box it used to mirror is gone, but the entry
   // point is still worth keeping for campaign links — it routes to the same
@@ -315,11 +320,12 @@ export default function SearchHome() {
   return (
     <main className="search-home" id="top">
       <StarCanvas />
+      <Lumen3D mode="hero" focusRef={markRef} focusScale={0.42} fadeBelow className="search-home-3d" onReady={() => setMark3d(true)} />
       <div className="search-home-inner">
         <div className="search-home-brand">
           <p className="search-home-eyebrow">{SECTION.home.eyebrow}</p>
-          <div className="search-home-lockup">
-            <img src="/favicon.svg" alt="" width="280" height="280" className="search-home-mark" />
+          <div className={'search-home-lockup' + (mark3d ? ' is-3d' : '')}>
+            <img ref={markRef} src="/favicon.svg" alt="" width="280" height="280" className="search-home-mark" />
             <h1 className="search-home-logo">Lumenium</h1>
           </div>
           <p className="search-home-yomi">{SECTION.home.yomi}</p>
