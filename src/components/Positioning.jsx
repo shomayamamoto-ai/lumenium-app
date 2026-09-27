@@ -1,5 +1,6 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
+import Wordmark from './Wordmark'
 // Competitive positioning map — high quality × high cost-performance.
 // Editorial 2x2 quadrant chart, modelled on the BIZ BUZZ-style reference.
 
@@ -34,7 +35,7 @@ export default function Positioning() {
             {/* Quadrant: top-right — Lumenium (winning corner) */}
             <div className="pq pq--tr pq--brand">
               <img src="/favicon.svg" alt="" width="28" height="28" className="pq-brand-mark" loading="lazy" decoding="async" />
-              <span className="pq-brand-name">Lumenium</span>
+              <Wordmark className="pq-brand-name" />
             </div>
 
             {/* Quadrant: bottom-right — crowdsourcing / freelancers */}

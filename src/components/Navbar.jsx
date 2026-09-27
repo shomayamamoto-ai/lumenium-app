@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useFocusTrap } from '../lib/focusTrap'
+import Wordmark from './Wordmark'
 
 // The drawer is grouped by heading rather than one flat list, so every
 // section of the site — and each of the six service areas — has its own
@@ -148,7 +149,7 @@ export default function Navbar() {
         <a href="#" className="nav-logo" aria-label="Lumenium（ルメニウム）ホーム">
           <img src="/lumenium-logo.svg?v=3" alt="Lumenium（ルメニウム）" className="nav-logo-img" width="40" height="40" />
           <span className="nav-logo-stack">
-            <span className="nav-logo-name">Lumenium</span>
+            <Wordmark className="nav-logo-name" />
             <span className="nav-logo-tag">散文化した目的に焦点を当てる</span>
           </span>
         </a>

@@ -1,5 +1,6 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
+import Wordmark from './Wordmark'
 export default function Footer({ onPrivacy }) {
   return (
     <footer className="footer">
@@ -21,7 +22,7 @@ export default function Footer({ onPrivacy }) {
           <div className="footer-brand">
             <a href="#top" className="footer-logo">
               <img src="/lumenium-logo.svg?v=3" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
-              <span>Lumenium<small className="footer-logo-yomi">{SECTION.home.yomi}</small></span>
+              <span className="footer-logo-stack"><Wordmark className="footer-wm" /><small className="footer-logo-yomi">{SECTION.home.yomi}</small></span>
             </a>
             <p className="footer-tagline">{rich(SECTION.footer.tagline)}</p>
             <p className="footer-sub">{rich(SECTION.footer.sub)}</p>

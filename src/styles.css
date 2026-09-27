@@ -10289,3 +10289,144 @@ body[data-dial-open] .search-home-3d.is-on { opacity: 0.35; }
     animation-iteration-count: infinite !important;
   }
 }
+
+/* =========================================================================
+   Type system — the final word
+   -------------------------------------------------------------------------
+   Reported: the lettering felt cheap and the name was set four different
+   ways. Several earlier "polish passes" had stacked up: section titles at
+   weight 800 with a sweeping gradient shimmer, labels in a two-colour
+   gradient with gradient rules either side, a gradient bar under every
+   header, gradient pill buttons with a light sweep, and the name in a
+   diagonal blue gradient in the nav and footer. Each was loud on its own;
+   together they read as a template.
+
+   One voice now, taken from the logotype:
+   - Titles in a fine serif — Instrument Serif for Latin, Zen Old Mincho
+     for Japanese — at regular weight, solid colour, a little air.
+   - Labels in upright serif capitals, one quiet colour.
+   - The logo's star as the only ornament (under section headers).
+   - One plain, light primary button; the rest are hairlines.
+   - The Lumenium logotype (Wordmark) wherever the name is the logo.
+   This block comes last on purpose so it wins over the earlier passes.
+   ========================================================================= */
+:root {
+  --font-display: 'Instrument Serif', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  --ink: #eef1fb;
+  --ink-soft: #c9d0e2;
+  --ink-mute: #939bb6;
+  --lav: #b4bdf6;
+}
+
+/* --- The logotype in the nav, footer and positioning map --------------- */
+/* Those places paint a gradient on every span inside them; keep it off the
+   logotype (it would also bring back the dot of the i under the star). */
+.nav-logo .wm, .footer-logo .wm, .footer-logo .footer-logo-stack, .pq--brand .wm {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.nav-logo .wm .wm-t, .footer-logo .wm .wm-t, .pq--brand .wm .wm-t {
+  background: linear-gradient(180deg, #ffffff 30%, #e6e9ff 60%, #aeb9f7 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+.nav-logo-name.wm { font-size: 27px; }
+.footer-logo-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.footer-wm.wm { font-size: 32px; }
+.pq-brand-name.wm { font-size: clamp(22px, 2.4vw, 32px); font-weight: 400; letter-spacing: -0.005em; }
+
+/* --- Titles -------------------------------------------------------------- */
+.section-title, .hero-title, .cta-title, .footer-cta-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-shadow: none;
+}
+.section-title { font-size: clamp(28px, 4.2vw, 46px); line-height: 1.4; }
+.hero-title { font-size: clamp(34px, 5.6vw, 64px); line-height: 1.32; }
+.hero-title .text-accent,
+.hero-title .text-accent .char-reveal {
+  color: var(--lav);
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.card-title, .card-title-lg { font-weight: 600; letter-spacing: 0.01em; }
+
+/* --- Labels -------------------------------------------------------------- */
+.section-label {
+  font-family: 'Instrument Serif', 'Zen Old Mincho', serif;
+  font-weight: 400;
+  font-size: 14px;
+  letter-spacing: 0.26em;
+  color: var(--lav) !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.section-label::before, .section-label::after { background: rgba(180, 189, 246, 0.4) !important; }
+
+/* --- The only ornament: the logo's star under a section header ---------- */
+.section-header::after {
+  width: 11px;
+  height: 11px;
+  border-radius: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 2 2'%3E%3Cpath fill='white' d='M0.000 -1.000L0.077 -0.185L0.396 -0.396L0.185 -0.077L1.000 0.000L0.185 0.077L0.396 0.396L0.077 0.185L0.000 1.000L-0.077 0.185L-0.396 0.396L-0.185 0.077L-1.000 0.000L-0.185 -0.077L-0.396 -0.396L-0.077 -0.185Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0.75;
+  margin-top: 26px;
+}
+
+/* --- Body copy ----------------------------------------------------------- */
+.section-desc { color: var(--ink-soft); font-size: clamp(15px, 1.2vw, 17px); }
+
+/* --- Buttons: one plain, light primary ----------------------------------- */
+.btn { font-weight: 600; letter-spacing: 0.04em; }
+.btn-accent, .btn-primary {
+  background: #eef0ff !important;
+  color: #0c1024 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 26px -12px rgba(129, 140, 248, 0.7) !important;
+}
+.btn-accent:hover, .btn-primary:hover {
+  background: #ffffff !important;
+  box-shadow: inset 0 1px 0 #fff, 0 14px 32px -12px rgba(129, 140, 248, 0.9) !important;
+}
+.btn-accent::before, .btn-primary::before { display: none !important; }
+
+/* The other display headings, in the same voice as the section titles. */
+.banner-title, .services-intro-title, .trust-strip-title, .story-chapter-title,
+.faq-group-title, .achievements-heading, .career-heading, .profile-brick-title,
+.service-detail-title, .news-modal-title, .blog-article-title, .rlist-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.banner-title, .services-intro-title { line-height: 1.4; }
+/* …and the other labels, like the section labels. */
+.banner-label, .services-intro-label, .trust-strip-label, .hero-lead, .rlist-eyebrow {
+  font-family: 'Instrument Serif', 'Zen Old Mincho', serif;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: var(--lav) !important;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+/* Small accents that were still gradients: the 「解決」 badge on the pain
+   cards (coloured inline per card) and the rotating word in the hero. */
+.solution-badge {
+  background: transparent !important;
+  color: var(--lav) !important;
+  border: 1px solid rgba(180, 189, 246, 0.45);
+  font-weight: 500;
+}
+.typing-text {
+  font-family: var(--font-display);
+  font-weight: 400;
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--lav);
+}

@@ -212,14 +212,15 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <meta name="robots" content="index, follow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${ldJson(withOrg(ld, canonical, title))}</script>
 <style>${STYLE}${LUMEN3D_STYLE}</style>
+<link rel="stylesheet" href="/brand.css">
 </head>
 <body>
 <div class="wrap">
-  <header><a href="/">← Lumenium（ルメニウム）トップへ</a></header>
+  <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
   <p class="eyebrow">${esc(eyebrow)}</p>
 ${body}
 ${CONTACT_STRIP}

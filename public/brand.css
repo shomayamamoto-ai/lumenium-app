@@ -1,0 +1,149 @@
+/* Lumenium brand layer for the static pages.
+   Loaded after each page's own <style>, so the same markup reads in the
+   same voice as the app: the Lumenium logotype, headings set in a fine
+   serif (Instrument Serif for Latin, Zen Old Mincho for Japanese), quiet
+   labels, calm body copy and one plain primary button. Shared by every
+   generated page (scripts/build-content-pages.mjs, build-service-pages.mjs)
+   and the few handwritten ones, so they can no longer drift apart. */
+
+:root {
+  --font-display: 'Instrument Serif', 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  --ink: #eef1fb;
+  --ink-soft: #c9d0e2;
+  --ink-mute: #939bb6;
+  --lav: #b4bdf6;
+  --hair: rgba(226, 232, 245, 0.12);
+}
+
+/* ---------- The logotype (same as the app's Wordmark) ---------- */
+.wm {
+  display: inline-block;
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: -0.005em;
+  --wm-lh: 0.95;
+  line-height: var(--wm-lh);
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+}
+.wm-t {
+  background: linear-gradient(180deg, #ffffff 30%, #e6e9ff 60%, #aeb9f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.wm-iw { position: relative; display: inline-block; }
+.wm-i { clip-path: inset(34% 0 0 0); }
+.wm-iw::after {
+  content: '';
+  position: absolute;
+  left: 0.131em;
+  top: calc(0.28em - (1.1075em - var(--wm-lh) * 1em) / 2);
+  width: 0.24em;
+  height: 0.24em;
+  transform: translate(-50%, -50%);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 2 2'%3E%3Cpath fill='white' d='M0.000 -1.000L0.077 -0.185L0.396 -0.396L0.185 -0.077L1.000 0.000L0.185 0.077L0.396 0.396L0.077 0.185L0.000 1.000L-0.077 0.185L-0.396 0.396L-0.185 0.077L-1.000 0.000L-0.185 -0.077L-0.396 -0.396L-0.077 -0.185Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 0 0.03em #fff) drop-shadow(0 0 0.1em rgba(125, 211, 252, 0.95));
+  pointer-events: none;
+}
+
+/* ---------- Brand bar (replaces 「← Lumenium（ルメニウム）トップへ」) ---------- */
+header.brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--hair);
+}
+header.brandbar a { text-decoration: none; }
+header.brandbar .brand { display: inline-flex; align-items: baseline; gap: 10px; color: var(--ink); }
+header.brandbar .brand .wm { font-size: 30px; }
+header.brandbar .brand small {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  color: var(--ink-mute);
+}
+header.brandbar .home { font-size: 12.5px; color: var(--ink-mute); letter-spacing: 0.06em; }
+header.brandbar .home:hover { color: var(--ink); }
+
+/* ---------- Type ---------- */
+body { color: var(--ink); }
+.eyebrow {
+  font-family: 'Instrument Serif', serif;
+  font-weight: 400;
+  font-size: 14px;
+  letter-spacing: 0.24em;
+  color: var(--lav);
+}
+/* Japanese group headings: set upright in the display face — Japanese has
+   no italic, and a slanted substitute looks broken. */
+.group {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  color: var(--lav);
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(28px, 5.2vw, 42px);
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  color: var(--ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+article h2, .wrap h2, .qa dt, .contact-strip h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  color: var(--ink);
+  border: 0;
+  padding-left: 0;
+}
+/* A small star marks each section, in place of the purple bar. */
+article h2::before, .wrap > h2::before, .wrap section > h2::before, .qa dt::before {
+  content: '';
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-right: 0.55em;
+  vertical-align: 0.02em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 2 2'%3E%3Cpath fill='white' d='M0.000 -1.000L0.077 -0.185L0.396 -0.396L0.185 -0.077L1.000 0.000L0.185 0.077L0.396 0.396L0.077 0.185L0.000 1.000L-0.077 0.185L-0.396 0.396L-0.185 0.077L-1.000 0.000L-0.185 -0.077L-0.396 -0.396L-0.077 -0.185Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0.8;
+}
+.contact-strip h2::before { display: none; }
+.qa dt { font-size: 18px; margin-top: 30px; }
+article h3 { font-weight: 600; color: var(--lav); }
+article p, .lead, .qa dd, article li, li { color: var(--ink-soft); }
+article p, .qa dd { font-size: 15px; line-height: 2; }
+article li::before, li::before { color: var(--lav); font-weight: 400; }
+.meta, .facts dt, .list time { color: var(--ink-mute); }
+.facts dt { font-weight: 500; letter-spacing: 0.04em; }
+.note, article p.keypoint { border-left-width: 1px; border-left-color: rgba(180, 189, 246, 0.5); }
+
+/* ---------- Buttons: one plain, light primary; a hairline secondary ---------- */
+.cta a { border-radius: 999px; font-weight: 600; letter-spacing: 0.04em; transition: background-color .25s, color .25s, border-color .25s, box-shadow .25s; }
+.cta .primary {
+  background: #eef0ff;
+  color: #0c1024;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 10px 26px -12px rgba(129, 140, 248, 0.7);
+}
+.cta .primary:hover { background: #ffffff; box-shadow: inset 0 1px 0 #fff, 0 14px 30px -12px rgba(129, 140, 248, 0.9); }
+.cta .ghost { border-color: rgba(226, 232, 245, 0.22); color: var(--ink-soft); }
+.cta .ghost:hover { border-color: rgba(226, 232, 245, 0.5); color: var(--ink); }
+
+@media (max-width: 480px) {
+  header.brandbar .brand .wm { font-size: 26px; }
+  header.brandbar .brand small { display: none; }
+  /* The logotype already links home, and the page's 3D mark sits in this
+     corner on a phone. */
+  header.brandbar .home { display: none; }
+}
