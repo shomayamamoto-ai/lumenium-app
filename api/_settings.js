@@ -138,10 +138,28 @@ export const SETTINGS = [
   // SNS. Every one of these is a token the platform hands you in its own
   // developer console; none of them can be obtained from here, and each is
   // tied to a specific account, so the account id sits next to its token.
+  /* X は4つの鍵で署名して投稿します（OAuth 1.0a）。どれも開発者画面の
+     ボタンで作れて、期限がありません。「Bearer Token」は投稿に使えない
+     種類なので、ここには出しません。 */
   {
-    name: 'X_ACCESS_TOKEN', label: 'X（旧Twitter）', kind: 'secret', group: 'social', net: 'x',
-    where: 'developer.x.com › Projects & Apps › OAuth 2.0 のユーザーアクセストークン（scope に tweet.write と users.read、offline.access）',
-    why: '投稿 API v2（POST /2/tweets）に使います。無料枠は月あたりの投稿数に上限があります。',
+    name: 'X_API_KEY', label: 'X ① API Key', kind: 'secret', group: 'social', net: 'x',
+    where: 'console.x.com › アプリ › Keys（Consumer Keys）の API Key',
+    why: 'どのアプリからの投稿かを示す鍵です。',
+  },
+  {
+    name: 'X_API_SECRET', label: 'X ② API Key Secret', kind: 'secret', group: 'social', net: 'x',
+    where: '①と同じ場所。API Key と一緒に表示されます（表示は作った直後の1回だけです）',
+    why: '①と対で使います。',
+  },
+  {
+    name: 'X_ACCESS_TOKEN', label: 'X ③ Access Token', kind: 'secret', group: 'social', net: 'x',
+    where: 'console.x.com › アプリ › Keys の Access Token。先に権限を「Read and write」にしてから作ること',
+    why: 'どのアカウントとして投稿するかを示す鍵です。権限を直す前に作ったものは読み取り専用で、投稿できません。',
+  },
+  {
+    name: 'X_ACCESS_SECRET', label: 'X ④ Access Token Secret', kind: 'secret', group: 'social', net: 'x',
+    where: '③と同じ場所。Access Token と一緒に表示されます（表示は作った直後の1回だけです）',
+    why: '③と対で使います。',
   },
   {
     name: 'FB_PAGE_ID', label: 'Facebook ページID', kind: 'text', group: 'social', net: 'facebook',

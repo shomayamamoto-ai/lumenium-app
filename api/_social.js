@@ -13,6 +13,7 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
 import { setting } from './_settings.js'
+import { authHeader } from './_x-oauth1.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
@@ -24,14 +25,15 @@ const THREADS = 'https://graph.threads.net/v1.0'
    取りに行く先と、取るのにかかる手間まで書いておきます。 */
 export const NETWORKS = [
   {
-    id: 'x', label: 'X', mark: '𝕏', limit: 280, needs: ['X_ACCESS_TOKEN'],
+    id: 'x', label: 'X', mark: '𝕏', limit: 280,
+    needs: ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET'],
     image: 'ignored',
     note: '画像はAPIの別枠（メディアアップロード）が要るため、本文とリンクのみ送ります。',
     setup: {
-      what: 'Xに投稿するための鍵が1つ要ります。',
-      where: 'X の開発者ポータル（developer.x.com）でアプリを作り、Read and write 権限にしたうえで Access Token を発行します。',
-      url: 'https://developer.x.com/en/portal/dashboard',
-      effort: '無料枠で可。30分ほど',
+      what: 'Xの開発者画面で作れる鍵が4つ要ります（API Key と Secret、Access Token と Secret）。',
+      where: 'console.x.com でアプリを開き、先に権限を「Read and write」にしてから、4つの鍵を作ります。順番を逆にすると、読み取り専用の鍵になって投稿できません。「Bearer Token」は使いません。',
+      url: 'https://console.x.com/',
+      effort: '順番さえ守れば15分ほど。投稿にかかる料金は開発者画面で確認してください',
     },
   },
   {
@@ -136,14 +138,37 @@ async function call(url, init, label) {
   return { ok: true, data: data || {}, res }
 }
 
+/* X は4つの鍵で署名して送ります（OAuth 1.0a）。
+   以前は OAuth 2.0 のユーザー用トークン1つを Bearer で送っていましたが、
+   その種類のトークンは開発者画面のボタンでは作れず、2時間で切れます。
+   画面で目立つ「Bearer Token」はアプリ専用で投稿には使えません。
+   つまり、画面から取れる鍵ではどれを貼っても投稿し続けられませんでした。
+   4つの鍵はどれもボタンで作れて、期限もありません。 */
+const X_TWEETS = 'https://api.twitter.com/2/tweets'
+
 async function postX(body, req) {
-  const token = await setting('X_ACCESS_TOKEN', '', req)
+  const got = await creds(['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET'], req)
   const text = [body.text, body.link].filter(Boolean).join('\n')
-  const r = await call('https://api.twitter.com/2/tweets', {
+  const auth = await authHeader({
+    method: 'POST', url: X_TWEETS,
+    keys: {
+      apiKey: got.X_API_KEY, apiSecret: got.X_API_SECRET,
+      accessToken: got.X_ACCESS_TOKEN, accessSecret: got.X_ACCESS_SECRET,
+    },
+  })
+  const r = await call(X_TWEETS, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: auth, 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   }, 'X')
+  /* いちばん多いつまずきは「権限を Read and write にする前に Access Token を
+     作った」です。その鍵は読み取り専用のままで、投稿は 403 になります。
+     X の返事だけでは原因が分からないので、直し方を添えます。 */
+  if (!r.ok && /403|forbidden|oauth1-permissions|not permitted/i.test(String(r.message || ''))) {
+    r.message = String(r.message || '') +
+      '（よくある原因: アプリの権限を「Read and write」にする前に Access Token を作った。' +
+      '権限を直したあと、Access Token と Secret を作り直して貼り直してください）'
+  }
   if (!r.ok) return r
   const id = r.data && r.data.data && r.data.data.id
   return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '' }

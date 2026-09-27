@@ -3,7 +3,7 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
   <url>
     <loc>https://lumenium.net/</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
@@ -13,133 +13,133 @@
   </url>
   <url>
     <loc>https://lumenium.net/about.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/index.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/video.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/ai.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/sns.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/web.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/cast.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/services/creative.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-1.html</loc>
-    <lastmod>2026-04-04 MK0339</lastmod>
+    <lastmod>2026-04-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-2.html</loc>
-    <lastmod>2026-04-01 MK0344</lastmod>
+    <lastmod>2026-04-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-3.html</loc>
-    <lastmod>2026-03-25 MK0349</lastmod>
+    <lastmod>2026-03-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-4.html</loc>
-    <lastmod>2026-03-18 MK0354</lastmod>
+    <lastmod>2026-03-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-5.html</loc>
-    <lastmod>2026-03-25 MK0359</lastmod>
+    <lastmod>2026-03-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-6.html</loc>
-    <lastmod>2026-03-20 MK0364</lastmod>
+    <lastmod>2026-03-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-7.html</loc>
-    <lastmod>2026-03-15 MK0369</lastmod>
+    <lastmod>2026-03-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-8.html</loc>
-    <lastmod>2026-04-15 MK0374</lastmod>
+    <lastmod>2026-04-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-9.html</loc>
-    <lastmod>2026-04-12 MK0379</lastmod>
+    <lastmod>2026-04-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-10.html</loc>
-    <lastmod>2026-04-08 MK0384</lastmod>
+    <lastmod>2026-04-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-11.html</loc>
-    <lastmod>2026-04-02 MK0389</lastmod>
+    <lastmod>2026-04-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-12.html</loc>
-    <lastmod>2026-09-21 MK0394</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/post-13.html</loc>
-    <lastmod>2026-09-21 MK0399</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/blog/index.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -151,109 +151,109 @@
   </url>
   <url>
     <loc>https://lumenium.net/faq.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/pricing.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/works.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/voice.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/flow.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/contact.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/choose.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/onestop.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/pain.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/positioning.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/story.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/profile.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/sitemap.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://lumenium.net/specified-commerce.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
   <url>
     <loc>https://lumenium.net/runner.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://lumenium.net/game.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://lumenium.net/racing.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://lumenium.net/hitblow.html</loc>
-    <lastmod>2026-09-23</lastmod>
+    <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>

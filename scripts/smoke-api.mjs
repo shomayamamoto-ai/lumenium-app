@@ -39,7 +39,8 @@ Object.assign(process.env, {
   UPSTASH_REDIS_REST_TOKEN: 'smoke',
   // The five networks, so POST /api/social is exercised on the path where it
   // actually sends rather than on the "not configured" refusal.
-  X_ACCESS_TOKEN: 'smoke',
+  // X は4つの鍵で署名して送る（OAuth 1.0a）。1つでも欠けると「未設定」扱い。
+  X_API_KEY: 'smoke', X_API_SECRET: 'smoke', X_ACCESS_TOKEN: 'smoke', X_ACCESS_SECRET: 'smoke',
   FB_PAGE_ID: '1', FB_PAGE_TOKEN: 'smoke',
   IG_USER_ID: '2', IG_TOKEN: 'smoke',
   THREADS_USER_ID: '3', THREADS_TOKEN: 'smoke',
