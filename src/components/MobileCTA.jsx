@@ -18,7 +18,7 @@ export default function MobileCTA() {
     }
     let io = null
     const watch = () => {
-      const form = document.getElementById('contact-form')
+      const form = document.getElementById('contact')
       if (!form || typeof IntersectionObserver !== 'function') return
       io = new IntersectionObserver((es) => {
         formVisible = es.some((e) => e.isIntersecting)
@@ -37,7 +37,7 @@ export default function MobileCTA() {
   }, [])
   return (
     <div className={`mobile-cta ${show ? 'is-on' : ''}`} aria-hidden={!show}>
-      <a href="#contact-form" className="btn btn-accent" data-cta="mobile-sticky" tabIndex={show ? 0 : -1}>無料で相談する</a>
+      <a href="#contact" className="lp-btn lp-btn--primary" data-cta="mobile-sticky" tabIndex={show ? 0 : -1}>無料で相談する</a>
       <span className="mobile-cta-note">48時間以内にご返信</span>
     </div>
   )

@@ -295,10 +295,11 @@ function page(s) {
 <body>
 <div class="wrap">
   <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
-  <p class="eyebrow">LUMENIUM SERVICE</p>
+  <p class="eyebrow">サービス</p>
   <h1>${esc(s.name)}｜Lumenium（ルメニウム）</h1>
   <p class="lead">${esc(s.lead)}</p>
   <p class="lead">東京拠点のクリエイティブ&amp;DXパートナー Lumenium（ルメニウム）が、オンラインで全国のご依頼に対応します。</p>
+  ${s.tags && s.tags.length ? `<div class="others" aria-label="対応内容">${s.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
 
   <!-- 事業者情報。ディレクトリの1件分と同じ形を、ページの先頭に置きます。
        回答エンジンが「この会社に頼める」と判断するために要るのは、提供元・
@@ -317,7 +318,7 @@ function page(s) {
 
   <h2>こんな方におすすめ</h2>
   <ul>
-    ${s.highlights.map((h) => `<li>${esc(h)}方</li>`).join('\n    ')}
+    ${s.highlights.map((h) => `<li>${esc(h)}</li>`).join('\n    ')}
   </ul>
 
   <h2>代表的な実績</h2>
@@ -444,7 +445,7 @@ function hub() {
 <body>
 <div class="wrap">
   <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
-  <p class="eyebrow">LUMENIUM SERVICES</p>
+  <p class="eyebrow">サービス一覧</p>
   <h1>サービス一覧</h1>
   <p class="lead">${esc(DESC)}</p>
   <!-- 地域・期間・連絡手段を冒頭に。回答エンジンはページの先頭から答えを
@@ -498,7 +499,20 @@ ${BEACON}
 }
 
 mkdirSync('public/services', { recursive: true })
-for (const s of SERVICES) {
+/* The admin-editable copy (src/data/services.js, with content.json applied
+   above) wins for what the copy editor offers: price, the "for whom" list,
+   the examples and the tags. The landing page links each service here, so an
+   edit in the admin reaches the page people read. SEO fields (title, desc,
+   keyword, lead) stay as written in this file. */
+for (const base of SERVICES) {
+  const c = SERVICE_COPY.find((x) => x.id === base.id) || {}
+  const s = {
+    ...base,
+    price: c.price || base.price,
+    highlights: c.highlights || base.highlights.map((h) => h + '方'),
+    examples: c.examples || base.examples,
+    tags: c.tags || [],
+  }
   writeFileSync(`public/services/${s.id}.html`, page(s))
   console.log(`public/services/${s.id}.html written`)
 }

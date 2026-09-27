@@ -155,7 +155,6 @@ export const PAIN_POINTS = [
 export const BRAND_CHAPTERS = [
   {
     no: '01',
-    eyebrow: 'NAME',
     title: '社名について',
     body: [
       'Lumenium（ルメニウム）は、ラテン語で「光」を意味する Lumen から取りました。',
@@ -165,7 +164,6 @@ export const BRAND_CHAPTERS = [
   },
   {
     no: '02',
-    eyebrow: 'APPROACH',
     title: '対応領域',
     body: [
       '動画・AI・Web・SNS・キャスト手配・クリエイティブの6領域を扱っています。',
@@ -175,7 +173,6 @@ export const BRAND_CHAPTERS = [
   },
   {
     no: '03',
-    eyebrow: 'STANCE',
     title: '制作後の伴走',
     body: [
       '動画もサイトも LINE も、公開した時点では成果が出揃いません。',

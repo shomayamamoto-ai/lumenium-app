@@ -3,114 +3,40 @@
 // Markers: "\n" is a line break, "**bold**" is emphasis (see lib/rich.jsx).
 
 export const SECTION = {
-  hero: {
-    lead: 'DIGITAL CREATIVE STUDIO · TOKYO',
-    titleLine1: '散文化した目的に',
-    titleLine2: '焦点を当てる',
-    desc: 'ぼんやりした"やりたい"を、**動画・AI・Web**で最短ルートの成果に。\n企画から納品・運用まで**ワンストップ**で、あなたの事業に光を当てます。',
-    typingLabel: '対応領域',
-  },
-  pain: {
-    label: 'YOUR PAIN POINTS',
-    title: 'こんなお困りごと、ありませんか？',
-    desc: '「何から手をつければいいか分からない」\n「やりたいことはあるのに、時間も人手も足りない」\n—— 事業の"次の一手"は、\nたいてい**言葉にならないモヤモヤ**から始まります。\nその曖昧な想いを一緒に**言語化**し、\n動画・AI・Webという最適な打ち手に翻訳するのが、\nルメニウムの仕事です。',
-  },
-  servicesIntro: {
-    label: 'NEXT · SERVICES',
-    title: 'Lumenium（ルメニウム）が\nお手伝いできる領域。',
-    lead: '動画制作からAI導入、Web開発まで。一つひとつの領域に、専門チームが伴走します。',
-    metaKey1: '領域数',
-    metaVal1: '6',
-    metaKey2: '対応業界',
-    metaVal2: '12+',
-    metaKey3: 'ご提案まで',
-    metaVal3: '48h 以内',
-  },
-  services: {
-    label: 'SERVICES',
-    title: '動画・AI・Webまで\n6領域をワンストップで。',
-    desc: '複数の制作会社に発注する手間を1社に集約。企画から納品・運用までLumenium（ルメニウム）が一貫して伴走します。',
-  },
-  results: {
-    label: 'RESULTS',
-    title: 'このような案件に対応してきました',
-    desc: '規模やジャンルを問わず、最適なチーム体制で対応します。',
-    achievementsHeading: 'その他の実績',
-  },
-  testimonials: {
-    label: 'VOICE',
-    title: 'お客様の声',
-    desc: 'ご依頼いただいた方々からの感想の一部です。',
-  },
-  pricing: {
-    label: 'PRICING SIMULATOR',
-    title: '見積もりの目安を\nその場でシミュレーション。',
-    desc: '必要なサービスを選ぶと概算レンジが表示されます。\n※ 実際のお見積りは無料。内容を伺った上で正確にご提案します。',
-  },
-  flow: {
-    label: 'FLOW',
-    title: 'ご依頼の流れ',
-    desc: 'お問い合わせから納品後の伴走まで、5つのステップでご案内します。',
-  },
-  faq: {
-    label: 'FAQ',
-    title: 'よくある質問',
-    desc: '問い合わせ前の疑問を、先に解消できるようにまとめました。',
-  },
-  blog: {
-    label: 'BLOG',
-    title: 'ノウハウ・お役立ち情報',
-    desc: '動画制作・AI活用・SNS運用・Web制作など、現場で役立つ情報を発信しています。',
-  },
-  news: {
-    label: 'NEWS',
-    title: 'お知らせ',
-  },
-  story: {
-    label: 'ABOUT',
-    title: 'Lumenium（ルメニウム）について',
-    desc: 'ルメニウムという社名の由来、事業の考え方、取り組み方をご紹介します。',
-  },
-  positioning: {
-    label: 'POSITIONING',
-    title: 'Lumenium（ルメニウム）ってどんな会社？',
-    desc: '大手制作会社・クラウドソーシング——どれとも違う、ルメニウムの立ち位置です。',
-  },
-  profile: {
-    label: 'ABOUT',
-    title: '代表紹介',
-  },
-  company: {
-    label: 'COMPANY',
-    title: '会社概要',
+  // The landing page (src/components/Landing.jsx). Plain, factual wording:
+  // what we do, for whom, how much, how to ask.
+  lp: {
+    eyebrow: '東京の制作会社　動画・AI・Web・SNS',
+    title: '動画・AI・Webの制作を、\nまとめて相談できる\n会社です。',
+    lead: '何を作ればいいか、まだ決まっていなくても大丈夫です。お話を伺いながら、企画から制作、公開後の運用まで一緒に進めます。',
+    ctaPrimary: '無料で相談する',
+    ctaSecondary: 'サービスと料金を見る',
+    assure1: '相談・お見積りは無料',
+    assure2: '48時間以内にご返信',
+    assure3: '動画1本・LP1枚から',
+    personName: '代表　山本 捷真',
+    personNote: '慶應義塾大学 文学部卒。2020年から、動画・SNS・AI開発の仕事を続けています。',
+    personLink: '代表紹介を読む',
+    servicesTitle: 'できること',
+    servicesLead: '6つの領域を、ひとつの窓口でお受けします。料金はいずれも目安で、内容を伺ってから正確にお見積りします。',
+    servicesMore: '詳しく',
+    worksTitle: 'これまでの仕事',
+    worksOther: 'ほかにも、こんな仕事をしてきました',
+    worksMore: '実績をもっと見る',
+    flowTitle: 'ご依頼の流れ',
+    faqTitle: 'よくある質問',
+    faqMore: 'すべての質問を見る',
   },
   contact: {
-    label: 'CONTACT',
     title: 'お問い合わせ',
     desc: 'お気軽にご相談ください。',
   },
-  cta: {
-    label: "LET'S TALK",
-    title: 'あなたの"やりたい"を\n光ある形に。',
-    desc: '「何から始めればいいかわからない」——まずはそこからで大丈夫です。\nLumenium（ルメニウム）が一緒に整理し、最短ルートの解決策までご提案します。',
-    reassure1: 'しつこい営業は一切なし',
-    reassure2: '相談・お見積りだけでも歓迎',
-    reassure3: 'ご相談内容は秘密厳守',
-    button: '無料でご相談する',
-  },
   footer: {
-    ctaLabel: "LET'S TALK",
-    ctaTitle: 'はじめの一歩は、30分のご相談から。',
-    ctaButton: '無料で相談する',
     tagline: '散文化した目的に、焦点を当てる。',
     sub: '動画・AI・Webを中心に、企画から運用までを一緒に走りながら、お客様の想いをかたちにしています。',
     base: '東京 / オンライン全国対応',
   },
   home: {
     yomi: 'ルメニウム',
-    // Shown as the one-line 「ルメニウムとは」 under the landing page's hero.
-    // The breaks are honoured on a phone and hidden on anything wider.
-    definition: 'ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／\nDX支援カンパニーです。',
-    definitionLink: 'ルメニウムとは →',
   },
 }

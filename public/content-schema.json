@@ -1,218 +1,90 @@
 {
-  "generatedAt": "2026-09-27T16:40:48.764Z",
-  "count": 399,
+  "generatedAt": "2026-09-27T23:49:36.942Z",
+  "count": 352,
   "groups": [
     {
       "key": "text",
       "label": "各セクションの見出し・説明文",
       "fields": [
         {
-          "path": "text.hero.lead",
-          "value": "DIGITAL CREATIVE STUDIO · TOKYO"
+          "path": "text.lp.eyebrow",
+          "value": "東京の制作会社　動画・AI・Web・SNS"
         },
         {
-          "path": "text.hero.titleLine1",
-          "value": "散文化した目的に"
+          "path": "text.lp.title",
+          "value": "動画・AI・Webの制作を、\nまとめて相談できる\n会社です。"
         },
         {
-          "path": "text.hero.titleLine2",
-          "value": "焦点を当てる"
+          "path": "text.lp.lead",
+          "value": "何を作ればいいか、まだ決まっていなくても大丈夫です。お話を伺いながら、企画から制作、公開後の運用まで一緒に進めます。"
         },
         {
-          "path": "text.hero.desc",
-          "value": "ぼんやりした\"やりたい\"を、**動画・AI・Web**で最短ルートの成果に。\n企画から納品・運用まで**ワンストップ**で、あなたの事業に光を当てます。"
+          "path": "text.lp.ctaPrimary",
+          "value": "無料で相談する"
         },
         {
-          "path": "text.hero.typingLabel",
-          "value": "対応領域"
+          "path": "text.lp.ctaSecondary",
+          "value": "サービスと料金を見る"
         },
         {
-          "path": "text.pain.label",
-          "value": "YOUR PAIN POINTS"
+          "path": "text.lp.assure1",
+          "value": "相談・お見積りは無料"
         },
         {
-          "path": "text.pain.title",
-          "value": "こんなお困りごと、ありませんか？"
+          "path": "text.lp.assure2",
+          "value": "48時間以内にご返信"
         },
         {
-          "path": "text.pain.desc",
-          "value": "「何から手をつければいいか分からない」\n「やりたいことはあるのに、時間も人手も足りない」\n—— 事業の\"次の一手\"は、\nたいてい**言葉にならないモヤモヤ**から始まります。\nその曖昧な想いを一緒に**言語化**し、\n動画・AI・Webという最適な打ち手に翻訳するのが、\nルメニウムの仕事です。"
+          "path": "text.lp.assure3",
+          "value": "動画1本・LP1枚から"
         },
         {
-          "path": "text.servicesIntro.label",
-          "value": "NEXT · SERVICES"
+          "path": "text.lp.personName",
+          "value": "代表　山本 捷真"
         },
         {
-          "path": "text.servicesIntro.title",
-          "value": "Lumenium（ルメニウム）が\nお手伝いできる領域。"
+          "path": "text.lp.personNote",
+          "value": "慶應義塾大学 文学部卒。2020年から、動画・SNS・AI開発の仕事を続けています。"
         },
         {
-          "path": "text.servicesIntro.lead",
-          "value": "動画制作からAI導入、Web開発まで。一つひとつの領域に、専門チームが伴走します。"
+          "path": "text.lp.personLink",
+          "value": "代表紹介を読む"
         },
         {
-          "path": "text.servicesIntro.metaKey1",
-          "value": "領域数"
+          "path": "text.lp.servicesTitle",
+          "value": "できること"
         },
         {
-          "path": "text.servicesIntro.metaVal1",
-          "value": "6"
+          "path": "text.lp.servicesLead",
+          "value": "6つの領域を、ひとつの窓口でお受けします。料金はいずれも目安で、内容を伺ってから正確にお見積りします。"
         },
         {
-          "path": "text.servicesIntro.metaKey2",
-          "value": "対応業界"
+          "path": "text.lp.servicesMore",
+          "value": "詳しく"
         },
         {
-          "path": "text.servicesIntro.metaVal2",
-          "value": "12+"
+          "path": "text.lp.worksTitle",
+          "value": "これまでの仕事"
         },
         {
-          "path": "text.servicesIntro.metaKey3",
-          "value": "ご提案まで"
+          "path": "text.lp.worksOther",
+          "value": "ほかにも、こんな仕事をしてきました"
         },
         {
-          "path": "text.servicesIntro.metaVal3",
-          "value": "48h 以内"
+          "path": "text.lp.worksMore",
+          "value": "実績をもっと見る"
         },
         {
-          "path": "text.services.label",
-          "value": "SERVICES"
-        },
-        {
-          "path": "text.services.title",
-          "value": "動画・AI・Webまで\n6領域をワンストップで。"
-        },
-        {
-          "path": "text.services.desc",
-          "value": "複数の制作会社に発注する手間を1社に集約。企画から納品・運用までLumenium（ルメニウム）が一貫して伴走します。"
-        },
-        {
-          "path": "text.results.label",
-          "value": "RESULTS"
-        },
-        {
-          "path": "text.results.title",
-          "value": "このような案件に対応してきました"
-        },
-        {
-          "path": "text.results.desc",
-          "value": "規模やジャンルを問わず、最適なチーム体制で対応します。"
-        },
-        {
-          "path": "text.results.achievementsHeading",
-          "value": "その他の実績"
-        },
-        {
-          "path": "text.testimonials.label",
-          "value": "VOICE"
-        },
-        {
-          "path": "text.testimonials.title",
-          "value": "お客様の声"
-        },
-        {
-          "path": "text.testimonials.desc",
-          "value": "ご依頼いただいた方々からの感想の一部です。"
-        },
-        {
-          "path": "text.pricing.label",
-          "value": "PRICING SIMULATOR"
-        },
-        {
-          "path": "text.pricing.title",
-          "value": "見積もりの目安を\nその場でシミュレーション。"
-        },
-        {
-          "path": "text.pricing.desc",
-          "value": "必要なサービスを選ぶと概算レンジが表示されます。\n※ 実際のお見積りは無料。内容を伺った上で正確にご提案します。"
-        },
-        {
-          "path": "text.flow.label",
-          "value": "FLOW"
-        },
-        {
-          "path": "text.flow.title",
+          "path": "text.lp.flowTitle",
           "value": "ご依頼の流れ"
         },
         {
-          "path": "text.flow.desc",
-          "value": "お問い合わせから納品後の伴走まで、5つのステップでご案内します。"
-        },
-        {
-          "path": "text.faq.label",
-          "value": "FAQ"
-        },
-        {
-          "path": "text.faq.title",
+          "path": "text.lp.faqTitle",
           "value": "よくある質問"
         },
         {
-          "path": "text.faq.desc",
-          "value": "問い合わせ前の疑問を、先に解消できるようにまとめました。"
-        },
-        {
-          "path": "text.blog.label",
-          "value": "BLOG"
-        },
-        {
-          "path": "text.blog.title",
-          "value": "ノウハウ・お役立ち情報"
-        },
-        {
-          "path": "text.blog.desc",
-          "value": "動画制作・AI活用・SNS運用・Web制作など、現場で役立つ情報を発信しています。"
-        },
-        {
-          "path": "text.news.label",
-          "value": "NEWS"
-        },
-        {
-          "path": "text.news.title",
-          "value": "お知らせ"
-        },
-        {
-          "path": "text.story.label",
-          "value": "ABOUT"
-        },
-        {
-          "path": "text.story.title",
-          "value": "Lumenium（ルメニウム）について"
-        },
-        {
-          "path": "text.story.desc",
-          "value": "ルメニウムという社名の由来、事業の考え方、取り組み方をご紹介します。"
-        },
-        {
-          "path": "text.positioning.label",
-          "value": "POSITIONING"
-        },
-        {
-          "path": "text.positioning.title",
-          "value": "Lumenium（ルメニウム）ってどんな会社？"
-        },
-        {
-          "path": "text.positioning.desc",
-          "value": "大手制作会社・クラウドソーシング——どれとも違う、ルメニウムの立ち位置です。"
-        },
-        {
-          "path": "text.profile.label",
-          "value": "ABOUT"
-        },
-        {
-          "path": "text.profile.title",
-          "value": "代表紹介"
-        },
-        {
-          "path": "text.company.label",
-          "value": "COMPANY"
-        },
-        {
-          "path": "text.company.title",
-          "value": "会社概要"
-        },
-        {
-          "path": "text.contact.label",
-          "value": "CONTACT"
+          "path": "text.lp.faqMore",
+          "value": "すべての質問を見る"
         },
         {
           "path": "text.contact.title",
@@ -221,46 +93,6 @@
         {
           "path": "text.contact.desc",
           "value": "お気軽にご相談ください。"
-        },
-        {
-          "path": "text.cta.label",
-          "value": "LET'S TALK"
-        },
-        {
-          "path": "text.cta.title",
-          "value": "あなたの\"やりたい\"を\n光ある形に。"
-        },
-        {
-          "path": "text.cta.desc",
-          "value": "「何から始めればいいかわからない」——まずはそこからで大丈夫です。\nLumenium（ルメニウム）が一緒に整理し、最短ルートの解決策までご提案します。"
-        },
-        {
-          "path": "text.cta.reassure1",
-          "value": "しつこい営業は一切なし"
-        },
-        {
-          "path": "text.cta.reassure2",
-          "value": "相談・お見積りだけでも歓迎"
-        },
-        {
-          "path": "text.cta.reassure3",
-          "value": "ご相談内容は秘密厳守"
-        },
-        {
-          "path": "text.cta.button",
-          "value": "無料でご相談する"
-        },
-        {
-          "path": "text.footer.ctaLabel",
-          "value": "LET'S TALK"
-        },
-        {
-          "path": "text.footer.ctaTitle",
-          "value": "はじめの一歩は、30分のご相談から。"
-        },
-        {
-          "path": "text.footer.ctaButton",
-          "value": "無料で相談する"
         },
         {
           "path": "text.footer.tagline",
@@ -277,14 +109,6 @@
         {
           "path": "text.home.yomi",
           "value": "ルメニウム"
-        },
-        {
-          "path": "text.home.definition",
-          "value": "ルメニウム（Lumenium）とは、\n東京都を拠点とする日本のクリエイティブ／\nDX支援カンパニーです。"
-        },
-        {
-          "path": "text.home.definitionLink",
-          "value": "ルメニウムとは →"
         }
       ]
     },
@@ -1011,10 +835,6 @@
       "label": "社名の由来・考え方",
       "fields": [
         {
-          "path": "site.BRAND_CHAPTERS.0.eyebrow",
-          "value": "NAME"
-        },
-        {
           "path": "site.BRAND_CHAPTERS.0.title",
           "value": "社名について"
         },
@@ -1031,10 +851,6 @@
           "value": "それが、私たちの役割だと考えています。"
         },
         {
-          "path": "site.BRAND_CHAPTERS.1.eyebrow",
-          "value": "APPROACH"
-        },
-        {
           "path": "site.BRAND_CHAPTERS.1.title",
           "value": "対応領域"
         },
@@ -1049,10 +865,6 @@
         {
           "path": "site.BRAND_CHAPTERS.1.body.2",
           "value": "複数社をまたぐ調整をお客様側で抱え込まずに済むよう、窓口を一本化しています。"
-        },
-        {
-          "path": "site.BRAND_CHAPTERS.2.eyebrow",
-          "value": "STANCE"
         },
         {
           "path": "site.BRAND_CHAPTERS.2.title",

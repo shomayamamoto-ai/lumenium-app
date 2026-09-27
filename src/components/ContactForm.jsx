@@ -177,7 +177,6 @@ export default function ContactForm() {
     <section className="section section--gray" id="contact-form">
       <div className="container">
         <div className="section-header" data-animate>
-          <p className="section-label">{SECTION.contact.label}</p>
           <h2 className="section-title">{rich(SECTION.contact.title)}</h2>
           <p className="section-desc">{rich(SECTION.contact.desc)}</p>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
-import Navbar from './components/Navbar'
-import InfoPage from './components/InfoPage'
+import Header from './components/Header'
+import Landing from './components/Landing'
 import MobileCTA from './components/MobileCTA'
 import ErrorBoundary from './components/ErrorBoundary'
 import NetworkStatus from './components/NetworkStatus'
@@ -14,6 +14,16 @@ import { scrollBehavior } from './lib/motion'
 const ChatWidget = lazy(() => import('./components/ChatWidget'))
 const Privacy = lazy(() => import('./components/Privacy'))
 
+const LEGACY_ANCHORS = {
+  '': 'top', 'contact-form': 'contact', services: 'services', pricing: 'services',
+  results: 'works', flow: 'flow', faq: 'faq', about: 'top',
+}
+const LEGACY_PAGES = {
+  news: '/news.html', blog: '/blog/index.html', testimonials: '/voice.html',
+  story: '/story.html', positioning: '/positioning.html', pain: '/pain.html',
+  company: '/about.html',
+}
+
 export default function App() {
   /* The opening movie, the logo-only search home and its dial are gone.
      Every visitor lands straight on the page that says what Lumenium does,
@@ -24,44 +34,39 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
 
-  // Hash routing: '' / '#' / '#/info' → the landing page; '#/info/<section>'
-  // → that section on its own. Deep links are honoured on a fresh visit:
-  // they used to be stripped, so every 「お問い合わせフォームを開く」 on the
-  // static pages (/#/info/contact-form) landed on the logo-only home instead
-  // of the form.
+  /* Hash routing. The site is one landing page now. Old in-app addresses
+     ('#/info/<section>', still linked from the static pages, bookmarks and
+     search results) go to the matching place on the landing page, or to the
+     standalone page that now holds that content. */
   const [route, setRoute] = useState(() => (typeof window === 'undefined' ? '' : window.location.hash))
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash)
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
-  const infoMatch = route.match(/^#\/info(?:\/([a-z-]+))?$/)
   const isInfo = true
-  const infoSection = infoMatch?.[1] || ''
-
-  // Set when the lazy InfoPage chunk has actually mounted — observers and
-  // section-scrolling must wait for the real DOM, not the Suspense fallback.
-  const [infoMounted, setInfoMounted] = useState(false)
+  const infoMounted = true
+  const infoSection = ''
   useEffect(() => {
-    if (!isInfo) setInfoMounted(false)
-  }, [isInfo])
-
-  // On route change: jump to the requested section (info) or back to top (home)
-  useEffect(() => {
-    if (phase !== 2) return
-    if (isInfo && !infoMounted) return // wait for the lazy chunk's DOM
-    if (isInfo && infoSection) {
-      requestAnimationFrame(() => {
-        const el = document.getElementById(infoSection)
-        if (el) {
-          const y = el.getBoundingClientRect().top + window.scrollY - 80
-          window.scrollTo({ top: y, behavior: scrollBehavior() })
-        }
-      })
-    } else {
-      window.scrollTo({ top: 0 })
+    const m = route.match(/^#\/info(?:\/([a-z-]+))?$/)
+    let id = ''
+    if (m) {
+      const sec = m[1] || ''
+      if (LEGACY_PAGES[sec]) { window.location.replace(LEGACY_PAGES[sec]); return }
+      id = LEGACY_ANCHORS[sec] || ''
+      // Leave a clean address behind, without adding a history entry.
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + (id ? '#' + id : ''))
+    } else if (/^#[a-z][\w-]*$/i.test(route)) {
+      id = route.slice(1)
     }
-  }, [route, phase, isInfo, infoSection, infoMounted])
+    if (!id) return
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const y = el.getBoundingClientRect().top + window.scrollY - 72
+      window.scrollTo({ top: Math.max(0, y), behavior: scrollBehavior() })
+    })
+  }, [route])
 
   useEffect(() => {
     setPageReady(true)
@@ -363,15 +368,11 @@ export default function App() {
   return (
     <ErrorBoundary>
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
-      <div id="main">
-        <Navbar />
-        <InfoPage
-          section={infoSection}
-          onPrivacy={() => setShowPrivacy(true)}
-          onMounted={() => setInfoMounted(true)}
-        />
-      </div>
-      {infoSection !== 'contact-form' && <MobileCTA />}
+      <Header />
+      <main id="main">
+        <Landing onPrivacy={() => setShowPrivacy(true)} />
+      </main>
+      <MobileCTA />
       {chatReady && (
         <Suspense fallback={null}>
           <ChatWidget />

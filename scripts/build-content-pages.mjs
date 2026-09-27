@@ -311,7 +311,7 @@ ${md(a.content)}
     desc: articleDesc(a),
     canonical: url,
     ld,
-    eyebrow: 'LUMENIUM BLOG',
+    eyebrow: 'ブログ',
     body,
   }))
   urls.push({ loc: url, lastmod: isoDate(a.date) })
@@ -369,7 +369,7 @@ ${md(a.content)}
     desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを、実際の案件で使っている手順のまま公開しています。東京拠点のルメニウム（Lumenium）が、中小企業の担当者向けに書いた記事の一覧です。',
     canonical: url,
     ld,
-    eyebrow: 'LUMENIUM BLOG',
+    eyebrow: 'ブログ',
     body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
@@ -400,7 +400,7 @@ ${md(a.content)}
     desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。サービスの追加、制作実績、サイトの更新など、東京拠点のクリエイティブ／DX支援カンパニーの動きをこのページにまとめています。',
     canonical: url,
     ld,
-    eyebrow: 'LUMENIUM NEWS',
+    eyebrow: 'お知らせ',
     body,
   }))
   urls.push({ loc: url, lastmod: news[0]?.date || TODAY })
@@ -432,7 +432,7 @@ ${md(a.content)}
     desc: 'ルメニウム（Lumenium）へのご依頼に関するよくある質問。料金の目安は動画制作3万円〜、Web制作30万円〜。納期・修正対応・NDA・オンライン対応・全国対応まで、実際にいただく質問に答えています。',
     canonical: url,
     ld,
-    eyebrow: 'LUMENIUM FAQ',
+    eyebrow: 'よくある質問',
     body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
@@ -623,7 +623,7 @@ ${md(a.content)}
     desc: DESC,
     canonical: url,
     ld,
-    eyebrow: 'ABOUT LUMENIUM',
+    eyebrow: '会社について',
     body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
@@ -640,7 +640,7 @@ const priceMin = PRICE_OPTIONS.reduce((a, o) => a + o.min, 0)
 const TOPIC_PAGES = [
   {
     file: 'pricing.html',
-    eyebrow: 'LUMENIUM PRICING',
+    eyebrow: '料金',
     title: '料金・費用の目安 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）の料金・費用の目安',
     desc: 'ルメニウム（Lumenium）の料金目安。動画制作3万円〜、AI導入・研修10万円〜、SNS/LINE構築20万円〜、Web制作30万円〜、キャスト手配5,000円〜。お見積りは無料です。',
@@ -684,7 +684,7 @@ const TOPIC_PAGES = [
   },
   {
     file: 'works.html',
-    eyebrow: 'LUMENIUM WORKS',
+    eyebrow: '実績',
     title: '実績・制作事例 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）の実績・制作事例',
     desc: 'ルメニウム（Lumenium）の制作実績。塾教材4万ページを1ヶ月で制作、登録者数十万人規模チャンネルの動画制作、企業公式LINE構築、AI研修など12業界以上で対応しています。',
@@ -707,7 +707,7 @@ const TOPIC_PAGES = [
   },
   {
     file: 'voice.html',
-    eyebrow: 'LUMENIUM VOICE',
+    eyebrow: 'お客様の声',
     title: 'お客様の声・評判 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）をご利用いただいたお客様の声',
     desc: 'ルメニウム（Lumenium）にご依頼いただいたお客様の声。飲食店、IT企業、美容サロン、教育系企業、士業事務所などから寄せられた評価をご紹介します。',
@@ -738,7 +738,7 @@ const TOPIC_PAGES = [
   },
   {
     file: 'flow.html',
-    eyebrow: 'LUMENIUM FLOW',
+    eyebrow: 'ご依頼の流れ',
     title: 'ご依頼の流れ・進め方 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）へのご依頼の流れ',
     desc: 'ルメニウム（Lumenium）へのご依頼の流れ。ご相談から、ヒアリング・お見積り、ご契約、制作、納品・運用サポートまでの5ステップと、各段階の所要時間をご説明します。',
@@ -761,7 +761,7 @@ const TOPIC_PAGES = [
   },
   {
     file: 'contact.html',
-    eyebrow: 'LUMENIUM CONTACT',
+    eyebrow: 'お問い合わせ',
     title: 'お問い合わせ・無料相談 | Lumenium（ルメニウム）',
     h1: 'Lumenium（ルメニウム）へのお問い合わせ',
     desc: 'ルメニウム（Lumenium）へのご相談・お見積りは無料です。動画制作、AI導入・研修、SNS運用、LINE構築、Web制作のご相談は48時間以内にご返信します。',
@@ -806,7 +806,7 @@ const TOPIC_PAGES = [
 TOPIC_PAGES.push(
   {
     file: 'choose.html',
-    eyebrow: 'LUMENIUM GUIDE',
+    eyebrow: 'ご案内',
     title: '制作会社の選び方｜比較する5つの基準 | Lumenium（ルメニウム）',
     h1: '制作会社を選ぶとき、何を基準に比較すればよいか',
     desc: '動画・Web・SNS運用の制作会社を選ぶときに比較すべき5つの基準と、見積りを取る前に確認したい質問。東京拠点のルメニウム（Lumenium）が、実際に聞かれることをそのまま整理しました。',
@@ -855,7 +855,7 @@ TOPIC_PAGES.push(
   },
   {
     file: 'onestop.html',
-    eyebrow: 'LUMENIUM ONE-STOP',
+    eyebrow: 'ワンストップ対応',
     title: '動画もWebもAI研修も一社に｜中小企業のDX支援 | Lumenium（ルメニウム）',
     h1: '動画・Web・AI研修・SNSを、一社にまとめて頼むということ',
     desc: '動画制作・Web制作・生成AI研修・SNS運用/LINE構築・キャスト手配・クリエイティブ制作を1つの窓口で。中小企業のDXを一社でまとめて支援する体制と、まとめないほうがよい場合まで書いています。東京拠点・全国対応。',
@@ -912,7 +912,7 @@ TOPIC_PAGES.push(
 TOPIC_PAGES.push(
   {
     file: 'pain.html',
-    eyebrow: 'LUMENIUM PAIN POINTS',
+    eyebrow: 'お困りごと',
     title: 'お困りごと｜SNS・動画・LINEの悩み | Lumenium（ルメニウム）',
     h1: 'こんなお困りごと、ありませんか？',
     desc: 'SNS集客が進まない、動画を作る時間がない、公式LINEの始め方が分からない。ルメニウム（Lumenium）は、言葉にならないモヤモヤを一緒に言語化し、動画・AI・Webという打ち手に翻訳します。',
@@ -933,7 +933,7 @@ TOPIC_PAGES.push(
   },
   {
     file: 'positioning.html',
-    eyebrow: 'LUMENIUM POSITIONING',
+    eyebrow: '他社との違い',
     title: '他社との違い・立ち位置 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）はどんな会社か — 他社との違い',
     desc: '大手制作会社・広告代理店とも、クラウドソーシング・フリーランスとも違う、ルメニウム（Lumenium）の立ち位置。クオリティ・対応力とコストパフォーマンスの両立について説明します。',
@@ -957,7 +957,7 @@ TOPIC_PAGES.push(
   {
     file: 'story.html',
     serif: true,
-    eyebrow: 'LUMENIUM STORY',
+    eyebrow: '社名と考え方',
     title: '社名の由来と考え方 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）という社名と、その考え方',
     desc: 'ルメニウム（Lumenium）という社名の由来、対応領域の考え方、制作後の伴走姿勢について。社名はラテン語で光を意味する Lumen に由来します。',
@@ -977,7 +977,7 @@ TOPIC_PAGES.push(
   {
     file: 'profile.html',
     serif: true,
-    eyebrow: 'LUMENIUM FOUNDER',
+    eyebrow: '代表紹介',
     title: '代表紹介 山本捷真 | Lumenium（ルメニウム）',
     h1: 'ルメニウム（Lumenium）代表 山本 捷真',
     desc: 'ルメニウム（Lumenium）代表・山本捷真の経歴と得意領域。慶應義塾大学文学部卒業、在学中から個人事業主として動画・AI・Web・SNSを横断し、企業向けAI研修の講師も歴任。',
@@ -1159,7 +1159,7 @@ ${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
     desc: 'Lumenium（ルメニウム）のページ一覧。サービス、料金、実績、お客様の声、ご依頼の流れ、会社情報、ブログ記事へのリンクをまとめています。',
     canonical: url,
     ld,
-    eyebrow: 'LUMENIUM SITEMAP',
+    eyebrow: 'サイトマップ',
     body,
   }))
   urls.push({ loc: url, lastmod: TODAY })
