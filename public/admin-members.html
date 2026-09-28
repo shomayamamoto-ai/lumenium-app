@@ -593,7 +593,7 @@ input, select, textarea { color: var(--text); }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px; padding-top: 4px;
 }
-.portal-rings, .hub-face { display: none !important; }
+.portal-rings { display: none !important; }
 #portal-nodes { display: contents; }
 .portal-hub, .pnode {
   position: static; transform: none !important;
@@ -614,8 +614,41 @@ input, select, textarea { color: var(--text); }
 .hub-sub { font-size: 13px; color: #b9b8b1; }
 @media (max-width: 1080px) { .portal-body { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .portal-stage { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
-/* The clock card: the dial script sizes the hub inline, so it is overruled. */
-#portal-hub { width: auto !important; height: auto !important; left: auto !important; top: auto !important; min-height: 0; padding: 20px 22px; }
+/* The clock card: an analog wall clock in the site's voice — white dial,
+   black bar markers and hands, an indigo second hand, the time and date
+   beside it. The rim still fills in while the timer runs. The dial script
+   sizes the hub inline for the old orbit layout, so that is overruled. */
+#portal-hub {
+  width: auto !important; height: auto !important; left: auto !important; top: auto !important;
+  min-height: 0; padding: 22px 28px; gap: 28px; align-items: center;
+  background: #fff !important; border-color: var(--border) !important; color: var(--text);
+}
+#portal-hub .hub-face {
+  display: block; position: static; flex: none; width: 176px; height: 176px; z-index: auto;
+  border-radius: 50%; background: #faf9f6; border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(23,23,28,.08);
+}
+#portal-hub .hub-face .tick { stroke: #17171c; stroke-width: 1; opacity: .35; }
+#portal-hub .hub-face .mark { fill: #17171c; opacity: 1; }
+#portal-hub .hub-face .hand .lit { fill: #17171c; }
+#portal-hub .hub-face .hand .dim { fill: #2e2e36; }
+#portal-hub .hub-face .hand .edge { stroke: none; }
+#portal-hub .hub-face .hand { filter: drop-shadow(0 1px 1px rgba(23,23,28,.18)); }
+#portal-hub .hub-face .s-stem { stroke: #3d3fbf; stroke-width: 1.6; }
+#portal-hub .hub-face .s-weight { fill: #3d3fbf; }
+#portal-hub .hub-face .cap { fill: #17171c; stroke: none; }
+#portal-hub .hub-face .cap-top { fill: #3d3fbf; }
+#portal-hub .hub-face .prog { stroke: #3d3fbf; stroke-width: 4; }
+#portal-hub.rang .hub-face .prog { stroke: #047857; }
+#portal-hub .hub-clock { font-size: 44px; color: var(--text); letter-spacing: .02em; }
+#portal-hub.timing .hub-clock { color: #3d3fbf; }
+#portal-hub.rang .hub-clock { color: #047857; }
+#portal-hub .hub-sub { font-size: 14px; color: var(--sub); margin-top: 4px; }
+@media (max-width: 560px) {
+  #portal-hub { padding: 16px 18px; gap: 18px; }
+  #portal-hub .hub-face { width: 112px; height: 112px; }
+  #portal-hub .hub-clock { font-size: 30px; }
+}
 /* Phone header: one line, title never broken into syllables. */
 header h1, header button, header a { white-space: nowrap; }
 @media (max-width: 560px) {
