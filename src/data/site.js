@@ -120,7 +120,7 @@ export const FLOW_STEPS = [
 ]
 
 export const PRICE_OPTIONS = [
-  { key: 'video', label: '動画制作', sub: 'PR・SNS・企業紹介など', min: 30000, max: 300000, icon: '🎬' },
+  { key: 'video', label: '動画制作', sub: 'PR・SNS・企業紹介など', min: 50000, max: 300000, icon: '🎬' },
   { key: 'ai', label: 'AI導入・研修', sub: '講師1回+教材ベース', min: 100000, max: 300000, icon: '🤖' },
   { key: 'sns', label: 'SNS・LINE構築', sub: '初期+月額想定', min: 200000, max: 500000, icon: '💬' },
   { key: 'web', label: 'Web / LP 制作', sub: 'HP・LP・Webアプリ', min: 300000, max: 2000000, icon: '💻' },

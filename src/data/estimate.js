@@ -42,7 +42,7 @@ export const ESTIMATE = [
   {
     id: 'video',
     title: '動画制作・映像編集',
-    base: 30000,
+    base: 50000,
     unitNote: '1本あたり',
     steps: [
       {
@@ -136,7 +136,7 @@ export const ESTIMATE = [
       {
         key: 'kind', label: 'つくるもの', options: [
           { id: 'lp', label: 'ランディングページ（1枚）', mul: 1 },
-          { id: 'site', label: 'コーポレートサイト', mul: 2.2 },
+          { id: 'site', label: 'コーポレートサイト', mul: 2 },
           { id: 'system', label: '業務システム・Webアプリ', mul: 4.5 },
         ],
       },
