@@ -4,6 +4,7 @@
 // the app. Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { BEACON } from './_beacon.mjs'
+import { framePage } from './_page-frame.mjs'
 import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
 import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
@@ -517,8 +518,8 @@ for (const base of SERVICES) {
     examples: c.examples || base.examples,
     tags: c.tags || [],
   }
-  writeFileSync(`public/services/${s.id}.html`, page(s))
+  writeFileSync(`public/services/${s.id}.html`, framePage(page(s), `/services/${s.id}.html`))
   console.log(`public/services/${s.id}.html written`)
 }
-writeFileSync('public/services/index.html', hub())
+writeFileSync('public/services/index.html', framePage(hub(), '/services/index.html'))
 console.log('public/services/index.html written')

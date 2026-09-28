@@ -74,12 +74,19 @@ footer a:hover { color:var(--text); }
 <link rel="stylesheet" href="/brand.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
-  <p class="eyebrow">サービス</p>
-  <h1>SNS運用・LINE構築</h1>
-  <p class="lead">「何を投稿すればいいか分からない」「公式LINEを作りたいがやり方が不明」——集客の仕組み化を企画から運用まで代行します。</p>
-  <div class="others" aria-label="対応内容"><span>SNS運用</span><span>LINE Bot</span><span>集客設計</span></div>
+<header class="site-hd"><div class="site-in site-hd-in">
+  <a class="site-logo" href="/" aria-label="Lumenium（ルメニウム）トップへ"><img src="/lumenium-logo.svg?v=3" alt="" width="30" height="30"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span></a>
+  <nav class="site-nav" aria-label="メインナビゲーション"><a href="/#services">できること</a><a href="/works.html">実績</a><a href="/flow.html">ご依頼の流れ</a><a href="/faq.html">よくある質問</a><a href="/about.html">会社概要</a></nav>
+  <a class="site-cta" href="/#contact">無料で相談する</a>
+</div></header>
+<section class="page-head"><div class="site-in">
+    <p class="eyebrow">サービス</p>
+    <h1>SNS運用・LINE構築</h1>
+    <p class="lead">「何を投稿すればいいか分からない」「公式LINEを作りたいがやり方が不明」——集客の仕組み化を企画から運用まで代行します。</p>
+</div></section>
+<div class="site-in page-grid">
+  <main class="page-main">
+<div class="others" aria-label="対応内容"><span>SNS運用</span><span>LINE Bot</span><span>集客設計</span></div>
 
   <!-- 事業者情報。ディレクトリの1件分と同じ形を、ページの先頭に置きます。
        回答エンジンが「この会社に頼める」と判断するために要るのは、提供元・
@@ -96,21 +103,21 @@ footer a:hover { color:var(--text); }
     <div><dt>お問い合わせ</dt><dd><a href="/contact.html">お問い合わせフォーム</a></dd></div>
   </dl>
 
-  <h2>こんな方におすすめ</h2>
+  <h2 id="s1">こんな方におすすめ</h2>
   <ul>
     <li>公式LINEで配信したいがやり方がわからない方</li>
     <li>SNSで集客したいが何を投稿すべきか不明な方</li>
     <li>シナリオ配信・セグメント配信を設計したい方</li>
   </ul>
 
-  <h2>代表的な実績</h2>
+  <h2 id="s2">代表的な実績</h2>
   <ul>
     <li>企業公式LINE構築</li>
     <li>シナリオ型Bot制作</li>
     <li>SNS運用代行(月数十本投稿)</li>
   </ul>
 
-  <h2>料金目安</h2>
+  <h2 id="s3">料金目安</h2>
   <div class="price">初期 20万円〜 / 月額 10万円〜<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
 
   <details class="ref">
@@ -132,7 +139,7 @@ footer a:hover { color:var(--text); }
     <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
   </div>
 
-  <h2>その他のサービス</h2>
+  <h2 id="s4">その他のサービス</h2>
   <div class="others">
     <a href="/services/web.html">Web制作・システム開発</a>
     <a href="/services/ai.html">AI導入・生成AI研修</a>
@@ -143,7 +150,7 @@ footer a:hover { color:var(--text); }
 
 
   <section class="contact-strip" id="contact">
-    <h2>お問い合わせはこちら</h2>
+    <h2 id="s5">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -152,7 +159,20 @@ footer a:hover { color:var(--text); }
     <p class="lead" style="margin-top:10px;font-size:12.5px;opacity:.85">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
   </section>
   <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: 2026-09-28　／　東京都を拠点に、オンラインで全国対応しています。</p>
-  <footer>
+  </main>
+    <aside class="page-side" aria-label="このページについて">
+      <nav class="side-toc" aria-label="このページの内容">
+        <p class="side-title">このページの内容</p>
+        <ol><li><a href="#provider">事業者情報</a></li><li><a href="#s1">こんな方におすすめ</a></li><li><a href="#s2">代表的な実績</a></li><li><a href="#s3">料金目安</a></li><li><a href="#s4">その他のサービス</a></li><li><a href="#s5">お問い合わせはこちら</a></li></ol>
+      </nav>
+      <div class="side-cta">
+        <p class="side-title">ご相談は無料です</p>
+        <p>何を作るか決まっていない段階でも大丈夫です。48時間以内にご返信します。</p>
+        <a class="side-btn" href="/#contact">無料で相談する</a>
+      </div>
+    </aside>
+</div>
+<footer class="site-ft"><div class="site-in">
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/">lumenium.net</a>
     <a href="/about.html">Lumeniumとは</a>
@@ -165,8 +185,7 @@ footer a:hover { color:var(--text); }
     <a href="/faq.html">よくある質問</a>
     <a href="/contact.html">お問い合わせ</a>
     <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
-  </footer>
-</div>
+  </div></footer>
 <!-- The backslash is doubled on purpose: this template is a JS template
      literal, where / collapses to /. It used to be written as / and reached
      the page as //$/ — a comment, which made the whole tag a syntax error and

@@ -12,6 +12,7 @@
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { BEACON } from './_beacon.mjs'
+import { framePage } from './_page-frame.mjs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
@@ -193,7 +194,7 @@ const CONTACT_STRIP = `
   </section>`
 
 function shell({ title, desc, canonical, ld, eyebrow, body }) {
-  return `<!DOCTYPE html>
+  return framePage(`<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -245,7 +246,7 @@ ${CONTACT_STRIP}
 ${BEACON}
 </body>
 </html>
-`
+`, String(canonical || '').replace(SITE, ''))
 }
 
 /* A one-line summary is a fine headline and a useless description: the blog
