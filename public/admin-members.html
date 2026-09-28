@@ -623,30 +623,46 @@ input, select, textarea { color: var(--text); }
   min-height: 0; padding: 22px 28px; gap: 28px; align-items: center;
   background: #fff !important; border-color: var(--border) !important; color: var(--text);
 }
+/* The dial follows the watch face this portal had before: a deep navy
+   dial, faceted steel dauphine hands (one side polished, one shaded),
+   applied bar indices and a counterweighted second hand — now with a
+   fine sunburst on the dial and a brushed-steel bezel, sitting as an
+   object on the white card. */
 #portal-hub .hub-face {
-  display: block; position: static; flex: none; width: 176px; height: 176px; z-index: auto;
-  border-radius: 50%; background: #faf9f6; border: 1px solid var(--border);
-  box-shadow: inset 0 1px 3px rgba(23,23,28,.08);
+  display: block; position: static; flex: none; width: 200px; height: 200px; z-index: auto;
+  border-radius: 50%;
+  border: 7px solid transparent;
+  background:
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.035) 0deg 1.5deg, rgba(255,255,255,0) 1.5deg 3deg) padding-box,
+    radial-gradient(circle at 50% 32%, #34407a 0%, #1f2650 45%, #121633 100%) padding-box,
+    conic-gradient(from 210deg, #fafafa, #a3a3aa, #eeeef0, #7c7c84, #f3f3f5, #9b9ba2, #fafafa) border-box;
+  box-shadow:
+    0 0 0 1px rgba(23,23,28,.18),
+    0 14px 28px -12px rgba(23,23,28,.55),
+    inset 0 3px 10px rgba(0,0,0,.55);
+  overflow: visible;
 }
-#portal-hub .hub-face .tick { stroke: #17171c; stroke-width: 1; opacity: .35; }
-#portal-hub .hub-face .mark { fill: #17171c; opacity: 1; }
-#portal-hub .hub-face .hand .lit { fill: #17171c; }
-#portal-hub .hub-face .hand .dim { fill: #2e2e36; }
-#portal-hub .hub-face .hand .edge { stroke: none; }
-#portal-hub .hub-face .hand { filter: drop-shadow(0 1px 1px rgba(23,23,28,.18)); }
-#portal-hub .hub-face .s-stem { stroke: #3d3fbf; stroke-width: 1.6; }
-#portal-hub .hub-face .s-weight { fill: #3d3fbf; }
-#portal-hub .hub-face .cap { fill: #17171c; stroke: none; }
-#portal-hub .hub-face .cap-top { fill: #3d3fbf; }
-#portal-hub .hub-face .prog { stroke: #3d3fbf; stroke-width: 4; }
-#portal-hub.rang .hub-face .prog { stroke: #047857; }
+#portal-hub .hub-face .tick { stroke: #e7e9f5; stroke-width: 1; opacity: .5; }
+#portal-hub .hub-face .mark { fill: #f4f4f6; opacity: .95; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+#portal-hub .hub-face .hand .lit { fill: url(#steelLit); }
+#portal-hub .hub-face .hand .dim { fill: url(#steelDim); }
+#portal-hub .hub-face .hand .edge { stroke: rgba(15,23,42,.55); stroke-width: .5; fill: none; }
+#portal-hub .hub-face .hand { filter: drop-shadow(1px 2px 2px rgba(0,0,0,.6)); }
+#portal-hub .hub-face .hand.s { filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
+#portal-hub .hub-face .s-stem { stroke: #67e8f9; stroke-width: 1.5; }
+#portal-hub .hub-face .s-weight { fill: #67e8f9; }
+#portal-hub .hub-face .cap { fill: url(#capG); stroke: rgba(15,23,42,.6); stroke-width: .6; }
+#portal-hub .hub-face .cap-top { fill: #0f172a; }
+#portal-hub .hub-face .prog { stroke: #a5b4fc; stroke-width: 4; }
+#portal-hub.rang .hub-face .prog { stroke: #6ee7b7; }
+#portal-hub:not(.timing):not(.rang) .hub-face .prog { display: none; }
 #portal-hub .hub-clock { font-size: 44px; color: var(--text); letter-spacing: .02em; }
 #portal-hub.timing .hub-clock { color: #3d3fbf; }
 #portal-hub.rang .hub-clock { color: #047857; }
 #portal-hub .hub-sub { font-size: 14px; color: var(--sub); margin-top: 4px; }
 @media (max-width: 560px) {
   #portal-hub { padding: 16px 18px; gap: 18px; }
-  #portal-hub .hub-face { width: 112px; height: 112px; }
+  #portal-hub .hub-face { width: 124px; height: 124px; border-width: 5px; }
   #portal-hub .hub-clock { font-size: 30px; }
 }
 /* Phone header: one line, title never broken into syllables. */
@@ -1556,13 +1572,13 @@ window.lumAdmin = {
     var svg = document.getElementById('hub-face');
     var p = ['<defs>' +
       '<linearGradient id="steelLit" x1="0" y1="0" x2="1" y2="0">' +
-        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#3a3a44"/>' +
-        '<stop offset="1" stop-color="#45454f"/></linearGradient>' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#e2e8f0"/>' +
+        '<stop offset="1" stop-color="#cbd5e1"/></linearGradient>' +
       '<linearGradient id="steelDim" x1="0" y1="0" x2="1" y2="0">' +
         '<stop offset="0" stop-color="#7c8da6"/><stop offset="0.6" stop-color="#5a6b7f"/>' +
         '<stop offset="1" stop-color="#46566e"/></linearGradient>' +
       '<radialGradient id="capG" cx="0.35" cy="0.3" r="0.8">' +
-        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#45454f"/>' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#cbd5e1"/>' +
         '<stop offset="1" stop-color="#64748b"/></radialGradient>' +
       '</defs>'];
 
