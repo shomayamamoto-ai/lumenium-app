@@ -117,6 +117,37 @@ export default function Landing({ onPrivacy }) {
         </div>
       </section>
 
+      {/* Webの強み: このサイトと同じような管理画面 */}
+      <section className="lp-admin" id="admin" aria-labelledby="lp-admin-h">
+        <div className="lp-wrap lp-admin-grid">
+          <div className="lp-admin-copy">
+            <h2 id="lp-admin-h" className="lp-h2">{rich(SECTION.lp.adminTitle)}</h2>
+            <p className="lp-admin-lead">{rich(SECTION.lp.adminLead)}</p>
+            <p className="lp-admin-note">{rich(SECTION.lp.adminNote)}</p>
+            <p className="lp-admin-pitch">{rich(SECTION.lp.adminPitch)}</p>
+            <a href="#contact" className="lp-btn lp-btn--light" data-cta="admin-consult">{SECTION.lp.adminCta}</a>
+          </div>
+          <ul className="lp-admin-list">
+            {[
+              ['creative', SECTION.lp.adminF1Title, SECTION.lp.adminF1Desc],
+              ['megaphone', SECTION.lp.adminF2Title, SECTION.lp.adminF2Desc],
+              ['chart', SECTION.lp.adminF3Title, SECTION.lp.adminF3Desc],
+              ['search', SECTION.lp.adminF4Title, SECTION.lp.adminF4Desc],
+              ['users', SECTION.lp.adminF5Title, SECTION.lp.adminF5Desc],
+              ['sns', SECTION.lp.adminF6Title, SECTION.lp.adminF6Desc],
+            ].map(([icon, t, d]) => (
+              <li key={t}>
+                <span className="lp-admin-icon" aria-hidden="true"><LineIcon name={icon} size={20} /></span>
+                <div>
+                  <p className="lp-admin-t">{t}</p>
+                  <p className="lp-admin-d">{d}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       {/* 3. これまでの仕事 */}
       <section className="lp-sec lp-sec--alt" id="works" aria-labelledby="lp-works-h">
         <div className="lp-wrap">
