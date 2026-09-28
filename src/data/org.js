@@ -24,7 +24,11 @@ export function orgNode() {
     // 業種。「東京の制作会社」という聞かれ方に対して、何屋かを型でも示す。
     additionalType: 'https://schema.org/ProfessionalService',
     slogan: '散文化した目的に、焦点を当てる。',
-    description:
+    /* 同名・似た名前の組織との区別。以前は全ページの最後に本文として
+     載せていましたが、読む人には不要な一文だったので、検索エンジンと
+     AIが読む構造化データの側に移しました。 */
+  disambiguatingDescription: '東京都を拠点とする日本のクリエイティブ／DX支援カンパニー。米国の光通信・レーザー機器メーカー Lumentum Holdings、米国バージニア州のエンジン開発企業 Lumenium, LLC、植物のリモニウム（Limonium）、化学元素とは無関係です。',
+  description:
       'ルメニウム（Lumenium）は、東京都を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を、企画から納品・運用までワンストップで手がける日本のクリエイティブ／DX支援カンパニーです。',
     foundingDate: '2026',
     founder: { '@type': 'Person', name: '山本 捷真', jobTitle: '代表' },

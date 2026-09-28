@@ -57,14 +57,6 @@ export default function Landing({ onPrivacy }) {
               <li>{SECTION.lp.assure3}</li>
             </ul>
           </div>
-          <figure className="lp-person">
-            <img src="/profile.jpg?v=2" alt={SECTION.lp.personName} width="426" height="520" decoding="async" fetchpriority="high" />
-            <figcaption>
-              <span className="lp-person-name">{SECTION.lp.personName}</span>
-              <span className="lp-person-note">{SECTION.lp.personNote}</span>
-              <a href="/profile.html" className="lp-link">{SECTION.lp.personLink}</a>
-            </figcaption>
-          </figure>
         </div>
       </section>
 

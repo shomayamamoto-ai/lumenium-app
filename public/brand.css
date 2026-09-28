@@ -90,3 +90,20 @@ footer a:hover { color: var(--ink) !important; }
   header.brandbar .brand small { display: none; }
 }
 .others span { font-size: 12px; color: var(--ink-soft); padding: 5px 12px; border: 1px solid var(--hair); border-radius: 999px; }
+
+/* Reference material (the brand/disambiguation Q&A and question-shaped
+   FAQs written for search and AI answers): collapsed, so a reader sees the
+   page and can open it if they want. Collapsed content is still part of
+   the page for search engines. */
+details.ref { margin: 28px 0 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+details.ref > summary {
+  cursor: pointer; list-style: none; padding: 16px 28px 16px 0; position: relative;
+  font-size: 14px; font-weight: 600; color: var(--ink-soft);
+}
+details.ref > summary::-webkit-details-marker { display: none; }
+details.ref > summary::after { content: '+'; position: absolute; right: 4px; top: 13px; font-size: 18px; color: var(--ink-mute); }
+details.ref[open] > summary::after { content: '−'; }
+details.ref[open] { padding-bottom: 12px; }
+details.ref + details.ref { margin-top: 0; border-top: 0; }
+/* Q&A panels: the text sat flush against the panel's edge. */
+dl.qa { padding: 6px 20px 18px; border-radius: 10px; }

@@ -296,9 +296,8 @@ function page(s) {
 <div class="wrap">
   <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
   <p class="eyebrow">サービス</p>
-  <h1>${esc(s.name)}｜Lumenium（ルメニウム）</h1>
+  <h1>${esc(s.name)}</h1>
   <p class="lead">${esc(s.lead)}</p>
-  <p class="lead">東京拠点のクリエイティブ&amp;DXパートナー Lumenium（ルメニウム）が、オンラインで全国のご依頼に対応します。</p>
   ${s.tags && s.tags.length ? `<div class="others" aria-label="対応内容">${s.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
 
   <!-- 事業者情報。ディレクトリの1件分と同じ形を、ページの先頭に置きます。
@@ -307,7 +306,7 @@ function page(s) {
        引用されます。中の数字はすべて料金ページと特商法表記と同じです。 -->
   <h2 id="provider">事業者情報</h2>
   <dl class="facts">
-    <div><dt>提供元</dt><dd>Lumenium（ルメニウム）／代表 山本 捷真</dd></div>
+    <div><dt>提供元</dt><dd>Lumenium（ルメニウム）</dd></div>
     <div><dt>所在地</dt><dd>東京都（打ち合わせはオンライン、全国対応）</dd></div>
     <div><dt>料金</dt><dd>${esc(s.price)}</dd></div>
     ${LEAD_TIME[s.id] ? `<div><dt>納期</dt><dd>${esc(LEAD_TIME[s.id])}</dd></div>` : ''}
@@ -329,9 +328,11 @@ function page(s) {
   <h2>料金目安</h2>
   <div class="price">${esc(s.price)}<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
 
-  <h2>よくある質問</h2>
+  <details class="ref">
+  <summary>よくある質問（${(FAQ[s.id] || []).length}件）</summary>
   ${(FAQ[s.id] || []).map(([q, a]) => `<h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">${esc(q)}</h3>
   <p style="font-size:13.5px;line-height:2;color:var(--sub)">${esc(a)}</p>`).join('\n  ')}
+  </details>
 
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
@@ -344,7 +345,6 @@ function page(s) {
   </div>
 
 ${CONTACT_STRIP}
-  <p class="lead" style="margin-top:34px;font-size:13px;opacity:.8">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を手がけています。米国のエンジン開発企業 Lumenium, LLC や Lumentum とは無関係の別組織です。</p>
   <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>

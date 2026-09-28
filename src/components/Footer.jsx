@@ -16,11 +16,11 @@ export default function Footer({ onPrivacy }) {
             <p className="footer-sub">{rich(SECTION.footer.sub)}</p>
             <ul className="footer-contact">
               <li>
-                <span>CONTACT</span>
+                <span>ご相談</span>
                 <a href="#contact-form">お問い合わせフォーム →</a>
               </li>
               <li>
-                <span>BASE</span>
+                <span>拠点</span>
                 <span className="footer-contact-text">{SECTION.footer.base}</span>
               </li>
             </ul>

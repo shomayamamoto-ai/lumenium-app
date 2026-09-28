@@ -11085,3 +11085,21 @@ body { color: var(--lp-ink); }
   .lp-h1 { font-size: 26px; line-height: 1.55; }
   .lp-h2 { font-size: 23px; }
 }
+
+/* Hero without the portrait: one column, a comfortable measure. */
+.lp-hero-grid { grid-template-columns: minmax(0, 1fr); max-width: 1120px; }
+.lp-hero-copy { max-width: 760px; }
+.lp-hero { padding-bottom: 64px; }
+
+/* The dot of the i. The nav/footer rules paint a clipped gradient onto
+   every <span> inside the logo, including the i's wrapper; in Safari a
+   clipped-text parent stops the child's own fill from painting, so the
+   i vanished and only its star remained. The wrapper gets no fill of its
+   own anywhere; the letter inside carries it. */
+.wm .wm-iw {
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: initial !important;
+  color: inherit !important;
+}

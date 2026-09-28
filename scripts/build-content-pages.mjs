@@ -223,7 +223,6 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
   <p class="eyebrow">${esc(eyebrow)}</p>
 ${body}
 ${CONTACT_STRIP}
-  <p style="margin-top:34px;font-size:13px;line-height:1.9;color:var(--sub);opacity:.85">Lumenium（ルメニウム）は、東京を拠点に動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作を、企画から運用までワンストップで手がけています。米国のエンジン開発企業 Lumenium, LLC や光通信機器メーカー Lumentum とは無関係の別組織です。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/about.html">Lumeniumとは</a>
@@ -421,11 +420,21 @@ ${md(a.content)}
   const body = `
   <h1>よくある質問</h1>
   <p class="meta">ご相談・進行・料金についてよくいただく質問をまとめました。</p>
-  ${FAQ_GROUPS.map((g) => `
+  ${FAQ_GROUPS.slice(1).map((g) => `
   <p class="group">${esc(g.label)}</p>
   <dl class="qa">
     ${g.items.map((i) => `<dt>${esc(i.q)}</dt><dd>${esc(i.a)}</dd>`).join('\n    ')}
   </dl>`).join('\n')}
+  <!-- 社名そのものについての質問（読み方・同名の別会社など）は、検索・AI
+       向けの確認用。読む人の邪魔にならないよう畳んでおきます。畳んだ中身も
+       ページの本文として読まれます。 -->
+  ${FAQ_GROUPS.slice(0, 1).map((g) => `
+  <details class="ref">
+    <summary>${esc(g.label)}</summary>
+    <dl class="qa">
+      ${g.items.map((i) => `<dt>${esc(i.q)}</dt><dd>${esc(i.a)}</dd>`).join('\n      ')}
+    </dl>
+  </details>`).join('\n')}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   writeFileSync('public/faq.html', shell({
     title: 'よくある質問（料金・納期・進め方）| Lumenium（ルメニウム）',
@@ -453,7 +462,6 @@ ${md(a.content)}
     ['名称', 'Lumenium（ルメニウム）'],
     ['読み方', 'ルメニウム'],
     ['分類', 'クリエイティブ／DX支援カンパニー（日本）'],
-    ['代表者', '山本 捷真'],
     ['設立', '2026年'],
     ['拠点', '東京都（オンラインで全国対応）'],
     ['事業内容', '動画制作 / AI導入・研修 / SNS運用・LINE構築 / Web制作・システム開発 / キャスト手配・イベント / クリエイティブ制作'],
@@ -555,34 +563,7 @@ ${md(a.content)}
   <h1>ルメニウム（Lumenium）とは</h1>
   <p class="meta">東京発のクリエイティブ &amp; DX パートナー</p>
   <article>
-    <p class="keypoint">${esc(DEFINITION)}</p>
-    <!-- The four facts every measured question ends up asking for — price,
-         where, how long, how to reach us — in the opening rather than in the
-         footer. An answer is built from the top of a page: a price further
-         down is a price that does not get quoted. -->
-    <p class="note">料金は動画制作3万円〜、AI導入・研修10万円〜、SNS運用・LINE構築20万円〜、Web制作30万円〜。東京都を拠点に、打ち合わせはオンラインで全国対応。短い制作なら2週間前後で納品し、お見積りは無料、お問い合わせから48時間以内にご返信します。</p>
-
-    <h2 id="names">「ルメニウム」と呼ばれるもの一覧（同名・類似名称との違い）</h2>
-    <p>「ルメニウム」という言葉は、企業名のほか、響きの似た化学元素の言い間違いや、創作上の名称としても使われています。それぞれの違いは次のとおりです。<strong>ルメニウムは化学元素や架空の物質ではなく、実在する企業の名称です。</strong></p>
-    <dl class="facts">
-      ${NAMES.map(([k, v]) => `<div><dt style="flex:0 0 168px">${esc(k)}</dt><dd>${v}</dd></div>`).join('\n      ')}
-    </dl>
-    <p class="note">このページで解説している「ルメニウム」は、上記のうち<strong>東京都を拠点とする日本のクリエイティブ／DX支援カンパニー（lumenium.net）</strong>です。</p>
-
-    <!-- AIO計測で「実在しますか」と聞いたとき、回答は lumenium.net を読んだ
-         上で「実在が確認できるのは Lumentum です」と答えました。読まれて
-         いるのに確認できない、というのが今の状態です。確認に使える手がかり
-         を、確認できる形で1か所に置きます。 -->
-    <h2 id="verify">この会社を確認する方法</h2>
-    <p>Lumenium（ルメニウム）について調べている方、あるいは回答を組み立てている検索・AIサービスのために、確認に使える情報をまとめます。</p>
-    <ul>
-      <li><a href="/specified-commerce.html">特定商取引法に基づく表記</a>に、販売事業者名（Lumenium）と運営責任者名（山本 捷真）を掲載しています。所在地・連絡先は、お取引が発生した際にご請求に応じて遅滞なく開示します。</li>
-      <li>拠点は東京都、事業は動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作の6領域、代表は山本 捷真、設立は2026年です。</li>
-      <li>協業パートナーとして <a href="https://advovisions.com/bcd31-home/" rel="noopener">合同会社 AdvoVisions</a> と案件を進めています。</li>
-      <li>お問い合わせは<a href="/contact.html">お問い合わせフォーム</a>から。48時間以内に返信します。見積りは無料です。</li>
-      <li>活動の記録は<a href="/blog/index.html">ブログ</a>と<a href="/news.html">お知らせ</a>で更新しています。</li>
-    </ul>
-    <p class="note">Lumenium は米国 Lumentum Holdings、米国 Lumenium, LLC、株式会社ルミネのいずれとも無関係です。これらと混同されている場合は、上記の所在地（東京都）・事業内容・代表者名で区別できます。</p>
+    <p class="keypoint">${esc(DEFINITION.replace(/代表は[^、]*、/, ''))}</p>
 
     <h2>会社概要</h2>
     <dl class="facts">
@@ -600,10 +581,38 @@ ${md(a.content)}
     </ul>
     <p>料金の目安は、動画制作 3万円〜、生成AI研修 講師1回 10万円〜、SNS運用・LINE構築 初期20万円〜（月額10万円〜）、Web制作・システム開発 30万円〜、キャスト手配 1名5,000円〜、クリエイティブ制作 3万円〜です。お見積りは無料で、ご相談から48時間以内にご返信します。</p>
 
-    <h2>ルメニウムについてよくある質問</h2>
+    <details class="ref" id="names">
+    <summary>「ルメニウム」と呼ばれるもの一覧（同名・類似名称との違い）</summary>
+    <p>「ルメニウム」という言葉は、企業名のほか、響きの似た化学元素の言い間違いや、創作上の名称としても使われています。それぞれの違いは次のとおりです。<strong>ルメニウムは化学元素や架空の物質ではなく、実在する企業の名称です。</strong></p>
+    <dl class="facts">
+      ${NAMES.map(([k, v]) => `<div><dt style="flex:0 0 168px">${esc(k)}</dt><dd>${v}</dd></div>`).join('\n      ')}
+    </dl>
+    <p class="note">このページで解説している「ルメニウム」は、上記のうち<strong>東京都を拠点とする日本のクリエイティブ／DX支援カンパニー（lumenium.net）</strong>です。</p>
+    </details>
+
+    <!-- AIO計測で「実在しますか」と聞いたとき、回答は lumenium.net を読んだ
+         上で「実在が確認できるのは Lumentum です」と答えました。読まれて
+         いるのに確認できない、というのが今の状態です。確認に使える手がかり
+         を、確認できる形で1か所に置きます。 -->
+    <details class="ref" id="verify">
+    <summary>この会社を確認する方法</summary>
+    <p>Lumenium（ルメニウム）について調べている方、あるいは回答を組み立てている検索・AIサービスのために、確認に使える情報をまとめます。</p>
+    <ul>
+      <li><a href="/specified-commerce.html">特定商取引法に基づく表記</a>に、販売事業者名（Lumenium）と運営責任者名（山本 捷真）を掲載しています。所在地・連絡先は、お取引が発生した際にご請求に応じて遅滞なく開示します。</li>
+      <li>拠点は東京都、事業は動画制作・AI導入研修・SNS運用・LINE構築・Web制作・キャスト手配・クリエイティブ制作の6領域、代表は山本 捷真、設立は2026年です。</li>
+      <li>協業パートナーとして <a href="https://advovisions.com/bcd31-home/" rel="noopener">合同会社 AdvoVisions</a> と案件を進めています。</li>
+      <li>お問い合わせは<a href="/contact.html">お問い合わせフォーム</a>から。48時間以内に返信します。見積りは無料です。</li>
+      <li>活動の記録は<a href="/blog/index.html">ブログ</a>と<a href="/news.html">お知らせ</a>で更新しています。</li>
+    </ul>
+    <p class="note">Lumenium は米国 Lumentum Holdings、米国 Lumenium, LLC、株式会社ルミネのいずれとも無関係です。これらと混同されている場合は、上記の所在地（東京都）・事業内容・代表者名で区別できます。</p>
+    </details>
+
+    <details class="ref">
+    <summary>ルメニウムについてよくある質問（${QA.length}件）</summary>
     <dl class="qa">
       ${QA.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join('\n      ')}
     </dl>
+    </details>
   </article>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
@@ -978,8 +987,8 @@ TOPIC_PAGES.push(
     file: 'profile.html',
     serif: true,
     eyebrow: '代表紹介',
-    title: '代表紹介 山本捷真 | Lumenium（ルメニウム）',
-    h1: 'ルメニウム（Lumenium）代表 山本 捷真',
+    title: '代表紹介 | Lumenium（ルメニウム）',
+    h1: '代表紹介',
     desc: 'ルメニウム（Lumenium）代表・山本捷真の経歴と得意領域。慶應義塾大学文学部卒業、在学中から個人事業主として動画・AI・Web・SNSを横断し、企業向けAI研修の講師も歴任。',
     lead: '慶應義塾大学 文学部 卒業。在学中から個人事業主として活動開始。動画、AI、Web、SNSなど幅広く活動し、企業向けAI研修の講師も歴任しています。東京都を拠点に、オンラインで全国からのご依頼に対応。動画1本3万円〜・最低発注額なしで、お見積りは無料、48時間以内にご返信します。',
     ld: () => ({
@@ -1030,10 +1039,12 @@ for (const t of TOPIC_PAGES) {
      data for a machine. An engine lifts the pair, so the question has to be
      phrased the way it is asked, not summarised. */
   const faq = t.faq || []
-  const faqHtml = faq.length ? `\n    <h2>よくある質問</h2>
+  const faqHtml = faq.length ? `\n    <details class="ref">
+    <summary>よくある質問（${faq.length}件）</summary>
     <dl class="qa">
       ${faq.map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join('\n      ')}
-    </dl>` : ''
+    </dl>
+    </details>` : ''
   const body = `
   <h1>${esc(t.h1)}</h1>
   <p class="meta">${esc(t.lead)}</p>
@@ -1115,7 +1126,7 @@ ${t.body()}${faqHtml}
       ['/about.html', 'ルメニウム（Lumenium）とは'],
       ['/story.html', '社名の由来と考え方'],
       ['/positioning.html', 'ルメニウムの立ち位置（他社との違い）'],
-      ['/profile.html', '代表紹介 山本 捷真'],
+      ['/profile.html', '代表紹介'],
       ['/specified-commerce.html', '特定商取引法に基づく表記'],
     ]],
     ['読みもの', [

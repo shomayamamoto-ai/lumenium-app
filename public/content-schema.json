@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-27T23:49:36.942Z",
-  "count": 352,
+  "generatedAt": "2026-09-28T00:02:44.172Z",
+  "count": 349,
   "groups": [
     {
       "key": "text",
@@ -37,18 +37,6 @@
         {
           "path": "text.lp.assure3",
           "value": "動画1本・LP1枚から"
-        },
-        {
-          "path": "text.lp.personName",
-          "value": "代表　山本 捷真"
-        },
-        {
-          "path": "text.lp.personNote",
-          "value": "慶應義塾大学 文学部卒。2020年から、動画・SNS・AI開発の仕事を続けています。"
-        },
-        {
-          "path": "text.lp.personLink",
-          "value": "代表紹介を読む"
         },
         {
           "path": "text.lp.servicesTitle",
