@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-28T01:24:43.677Z",
-  "count": 370,
+  "generatedAt": "2026-09-28T01:49:00.280Z",
+  "count": 366,
   "groups": [
     {
       "key": "text",
@@ -8,7 +8,7 @@
       "fields": [
         {
           "path": "text.lp.title",
-          "value": "Webサイト・システムの開発と\nAI研修を手がける\n制作会社です"
+          "value": "Webサイト・システムの開発\nAI研修を手がける\n制作会社です"
         },
         {
           "path": "text.lp.lead",
@@ -334,7 +334,7 @@
         },
         {
           "path": "services.2.examples.2",
-          "value": "AI企業PR動画"
+          "value": "企業PR動画"
         },
         {
           "path": "services.2.examples.3",
@@ -546,50 +546,34 @@
       "fields": [
         {
           "path": "site.ACHIEVEMENTS.0",
-          "value": "システム開発"
-        },
-        {
-          "path": "site.ACHIEVEMENTS.1",
-          "value": "企業ホームページ制作"
-        },
-        {
-          "path": "site.ACHIEVEMENTS.2",
           "value": "企業公式LINE構築"
         },
         {
-          "path": "site.ACHIEVEMENTS.3",
-          "value": "AI教材制作"
+          "path": "site.ACHIEVEMENTS.1",
+          "value": "企業PR動画制作"
         },
         {
-          "path": "site.ACHIEVEMENTS.4",
-          "value": "企業向けAI活用メルマガ制作"
-        },
-        {
-          "path": "site.ACHIEVEMENTS.5",
-          "value": "AI企業PR動画制作"
-        },
-        {
-          "path": "site.ACHIEVEMENTS.6",
+          "path": "site.ACHIEVEMENTS.2",
           "value": "企業ロゴ・バナー・ポスター制作"
         },
         {
-          "path": "site.ACHIEVEMENTS.7",
+          "path": "site.ACHIEVEMENTS.3",
           "value": "登録者数十万人規模のチャンネルの動画制作"
         },
         {
-          "path": "site.ACHIEVEMENTS.8",
+          "path": "site.ACHIEVEMENTS.4",
           "value": "有名飲食店での企画・映像制作"
         },
         {
-          "path": "site.ACHIEVEMENTS.9",
+          "path": "site.ACHIEVEMENTS.5",
           "value": "配信者のプロデュース"
         },
         {
-          "path": "site.ACHIEVEMENTS.10",
+          "path": "site.ACHIEVEMENTS.6",
           "value": "アイドルイベント主催"
         },
         {
-          "path": "site.ACHIEVEMENTS.11",
+          "path": "site.ACHIEVEMENTS.7",
           "value": "作詞作曲"
         }
       ]

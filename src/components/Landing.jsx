@@ -170,7 +170,7 @@ export default function Landing({ onPrivacy }) {
           </div>
           <h3 className="lp-h3">{SECTION.lp.worksOther}</h3>
           <ul className="lp-achieve">
-            {ACHIEVEMENTS.slice(0, 8).map((a) => <li key={a}>{a}</li>)}
+            {ACHIEVEMENTS.slice(0, 5).map((a) => <li key={a}>{a}</li>)}
           </ul>
           <a href="/works.html" className="lp-link">{SECTION.lp.worksMore} →</a>
         </div>
