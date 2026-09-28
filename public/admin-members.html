@@ -3308,7 +3308,10 @@ window.lumAdmin = {
           'align-items:center;justify-content:flex-end;gap:3px;height:100%">' +
           '<div style="width:100%;height:' + h + 'px;border-radius:3px;background:' +
             (r.count ? 'linear-gradient(180deg,#3d3fbf,#3d3fbf)' : 'rgba(23,23,28,.07)') + '"></div>' +
-          '<span style="font-size:8.5px;color:var(--sub);font-variant-numeric:tabular-nums">' +
+          // Every column gets a label box of the same height. An empty label
+          // collapsed to nothing, so the bars in the 0 / 6 / 12 / 18 columns
+          // stood on a higher baseline than their neighbours.
+          '<span style="display:block;height:11px;line-height:11px;font-size:8.5px;color:var(--sub);font-variant-numeric:tabular-nums">' +
             (r.hour % 6 === 0 ? r.hour : '') + '</span>' +
         '</div>';
       }).join('') +
