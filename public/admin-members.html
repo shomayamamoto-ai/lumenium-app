@@ -5146,20 +5146,39 @@ window.lumAdmin = {
     if (btn) btn.addEventListener('click', connectGoogle);
   }
 
+  /* 接続ボタンの結果は、ボタンのすぐ下に出します。以前は画面の上のほう
+     （キー一覧の先頭）にだけ出ていて、下のボタンを押した人からは見えず、
+     「押しても何も起きない」ように見えていました。 */
+  function sayHere(t, info) {
+    setSay(t, info);
+    var box = document.getElementById('booking-box');
+    if (!box) return;
+    var p = document.getElementById('booking-say');
+    if (!p) {
+      p = document.createElement('p');
+      p.id = 'booking-say';
+      var row = box.firstElementChild;
+      if (row && row.nextSibling) box.insertBefore(p, row.nextSibling); else box.appendChild(p);
+    }
+    p.textContent = t || '';
+    p.style.cssText = 'margin-top:8px;font-size:12.5px;line-height:1.8;font-weight:600;color:' + (info ? '#0e7490' : '#b42318');
+    if (t && !info) p.scrollIntoView({ block: 'nearest' });
+  }
+
   async function connectGoogle() {
     var btn = document.getElementById('booking-connect');
     if (btn) btn.disabled = true;
-    setSay('Google の同意画面を開いています…', true);
+    sayHere('Google の同意画面を開いています…', true);
     var r = await window.lumAdmin.fetch('/api/google-oauth?start=1');
     if (btn) btn.disabled = false;
-    if (!r.res.ok || !r.data.ok) { setSay((r.data && r.data.message) || '接続を開始できませんでした。'); return; }
+    if (!r.res.ok || !r.data.ok) { sayHere((r.data && r.data.message) || '接続を開始できませんでした。'); return; }
     // 新しいタブで許可 → 戻ってきたら「状態を再確認」で反映。ポップアップが
     // 塞がれている場合に備えて、URL をこの画面にも出しておく。
     var w = window.open(r.data.url, '_blank', 'noopener');
     if (!w) {
       // ポップアップが塞がれていると、押しても何も起きないように見えます。
       // URLをその場に出して、手で開けるようにします。
-      setSay('ポップアップが塞がれました。下のリンクから開いてください。');
+      sayHere('ポップアップが塞がれました。下のリンクから開いてください。');
       var box = document.getElementById('booking-box');
       if (box) {
         var a = document.createElement('a');
@@ -5171,7 +5190,7 @@ window.lumAdmin = {
         box.appendChild(a);
       }
     } else {
-      setSay(r.data.willSave === false
+      sayHere(r.data.willSave === false
         ? '別のタブで許可すると、保存先が無いため「値を貼ってください」という画面が出ます。表示された値を Vercel の環境変数に登録してください。'
         : '別のタブで許可してから、この画面の「接続できたか確認する」を押してください。', true);
     }
