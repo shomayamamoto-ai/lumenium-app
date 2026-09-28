@@ -1,22 +1,18 @@
 {
-  "generatedAt": "2026-09-28T00:02:44.172Z",
-  "count": 349,
+  "generatedAt": "2026-09-28T00:26:36.010Z",
+  "count": 352,
   "groups": [
     {
       "key": "text",
       "label": "各セクションの見出し・説明文",
       "fields": [
         {
-          "path": "text.lp.eyebrow",
-          "value": "東京の制作会社　動画・AI・Web・SNS"
-        },
-        {
           "path": "text.lp.title",
-          "value": "動画・AI・Webの制作を、\nまとめて相談できる\n会社です。"
+          "value": "Webサイト・システムの開発と、\nAI研修を手がける\n制作会社です。"
         },
         {
           "path": "text.lp.lead",
-          "value": "何を作ればいいか、まだ決まっていなくても大丈夫です。お話を伺いながら、企画から制作、公開後の運用まで一緒に進めます。"
+          "value": "ホームページや業務システムを作りたい、社内でAIを使えるようにしたい。何から手をつけるか決まっていない段階から、お話を伺って一緒に進めます。"
         },
         {
           "path": "text.lp.ctaPrimary",
@@ -36,7 +32,7 @@
         },
         {
           "path": "text.lp.assure3",
-          "value": "動画1本・LP1枚から"
+          "value": "LP1枚・研修1回から"
         },
         {
           "path": "text.lp.servicesTitle",
@@ -44,7 +40,19 @@
         },
         {
           "path": "text.lp.servicesLead",
-          "value": "6つの領域を、ひとつの窓口でお受けします。料金はいずれも目安で、内容を伺ってから正確にお見積りします。"
+          "value": "中心はWebサイト・システムの開発と、AI研修です。料金はいずれも目安で、内容を伺ってから正確にお見積りします。"
+        },
+        {
+          "path": "text.lp.servicesFor",
+          "value": "こんな方に"
+        },
+        {
+          "path": "text.lp.servicesDone",
+          "value": "これまでの例"
+        },
+        {
+          "path": "text.lp.servicesOther",
+          "value": "そのほかにお受けしていること"
         },
         {
           "path": "text.lp.servicesMore",
@@ -106,75 +114,59 @@
       "fields": [
         {
           "path": "services.0.title",
-          "value": "動画制作・映像編集"
+          "value": "Web制作・システム開発"
         },
         {
           "path": "services.0.desc",
-          "value": "PR・SNS・企業紹介・AI動画。企画から納品まで一貫対応。"
-        },
-        {
-          "path": "services.0.partner",
-          "value": "AdvoVisions"
-        },
-        {
-          "path": "services.0.partnerUrl",
-          "value": "https://advovisions.com/bcd31-home/"
+          "value": "コーポレートサイト・LPの制作から、業務システム・Webアプリ・スマホアプリの開発まで。"
         },
         {
           "path": "services.0.tags.0",
-          "value": "PR動画"
+          "value": "HP制作"
         },
         {
           "path": "services.0.tags.1",
-          "value": "SNS動画"
+          "value": "LP"
         },
         {
           "path": "services.0.tags.2",
-          "value": "AI動画"
-        },
-        {
-          "path": "services.0.tags.3",
-          "value": "映像編集"
+          "value": "システム開発"
         },
         {
           "path": "services.0.highlights.0",
-          "value": "社内に映像チームがなく外注先を探している方"
+          "value": "古いHPをリニューアルしたい方"
         },
         {
           "path": "services.0.highlights.1",
-          "value": "SNS向けの短尺動画を量産したい方"
+          "value": "キャンペーン用のLPを短納期で作りたい方"
         },
         {
           "path": "services.0.highlights.2",
-          "value": "企業紹介・採用動画を丁寧に作りたい方"
+          "value": "業務効率化のための社内ツールを開発したい方"
         },
         {
           "path": "services.0.examples.0",
-          "value": "登録者数十万人規模のYouTubeチャンネル動画制作"
+          "value": "企業ホームページ制作"
         },
         {
           "path": "services.0.examples.1",
-          "value": "有名飲食店での企画・映像制作"
+          "value": "業務システム開発"
         },
         {
           "path": "services.0.examples.2",
-          "value": "AI企業PR動画"
-        },
-        {
-          "path": "services.0.examples.3",
-          "value": "就業支援・研修動画"
+          "value": "スマートフォンアプリ"
         },
         {
           "path": "services.0.price",
-          "value": "3万円〜(案件規模に応じてご提案)"
+          "value": "30万円〜(規模に応じてご提案)"
         },
         {
           "path": "services.1.title",
-          "value": "AI導入・研修"
+          "value": "AI研修・AI導入支援"
         },
         {
           "path": "services.1.desc",
-          "value": "企業向けAI研修、教材制作、IT講師。現場目線で指導。"
+          "value": "社員向けの生成AI研修（講師・教材制作）と、業務へのAI導入の支援。オンライン・対面のどちらにも対応します。"
         },
         {
           "path": "services.1.tags.0",
@@ -218,207 +210,219 @@
         },
         {
           "path": "services.2.title",
-          "value": "SNS運用・LINE構築"
+          "value": "動画制作・映像編集"
         },
         {
           "path": "services.2.desc",
-          "value": "SNS運用代行、企画構成、LINE Bot制作。"
+          "value": "PR・SNS・企業紹介・AI動画。企画から納品まで一貫対応。"
         },
         {
-          "path": "services.2.tags.0",
-          "value": "SNS運用"
-        },
-        {
-          "path": "services.2.tags.1",
-          "value": "LINE Bot"
-        },
-        {
-          "path": "services.2.tags.2",
-          "value": "集客設計"
-        },
-        {
-          "path": "services.2.highlights.0",
-          "value": "公式LINEで配信したいがやり方がわからない方"
-        },
-        {
-          "path": "services.2.highlights.1",
-          "value": "SNSで集客したいが何を投稿すべきか不明な方"
-        },
-        {
-          "path": "services.2.highlights.2",
-          "value": "シナリオ配信・セグメント配信を設計したい方"
-        },
-        {
-          "path": "services.2.examples.0",
-          "value": "企業公式LINE構築"
-        },
-        {
-          "path": "services.2.examples.1",
-          "value": "シナリオ型Bot制作"
-        },
-        {
-          "path": "services.2.examples.2",
-          "value": "SNS運用代行(月数十本投稿)"
-        },
-        {
-          "path": "services.2.price",
-          "value": "初期 20万円〜 / 月額 10万円〜"
-        },
-        {
-          "path": "services.3.title",
-          "value": "Web制作・システム開発"
-        },
-        {
-          "path": "services.3.desc",
-          "value": "HP、LP、Webシステム、スマホアプリの開発。"
-        },
-        {
-          "path": "services.3.tags.0",
-          "value": "HP制作"
-        },
-        {
-          "path": "services.3.tags.1",
-          "value": "LP"
-        },
-        {
-          "path": "services.3.tags.2",
-          "value": "システム開発"
-        },
-        {
-          "path": "services.3.highlights.0",
-          "value": "古いHPをリニューアルしたい方"
-        },
-        {
-          "path": "services.3.highlights.1",
-          "value": "キャンペーン用のLPを短納期で作りたい方"
-        },
-        {
-          "path": "services.3.highlights.2",
-          "value": "業務効率化のための社内ツールを開発したい方"
-        },
-        {
-          "path": "services.3.examples.0",
-          "value": "企業ホームページ制作"
-        },
-        {
-          "path": "services.3.examples.1",
-          "value": "業務システム開発"
-        },
-        {
-          "path": "services.3.examples.2",
-          "value": "スマートフォンアプリ"
-        },
-        {
-          "path": "services.3.price",
-          "value": "30万円〜(規模に応じてご提案)"
-        },
-        {
-          "path": "services.4.title",
-          "value": "キャスト手配・イベント"
-        },
-        {
-          "path": "services.4.desc",
-          "value": "在籍150名のモデル・アクター手配。\nMC、イベント企画運営。"
-        },
-        {
-          "path": "services.4.partner",
+          "path": "services.2.partner",
           "value": "AdvoVisions"
         },
         {
-          "path": "services.4.partnerUrl",
+          "path": "services.2.partnerUrl",
           "value": "https://advovisions.com/bcd31-home/"
         },
         {
-          "path": "services.4.tags.0",
-          "value": "モデル手配"
+          "path": "services.2.tags.0",
+          "value": "PR動画"
         },
         {
-          "path": "services.4.tags.1",
-          "value": "MC"
+          "path": "services.2.tags.1",
+          "value": "SNS動画"
         },
         {
-          "path": "services.4.tags.2",
-          "value": "イベント企画"
+          "path": "services.2.tags.2",
+          "value": "AI動画"
         },
         {
-          "path": "services.4.highlights.0",
-          "value": "撮影や配信にキャストを手配したい方"
+          "path": "services.2.tags.3",
+          "value": "映像編集"
         },
         {
-          "path": "services.4.highlights.1",
-          "value": "MC・司会付きのイベントを企画中の方"
+          "path": "services.2.highlights.0",
+          "value": "社内に映像チームがなく外注先を探している方"
         },
         {
-          "path": "services.4.highlights.2",
-          "value": "配信者・アイドルのプロデュース相談"
+          "path": "services.2.highlights.1",
+          "value": "SNS向けの短尺動画を量産したい方"
         },
         {
-          "path": "services.4.examples.0",
-          "value": "アイドルイベント主催"
+          "path": "services.2.highlights.2",
+          "value": "企業紹介・採用動画を丁寧に作りたい方"
         },
         {
-          "path": "services.4.examples.1",
-          "value": "配信者のプロデュース"
+          "path": "services.2.examples.0",
+          "value": "登録者数十万人規模のYouTubeチャンネル動画制作"
         },
         {
-          "path": "services.4.examples.2",
-          "value": "企業イベントのキャスト手配・MC"
+          "path": "services.2.examples.1",
+          "value": "有名飲食店での企画・映像制作"
         },
         {
-          "path": "services.4.price",
-          "value": "キャスト1名 5,000円〜 / イベント企画別途"
+          "path": "services.2.examples.2",
+          "value": "AI企業PR動画"
         },
         {
-          "path": "services.5.title",
+          "path": "services.2.examples.3",
+          "value": "就業支援・研修動画"
+        },
+        {
+          "path": "services.2.price",
+          "value": "3万円〜(案件規模に応じてご提案)"
+        },
+        {
+          "path": "services.3.title",
+          "value": "SNS運用・LINE構築"
+        },
+        {
+          "path": "services.3.desc",
+          "value": "SNS運用代行、企画構成、LINE Bot制作。"
+        },
+        {
+          "path": "services.3.tags.0",
+          "value": "SNS運用"
+        },
+        {
+          "path": "services.3.tags.1",
+          "value": "LINE Bot"
+        },
+        {
+          "path": "services.3.tags.2",
+          "value": "集客設計"
+        },
+        {
+          "path": "services.3.highlights.0",
+          "value": "公式LINEで配信したいがやり方がわからない方"
+        },
+        {
+          "path": "services.3.highlights.1",
+          "value": "SNSで集客したいが何を投稿すべきか不明な方"
+        },
+        {
+          "path": "services.3.highlights.2",
+          "value": "シナリオ配信・セグメント配信を設計したい方"
+        },
+        {
+          "path": "services.3.examples.0",
+          "value": "企業公式LINE構築"
+        },
+        {
+          "path": "services.3.examples.1",
+          "value": "シナリオ型Bot制作"
+        },
+        {
+          "path": "services.3.examples.2",
+          "value": "SNS運用代行(月数十本投稿)"
+        },
+        {
+          "path": "services.3.price",
+          "value": "初期 20万円〜 / 月額 10万円〜"
+        },
+        {
+          "path": "services.4.title",
           "value": "クリエイティブ制作"
         },
         {
-          "path": "services.5.desc",
+          "path": "services.4.desc",
           "value": "ロゴ、バナー、ポスター、イラスト、教材制作、作詞作曲。"
         },
         {
-          "path": "services.5.tags.0",
+          "path": "services.4.tags.0",
           "value": "ロゴ"
         },
         {
-          "path": "services.5.tags.1",
+          "path": "services.4.tags.1",
           "value": "イラスト"
         },
         {
-          "path": "services.5.tags.2",
+          "path": "services.4.tags.2",
           "value": "ライター"
         },
         {
-          "path": "services.5.tags.3",
+          "path": "services.4.tags.3",
           "value": "作詞作曲"
         },
         {
-          "path": "services.5.highlights.0",
+          "path": "services.4.highlights.0",
           "value": "新ブランドのロゴ・アイデンティティを作りたい方"
         },
         {
-          "path": "services.5.highlights.1",
+          "path": "services.4.highlights.1",
           "value": "書籍・ブログ用のライターを探している方"
         },
         {
-          "path": "services.5.highlights.2",
+          "path": "services.4.highlights.2",
           "value": "イベント用の作詞・作曲を依頼したい方"
         },
         {
-          "path": "services.5.examples.0",
+          "path": "services.4.examples.0",
           "value": "企業ロゴ・バナー・ポスター制作"
         },
         {
-          "path": "services.5.examples.1",
-          "value": "塾教材4万ページ制作(1ヶ月)"
-        },
-        {
-          "path": "services.5.examples.2",
+          "path": "services.4.examples.1",
           "value": "作詞作曲・楽曲提供"
         },
         {
-          "path": "services.5.price",
+          "path": "services.4.price",
           "value": "3万円〜(内容に応じてご提案)"
+        },
+        {
+          "path": "services.5.title",
+          "value": "キャスト手配・イベント"
+        },
+        {
+          "path": "services.5.desc",
+          "value": "在籍150名のモデル・アクター手配。\nMC、イベント企画運営。"
+        },
+        {
+          "path": "services.5.partner",
+          "value": "AdvoVisions"
+        },
+        {
+          "path": "services.5.partnerUrl",
+          "value": "https://advovisions.com/bcd31-home/"
+        },
+        {
+          "path": "services.5.tags.0",
+          "value": "モデル手配"
+        },
+        {
+          "path": "services.5.tags.1",
+          "value": "MC"
+        },
+        {
+          "path": "services.5.tags.2",
+          "value": "イベント企画"
+        },
+        {
+          "path": "services.5.highlights.0",
+          "value": "撮影や配信にキャストを手配したい方"
+        },
+        {
+          "path": "services.5.highlights.1",
+          "value": "MC・司会付きのイベントを企画中の方"
+        },
+        {
+          "path": "services.5.highlights.2",
+          "value": "配信者・アイドルのプロデュース相談"
+        },
+        {
+          "path": "services.5.examples.0",
+          "value": "アイドルイベント主催"
+        },
+        {
+          "path": "services.5.examples.1",
+          "value": "配信者のプロデュース"
+        },
+        {
+          "path": "services.5.examples.2",
+          "value": "企業イベントのキャスト手配・MC"
+        },
+        {
+          "path": "services.5.price",
+          "value": "キャスト1名 5,000円〜 / イベント企画別途"
         }
       ]
     },
@@ -428,31 +432,39 @@
       "fields": [
         {
           "path": "site.CASE_STUDIES.0.tag",
-          "value": "教材制作"
+          "value": "AI研修"
         },
         {
           "path": "site.CASE_STUDIES.0.title",
-          "value": "1ヶ月で塾教材4万ページ制作"
+          "value": "企業研修・就業支援の講師と教材制作"
         },
         {
           "path": "site.CASE_STUDIES.0.desc",
-          "value": "各教科の教師を含めた20人規模の人員を確保し、期限内に遂行しました。"
-        },
-        {
-          "path": "site.CASE_STUDIES.0.metricLabel",
-          "value": "ページ / 1ヶ月"
+          "value": "オンライン・対面・オンデマンドの3形式に対応し、企業研修や就業支援の講師と、研修用の動画・教材の制作を担当しました。"
         },
         {
           "path": "site.CASE_STUDIES.1.tag",
-          "value": "AI講師"
+          "value": "Web・システム"
         },
         {
           "path": "site.CASE_STUDIES.1.title",
-          "value": "研修・就業支援動画制作"
+          "value": "企業ホームページと業務システムの開発"
         },
         {
           "path": "site.CASE_STUDIES.1.desc",
-          "value": "オンライン・オフライン・オンデマンドに対応。企業研修や就業支援向けの動画制作・講師を担当しました。"
+          "value": "企業のホームページ制作と業務システムの開発、公式LINEの構築を担当しました。"
+        },
+        {
+          "path": "site.CASE_STUDIES.2.tag",
+          "value": "AI活用"
+        },
+        {
+          "path": "site.CASE_STUDIES.2.title",
+          "value": "企業向けAI活用メルマガとAI教材の制作"
+        },
+        {
+          "path": "site.CASE_STUDIES.2.desc",
+          "value": "企業向けに、生成AIの使い方を伝えるメルマガと教材を制作しました。"
         }
       ]
     },
@@ -462,23 +474,23 @@
       "fields": [
         {
           "path": "site.ACHIEVEMENTS.0",
-          "value": "登録者数十万人規模のチャンネルの動画制作"
+          "value": "システム開発"
         },
         {
           "path": "site.ACHIEVEMENTS.1",
-          "value": "企業向けAI活用メルマガ制作"
+          "value": "企業ホームページ制作"
         },
         {
           "path": "site.ACHIEVEMENTS.2",
-          "value": "AI教材制作"
+          "value": "企業公式LINE構築"
         },
         {
           "path": "site.ACHIEVEMENTS.3",
-          "value": "企業ロゴ・バナー・ポスター制作"
+          "value": "AI教材制作"
         },
         {
           "path": "site.ACHIEVEMENTS.4",
-          "value": "企業公式LINE構築"
+          "value": "企業向けAI活用メルマガ制作"
         },
         {
           "path": "site.ACHIEVEMENTS.5",
@@ -486,11 +498,11 @@
         },
         {
           "path": "site.ACHIEVEMENTS.6",
-          "value": "システム開発"
+          "value": "企業ロゴ・バナー・ポスター制作"
         },
         {
           "path": "site.ACHIEVEMENTS.7",
-          "value": "企業ホームページ制作"
+          "value": "登録者数十万人規模のチャンネルの動画制作"
         },
         {
           "path": "site.ACHIEVEMENTS.8",

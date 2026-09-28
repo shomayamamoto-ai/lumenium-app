@@ -107,3 +107,4 @@ details.ref[open] { padding-bottom: 12px; }
 details.ref + details.ref { margin-top: 0; border-top: 0; }
 /* Q&A panels: the text sat flush against the panel's edge. */
 dl.qa { padding: 6px 20px 18px; border-radius: 10px; }
+.wm .wm-iw > .wm-i { display: inline-block; -webkit-transform: translateZ(0); }

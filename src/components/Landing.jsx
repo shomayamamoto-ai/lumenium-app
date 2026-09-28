@@ -35,7 +35,10 @@ const priceHead = (p = '') => p.split(/[（(]/)[0].trim()
 const practicalFaq = () => FAQ_GROUPS.slice(1).flatMap((g) => g.items).slice(0, 5)
 
 export default function Landing({ onPrivacy }) {
-  const services = SERVICES
+  // 中心の2つ（Web制作・システム開発、AI研修）は内容まで見せ、ほかは一覧で。
+  const MAIN = ['web', 'ai']
+  const main = SERVICES.filter((s) => MAIN.includes(s.id))
+  const other = SERVICES.filter((s) => !MAIN.includes(s.id))
   const faqs = practicalFaq()
 
   return (
@@ -44,7 +47,6 @@ export default function Landing({ onPrivacy }) {
       <section className="lp-hero" id="top">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
-            <p className="lp-eyebrow">{SECTION.lp.eyebrow}</p>
             <h1 className="lp-h1">{rich(SECTION.lp.title)}</h1>
             <p className="lp-lead">{rich(SECTION.lp.lead)}</p>
             <div className="lp-actions">
@@ -67,12 +69,39 @@ export default function Landing({ onPrivacy }) {
             <h2 id="lp-services-h" className="lp-h2">{SECTION.lp.servicesTitle}</h2>
             <p className="lp-sec-lead">{rich(SECTION.lp.servicesLead)}</p>
           </header>
+          <div className="lp-main">
+            {main.map((s) => (
+              <article key={s.id} className="lp-main-card">
+                <div className="lp-main-head">
+                  <span className="lp-svc-icon" aria-hidden="true"><LineIcon name={s.id} size={22} /></span>
+                  <h3 className="lp-main-name">{s.title}</h3>
+                </div>
+                <p className="lp-main-desc">{rich(s.desc)}</p>
+                <div className="lp-main-cols">
+                  <div>
+                    <p className="lp-main-label">{SECTION.lp.servicesFor}</p>
+                    <ul>{s.highlights.map((h) => <li key={h}>{h}</li>)}</ul>
+                  </div>
+                  <div>
+                    <p className="lp-main-label">{SECTION.lp.servicesDone}</p>
+                    <ul>{s.examples.map((e) => <li key={e}>{e}</li>)}</ul>
+                  </div>
+                </div>
+                <div className="lp-main-foot">
+                  <p className="lp-main-price">{priceHead(s.price)}</p>
+                  <a href={`/services/${s.id}.html`} className="lp-svc-more" aria-label={`${s.title}を詳しく見る`}>{SECTION.lp.servicesMore} →</a>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <h3 className="lp-h3">{SECTION.lp.servicesOther}</h3>
           <ul className="lp-svc">
-            {services.map((s) => (
+            {other.map((s) => (
               <li key={s.id} className="lp-svc-row">
                 <span className="lp-svc-icon" aria-hidden="true"><LineIcon name={s.id} size={20} /></span>
                 <div className="lp-svc-main">
-                  <h3 className="lp-svc-name">{s.title}</h3>
+                  <p className="lp-svc-name">{s.title}</p>
                   <p className="lp-svc-desc">{rich(s.desc)}</p>
                   {s.partner && (
                     <p className="lp-svc-partner">
@@ -110,7 +139,7 @@ export default function Landing({ onPrivacy }) {
           </div>
           <h3 className="lp-h3">{SECTION.lp.worksOther}</h3>
           <ul className="lp-achieve">
-            {ACHIEVEMENTS.map((a) => <li key={a}>{a}</li>)}
+            {ACHIEVEMENTS.slice(0, 8).map((a) => <li key={a}>{a}</li>)}
           </ul>
           <a href="/works.html" className="lp-link">{SECTION.lp.worksMore} →</a>
         </div>

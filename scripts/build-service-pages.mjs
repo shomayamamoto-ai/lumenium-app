@@ -78,10 +78,14 @@ const SERVICES = [
     desc: 'ロゴ・バナー・ポスター・イラスト・教材制作・ライティング・作詞作曲まで、クリエイティブ全般を3万円〜で制作します。ルメニウム（Lumenium）が東京拠点・オンラインで全国対応します。',
     lead: 'ブランドの顔となるロゴから、バナー・ポスター・イラスト・教材・楽曲まで。「作りたい」をかたちにします。',
     highlights: ['新ブランドのロゴ・アイデンティティを作りたい', '書籍・ブログ用のライターを探している', 'イベント用の作詞・作曲を依頼したい'],
-    examples: ['企業ロゴ・バナー・ポスター制作', '塾教材4万ページ制作（1ヶ月）', '作詞作曲・楽曲提供'],
+    examples: ['企業ロゴ・バナー・ポスター制作', '作詞作曲・楽曲提供'],
     price: '3万円〜（内容に応じてご提案）',
   },
 ]
+
+// Web制作・システム開発 and AI研修 first, as on the landing page.
+const ORDER = ['web', 'ai', 'video', 'sns', 'creative', 'cast']
+SERVICES.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id))
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 

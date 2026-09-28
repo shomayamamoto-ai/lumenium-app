@@ -6,16 +6,18 @@ export const SECTION = {
   // The landing page (src/components/Landing.jsx). Plain, factual wording:
   // what we do, for whom, how much, how to ask.
   lp: {
-    eyebrow: '東京の制作会社　動画・AI・Web・SNS',
-    title: '動画・AI・Webの制作を、\nまとめて相談できる\n会社です。',
-    lead: '何を作ればいいか、まだ決まっていなくても大丈夫です。お話を伺いながら、企画から制作、公開後の運用まで一緒に進めます。',
+    title: 'Webサイト・システムの開発と、\nAI研修を手がける\n制作会社です。',
+    lead: 'ホームページや業務システムを作りたい、社内でAIを使えるようにしたい。何から手をつけるか決まっていない段階から、お話を伺って一緒に進めます。',
     ctaPrimary: '無料で相談する',
     ctaSecondary: 'サービスと料金を見る',
     assure1: '相談・お見積りは無料',
     assure2: '48時間以内にご返信',
-    assure3: '動画1本・LP1枚から',
+    assure3: 'LP1枚・研修1回から',
     servicesTitle: 'できること',
-    servicesLead: '6つの領域を、ひとつの窓口でお受けします。料金はいずれも目安で、内容を伺ってから正確にお見積りします。',
+    servicesLead: '中心はWebサイト・システムの開発と、AI研修です。料金はいずれも目安で、内容を伺ってから正確にお見積りします。',
+    servicesFor: 'こんな方に',
+    servicesDone: 'これまでの例',
+    servicesOther: 'そのほかにお受けしていること',
     servicesMore: '詳しく',
     worksTitle: 'これまでの仕事',
     worksOther: 'ほかにも、こんな仕事をしてきました',
