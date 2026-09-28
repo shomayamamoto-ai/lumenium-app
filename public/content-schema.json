@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T01:00:11.554Z",
+  "generatedAt": "2026-09-28T01:15:38.428Z",
   "count": 370,
   "groups": [
     {
@@ -8,7 +8,7 @@
       "fields": [
         {
           "path": "text.lp.title",
-          "value": "Webサイト・システムの開発と、\nAI研修を手がける\n制作会社です。"
+          "value": "Webサイト・システムの開発と\nAI研修を手がける\n制作会社です"
         },
         {
           "path": "text.lp.lead",
@@ -60,7 +60,7 @@
         },
         {
           "path": "text.lp.adminTitle",
-          "value": "公開したあとも、\n自分たちで回せるサイトに。"
+          "value": "公開したあとも\n自分たちで回せるサイトに"
         },
         {
           "path": "text.lp.adminLead",

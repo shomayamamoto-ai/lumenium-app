@@ -6,7 +6,7 @@ export const SECTION = {
   // The landing page (src/components/Landing.jsx). Plain, factual wording:
   // what we do, for whom, how much, how to ask.
   lp: {
-    title: 'Webサイト・システムの開発と、\nAI研修を手がける\n制作会社です。',
+    title: 'Webサイト・システムの開発と\nAI研修を手がける\n制作会社です',
     lead: 'ホームページや業務システムを作りたい、社内でAIを使えるようにしたい。何から手をつけるか決まっていない段階から、お話を伺って一緒に進めます。',
     ctaPrimary: '無料で相談する',
     ctaSecondary: 'サービスと料金を見る',
@@ -19,7 +19,7 @@ export const SECTION = {
     servicesDone: 'これまでの例',
     servicesOther: 'そのほかにお受けしていること',
     servicesMore: '詳しく',
-    adminTitle: '公開したあとも、\n自分たちで回せるサイトに。',
+    adminTitle: '公開したあとも\n自分たちで回せるサイトに',
     adminLead: 'このサイトには、文章の更新から集客の分析、SNSへの発信までを行える管理画面を付けています。同じような仕組みを、お客様のWebサイトにもお作りできます。専門の知識がなくても、ブラウザから操作できます。',
     adminF1Title: '文章をその場で直す',
     adminF1Desc: 'サイトの文章を、表示を見ながら書き換えられます。',

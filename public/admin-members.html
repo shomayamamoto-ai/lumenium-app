@@ -7,12 +7,15 @@
 <meta name="referrer" content="no-referrer">
 <title>会員リスト | Lumenium 管理</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..800&family=Zen+Old+Mincho:wght@700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
-    --bg: #171c33; --card: #262c4a; --border: #424a6b;
-    --text: #f5f7fb; --sub: #abb5cb;
-    --grad: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%);
+    --bg: #f6f4ef; --card: #ffffff; --border: #dcd8ce;
+    --text: #17171c; --sub: #5b5b66;
+    --grad: #3d3fbf;
   }
   body {
     min-height: 100dvh;
@@ -57,9 +60,9 @@
     transition: background 0.18s ease, color 0.18s ease;
   }
   .shell-tab span:first-child { flex: none; font-size: 15px; line-height: 1; }
-  .shell-tab:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .shell-tab:hover { background: rgba(23,23,28,0.05); color: var(--text); }
   .shell-tab[aria-current="true"] { background: var(--grad); color: #fff; }
-  .shell-tab:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+  .shell-tab:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 2px; }
 
   /* ---- Portal ----
      A hub with the sections in orbit around it. The point is not the shape:
@@ -83,13 +86,13 @@
      the portal instead of three. */
   #portal-keys {
     flex: none; padding: 9px 15px; border-radius: 999px; font-size: 12.5px;
-    background: #1a2038; border: 1px solid var(--border); color: var(--text);
+    background: #faf9f6; border: 1px solid var(--border); color: var(--text);
   }
-  #portal-keys:hover { border-color: #818cf8; color: #c7d2fe; }
+  #portal-keys:hover { border-color: #3d3fbf; color: #3d3fbf; }
   #portal-keys.urgent { background: var(--grad); border-color: transparent; color: #fff; }
   #portal-hub-sub {
     flex: none; padding: 5px 11px; border-radius: 999px;
-    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    background: rgba(23,23,28,0.05); border: 1px solid var(--border);
     font-size: 11.5px; font-weight: 700; color: var(--sub);
   }
   /* The dial and the timer share the row: the dial was centred in a column
@@ -130,12 +133,12 @@
      readable from across the desk without reading a number. */
   .portal-hub {
     width: 212px; height: 212px; padding: 0; cursor: default;
-    background: radial-gradient(circle at 50% 35%, #2b3360 0%, #1e2442 70%);
-    border-color: #4f46e5;
+    background: radial-gradient(circle at 50% 35%, #ffffff 0%, #ffffff 70%);
+    border-color: #3d3fbf;
     box-shadow: 0 0 0 10px rgba(79,70,229,0.07), 0 0 40px rgba(79,70,229,0.18);
   }
-  .portal-hub.timing { border-color: #818cf8; box-shadow: 0 0 0 10px rgba(129,140,248,0.09), 0 0 46px rgba(129,140,248,0.26); }
-  .portal-hub.rang { border-color: #34d399; box-shadow: 0 0 0 10px rgba(52,211,153,0.12), 0 0 46px rgba(52,211,153,0.3); }
+  .portal-hub.timing { border-color: #3d3fbf; box-shadow: 0 0 0 10px rgba(129,140,248,0.09), 0 0 46px rgba(129,140,248,0.26); }
+  .portal-hub.rang { border-color: #047857; box-shadow: 0 0 0 10px rgba(52,211,153,0.12), 0 0 46px rgba(52,211,153,0.3); }
   /* Above the readout, the way a watch works: hands pass over whatever is
      printed on the dial. This was the other way round — the digital box sits
      at z-index 2 and the face had none, so the hour, minute and second hands
@@ -145,7 +148,7 @@
     z-index: 3; pointer-events: none;
   }
   .hub-face .tick { stroke: var(--sub); stroke-width: 1; opacity: 0.45; }
-  .hub-face .mark { fill: #e2e8f0; opacity: 0.88; }
+  .hub-face .mark { fill: #3a3a44; opacity: 0.88; }
   /* Polished on one side, shaded on the other: that split is the only thing
      that makes a flat shape read as a faceted metal blade. */
   .hub-face .hand .lit { fill: url(#steelLit); }
@@ -153,15 +156,15 @@
   .hub-face .hand .edge { stroke: rgba(15,23,42,0.55); stroke-width: 0.5; fill: none; }
   .hub-face .hand { filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.55)); }
   .hub-face .hand.s { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
-  .hub-face .s-stem { stroke: #67e8f9; stroke-width: 1.5; stroke-linecap: round; }
-  .hub-face .s-weight { fill: #67e8f9; }
+  .hub-face .s-stem { stroke: #0e7490; stroke-width: 1.5; stroke-linecap: round; }
+  .hub-face .s-weight { fill: #0e7490; }
   .hub-face .cap { fill: url(#capG); stroke: rgba(15,23,42,0.6); stroke-width: 0.6; }
   .hub-face .cap-top { fill: #0f172a; }
   .hub-face .prog {
-    fill: none; stroke: #818cf8; stroke-width: 5; stroke-linecap: round;
+    fill: none; stroke: #3d3fbf; stroke-width: 5; stroke-linecap: round;
     transform: rotate(-90deg); transform-origin: 50% 50%;
   }
-  .portal-hub.rang .hub-face .prog { stroke: #34d399; }
+  .portal-hub.rang .hub-face .prog { stroke: #047857; }
   /* A window at four o'clock rather than a slab across the middle: sitting
      in the centre it covered the hands, which is the half of the dial worth
      looking at now that they are hands. */
@@ -169,26 +172,26 @@
     position: absolute; left: 50%; top: 68%; transform: translate(-50%, -50%);
     z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 0;
     padding: 4px 11px; border-radius: 9px;
-    background: linear-gradient(180deg, rgba(30,37,64,0.94), rgba(16,21,40,0.94));
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.96));
     border: 1px solid rgba(148,163,184,0.35);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(23,23,28,0.08);
   }
   .hub-clock {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: calc(var(--hs, 212px) * 0.105); font-weight: 800;
     line-height: 1.15; letter-spacing: 0.01em; font-variant-numeric: tabular-nums;
   }
-  .portal-hub.timing .hub-clock { color: #c7d2fe; }
-  .portal-hub.rang .hub-clock { color: #6ee7b7; }
+  .portal-hub.timing .hub-clock { color: #3d3fbf; }
+  .portal-hub.rang .hub-clock { color: #047857; }
   .hub-sub { font-size: max(9px, calc(var(--hs, 212px) * 0.05)); color: var(--sub); line-height: 1.4; white-space: nowrap; }
 
   .pnode { width: 152px; height: 152px; }
-  .pnode:hover, .pnode:focus-visible { transform: translate(-50%, -50%) scale(1.06); border-color: var(--n-accent, #a5b4fc); }
-  .pnode:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+  .pnode:hover, .pnode:focus-visible { transform: translate(-50%, -50%) scale(1.06); border-color: var(--n-accent, #3d3fbf); }
+  .pnode:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 3px; }
   .pnode .pn-icon {
     width: 34px; height: 34px; border-radius: 11px;
     display: grid; place-items: center; font-size: 17px; line-height: 1;
-    background: var(--n-tint, rgba(255,255,255,0.06));
+    background: var(--n-tint, rgba(23,23,28,0.06));
   }
   .pnode .pn-name { font-size: 12.5px; font-weight: 700; margin-top: 4px; }
   .pnode .pn-desc { font-size: 10.5px; color: var(--sub); line-height: 1.5; max-width: 124px; }
@@ -196,10 +199,10 @@
     margin-top: 3px; padding: 1.5px 8px; border-radius: 999px;
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
   }
-  .pn-chip.ok { background: rgba(16,185,129,0.16); color: #6ee7b7; }
-  .pn-chip.warn { background: rgba(251,191,36,0.16); color: #fbbf24; }
-  .pn-chip.off { background: rgba(248,113,113,0.15); color: #fca5a5; }
-  .pn-chip.idle { background: rgba(255,255,255,0.06); color: var(--sub); }
+  .pn-chip.ok { background: rgba(16,185,129,0.16); color: #047857; }
+  .pn-chip.warn { background: rgba(251,191,36,0.16); color: #b45309; }
+  .pn-chip.off { background: rgba(248,113,113,0.15); color: #b42318; }
+  .pn-chip.idle { background: rgba(23,23,28,0.06); color: var(--sub); }
   .pnode.dim { opacity: 0.22; }
 
   /* ---- Pomodoro ----
@@ -219,13 +222,13 @@
     padding: 4px 0 2px; font-variant-numeric: tabular-nums;
   }
   .pomo-left small { display: block; margin-top: 6px; font-family: inherit; font-size: 11px; font-weight: 600; color: var(--sub); }
-  .pomo.rang .pomo-left { color: #6ee7b7; }
+  .pomo.rang .pomo-left { color: #047857; }
   .pomo-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .pomo-presets button {
     padding: 9px 0; border: 1px solid var(--border); border-radius: 9px;
-    background: #1a2038; color: var(--text); font-size: 12.5px; font-weight: 700;
+    background: #faf9f6; color: var(--text); font-size: 12.5px; font-weight: 700;
   }
-  .pomo-presets button:hover { border-color: #818cf8; color: #c7d2fe; }
+  .pomo-presets button:hover { border-color: #3d3fbf; color: #3d3fbf; }
   .pomo-presets button[aria-pressed="true"] { background: var(--grad); border-color: transparent; color: #fff; }
   .pomo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .pomo-actions button { padding: 10px 0; border-radius: 9px; font-size: 12.5px; }
@@ -237,15 +240,15 @@
   .pomo.ringing .pomo-stop { display: block; animation: pomoPulse 1.1s ease-in-out infinite; }
   @keyframes pomoPulse { 50% { filter: brightness(1.25); } }
   .pomo-sound { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); }
-  .pomo-sound input[type="range"] { flex: 1; min-width: 0; height: 18px; accent-color: #6366f1; }
+  .pomo-sound input[type="range"] { flex: 1; min-width: 0; height: 18px; accent-color: #3d3fbf; }
   .pomo-sound button { flex: none; padding: 7px 11px; font-size: 11.5px; border-radius: 8px; }
   .pomo-opt select {
     margin-left: auto; padding: 5px 9px; border-radius: 8px;
-    background: #1a2038; color: var(--text); border: 1px solid var(--border);
+    background: #faf9f6; color: var(--text); border: 1px solid var(--border);
     font-family: inherit; font-size: 11.5px;
   }
   .pomo-opt { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--sub); cursor: pointer; }
-  .pomo-opt input { width: 14px; height: 14px; accent-color: #6366f1; }
+  .pomo-opt input { width: 14px; height: 14px; accent-color: #3d3fbf; }
   .pomo-log { border-top: 1px solid var(--border); padding-top: 10px; font-size: 11px; color: var(--sub); }
 
   /* Running, but you have walked off to another section. */
@@ -253,13 +256,13 @@
     position: fixed; right: 18px; bottom: 18px; z-index: 40;
     display: none; align-items: center; gap: 8px;
     padding: 10px 15px; border-radius: 999px;
-    background: var(--card); border: 1px solid #818cf8; color: var(--text);
+    background: var(--card); border: 1px solid #3d3fbf; color: var(--text);
     box-shadow: 0 10px 28px rgba(0,0,0,0.35);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
   }
   #pomo-pill.on { display: inline-flex; }
-  #pomo-pill.rang { border-color: #34d399; color: #6ee7b7; }
+  #pomo-pill.rang { border-color: #047857; color: #047857; }
 
   /* Two columns need room for both; below that the timer sits under the dial
      rather than squeezing it into something the nodes no longer fit around. */
@@ -350,7 +353,7 @@
   #key-form label { flex-basis: 100%; font-size: 12.5px; font-weight: 700; }
   #admin-key {
     flex: 1; min-width: 220px; padding: 12px 14px;
-    background: #1a2038; color: var(--text);
+    background: #faf9f6; color: var(--text);
     border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
   }
   #admin-key:focus { outline: none; border-color: rgba(129,140,248,0.65); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
@@ -359,9 +362,9 @@
     background: var(--grad); color: #fff;
     font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
   }
-  button.ghost { background: #1a2038; border: 1px solid var(--border); color: var(--sub); }
+  button.ghost { background: #faf9f6; border: 1px solid var(--border); color: var(--sub); }
   button:disabled { opacity: 0.55; cursor: default; }
-  .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #fca5a5; display: none; }
+  .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #b42318; display: none; }
   .msg.show { display: block; }
   .msg.info { color: var(--sub); }
   /* list */
@@ -369,7 +372,7 @@
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
   #search {
     flex: 1; min-width: 200px; padding: 10px 14px;
-    background: #1a2038; color: var(--text);
+    background: #faf9f6; color: var(--text);
     border: 1px solid var(--border); border-radius: 10px; font-size: 13.5px;
   }
   #count { font-size: 12.5px; color: var(--sub); white-space: nowrap; }
@@ -379,17 +382,17 @@
   th { font-size: 11px; letter-spacing: 0.1em; color: var(--sub); font-weight: 700; }
   td.email { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
   tr:hover td { background: rgba(99,102,241,0.05); }
-  .unsub { color: #f87171; font-size: 11px; }
+  .unsub { color: #b42318; font-size: 11px; }
   .empty { padding: 28px; text-align: center; color: var(--sub); font-size: 13px; }
   .share {
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
     margin-bottom: 8px; padding: 12px 14px;
-    background: #1a2038; border: 1px solid var(--border); border-radius: 12px;
+    background: #faf9f6; border: 1px solid var(--border); border-radius: 12px;
   }
-  .share-label { font-size: 11.5px; font-weight: 700; color: #93c5fd; white-space: nowrap; }
+  .share-label { font-size: 11.5px; font-weight: 700; color: #3d3fbf; white-space: nowrap; }
   .share-block {
     margin-bottom: 18px; padding: 14px 16px 12px;
-    background: #1a2038; border: 1px solid var(--border); border-radius: 14px;
+    background: #faf9f6; border: 1px solid var(--border); border-radius: 14px;
   }
   .share-head {
     display: flex; align-items: baseline; gap: 10px;
@@ -400,7 +403,7 @@
   .share-block .share { background: var(--card); margin-bottom: 10px; }
   #share-tbl table { font-size: 12.5px; }
   #share-tbl th, #share-tbl td { padding: 8px 10px; }
-  #share-tbl td.exp-soon { color: #fbbf24; }
+  #share-tbl td.exp-soon { color: #b45309; }
   #share-tbl td.exp-none { color: var(--sub); }
   .share-revoke { padding: 5px 12px; font-size: 11.5px; }
   .share-make { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
@@ -418,14 +421,14 @@
      being squeezed to nothing. */
   .f-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
   .f-label { flex: none; width: 118px; font-size: 12.5px; color: var(--sub); }
-  .f-track { flex: 1; min-width: 40px; height: 18px; background: #1a2038; border-radius: 6px; overflow: hidden; }
+  .f-track { flex: 1; min-width: 40px; height: 18px; background: #faf9f6; border-radius: 6px; overflow: hidden; }
   .f-fill { display: block; height: 100%; background: var(--grad); }
   .f-people, .f-rate, .f-times, .f-drop { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
   .f-people { width: 50px; font-size: 12.5px; font-weight: 700; }
-  .f-rate { width: 42px; font-size: 11.5px; color: #93c5fd; }
+  .f-rate { width: 42px; font-size: 11.5px; color: #3d3fbf; }
   .f-times { width: 46px; font-size: 11px; color: var(--sub); }
   .f-drop { width: 80px; font-size: 11.5px; color: var(--sub); }
-  .f-drop.warn { color: #fca5a5; }
+  .f-drop.warn { color: #b42318; }
   @media (max-width: 680px) {
     .f-row { flex-wrap: wrap; gap: 6px 8px; margin-bottom: 12px; }
     .f-label { width: auto; flex: 1; font-size: 12.5px; color: var(--text); }
@@ -440,18 +443,18 @@
     display: grid; gap: 4px 10px; align-items: center;
     grid-template-columns: 1fr auto;
     padding: 12px 13px; margin-bottom: 8px;
-    background: #151b31; border: 1px solid var(--border); border-radius: 11px;
+    background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px;
   }
   .set-row h4 { grid-column: 1 / -1; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .set-row .state { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-  .set-row .state.on { background: rgba(16,185,129,0.16); color: #6ee7b7; }
-  .set-row .state.env { background: rgba(59,130,246,0.16); color: #93c5fd; }
-  .set-row .state.dev { background: rgba(20,184,166,0.18); color: #5eead4; }
-  .set-row .state.off { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .set-row .state.on { background: rgba(16,185,129,0.16); color: #047857; }
+  .set-row .state.env { background: rgba(59,130,246,0.16); color: #3d3fbf; }
+  .set-row .state.dev { background: rgba(20,184,166,0.18); color: #0f766e; }
+  .set-row .state.off { background: rgba(248,113,113,0.15); color: #b42318; }
   .set-row .why { grid-column: 1 / -1; font-size: 12px; color: var(--sub); line-height: 1.7; }
   .set-row .where { grid-column: 1 / -1; font-size: 11px; color: var(--sub); opacity: 0.8; }
   .set-row input {
-    width: 100%; padding: 9px 11px; background: #1a2038; color: var(--text);
+    width: 100%; padding: 9px 11px; background: #faf9f6; color: var(--text);
     border: 1px solid var(--border); border-radius: 9px; font-size: 13px;
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   }
@@ -469,54 +472,54 @@
   .set-group p { font-size: 11.5px; color: var(--sub); line-height: 1.7; }
   .set-group .tally { font-size: 11px; font-weight: 700; color: var(--sub); margin-left: 8px; }
   .linkish {
-    padding: 0; background: none; border: 0; color: #93c5fd;
+    padding: 0; background: none; border: 0; color: #3d3fbf;
     font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline;
   }
-  .linkish:hover { color: #c7d2fe; }
+  .linkish:hover { color: #3d3fbf; }
 
   /* ---- SNS composer ---- */
   .soc-step {
     font-size: 11.5px; letter-spacing: .06em; font-weight: 800; color: var(--sub);
     margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
   }
-  .soc-step::first-letter { color: #818cf8; font-size: 14px; }
+  .soc-step::first-letter { color: #3d3fbf; font-size: 14px; }
   .soc-nets { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 8px; margin-bottom: 12px; }
   .soc-net {
     display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 9px;
-    padding: 10px 12px; background: #151b31; border: 1px solid var(--border);
+    padding: 10px 12px; background: #f3f1ec; border: 1px solid var(--border);
     border-radius: 11px; cursor: pointer;
   }
   .soc-net.off { opacity: 0.55; cursor: default; }
-  .soc-net.on { border-color: #5eead4; background: rgba(20,184,166,0.09); }
+  .soc-net.on { border-color: #0f766e; background: rgba(20,184,166,0.09); }
   .soc-net input { width: 15px; height: 15px; accent-color: #14b8a6; }
   .soc-net .nm { font-size: 13px; font-weight: 700; }
   .soc-net .left { font-size: 11px; font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
-  .soc-net .left.over { color: #fca5a5; }
+  .soc-net .left.over { color: #b42318; }
   .soc-net .sub { grid-column: 2 / -1; font-size: 10.5px; color: var(--sub); line-height: 1.6; }
   .soc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .soc-fields input {
-    width: 100%; padding: 10px 12px; background: #1a2038; color: var(--text);
+    width: 100%; padding: 10px 12px; background: #faf9f6; color: var(--text);
     border: 1px solid var(--border); border-radius: 9px; font-size: 12.5px; font-family: inherit;
   }
   @media (max-width: 560px) { .soc-fields { grid-template-columns: 1fr; } }
   .soc-res { display: flex; align-items: flex-start; gap: 9px; padding: 9px 12px; margin-bottom: 6px;
-    border-radius: 10px; font-size: 12.5px; line-height: 1.7; background: #151b31; border: 1px solid var(--border); }
+    border-radius: 10px; font-size: 12.5px; line-height: 1.7; background: #f3f1ec; border: 1px solid var(--border); }
   .soc-res.ok { border-color: rgba(16,185,129,0.5); }
   .soc-res.ng { border-color: rgba(248,113,113,0.5); }
   .soc-res b { flex: none; }
-  .soc-res a { color: #93c5fd; }
-  .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #151b31; border: 1px solid var(--border); border-radius: 10px; }
+  .soc-res a { color: #3d3fbf; }
+  .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; }
   .soc-post .when { font-size: 11px; color: var(--sub); }
   .soc-post .body { font-size: 12.5px; line-height: 1.7; margin: 3px 0; white-space: pre-wrap; word-break: break-word; }
   .soc-post .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .soc-post .tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-decoration: none; }
-  .soc-post .tag.ok { background: rgba(16,185,129,0.16); color: #6ee7b7; }
-  .soc-post .tag.ng { background: rgba(248,113,113,0.15); color: #fca5a5; }
+  .soc-post .tag.ok { background: rgba(16,185,129,0.16); color: #047857; }
+  .soc-post .tag.ng { background: rgba(248,113,113,0.15); color: #b42318; }
 
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
     font-size: 11px; font-weight: 500; color: var(--sub);
-    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    background: rgba(23,23,28,0.06); border: 1px solid var(--border);
     border-radius: 6px; padding: 1px 7px; cursor: pointer;
   }
   .env-copy:hover { color: var(--text); border-color: var(--sub); }
@@ -524,16 +527,16 @@
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
     font-size: 12px; color: var(--sub); cursor: pointer;
   }
-  .copy-only input { accent-color: #4f46e5; width: 14px; height: 14px; }
+  .copy-only input { accent-color: #3d3fbf; width: 14px; height: 14px; }
   /* Which section a result came from, shown on every row while searching —
      with fourteen groups the answer to "where is this text" is the point. */
   .copy-where {
     font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
-    color: #0b1020; background: #67e8f9; padding: 2px 8px; border-radius: 999px;
+    color: #0b1020; background: #0e7490; padding: 2px 8px; border-radius: 999px;
   }
   .deploy-state { font-size: 11.5px; line-height: 1.7; margin-bottom: 10px; color: var(--sub); }
-  .deploy-state.pending { color: #fbbf24; }
-  .deploy-state.problem { color: #fca5a5; }
+  .deploy-state.pending { color: #b45309; }
+  .deploy-state.problem { color: #b42318; }
   .deploy-state:empty { display: none; }
   .share-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   /* Four columns in a phone's width squeezes every cell to two characters a
@@ -566,12 +569,69 @@
   .share-open[disabled] { opacity: 0.55; cursor: progress; }
   .share-note { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 16px; }
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
+
+/* =========================================================================
+   Same voice as lumenium.net: paper-light ground, ink text, one indigo for
+   the thing to press, hairlines instead of glow, no emoji, no 3D. The
+   portal is a plain grid of cards at every width (it used to orbit a clock
+   on wide screens); the clock is a card of its own.
+   ========================================================================= */
+body { font-family: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif; letter-spacing: .01em; }
+header h1 { font-family: 'Zen Old Mincho', 'Hiragino Mincho ProN', serif; font-size: 20px; }
+header .tag { background: none; color: var(--sub); border: 1px solid var(--border); letter-spacing: .14em; }
+.shell-nav { box-shadow: none; background: #fff; }
+.shell-tab { font-weight: 600; }
+.shell-tab:hover { background: #f3f1ec; }
+.panel, .pomo { box-shadow: none; }
+button { letter-spacing: .02em; }
+button:hover:not(:disabled) { filter: brightness(1.08); }
+input, select, textarea { color: var(--text); }
+
+.portal-body { grid-template-columns: minmax(0, 1fr) 260px; }
+.portal-stage {
+  aspect-ratio: auto; max-width: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px; padding-top: 4px;
+}
+.portal-rings, .hub-face { display: none !important; }
+#portal-nodes { display: contents; }
+.portal-hub, .pnode {
+  position: static; transform: none !important;
+  width: auto; height: auto; border-radius: 12px;
+  padding: 18px 18px 16px; align-items: flex-start; text-align: left;
+  background: #fff; box-shadow: none !important;
+}
+.pnode:hover, .pnode:focus-visible { border-color: var(--text); }
+.pnode .pn-name { font-size: 15px; margin-top: 0; }
+.pnode .pn-desc { font-size: 12.5px; max-width: none; margin-top: 2px; }
+.pn-chip { margin-top: 10px; font-size: 11px; }
+.portal-hub { grid-column: 1 / -1; background: #17171c; border-color: #17171c; color: #f2f1ec; flex-direction: row; justify-content: flex-start; }
+.portal-hub.timing, .portal-hub.rang { box-shadow: none; }
+.hub-read { position: static; transform: none; align-items: flex-start; background: none; border: 0; box-shadow: none; padding: 0; }
+.hub-clock { font-size: 34px; color: #f7f6f2; }
+.portal-hub.timing .hub-clock { color: #c6c8fb; }
+.portal-hub.rang .hub-clock { color: #7ee2b8; }
+.hub-sub { font-size: 13px; color: #b9b8b1; }
+@media (max-width: 1080px) { .portal-body { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .portal-stage { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+/* The clock card: the dial script sizes the hub inline, so it is overruled. */
+#portal-hub { width: auto !important; height: auto !important; left: auto !important; top: auto !important; min-height: 0; padding: 20px 22px; }
+/* Phone header: one line, title never broken into syllables. */
+header h1, header button, header a { white-space: nowrap; }
+@media (max-width: 560px) {
+  body { padding: 18px 14px; }
+  header { flex-wrap: wrap; gap: 8px 10px; }
+  header h1 { font-size: 17px; }
+  header .tag { display: none; }
+  body.is-in header a { margin-left: auto; font-size: 12px; }
+  #sign-out { padding: 8px 12px; font-size: 12px; }
+}
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <img src="/favicon.svg" alt="">
+      <img src="/lumenium-logo.svg?v=3" alt="">
       <h1 id="page-title">会員リスト</h1>
       <span class="tag">ADMIN</span>
       <button type="button" id="sign-out" style="display:none">ログアウト</button>
@@ -597,21 +657,12 @@
     <div id="portal">
       <div class="portal-head">
         <input type="search" id="portal-search" placeholder="機能を検索…（例: 会員、解析、文章）" autocomplete="off">
-        <button type="button" id="portal-keys">🔑 APIキーを入力</button>
+        <button type="button" id="portal-keys">APIキーを入力</button>
         <span id="portal-hub-sub">読み込み中…</span>
         <span id="portal-note"></span>
-        <!-- 背景の3Dがいまどうなっているか。動いていないとき、その理由
-             （端末の設定なのか、重くて止めたのか）がここで分かります。
-             ここ（上の並び）に置くのは、下の .portal-body が「円｜タイマー」の
-             2列の並びで、そこに1行足すと並びが崩れるためです。 -->
-        <span class="portal-3d-state" id="portal-3d-state" aria-live="polite"></span>
       </div>
       <div class="portal-body">
         <div class="portal-stage" id="portal-stage">
-          <!-- 3Dの結晶。時計の真後ろに置き、星の光条が時計の縁から放射状に
-               のぞき、八角形の枠が時計のまわりを回ります。先頭に置くので、
-               輪・時計・各機能のボタンより下に描かれます。 -->
-          <canvas class="portal-3d" id="portal-3d" aria-hidden="true"></canvas>
           <svg class="portal-rings" id="portal-rings" aria-hidden="true" focusable="false"></svg>
           <div class="portal-hub" id="portal-hub">
             <svg class="hub-face" id="hub-face" viewBox="0 0 200 200" aria-hidden="true" focusable="false"></svg>
@@ -625,7 +676,7 @@
 
         <!-- The timer. The dial shows it; this is where it is set. -->
         <section class="pomo" id="pomo" aria-labelledby="pomo-h">
-          <h3 id="pomo-h"><span aria-hidden="true">⏱</span>ポモドーロタイマー</h3>
+          <h3 id="pomo-h">ポモドーロタイマー</h3>
           <div class="pomo-left" id="pomo-left">25:00<small id="pomo-state">待機中</small></div>
           <div class="pomo-presets" id="pomo-presets" role="group" aria-label="時間を選んで開始"></div>
           <div class="pomo-actions">
@@ -634,11 +685,11 @@
             <button type="button" class="ghost" id="pomo-plus">＋1分</button>
             <button type="button" class="ghost" id="pomo-break">休憩 5分</button>
           </div>
-          <button type="button" class="pomo-stop" id="pomo-stop">🔕 アラームを止める</button>
+          <button type="button" class="pomo-stop" id="pomo-stop">アラームを止める</button>
           <p class="pomo-note" id="pomo-note" aria-live="polite"></p>
           <label class="pomo-opt"><input type="checkbox" id="pomo-chime" checked>終了時に音で知らせる</label>
           <div class="pomo-sound">
-            <span aria-hidden="true">🔊</span>
+            <span>音量</span>
             <input type="range" id="pomo-vol" min="0" max="100" step="5" value="85" aria-label="アラームの音量">
             <button type="button" class="ghost" id="pomo-test">♪ 試聴</button>
           </div>
@@ -655,14 +706,14 @@
         </section>
       </div>
     </div>
-    <button type="button" id="pomo-pill" title="ポータルに戻る"><span aria-hidden="true">⏱</span><span id="pomo-pill-left">--:--</span></button>
+    <button type="button" id="pomo-pill" title="ポータルに戻る"><span id="pomo-pill-left">--:--</span></button>
 
     <button type="button" id="to-portal">← ポータル</button>
 
     <div class="panel" id="list-view">
       <div class="share-block">
         <div class="share-head">
-          <span class="share-label">🔗 会員リストの共有リンク</span>
+          <span class="share-label">会員リストの共有リンク</span>
           <span id="share-count"></span>
         </div>
 
@@ -700,20 +751,20 @@
              they never carried. -->
         <div id="share-legacy" style="display:none">
           <div class="share">
-            <span class="share-label">📺 ライブ表示リンク（開くだけで最新）</span>
+            <span class="share-label">ライブ表示リンク（開くだけで最新）</span>
             <input type="text" id="share-url-view" readonly>
             <button class="ghost" id="copy-btn-view" type="button">コピー</button>
           </div>
           <div class="share">
-            <span class="share-label">📊 Excel直リンク（常に最新）</span>
+            <span class="share-label">Excel直リンク（常に最新）</span>
             <input type="text" id="share-url" readonly>
             <button class="ghost" id="copy-btn" type="button">コピー</button>
           </div>
         </div>
 
         <div class="share-actions">
-          <button class="share-open" id="open-view" type="button">📺 ライブ表示を開く</button>
-          <button class="share-open" id="open-xlsx" type="button">📊 Excelをダウンロード</button>
+          <button class="share-open" id="open-view" type="button">ライブ表示を開く</button>
+          <button class="share-open" id="open-xlsx" type="button">Excelをダウンロード</button>
         </div>
         <p class="msg" id="share-msg"></p>
         <p class="share-note" id="share-note"></p>
@@ -735,18 +786,18 @@
     </div>
 
     <div class="panel" id="news-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📰 お知らせ投稿</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">お知らせ投稿</h2>
       <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。</p>
       <form id="news-form">
         <label for="news-title" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">タイトル（必須・80文字まで）</label>
         <input type="text" id="news-title" maxlength="80" required
-          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px">
+          style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px">
         <label for="news-body" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">本文（任意・600文字まで）</label>
         <textarea id="news-body" maxlength="600" rows="3"
-          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px"></textarea>
+          style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px"></textarea>
         <label for="news-link" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">リンク（任意・https://〜 または /〜）</label>
         <input type="text" id="news-link" maxlength="300"
-          style="width:100%;padding:11px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:14px">
+          style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:14px">
         <button type="submit" id="news-btn">投稿する</button>
         <button type="button" class="ghost" id="news-cancel" style="display:none;margin-left:8px">編集をやめる</button>
       </form>
@@ -759,10 +810,10 @@
     </div>
 
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">✍️ サイトの文章編集</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">サイトの文章編集</h2>
       <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。打つと<strong>すぐ下の「見え方」</strong>に、サイトでの出方が出ます（記号を覚える必要はありません。太字は選んでボタンを押すだけです）。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
       <div class="toolbar" style="margin-bottom:10px">
-        <select id="copy-group" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
+        <select id="copy-group" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
         <input type="search" id="copy-search" placeholder="サイト全体から文章を検索（例：ワンストップ）">
         <label class="copy-only"><input type="checkbox" id="copy-changed"> 変更したものだけ</label>
         <span id="copy-count"></span>
@@ -775,7 +826,7 @@
     </div>
 
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📣 SNS投稿</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS投稿</h2>
       <p class="share-note" style="margin-bottom:14px">
         ここから X・Facebook・Instagram・Threads・LinkedIn に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
@@ -792,7 +843,7 @@
         <div id="social-nets" class="soc-nets"></div>
 
         <h3 class="soc-step">2　何を書くか</h3>
-        <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
+        <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
         <div id="social-tools" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px">
           <span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>
           <button type="button" class="ghost soc-way" data-way="short" style="font-size:11px;padding:4px 10px">短く</button>
@@ -821,7 +872,7 @@
     </div>
 
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🩺 設定状況</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">設定状況</h2>
       <p class="share-note" style="margin-bottom:14px">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button class="ghost" id="health-reload" type="button">再確認</button>
@@ -833,7 +884,7 @@
         <div id="health-list"></div>
       </div>
 
-      <h3 style="font-size:13.5px;font-weight:700;margin:22px 0 4px">🔑 キーの入力</h3>
+      <h3 style="font-size:13.5px;font-weight:700;margin:22px 0 4px">キーの入力</h3>
       <p class="share-note" style="margin-bottom:12px">
         ここに貼ると、Vercel の環境変数を触らなくてもその場で有効になります（再デプロイ不要）。
         入力した値は画面に戻しません。末尾4文字だけ、どのキーかを見分けるために表示します。
@@ -844,7 +895,7 @@
       <!-- Keys typed here live in this browser. The same admin on a phone saw
            未設定 for everything set up on a Mac; this hands them over. -->
       <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
-        <h3 style="font-size:13px;font-weight:700;margin-bottom:4px">📱 別の端末に引き継ぐ</h3>
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:4px">別の端末に引き継ぐ</h3>
         <p class="share-note" style="margin-bottom:10px">
           この端末に保存したキーを、スマホなど別の端末の管理画面にそのまま移します。
           リンクを発行して、その端末で開いてください（15分で無効になります）。
@@ -855,7 +906,7 @@
           <span class="share-note" id="handoff-msg"></span>
         </div>
         <div id="handoff-out" style="display:none;margin-top:10px">
-          <input id="handoff-url" readonly style="width:100%;padding:10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:12px;font-family:inherit">
+          <input id="handoff-url" readonly style="width:100%;padding:10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:12px;font-family:inherit">
           <div class="toolbar" style="margin-top:8px">
             <button class="ghost" id="handoff-copy" type="button">リンクをコピー</button>
           </div>
@@ -864,18 +915,18 @@
     </div>
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🔎 SEO / AIO 分析</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SEO / AIO 分析</h2>
       <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答にルメニウムが出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
         <button class="ghost" id="seo-probe" type="button">1問だけ試す（約$0.10）</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
         <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
-        <select id="seo-pick" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
+        <select id="seo-pick" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
         <span id="seo-cost"></span>
       </div>
       <div id="seo-progress" style="display:none;margin-bottom:12px">
-        <div style="height:6px;background:#1a2038;border-radius:999px;overflow:hidden">
+        <div style="height:6px;background:#faf9f6;border-radius:999px;overflow:hidden">
           <div id="seo-bar" style="height:100%;width:0;background:var(--grad);transition:width .3s ease"></div>
         </div>
         <p id="seo-progress-text" style="font-size:12px;color:var(--sub);margin-top:7px"></p>
@@ -947,13 +998,13 @@
     </div>
 
     <div class="panel" id="advisor-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">🤖 AIアドバイザー</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">AIアドバイザー</h2>
       <p class="share-note" style="margin-bottom:14px">このサイトの事業内容・ページ構成・上の計測値・アクセス解析・クローラーの来訪記録を渡してあります。ウェブ検索も使って答えます。<b>打たなくても、下のボタンだけで進められます</b>——答えるたびに、その続きになる質問もボタンで出ます。答えは記号を使わない文章なので、そのままコピーして別のAIや担当者に渡せます。</p>
-      <div id="advisor-log" style="max-height:52vh;overflow-y:auto;background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13.5px;line-height:1.75"></div>
+      <div id="advisor-log" style="max-height:52vh;overflow-y:auto;background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13.5px;line-height:1.75"></div>
       <div id="advisor-chips" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
       <form id="advisor-form" style="display:flex;gap:9px">
         <input type="text" id="advisor-input" placeholder="例：非指名の検索で出てこないのはなぜ？" autocomplete="off"
-          style="flex:1;min-width:0;padding:12px 13px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit">
+          style="flex:1;min-width:0;padding:12px 13px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit">
         <button type="submit" id="advisor-send">送信</button>
         <button type="button" class="ghost" id="advisor-stop" style="display:none">停止</button>
         <button type="button" class="ghost" id="advisor-clear">クリア</button>
@@ -964,10 +1015,10 @@
     </div>
 
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">📈 アクセス解析</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">アクセス解析</h2>
       <p class="share-note" style="margin-bottom:14px">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
       <div class="toolbar" style="margin-bottom:12px">
-        <select id="stats-range" style="padding:9px 10px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
+        <select id="stats-range" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
           <option value="7">過去7日</option>
           <option value="30" selected>過去30日</option>
           <option value="90">過去90日</option>
@@ -982,7 +1033,7 @@
         <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px"></div>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
-          <div id="stats-chart" style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
+          <div id="stats-chart" style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこから来たか</h3>
@@ -1203,25 +1254,25 @@ window.lumAdmin = {
      letting you find the locked ones by opening them. */
   var TABS = [
     { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit',
-      desc: '何が使えるか確認', accent: '#6ee7b7', tint: 'rgba(16,185,129,0.14)' },
+      desc: '何が使えるか確認', accent: '#047857', tint: 'rgba(16,185,129,0.14)' },
     { id: 'list-view', icon: '👥', label: '会員リスト', needs: 'resend',
-      desc: '登録者を見る・渡す', accent: '#93c5fd', tint: 'rgba(59,130,246,0.14)' },
+      desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
-      desc: 'お知らせを出す', accent: '#c4b5fd', tint: 'rgba(139,92,246,0.14)' },
+      desc: 'お知らせを出す', accent: '#6d28d9', tint: 'rgba(139,92,246,0.14)' },
     { id: 'social-admin', icon: '📣', label: 'SNS投稿', init: 'lumSocialInit', needs: 'social',
-      desc: '5つのSNSに直接出す', accent: '#5eead4', tint: 'rgba(20,184,166,0.14)' },
+      desc: '5つのSNSに直接出す', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
     { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
-      desc: 'サイトの文章を直す', accent: '#f9a8d4', tint: 'rgba(236,72,153,0.13)' },
+      desc: 'サイトの文章を直す', accent: '#be185d', tint: 'rgba(236,72,153,0.13)' },
     { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
-      desc: '訪問と問い合わせ導線', accent: '#67e8f9', tint: 'rgba(6,182,212,0.14)' },
+      desc: '訪問と問い合わせ導線', accent: '#0e7490', tint: 'rgba(6,182,212,0.14)' },
     /* The key alone. A run keeps its state in the request and the report in
        this browser, so a missing database no longer makes this door say
        「未設定」 to someone who has pasted their key — it only means the
        reports are not shared with another machine. */
     { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: 'ai',
-      desc: 'AI検索での見え方', accent: '#fcd34d', tint: 'rgba(245,158,11,0.14)' },
+      desc: 'AI検索での見え方', accent: '#b45309', tint: 'rgba(245,158,11,0.14)' },
     { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
-      desc: '次の一手を相談する', accent: '#fdba74', tint: 'rgba(249,115,22,0.14)' }
+      desc: '次の一手を相談する', accent: '#b45309', tint: 'rgba(249,115,22,0.14)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ポータル', icon: '🧭' }].concat(TABS);
@@ -1282,11 +1333,11 @@ window.lumAdmin = {
     var nav = document.getElementById('shell-nav');
     if (nav.childElementCount) return;
     nav.innerHTML = '<button type="button" class="shell-tab" id="tab-portal" role="tab" tabindex="0"' +
-      ' aria-controls="portal" aria-selected="false"><span aria-hidden="true">🧭</span><span>ポータル</span></button>' +
+      ' aria-controls="portal" aria-selected="false"><span>ポータル</span></button>' +
       TABS.map(function (t) {
         return '<button type="button" class="shell-tab" id="tab-' + t.id + '" role="tab" tabindex="-1"' +
           ' aria-controls="' + t.id + '" aria-selected="false">' +
-          '<span aria-hidden="true">' + t.icon + '</span><span>' + t.label + '</span></button>';
+          '<span>' + t.label + '</span></button>';
       }).join('');
     NAV.forEach(function (t) {
       var el = document.getElementById('tab-' + t.id);
@@ -1344,7 +1395,7 @@ window.lumAdmin = {
       b.style.setProperty('--n-accent', t.accent);
       b.style.setProperty('--n-tint', t.tint);
       b.innerHTML =
-        '<span class="pn-icon" aria-hidden="true">' + t.icon + '</span>' +
+
         '<span class="pn-name"></span>' +
         '<span class="pn-desc"></span>' +
         '<span class="pn-chip idle">確認中</span>';
@@ -1472,13 +1523,13 @@ window.lumAdmin = {
     var svg = document.getElementById('hub-face');
     var p = ['<defs>' +
       '<linearGradient id="steelLit" x1="0" y1="0" x2="1" y2="0">' +
-        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#e2e8f0"/>' +
-        '<stop offset="1" stop-color="#cbd5e1"/></linearGradient>' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#3a3a44"/>' +
+        '<stop offset="1" stop-color="#45454f"/></linearGradient>' +
       '<linearGradient id="steelDim" x1="0" y1="0" x2="1" y2="0">' +
         '<stop offset="0" stop-color="#7c8da6"/><stop offset="0.6" stop-color="#5a6b7f"/>' +
         '<stop offset="1" stop-color="#46566e"/></linearGradient>' +
       '<radialGradient id="capG" cx="0.35" cy="0.3" r="0.8">' +
-        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#cbd5e1"/>' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#45454f"/>' +
         '<stop offset="1" stop-color="#64748b"/></radialGradient>' +
       '</defs>'];
 
@@ -2025,7 +2076,7 @@ window.lumAdmin = {
       var li = document.createElement('li');
       li.style.cssText = 'display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
       var d = document.createElement('span');
-      d.style.cssText = 'color:#93c5fd;flex-shrink:0;font-size:12px';
+      d.style.cssText = 'color:#3d3fbf;flex-shrink:0;font-size:12px';
       d.textContent = n.date || '';
       var t = document.createElement('span');
       t.style.cssText = 'flex:1;color:var(--text)';
@@ -2543,7 +2594,7 @@ window.lumAdmin = {
     var base = 'line-height:1.8;color:var(--text);word-break:break-word;';
     return base + {
       title: 'font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.35;',
-      label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:#818cf8;',
+      label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:#3d3fbf;',
       lead: 'font-size:14.5px;color:#c7cfe2;',
       q: 'font-size:14px;font-weight:700;',
       body: 'font-size:13.5px;',
@@ -2614,11 +2665,11 @@ window.lumAdmin = {
     else if (kind === 'url' && !/^https?:\/\/[^\s]+$/.test(v)) bad = 'http:// か https:// で始まる形になっていません。';
     else if (kind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) bad = 'メールアドレスの形になっていません。';
     var shown = kind === 'url' && /^https?:\/\//.test(v)
-      ? '<a href="' + esc(v) + '" target="_blank" rel="noopener" style="color:#93c5fd">' + esc(v) + '</a>' +
+      ? '<a href="' + esc(v) + '" target="_blank" rel="noopener" style="color:#3d3fbf">' + esc(v) + '</a>' +
         '<span style="font-size:11px;color:var(--sub)">　← 押すと開きます</span>'
       : esc(v);
     return shown + (bad
-      ? '<div style="font-size:11.5px;color:#fbbf24;margin-top:6px;line-height:1.7">⚠ ' + esc(bad) + '</div>'
+      ? '<div style="font-size:11.5px;color:#b45309;margin-top:6px;line-height:1.7">⚠ ' + esc(bad) + '</div>'
       : '');
   }
 
@@ -2639,7 +2690,7 @@ window.lumAdmin = {
     box.className = 'cp-offer';
     box.style.cssText = 'margin-top:8px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:9px;padding:10px 13px';
     box.innerHTML =
-      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#67e8f9;margin-bottom:6px">' +
+      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#0e7490;margin-bottom:6px">' +
         esc(label) + 'した案（まだ反映していません）</div>' +
       '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;margin-bottom:9px">' + asSite(after) + '</div>' +
       '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
@@ -2687,14 +2738,14 @@ window.lumAdmin = {
       shown++;
 
       var wrap = document.createElement('div');
-      wrap.style.cssText = 'margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.06)';
+      wrap.style.cssText = 'margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(23,23,28,.06)';
 
       var head = document.createElement('div');
       head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap';
       var label = document.createElement('span');
       label.textContent = humanLabel(f.path);
       label.title = f.path;
-      label.style.cssText = 'font-size:12px;font-weight:700;color:#93c5fd';
+      label.style.cssText = 'font-size:12px;font-weight:700;color:#3d3fbf';
       head.appendChild(label);
 
       if (wide) {
@@ -2707,7 +2758,7 @@ window.lumAdmin = {
 
       var changedTag = document.createElement('span');
       changedTag.textContent = '変更あり';
-      changedTag.style.cssText = 'font-size:10px;font-weight:700;color:#0b1020;background:#fbbf24;padding:2px 7px;border-radius:999px';
+      changedTag.style.cssText = 'font-size:10px;font-weight:700;color:#0b1020;background:#b45309;padding:2px 7px;border-radius:999px';
       changedTag.hidden = val === f.value;
       head.appendChild(changedTag);
 
@@ -2722,7 +2773,7 @@ window.lumAdmin = {
       var ta = document.createElement('textarea');
       ta.value = val;
       ta.rows = Math.min(10, Math.max(2, val.split('\n').length + (val.length > 110 ? 1 : 0)));
-      ta.style.cssText = 'width:100%;padding:10px 12px;background:#1a2038;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
+      ta.style.cssText = 'width:100%;padding:10px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
       wrap.appendChild(ta);
 
       var vkind = valueKind(f.path, f.value);
@@ -2974,7 +3025,7 @@ window.lumAdmin = {
     if (!host) return;
     var empty = !d.totals || !d.totals.allTime;
     if (d.storeFrom === 'device') {
-      host.innerHTML = '<p class="share-note" style="color:#fbbf24;line-height:1.85">' +
+      host.innerHTML = '<p class="share-note" style="color:#b45309;line-height:1.85">' +
         '⚠ 保存先は<strong>この端末に保存した値</strong>で読んでいます。閲覧数の記録は訪問者のリクエストで行うため、' +
         'このままでは数字は増えません。Vercel › Settings › Environment Variables に ' +
         '<code>UPSTASH_REDIS_REST_URL</code> と <code>UPSTASH_REDIS_REST_TOKEN</code> を設定して再デプロイすると、そこから先の訪問が数えられます。</p>';
@@ -2998,7 +3049,7 @@ window.lumAdmin = {
       ['累計', n(d.totals.allTime)],
     ];
     el('stats-cards').innerHTML = items.map(function (i) {
-      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:12px 14px">' +
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:12px 14px">' +
         '<div style="font-size:10.5px;letter-spacing:.14em;color:var(--sub)">' + esc(i[0]) + '</div>' +
         '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
     }).join('');
@@ -3019,7 +3070,7 @@ window.lumAdmin = {
     el('stats-chart').innerHTML =
       '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:150px;display:block">' +
       '<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">' +
-      '<stop offset="0" stop-color="#818cf8"/><stop offset="1" stop-color="#4f46e5" stop-opacity=".55"/>' +
+      '<stop offset="0" stop-color="#3d3fbf"/><stop offset="1" stop-color="#3d3fbf" stop-opacity=".55"/>' +
       '</linearGradient></defs>' + bars + '</svg>' +
       '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--sub);margin-top:6px">' +
       '<span>' + esc(first ? first.date : '') + '</span>' +
@@ -3047,8 +3098,8 @@ window.lumAdmin = {
         '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:3px">' +
         '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + label + '</span>' +
         '<span style="font-variant-numeric:tabular-nums;color:var(--sub);flex:none">' + n(i.count) + '</span></div>' +
-        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden">' +
-        '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#4f46e5,#818cf8);border-radius:99px"></div>' +
+        '<div style="height:5px;background:rgba(23,23,28,.06);border-radius:99px;overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#3d3fbf,#3d3fbf);border-radius:99px"></div>' +
         '</div></div>';
     }).join('');
   }
@@ -3066,7 +3117,7 @@ window.lumAdmin = {
     try { on = localStorage.getItem('lum_notrack') === '1'; } catch (_) {}
     host.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:' +
-        (on ? 'rgba(20,184,166,.10)' : '#151b31') + ';border:1px solid ' +
+        (on ? 'rgba(20,184,166,.10)' : '#f3f1ec') + ';border:1px solid ' +
         (on ? '#14b8a6' : 'var(--border)') + ';border-radius:11px;padding:10px 13px;margin-bottom:14px">' +
         '<span style="font-size:12.5px;font-weight:700">' +
           (on ? '✓ この端末のアクセスは数えていません' : 'この端末のアクセスも数えています') + '</span>' +
@@ -3103,13 +3154,13 @@ window.lumAdmin = {
       var hot = r.key === 'ai' && r.count > 0;
       return '<div style="margin-bottom:11px">' +
         '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px">' +
-          '<span style="font-weight:700;color:' + (hot ? '#67e8f9' : 'inherit') + '">' + esc(r.label) + '</span>' +
+          '<span style="font-weight:700;color:' + (hot ? '#0e7490' : 'inherit') + '">' + esc(r.label) + '</span>' +
           '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + r.count +
             (r.count ? '　' + Math.round(r.share * 100) + '%' : '') + '</span>' +
         '</div>' +
-        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+        '<div style="height:5px;background:rgba(23,23,28,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
           '<div style="height:100%;width:' + pct + '%;background:' +
-            (hot ? 'linear-gradient(90deg,#0891b2,#67e8f9)' : 'linear-gradient(90deg,#4f46e5,#818cf8)') +
+            (hot ? 'linear-gradient(90deg,#0891b2,#0e7490)' : 'linear-gradient(90deg,#3d3fbf,#3d3fbf)') +
             ';border-radius:99px"></div>' +
         '</div>' +
         '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + esc(r.note) + '</div>' +
@@ -3139,8 +3190,8 @@ window.lumAdmin = {
           '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + people + '人' +
             (arrivals && !thin ? '　' + pct + '%' : '') + '</span>' +
         '</div>' +
-        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
-          '<div style="height:100%;width:' + (thin ? 0 : pct) + '%;background:linear-gradient(90deg,#4f46e5,#06b6d4);border-radius:99px"></div>' +
+        '<div style="height:5px;background:rgba(23,23,28,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+          '<div style="height:100%;width:' + (thin ? 0 : pct) + '%;background:linear-gradient(90deg,#3d3fbf,#06b6d4);border-radius:99px"></div>' +
         '</div>' +
         '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + note + '</div>' +
       '</div>';
@@ -3178,7 +3229,7 @@ window.lumAdmin = {
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.ended + ' / ' + r.opened + '</td>' +
           '<td style="padding:5px 0 5px 12px;text-align:right;white-space:nowrap;width:70px;' +
-            'font-variant-numeric:tabular-nums;color:' + (few ? 'var(--sub)' : pct >= 50 ? '#6ee7b7' : pct >= 20 ? 'inherit' : '#fcd34d') + '">' +
+            'font-variant-numeric:tabular-nums;color:' + (few ? 'var(--sub)' : pct >= 50 ? '#047857' : pct >= 20 ? 'inherit' : '#b45309') + '">' +
             (few ? '—' : pct + '%') + '</td>' +
         '</tr>';
       }).join('') +
@@ -3200,14 +3251,14 @@ window.lumAdmin = {
     var max = Math.max.apply(null, rows.map(function (r) { return r.count; }).concat([1]));
     var peak = rows.filter(function (r) { return r.count === max; })[0];
     host.innerHTML =
-      '<div style="display:flex;align-items:flex-end;gap:2px;height:96px;background:#151b31;' +
+      '<div style="display:flex;align-items:flex-end;gap:2px;height:96px;background:#f3f1ec;' +
         'border:1px solid var(--border);border-radius:12px;padding:10px 10px 6px">' +
       rows.map(function (r) {
         var h = Math.max(2, Math.round((r.count / max) * 70));
         return '<div title="' + r.hour + '時　' + r.count + '回" style="flex:1;display:flex;flex-direction:column;' +
           'align-items:center;justify-content:flex-end;gap:3px;height:100%">' +
           '<div style="width:100%;height:' + h + 'px;border-radius:3px;background:' +
-            (r.count ? 'linear-gradient(180deg,#818cf8,#4f46e5)' : 'rgba(255,255,255,.07)') + '"></div>' +
+            (r.count ? 'linear-gradient(180deg,#3d3fbf,#3d3fbf)' : 'rgba(23,23,28,.07)') + '"></div>' +
           '<span style="font-size:8.5px;color:var(--sub);font-variant-numeric:tabular-nums">' +
             (r.hour % 6 === 0 ? r.hour : '') + '</span>' +
         '</div>';
@@ -3220,9 +3271,9 @@ window.lumAdmin = {
   /* 出ていったリンク。tel / line / mail は名前を日本語に直し、それ以外は
      相手のホスト名をそのまま出します。 */
   var LINK_NAMES = {
-    tel: ['📞 電話をかけた', 'フォームを通らない連絡です。ここが動いているなら、電話番号はもっと目立たせる価値があります。'],
-    line: ['💬 LINEを開いた', '友だち追加やトーク。返事のはやさがそのまま結果に出るところです。'],
-    mail: ['✉️ メールを書いた', 'メールソフトが開かれました。送ったかどうかまでは分かりません。'],
+    tel: ['電話をかけた', 'フォームを通らない連絡です。ここが動いているなら、電話番号はもっと目立たせる価値があります。'],
+    line: ['LINEを開いた', '友だち追加やトーク。返事のはやさがそのまま結果に出るところです。'],
+    mail: ['メールを書いた', 'メールソフトが開かれました。送ったかどうかまでは分かりません。'],
     other: ['↗ そのほかの外部リンク', ''],
   };
   function links(rows, funnel) {
@@ -3246,8 +3297,8 @@ window.lumAdmin = {
           '<span style="font-weight:700">' + esc(label) + '</span>' +
           '<span style="font-variant-numeric:tabular-nums;color:var(--sub)">' + r.count + '回</span>' +
         '</div>' +
-        '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
-          '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#0891b2,#67e8f9);border-radius:99px"></div>' +
+        '<div style="height:5px;background:rgba(23,23,28,.06);border-radius:99px;overflow:hidden;margin:4px 0 3px">' +
+          '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#0891b2,#0e7490);border-radius:99px"></div>' +
         '</div>' +
         (note ? '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + esc(note) + '</div>' : '') +
       '</div>';
@@ -3274,7 +3325,7 @@ window.lumAdmin = {
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.exits + ' / ' + r.opened + '</td>' +
           '<td style="padding:5px 0 5px 12px;text-align:right;white-space:nowrap;width:64px;font-variant-numeric:tabular-nums;color:' +
-            (few ? 'var(--sub)' : pct >= 70 ? '#fcd34d' : 'inherit') + '">' + (few ? '—' : pct + '%') + '</td>' +
+            (few ? 'var(--sub)' : pct >= 70 ? '#b45309' : 'inherit') + '">' + (few ? '—' : pct + '%') + '</td>' +
         '</tr>';
       }).join('') + '</table>' +
       '<p class="share-note" style="margin-top:6px">「離れた / 開かれた」回数。サイト内のリンクを押した場合は除いていますが、' +
@@ -3291,7 +3342,7 @@ window.lumAdmin = {
     host.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
       rows.map(function (r) {
         return '<tr>' +
-          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fcd34d">' +
+          '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b45309">' +
             esc(r.name) + '</td>' +
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.count + '回</td>' +
@@ -3433,7 +3484,7 @@ window.lumAdmin = {
     var thin = (f.arrivals || 0) < THIN;
     var out = '';
     if (thin) {
-      out += '<p style="font-size:11.5px;color:var(--sub);background:#151b31;border:1px solid var(--border);' +
+      out += '<p style="font-size:11.5px;color:var(--sub);background:#f3f1ec;border:1px solid var(--border);' +
         'border-radius:10px;padding:9px 12px;margin-bottom:10px;line-height:1.8">' +
         'この期間の訪問は ' + (f.arrivals || 0) + '人です。' + THIN + '人に届くまで、割合と離脱率は出していません——' +
         '1人の行動が100%として表示され、直す必要のないものを直しにいくことになるためです。人数はそのまま読めます。</p>';
@@ -3542,7 +3593,7 @@ window.lumAdmin = {
       ['判定できた質問', String(s.asked) + (s.unjudged ? ' (+' + s.unjudged + '未判定)' : '')]
     ];
     el('seo-cards').innerHTML = items.map(function (i) {
-      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
         '<div style="font-size:11px;color:var(--sub)">' + i[0] + '</div>' +
         '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
     }).join('');
@@ -3579,7 +3630,7 @@ window.lumAdmin = {
       '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">発信量（SNS投稿・直近30日）</h3>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px">' +
       items.map(function (i) {
-        return '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
+        return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
           '<div style="font-size:11px;color:var(--sub)">' + esc(i[0]) + '</div>' +
           '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + esc(i[1]) + '</div></div>';
       }).join('') + '</div>' +
@@ -3603,12 +3654,12 @@ window.lumAdmin = {
     var arrow = function (n) {
       if (Math.abs(n) < 0.005) return '<span style="color:var(--sub)">変わらず</span>';
       return n > 0
-        ? '<span style="color:#86efac">+' + Math.round(n * 100) + 'pt</span>'
-        : '<span style="color:#fca5a5">' + Math.round(n * 100) + 'pt</span>';
+        ? '<span style="color:#047857">+' + Math.round(n * 100) + 'pt</span>'
+        : '<span style="color:#b42318">' + Math.round(n * 100) + 'pt</span>';
     };
     var when = prev.finishedAt ? new Date(prev.finishedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     host.innerHTML =
-      '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
       '<div style="font-size:12.5px;font-weight:700">前回（' + esc(when) + '）との差</div>' +
       '<div style="font-size:12.5px;line-height:1.9;margin-top:5px">' +
         '非指名の出現率 ' + arrow(d) + '（' + Math.round((prev.openMentionRate || 0) * 100) + '% → ' + Math.round((s.openMentionRate || 0) * 100) + '%）' +
@@ -3646,7 +3697,7 @@ window.lumAdmin = {
         return '<tr data-url="' + esc(p.url) + '">' +
           '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap;vertical-align:top">' + p.count + '問</td>' +
           '<td style="padding:5px 0;font-size:12px;word-break:break-all">' +
-            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a>' +
+            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a>' +
             '<div style="font-size:11px;color:var(--sub)"><span class="listing-host">' + esc(p.host) + '</span><span class="listing-state"></span></div>' +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -3683,9 +3734,9 @@ window.lumAdmin = {
       var cell = row.querySelector('.listing-state');
       if (!cell) return;
       if (res.state === 'listed') {
-        cell.innerHTML = '　<span style="color:#86efac">✓ 載っています' + (res.hasLink ? '（リンクあり）' : '') + '</span>';
+        cell.innerHTML = '　<span style="color:#047857">✓ 載っています' + (res.hasLink ? '（リンクあり）' : '') + '</span>';
       } else if (res.state === 'absent') {
-        cell.innerHTML = '　<span style="color:#fbbf24">✗ 見当たりません — ここが作業先です</span>';
+        cell.innerHTML = '　<span style="color:#b45309">✗ 見当たりません — ここが作業先です</span>';
       } else {
         cell.innerHTML = '　<span style="color:var(--sub)">? 読めませんでした（' + esc(res.note || '') + '）。開いて目で確かめてください</span>';
       }
@@ -3697,12 +3748,12 @@ window.lumAdmin = {
     var max = rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0) || 1;
     el(id).innerHTML = rows.length ? rows.map(function (r) {
       var w = (r.value / max * 100).toFixed(1);
-      var col = r.us ? 'var(--grad)' : 'rgba(255,255,255,0.22)';
+      var col = r.us ? 'var(--grad)' : 'rgba(23,23,28,0.22)';
       return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">' +
         '<span style="flex:none;width:' + (opt.labelWidth || 150) + 'px;font-size:12.5px;' +
           (r.us ? 'font-weight:800' : 'color:var(--sub)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
           esc(r.name) + '</span>' +
-        '<span style="flex:1;height:8px;background:#1a2038;border-radius:999px;overflow:hidden">' +
+        '<span style="flex:1;height:8px;background:#faf9f6;border-radius:999px;overflow:hidden">' +
           '<span style="display:block;height:100%;width:' + w + '%;background:' + col + '"></span></span>' +
         '<span style="flex:none;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums">' + esc(r.note) + '</span>' +
       '</div>';
@@ -3717,7 +3768,7 @@ window.lumAdmin = {
     var host = el('seo-breakdown');
     if (!host) return;
     if (s.fallback || !s.verdicts) {
-      host.innerHTML = '<p style="font-size:12px;color:#fbbf24;line-height:1.7">' +
+      host.innerHTML = '<p style="font-size:12px;color:#b45309;line-height:1.7">' +
         '⚠ 回答の読み取りができなかったため、この回の数値は「本文に社名が含まれるか」だけで出しています。' +
         '「見つかりませんでした」という回答も社名を含むため、実際より高く出ます。もう一度計測し直すと正しい判定になります。</p>';
       return;
@@ -3740,14 +3791,14 @@ window.lumAdmin = {
       (s.failed ? ' ／ 取得できず <b>' + s.failed + '</b>' : '') +
       '<br>この回で数えられたのは <b>' + s.asked + '</b> / ' + total + ' 問です。' +
       '</p>' +
-      (thin ? '<p style="font-size:11.5px;color:#fbbf24;line-height:1.7">⚠ ' + s.asked +
+      (thin ? '<p style="font-size:11.5px;color:#b45309;line-height:1.7">⚠ ' + s.asked +
         '問しか判定できていません（' + missing + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
       /* なぜ取れなかったのか。ここが無いと、画面に残るのは英語の一文だけ
          になり、直し方が決まりません。種類・件数・かかった時間・素のメッセ
          ージを、そのまま並べます。 */
       (s.missingEvidence && s.missingEvidence.length
         ? '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
-          '<div style="font-size:12.5px;font-weight:700;color:#fbbf24">相手が「足りない」と言っていること</div>' +
+          '<div style="font-size:12.5px;font-weight:700;color:#b45309">相手が「足りない」と言っていること</div>' +
           '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:4px">' +
           '回答の中で、確認できない理由として挙げられていた情報です。ここに書かれたものをサイトと外の面に足すのが、' +
           '出現率を動かす最短の道になります。</div>' +
@@ -3757,7 +3808,7 @@ window.lumAdmin = {
         : '') +
       (s.errors && s.errors.length
         ? '<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
-          '<div style="font-size:12.5px;font-weight:700;color:#fca5a5">取れなかった質問の内訳</div>' +
+          '<div style="font-size:12.5px;font-weight:700;color:#b42318">取れなかった質問の内訳</div>' +
           s.errors.map(function (e) {
             return '<div style="margin-top:7px">' +
               '<div style="font-size:12px;font-weight:700">' + esc(e.label || e.kind) + ' <b>' + e.count + '</b> 件' +
@@ -3781,7 +3832,7 @@ window.lumAdmin = {
           ? VERDICT_LABEL[r.verdict] + (r.cited ? '・自社サイトが情報源' : '')
           : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
       // 相手が「足りない」と言ったこと。ここが次に書く材料になります。
-      if (r.missing) note += '<div style="font-size:11.5px;color:#fbbf24;margin-top:4px">相手が足りないとした情報: ' + esc(r.missing) + '</div>';
+      if (r.missing) note += '<div style="font-size:11.5px;color:#b45309;margin-top:4px">相手が足りないとした情報: ' + esc(r.missing) + '</div>';
       /* Who took the slot. When we did not appear, these are the answer to
          「誰が出たのか」 — the shortlist to be compared against, which is the
          only part of a miss that can be acted on. */
@@ -3791,14 +3842,14 @@ window.lumAdmin = {
           (r.verdict === 'recommended' ? '同時に挙がった会社: ' : 'ここで挙がっていた会社: ') +
           esc(rivals.join('、')) + '</div>'
         : '';
-      return '<details style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
+      return '<details style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
         '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
         '<div style="font-size:12px;color:var(--sub);margin-top:8px">' + note + '</div>' + co +
         '<div style="font-size:12.5px;margin-top:8px;white-space:pre-wrap;line-height:1.7">' + esc(r.answer || '') + '</div>' +
         ((r.sourceUrls || []).length
           ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">この質問で読まれたページ:<br>' +
             r.sourceUrls.map(function (u) {
-              return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
+              return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
             }).join('<br>') + '</div>'
           : ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '')) +
       '</details>';
@@ -3820,7 +3871,7 @@ window.lumAdmin = {
           ? '<ul style="margin:8px 0 0 18px;padding:0;font-size:11.5px;color:var(--sub);line-height:1.8">' +
             a.evidence.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>'
           : '';
-        return '<div style="background:#151b31;border:1px solid var(--border);border-left:3px solid var(--accent,#6366f1);' +
+        return '<div style="background:#f3f1ec;border:1px solid var(--border);border-left:3px solid var(--accent,#3d3fbf);' +
           'border-radius:10px;padding:12px 14px;margin-bottom:8px">' +
           '<div style="font-size:13.5px;font-weight:700;margin-bottom:6px">' +
           (ICON[a.kind] || '•') + ' ' + esc(a.title) + '</div>' +
@@ -4140,7 +4191,7 @@ window.lumAdmin = {
     }
     el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）。';
     var top = (data.issues || []).map(function (i) {
-      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
         '<div style="font-size:13px;font-weight:700">' + esc(i.name) + ' が無いページ: ' + i.count + ' / ' + data.total + '</div>' +
         '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(WHY[i.name] || '') + '</div></div>';
     }).join('');
@@ -4155,7 +4206,7 @@ window.lumAdmin = {
       return '<tr><td style="padding:5px 8px;font-size:12px">' + mark + ' ' + esc(c.cat) +
         '<span style="color:var(--sub);font-size:11px"> ' + c.asked + '問</span></td>' +
         '<td style="padding:5px 8px;font-size:11.5px">' + (c.pages || []).map(function (u) {
-          return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(u) + '</a>';
+          return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
         }).join('、') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc(note) + '</td></tr>';
     }).join('');
@@ -4167,7 +4218,7 @@ window.lumAdmin = {
     var fitRows = (data.questions || []).filter(function (q) { return q.head < 80; })
       .sort(function (a, b) { return a.head - b.head; }).map(function (q) {
         return '<tr><td style="padding:5px 8px;font-size:11.5px;color:var(--sub);white-space:nowrap">' +
-            '<b style="color:' + (q.head < 40 ? '#f87171' : '#fbbf24') + '">' + q.head + '%</b></td>' +
+            '<b style="color:' + (q.head < 40 ? '#b42318' : '#b45309') + '">' + q.head + '%</b></td>' +
           '<td style="padding:5px 8px;font-size:11.5px">' + esc(q.q) +
             '<div style="color:var(--sub);font-size:11px;margin-top:2px">' +
             (q.page ? '答えるページ: ' + esc(q.page) : '答えるページがありません') +
@@ -4175,7 +4226,7 @@ window.lumAdmin = {
             '</div></td></tr>';
       }).join('');
     var worst = (data.pages || []).filter(function (p) { return (p.missing || []).length; }).slice(0, 12).map(function (p) {
-      return '<tr><td style="padding:5px 8px;font-size:12px"><a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#a5b4fc;text-decoration:none">' + esc(p.url) + '</a></td>' +
+      return '<tr><td style="padding:5px 8px;font-size:12px"><a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a></td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc((p.missing || []).join('、') || p.error || '') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + (p.chars || 0) + '字</td></tr>';
     }).join('');
@@ -4213,9 +4264,9 @@ window.lumAdmin = {
       whole.push(['表示が遅いページ', t.url, t.ms + 'ミリ秒かかりました。']);
     });
     var wholeHtml = whole.map(function (w) {
-      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
         '<div style="font-size:12.5px;font-weight:700">' + esc(w[0]) + '</div>' +
-        '<div style="font-size:11.5px;color:#a5b4fc;margin-top:3px;word-break:break-all">' + esc(w[1]) + '</div>' +
+        '<div style="font-size:11.5px;color:#3d3fbf;margin-top:3px;word-break:break-all">' + esc(w[1]) + '</div>' +
         '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(w[2]) + '</div></div>';
     }).join('');
 
@@ -4244,7 +4295,7 @@ window.lumAdmin = {
   function crawlBox(data) {
     var box = el('crawl-body');
     if (!data.crawlStore) {
-      box.innerHTML = '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">' +
+      box.innerHTML = '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">' +
         '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪：記録できていません</div>' +
         '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:5px">' +
         '「誰にも読まれていない」ではなく「記録する先が無い」状態です。Vercel の環境変数に ' +
@@ -4262,7 +4313,7 @@ window.lumAdmin = {
         '<td style="padding:5px 8px;font-size:11px;color:var(--sub);text-align:right;white-space:nowrap">' + esc(when) + '</td></tr>';
     }).join('');
     box.innerHTML =
-      '<div style="background:#151b31;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">' +
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">' +
       '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪（直近30日）' +
         '<span style="color:var(--sub);font-weight:400;font-size:11px">　回答エンジン ' + (c.ai || 0) + '回・検索 ' + (c.search || 0) + '回</span></div>' +
       (c.total
@@ -4290,7 +4341,7 @@ window.lumAdmin = {
     try { r = await window.lumAdmin.fetch('/api/search-console'); } catch (_) { return; }
     var d = (r && r.data) || {};
     var box = function (inner) {
-      return '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px">' +
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:13px 15px">' +
         '<div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Google検索での見え方' +
         (d.days ? '（直近' + d.days + '日）' : '') + '</div>' + inner + '</div>';
     };
@@ -4300,7 +4351,7 @@ window.lumAdmin = {
       return;
     }
     var card = function (label, v, sub) {
-      return '<div style="background:#1a2038;border-radius:10px;padding:10px 12px">' +
+      return '<div style="background:#faf9f6;border-radius:10px;padding:10px 12px">' +
         '<div style="font-size:11px;color:var(--sub)">' + label + '</div>' +
         '<div style="font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">' + v + '</div>' +
         (sub ? '<div style="font-size:11px;color:var(--sub)">' + sub + '</div>' : '') + '</div>';
@@ -4629,7 +4680,7 @@ window.lumAdmin = {
     m.classList.toggle('info', !!info);
   }
 
-  var MARK = { ok: ['✅', '#6ee7b7'], warn: ['⚠️', '#fcd34d'], error: ['⛔️', '#fca5a5'] };
+  var MARK = { ok: ['✅', '#047857'], warn: ['⚠️', '#b45309'], error: ['⛔️', '#b42318'] };
 
   /* 「直したはずなのに画面が変わらない」ときに、まずここを見ます。
      直っていないのか、まだデプロイされていないのか、環境変数がこの
@@ -4659,7 +4710,7 @@ window.lumAdmin = {
         ? '対応が必要な項目があります。'
         : '設定すると使える機能があります。';
     el('health-summary').innerHTML =
-      '<div style="background:#151b31;border:1px solid var(--border);border-left:3px solid ' + MARK[d.worst][1] +
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-left:3px solid ' + MARK[d.worst][1] +
         ';border-radius:12px;padding:14px 16px">' +
         '<div style="font-size:14px;font-weight:700;margin-bottom:6px">' + MARK[d.worst][0] + ' ' + headline + '</div>' +
         '<div style="font-size:12.5px;color:var(--sub)">正常 ' + counts.ok + ' / 注意 ' + (counts.warn || 0) +
@@ -4670,7 +4721,7 @@ window.lumAdmin = {
     var order = { error: 0, warn: 1, ok: 2 };
     var rows = d.checks.slice().sort(function (a, b) { return order[a.state] - order[b.state]; });
     el('health-list').innerHTML = rows.map(function (c) {
-      return '<div style="display:flex;gap:11px;padding:12px 13px;background:#151b31;border:1px solid var(--border);border-radius:11px;margin-bottom:8px">' +
+      return '<div style="display:flex;gap:11px;padding:12px 13px;background:#f3f1ec;border:1px solid var(--border);border-radius:11px;margin-bottom:8px">' +
         '<span style="flex:none;font-size:15px;line-height:1.4">' + MARK[c.state][0] + '</span>' +
         '<div style="min-width:0">' +
           '<div style="font-size:13.5px;font-weight:700">' + esc(c.label) +
@@ -4770,7 +4821,7 @@ window.lumAdmin = {
         var tName = t.envName || 'UPSTASH_REDIS_REST_TOKEN';
         var viaKv = /^KV_/.test(uName) || /^KV_/.test(tName);
         var sb = document.createElement('div');
-        sb.style.cssText = 'background:' + (both ? 'rgba(20,184,166,.10)' : none ? '#151b31' : 'rgba(251,191,36,.10)') +
+        sb.style.cssText = 'background:' + (both ? 'rgba(20,184,166,.10)' : none ? '#f3f1ec' : 'rgba(251,191,36,.10)') +
           ';border:1px solid ' + (both ? '#14b8a6' : none ? 'var(--border)' : 'rgba(251,191,36,.45)') +
           ';border-radius:11px;padding:12px 14px;margin:2px 0 14px';
         sb.innerHTML =
@@ -4793,7 +4844,7 @@ window.lumAdmin = {
       if (g.id === 'search') {
         var sbox = document.createElement('div');
         sbox.id = 'search-box';
-        sbox.style.cssText = 'background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin:4px 0 18px';
+        sbox.style.cssText = 'background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin:4px 0 18px';
         sbox.innerHTML = '<p style="font-size:12px;color:var(--sub)">状態を確認しています…</p>';
         host.appendChild(sbox);
         loadSearchBox(list);
@@ -4801,7 +4852,7 @@ window.lumAdmin = {
       if (g.id === 'booking') {
         var box = document.createElement('div');
         box.id = 'booking-box';
-        box.style.cssText = 'background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin:4px 0 18px';
+        box.style.cssText = 'background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin:4px 0 18px';
         box.innerHTML = '<p style="font-size:12px;color:var(--sub)">状態を確認しています…</p>';
         host.appendChild(box);
         loadBooking();
@@ -4860,7 +4911,7 @@ window.lumAdmin = {
       if (s.inEnv) places.push('Vercel の環境変数');
       if (places.length > 1) {
         var multi = document.createElement('p');
-        multi.style.cssText = 'font-size:11px;line-height:1.75;color:#fbbf24;margin:2px 0 0';
+        multi.style.cssText = 'font-size:11px;line-height:1.75;color:#b45309;margin:2px 0 0';
         multi.textContent = '同じ値が ' + places.join('・') + ' にあります。いま効いているのは「'
           + (s.from === 'saved' ? 'この画面の保存先' : s.from === 'device' ? 'この端末' : 'Vercel の環境変数') + '」です。'
           + (s.inEnv
@@ -4917,7 +4968,7 @@ window.lumAdmin = {
       if (!ready && !s.device) {
         var no = document.createElement('p');
         no.className = 'where';
-        no.style.color = '#fca5a5';
+        no.style.color = '#b42318';
         no.textContent = 'この項目は端末保存では効きません（訪問者のリクエストで読まれる値のため）。'
           + 'Vercel の環境変数に設定するか、Upstash Redis を接続してください。';
         row.appendChild(no);
@@ -4942,7 +4993,7 @@ window.lumAdmin = {
       return '<div style="font-size:12.5px;line-height:1.9">' +
         (s.set ? '✓ ' : '・') + label + ': ' +
         (s.set
-          ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:#a5b4fc">確認ファイルを開く</a>' +
+          ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:#3d3fbf">確認ファイルを開く</a>' +
             '<span style="color:var(--sub);font-size:11px">（ここが表示されれば、登録画面の「確認」を押せます）</span>'
           : '<span style="color:var(--sub)">未設定</span>') +
         '</div>';
@@ -5014,7 +5065,7 @@ window.lumAdmin = {
       : level === 2 ? '✓ 簡易接続（カレンダーの空きのみ反映）' : '未接続';
     box.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
-        '<span style="font-size:12.5px;font-weight:700;color:' + (level === 3 ? '#67e8f9' : level === 2 ? '#fbbf24' : 'var(--sub)') + '">' +
+        '<span style="font-size:12.5px;font-weight:700;color:' + (level === 3 ? '#0e7490' : level === 2 ? '#b45309' : 'var(--sub)') + '">' +
           levelText + '</span>' +
         '<button type="button" id="booking-connect" class="ghost" style="font-size:12px;padding:6px 12px">' +
           (d.connected ? '接続し直す' : 'Googleカレンダーに接続') + '</button>' +
@@ -5064,7 +5115,7 @@ window.lumAdmin = {
         a.target = '_blank';
         a.rel = 'noopener';
         a.textContent = 'Googleの同意画面を開く →';
-        a.style.cssText = 'display:inline-block;margin-top:10px;color:#a5b4fc;font-size:12.5px;word-break:break-all';
+        a.style.cssText = 'display:inline-block;margin-top:10px;color:#3d3fbf;font-size:12.5px;word-break:break-all';
         box.appendChild(a);
       }
     } else {
@@ -5119,7 +5170,7 @@ window.lumAdmin = {
           '・管理キー（ADMIN_KEY）を変更すると、この端末の保存は読めなくなります（未設定に戻ります）' +
           '</p></div>'
         : '') +
-      '<div style="background:#151b31;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:14px">' +
       '<p style="font-size:12.5px;font-weight:700;margin-bottom:6px">すべての端末で使えるようにする（約1分・再デプロイ不要）</p>' +
       '<ol style="font-size:12px;color:var(--sub);line-height:1.9;padding-left:1.2em">' +
       '<li>vercel.com › このプロジェクト › <b>Storage</b> タブ</li>' +
@@ -5282,7 +5333,7 @@ window.lumAdmin = {
            そのまま書きます。名前は「キーの入力」で探すときに要るので
            残しますが、主役にはしません。 */
         var st = n.setup || {};
-        sub.innerHTML = '<span style="color:#fbbf24;font-weight:700">まだ使えません</span>　' +
+        sub.innerHTML = '<span style="color:#b45309;font-weight:700">まだ使えません</span>　' +
           esc(st.what || (n.missing.join('・') + ' が要ります。')) +
           (st.effort ? '<br><span style="opacity:.85">' + esc(st.effort) + '</span>' : '');
       }
@@ -5316,7 +5367,7 @@ window.lumAdmin = {
               '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
             '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
               esc(st.what || '') + '<br>' + esc(st.where || '') +
-              (st.url ? ' <a href="' + esc(st.url) + '" target="_blank" rel="noopener" style="color:#93c5fd">取りに行く ↗</a>' : '') +
+              (st.url ? ' <a href="' + esc(st.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
               '<br><span style="opacity:.75">貼る場所の名前: ' + esc(n.needs.join('・')) + '</span>' +
             '</div>' +
           '</div>';
@@ -5374,14 +5425,14 @@ window.lumAdmin = {
       return;
     }
     host.innerHTML =
-      '<div style="background:#151b31;border:1px solid var(--border);border-radius:12px;padding:13px 15px">' +
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:13px 15px">' +
         '<div style="font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--sub);margin-bottom:7px">出方の確認</div>' +
         '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;word-break:break-word">' + esc(b.text) + '</div>' +
-        (b.link ? '<div style="font-size:12.5px;margin-top:6px;color:#93c5fd;word-break:break-all">' + esc(b.link) + '</div>' : '') +
+        (b.link ? '<div style="font-size:12.5px;margin-top:6px;color:#3d3fbf;word-break:break-all">' + esc(b.link) + '</div>' : '') +
         (b.imageUrl && /^https?:\/\//.test(b.imageUrl)
           ? '<img src="' + esc(b.imageUrl) + '" alt="" style="margin-top:9px;max-height:150px;max-width:100%;border-radius:9px;border:1px solid var(--border);display:block"' +
             ' onerror="this.style.display=\'none\';this.nextSibling &amp;&amp; (this.nextSibling.style.display=\'block\')">' +
-            '<div style="display:none;font-size:11.5px;color:#fbbf24;margin-top:6px">⚠ この画像URLは開けませんでした。公開されているURLか確かめてください。</div>'
+            '<div style="display:none;font-size:11.5px;color:#b45309;margin-top:6px">⚠ この画像URLは開けませんでした。公開されているURLか確かめてください。</div>'
           : '') +
         '<div style="font-size:11px;color:var(--sub);margin-top:9px;line-height:1.8;border-top:1px solid var(--border);padding-top:8px">' +
           (picked.length
@@ -5406,7 +5457,7 @@ window.lumAdmin = {
     if (lk && !/^https?:\/\/\S+$/.test(lk)) bad.push('リンクが http:// か https:// で始まる形になっていません。');
     if (im && !/^https?:\/\/\S+$/.test(im)) bad.push('画像URLが http:// か https:// で始まる形になっていません。');
     host.innerHTML = bad.length
-      ? '<div style="font-size:11.5px;color:#fbbf24;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>'
+      ? '<div style="font-size:11.5px;color:#b45309;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>'
       : '';
   }
 
@@ -5557,7 +5608,7 @@ window.lumAdmin = {
     box.id = 'soc-offer';
     box.style.cssText = 'margin-top:8px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:10px;padding:11px 14px';
     box.innerHTML =
-      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#67e8f9;margin-bottom:6px">' +
+      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#0e7490;margin-bottom:6px">' +
         esc(label) + 'した案（まだ本文には入れていません）</div>' +
       '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;margin-bottom:9px">' + esc(after) + '</div>' +
       '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
@@ -5576,42 +5627,6 @@ window.lumAdmin = {
     started = true;
     load();
   };
-})();
-</script>
-<script type="module">
-/* 管理ポータルの3D（描画は /lumen3d.js。元は src/lib/lumen3d.js）。
-   結晶の大きさは、中央の時計の半径より少し大きくします。星の先は時計の
-   縁からのぞき、八角形の枠は時計の外を回ります。仕事の画面なので、
-   強さは控えめの設定です。見えていないタブのあいだは止まります。 */
-(() => {
-  const c = document.getElementById('portal-3d');
-  const hub = document.getElementById('portal-hub');
-  if (!c || !hub) return;
-  // 狭い画面ではポータルが格子の並びになり、結晶を置く円がありません。
-  if (window.matchMedia && window.matchMedia('(max-width: 720px)').matches) return;
-  const focus = () => {
-    const a = c.getBoundingClientRect(), h = hub.getBoundingClientRect();
-    if (!h.width) return null;
-    return { x: h.left + h.width / 2 - a.left, y: h.top + h.height / 2 - a.top, r: (h.width / 2) * 1.42 };
-  };
-  const note = document.getElementById('portal-3d-state');
-  const say = (t) => { if (note) note.textContent = t; };
-  const TEXT = {
-    running: (f) => '背景の3D: 動作中' + (f ? '（約' + f + 'コマ/秒）' : ''),
-    gentle: () => '背景の3D: この端末は「視差効果を減らす」設定がオンのため、結晶は回さず、光の当たり方だけを変えています（システム設定 › アクセシビリティ › ディスプレイ）',
-    heavy: () => '背景の3D: この端末では描画が重く、画面の操作を優先して動きを止めました',
-    lost: () => '背景の3D: 表示が途切れたため止めました（ページを読み込み直すと戻ります）',
-  };
-  const go = () => import('/lumen3d.js')
-    .then((m) => {
-      const api = m.mountLumen3D(c, { mode: 'ambient', focus, onFirstFrame: () => c.classList.add('is-on') });
-      if (!api) { say('背景の3D: この端末（またはブラウザ）では3Dを使えないため、表示していません'); return; }
-      const tick = () => { const s = api.status(); say((TEXT[s.state] || TEXT.running)(s.fps)); };
-      setTimeout(tick, 1500);
-      setInterval(tick, 4000);
-    })
-    .catch(() => say('背景の3D: 読み込めませんでした'));
-  (window.requestIdleCallback || ((f) => setTimeout(f, 500)))(go, { timeout: 3000 });
 })();
 </script>
 </body>
