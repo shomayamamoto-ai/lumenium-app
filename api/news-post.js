@@ -67,6 +67,18 @@ export async function POST(req) {
   const body = String(payload?.body ?? '').trim()
   const link = String(payload?.link ?? '').trim()
   const delId = String(payload?.id ?? '').trim()
+  // 日付は選べます（「昨日の更新」を今日書く、など）。書式が正しく、実在し、
+  // 今日（日本時間）より先でなく、2年より前でもない日付だけを受け付けます。
+  const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const rawDate = String(payload?.date ?? '').trim()
+  let date = ''
+  if (rawDate) {
+    const d = new Date(rawDate + 'T00:00:00Z')
+    const ok = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && !isNaN(d) && d.toISOString().slice(0, 10) === rawDate &&
+      rawDate <= todayJst && Date.now() - d.getTime() < 2 * 366 * 86400000
+    if (!ok) return json({ ok: false, code: 'BAD_REQUEST', message: '日付は今日以前の正しい日付を指定してください。' }, 400)
+    date = rawDate
+  }
 
   if (action === 'add' || action === 'edit') {
     if (!title || title.length > 80) return json({ ok: false, code: 'BAD_REQUEST', message: 'タイトルは1〜80文字で入力してください。' }, 400)
@@ -95,11 +107,11 @@ export async function POST(req) {
 
   let message
   if (action === 'add') {
-    const now = new Date()
-    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
-    const date = jst.toISOString().slice(0, 10)
-    const id = `n-${date.replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`
-    items.unshift({ id, date, title, body, link })
+    const day = date || todayJst
+    const id = `n-${day.replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`
+    items.unshift({ id, date: day, title, body, link })
+    // 過去の日付で書いたものも、日付の順に並ぶように（同じ日なら新しいものが上）
+    items = items.map((n, i) => [n, i]).sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
     if (items.length > 50) items = items.slice(0, 50) // keep the file lean
     message = `news: ${title}`
   } else if (action === 'edit') {
@@ -107,7 +119,8 @@ export async function POST(req) {
     // the post to today and to the top of the list, which is not a correction.
     const at = items.findIndex((n) => n && n.id === delId)
     if (at < 0) return json({ ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, 404)
-    items[at] = { id: items[at].id, date: items[at].date, title, body, link }
+    items[at] = { id: items[at].id, date: date || items[at].date, title, body, link }
+    items = items.map((n, i) => [n, i]).sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
     message = `news: edit ${title}`
   } else {
     const before = items.length

@@ -569,6 +569,14 @@
   .share-open[disabled] { opacity: 0.55; cursor: progress; }
   .share-note { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 16px; }
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
+.nq { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 14px; margin-bottom: 16px; }
+.nq-label { font-size: 12px; font-weight: 700; color: var(--sub); margin: 0 0 8px; }
+.nq-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+.nq-row:last-child { margin-bottom: 0; }
+.nq-chip { padding: 8px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #fff; color: var(--text); border: 1px solid var(--border); }
+.nq-chip:hover { border-color: var(--text); filter: none; }
+.nq-chip[aria-pressed="true"] { background: #3d3fbf; border-color: #3d3fbf; color: #fff; }
+#news-date { padding: 7px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 12.5px; }
 
 /* =========================================================================
    Same voice as lumenium.net: paper-light ground, ink text, one indigo for
@@ -838,14 +846,38 @@ header h1, header button, header a { white-space: nowrap; }
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">お知らせ投稿</h2>
       <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。</p>
       <form id="news-form">
+        <!-- よく使うお知らせは、押すだけで下の欄が埋まります。（ ）の中だけ
+             書き換えれば投稿できます。日付とリンクも選ぶだけです。 -->
+        <div class="nq">
+          <p class="nq-label">よく使うお知らせ（押すと下に入ります）</p>
+          <div class="nq-row" id="news-templates"></div>
+          <p class="nq-label">日付</p>
+          <div class="nq-row">
+            <button type="button" class="nq-chip" data-day="0">今日</button>
+            <button type="button" class="nq-chip" data-day="-1">昨日</button>
+            <button type="button" class="nq-chip" data-day="-2">一昨日</button>
+            <input type="date" id="news-date" aria-label="日付を選ぶ">
+          </div>
+        </div>
         <label for="news-title" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">タイトル（必須・80文字まで）</label>
         <input type="text" id="news-title" maxlength="80" required
           style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px">
         <label for="news-body" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">本文（任意・600文字まで）</label>
         <textarea id="news-body" maxlength="600" rows="3"
           style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:12px"></textarea>
-        <label for="news-link" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">リンク（任意・https://〜 または /〜）</label>
-        <input type="text" id="news-link" maxlength="300"
+        <label for="news-link-pick" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">リンク（任意）</label>
+        <select id="news-link-pick" style="width:100%;padding:10px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:8px">
+          <option value="">リンクなし</option>
+          <option value="/">トップページ</option>
+          <option value="/#services">できること（サービス）</option>
+          <option value="/works.html">実績</option>
+          <option value="/pricing.html">料金</option>
+          <option value="/blog/index.html">ブログ</option>
+          <option value="/faq.html">よくある質問</option>
+          <option value="/#contact">お問い合わせ</option>
+          <option value="__custom">その他（下にURLを入力）</option>
+        </select>
+        <input type="text" id="news-link" maxlength="300" placeholder="https://〜 または /〜"
           style="width:100%;padding:11px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:14px">
         <button type="submit" id="news-btn">投稿する</button>
         <button type="button" class="ghost" id="news-cancel" style="display:none;margin-left:8px">編集をやめる</button>
@@ -2237,9 +2269,11 @@ window.lumAdmin = {
     document.getElementById('news-title').value = n.title || '';
     document.getElementById('news-body').value = n.body || '';
     document.getElementById('news-link').value = n.link || '';
+    syncLinkPick();
+    if (n.date) { dateInput.value = n.date; markDay(); }
     document.getElementById('news-btn').textContent = 'この内容で更新';
     document.getElementById('news-cancel').style.display = 'inline-block';
-    newsSay((n.date || '') + ' のお知らせを編集しています。日付と並び順は変わりません。', true);
+    newsSay((n.date || '') + ' のお知らせを編集しています。日付を変えない限り、並び順も変わりません。', true);
     document.getElementById('news-title').focus();
     document.getElementById('news-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
@@ -2248,6 +2282,8 @@ window.lumAdmin = {
     document.getElementById('news-title').value = '';
     document.getElementById('news-body').value = '';
     document.getElementById('news-link').value = '';
+    syncLinkPick();
+    setDay(0);
     document.getElementById('news-btn').textContent = '投稿する';
     document.getElementById('news-cancel').style.display = 'none';
   }
@@ -2256,16 +2292,89 @@ window.lumAdmin = {
     newsSay('編集をやめました。', true);
   });
 
+  /* ---- よく使うお知らせ ----
+     押すと題名・本文・リンクが入り、本文の最初の（ ）が選ばれた状態になる
+     ので、そのまま打てば置き換わります。 */
+  var NEWS_TEMPLATES = [
+    { label: 'サイト更新', title: 'サイトを更新しました', body: '（更新した内容）を新しくしました。', link: '/' },
+    { label: '新サービス', title: '新しいサービスを始めました', body: '「（サービス名）」の提供を始めました。内容と料金はサービスのご案内をご覧ください。', link: '/#services' },
+    { label: '料金改定', title: '料金を改定しました', body: '（サービス名）の料金を改定しました。新しい料金はサービスのご案内でご確認いただけます。', link: '/#services' },
+    { label: '実績追加', title: '実績を追加しました', body: '（業種・内容）の事例を追加しました。', link: '/works.html' },
+    { label: 'ブログ更新', title: 'ブログを更新しました', body: '「（記事の題名）」を公開しました。', link: '/blog/index.html' },
+    { label: '休業のお知らせ', title: '休業日のお知らせ', body: '（期間）は休業いたします。期間中のお問い合わせには、（再開日）以降に順にご返信します。', link: '' },
+    { label: 'メディア掲載', title: 'メディアに掲載されました', body: '（媒体名）に掲載されました。', link: '' },
+    { label: 'イベント・登壇', title: '（イベント名）に登壇します', body: '（日時）に開催される（イベント名）で、（テーマ）についてお話しします。', link: '' },
+  ];
+  var linkPick = document.getElementById('news-link-pick');
+  var linkInput = document.getElementById('news-link');
+  function syncLinkPick() {
+    var v = linkInput.value.trim();
+    var known = Array.prototype.some.call(linkPick.options, function (o) { return o.value === v && v !== '__custom'; });
+    linkPick.value = known ? v : '__custom';
+    linkInput.style.display = linkPick.value === '__custom' ? 'block' : 'none';
+  }
+  linkPick.addEventListener('change', function () {
+    if (linkPick.value !== '__custom') linkInput.value = linkPick.value;
+    else { linkInput.value = ''; }
+    linkInput.style.display = linkPick.value === '__custom' ? 'block' : 'none';
+    if (linkPick.value === '__custom') linkInput.focus();
+  });
+  var dateInput = document.getElementById('news-date');
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function setDay(offset) {
+    var d = new Date(); d.setDate(d.getDate() + offset);
+    dateInput.value = ymd(d);
+    markDay();
+  }
+  function markDay() {
+    document.querySelectorAll('.nq-chip[data-day]').forEach(function (b) {
+      var d = new Date(); d.setDate(d.getDate() + Number(b.dataset.day));
+      b.setAttribute('aria-pressed', String(ymd(d) === dateInput.value));
+    });
+  }
+  dateInput.max = ymd(new Date());
+  dateInput.addEventListener('change', markDay);
+  document.querySelectorAll('.nq-chip[data-day]').forEach(function (b) {
+    b.addEventListener('click', function () { setDay(Number(b.dataset.day)); });
+  });
+  var tplHost = document.getElementById('news-templates');
+  NEWS_TEMPLATES.forEach(function (t) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'nq-chip'; b.textContent = t.label;
+    b.addEventListener('click', function () {
+      document.getElementById('news-title').value = t.title;
+      var bodyEl = document.getElementById('news-body');
+      bodyEl.value = t.body;
+      linkInput.value = t.link;
+      syncLinkPick();
+      // 最初の（ ）を選んだ状態に。題名に（ ）があればそちらを先に。
+      var titleEl = document.getElementById('news-title');
+      var target = /（[^）]*）/.test(t.title) ? titleEl : bodyEl;
+      var m = /（[^）]*）/.exec(target.value);
+      target.focus();
+      if (m) target.setSelectionRange(m.index, m.index + m[0].length);
+      newsSay('（ ）の中を書き換えて「投稿する」を押してください。', true);
+    });
+    tplHost.appendChild(b);
+  });
+  setDay(0);
+  syncLinkPick();
+
   document.getElementById('news-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var title = document.getElementById('news-title').value.trim();
     if (!title) { newsSay('タイトルを入力してください。'); return; }
+    var all = title + document.getElementById('news-body').value;
+    if (/（[^）]*）/.test(all) && /（(更新した内容|サービス名|業種・内容|記事の題名|期間|再開日|媒体名|イベント名|日時|テーマ)）/.test(all)) {
+      newsSay('まだ書き換えていない（ ）があります。中身を入れてから投稿してください。'); return;
+    }
     newsPost({
       action: editingId ? 'edit' : 'add',
       id: editingId || undefined,
       title: title,
       body: document.getElementById('news-body').value.trim(),
-      link: document.getElementById('news-link').value.trim()
+      link: linkInput.value.trim(),
+      date: dateInput.value || undefined
     }, document.getElementById('news-btn'));
   });
 
