@@ -29,7 +29,9 @@ var off=function(){try{return localStorage.getItem('lum_notrack')==='1'}catch(e)
 if(off())return;
 var s=function(b){if(off())return;try{fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b),keepalive:true,credentials:'omit'}).catch(function(){})}catch(e){}};
 var p=location.pathname.replace(/\\/$/,'')||'/';
-s({p:p,r:document.referrer||''});
+var src='';try{var q=new URLSearchParams(location.search);src=(q.get('ref')||q.get('utm_source')||'').toLowerCase().slice(0,32);
+if(src){['ref','utm_source','utm_medium','utm_campaign'].forEach(function(k){q.delete(k)});var rest=q.toString();history.replaceState(null,'',location.pathname+(rest?'?'+rest:'')+location.hash)}}catch(e){}
+s(src?{p:p,r:document.referrer||'',s:src}:{p:p,r:document.referrer||''});
 var seen={},c=function(){var d=document.documentElement,h=d.scrollHeight-innerHeight,r=h<=40?1:(scrollY||0)/h;
 if(r>=0.5&&!seen.h){seen.h=1;s({p:p,e:'read_half'})}
 if(r>=0.9&&!seen.e){seen.e=1;s({p:p,e:'read_end'})}};

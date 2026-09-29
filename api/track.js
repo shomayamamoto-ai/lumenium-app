@@ -165,7 +165,10 @@ export async function POST(req) {
   }
 
   const host = new URL(req.url).hostname
-  const ref = refHost(body?.r, host)
+  // 計測用リンクから来たなら、紹介元よりそちらを優先します（アプリ内の
+  // リンクやQRは紹介元を送らないため、放っておくと「直接」に混ざります）。
+  const src = String(body?.s || '').toLowerCase()
+  const ref = /^[a-z0-9_-]{1,32}$/.test(src) ? `src:${src}` : refHost(body?.r, host)
   const dev = device(ua)
 
   try {

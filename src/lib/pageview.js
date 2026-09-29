@@ -51,10 +51,26 @@ function post(body) {
   } catch (_) { /* never let counting break a page */ }
 }
 
+/* 計測用リンク（?ref=instagram など）の名前。最初の1回だけ送り、アドレス
+   からは消します（そのURLがコピーされて広まっても、別の経路の人が同じ
+   名前で数えられないように）。 */
+let source = ''
+try {
+  const q = new URLSearchParams(window.location.search)
+  source = (q.get('ref') || q.get('utm_source') || '').toLowerCase().slice(0, 32)
+  if (source) {
+    q.delete('ref'); q.delete('utm_source'); q.delete('utm_medium'); q.delete('utm_campaign')
+    const rest = q.toString()
+    window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash)
+  }
+} catch (_) { /* no window, or history blocked */ }
+
 function send(path) {
   if (path === last) return
   last = path
-  post(JSON.stringify({ p: path, r: document.referrer || '' }))
+  const s = source
+  source = ''
+  post(JSON.stringify({ p: path, r: document.referrer || '', ...(s ? { s } : {}) }))
 }
 
 /* どこまで読まれたか。

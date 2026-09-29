@@ -48,10 +48,23 @@ export const REF_KINDS = [
   { key: 'direct', label: '直接・不明', note: 'URLを直接入力、ブックマーク、QRコード、メールやアプリ内のリンクなど。紹介元が送られてこない経路はすべてここです。' },
 ]
 
+/* 計測用リンク（?ref=名前）から来た人。紹介元を送ってこないアプリ内の
+   リンクやQRコードも、どこから来たかが分かるようにするためのものです。
+   流入元の一覧には「src:instagram」のように入り、名前から種類を決めます。 */
+export const SOURCES = {
+  instagram: ['Instagram', 'social'], 'instagram-post': ['Instagram 投稿', 'social'],
+  x: ['X（旧Twitter）', 'social'], line: ['LINE', 'social'], facebook: ['Facebook', 'social'],
+  youtube: ['YouTube', 'social'], tiktok: ['TikTok', 'social'], note: ['note', 'social'],
+  gbp: ['Googleビジネスプロフィール', 'search'],
+  card: ['名刺（QR）', 'direct'], flyer: ['チラシ・資料（QR）', 'direct'],
+  mail: ['メール署名', 'direct'], seminar: ['セミナー・登壇', 'direct'],
+}
+
 /** ホスト名を5種類のどれかに割り当てる。'direct' は「分からない」も含む。 */
 export function refKind(host) {
   const h = String(host || '').toLowerCase()
   if (!h || h === 'direct') return 'direct'
+  if (h.startsWith('src:')) return (SOURCES[h.slice(4)] || [null, 'referral'])[1]
   if (AI.includes(h) || h.endsWith('.perplexity.ai')) return 'ai'
   if (SEARCH.some((re) => re.test(h))) return 'search'
   if (SOCIAL.includes(h)) return 'social'

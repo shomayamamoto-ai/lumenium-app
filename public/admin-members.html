@@ -569,6 +569,14 @@
   .share-open[disabled] { opacity: 0.55; cursor: progress; }
   .share-note { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 16px; }
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
+details.utm { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.utm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.utm-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: var(--sub); }
+.utm-grid select { padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 13px; }
+.utm-out { display: flex; gap: 8px; }
+.utm-out input { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: #fff; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+@media (max-width: 560px) { .utm-grid { grid-template-columns: 1fr; } }
 .nq { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 14px; margin-bottom: 16px; }
 .nq-label { font-size: 12px; font-weight: 700; color: var(--sub); margin: 0 0 8px; }
 .nq-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
@@ -1107,6 +1115,44 @@ header h1, header button, header a { white-space: nowrap; }
         <span id="stats-updated"></span>
         <button class="ghost" id="stats-reload" type="button">更新</button>
       </div>
+      <details class="utm" id="utm-box">
+        <summary>計測用リンクを作る（Instagram・LINE・名刺QRなど）</summary>
+        <p class="share-note" style="margin:10px 0 12px">アプリ内のリンクやQRコードから来た人は、ふつうは「直接・不明」に混ざります。ここで作ったリンクを貼ると、下の「流入元」に <b>どこから来たか</b> が出ます。リンクを開いた人のアドレスからは、印は自動で消えます。</p>
+        <div class="utm-grid">
+          <label>どこに貼るか
+            <select id="utm-src">
+              <option value="instagram">Instagram（プロフィール）</option>
+              <option value="instagram-post">Instagram（投稿・ストーリー）</option>
+              <option value="x">X（旧Twitter）</option>
+              <option value="line">LINE</option>
+              <option value="facebook">Facebook</option>
+              <option value="youtube">YouTube</option>
+              <option value="tiktok">TikTok</option>
+              <option value="note">note</option>
+              <option value="gbp">Googleビジネスプロフィール</option>
+              <option value="card">名刺（QRコード）</option>
+              <option value="flyer">チラシ・資料（QRコード）</option>
+              <option value="mail">メール署名</option>
+              <option value="seminar">セミナー・登壇</option>
+            </select>
+          </label>
+          <label>開くページ
+            <select id="utm-dest">
+              <option value="/">トップページ</option>
+              <option value="/services/web.html">Web制作・システム開発</option>
+              <option value="/services/ai.html">AI研修・AI導入支援</option>
+              <option value="/works.html">実績</option>
+              <option value="/pricing.html">料金</option>
+              <option value="/blog/index.html">ブログ</option>
+              <option value="/#contact">お問い合わせ</option>
+            </select>
+          </label>
+        </div>
+        <div class="utm-out">
+          <input type="text" id="utm-url" readonly aria-label="計測用リンク">
+          <button type="button" id="utm-copy">コピー</button>
+        </div>
+      </details>
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
       <div id="stats-body" style="display:none">
         <div id="stats-note"></div>
@@ -3236,6 +3282,29 @@ window.lumAdmin = {
       '<span>' + esc(last ? last.date : '') + '</span></div>';
   }
 
+  var SRC_NAMES = {
+    instagram: 'Instagram', 'instagram-post': 'Instagram 投稿', x: 'X', line: 'LINE', facebook: 'Facebook',
+    youtube: 'YouTube', tiktok: 'TikTok', note: 'note', gbp: 'Googleビジネスプロフィール',
+    card: '名刺QR', flyer: 'チラシ・資料QR', mail: 'メール署名', seminar: 'セミナー・登壇',
+  };
+  (function utmBuilder() {
+    var src = document.getElementById('utm-src'), dest = document.getElementById('utm-dest');
+    var out = document.getElementById('utm-url'), copy = document.getElementById('utm-copy');
+    if (!src || !dest || !out) return;
+    function make() {
+      var d = dest.value, hash = '';
+      var i = d.indexOf('#'); if (i >= 0) { hash = d.slice(i); d = d.slice(0, i); }
+      out.value = 'https://lumenium.net' + (d || '/') + '?ref=' + encodeURIComponent(src.value) + hash;
+    }
+    src.addEventListener('change', make); dest.addEventListener('change', make); make();
+    copy.addEventListener('click', function () {
+      out.select();
+      var done = function () { copy.textContent = 'コピーしました'; setTimeout(function () { copy.textContent = 'コピー'; }, 1600); };
+      if (navigator.clipboard) navigator.clipboard.writeText(out.value).then(done, function () { document.execCommand('copy'); done(); });
+      else { document.execCommand('copy'); done(); }
+    });
+  })();
+
   function bars(target, list, opts) {
     opts = opts || {};
     var box = el(target);
@@ -3247,6 +3316,7 @@ window.lumAdmin = {
     box.innerHTML = list.map(function (i) {
       var pct = Math.max(2, Math.round((i.count / max) * 100));
       var label = i.name;
+      if (/^src:/.test(label)) label = (SRC_NAMES[label.slice(4)] || label.slice(4)) + '（計測リンク）';
       if (opts.link && /^\//.test(label)) {
         label = '<a href="' + esc(label) + '" target="_blank" rel="noopener" style="color:inherit">' + esc(i.name) + '</a>';
       } else {
