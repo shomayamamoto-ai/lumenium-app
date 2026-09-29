@@ -59,6 +59,41 @@ const FOOT_COLS = [
     ['/sitemap.html', 'サイトマップ'],
   ]],
 ]
+/* 「次に読む」。アクセス解析で、ページを1つ見て帰る人が多かった（トップで
+   7割）ため、読み終えたところに次の行き先を3つ置きます。主力（Web制作・
+   システム開発、AI研修）と、判断に必要な実績・料金へつなぎます。 */
+const PAGES = {
+  '/services/web.html': ['Web制作・システム開発', 'サイト・LP・業務システム。公開後も自分たちで回せる管理画面つき。'],
+  '/services/ai.html': ['AI研修・AI導入支援', '社員向けの生成AI研修と、業務へのAI導入の支援。'],
+  '/works.html': ['実績', 'これまでに手がけた仕事と主な事例。'],
+  '/pricing.html': ['料金', 'サービスごとの料金の目安。'],
+  '/flow.html': ['ご依頼の流れ', 'ご相談から納品・運用まで、5つのステップ。'],
+  '/faq.html': ['よくある質問', '料金・納期・進め方についての質問と答え。'],
+  '/blog/index.html': ['ブログ', 'Web・AI・SNS の実務に役立つ記事。'],
+}
+const NEXT = [
+  [/^\/services\/web/, ['/works.html', '/services/ai.html', '/pricing.html']],
+  [/^\/services\/ai/, ['/services/web.html', '/works.html', '/pricing.html']],
+  [/^\/services\//, ['/services/web.html', '/services/ai.html', '/works.html']],
+  [/^\/works/, ['/services/web.html', '/services/ai.html', '/pricing.html']],
+  [/^\/pricing/, ['/services/web.html', '/services/ai.html', '/flow.html']],
+  [/^\/(faq|flow)/, ['/pricing.html', '/works.html', '/services/web.html']],
+  [/^\/blog\//, ['/services/web.html', '/services/ai.html', '/blog/index.html']],
+  [/.*/, ['/services/web.html', '/services/ai.html', '/works.html']],
+]
+function nextReads(path) {
+  const list = (NEXT.find(([re]) => re.test(path)) || NEXT[NEXT.length - 1])[1]
+    .filter((h) => h !== path).slice(0, 3)
+  if (!list.length) return ''
+  return `
+  <nav class="next-read" aria-label="次に読む">
+    <p class="next-read-h">次に読む</p>
+    <div class="next-read-grid">${list.map((h) => `
+      <a href="${h}"><span class="nr-t">${PAGES[h][0]} →</span><span class="nr-d">${PAGES[h][1]}</span></a>`).join('')}
+    </div>
+  </nav>`
+}
+
 function siteFooter() {
   const f = SECTION.footer || {}
   const cols = FOOT_COLS.map(([h, links]) => `
@@ -89,6 +124,13 @@ export function framePage(html, path = '') {
   if (open < 0 || footAt < 0 || footEnd < 0 || wrapEnd < 0) return html
 
   let inner = html.slice(open + '<div class="wrap">'.length, footAt)
+
+  // 次に読む: ページの終わりの相談案内の手前に置きます。
+  const nr = nextReads(path)
+  if (nr) {
+    const at = inner.indexOf('<section class="contact-strip"')
+    inner = at >= 0 ? inner.slice(0, at) + nr + '\n' + inner.slice(at) : inner + nr
+  }
 
   // The old brand bar is replaced by the site header.
   inner = inner.replace(/\s*<header class="brandbar">[\s\S]*?<\/header>/, '')

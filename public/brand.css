@@ -216,3 +216,15 @@ dl.qa dt { color: var(--ink) !important; }
   .ft-bottom { padding: 20px 16px 26px; }
   .ft-bottom span { margin-right: 0; flex-basis: 100%; }
 }
+
+/* 次に読む */
+.next-read { margin: 48px 0 8px; }
+.next-read-h { font-size: 12.5px !important; font-weight: 700; letter-spacing: .06em; color: var(--ink-mute) !important; margin: 0 0 12px !important; }
+.next-read-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.next-read a { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: #fff; border: 1px solid var(--hair); border-radius: 10px; text-decoration: none; transition: border-color .2s; }
+.next-read a:hover { border-color: var(--ink); }
+.nr-t { font-size: 15px; font-weight: 700; color: var(--accent); }
+.nr-d { font-size: 12.5px; line-height: 1.7; color: var(--ink-soft); }
+@media (max-width: 720px) { .next-read-grid { grid-template-columns: 1fr; } }
+.nr-t { line-height: 1.5; font-size: 14.5px; }
+.nr-d { margin-top: 0; }
