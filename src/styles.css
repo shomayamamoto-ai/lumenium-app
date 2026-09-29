@@ -11172,3 +11172,17 @@ body { color: var(--lp-ink); }
   .hd-logo { gap: 6px; }
   .hd-menu { padding: 0 9px; }
 }
+
+/* Quick entry above the contact form. */
+.quick-ask { max-width: 720px; margin: 0 auto 20px; text-align: center; }
+.quick-ask-label { font-size: 13.5px; color: #c9c8c1; margin: 0 0 10px; }
+.quick-ask-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.quick-ask-chip {
+  padding: 11px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); color: #f2f1ec; border: 1px solid rgba(255, 255, 255, 0.22);
+  font-family: inherit; transition: background-color .2s, border-color .2s;
+}
+.quick-ask-chip:hover { border-color: rgba(255, 255, 255, 0.55); }
+.quick-ask-chip.is-on { background: #f6f4ef; color: #17171c; border-color: #f6f4ef; }
+.quick-ask-hint { margin: 12px 0 0; font-size: 13px; color: #9fe3c6; }
+@media (max-width: 480px) { .quick-ask-chip { flex: 1 1 100%; } }

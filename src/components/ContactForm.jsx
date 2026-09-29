@@ -49,6 +49,7 @@ export default function ContactForm() {
     try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
   })
   const [touched, setTouched] = useState({})
+  const [quickPicked, setQuickPicked] = useState(false)
   const [errors, setErrors] = useState({})
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -179,6 +180,33 @@ export default function ContactForm() {
         <div className="section-header" data-animate>
           <h2 className="section-title">{rich(SECTION.contact.title)}</h2>
           <p className="section-desc">{rich(SECTION.contact.desc)}</p>
+        </div>
+        {/* 気軽な入口。問い合わせ画面まで来た人が、入力を始めずに帰っていた
+            （7人来て0人）。文章を考えなくても送れるよう、よくある用件を
+            押すだけで相談内容が入るようにしています。 */}
+        <div className="quick-ask">
+          <p className="quick-ask-label">{SECTION.contact.quickLabel}</p>
+          <div className="quick-ask-row">
+            {[
+              [SECTION.contact.quick1, SECTION.contact.quick1Text],
+              [SECTION.contact.quick2, SECTION.contact.quick2Text],
+              [SECTION.contact.quick3, SECTION.contact.quick3Text],
+            ].map(([label, text]) => (
+              <button
+                key={label}
+                type="button"
+                className={`quick-ask-chip ${form.message === text ? 'is-on' : ''}`}
+                aria-pressed={form.message === text}
+                onClick={() => {
+                  handleStart()
+                  setForm({ ...form, message: text })
+                  setQuickPicked(true)
+                  setTimeout(() => { const n = document.getElementById('name'); if (n) n.focus() }, 0)
+                }}
+              >{label}</button>
+            ))}
+          </div>
+          {quickPicked && <p className="quick-ask-hint" role="status">{SECTION.contact.quickHint}</p>}
         </div>
         <form className="contact-form" onSubmit={handleSubmit} data-animate data-delay="1" noValidate>
           <div className="form-row">

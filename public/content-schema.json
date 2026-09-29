@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-29T08:47:00.491Z",
-  "count": 366,
+  "generatedAt": "2026-09-29T08:48:16.935Z",
+  "count": 374,
   "groups": [
     {
       "key": "text",
@@ -157,6 +157,38 @@
         {
           "path": "text.contact.desc",
           "value": "お気軽にご相談ください。"
+        },
+        {
+          "path": "text.contact.quickLabel",
+          "value": "どれか1つ選ぶだけでも送れます"
+        },
+        {
+          "path": "text.contact.quick1",
+          "value": "料金だけ知りたい"
+        },
+        {
+          "path": "text.contact.quick1Text",
+          "value": "まずは料金の目安だけ知りたいです。"
+        },
+        {
+          "path": "text.contact.quick2",
+          "value": "30分だけ話を聞いてほしい"
+        },
+        {
+          "path": "text.contact.quick2Text",
+          "value": "何を作ればよいか決まっていないので、まず30分ほどオンラインで話を聞いてほしいです。"
+        },
+        {
+          "path": "text.contact.quick3",
+          "value": "事例や進め方の資料がほしい"
+        },
+        {
+          "path": "text.contact.quick3Text",
+          "value": "似た事例や、依頼した場合の進め方が分かる資料がほしいです。"
+        },
+        {
+          "path": "text.contact.quickHint",
+          "value": "相談内容は入りました。お名前とメールアドレスを入れて送信するだけです。"
         },
         {
           "path": "text.footer.tagline",
