@@ -5279,11 +5279,26 @@ window.lumAdmin = {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
       });
     };
+    /* 簡易接続ではカレンダーに書き込めないため、予約ごとに「追加」の
+       リンクを出します。押すと中身が入ったGoogleカレンダーの画面が開き、
+       保存を押すだけで入ります。以前の予約は記録の開始時刻から作ります。 */
+    function addUrl(b) {
+      if (b.addUrl) return b.addUrl;
+      if (!b.key) return '';
+      var st = new Date(b.key); if (isNaN(st)) return '';
+      var en = new Date(st.getTime() + 60 * 60000);
+      var f = function (d) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); };
+      var q = new URLSearchParams({ action: 'TEMPLATE', text: '商談: ' + (b.company ? b.company + ' ' : '') + (b.name || '') + '様 × Lumenium',
+        dates: f(st) + '/' + f(en), details: 'メール: ' + (b.email || '') + (b.note ? '\n\n' + b.note : ''), ctz: 'Asia/Tokyo' });
+      return 'https://calendar.google.com/calendar/render?' + q.toString();
+    }
     var rows = (d.bookings || []).slice(0, 8).map(function (b) {
       return '<tr><td style="padding:4px 8px 4px 0;font-size:12px;white-space:nowrap">' + esc(b.when) + '</td>' +
         '<td style="padding:4px 8px;font-size:12px">' + esc(b.name) + '<span style="color:var(--sub);font-size:11px"> ' + esc(b.email) + '</span></td>' +
         '<td style="padding:4px 0;font-size:11px;color:var(--sub);text-align:right;white-space:nowrap">' +
-        (b.mode === 'google' ? 'Meet発行済み' : '仮予約') + '</td></tr>';
+        (b.mode === 'google' ? 'Meet発行済み'
+          : '仮予約' + (addUrl(b) ? '　<a href="' + esc(addUrl(b)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;font-weight:700">Googleカレンダーに追加</a>' : '')) +
+        '</td></tr>';
     }).join('');
 
     /* いまどの段にいるか。3段あって、できることが違います。
@@ -5305,7 +5320,7 @@ window.lumAdmin = {
         (level === 3
           ? 'フォーム送信の直後に、このカレンダーの空きから候補が出ます。予約されると Meet 付きの予定が入り、相手にも招待が飛びます。'
           : level === 2
-            ? '候補日時は、あなたのカレンダーの本当の空きから出ています。ただし予定の書き込みはできないため、確定は「仮予約」（.ics付きのメール）です。' +
+            ? '候補日時は、あなたのカレンダーの本当の空きから、予定の前後30分をあけて出ています。ただし簡易接続は読み取り専用のため、予約はカレンダーに自動では入りません。下の「Googleカレンダーに追加」か、届くメールの添付ファイル・リンクから1回で入れられます。' +
               'Meetの自動発行と予定の自動登録まで行うには、上のクライアントIDとシークレットを入れて「Googleカレンダーに接続」を押してください。'
             : d.stored
               ? 'いまは営業時間の決まりだけで候補を出し、確定は仮予約です。Googleにログインして「非公開の iCal 形式の URL」をコピーし、上の欄に貼るだけで、候補が本当の空きから出るようになります（読み取りのみ・Cloud Console は不要）。'

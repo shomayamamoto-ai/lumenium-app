@@ -16,6 +16,12 @@ export const RULES = {
   startHour: 10,
   endHour: 18,             // 18:00 開始は作らない（17:00〜18:00 が最後）
   slotMin: 60,
+  // 開始時刻の刻み。30分刻みにしておくと、予定の30分後から始まる枠も
+  // 出せます（1時間刻みだと、余白を取るたびに1時間まるごと消えます）。
+  stepMin: 30,
+  // 予定の前後に空ける時間。埋まっている予定・既に入った商談のどちらの
+  // 前後にも、この分だけ余白をとってから枠を出します。
+  bufferMin: 30,
   // いま から この時間 より先の枠しか出さない。押した直後に「1時間後」を
   // 提示されても人は動けません。
   leadHours: 20,
@@ -63,8 +69,9 @@ export function candidates(now = Date.now(), rules = RULES) {
     const base = at(today.y, today.m, today.d, 0) + day * 86400 * 1000
     const p = parts(base)
     if (!rules.days.includes(p.dow)) continue
-    for (let h = rules.startHour; h < rules.endHour; h++) {
-      const start = at(p.y, p.m, p.d, h)
+    const step = rules.stepMin || 60
+    for (let m = rules.startHour * 60; m + rules.slotMin <= rules.endHour * 60; m += step) {
+      const start = at(p.y, p.m, p.d, 0) + m * MIN
       const end = start + rules.slotMin * MIN
       if (start < earliest || start > last) continue
       out.push({ start, end })
@@ -73,10 +80,20 @@ export function candidates(now = Date.now(), rules = RULES) {
   return out
 }
 
-/** 埋まっている時間帯と重なる枠を落とす。 */
-export function removeBusy(slots, busy) {
+/** 埋まっている時間帯と重なる枠を落とす。予定の前後には bufferMin 分の
+ *  余白をとります（直前・直後に詰めて入れない）。 */
+export function removeBusy(slots, busy, bufferMin = RULES.bufferMin) {
   if (!busy || !busy.length) return slots
-  return slots.filter((s) => !busy.some((b) => b.start < s.end && b.end > s.start))
+  const pad = (bufferMin || 0) * MIN
+  return slots.filter((s) => !busy.some((b) => b.start - pad < s.end && b.end + pad > s.start))
+}
+
+/** Googleカレンダーに「予定を追加」する画面のURL。押すと中身が入った状態で
+ *  開き、保存を押すだけで登録できます（簡易接続では書き込めないため）。 */
+export function gcalAddUrl({ startMs, endMs, summary, description }) {
+  const f = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: summary || '', dates: `${f(startMs)}/${f(endMs)}`, details: description || '', ctz: 'Asia/Tokyo' })
+  return `https://calendar.google.com/calendar/render?${q.toString()}`
 }
 
 /** 画面に出す形。UTCのISO文字列を鍵にして、クライアントから戻ってきた値を

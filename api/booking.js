@@ -26,7 +26,7 @@ import { pickTopics } from './_form-options.js'
 import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.js'
 import { busyFromUrl } from './_ics.js'
 import {
-  RULES, candidates, removeBusy, toWire, label,
+  RULES, candidates, removeBusy, toWire, label, gcalAddUrl,
   takeSlot, releaseSlot, saveBooking, recentBookings, icsFile,
 } from './_booking.js'
 
@@ -70,27 +70,26 @@ async function openSlots(req, wanted) {
   if (!store && !icsBusy) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
 
   if (icsBusy) {
-    const free = removeBusy(all, icsBusy)
-    // 保存先があれば、既に取られた枠も除く。
-    const taken = store ? await takenKeys(store, free) : []
-    const open = free.filter((s) => !taken.includes(new Date(s.start).toISOString()))
+    // 既に入った商談も、カレンダーの予定と同じく前後に余白をとって除きます
+    // （簡易接続ではカレンダーに書き込めないので、ここで見るしかありません）。
+    const taken = store ? await takenSpans(store, all) : []
+    const open = removeBusy(all, icsBusy.concat(taken))
     return { mode: 'ics', slots: open.slice(0, wanted), total: open.length }
   }
 
-  // 仮予約モード: 既に取られた枠だけは除く。
-  const taken = await takenKeys(store, all)
-  const free = all.filter((s) => !taken.includes(new Date(s.start).toISOString()))
+  // 仮予約モード: 既に取られた枠を、前後の余白ごと除く。
+  const taken = await takenSpans(store, all)
+  const free = removeBusy(all, taken)
   return { mode: 'local', slots: free.slice(0, wanted), total: free.length }
 }
 
-/** 既に押さえられている枠。保存先が答えなければ、空として扱います
- *  （二重予約は確定時にもう一度見ます）。 */
-async function takenKeys(store, slots) {
-  const keys = slots.map((s) => new Date(s.start).toISOString())
-  if (!keys.length) return []
+/** 既に押さえられている商談の時間帯。保存先が答えなければ、空として
+ *  扱います（二重予約は確定時にもう一度見ます）。 */
+async function takenSpans(store, slots) {
+  if (!store || !slots.length) return []
   try {
-    const out = await pipeline(store, keys.map((k) => ['GET', `lum:bk:lock:${k}`]))
-    return keys.filter((_, i) => out[i])
+    const out = await pipeline(store, slots.map((s) => ['GET', `lum:bk:lock:${new Date(s.start).toISOString()}`]))
+    return slots.filter((_, i) => out[i]).map((s) => ({ start: s.start, end: s.end }))
   } catch (_) {
     return []
   }
@@ -212,6 +211,8 @@ export async function POST(req) {
 
   const rec = {
     id, key, when, name, email, company, topics, note, page, mode, meet, eventId,
+    // 簡易接続・未接続のときに、管理画面とメールから1回でカレンダーに入れる
+    addUrl: mode === 'google' ? '' : gcalAddUrl({ startMs: slot.start, endMs: slot.end, summary, description }),
     at: new Date().toISOString(),
   }
   await saveBooking(store, pipeline, rec)
@@ -256,22 +257,25 @@ async function notify(req, rec, owner, ev) {
     (rec.topics || []).length ? `ご相談の内容: ${rec.topics.join('、')}` : null,
     rec.meet ? `Meet: ${rec.meet}` : null,
     rec.page ? `申し込みページ: ${rec.page}` : null,
-    rec.mode === 'google' ? 'カレンダーに登録済み・相手にも招待を送信しました。' : '仮予約です（Googleカレンダー未接続）。折り返し確定のご連絡が要ります。',
+    rec.mode === 'google' ? 'カレンダーに登録済み・相手にも招待を送信しました。' : '仮予約です（カレンダーへの自動登録は未接続）。折り返し確定のご連絡が要ります。',
+    rec.addUrl ? `\nGoogleカレンダーに追加（押して保存するだけ）:\n${rec.addUrl}` : null,
     rec.note ? `\nご相談内容:\n${rec.note}` : null,
   ].filter(Boolean)
 
+  const file = rec.mode === 'google' ? '' : icsFile({
+    id: rec.id, startMs: ev.startMs, endMs: ev.endMs,
+    summary: ev.summary, description: ev.description, organizer: owner, attendee: rec.email,
+  })
   await send({
     to: [owner],
     reply_to: rec.email,
     subject: `【商談予約】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
     text: lines.join('\n'),
+    // 自分のカレンダーにも入れられるように、相手と同じ .ics を添付します。
+    ...(file ? { attachments: [{ filename: 'lumenium-meeting.ics', content: b64(file) }] } : {}),
   })
 
   if (rec.mode !== 'google') {
-    const file = icsFile({
-      id: rec.id, startMs: ev.startMs, endMs: ev.endMs,
-      summary: ev.summary, description: ev.description, organizer: owner, attendee: rec.email,
-    })
     await send({
       to: [rec.email],
       reply_to: owner,
