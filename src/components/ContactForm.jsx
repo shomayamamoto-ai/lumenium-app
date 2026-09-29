@@ -196,6 +196,7 @@ export default function ContactForm() {
                 key={label}
                 type="button"
                 className={`quick-ask-chip ${form.message === text ? 'is-on' : ''}`}
+                data-text={text}
                 aria-pressed={form.message === text}
                 onClick={() => {
                   handleStart()
