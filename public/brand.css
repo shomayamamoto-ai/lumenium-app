@@ -182,3 +182,37 @@ dl.qa { padding: 6px 20px 18px; border-radius: 10px; }
   .page-grid { padding-top: 28px; padding-bottom: 48px; }
 }
 dl.qa dt { color: var(--ink) !important; }
+
+/* Footer, the same as the top page's: a dark band, brand and note on the
+   left, three columns of links, a thin bottom line. */
+.site-ft { background: #15162b !important; color: #c9c8c1; border-top: 0 !important; padding: 72px 0 0 !important; }
+.site-ft a { color: #c9c8c1 !important; text-decoration: none; }
+.site-ft a:hover { color: #ffffff !important; }
+.ft-grid { display: grid !important; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 40px; font-size: 14px; }
+.ft-logo { display: inline-flex; align-items: center; gap: 12px; }
+.ft-name { display: inline-flex; flex-direction: column; line-height: 1; }
+.ft-name .wm { font-size: 32px; }
+.site-ft .wm .wm-t, .site-ft .wm .wm-i { color: #f2f1ec !important; -webkit-text-fill-color: #f2f1ec !important; }
+.site-ft .wm-iw::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 2 2'%3E%3Cpath fill='white' d='M0.000 -1.000L0.077 -0.185L0.396 -0.396L0.185 -0.077L1.000 0.000L0.185 0.077L0.396 0.396L0.077 0.185L0.000 1.000L-0.077 0.185L-0.396 0.396L-0.185 0.077L-1.000 0.000L-0.185 -0.077L-0.396 -0.396L-0.077 -0.185Z'/%3E%3C/svg%3E") !important; filter: drop-shadow(0 0 0.08em rgba(165, 180, 252, .9)); }
+.ft-name small { margin-top: 8px; font-size: 11px; letter-spacing: .3em; color: #a9a8a1; }
+.ft-tag { margin: 20px 0 10px !important; font-size: 15px; font-weight: 700; color: #f2f1ec !important; }
+.ft-sub { margin: 0 0 18px !important; font-size: 13.5px; line-height: 2; color: #a9a8a1 !important; }
+.ft-facts { margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; }
+.ft-facts div { display: flex; gap: 18px; padding: 4px 0; border: 0 !important; font-size: 13.5px; }
+.ft-facts dt { color: #a9a8a1 !important; font-size: 12px; letter-spacing: .2em; font-weight: 700; }
+.ft-facts dd { color: #f2f1ec !important; margin: 0; }
+.ft-col { display: flex; flex-direction: column; gap: 14px; }
+.ft-h { margin: 0 0 6px !important; font-size: 12px; font-weight: 700; letter-spacing: .2em; color: #a9a8a1 !important; padding-bottom: 12px; position: relative; }
+.ft-h::after { content: ''; position: absolute; left: 0; bottom: 0; width: 36px; height: 1px; background: rgba(180, 189, 246, .55); }
+.ft-bottom { display: flex !important; flex-wrap: wrap; gap: 8px 24px; margin-top: 56px; padding: 22px 32px 28px; border-top: 1px solid rgba(255, 255, 255, .12); font-size: 12px; color: #a9a8a1; }
+.ft-bottom span { margin-right: auto; }
+@media (max-width: 900px) {
+  .ft-grid { grid-template-columns: 1fr 1fr; }
+  .ft-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .site-ft { padding-top: 48px !important; }
+  .ft-grid { gap: 32px 20px; }
+  .ft-bottom { padding: 20px 16px 26px; }
+  .ft-bottom span { margin-right: 0; flex-basis: 100%; }
+}
