@@ -54,6 +54,8 @@ const SVC = { 'AI活用': 'ai', 'SNS運用': 'sns', '動画制作': 'video', 'We
 
 // Tiny markdown-lite → HTML (##, ###, "- " lists, paragraphs)
 function md(src) {
+  // **太字**。以前は対応しておらず、記事に「**」がそのまま出ていました。
+  const inl = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   const lines = String(src).split('\n')
   let html = ''
   let inList = false
@@ -61,15 +63,15 @@ function md(src) {
   for (const raw of lines) {
     const line = raw.trim()
     if (!line) { closeList(); continue }
-    if (line.startsWith('### ')) { closeList(); html += `<h3>${esc(line.slice(4))}</h3>\n`; continue }
-    if (line.startsWith('## ')) { closeList(); html += `<h2>${esc(line.slice(3))}</h2>\n`; continue }
+    if (line.startsWith('### ')) { closeList(); html += `<h3>${inl(line.slice(4))}</h3>\n`; continue }
+    if (line.startsWith('## ')) { closeList(); html += `<h2>${inl(line.slice(3))}</h2>\n`; continue }
     if (line.startsWith('- ')) {
       if (!inList) { html += '<ul>\n'; inList = true }
-      html += `<li>${esc(line.slice(2))}</li>\n`
+      html += `<li>${inl(line.slice(2))}</li>\n`
       continue
     }
     closeList()
-    html += `<p>${esc(line)}</p>\n`
+    html += `<p>${inl(line)}</p>\n`
   }
   closeList()
   return html
