@@ -5,6 +5,7 @@ import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS } from '../data/site'
 import { FAQ_GROUPS } from '../data/faq'
 import LineIcon from './LineIcon'
 import ContactForm from './ContactForm'
+import QuickBook from './QuickBook'
 import Footer from './Footer'
 
 /**
@@ -208,9 +209,12 @@ export default function Landing({ onPrivacy }) {
         </div>
       </section>
 
-      {/* 5. 相談 */}
-      <div className="lp-contact" id="contact">
-        <ContactForm />
+      {/* 5. 相談: まず日時を選ぶだけの予約、決めきれない人はフォーム */}
+      <div id="contact">
+        <QuickBook />
+        <div className="lp-contact">
+          <ContactForm />
+        </div>
       </div>
 
       <Footer onPrivacy={onPrivacy} />
