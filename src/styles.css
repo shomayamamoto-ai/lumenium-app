@@ -11214,3 +11214,12 @@ body { color: var(--lp-ink); }
   .qb-form { grid-template-columns: 1fr; }
   .qb-form .lp-btn { width: 100%; }
 }
+/* Main service cards: a clear button to the service page. */
+.lp-main-go.lp-btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
+.lp-main-foot { align-items: center; }
+/* 「次に見る」 strip under the main services. */
+.lp-next { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin: 22px 0 40px; padding: 16px 20px; border: 1px solid var(--lp-line); border-radius: 10px; background: #fff; }
+.lp-next-h { font-size: 13px; font-weight: 700; color: var(--lp-ink-3); }
+.lp-next a { font-size: 15px; font-weight: 700; color: var(--lp-accent) !important; text-decoration: none; }
+.lp-next a:hover { text-decoration: underline; }
+@media (max-width: 560px) { .lp-next { flex-direction: column; align-items: flex-start; } .lp-main-foot { flex-wrap: wrap; } .lp-main-go.lp-btn { width: 100%; } }

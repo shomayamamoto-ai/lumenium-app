@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-02T13:15:34.349Z",
-  "count": 374,
+  "generatedAt": "2026-10-02T13:16:08.029Z",
+  "count": 379,
   "groups": [
     {
       "key": "text",
@@ -53,6 +53,26 @@
         {
           "path": "text.lp.servicesOther",
           "value": "そのほかにお受けしていること"
+        },
+        {
+          "path": "text.lp.mainMore",
+          "value": "{name}の詳細を見る"
+        },
+        {
+          "path": "text.lp.nextTitle",
+          "value": "次に見る"
+        },
+        {
+          "path": "text.lp.nextWorks",
+          "value": "事例を見る"
+        },
+        {
+          "path": "text.lp.nextPricing",
+          "value": "料金の目安を見る"
+        },
+        {
+          "path": "text.lp.nextBook",
+          "value": "相談の空き日時を見る"
         },
         {
           "path": "text.lp.servicesMore",

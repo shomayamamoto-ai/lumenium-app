@@ -90,11 +90,20 @@ export default function Landing({ onPrivacy }) {
                 </div>
                 <div className="lp-main-foot">
                   <p className="lp-main-price">{priceHead(s.price)}</p>
-                  <a href={`/services/${s.id}.html`} className="lp-svc-more" aria-label={`${s.title}を詳しく見る`}>{SECTION.lp.servicesMore} →</a>
+                  <a href={`/services/${s.id}.html`} className="lp-btn lp-btn--ghost lp-main-go">{SECTION.lp.mainMore.replace('{name}', s.title.split('・')[0])} →</a>
                 </div>
               </article>
             ))}
           </div>
+
+          {/* トップだけで帰る人が7割。サービスを読んだところで、次の行き先を
+              3つ並べます。 */}
+          <nav className="lp-next" aria-label="次に見る">
+            <span className="lp-next-h">{SECTION.lp.nextTitle}</span>
+            <a href="/works.html">{SECTION.lp.nextWorks} →</a>
+            <a href="/pricing.html">{SECTION.lp.nextPricing} →</a>
+            <a href="#contact">{SECTION.lp.nextBook} →</a>
+          </nav>
 
           <h3 className="lp-h3">{SECTION.lp.servicesOther}</h3>
           <ul className="lp-svc">
