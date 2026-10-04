@@ -863,6 +863,28 @@ await test('代替テキスト：無いと知らせる（送れる先だけ）�
   assert.ok(results[0].message.includes('代替テキスト'))
 })
 
+console.log('Instagram の最初のコメント')
+await test('公開のあとにコメントする（Instagram に出すときだけ受け取る）', async () => {
+  route = (u, init) => (/\/IG1\/comments$/.test(u) ? json({ id: 'CM1' }) : happy(u, init))
+  const read = S.readPayload({ text: '秋の新作', targets: ['instagram'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }], firstComment: ' #カフェ #秋 ' })
+  assert.equal(read.payload.firstComment, '#カフェ #秋')
+  assert.equal(S.readPayload({ text: 'a', targets: ['x'], firstComment: '#a' }).payload.firstComment, undefined)
+  const { results } = await S.sendPost(read.payload, undefined)
+  assert.equal(results[0].ok, true)
+  assert.match(results[0].message, /最初のコメントも付けました/)
+  const order = calls.map((c) => c.url)
+  const cm = calls.find((c) => c.url.endsWith('/IG1/comments'))
+  assert.equal(new URLSearchParams(cm.init.body).get('message'), '#カフェ #秋')
+  assert.ok(order.findIndex((u) => u.endsWith('/media_publish')) < order.indexOf(cm.url))
+})
+await test('コメントが付けられなくても、投稿は成功のまま理由を言う', async () => {
+  route = (u, init) => (/\/comments$/.test(u) ? json({ error: { message: 'permission' } }, 403) : happy(u, init))
+  const read = S.readPayload({ text: 'a', targets: ['instagram'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }], firstComment: '#a' })
+  const { results } = await S.sendPost(read.payload, undefined)
+  assert.equal(results[0].ok, true)
+  assert.match(results[0].message, /instagram_manage_comments/)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

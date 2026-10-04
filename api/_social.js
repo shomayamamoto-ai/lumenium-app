@@ -376,7 +376,7 @@ async function igToken(req) {
 
 /** Meta's two-step publish: build a container, wait for it, then publish.
  *  Every step can fail on its own, and each says which one it was. */
-async function postInstagram(c, req, ctx) {
+async function postInstagram(c, req, ctx, p) {
   const user = await setting('IG_USER_ID', '', req)
   const token = await igToken(req)
   if (!token) return { ok: false, message: 'Instagram：アクセストークンが未設定です（Facebookページのトークンでも構いません）。' }
@@ -390,16 +390,30 @@ async function postInstagram(c, req, ctx) {
   const ready = await waitReady(`${GRAPH}/${encodeURIComponent(cid)}?fields=status_code&access_token=${encodeURIComponent(token)}`,
     'status_code', 'Instagram（画像の確認）', ctx)
   if (!ready.ok) return ready
-  const pub = new URLSearchParams({ creation_id: cid, access_token: token })
-  const p = await call(`${GRAPH}/${encodeURIComponent(user)}/media_publish`, { method: 'POST', body: pub }, 'Instagram（公開）', ctx, { publish: true })
-  if (!p.ok) return p
-  const id = p.data.id
+  const form = new URLSearchParams({ creation_id: cid, access_token: token })
+  const pub = await call(`${GRAPH}/${encodeURIComponent(user)}/media_publish`, { method: 'POST', body: form }, 'Instagram（公開）', ctx, { publish: true })
+  if (!pub.ok) return pub
+  const id = pub.data.id
   let url = ''
   if (ctx.deadline - Date.now() > 2500) {
     const link = await call(`${GRAPH}/${encodeURIComponent(id)}?fields=permalink&access_token=${encodeURIComponent(token)}`, {}, 'Instagram', ctx, { ms: 2500 })
     if (link.ok) url = link.data.permalink || ''
   }
-  return { ok: true, id, url }
+  /* 最初のコメント（ハッシュタグや「リンクはプロフィールから」など）。
+     公開のすぐあとに、自分のアカウントからコメントします。付けられなくても
+     投稿はもう出ているので「成功」のまま、そのことだけを伝えます。
+     instagram_manage_comments の権限が要ります。 */
+  let message = ''
+  const first = String((p && p.firstComment) || '').trim()
+  if (first) {
+    const cm = await call(`${GRAPH}/${encodeURIComponent(id)}/comments`, {
+      method: 'POST', body: new URLSearchParams({ message: first, access_token: token }),
+    }, 'Instagram（最初のコメント）', ctx, { ms: 4000 })
+    message = cm.ok
+      ? '最初のコメントも付けました。'
+      : '最初のコメントは付けられませんでした（鍵に instagram_manage_comments の権限が要ります）。投稿の画面から手でコメントしてください。'
+  }
+  return { ok: true, id, url, message }
 }
 
 /* -------------------------------------------------------------- Threads -- */
@@ -540,7 +554,11 @@ export function readPayload(body) {
   // Googleビジネスプロフィールのボタンの種類（知らない値は「詳細」にします）。
   const gbpAction = String((b.gbp && b.gbp.action) || '')
   const gbp = { action: GBP_ACTIONS[gbpAction] ? gbpAction : 'LEARN_MORE' }
-  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId, gbp } }
+  // Instagram の「最初のコメント」（公開のすぐあとに付けます）。Instagram に出すときだけ。
+  const firstComment = targets.includes('instagram') ? String(b.firstComment || '').trim().slice(0, 2200) : ''
+  const out = { text, link, campaign, images, variants, targets, sendId, gbp }
+  if (firstComment) out.firstComment = firstComment
+  return { ok: true, payload: out }
 }
 
 /** Every target, checked before anything is sent. A post that is wrong for

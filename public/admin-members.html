@@ -599,6 +599,8 @@
   .soc-tab .st { font-variant-numeric: tabular-nums; margin-left: 6px; font-weight: 700; }
   .soc-tab .st.over { color: #b42318; }
   .soc-var { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; }
+  .soc-var .soc-fc { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .soc-var .soc-fc textarea { width: 100%; }
   .soc-var .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 7px; font-size: 11.5px; }
   .soc-count { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .soc-count.over { color: #b42318; }
@@ -6800,7 +6802,7 @@ window.lumAdmin = {
     return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
   }
   function blank() {
-    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE' };
+    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE', firstComment: '' };
   }
 
   function esc(t) {
@@ -6842,7 +6844,8 @@ window.lumAdmin = {
       variants: S.variants,
       targets: sendable(),
       sendId: S.sendId,
-      gbp: { action: S.gbpAction || 'LEARN_MORE' }
+      gbp: { action: S.gbpAction || 'LEARN_MORE' },
+      firstComment: S.firstComment || ''
     };
   }
   function composeFor(id) { return TX.compose(id, payload(), brand.host); }
@@ -6890,6 +6893,10 @@ window.lumAdmin = {
     // 畳まれる位置（「…続きを読む」など）より後ろにだけ、大事なことがあるとき。
     var f = TX.foldCheck(id, c.text);
     warns = warns.concat(f.warnings);
+    if (id === 'instagram' && S.firstComment) {
+      var fcTags = TX.hashtags(S.firstComment).length;
+      if (fcTags > 30) warns.push('最初のコメントのハッシュタグが ' + fcTags + ' 個あります。Instagram は30個までで、超えるとコメントが付きません。');
+    }
     return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: warns, fold: f };
   }
 
@@ -7537,6 +7544,13 @@ window.lumAdmin = {
         '</div>' +
         (id === 'gbp' ? '<div class="row"><label for="soc-v-gbp" style="font-weight:700">ボタンの種類</label><select id="soc-v-gbp" style="width:auto;font-size:12px;padding:5px 8px"></select>' +
           '<span class="soc-small">リンクの欄のURLが、このボタンの行き先になります（「今すぐ電話」はお店の電話番号にかかります）。</span></div>' : '') +
+        (id === 'instagram' ? '<div class="soc-fc"><label class="soc-lab" for="soc-v-fc">最初のコメント（任意）</label>' +
+          '<textarea id="soc-v-fc" rows="2" maxlength="2200" placeholder="例：#渋谷カフェ #秋限定 ／ ご予約はプロフィールのリンクから"></textarea>' +
+          '<div class="soc-small">' + (n.ready
+            ? '投稿のすぐあとに、このアカウントからコメントします（鍵に instagram_manage_comments の権限が要ります。付けられなかったときは、そう表示します）。'
+            : '手で投稿するときは、投稿したあとに下のボタンでコピーして、自分の投稿にコメントしてください。') +
+          'ハッシュタグをここに移すと、本文が読みやすくなります。</div>' +
+          '<div class="row"><button type="button" class="ghost" id="soc-v-fcclip" style="font-size:11px;padding:4px 10px">最初のコメントをコピー</button><span class="soc-small" id="soc-v-fcst"></span></div></div>' : '') +
         '<div class="row"><span class="soc-count" id="soc-v-count"></span>' +
           (n.weighted ? '<span class="soc-small">Xでは日本語は1文字=2として数えます（URLはどれも23）</span>' : '') +
           (id === 'bluesky' ? '<span class="soc-small">Blueskyは見た目の1文字ずつで数えます（絵文字の組み合わせも1）</span>' : '') +
@@ -7580,6 +7594,18 @@ window.lumAdmin = {
       });
       gs.value = S.gbpAction || 'LEARN_MORE';
       gs.addEventListener('change', function () { S.gbpAction = gs.value; changed(false); });
+    }
+    var fc = el('soc-v-fc');
+    if (fc) {
+      fc.value = S.firstComment || '';
+      fc.addEventListener('input', function () { S.firstComment = fc.value; changed(false); });
+      el('soc-v-fcclip').addEventListener('click', function () {
+        var st = el('soc-v-fcst');
+        if (!fc.value.trim()) { st.textContent = 'まだ何も書いていません。'; return; }
+        var done = function (ok) { st.textContent = ok ? '✓ コピーしました。投稿のコメント欄に貼ってください。' : 'コピーできませんでした。文字を選んでコピーしてください。'; };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(fc.value).then(function () { done(true); }, function () { done(false); });
+        else done(false);
+      });
     }
     var nl = el('soc-v-nolink');
     if (nl) nl.addEventListener('change', function () {
@@ -7950,9 +7976,9 @@ window.lumAdmin = {
         at: new Date().toISOString(),
         text: el('social-text').value, link: el('social-link').value, campaign: el('social-campaign').value,
         topic: el('social-ai-topic').value,
-        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction
+        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction, firstComment: S.firstComment || ''
       };
-      var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
+      var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !d.firstComment.trim() && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
       if (empty) localStorage.removeItem(DRAFT_KEY);
       else localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
     } catch (_) {}
@@ -7974,6 +8000,7 @@ window.lumAdmin = {
     S.date = String(d.date || '');
     S.sendId = /^[0-9a-f-]{36}$/i.test(String(d.sendId || '')) ? d.sendId : uuid();
     S.gbpAction = TX.GBP_ACTIONS[d.gbpAction] ? d.gbpAction : 'LEARN_MORE';
+    S.firstComment = String(d.firstComment || '');
     S.images.forEach(function (i) { measure(i.url); });
     restoring = false;
     var box = el('social-restore');
