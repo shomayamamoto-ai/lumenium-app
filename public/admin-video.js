@@ -417,6 +417,7 @@
           '<input type="number" id="vs-dur" min="5" max="900" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
           '<button type="button" id="vs-gen" style="font-size:12.5px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>台本を作る</button>' +
         '</div>' +
+        '<label class="soc-small" style="display:block;margin-top:6px"><input type="checkbox" id="vs-loop" checked> ショートは最後を最初につなげる（ループ。最後まで見た人がそのまま見返しやすくなります）</label>' +
         '<p class="soc-small" style="margin-top:6px">長さを空欄にすると、ショートは競合の上位の長さ（' + (band.ok ? '中央値 ' + band.median + '秒' : 'まだ判断できないため30秒') + '）、長尺は5分にします（長尺は YouTube の通常の動画として作ります）。冒頭をフックにし、テロップ・ナレーション・映す画を秒ごとに分けます。' +
         '作ったあと、禁止ワード・表記の統一・競合との言い回しの重なり（10文字以上）・テロップの速さを機械的に確かめます。重なりがあれば最大2回作り直します。' +
         (S.ready.ai ? '' : '<br>AI のキーが未設定です（「設定状況 › キーの入力」）。') + '</p>' +
@@ -431,7 +432,7 @@
       if (!topic) { say('テーマを入れてください。'); return; }
       this.disabled = true;
       say('AIが台本を書いています（30秒〜1分ほど）…', true);
-      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value) });
+      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked });
       this.disabled = false;
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
       S.scriptId = r.data.script.id;
@@ -524,6 +525,12 @@
     var tc = V.shotLengthCheck(useShots ? s.shots : s.lines, s);
     h += res(tc.ok, 'テンポ（同じ画の長さ）', mark(tc.ok) + (useShots ? '絵コンテ' : '行') + 'の長さ: 平均 ' + tc.avg + '秒・最長 ' + (tc.longest ? tc.longest.sec : 0) + '秒（目安 ' + tc.target[0] + '〜' + tc.target[1] + '秒、' + tc.max + '秒を超えたら注意）。' +
       (tc.ok ? '' : '<br>' + tc.over.length + (useShots ? 'カット' : '行') + 'が長めです。「絵コンテ」の「カット割りを提案」で、寄り・引き・手元などに分けられます。'));
+    var ec = V.endingCheck(s);
+    var parts = [];
+    parts.push('CTA: ' + (ec.cta.ok ? '最後に1回・' + esc(ec.cta.actions[0] || '') : ec.cta.atEnd ? '要確認' : 'なし'));
+    if (ec.loop) parts.push('ループ: ' + (ec.loop.want ? (ec.loop.ok ? '1行目につながっています' : 'つながっていません') : 'しない設定'));
+    if (ec.endScreen) parts.push('終了画面: ' + (ec.endScreen.ok ? esc(ec.endScreen.note) : '未記入'));
+    h += res(ec.ok, 'ループと最後', mark(ec.ok) + parts.join('　') + (ec.notes.length ? '<br>' + ec.notes.map(esc).join('<br>') : ''));
     return h;
   }
 
@@ -545,6 +552,8 @@
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
         fld('CTA（最後にしてほしい行動を1つ）', '<input type="text" id="ve-cta" maxlength="300" value="' + esc(s.cta) + '">') +
         fld('ハッシュタグ（空白区切り・5個まで）', '<input type="text" id="ve-tags" value="' + esc((s.hashtags || []).join(' ')) + '">') +
+        fld('ショート: 最後を最初につなげる（ループ）', '<select id="ve-loop"><option value="">つなげない</option><option value="1"' + (s.loop ? ' selected' : '') + '>つなげる</option></select>') +
+        fld('長尺: 終了画面（最後の5〜20秒）に置くもの', '<input type="text" id="ve-end" maxlength="300" placeholder="例：次に見てほしい「石窯の1日」の動画" value="' + esc(s.end_screen) + '">') +
         fld('投稿先', '<select id="ve-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
       '</div>' +
       '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画・印）</label>' +
@@ -574,6 +583,7 @@
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
       s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
       s.thumb_text = el('ve-thumb').value; s.promise = el('ve-promise').value; s.wow = el('ve-wow').value;
+      s.loop = el('ve-loop').value === '1'; s.end_screen = el('ve-end').value;
       s.promise_keywords = el('ve-kw').value.split(/[、,\s]+/).map(function (t) { return t.trim(); }).filter(Boolean);
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
       return s;
@@ -629,7 +639,7 @@
         check();
         return;
       }
-      if (e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
+      if (e.target.id === 've-loop' || e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
       if (t.id === 've-hook-ai') {

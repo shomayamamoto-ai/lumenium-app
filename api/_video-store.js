@@ -149,6 +149,8 @@ export function cleanScript(s) {
     // パッケージ（先に決める約束）。タイトルは title をそのまま使います。
     thumb_text: str(s && s.thumb_text, 60), promise: str(s && s.promise, 300),
     promise_keywords: words(s && s.promise_keywords, 8, 30), wow: str(s && s.wow, 300),
+    // 最後: ショートはループにするか、長尺は終了画面のメモ
+    loop: !!(s && s.loop), end_screen: str(s && s.end_screen, 300),
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
     lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),

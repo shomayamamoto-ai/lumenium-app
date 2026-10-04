@@ -291,6 +291,7 @@ async function generate(req, cfg, project, b) {
   if (!topic) return json({ ok: false, message: '何についての動画か（テーマ）を入れてください。' }, 400)
   // 長尺（3分以上）は YouTube の通常の動画として作ります。
   const mode = b.length_mode === 'long' ? 'long' : 'short'
+  const loop = mode === 'short' && b.loop !== false
   const platform = mode === 'long' ? 'youtube' : PLATFORMS[b.platform] ? b.platform : 'instagram'
   const posts = scorePosts(await listItems(cfg, project.id, 'posts'))
   const band = durationBand(posts)
@@ -323,7 +324,10 @@ async function generate(req, cfg, project, b) {
       : `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は5〜10秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。`,
     `- 各行の mark: 新しい画・音・問いで注意を戻す行は switch_visual / switch_sound / switch_question、話が一段動く山場は peak_rule（ルール変更）/ peak_trouble（トラブル）/ peak_reveal（発表）/ peak_twist（どんでん返し）。それ以外は空文字。${mode === 'short' ? `約${M.INTERRUPT_TARGET_SEC}秒ごとに切り替えを置く。` : `約${M.PEAK_TARGET_SEC / 60}分ごとに山場を置く。`}`,
     `- telop（画面の文字）は1秒あたり${RULES.telop.MAX_CPS}文字以内で読める長さに。narration は話す言葉、visual は映す画（英語で具体的に。文字やロゴは入れない）。`,
-    '- 最後の行は CTA（保存・フォロー・プロフィールのリンクなど、行動を1つだけ）。',
+    mode === 'short' && loop
+      ? '- 最後はループにする: CTA（保存・フォローなど行動を1つだけ）は最後から2行目に短く1回。最後の行は1行目につながる言葉で終える（1行目の言葉をくり返す、「答えは…」と言いかけて1行目へ戻るなど）。「以上です」「またね」で締めない。'
+      : '- 行動のお願い（CTA）は途中に入れず、最後の行に1回だけ（保存・フォロー・予約など、行動を1つだけ）。',
+    mode === 'long' ? '- 最後の5〜20秒は YouTube の終了画面に使うので、次に見てほしい動画へつなぐ一言で終える。' : '',
     `- hashtags は${RULES.post.MAX_HASHTAGS}個以内、# は付けない。`,
     '- 事実（価格・実績・数字）を作らない。テーマに書かれていないことは一般論にとどめる。',
     '- rationale に、なぜこの構成にしたかを日本語で2〜3文。',
@@ -361,6 +365,8 @@ async function generate(req, cfg, project, b) {
     ...s,
     platform,
     length_mode: mode,
+    loop,
+    end_screen: mode === 'long' ? '次に見てほしい動画を終了画面に置く（最後の5〜20秒）' : '',
     target_duration_sec: target,
     hashtags: (s.hashtags || []).map((t) => String(t).replace(/^#/, '')).slice(0, RULES.post.MAX_HASHTAGS),
     style: brand.style || '',

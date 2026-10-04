@@ -416,6 +416,34 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('切り替え（ショート12秒）・山場（長尺3分半）と 0〜1／1〜3／3〜6分の構成、時間の帯')
 }
 
+/* ---- ループと最後 ---- */
+{
+  const L = (n) => ({ start: 0, end: 3, narration: n, telop: '' })
+  const s = { loop: true, lines: [L('この穴、どうやってできる？'), L('水の量です。'), L('保存して朝に見返してね'), L('で、この穴の答えは…')] }
+  const e = V.endingCheck(s)
+  assert.equal(e.cta.ok, true, 'ループのときは最後から2行目の CTA を認める')
+  assert.deepEqual(e.cta.actions, ['保存'])
+  assert.equal(e.loop.ok, true)
+  assert.deepEqual(e.loop.shared, ['穴'])
+  assert.equal(e.ok, true)
+  const closer = V.endingCheck({ ...s, lines: s.lines.slice(0, 3).concat([L('以上です、ありがとうございました')]) })
+  assert.equal(closer.loop.ok, false, '締めの言葉で終わるとループにならない')
+  assert.equal(closer.loop.closer, true)
+  const early = V.endingCheck({ lines: [L('フォローしてね！この穴、なぜ？'), L('水の量です'), L('保存とフォローお願いします')] })
+  assert.deepEqual(early.cta.early, [0], '途中のお願いは指摘')
+  assert.deepEqual(early.cta.actions, ['フォロー', '保存'])
+  assert.equal(early.cta.ok, false)
+  assert.equal(early.loop.want, false)
+  assert.equal(early.ok, false)
+  const none = V.endingCheck({ lines: [L('この穴、なぜ？'), L('水の量です')] })
+  assert.equal(none.cta.atEnd, false)
+  const long = V.endingCheck({ length_mode: 'long', lines: [L('この穴、なぜ？'), L('チャンネル登録してね')] })
+  assert.equal(long.loop, null)
+  assert.equal(long.endScreen.ok, false)
+  assert.equal(V.endingCheck({ length_mode: 'long', end_screen: '次の動画', lines: [L('この穴、なぜ？'), L('チャンネル登録してね')] }).ok, true)
+  ok('ループ（最後が1行目につながる）・CTA は最後に1回1つ・長尺の終了画面')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

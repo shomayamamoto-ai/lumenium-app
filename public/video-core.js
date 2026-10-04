@@ -852,6 +852,65 @@ function timelineData(s) {
   }
 }
 
+/* ---------------- ループと最後 ----------------
+   ショートは最後まで見た人がそのまま最初に戻る（ループする）と、見た時間が
+   延びます。最後の行を1行目につながる言葉で終え、「以上です」「またね」の
+   ような締めは置きません。CTA（してほしい行動）は最後に1回、1つだけ。
+   長尺は YouTube の終了画面（最後の5〜20秒）に次の動画を置くメモを残します。 */
+
+const CTA_CUES = ['フォロー', '保存', 'コメント', 'プロフィール', 'リンク', '予約', 'いいね', 'シェア', 'DM', 'チャンネル登録', '来てください', '来てね', 'お問い合わせ', '電話', 'LINE', 'クーポン', 'ご来店', '見に来て', '試しに来て']
+const CLOSERS = /(以上です|以上でした|ありがとうございました|またね|バイバイ|ではまた|お楽しみに|おわり|終わりです)[。！!]*$/
+const CONNECT_END = /(と|から|は|って|けど|、|…|\.\.\.|→|それは|なぜなら|実は|その答えは|答えは)[。]?$/
+const BACK_CUES = /最初|もう一度|1回目|はじめから|冒頭/
+
+function lineText(l) { return l ? String(l.narration || '').trim() || String(l.telop || '').trim() : '' }
+
+/** 最後の確認: CTA は最後に1回・1つ、ショートのループ、長尺の終了画面。 */
+function endingCheck(s) {
+  const mode = lengthMode(s)
+  const lines = (s && s.lines) || []
+  const n = lines.length
+  const ctaLines = []
+  const actionsAt = {}
+  lines.forEach((l, i) => {
+    const t = String(l.narration || '') + ' ' + String(l.telop || '')
+    const hit = CTA_CUES.filter((c) => t.indexOf(c) >= 0)
+    if (hit.length) { ctaLines.push(i); actionsAt[i] = hit }
+  })
+  // ループにする台本は、最後の行が「つなぎ」なので CTA は最後から2行目まで認めます。
+  const endZone = s && s.loop && mode === 'short' ? 2 : 1
+  const early = ctaLines.filter((i) => i < n - endZone)
+  const atEnd = ctaLines.filter((i) => i >= n - endZone)
+  const actions = Array.from(new Set(atEnd.flatMap((i) => actionsAt[i])))
+  const cta = {
+    lines: ctaLines, early, atEnd: atEnd.length > 0, actions,
+    ok: n > 0 && atEnd.length > 0 && early.length === 0 && actions.length <= 1,
+  }
+  const notes = []
+  if (!n) notes.push('行がまだありません。')
+  else if (!atEnd.length) notes.push('最後にしてほしい行動（保存・フォロー・予約など）がありません。最後に1つだけ入れてください。')
+  if (early.length) notes.push(`${early.map((i) => i + 1).join('・')}行目にも行動のお願いがあります。途中のお願いは離れるきっかけになるので、最後の1回にまとめてください。`)
+  if (actions.length > 1) notes.push(`最後のお願いが${actions.length}つ（${actions.join('・')}）あります。1つに絞ると動いてもらいやすくなります。`)
+  let loop = null
+  let endScreen = null
+  if (mode === 'short') {
+    const first = lineText(lines[0])
+    const last = lineText(lines[n - 1])
+    const shared = n > 1 ? promiseKeywords(first).filter((k) => normText(last).indexOf(k) >= 0) : []
+    const closer = CLOSERS.test(last)
+    const connects = n > 1 && (CONNECT_END.test(last) || BACK_CUES.test(last) || shared.length > 0)
+    loop = { want: !!(s && s.loop), ok: connects && !closer, connects, closer, shared }
+    if (loop.want && closer) notes.push('最後の行が締めの言葉で終わっています。ループにするなら、1行目につながる言葉で終えてください。')
+    else if (loop.want && !connects) notes.push('最後の行が1行目につながっていません（例: 1行目の言葉をくり返す、「答えは…」で言いかけて1行目へ戻る）。')
+  } else {
+    const note = String((s && s.end_screen) || '').trim()
+    endScreen = { ok: !!note, note }
+    if (!note) notes.push('終了画面（最後の5〜20秒）に何を置くかのメモがありません（例: 次に見てほしい動画、チャンネル登録）。')
+  }
+  const ok = cta.ok && (!loop || !loop.want || loop.ok) && (!endScreen || endScreen.ok)
+  return { mode, ok, cta, loop, endScreen, notes }
+}
+
 /* ---------------- 書き出し ---------------- */
 
 function csv(rows) {
@@ -1347,5 +1406,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();
