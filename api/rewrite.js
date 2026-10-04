@@ -12,7 +12,7 @@ export const config = { runtime: 'edge' }
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
-import { BRAND } from './_aio-catalog.js'
+import { BRAND } from './_brand.js'
 
 const MODEL = 'claude-sonnet-5'
 const MAX_IN = 1200
@@ -43,7 +43,9 @@ export const WAYS = {
 }
 
 const SYSTEM = [
-  `あなたは ${BRAND.domain}（ルメニウム、東京のクリエイティブ／DX支援会社）のウェブサイトの文章を直す編集者です。`,
+  // 社名は _brand.js から。ここに社名や所在地を書き込むと、同じ仕組みを
+  // 別の会社のサイトに載せたとき、その会社の文章が他社の名前で直されます。
+  `あなたは ${BRAND.name}${BRAND.kana && BRAND.kana !== BRAND.name ? `（${BRAND.kana}）` : ''} のウェブサイト（${BRAND.host}）の文章を直す編集者です。`,
   '渡されるのは、サイトのどこかに実際に出ている一文または数行です。',
   '',
   '守ること。',

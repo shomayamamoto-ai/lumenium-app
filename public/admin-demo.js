@@ -478,7 +478,7 @@
         c('memberCode', '会員登録コード', 'MEMBER_CODE', '独自のコードが設定されています。'),
         c('sessionSecret', 'ログインセッションの署名鍵', 'SESSION_SECRET', '独自の鍵が設定されています。'),
         c('cron', '週次メールの合言葉（おすすめ）', 'CRON_SECRET', '毎週月曜の朝9時に、先週のアクセスのまとめがメールで届きます（「アクセス解析」の画面で止められます）。'),
-        c('social', 'SNS 投稿', 'X_ACCESS_TOKEN ほか', 'X・Facebook・Threads に管理ポータルから直接投稿できます。残り（Instagram・LinkedIn）は資格情報が未入力です。'),
+        c('social', 'SNS 投稿', 'X_ACCESS_TOKEN ほか', 'X・Facebook・Instagram・Threads・LINE公式アカウント に管理ポータルから直接投稿できます。残り（LinkedIn）は資格情報が未入力です。'),
         c('contactBlocked', '迷惑送信のブロック', '', '直近30日で 3 件を回数制限で遮断しました。受信箱とメール送信枠を守っています。'),
         c('share', '会員リストの共有リンク', '', '2本が有効です（会員リストのみ・この管理画面は開けません）。すべて期限付きで、期日が来れば自動的に使えなくなります。')
       ],
@@ -794,7 +794,7 @@
   }
 
   function socialActivity() {
-    return { posts: 9, sent: 13, failed: 1, last7: 2, lastAt: ago(2 * DAY + 4 * 3600000), byNet: { x: 6, threads: 4, facebook: 3 } };
+    return { posts: 9, attempts: 9, sent: 14, failed: 1, last7: 2, lastAt: ago(2 * DAY + 4 * 3600000), byNet: { x: 6, threads: 4, facebook: 3, line: 1 } };
   }
 
   // Two-proportion z-test at 95%, as api/_aio-stats.js.
@@ -999,12 +999,14 @@
     ['X_ACCESS_SECRET', 'X ④ Access Token Secret', 'secret', 'social', true, 'x', ''],
     ['FB_PAGE_ID', 'Facebook ページID', 'text', 'social', true, 'facebook', '000000000000000'],
     ['FB_PAGE_TOKEN', 'Facebook ページアクセストークン', 'secret', 'social', true, 'facebook', ''],
-    ['IG_USER_ID', 'Instagram ビジネスアカウントID', 'text', 'social', true, 'instagram', null],
-    ['IG_TOKEN', 'Instagram アクセストークン', 'secret', 'social', true, 'instagram', null],
+    ['IG_USER_ID', 'Instagram ビジネスアカウントID', 'text', 'social', true, 'instagram', '17840000000000000'],
+    ['IG_TOKEN', 'Instagram アクセストークン', 'secret', 'social', true, 'instagram', ''],
     ['THREADS_USER_ID', 'Threads ユーザーID', 'text', 'social', true, 'threads', '0000000000'],
     ['THREADS_TOKEN', 'Threads アクセストークン', 'secret', 'social', true, 'threads', ''],
     ['LI_AUTHOR_URN', 'LinkedIn 投稿者URN', 'text', 'social', true, 'linkedin', null],
-    ['LI_TOKEN', 'LinkedIn アクセストークン', 'secret', 'social', true, 'linkedin', null]
+    ['LI_TOKEN', 'LinkedIn アクセストークン', 'secret', 'social', true, 'linkedin', null],
+    ['LINE_CHANNEL_TOKEN', 'LINE チャネルアクセストークン（長期）', 'secret', 'social', true, 'line', ''],
+    ['BLOB_READ_WRITE_TOKEN', '画像の置き場所（Vercel Blob）', 'secret', 'social', true, '', '', 'BLOB_READ_WRITE_TOKEN']
   ];
   function settings() {
     return {
@@ -1055,35 +1057,103 @@
   }
 
   /* ---- social (shape: api/social.js GET; networks from _social.js) ---- */
+  // [id, label, limit, image, maxImages, note, needs, ready, scheduled]
   var NETS = [
-    ['x', 'X', '𝕏', 280, 'ignored', '画像はAPIの別枠（メディアアップロード）が要るため、本文とリンクのみ送ります。', ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET'], true],
-    ['facebook', 'Facebook', 'f', 5000, 'optional', 'ページへの投稿です。個人のタイムラインへはAPIから投稿できません。', ['FB_PAGE_ID', 'FB_PAGE_TOKEN'], true],
-    ['instagram', 'Instagram', '◎', 2200, 'required', '画像URLが必須です（公開URLのみ）。プロアカウントとFacebookページの連携が要ります。', ['IG_USER_ID', 'IG_TOKEN'], false],
-    ['threads', 'Threads', '@', 500, 'optional', '作成と公開の2段階で送ります。', ['THREADS_USER_ID', 'THREADS_TOKEN'], true],
-    ['linkedin', 'LinkedIn', 'in', 3000, 'ignored', '画像はアセット登録が別途必要なため、本文とリンクのみ送ります。', ['LI_AUTHOR_URN', 'LI_TOKEN'], false]
+    ['x', 'X', 280, 'optional', 4, 'Xでは日本語は1文字=2として数えます。画像は、この画面からアップロードしたものを4枚まで付けられます。', ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET'], true],
+    ['facebook', 'Facebook', 5000, 'optional', 1, 'ページへの投稿です。個人のタイムラインへはAPIから投稿できません。画像は1枚目だけ送ります。', ['FB_PAGE_ID', 'FB_PAGE_TOKEN'], true],
+    ['instagram', 'Instagram', 2200, 'required', 1, '画像が必須です（JPEG・縦横比 4:5〜1.91:1・8MB以下）。本文のリンクは押せません。1日100件まで。', ['IG_USER_ID', 'IG_TOKEN'], true],
+    ['threads', 'Threads', 500, 'optional', 1, '500文字まで。作成と公開の2段階で送ります。鍵は60日で切れるので「トークンを延長」で延ばします。', ['THREADS_USER_ID', 'THREADS_TOKEN'], true],
+    ['linkedin', 'LinkedIn', 3000, 'none', 0, '本文とリンクだけ送ります（画像はアセット登録が別に要るため送りません）。本文が必要です。', ['LI_AUTHOR_URN', 'LI_TOKEN'], false],
+    ['line', 'LINE公式アカウント', 5000, 'optional', 1, '友だち全員に一斉送信します。届いた人数ぶん「通数」を使います（無料プランは月200通）。', ['LINE_CHANNEL_TOKEN'], true]
   ];
+  var DEMO_HOST = 'example.com';
   function socialRecent() {
-    var res = function (net, label, ok) { return { net: net, label: label, ok: ok, id: '', url: '', message: ok ? '' : 'デモ表示：サンプルの失敗例です。' }; };
+    var res = function (net, label, ok, metrics, unknown) {
+      return { net: net, label: label, ok: ok, unknown: !!unknown, id: ok ? 'demo-' + net : '', url: '',
+        message: ok ? '' : unknown ? 'デモ表示：結果が分からなかった例です。' : 'デモ表示：サンプルの失敗例です。', metrics: metrics || undefined };
+    };
     return [
-      { at: ago(2 * DAY + 4 * 3600000), text: '（サンプル投稿）飲食店さまのホームページを公開しました。予約ボタンをいちばん上に置いています。', link: 'https://example.com/works', imageUrl: '',
-        results: [res('x', 'X', true), res('threads', 'Threads', true), res('facebook', 'Facebook', true)] },
-      { at: ago(9 * DAY + 2 * 3600000), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: '', imageUrl: '',
-        results: [res('x', 'X', true), res('threads', 'Threads', true)] },
-      { at: ago(17 * DAY), text: '（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', link: 'https://example.com/blog', imageUrl: '',
+      { id: 'demo-p1', at: ago(2 * DAY + 4 * 3600000), text: '（サンプル投稿）飲食店さまのホームページを公開しました。予約ボタンをいちばん上に置いています。', link: 'https://' + DEMO_HOST + '/works', campaign: 'works-autumn', images: [],
+        results: [
+          res('x', 'X', true, { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840, at: ago(DAY) }),
+          res('threads', 'Threads', true, { ok: true, likes: 9, comments: 1, shares: 0, impressions: 310, at: ago(DAY) }),
+          res('facebook', 'Facebook', true),
+          res('line', 'LINE公式アカウント', true, { ok: true, reach: 186, impressions: 121, clicks: 34, at: ago(DAY) })
+        ] },
+      { id: 'demo-p2', at: ago(9 * DAY + 2 * 3600000), scheduledFor: jstDate(9), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: '', images: [],
+        results: [res('x', 'X', true), res('threads', 'Threads', true), res('instagram', 'Instagram', false, null, true)] },
+      { id: 'demo-p3', at: ago(17 * DAY), text: '（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', link: 'https://' + DEMO_HOST + '/blog', images: [],
         results: [res('x', 'X', true), res('facebook', 'Facebook', false)] }
+    ];
+  }
+  function socialQueue() {
+    return [
+      { id: 'demo-q1', date: jstDate(-2), createdAt: ago(3600000), text: '（サンプルの予約）今週末は臨時休業です。ご不便をおかけします。', targets: ['x', 'line'], images: 0, link: '' },
+      { id: 'demo-q2', date: jstDate(-6), createdAt: ago(7200000), text: '（サンプルの予約）秋の限定メニュー、はじめます。', targets: ['instagram', 'threads', 'facebook'], images: 1, link: 'https://' + DEMO_HOST + '/menu' }
     ];
   }
   function social() {
     return {
       ok: true, stored: true,
+      brand: { name: (window.lumSite && window.lumSite.name) || 'Sample', host: DEMO_HOST, url: 'https://' + DEMO_HOST },
       networks: NETS.map(function (n) {
-        return { id: n[0], label: n[1], mark: n[2], limit: n[3], image: n[4], note: n[5], needs: n[6],
+        return { id: n[0], label: n[1], mark: '', limit: n[2], image: n[3], maxImages: n[4], weighted: n[0] === 'x',
+          needText: n[0] === 'x' || n[0] === 'linkedin', note: n[5], needs: n[6],
           setup: { what: n[1] + ' の資格情報が要ります（デモ表示）。', where: '各SNSの開発者画面で取得します。', url: '', effort: '' },
-          ready: n[7], missing: n[7] ? [] : n[6] };
+          ready: n[7], scheduled: n[7], missing: n[7] ? [] : n[6] };
       }),
       recent: socialRecent(),
-      activity: socialActivity()
+      activity: socialActivity(),
+      schedule: { ready: true, message: '', code: '', jstHour: 9, items: socialQueue() },
+      upload: { ready: true },
+      threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 }
     };
+  }
+  function socialQuotas() {
+    return { ok: true, quotas: {
+      line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 186, date: jstDate(1), note: '' },
+      instagram: { ok: true, used: 1, total: 100, remaining: 99 },
+      threads: { ok: true, used: 2, total: 250, remaining: 248 }
+    } };
+  }
+  /* Read-like actions answer as the real thing would; anything that changes
+     an account (posting, booking, cancelling, extending a token) is refused. */
+  function socialPost(body) {
+    var a = (body && body.action) || 'post';
+    if (a === 'test') {
+      return { ok: true, net: body.net, state: 'ok', message: 'つながりました（デモ表示：実際には確認していません）。' };
+    }
+    if (a === 'metrics') {
+      return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
+    }
+    notice(MSG);
+    if (a === 'cancel') return blocked({ items: socialQueue() });
+    if (a === 'schedule') return blocked({ items: socialQueue() });
+    return blocked({ results: [], recent: socialRecent(), posted: 0, total: 0 });
+  }
+  /* ---- AI draft (shape: api/social-write.js) ---- */
+  function socialWrite(body) {
+    var nets = (body && body.nets) || [];
+    var T = window.lumSocialText;
+    var base = {
+      x: '（デモ用の下書き）秋の限定メニューを始めました。栗のモンブランをご用意しています。\n\n#秋限定 #モンブラン',
+      facebook: '（デモ用の下書き）いつもありがとうございます。今月から秋の限定メニューを始めました。\n栗をたっぷり使ったモンブランです。数に限りがありますので、気になる方はお早めにどうぞ。',
+      instagram: '（デモ用の下書き）\n秋の限定メニュー、はじまりました。\n栗の香りいっぱいのモンブランです。\n\n詳しくはプロフィールのリンクから\n\n#秋限定 #モンブラン #カフェ',
+      threads: '（デモ用の下書き）秋のモンブラン、今年もはじめました。栗、好きな人いますか？\n\n#秋限定',
+      linkedin: '（デモ用の下書き）秋の限定メニューの提供を開始しました。地元の農家さんの栗を使っています。',
+      line: '（デモ用の下書き）こんにちは！\n秋の限定メニュー「栗のモンブラン」がはじまりました🌰\nご来店をお待ちしています。'
+    };
+    var drafts = {};
+    nets.forEach(function (n) {
+      if (!base[n]) return;
+      var t = base[n];
+      var sent = body.link ? t + '\nhttps://' + DEMO_HOST + '/' : t;
+      var c = T ? (n === 'x' ? T.xLength(sent) : sent.length) : sent.length;
+      var lim = T && T.RULES[n] ? T.RULES[n].limit : 5000;
+      drafts[n] = { text: t, count: c, limit: lim, over: c > lim };
+    });
+    return { ok: true, drafts: drafts, noLink: body && body.link && drafts.instagram ? ['instagram'] : [],
+      message: '下書きを作りました（デモ表示：AIは呼んでいません）。各SNSのタブで読んで、直してから送ってください。' };
   }
 
   /* ---- rewrite (shape: api/rewrite.js) ---- */
@@ -1163,7 +1233,8 @@
       if (p === '/api/rewrite') return reply(rewrite(body));
       // The SNS panel redraws its history from the reply; without `recent`
       // a refused post would blank the sample log.
-      if (p === '/api/social') return reply(blocked({ results: [], recent: socialRecent(), posted: 0, total: 0 }));
+      if (p === '/api/social') return reply(socialPost(body));
+      if (p === '/api/social-write') return reply(socialWrite(body));
     }
     if (!read) {
       notice(MSG);
@@ -1194,7 +1265,7 @@
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });
       case '/api/booking': return reply(q.get('recent') ? bookingRecent() : { ok: true, enabled: false, mode: 'off', slots: [] });
       case '/api/settings': return reply(settings());
-      case '/api/social': return reply(social());
+      case '/api/social': return reply(q.get('quota') ? socialQuotas() : social());
       case '/api/google-oauth':
         notice(MSG);
         return reply(blocked());

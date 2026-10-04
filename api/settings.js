@@ -26,6 +26,7 @@ import {
 } from './_settings.js'
 import { cookieFor, packKeys, unpackKeys } from './_keybag.js'
 import { storeConfig } from './_analytics-store.js'
+import { noteTokenSaved } from './_social.js'
 
 const NO_HOME = {
   ok: false,
@@ -124,6 +125,9 @@ export async function POST(req) {
     try {
       const res = await saveSetting(name, value, req)
       if (!res.ok) return json({ ok: false, message: res.message }, 502)
+      // Threads のトークンは60日で切れます。貼られた日を覚えておくと、
+      // 毎朝の自動処理が期限の前に延長できます（_social.js）。
+      await noteTokenSaved(name, res.cleared, req)
       return json({
         ok: true,
         cleared: res.cleared,

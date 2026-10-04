@@ -48,6 +48,10 @@ Object.assign(process.env, {
   IG_USER_ID: '2', IG_TOKEN: 'smoke',
   THREADS_USER_ID: '3', THREADS_TOKEN: 'smoke',
   LI_AUTHOR_URN: 'urn:li:person:smoke', LI_TOKEN: 'smoke',
+  LINE_CHANNEL_TOKEN: 'smoke',
+  // 予約投稿と毎朝の自動処理。BLOB_READ_WRITE_TOKEN は入れません——入れると
+  // @vercel/blob が本物の Vercel に出ていこうとします（ここでは止められない）。
+  CRON_SECRET: 'smoke-cron',
 })
 
 const store = new Map()
@@ -65,6 +69,8 @@ function redis(cmds) {
     if (op === 'HGET') { const h = hashes.get(k); return { result: h?.get(String(c[2])) ?? null } }
     if (op === 'HGETALL') { const h = hashes.get(k); return { result: h ? [...h].flat() : [] } }
     if (op === 'LRANGE') return { result: [] }
+    if (op === 'HDEL') { const h = hashes.get(k); return { result: h && h.delete(String(c[2])) ? 1 : 0 } }
+    if (op === 'HLEN') { const h = hashes.get(k); return { result: h ? h.size : 0 } }
     return { result: null }
   })
 }
@@ -84,6 +90,16 @@ globalThis.fetch = async (input, init = {}) => {
     return ok({ id: 'smoke' })
   }
   if (u.includes('api.anthropic.com')) {
+    // SNSの下書きは JSON の形を指定して頼むので、その形で返します。
+    let req = {}
+    try { req = JSON.parse(init.body || '{}') } catch (_) {}
+    const fmt = req.output_config && req.output_config.format
+    if (fmt && fmt.type === 'json_schema') {
+      const nets = fmt.schema.properties.drafts.required
+      const drafts = Object.fromEntries(nets.map((n) => [n, { text: 'スモークテストの下書きです。', hashtags: ['スモーク'] }]))
+      return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn',
+        content: [{ type: 'text', text: JSON.stringify({ drafts }) }], usage: { input_tokens: 1, output_tokens: 1 } })
+    }
     return ok({ id: 'm', type: 'message', role: 'assistant', model: 'claude-opus-5', stop_reason: 'end_turn',
       content: [{ type: 'text', text: 'スモークテストの回答です。' }], usage: { input_tokens: 1, output_tokens: 1 } })
   }
@@ -113,9 +129,27 @@ globalThis.fetch = async (input, init = {}) => {
   // The publishing endpoints. Shapes match what each platform documents, so a
   // handler that reads the wrong field here reads the wrong field in
   // production too.
-  if (u.includes('api.twitter.com')) return ok({ data: { id: '1770000000000000000', text: 'smoke' } })
+  if (u.includes('.public.blob.vercel-storage.com/')) {
+    return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { status: 200, headers: { 'content-type': 'image/jpeg' } })
+  }
+  if (u.includes('api.x.com') || u.includes('api.twitter.com')) {
+    if (u.includes('/media/upload')) return ok({ data: { id: '1880000000000000000', media_key: '3_1' } })
+    if (u.includes('/users/me')) return ok({ data: { id: '1', username: 'smoke' } })
+    if (u.includes('public_metrics')) return ok({ data: { id: '1', public_metrics: { like_count: 1, reply_count: 0, retweet_count: 0, quote_count: 0, impression_count: 10 } } })
+    return ok({ data: { id: '1770000000000000000', text: 'smoke' } })
+  }
+  if (u.includes('api.line.me')) {
+    if (u.includes('/quota/consumption')) return ok({ totalUsage: 12 })
+    if (u.includes('/quota')) return ok({ type: 'limited', value: 200 })
+    if (u.includes('/insight/followers')) return ok({ status: 'ready', followers: 40, targetedReaches: 38, blocks: 2 })
+    if (u.includes('/bot/info')) return ok({ displayName: 'スモーク', basicId: '@smoke' })
+    return ok({})
+  }
   if (u.includes('graph.facebook.com') || u.includes('graph.threads.net')) {
     if (u.includes('permalink')) return ok({ permalink: 'https://example.invalid/p/smoke' })
+    if (u.includes('fields=status')) return ok({ status_code: 'FINISHED', status: 'FINISHED' })
+    if (u.includes('publishing_limit')) return ok({ data: [{ quota_usage: 1, config: { quota_total: 100 } }] })
+    if (u.includes('refresh_access_token')) return ok({ access_token: 'smoke-new', token_type: 'bearer', expires_in: 5184000 })
     if (u.includes('media_publish') || u.includes('threads_publish')) return ok({ id: 'published_1' })
     return ok({ id: 'container_1', post_id: '1_2' })
   }
@@ -177,7 +211,25 @@ const CALLS = [
   ['social', 'POST', '', JSONH,
     { text: 'スモークテストの投稿です。', link: 'https://lumenium.net/',
       imageUrl: 'https://lumenium.net/ogp.png',
-      targets: ['x', 'facebook', 'instagram', 'threads', 'linkedin'] }],
+      targets: ['facebook', 'instagram', 'threads', 'linkedin', 'line'] }],
+  // 投稿先ごとの本文・アップロードした画像（X は画像を実際に送る道を通る）。
+  ['social', 'POST', '', JSONH,
+    { action: 'post', text: 'スモーク', link: 'https://lumenium.net/', campaign: 'smoke',
+      images: [{ url: 'https://smoke.public.blob.vercel-storage.com/a.jpg' }],
+      variants: { x: { text: 'X用の本文' }, instagram: { noLink: true } },
+      targets: ['x', 'instagram'] }],
+  ['social', 'GET', '?quota=1', KEY],
+  ['social', 'POST', '', JSONH, { action: 'test', net: 'x' }],
+  ['social', 'POST', '', JSONH, { action: 'test', net: 'line' }],
+  ['social', 'POST', '', JSONH, { action: 'refresh-threads' }],
+  ['social', 'POST', '', JSONH, { action: 'metrics', id: 'none' }],
+  ['social', 'POST', '', JSONH, { action: 'schedule', date: new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10), text: 'スモーク', targets: ['threads'] }],
+  ['social', 'POST', '', JSONH, { action: 'cancel', id: 'none' }],
+  ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
+  ['social-cron', 'GET', '', {}],
+  ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],
+  // 画像の置き場所が無い状態（＝ 503 で理由を返す）。
+  ['social-upload', 'POST', '', { ...KEY, 'content-type': 'image/jpeg' }, '__bytes__'],
   // The committed-state reads behind the two editors.
   ['settings', 'GET', '', KEY],
   ['settings', 'POST', '', JSONH, { name: 'CONTACT_TO_EMAIL', value: 'smoke@example.com' }],
@@ -231,7 +283,7 @@ for (const [name, method, query, headers, body] of CALLS) {
     const req = new Request(`https://lumenium.net/api/${name}${query}`, {
       method,
       headers: { ...headers, 'x-forwarded-for': ip },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : body === '__bytes__' ? new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0]) : JSON.stringify(body),
     })
     const res = await fn(req)
     if (!(res instanceof Response)) { console.error(`✗ ${label} — returned ${typeof res}, not a Response`); failed++; continue }
