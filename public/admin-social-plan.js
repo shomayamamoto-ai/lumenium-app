@@ -210,6 +210,67 @@
   }
 
   /* ================================================================
+     5. 投稿直後の1時間（と、返事の早さ）
+     ================================================================ */
+  function nowMs() { return S.now ? S.now() : Date.now(); }
+  function hourHtml() {
+    var hot = C.firstHour(D.posts, nowMs());
+    var sp = S.inbox ? C.replySpeed(S.inbox.items) : null;
+    if (!hot.length && !sp) return '';
+    var h = '<h3>投稿直後の1時間と、返事の早さ</h3>';
+    if (hot.length) {
+      h += '<p class="lead">出してすぐ（最初の30〜60分）の反応が、その後どれだけ広がるかに効くと言われています<span class="spl-meyasu">目安</span>。' +
+        'この時間はコメントにすぐ返事をして、ストーリーズや LINE で知らせるのがおすすめです。</p>';
+      h += hot.map(function (x) {
+        var p = x.post;
+        var links = p.nets.map(function (n) {
+          var u = p.urls && p.urls[n];
+          return u ? '<a href="' + esc(window.lumSafeHref ? window.lumSafeHref(u) : u) + '" target="_blank" rel="noopener">' + esc(netLabel(n)) + 'で見る</a>' : '<span>' + esc(netLabel(n)) + '</span>';
+        }).join('　');
+        return '<div class="spl-good" style="color:var(--text)"><b>反応を見る時間</b>　あと <span class="spl-left" data-at="' + esc(p.at) + '">' + x.minutesLeft + '</span> 分' +
+          '<div style="font-size:12px;margin:2px 0">' + esc(String(p.text || '').slice(0, 60)) + '</div>' +
+          '<div style="font-size:12px">' + links + '</div>' +
+          '<div class="spl-btns" style="margin-top:4px"><button type="button" class="ghost spl-go" data-go="inbox">コメントの受信箱を見る</button></div></div>';
+      }).join('');
+    }
+    if (S.inbox) {
+      if (sp) {
+        h += '<p style="font-size:12.5px;margin:8px 0 2px">返事までの時間（中央値）：<b>' + fmtMin(sp.median) + '</b>　1時間以内に返せた割合：<b>' + pct(sp.within) + '</b>' + band(sp.reliability) + '</p>' +
+          '<p class="spl-note">64% の人が、SNS での返事は1時間以内を期待しているという調査があります<span class="spl-meyasu">目安</span>。早い返事ほど、来店や問い合わせにつながりやすくなります。</p>';
+      } else {
+        h += '<p class="spl-note">受信箱のコメントに、届いた時刻と返事をした時刻の両方が無いため、返事の早さは数えられません。</p>';
+      }
+    }
+    return h;
+  }
+  function fmtMin(m) { return m < 60 ? m + '分' : Math.floor(m / 60) + '時間' + (m % 60 ? (m % 60) + '分' : ''); }
+  function bindHour() {
+    Array.prototype.forEach.call(document.querySelectorAll('#spl-hour .spl-go'), function (b) {
+      b.addEventListener('click', function () { go(b.dataset.go); });
+    });
+  }
+  /* 残り分数は1分ごとに数字だけ書き換えます（動きは付けません）。 */
+  setInterval(function () {
+    var spans = document.querySelectorAll('.spl-left');
+    if (!spans.length) return;
+    var gone = false;
+    Array.prototype.forEach.call(spans, function (s) {
+      var left = Math.ceil(C.FIRST_HOUR_MIN - (nowMs() - Date.parse(s.dataset.at)) / 60000);
+      if (left <= 0) gone = true;
+      else s.textContent = String(left);
+    });
+    if (gone && S.view === 'plan') render();
+  }, 60000);
+  SECTIONS.unshift({ id: 'hour', html: hourHtml, bind: bindHour });
+
+  /* 投稿欄：送った直後に、運用プランの「反応を見る時間」へ案内します。 */
+  function justPostedAddon() {
+    if (!S.lastPostAt || Date.now() - S.lastPostAt > 60 * 60000) return '';
+    return '<div class="spl-good" style="margin-top:6px">投稿しました。これから1時間は「反応を見る時間」です。コメントにはなるべく早く返事をしましょう。' +
+      ' <button type="button" class="ghost" onclick="window.lumSocialPlanUI.setView(\'plan\')" style="font-size:11.5px;padding:4px 10px">運用プランで見る</button></div>';
+  }
+
+  /* ================================================================
      3. 今週やること
      ================================================================ */
   function checklistHtml(it) {
@@ -238,7 +299,7 @@
         if (x && x.draft) makeDraft(x.draft, !!(el('spl-ai') && el('spl-ai').checked));
       });
     });
-    Array.prototype.forEach.call(document.querySelectorAll('.spl-go'), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll('#spl-todo .spl-go'), function (b) {
       b.addEventListener('click', function () { go(b.dataset.go); });
     });
   }
@@ -654,7 +715,7 @@
   /* ================================================================
      投稿欄に足す部品（柱の選択など）。投稿欄そのものは書き換えません。
      ================================================================ */
-  var ADDON = [scoreAddon];
+  var ADDON = [justPostedAddon, scoreAddon];
   function composerAddon() {
     var anchor = el('social-tpl');
     if (!anchor || el('spl-compose')) return;
@@ -727,6 +788,7 @@
       var ok = action === 'post' ? d && d.posted > 0 : d && d.ok;
       if (!ok) return;
       S.stale = true;
+      if (action === 'post') S.lastPostAt = Date.now();
       S.pillar = '';
       ls('lum_spl_pillar', null);
       var s = el('spl-pillar');

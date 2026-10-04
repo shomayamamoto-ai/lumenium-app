@@ -272,4 +272,35 @@ t('saveShareScore: 手順＋お願い＝3点、宣伝だけ＝低い、空は nu
   assert.equal(mixed.score, 2)
 })
 
+/* ---- 5. 投稿直後の1時間・返事の早さ ---- */
+t('firstHour: 60分以内に出したものだけ、残り分数つき', () => {
+  const now = Date.parse('2026-10-07T03:00:00Z')
+  const posts = [
+    { id: 'a', at: '2026-10-07T02:45:00Z', nets: ['x'] },
+    { id: 'b', at: '2026-10-07T01:59:00Z', nets: ['x'] }, // 61分前
+    { id: 'c', at: '2026-10-07T02:30:00Z', nets: [] }, // どこにも出ていない
+  ]
+  const h = P.firstHour(posts, now)
+  assert.equal(h.length, 1)
+  assert.equal(h[0].post.id, 'a')
+  assert.equal(h[0].minutesLeft, 45)
+})
+
+t('replySpeed: 中央値と1時間以内の割合。時刻が無ければ null', () => {
+  const c = (got, rep) => ({ createdAt: got, repliedAt: rep })
+  const r = P.replySpeed([
+    c('2026-10-01T00:00:00Z', '2026-10-01T00:10:00Z'),
+    c('2026-10-01T00:00:00Z', '2026-10-01T00:50:00Z'),
+    c('2026-10-01T00:00:00Z', '2026-10-01T03:00:00Z'),
+    { createdAt: '2026-10-01T00:00:00Z' }, // まだ返事していない
+  ])
+  assert.equal(r.n, 3)
+  assert.equal(r.median, 50)
+  assert.equal(Math.round(r.within * 100), 67)
+  assert.equal(r.open, 1)
+  assert.equal(r.reliability.label, '参考程度')
+  assert.equal(P.replySpeed([{ status: 'replied' }]), null)
+  assert.equal(P.replySpeed([]), null)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)

@@ -432,6 +432,47 @@ function isAnswered(c) {
   return timeOf(c, REPLIED) != null
 }
 
+/* 返事までの時間の目安。64% の人が SNS での返事を1時間以内に期待している
+   という調査があります（目安）。 */
+var REPLY_TARGET_MIN = 60
+
+/** 返事の早さ。届いた時刻と返事をした時刻の両方が分かるものだけで数えます。
+ *  どちらも分からないときは null（「数えられません」と出すため）。 */
+function replySpeed(list) {
+  var mins = []
+  var open = 0
+  ;(list || []).forEach(function (c) {
+    if (!isAnswered(c)) { open++; return }
+    var a = timeOf(c, GOT)
+    var b = timeOf(c, REPLIED)
+    if (a != null && b != null && b >= a) mins.push((b - a) / 60000)
+  })
+  if (!mins.length) return null
+  mins.sort(function (x, y) { return x - y })
+  var mid = mins.length % 2 ? mins[(mins.length - 1) / 2] : (mins[mins.length / 2 - 1] + mins[mins.length / 2]) / 2
+  var fast = mins.filter(function (m) { return m <= REPLY_TARGET_MIN }).length
+  return { n: mins.length, median: Math.round(mid), within: fast / mins.length, open: open, reliability: reliability(mins.length) }
+}
+
+/* ----------------------------------------------------- 5. first hour -- */
+
+/* 投稿してすぐの反応（最初の30〜60分）が、その後の広がりに効くと言われています。 */
+var FIRST_HOUR_MIN = 60
+
+/** いまから60分以内に出した投稿（新しい順）と、残り分数。 */
+function firstHour(posts, nowMs) {
+  var out = []
+  ;(posts || []).forEach(function (p) {
+    var t = Date.parse(p && p.at)
+    if (!isFinite(t)) return
+    var age = (nowMs - t) / 60000
+    if (age < 0 || age >= FIRST_HOUR_MIN) return
+    if (!(p.nets || []).length) return
+    out.push({ post: p, minutesLeft: Math.max(1, Math.ceil(FIRST_HOUR_MIN - age)) })
+  })
+  return out.sort(function (a, b) { return b.minutesLeft - a.minutesLeft })
+}
+
 /* ------------------------------------------------------- 3. this week -- */
 
 /** AI の下書きに渡すメモ（/api/social-write の topic）。柱と書き方の目安を、言葉で添えます。 */
@@ -536,5 +577,5 @@ function weekChecklist(input) {
   return out
 }
 
-window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, isAnswered, draftTopic, weekChecklist };
+window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, isAnswered, REPLY_TARGET_MIN, replySpeed, FIRST_HOUR_MIN, firstHour, draftTopic, weekChecklist };
 })();
