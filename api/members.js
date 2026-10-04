@@ -4,6 +4,7 @@ export const config = { runtime: 'edge' }
 //
 //   GET  /api/members?id=<contact id>      1人（名前・会社・配信の状態・同意の記録・グループ）
 //   GET  /api/members?view=audit           削除・配信停止の記録（個人を指す値は無し）
+//   GET  /api/members?view=growth          増え方（月ごとの登録・配信停止・登録したページ）
 //   POST /api/members {action, ...}
 //        update          {id, name, company}        名前と会社名を直す
 //        unsubscribe     {id}                       配信を止める（元に戻すのは本人だけ）
@@ -37,6 +38,7 @@ import { senderInfo, DNS_STEPS } from './_sender.js'
 import {
   getMember, updateMember, deleteMember, readConsent, forgetConsent, auditEntry, writeAudit, readAudit,
   createSegment, deleteSegment, joinSegment, leaveSegment, whereMembers,
+  listMembers, allConsents, consentKey, growth, stopsByMonth,
   audienceFor, recipientCount, compose, sendBlockers, createBroadcast, cancelBroadcast, scheduleOk,
   logBroadcast, broadcastHistory, broadcastStats, unsubscribeUrl, resend, RESEND_UNSUB, LIMITS, mailFrom,
 } from './_members.js'
@@ -94,6 +96,14 @@ export async function GET(req) {
     const id = u.searchParams.get('id') || ''
     if (!idOk(id)) return json({ ok: false, message: 'メールの指定が正しくありません。' }, 400)
     return json({ ok: true, id, stats: await broadcastStats(apiKey, id) })
+  }
+  if (view === 'growth') {
+    const [got, consents, audit] = await Promise.all([listMembers(apiKey), allConsents(), readAudit(500)])
+    if (!got) return UPSTREAM('会員リストを読むことが')
+    const keys = new Map()
+    if (consents) for (const m of got.members) keys.set(m.email, await consentKey(m.email))
+    const g = growth(got.members, consents, keys)
+    return json({ ok: true, ...g, stops: stopsByMonth(audit || [], g.series.map((x) => x.month)), auditStored: audit !== null, truncated: got.truncated })
   }
   if (view === 'audit') {
     const items = await readAudit(50)

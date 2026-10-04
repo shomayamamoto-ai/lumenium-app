@@ -403,6 +403,19 @@ export function growth(members, consents, keys, now = Date.now(), months = 12) {
   }
 }
 
+/** 月ごとの配信停止の数。この画面と api/unsubscribe.js で止めたものだけ
+ *  （監査の記録）。Resend の配信停止のページで止めた人は、いつ止めたかを
+ *  Resend が返さないため、ここには入りません（今の合計には入ります）。 */
+export function stopsByMonth(audit, months) {
+  const out = Object.fromEntries(months.map((m) => [m, 0]))
+  for (const a of audit) {
+    if (a.action !== 'unsubscribe' && a.action !== 'unsubscribe-link') continue
+    const k = month(a.at)
+    if (k in out) out[k]++
+  }
+  return months.map((m) => ({ month: m, stops: out[m] }))
+}
+
 /* ---- 配信停止のリンク（このサイトの api/unsubscribe.js） ----
    お知らせメール（一斉）は Resend の配信停止の仕組み
    {{{RESEND_UNSUBSCRIBE_URL}}} を使います。登録完了のメールや試し送りの

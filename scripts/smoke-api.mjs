@@ -205,6 +205,7 @@ const CALLS = [
   ['members', 'POST', '', JSONH, { action: 'update', id: 'smoke1', name: 'スモーク', company: '' }],
   ['members', 'POST', '', JSONH, { action: 'segment.create', name: 'スモーク' }],
   ['members', 'GET', '?view=mail', KEY],
+  ['members', 'GET', '?view=growth', KEY],
   ['members', 'GET', '?view=broadcast&id=smoke', KEY],
   ['members', 'POST', '', JSONH, { action: 'mail.preview', subject: 'スモーク', body: '本文' }],
   ['members', 'POST', '', JSONH, { action: 'mail.count', segment: '' }],

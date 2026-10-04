@@ -632,3 +632,71 @@
     if (M.info) { draw(body); count(); } else load(body);
   };
 })();
+
+/* ---- 増え方 ----
+   月ごとに何人登録したか（登録日時から数えます）、いま配信を止めている
+   人数、どのページから登録したか（同意の記録から）。
+   Resend は「いつ配信を止めたか」を返さないため、月ごとの配信停止は、
+   この画面と配信停止のリンクで止めたものだけを数えています。 */
+(function () {
+  'use strict';
+  var T = window.lumMembersTool;
+  if (!T) return;
+  var esc = T.esc;
+
+  function label(m) { return Number(m.slice(5)) + '月' + (m.slice(5) === '01' ? '（' + m.slice(0, 4) + '）' : ''); }
+
+  function draw(body, g) {
+    var max = 1;
+    g.series.forEach(function (x) { if (x.added > max) max = x.added; });
+    var stops = {};
+    (g.stops || []).forEach(function (x) { stops[x.month] = x.stops; });
+    var card = function (k, v, n) {
+      return '<div class="mt-card" style="margin:0"><div class="mt-note" style="margin:0;font-weight:700">' + k + '</div>' +
+        '<div style="font-size:22px;font-weight:800;line-height:1.3">' + v + '</div><div class="mt-note" style="margin:0">' + n + '</div></div>';
+    };
+    var th = 'font-weight:700;color:var(--sub);white-space:nowrap;';
+    body.innerHTML =
+      (g.truncated ? '<div class="mt-box">会員が多いため、最初の5,000人だけで数えています。</div>' : '') +
+      '<div class="mt-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">' +
+      card('会員', g.total + '人', '登録している人の合計') +
+      card('お知らせを受け取る', g.subscribed + '人', 'お知らせメールが届く人') +
+      card('配信停止', g.unsubscribed + '人', 'いま止めている人') +
+      card('今月の登録', g.thisMonth + '人', '日本時間の今月') + '</div>' +
+      '<div class="mt-card"><h3 style="margin-bottom:4px">月ごとの新しい登録</h3>' +
+      '<p class="mt-note" style="margin-top:0">ここ12か月。棒の長さが、その月に登録した人数です。右端は月末の会員数（いまいる人の登録日から数えたもの。削除した人は入りません）。</p>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr>' +
+      '<th style="' + th + 'text-align:left;padding:4px 6px 4px 0">月</th>' +
+      '<th style="' + th + 'text-align:left;padding:4px 6px">新しい登録</th>' +
+      '<th style="' + th + 'text-align:right;padding:4px 0 4px 6px">配信停止*</th>' +
+      '<th style="' + th + 'text-align:right;padding:4px 0 4px 6px">会員数</th></tr></thead><tbody>' +
+      g.series.map(function (x) {
+        var w = x.added ? Math.max(2, Math.round(x.added / max * 100)) : 0;
+        return '<tr style="border-top:1px solid var(--border)">' +
+          '<td style="padding:5px 6px 5px 0;white-space:nowrap">' + esc(label(x.month)) + '</td>' +
+          '<td style="padding:5px 6px;width:100%"><div style="display:flex;align-items:center;gap:6px" title="' + esc(x.month + ': ' + x.added + '人') + '">' +
+          '<span style="display:block;flex:0 1 auto;height:10px;width:' + w + '%;background:#3d3fbf;border-radius:0 4px 4px 0"></span>' +
+          '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">' + x.added + '人</span></div></td>' +
+          '<td style="padding:5px 0 5px 6px;text-align:right;font-variant-numeric:tabular-nums">' + (stops[x.month] || 0) + '</td>' +
+          '<td style="padding:5px 0 5px 6px;text-align:right;font-variant-numeric:tabular-nums">' + x.total + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<p class="mt-note">* 配信停止は、この画面と、登録完了メールなどの配信停止のリンクで止めた数です。お知らせメールの「配信を停止する」（Resend のページ）で止めた人は、いつ止めたかが Resend から取れないため、月ごとには数えられません（上の「配信停止」の合計には入っています）。' +
+      (g.auditStored ? '' : '保存先（Upstash Redis）がつながっていないため、月ごとの配信停止は数えられません。') + '</p></div>' +
+      '<div class="mt-card"><h3 style="margin-bottom:4px">どのページから登録したか</h3>' +
+      (!g.consentsKnown ? '<div class="mt-box gray">同意の記録の保存先（Upstash Redis）がつながっていないため、分かりません。</div>'
+        : '<ul class="mt-list">' + g.sources.map(function (s) {
+          return '<li><span class="grow">' + esc(s.source) + '</span><strong>' + s.count + '人</strong></li>';
+        }).join('') + (g.noRecord ? '<li><span class="grow" style="color:var(--sub)">記録なし（同意の記録を始める前に登録した人・Resend に直接入れた人）</span><strong>' + g.noRecord + '人</strong></li>' : '') + '</ul>') +
+      '</div>';
+  }
+
+  window.lumMembersGrowth = async function (body) {
+    body.innerHTML = '<p class="mt-note">数えています…</p>';
+    var r = await T.api('/api/members?view=growth');
+    if (!r.data || r.data.ok !== true) {
+      body.innerHTML = '<div class="mt-box red">' + esc((r.data && r.data.message) || '読み込めませんでした。') + '</div>';
+      return;
+    }
+    draw(body, r.data);
+  };
+})();

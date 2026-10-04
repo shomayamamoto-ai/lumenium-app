@@ -432,6 +432,34 @@ await t('テスト送信は自分あてに【テスト】・見本と履歴の�
   assert.equal(st.stats.clicked, null, 'Resend が返さないものは null（画面は「取得できません」）')
 })
 
+await t('増え方: 月ごとの登録と累計（日本時間）・配信停止・登録したページ', async () => {
+  const now = Date.parse('2026-10-15T00:00:00Z')
+  const ms = [
+    { email: 'a@x.jp', created: '2025-01-05T00:00:00Z', unsubscribed: false }, // 12か月より前
+    { email: 'b@x.jp', created: '2026-09-30T16:00:00Z', unsubscribed: true }, // 日本時間では10/1
+    { email: 'c@x.jp', created: '2026-10-02T00:00:00Z', unsubscribed: false },
+    { email: 'd@x.jp', created: '2026-08-10T00:00:00Z', unsubscribed: false },
+  ]
+  const consents = new Map([['kb', { source: '/register.html' }], ['kc', { source: '/register.html' }], ['kd', { source: '/game.html' }]])
+  const keys = new Map([['b@x.jp', 'kb'], ['c@x.jp', 'kc'], ['d@x.jp', 'kd'], ['a@x.jp', 'ka']])
+  const g = M.growth(ms, consents, keys, now)
+  assert.equal(g.series.length, 12)
+  assert.equal(g.series[11].month, '2026-10')
+  assert.equal(g.series[11].added, 2)
+  assert.equal(g.series[11].total, 4)
+  assert.equal(g.series[9].added, 1, '8月')
+  assert.equal(g.series[0].total, 1, '前からいる人が累計の出発点')
+  assert.deepEqual([g.total, g.subscribed, g.unsubscribed, g.thisMonth], [4, 3, 1, 2])
+  assert.deepEqual(g.sources, [{ source: '/register.html', count: 2 }, { source: '/game.html', count: 1 }])
+  assert.equal(g.noRecord, 1)
+  const stops = M.stopsByMonth([
+    { action: 'unsubscribe', at: '2026-10-03T00:00:00Z' }, { action: 'unsubscribe-link', at: '2026-09-30T20:00:00Z' },
+    { action: 'delete', at: '2026-10-03T00:00:00Z' },
+  ], g.series.map((x) => x.month))
+  assert.equal(stops[11].stops, 2)
+  assert.equal(stops[10].stops, 0)
+})
+
 if (failed) {
   console.error(`\n${failed} 件の確認が通りませんでした。`)
   process.exit(1)
