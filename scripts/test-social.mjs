@@ -1175,6 +1175,38 @@ await test('権限が足りないときは、Meta の返事に要る権限を添
   assert.match(r.nets.facebook.message, /pages_manage_engagement/)
 })
 
+console.log('週次メールのSNSの一節')
+await test('先週の投稿数・いちばん人を連れてきた投稿・予約と承認待ちの数', async () => {
+  const W = await import('../api/weekly-report.js')
+  const I = await import('../api/_social-insights.js')
+  const today = I.jstDay(Date.now())
+  const from = I.addDays(today, -7), to = I.addDays(today, -1)
+  const at = (d) => new Date(Date.parse(d + 'T03:00:00Z')).toISOString()
+  // 先週の投稿2件（1件は X で計測リンクつき）、それより前の1件、どこにも出なかった1件
+  const P = (id, d, text, ok, refs) => JSON.stringify({ id, at: at(d), text, link: 'https://lumenium.net/menu', results: [{ net: 'x', ok }, { net: 'line', ok }], refs: refs || {} })
+  const LOG = [...lists.keys()].find((k) => k.endsWith('social:log'))
+  lists.set(LOG, [P('w1', I.addDays(today, -2), '秋の新作のお知らせです', true, { x: I.fieldFor('x', '') }), P('w2', I.addDays(today, -4), '臨時休業', true), P('w3', I.addDays(today, -20), '前の月', true), P('w4', I.addDays(today, -3), '失敗', false)])
+  // 計測：x からの訪問を2日ぶん
+  const { K } = await import('../api/_analytics-store.js')
+  for (const d of [I.addDays(today, -2), I.addDays(today, -1)]) {
+    const h = new Map([[I.fieldFor('x', ''), '6']])
+    hashes.set(K.dayCampaigns(d), h)
+  }
+  const s = await W.snsSummary({ from, to })
+  assert.equal(s.posts, 2)
+  assert.deepEqual(s.byNet, { x: 2, line: 2 })
+  assert.equal(s.top && s.top.text, '秋の新作のお知らせです')
+  assert.ok(s.top.visits >= 6)
+  assert.equal(typeof s.scheduled, 'number')
+  const lines = W.snsLines({ ...s, pending: 1, approved: 0, returned: 2, scheduled: 3 })
+  assert.equal(lines[0], '■ SNS（この管理画面から出した投稿）')
+  assert.ok(lines.some((l) => l.startsWith('・投稿: 2件（X 2・LINE公式アカウント 2）')))
+  assert.ok(lines.some((l) => l.includes('「秋の新作のお知らせです」') && l.includes('サイトへの訪問')))
+  assert.ok(lines.some((l) => l === '・予約中: 3件　承認待ち 1件・差し戻し 2件'))
+  const empty = W.snsLines({ posts: 0, byNet: {}, top: null, scheduled: 0, pending: 0, approved: 0, returned: 0 })
+  assert.ok(empty.includes('先週は、この管理画面からの投稿はありませんでした。'))
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

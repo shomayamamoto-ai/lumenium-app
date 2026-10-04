@@ -22,6 +22,10 @@ import { buildReport } from './_analytics-report.js'
 import { REF_KINDS, refKind, SOURCES } from './_referrers.js'
 import { setting } from './_settings.js'
 import { BRAND, KV } from './_brand.js'
+import { recentPosts, NETWORKS } from './_social.js'
+import { socialInsights, jstDay } from './_social-insights.js'
+import { listScheduled } from './_social-queue.js'
+import { listApprovals } from './_social-approve.js'
 
 const enc = new TextEncoder()
 const TEST_PER_DAY = 5
@@ -133,7 +137,10 @@ async function send(cfg, req, { test }) {
   } catch (_) {
     return { ok: false, status: 502, code: 'STORE_ERROR', message: 'アクセス解析データを読み込めませんでした。' }
   }
-  const { subject, text } = compose(rep, { test })
+  // SNS（文章）の一節。読めなくてもメールは送ります（その節を省くだけ）。
+  let sns = null
+  try { sns = await snsSummary(rep.range) } catch (_) { sns = null }
+  const { subject, text } = compose(rep, { test, sns })
   let res
   try {
     res = await fetch('https://api.resend.com/emails', {
@@ -151,6 +158,62 @@ async function send(cfg, req, { test }) {
   }
   try { await pipeline(cfg, [['SET', K.weeklyLast, JSON.stringify(last)]]) } catch (_) {}
   return ok ? { ok: true, message: `${to} に送信しました。`, preview: text } : { ok: false, status: 502, code: 'SEND_FAILED', message: last.message }
+}
+
+/* ---- SNS（文章）の一節 ----
+   先週（rep.range の7日）に出した投稿の数、サイトにいちばん人を連れてきた
+   投稿（投稿ごとの成果＝計測リンクから7日間の訪問）、承認待ちと予約の数。 */
+export async function snsSummary(range) {
+  const all = await recentPosts(200)
+  const posts = all.filter((p) => {
+    if (!p || !p.at || !(p.results || []).some((r) => r.ok)) return false
+    const d = jstDay(p.at)
+    return d >= range.from && d <= range.to
+  })
+  const byNet = {}
+  for (const p of posts) for (const r of p.results || []) if (r.ok) byNet[r.net] = (byNet[r.net] || 0) + 1
+  let top = null
+  if (posts.length) {
+    const ins = await socialInsights(posts)
+    for (const p of posts) {
+      const res = (ins.results || {})[p.id || p.at] || {}
+      const visits = Object.values(res).reduce((a, x) => a + (Number(x && x.visits) || 0), 0)
+      const inquiries = Object.values(res).reduce((a, x) => a + (Number(x && x.inquiries) || 0), 0)
+      if (visits > 0 && (!top || visits > top.visits)) top = { text: String(p.text || ''), at: p.at, visits, inquiries, nets: Object.keys(res).filter((k) => Number(res[k] && res[k].visits) > 0) }
+    }
+  }
+  const approvals = await listApprovals()
+  return {
+    posts: posts.length, byNet, top,
+    scheduled: (await listScheduled()).length,
+    pending: approvals.filter((a) => a.status === 'pending' && !a.expired).length,
+    approved: approvals.filter((a) => a.status === 'approved').length,
+    returned: approvals.filter((a) => a.status === 'returned').length,
+  }
+}
+
+const netLabel = (id) => { const n = NETWORKS.find((x) => x.id === id); return n ? n.label : id }
+
+/** メールの「■ SNS」の行。 */
+export function snsLines(s) {
+  const lines = ['■ SNS（この管理画面から出した投稿）']
+  if (!s.posts) lines.push('先週は、この管理画面からの投稿はありませんでした。')
+  else {
+    const nets = Object.entries(s.byNet).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${netLabel(k)} ${v}`).join('・')
+    lines.push(`・投稿: ${num(s.posts)}件（${nets}）`)
+    if (s.top) {
+      const t = s.top.text.replace(/\s+/g, ' ').trim()
+      lines.push(`・いちばんサイトに人を連れてきた投稿: 「${t.length > 40 ? t.slice(0, 39) + '…' : t}」（${md(jstDay(s.top.at))}、${s.top.nets.map(netLabel).join('・')}）— サイトへの訪問 ${num(s.top.visits)}回${s.top.inquiries ? `、問い合わせ ${num(s.top.inquiries)}件` : ''}`)
+    } else {
+      lines.push('・計測用の印つきリンクから、サイトに来た人はまだいません（自社サイトへのリンクを付けると数えられます）。')
+    }
+  }
+  const waits = []
+  if (s.pending) waits.push(`承認待ち ${num(s.pending)}件`)
+  if (s.approved) waits.push(`承認済みで未投稿 ${num(s.approved)}件`)
+  if (s.returned) waits.push(`差し戻し ${num(s.returned)}件`)
+  lines.push(`・予約中: ${num(s.scheduled)}件${waits.length ? '　' + waits.join('・') : ''}`)
+  return lines
 }
 
 /* ---- 文面 ---- */
@@ -222,7 +285,7 @@ export function advice(rep) {
   return '大きな変化はありませんでした。いまのペースで発信を続けましょう。'
 }
 
-export function compose(rep, { test } = {}) {
+export function compose(rep, { test, sns } = {}) {
   const c = rep.summary.cur, p = rep.summary.prev
   const span = `${md(rep.range.from)}〜${md(rep.range.to)}`
   const subject = `${test ? '【テスト送信】' : ''}【${BRAND.name}】先週のアクセスのまとめ（${span}）`
@@ -254,6 +317,10 @@ export function compose(rep, { test } = {}) {
   const calls = rep.convSources.reduce((a, s) => a + s.contacts, 0)
   if (calls) lines.push(`（ほかに、電話・LINE・メールのボタンが ${num(calls)}回 押されています）`)
   lines.push('')
+  if (sns) {
+    lines.push(...snsLines(sns))
+    lines.push('')
+  }
   lines.push('■ ひとこと')
   lines.push(advice(rep))
   lines.push('')
