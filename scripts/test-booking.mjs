@@ -7,6 +7,7 @@
 //   ・壊れた決まりの直し方（15分単位・メニューが無い・LINE のID）
 //   ・同時に押された 10:00 と 10:30（区切りの鍵で片方だけ通る）・取消で返す
 //   ・取り消し・変更のリンク（署名・期限・締め切り）と、通しでの予約→変更→取消
+//   ・前日のお知らせを送る相手（日本時間の明日）・今日の一覧・無断キャンセル率
 
 import assert from 'node:assert/strict'
 import * as B from '../api/_booking.js'
@@ -344,6 +345,63 @@ await t('通し: 管理画面から 確定・来店済み・メモ・取消（�
   assert.equal((await r.json()).booking.status, 'cancelled')
   r = await call(api.PATCH, 'PATCH', '/api/booking', { 'content-type': 'application/json' }, { id: live.id, action: 'cancel' })
   assert.equal(r.status, 401)
+})
+
+/* ---- 4. 毎朝の仕事・数字 ---- */
+await t('明日（日本時間）の予約だけを選ぶ（UTC の日付の境目に転ばない）', () => {
+  // 日本時間 10/4 23:30 = UTC 10/4 14:30。明日は 10/5。
+  const now = jst('2026-10-04 23:30')
+  const mk = (id, s, extra) => ({ id, start: jst(s), end: jst(s) + 3600e3, status: 'confirmed', ...extra })
+  const list = [
+    mk('a', '2026-10-05 00:00'), mk('b', '2026-10-05 23:00'), mk('c', '2026-10-06 00:00'),
+    mk('d', '2026-10-04 23:45'), mk('e', '2026-10-05 10:00', { status: 'cancelled' }),
+    mk('f', '2026-10-05 11:00', { reminded: '2026-10-04T00:00:00Z' }), mk('g', '2026-10-05 12:00', { status: 'tentative' }),
+  ]
+  assert.deepEqual(B.dueReminders(list, now).map((r) => r.id), ['a', 'b', 'g'])
+  // 朝9時（cron の時刻）に見ても同じ答え。
+  assert.deepEqual(B.dueReminders(list, jst('2026-10-04 09:00')).map((r) => r.id), ['a', 'b', 'g'])
+})
+
+await t('今日の一覧（LINE）: 予約の無い日は送らない・仮予約の印', () => {
+  const now = jst('2026-10-05 09:00')
+  assert.equal(B.agendaText([], now), '')
+  const txt = B.agendaText([
+    { id: 'x', start: jst('2026-10-05 14:00'), end: jst('2026-10-05 15:00'), status: 'tentative', name: '佐藤', service: { name: 'カット' } },
+    { id: 'y', start: jst('2026-10-05 10:00'), end: jst('2026-10-05 11:00'), status: 'confirmed', name: '鈴木' },
+    { id: 'z', start: jst('2026-10-05 12:00'), end: jst('2026-10-05 13:00'), status: 'cancelled', name: '田中' },
+  ], now)
+  assert.ok(txt.startsWith('今日の予約 10/5(月)　2件'))
+  assert.ok(txt.indexOf('鈴木') < txt.indexOf('佐藤'))
+  assert.ok(txt.includes('カット 佐藤様（仮予約）'))
+  assert.ok(!txt.includes('田中'))
+})
+
+await t('取り消し率と無断キャンセル率（来た・来なかったを付けたものだけで割る）', () => {
+  const r = B.rates([{ status: 'visited' }, { status: 'visited' }, { status: 'visited' }, { status: 'noshow' }, { status: 'cancelled' }, { mode: 'google' }])
+  assert.equal(r.all, 6)
+  assert.equal(r.noshowRate, 0.25)
+  assert.equal(r.cancelRate, 1 / 6)
+  assert.equal(B.rates([{ status: 'confirmed' }]).noshowRate, null)
+})
+
+await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを送る', async () => {
+  const cron = await import('../api/booking-cron.js')
+  const now = Date.now()
+  const t0 = B.tomorrowRange(now)[0]
+  await B.saveBooking(S.cfg, S.pipeline, { id: 'bk_rem_1', start: t0 + 11 * 3600e3, end: t0 + 12 * 3600e3, status: 'confirmed', name: '明日', email: 'tomorrow@example.com', when: 'x', service: { name: 'カット', minutes: 60 } })
+  await B.saveBooking(S.cfg, S.pipeline, { id: 'bk_rem_2', start: t0 + 35 * 3600e3, end: t0 + 36 * 3600e3, status: 'confirmed', name: '明後日', email: 'later@example.com', when: 'y' })
+  const before = mails.length
+  const r1 = await cron.runBookingCron(new Request('https://x.test/'), now)
+  assert.equal(r1.reminders.sent, 1)
+  const m = mails.slice(before)
+  assert.equal(m.length, 1)
+  assert.deepEqual(m[0].to, ['tomorrow@example.com'])
+  assert.ok(m[0].subject.startsWith('【明日の'))
+  assert.ok(m[0].text.includes('/api/booking-manage?t='))
+  const r2 = await cron.runBookingCron(new Request('https://x.test/'), now)
+  assert.equal(r2.reminders.sent, 0)
+  const res = await cron.GET(new Request('https://x.test/api/booking-cron'))
+  assert.ok([401, 503].includes(res.status))
 })
 
 console.log(`✓ test-booking: ${n} 件`)

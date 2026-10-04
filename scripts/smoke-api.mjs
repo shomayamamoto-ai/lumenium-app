@@ -276,6 +276,8 @@ const CALLS = [
   ['social-approve', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=0000&decision=approve'],
   ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
   ['social-cron', 'GET', '', {}],
+  ['booking-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
+  ['booking-cron', 'GET', '', {}],
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],
   // 画像の置き場所が無い状態（＝ 503 で理由を返す）。
   ['social-upload', 'POST', '', { ...KEY, 'content-type': 'image/jpeg' }, '__bytes__'],

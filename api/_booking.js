@@ -515,3 +515,54 @@ export function canChange(rec, rules, now = Date.now()) {
   if (start - rules.cutoffHours * 3600 * 1000 < now) return { ok: false, why: 'cutoff' }
   return { ok: true }
 }
+
+/* ---- 毎朝の仕事（booking-cron.js） -------------------------------------
+   毎朝9時（日本時間）に動きます。「明日」は日本時間の明日の0:00〜23:59。 */
+
+export function tomorrowRange(now = Date.now()) {
+  const t0 = dayStart(now) + DAY
+  return [t0, t0 + DAY - 1]
+}
+
+/** 前日のお知らせを送る予約。取り消し・送信済みは除きます。 */
+export function dueReminders(list, now = Date.now()) {
+  const [t0, t1] = tomorrowRange(now)
+  return list.filter((r) => {
+    const st = recStatus(r)
+    const { start } = recSpan(r)
+    return (st === 'confirmed' || st === 'tentative') && !r.reminded && start >= t0 && start <= t1
+  })
+}
+
+/** オーナーに LINE で送る、今日の予定の一覧。予定が無い日は空文字（送らない）。 */
+export function agendaText(list, now = Date.now()) {
+  const t0 = dayStart(now)
+  const today = list
+    .filter((r) => { const s = recSpan(r).start; return s >= t0 && s < t0 + DAY && ['confirmed', 'tentative'].includes(recStatus(r)) })
+    .sort((a, b) => recSpan(a).start - recSpan(b).start)
+  if (!today.length) return ''
+  const lines = today.map((r) => {
+    const { start, end } = recSpan(r)
+    return `${timeLabel(start, end)} ${r.service ? `${r.service.name} ` : ''}${r.name}様${recStatus(r) === 'tentative' ? '（仮予約）' : ''}`
+  })
+  return [`今日の予約 ${dayLabel(t0)}　${today.length}件`, ...lines].join('\n').slice(0, 4900)
+}
+
+/* ---- 数字（管理画面の「数字」） ---------------------------------------- */
+
+/** 無断キャンセルの割合 = 無断キャンセル ÷（来店済み＋無断キャンセル）。
+ *  来たか来なかったかを付けた予約だけで数えます（付けていないものは数えない）。 */
+export function rates(list) {
+  const c = { all: 0, cancelled: 0, visited: 0, noshow: 0 }
+  for (const r of list) {
+    c.all++
+    const st = recStatus(r)
+    if (st in c) c[st]++
+  }
+  const marked = c.visited + c.noshow
+  return {
+    ...c,
+    cancelRate: c.all ? c.cancelled / c.all : null,
+    noshowRate: marked ? c.noshow / marked : null,
+  }
+}
