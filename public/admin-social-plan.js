@@ -188,6 +188,7 @@
     }
     D = d;
     S.stale = false;
+    try { await probeInbox(); } catch (_) { S.inbox = null; }
     fillPillarSelect();
     if (S.view === 'plan') render();
   }
@@ -207,6 +208,98 @@
       (D.stored ? '' : '<p class="spl-warn">保存先（Upstash Redis）が未接続のため、投稿の記録とプランを保存できません。数字はすべて0として出ています。</p>');
     SECTIONS.forEach(function (s) { if (s.bind) s.bind(it); });
   }
+
+  /* ================================================================
+     3. 今週やること
+     ================================================================ */
+  function checklistHtml(it) {
+    var list = C.weekChecklist({ items: it, plan: D.plan, today: D.today, recommend: D.recommend, inbox: S.inbox });
+    var useAi = ls('lum_spl_ai') !== '0';
+    var h = '<h3>今週やること</h3>' +
+      '<p class="lead">柱のかたより・ペース・LINE の回数・コメントの返事から、今週やると良いことを並べています。「下書きを作る」を押すと、投稿欄に出す先・柱・メモを入れます。</p>' +
+      '<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" id="spl-ai"' + (useAi ? ' checked' : '') + '> 「下書きを作る」で、AIにも下書きを書いてもらう</label>';
+    if (!list.length) return h + '<p class="spl-good">今週やることは、いまのところありません。</p>';
+    h += '<ul class="spl-list">' + list.map(function (x, i) {
+      var btn = x.draft ? '<button type="button" class="spl-do" data-i="' + i + '" style="font-size:12px;padding:6px 12px">下書きを作る</button>'
+        : x.go ? '<button type="button" class="ghost spl-go" data-go="' + esc(x.go) + '" style="font-size:12px;padding:6px 12px">' + (x.go === 'inbox' ? '受信箱を見る' : '見る') + '</button>' : '';
+      return '<li><div class="body"><span class="spl-kind">' + esc(x.kind) + '</span>' +
+        (x.draft && x.draft.pillar ? chip(pillarById(x.draft.pillar)) : '') + '<b>' + esc(x.title) + '</b>' +
+        '<div class="why">' + esc(x.why) + '</div></div>' + btn + '</li>';
+    }).join('') + '</ul>';
+    S.checklist = list;
+    return h;
+  }
+  function bindChecklist() {
+    var ai = el('spl-ai');
+    if (ai) ai.addEventListener('change', function () { ls('lum_spl_ai', ai.checked ? '1' : '0'); });
+    Array.prototype.forEach.call(document.querySelectorAll('.spl-do'), function (b) {
+      b.addEventListener('click', function () {
+        var x = (S.checklist || [])[Number(b.dataset.i)];
+        if (x && x.draft) makeDraft(x.draft, !!(el('spl-ai') && el('spl-ai').checked));
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.spl-go'), function (b) {
+      b.addEventListener('click', function () { go(b.dataset.go); });
+    });
+  }
+  function go(where) {
+    if (where === 'inbox') {
+      var box = S.inbox && S.inbox.anchor ? document.querySelector(S.inbox.anchor) : document.querySelector('#social-admin [id*="inbox"]');
+      if (box) { setView('compose'); box.scrollIntoView({ block: 'start' }); return; }
+      say('コメントの受信箱は、この画面ではまだ使えません。各SNSのアプリで確かめてください。', true);
+      return;
+    }
+    var t = el('spl-' + where);
+    if (t) t.scrollIntoView({ block: 'start' });
+  }
+
+  /* 投稿欄に入れます。投稿欄の部品（id）に値を入れて、いつもの入力と同じ
+     出来事（input・change）を起こすだけで、投稿欄の作りには触りません。 */
+  function makeDraft(dr, useAi) {
+    setView('compose');
+    var want = dr.nets || [];
+    var boxes = document.querySelectorAll('#social-nets input[type="checkbox"][data-net]');
+    Array.prototype.forEach.call(boxes, function (cb) {
+      var on = want.indexOf(cb.dataset.net) !== -1;
+      if (cb.checked !== on) { cb.checked = on; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    S.pillar = dr.pillar || '';
+    ls('lum_spl_pillar', S.pillar || null);
+    var sel = el('spl-pillar');
+    if (sel) sel.value = S.pillar;
+    var det = el('social-ai');
+    if (det) det.open = true;
+    var tp = el('social-ai-topic');
+    if (tp) { tp.value = dr.topic || ''; tp.dispatchEvent(new Event('input', { bubbles: true })); }
+    addonUpdate();
+    var target = det || el('spl-compose');
+    if (target) target.scrollIntoView({ block: 'start' });
+    var goBtn = el('social-ai-go');
+    if (useAi && goBtn && !goBtn.disabled) goBtn.click();
+    else {
+      var st = el('social-ai-state');
+      if (st) st.textContent = 'メモを入れました。「選んだSNSの下書きを作る」を押すと、AIが下書きを書きます。';
+    }
+  }
+
+  /* コメントの受信箱があれば、返事を待っている数と、返事までの時間を読みます。
+     まだ無い（作られていない・使えない）ときは、何も出しません。 */
+  async function probeInbox() {
+    var tries = ['/api/social-inbox', '/api/social?inbox=1'];
+    for (var i = 0; i < tries.length; i++) {
+      var r = await api(tries[i]);
+      var d = r.data || {};
+      var list = Array.isArray(d.comments) ? d.comments : Array.isArray(d.items) ? d.items : Array.isArray(d.inbox) ? d.inbox : Array.isArray(d.threads) ? d.threads : null;
+      if (d.ok && (list || typeof d.unanswered === 'number')) {
+        list = list || [];
+        var un = typeof d.unanswered === 'number' ? d.unanswered : list.filter(function (c) { return !C.isAnswered(c); }).length;
+        S.inbox = { unanswered: un, items: list, url: tries[i] };
+        return;
+      }
+    }
+    S.inbox = null;
+  }
+  SECTIONS.push({ id: 'todo', html: checklistHtml, bind: bindChecklist });
 
   /* ================================================================
      1. 柱（テーマ）と、そのバランス

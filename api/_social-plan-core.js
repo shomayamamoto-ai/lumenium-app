@@ -288,3 +288,156 @@ export function suggestDays(items, net, today, left, prefer, per) {
   }
   return picked.sort()
 }
+
+/* ------------------------------------------------------- 6. LINE (count) -- */
+
+/* LINE 公式アカウントの一斉送信の目安。月2〜4通（多くても週1通まで）。
+   送りすぎるとブロックされやすくなります。 */
+export var LINE_MIN = 2
+export var LINE_MAX = 4
+
+/** その月の LINE の一斉送信の数（送った分＋予約）。day はその月の任意の日。 */
+export function lineMonth(items, day) {
+  var ms = monthStart(day)
+  var me = monthEnd(day)
+  var sent = 0
+  var booked = 0
+  ;(items || []).forEach(function (it) {
+    if (it.nets.indexOf('line') === -1 || it.day < ms || it.day > me) return
+    if (it.scheduled) booked++
+    else sent++
+  })
+  var count = sent + booked
+  return {
+    month: day.slice(0, 7), sent: sent, booked: booked, count: count, min: LINE_MIN, max: LINE_MAX,
+    state: count > LINE_MAX ? 'over' : count === LINE_MAX ? 'full' : count < LINE_MIN ? 'few' : 'ok',
+    nextIsOver: count + 1 > LINE_MAX,
+  }
+}
+
+/* ------------------------------------------------------ 5. the inbox -- */
+
+/* コメントの受信箱の1件から、届いた時刻・返事をした時刻を読みます。
+   受信箱の形は決まっていないので、ありそうな名前を順に見ます。 */
+function timeOf(c, names) {
+  for (var i = 0; i < names.length; i++) {
+    var v = names[i].split('.').reduce(function (o, k) { return o && o[k] }, c)
+    var t = typeof v === 'number' ? v : Date.parse(v)
+    if (v && isFinite(t)) return t
+  }
+  return null
+}
+var GOT = ['receivedAt', 'createdAt', 'created_at', 'timestamp', 'at', 'time']
+var REPLIED = ['repliedAt', 'replied_at', 'reply.at', 'reply.createdAt', 'answeredAt']
+
+/** 返事が済んでいるか。 */
+export function isAnswered(c) {
+  if (!c || typeof c !== 'object') return true
+  if (c.replied === true || c.answered === true || c.done === true || c.hidden === true) return true
+  if (/^(replied|answered|done|closed|hidden|ignored)$/i.test(String(c.status || ''))) return true
+  return timeOf(c, REPLIED) != null
+}
+
+/* ------------------------------------------------------- 3. this week -- */
+
+/** AI の下書きに渡すメモ（/api/social-write の topic）。柱と書き方の目安を、言葉で添えます。 */
+export function draftTopic(pillar, idea, nets) {
+  var lines = []
+  if (pillar) lines.push('テーマ：' + pillar.name + (pillar.desc ? '（' + pillar.desc + '）' : ''))
+  if (idea) lines.push('書くこと：' + idea)
+  if (pillar && pillar.promo) lines.push('書き方：お知らせの投稿です。いつ・何が・いくらかを、はっきり短く。')
+  else lines.push('書き方：宣伝は控えめにして、読む人の役に立つこと・お店の雰囲気が伝わることを中心に。')
+  if ((nets || []).indexOf('instagram') !== -1) lines.push('Instagram は、ポイントを3つほどに分けて、最後に「保存して見返してね」と一言添える。')
+  return lines.join('\n')
+}
+
+function ideaFor(pillar, salt) {
+  var ideas = (pillar && pillar.ideas) || []
+  if (!ideas.length) return ''
+  return ideas[Math.abs(salt) % ideas.length]
+}
+
+/** 今週やることの一覧。
+ *  input: { items, plan, today, recommend, inbox: { unanswered } | null }
+ *  戻り値: [{ id, kind, title, why, draft: { topic, pillar, nets } | null, go }] */
+export function weekChecklist(input) {
+  var o = input || {}
+  var plan = o.plan || { pillars: [], targets: {} }
+  var items = o.items || []
+  var today = o.today
+  var pillars = plan.pillars || []
+  var out = []
+  var ws = weekStart(today)
+  var we = addDays(ws, 6)
+  var salt = Math.floor(Date.parse(ws) / (7 * DAY))
+  if (!pillars.length) {
+    out.push({ id: 'setup', kind: '準備', title: 'まず柱（テーマ）を3〜5つ決める', why: '何を書くかが決まっていると、続けやすくなります。「おすすめの柱で始める」からでも大丈夫です。', draft: null, go: 'pillars' })
+  }
+  // この週の、柱ごとの本数（予約を含む）
+  var weekBy = {}
+  items.forEach(function (it) {
+    if (it.day >= ws && it.day <= we && it.pillar && (it.scheduled || it.day <= today)) weekBy[it.pillar] = (weekBy[it.pillar] || 0) + 1
+  })
+  var mix = pillarMix(items, pillars, today)
+  var helpful = pillars.filter(function (p) { return !p.promo })
+  var by30 = {}
+  mix.rows.forEach(function (r) { by30[r.id] = r.n })
+  var calm = helpful.slice().sort(function (a, b) { return (weekBy[a.id] || 0) - (weekBy[b.id] || 0) || (by30[a.id] || 0) - (by30[b.id] || 0) })
+  var defaultNets = []
+  var cd = cadence(items, plan.targets, today)
+  cd.rows.forEach(function (r) { if (r.per === 'week') defaultNets.push(r.net) })
+  if (!defaultNets.length) defaultNets = ['instagram']
+
+  if (mix.promoOver && helpful.length) {
+    var p0 = calm[0]
+    out.push({
+      id: 'mix', kind: 'バランス', title: '次の投稿は宣伝以外にする',
+      why: '直近30日の宣伝の割合が ' + Math.round(mix.promoShare * 100) + '% です（目安は20%まで）。',
+      draft: { topic: draftTopic(p0, ideaFor(p0, salt), defaultNets), pillar: p0.id, nets: defaultNets }, go: '',
+    })
+  }
+  calm.filter(function (p) { return !weekBy[p.id] }).slice(0, 2).forEach(function (p, i) {
+    var idea = ideaFor(p, salt + i)
+    out.push({
+      id: 'pillar-' + p.id, kind: '柱', title: '「' + p.name + '」の投稿を1本' + (idea ? '（例：' + idea + '）' : ''),
+      why: '今週はまだ「' + p.name + '」の投稿がありません。',
+      draft: { topic: draftTopic(p, idea, defaultNets), pillar: p.id, nets: defaultNets }, go: '',
+    })
+  })
+  cd.rows.forEach(function (r, i) {
+    if (r.per !== 'week' || !r.left) return
+    var days = suggestDays(items, r.net, today, r.left, ((o.recommend || {})[r.net] || {}).weekdays, 'week')
+    var p = calm.length ? calm[i % calm.length] : null
+    var label = NET_LABELS[r.net] || r.net
+    out.push({
+      id: 'cadence-' + r.net, kind: 'ペース',
+      title: label + '：今週あと ' + r.left + ' 本' + (days.length ? '（おすすめ：' + days.map(function (d) { return d === today ? '今日' : WEEKDAYS[weekdayOf(d)] + '曜' }).join('・') + '）' : ''),
+      why: '目標は週' + r.n + '本です（目安）。いまは出した分 ' + r.week.done + ' 本＋予約 ' + r.week.booked + ' 本。',
+      draft: { topic: draftTopic(p, ideaFor(p, salt + i + 1), [r.net]), pillar: p ? p.id : '', nets: [r.net] }, go: '',
+    })
+  })
+  var lineT = (plan.targets || {}).line
+  if (lineT && lineT.on) {
+    var lm = lineMonth(items, today)
+    var dom = Number(today.slice(8, 10))
+    if (lm.count >= LINE_MAX) {
+      out.push({ id: 'line-stop', kind: 'LINE', title: 'LINE は今月これ以上送らない', why: '今月はもう ' + lm.count + ' 通（予約を含む）です。送りすぎると、ブロックされやすくなります（目安は月2〜4通）。', draft: null, go: 'line' })
+    } else if (lm.count < LINE_MIN && dom >= 8) {
+      var lp = calm[0] || null
+      out.push({
+        id: 'line-send', kind: 'LINE', title: 'LINE を今月あと ' + (LINE_MIN - lm.count) + ' 通',
+        why: '今月はまだ ' + lm.count + ' 通です。友だちに忘れられない程度（月2〜4通が目安）に送りましょう。',
+        draft: { topic: draftTopic(lp, ideaFor(lp, salt + 3), ['line']), pillar: lp ? lp.id : '', nets: ['line'] }, go: '',
+      })
+    }
+  }
+  if (o.inbox && o.inbox.unanswered > 0) {
+    out.push({ id: 'inbox', kind: '返事', title: '返事を待っているコメントが ' + o.inbox.unanswered + ' 件', why: '多くの人が、SNS での返事は1時間以内を期待しています。早い返事ほど、来店や問い合わせにつながりやすくなります。', draft: null, go: 'inbox' })
+  }
+  if (pillars.length && !out.length) {
+    var pi = calm[0] || pillars[0]
+    var id2 = ideaFor(pi, salt + 5)
+    out.push({ id: 'idea', kind: 'ネタ', title: '今週の目標は達成しています。次のネタを1つ書きためておく' + (id2 ? '（例：' + id2 + '）' : ''), why: '余裕のある週に予約しておくと、忙しい週も続けられます。', draft: { topic: draftTopic(pi, id2, defaultNets), pillar: pi.id, nets: defaultNets }, go: '' })
+  }
+  return out
+}

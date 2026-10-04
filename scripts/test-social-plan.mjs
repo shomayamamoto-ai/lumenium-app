@@ -166,4 +166,57 @@ t('suggestDays: 空いている日から、間を空けて、おすすめの曜�
   assert.ok(P.suggestDays([], 'line', TODAY, 2, [], 'month').every((x) => x >= TODAY && x <= '2026-10-31'))
 })
 
+/* ---- 3. 今週やること ---- */
+const PLAN = P.validatePlan({
+  pillars: [
+    { id: 'tips', name: 'お役立ち', ideas: ['選び方のコツ'] },
+    { id: 'ura', name: '裏側', ideas: ['朝の仕込み'] },
+    { id: 'ad', name: '宣伝', promo: true },
+  ],
+  targets: { x: { on: false }, threads: { on: false }, facebook: { on: false }, gbp: { on: false } },
+}).plan
+
+t('weekChecklist: 柱が無いときは、まず柱を決める', () => {
+  const l = P.weekChecklist({ items: [], plan: P.validatePlan({}).plan, today: TODAY })
+  assert.equal(l[0].id, 'setup')
+  assert.equal(l[0].draft, null)
+})
+
+t('weekChecklist: 柱のかたより・ペース・LINE・宣伝の多さ・受信箱', () => {
+  const hist = [
+    { id: '1', at: at('2026-10-06'), nets: ['instagram'], pillar: 'tips' },
+    { id: '2', at: at('2026-10-02'), nets: ['instagram'], pillar: 'ad' },
+    { id: '3', at: at('2026-10-01'), nets: ['instagram'], pillar: 'ad' },
+  ]
+  const l = P.weekChecklist({ items: P.itemsOf(hist, []), plan: PLAN, today: '2026-10-14', inbox: { unanswered: 2 } })
+  const ids = l.map((x) => x.id)
+  assert.ok(ids.includes('mix')) // 宣伝 2/3
+  assert.ok(ids.includes('pillar-ura') && ids.includes('pillar-tips')) // 10/12〜の週はどちらもまだ
+  assert.ok(ids.includes('cadence-instagram'))
+  assert.ok(ids.includes('line-send')) // 14日でまだ0通
+  assert.ok(ids.includes('inbox'))
+  const ig = l.find((x) => x.id === 'cadence-instagram')
+  assert.deepEqual(ig.draft.nets, ['instagram'])
+  assert.ok(ig.title.includes('あと 5 本'))
+  const ura = l.find((x) => x.id === 'pillar-ura')
+  assert.equal(ura.draft.pillar, 'ura')
+  assert.ok(ura.draft.topic.includes('テーマ：裏側') && ura.draft.topic.includes('朝の仕込み'))
+  assert.ok(ura.draft.topic.includes('保存して見返してね')) // Instagram 向けの書き方
+  assert.ok(ura.draft.topic.length < 3000) // /api/social-write のメモの上限
+})
+
+t('weekChecklist: LINE が月4通に達したら「送らない」', () => {
+  const hist = ['01', '03', '05'].map((d, i) => ({ id: 'l' + i, at: at('2026-10-' + d), nets: ['line'] }))
+  const l = P.weekChecklist({ items: P.itemsOf(hist, [{ id: 'q', date: '2026-10-20', targets: ['line'] }]), plan: PLAN, today: TODAY })
+  const s = l.find((x) => x.id === 'line-stop')
+  assert.ok(s && s.draft === null && s.why.includes('4 通'))
+})
+
+t('isAnswered: 受信箱の形がいろいろでも読める', () => {
+  assert.equal(P.isAnswered({ status: 'replied' }), true)
+  assert.equal(P.isAnswered({ repliedAt: '2026-10-01T00:00:00Z' }), true)
+  assert.equal(P.isAnswered({ reply: { at: '2026-10-01T00:00:00Z' } }), true)
+  assert.equal(P.isAnswered({ createdAt: '2026-10-01T00:00:00Z' }), false)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)
