@@ -1236,6 +1236,122 @@ export function silenceCuts(meter, durationSec, opts) {
 
 function round3(v) { return Math.round(v * 1000) / 1000 }
 
+/* ---------------- 実物の動画で確かめる（画の切り替わり・話し始め） ----------------
+   ブラウザで動画を1秒に数枚ずつ小さく（横48px）取り出し、明るさの分布
+   （16段のヒストグラム）と 8×8 のマスの明るさを比べます。差が「この動画
+   ふだんの差」より大きく跳ねたところを切り替わり（カット）とみなします。
+   しきい値は動画ごとに決めます（中央値＋4×ばらつき。ただし最低 0.15）。
+   ゆっくり溶けるようにつなぐ場面は拾えないことがあります。 */
+
+export const SCENE = { FPS_SHORT: 6, FPS_LONG: 4, MAX_SAMPLES: 2400, WIDTH: 48, BINS: 16, GRID: 8, MIN_THRESHOLD: 0.15, K: 4, MIN_SHOT_SEC: 0.3 }
+export const SPEECH = { LEAD_WARN_SEC: 0.5, MIN_VOICED_SEC: 0.05 }
+
+/** 1枚の絵（RGBA の並び）の特徴: 明るさの分布と、マスごとの明るさ（0〜1）。 */
+export function frameSignature(rgba, w, h) {
+  const B = SCENE.BINS
+  const G = SCENE.GRID
+  const hist = new Float64Array(B)
+  const grid = new Float64Array(G * G)
+  const cnt = new Float64Array(G * G)
+  const n = w * h
+  for (let y = 0; y < h; y++) {
+    const gy = Math.min(G - 1, Math.floor((y * G) / h))
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const l = (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255
+      hist[Math.min(B - 1, Math.floor(l * B))]++
+      const g = gy * G + Math.min(G - 1, Math.floor((x * G) / w))
+      grid[g] += l
+      cnt[g]++
+    }
+  }
+  for (let b = 0; b < B; b++) hist[b] /= n || 1
+  for (let g = 0; g < G * G; g++) grid[g] = cnt[g] ? grid[g] / cnt[g] : 0
+  return { hist, grid }
+}
+
+/** 2枚の差（0〜1）。分布の差（全体の色や明るさが変わったか）と、
+ *  マスの差（置き場所が変わったか）を半分ずつ。 */
+export function frameDiff(a, b) {
+  if (!a || !b) return 0
+  let dh = 0
+  for (let i = 0; i < a.hist.length; i++) dh += Math.abs(a.hist[i] - b.hist[i])
+  let dg = 0
+  for (let i = 0; i < a.grid.length; i++) dg += Math.abs(a.grid[i] - b.grid[i])
+  return 0.5 * (dh / 2) + 0.5 * (dg / a.grid.length)
+}
+
+/** 何枚ずつ取り出すか（短い動画は1秒6枚、長い動画は4枚。最大2400枚）。 */
+export function scenePlan(duration) {
+  const d = Number(duration) || 0
+  if (!(d > 0)) return { fps: 0, times: [] }
+  let fps = d <= 120 ? SCENE.FPS_SHORT : SCENE.FPS_LONG
+  if (d * fps > SCENE.MAX_SAMPLES) fps = SCENE.MAX_SAMPLES / d
+  const n = Math.max(2, Math.floor(d * fps))
+  const times = []
+  for (let i = 0; i < n; i++) times.push(Math.round(Math.min(d - 0.05, i / fps) * 1000) / 1000)
+  return { fps: Math.round(fps * 100) / 100, times }
+}
+
+/** 隣どうしの差の並びから、切り替わりの時刻を決めます。diffs[i] は
+ *  times[i-1] と times[i] の差（diffs[0] は使いません）。 */
+export function sceneCuts(times, diffs) {
+  const d = (diffs || []).slice(1).filter((x) => isFinite(x))
+  if (!d.length) return { cuts: [], threshold: SCENE.MIN_THRESHOLD }
+  const sorted = d.slice().sort((a, b) => a - b)
+  const med = quantile(sorted, 0.5)
+  const mad = quantile(d.map((x) => Math.abs(x - med)).sort((a, b) => a - b), 0.5)
+  const threshold = Math.max(SCENE.MIN_THRESHOLD, med + SCENE.K * 1.4826 * mad)
+  const cuts = []
+  for (let i = 1; i < diffs.length; i++) {
+    if (!(diffs[i] > threshold)) continue
+    // 切り替わりは前の1枚と今の1枚のあいだ。真ん中の時刻にします。
+    const t = round3((times[i - 1] + times[i]) / 2)
+    const prev = cuts[cuts.length - 1]
+    if (prev && t - prev.t < SCENE.MIN_SHOT_SEC) { if (diffs[i] > prev.diff) { prev.t = t; prev.diff = diffs[i] } continue }
+    cuts.push({ t, diff: Math.round(diffs[i] * 1000) / 1000 })
+  }
+  return { cuts, threshold: Math.round(threshold * 1000) / 1000 }
+}
+
+/** 切り替わりのまとめ: カット数・平均の長さ・一番長く同じ画が続くところ。 */
+export function sceneSummary(times, diffs, duration, s) {
+  const dur = Number(duration) || (times && times.length ? times[times.length - 1] : 0)
+  const M = s ? modeRules(s) : dur > RULES.modes.short.MAX_SEC ? RULES.modes.long : RULES.modes.short
+  const { cuts, threshold } = sceneCuts(times, diffs)
+  const edges = [0].concat(cuts.map((c) => c.t)).concat([dur])
+  const shots = []
+  for (let i = 1; i < edges.length; i++) shots.push({ start: round1(edges[i - 1]), end: round1(edges[i]), sec: round1(edges[i] - edges[i - 1]) })
+  let longest = null
+  for (const x of shots) if (!longest || x.sec > longest.sec) longest = x
+  const over = shots.filter((x) => x.sec > M.SHOT_MAX_SEC)
+  return {
+    cuts: cuts.map((c) => c.t), threshold, shots, count: cuts.length,
+    avg: shots.length ? round1(dur / shots.length) : 0, longest, over, max: M.SHOT_MAX_SEC,
+    text: longest ? `${longest.start}〜${longest.end}秒、同じ画が${longest.sec}秒続いています。` : '',
+  }
+}
+
+/** 話し始め: 音量が NOISE_FLOOR_DB 以上の状態が MIN_VOICED_SEC 続いた最初の時刻。
+ *  0.5秒より遅ければ注意し、話し始めの 0.1秒手前までを切る候補にします。 */
+export function speechStart(meter, opts) {
+  const R = { ...RULES.silence, ...SPEECH, ...(opts || {}) }
+  const { full, frameSec } = meter
+  const need = Math.max(1, Math.round(R.MIN_VOICED_SEC / frameSec))
+  let run = 0
+  for (let i = 0; i < full.length; i++) {
+    if (full[i] >= R.NOISE_FLOOR_DB) {
+      run++
+      if (run >= need) {
+        const t = round3((i - need + 1) * frameSec)
+        const warn = t > R.LEAD_WARN_SEC
+        return { start: t, warn, trim: warn ? { start: 0, end: round3(Math.max(0, t - R.HANDLE_SEC)) } : null }
+      }
+    } else run = 0
+  }
+  return { start: null, warn: true, trim: null }
+}
+
 /* ---------------- 出荷前チェック（形） ---------------- */
 
 /** 長さと縦横比から、投稿先ごとに出せるかを判定します。 */

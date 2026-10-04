@@ -473,6 +473,61 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('企画の型（言葉からの推定・型ごとの成績と信頼度）')
 }
 
+/* ---- 実物の動画: 画の切り替わり・話し始め ---- */
+{
+  const W = 48, H = 27
+  // 場面ごとに色と模様を変えた絵。noise は圧縮のちらつきの代わり（決まった乱数）。
+  const R = V.rng(7)
+  const frame = (scene) => {
+    const px = new Uint8ClampedArray(W * H * 4)
+    const base = [[200, 40, 40], [40, 160, 60], [30, 60, 200], [230, 220, 90], [120, 120, 120], [250, 250, 250], [10, 10, 10], [180, 90, 200]][scene % 8]
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4
+      const stripe = ((x + scene * 7) % 16) < 8 ? 1 : 0.6
+      const n = (R() - 0.5) * 6
+      px[i] = base[0] * stripe + n; px[i + 1] = base[1] * stripe + n; px[i + 2] = base[2] * stripe + n; px[i + 3] = 255
+    }
+    return px
+  }
+  const sceneAt = (t) => (t < 0.8 ? 0 : t < 1.6 ? 1 : t < 2.4 ? 2 : t < 3.2 ? 3 : t < 10.1 ? 4 : t < 11 ? 5 : 6)
+  const plan = V.scenePlan(12)
+  assert.equal(plan.fps, 6)
+  assert.equal(plan.times.length, 72)
+  const sigs = plan.times.map((t) => V.frameSignature(frame(sceneAt(t)), W, H))
+  const diffs = sigs.map((s, i) => (i ? V.frameDiff(sigs[i - 1], s) : 0))
+  const sum = V.sceneSummary(plan.times, diffs, 12)
+  assert.equal(sum.count, 6, '場面が変わった6か所だけを拾う（ちらつきは拾わない）')
+  assert.ok(Math.abs(sum.longest.start - 3.2) <= 0.15 && Math.abs(sum.longest.end - 10.1) <= 0.15, `一番長い画は 3.2〜10.1秒（${sum.longest.start}〜${sum.longest.end}）`)
+  assert.ok(Math.abs(sum.longest.sec - 6.9) <= 0.2)
+  assert.match(sum.text, /同じ画が6\.\d秒続いています/)
+  assert.equal(sum.over.length, 1, 'ショートの目安3.5秒を超えるのは1か所')
+  assert.deepEqual(V.sceneSummary(plan.times, diffs, 12), sum, '同じ入力なら同じ結果')
+  // ずっと同じ画（ちらつきだけ）なら切り替わりは0
+  const still = plan.times.map(() => V.frameSignature(frame(4), W, H))
+  const sd = still.map((s, i) => (i ? V.frameDiff(still[i - 1], s) : 0))
+  const ss = V.sceneSummary(plan.times, sd, 12)
+  assert.equal(ss.count, 0)
+  assert.equal(ss.longest.sec, 12)
+  assert.equal(V.scenePlan(600).fps, 4, '長い動画は1秒4枚')
+  assert.ok(V.scenePlan(1200).times.length <= 2400, '最大2400枚')
+
+  // 話し始め: 0.8秒の無音のあとに声（の代わりの正弦波）
+  const fs = 48000
+  const sig = new Float32Array(Math.round(fs * 2))
+  for (let i = Math.round(fs * 0.8); i < sig.length; i++) sig[i] = 0.3 * Math.sin(2 * Math.PI * 300 * i / fs)
+  const m = V.frameMeter(fs)
+  m.push(sig)
+  const sp = V.speechStart(m.done())
+  assert.ok(Math.abs(sp.start - 0.8) < 0.02, `話し始め ${sp.start}秒`)
+  assert.equal(sp.warn, true)
+  assert.ok(Math.abs(sp.trim.end - 0.7) < 0.02, '話し始めの0.1秒手前まで切る')
+  const m2 = V.frameMeter(fs)
+  m2.push(sig.slice(Math.round(fs * 0.5)))
+  const sp2 = V.speechStart(m2.done())
+  assert.ok(sp2.start < 0.35 && sp2.warn === false && sp2.trim === null, '0.5秒以内なら注意しない')
+  ok('実物の動画: 画の切り替わり（静止と変化の合成フレーム）と話し始めの無音')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

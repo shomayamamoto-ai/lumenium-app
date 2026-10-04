@@ -847,25 +847,93 @@
     return buf;
   }
 
-  function videoMeta(url) {
+  /** 動画のイベントを1回待ちます（来なければ ms で諦めて false）。 */
+  function once(v, ev, ms) {
     return new Promise(function (ok) {
-      var v = document.createElement('video');
-      v.preload = 'metadata'; v.muted = true; v.src = url;
-      v.onloadedmetadata = function () { ok({ width: v.videoWidth, height: v.videoHeight, duration: v.duration }); };
-      v.onerror = function () { ok({ width: 0, height: 0, duration: 0, error: true }); };
+      var done = false;
+      var f = function () { if (done) return; done = true; v.removeEventListener(ev, f); ok(true); };
+      v.addEventListener(ev, f);
+      setTimeout(function () { if (done) return; done = true; v.removeEventListener(ev, f); ok(false); }, ms);
     });
+  }
+  /** 長さが「不明」のファイル（ブラウザで録画した webm など）は、
+   *  いったん末尾へ移ると長さが分かります。 */
+  async function fixDuration(v) {
+    if (isFinite(v.duration) && v.duration > 0) return v.duration;
+    var p = once(v, 'durationchange', 4000);
+    v.currentTime = 1e7;
+    await p;
+    await once(v, 'seeked', 1000);
+    return isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+  }
+
+  async function videoMeta(url) {
+    var v = document.createElement('video');
+    v.preload = 'metadata'; v.muted = true; v.src = url;
+    var ev = await Promise.race([once(v, 'loadedmetadata', 10000), new Promise(function (ok) { v.onerror = function () { ok('error'); }; })]);
+    if (ev !== true) return { width: 0, height: 0, duration: 0, error: true };
+    var d = await fixDuration(v);
+    var out = { width: v.videoWidth, height: v.videoHeight, duration: d };
+    v.removeAttribute('src'); v.load();
+    return out;
+  }
+
+  function seekTo(v, t) {
+    if (Math.abs(v.currentTime - t) < 0.0005) return Promise.resolve(true);
+    var p = once(v, 'seeked', 3000);
+    v.currentTime = t;
+    return p;
+  }
+
+  /** 画の切り替わり。1秒に数枚を横48pxで取り出して比べます（このブラウザの中だけ）。 */
+  async function scanScenes(url, duration, script, progress) {
+    var v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+    if (!(await once(v, 'loadeddata', 10000))) return null;
+    var d = (await fixDuration(v)) || duration;
+    if (!(d > 0) || !v.videoWidth) return null;
+    var plan = V.scenePlan(d);
+    var w = V.SCENE.WIDTH;
+    var h = Math.max(8, Math.round(w * v.videoHeight / v.videoWidth));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d', { willReadFrequently: true });
+    var diffs = [];
+    var prev = null;
+    for (var i = 0; i < plan.times.length; i++) {
+      await seekTo(v, plan.times[i]);
+      g.drawImage(v, 0, 0, w, h);
+      var sig = V.frameSignature(g.getImageData(0, 0, w, h).data, w, h);
+      diffs.push(prev ? V.frameDiff(prev, sig) : 0);
+      prev = sig;
+      if (i % 12 === 0) {
+        progress('画の切り替わりを調べています… ' + Math.round((i / plan.times.length) * 100) + '%（' + i + ' / ' + plan.times.length + '枚）');
+        await new Promise(function (r) { setTimeout(r, 0); });
+      }
+    }
+    v.removeAttribute('src'); v.load();
+    var out = V.sceneSummary(plan.times, diffs, d, script || null);
+    out.fps = plan.fps; out.samples = plan.times.length; out.duration = d;
+    return out;
   }
 
   R.ship = function (host) {
+    var scripts = (S.data && S.data.scripts) || [];
     host.innerHTML = '<h3 class="soc-step">5　出荷前チェック</h3>' +
-      '<p class="soc-small">投稿する前に、長さ・縦横比・大きさ・音量・文字の位置を確かめます。動画はこのブラウザの中だけで調べ、どこにも送りません。</p>' +
+      '<p class="soc-small">投稿する前に、長さ・縦横比・大きさ・音量・文字の位置に加えて、画の切り替わり（同じ画が続く長さ）・話し始めまでの無音・約束が冒頭にあるかを確かめます。動画はこのブラウザの中だけで調べ、どこにも送りません。</p>' +
       fileBox('vk-file', '確かめる動画') +
+      (scripts.length ? '<label class="soc-lab" for="vk-script">照らし合わせる台本（任意）</label><select id="vk-script"><option value="">台本と照らし合わせない</option>' +
+        scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.shipScript ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') + '</select>' : '') +
       '<div class="vid-acts"><button type="button" id="vk-go"' + (S.file ? '' : ' disabled') + '>確かめる</button><span class="soc-small" id="vk-state"></span></div>' +
       '<div id="vk-out"></div>';
     el('vk-file').addEventListener('change', function () { setFile(this.files[0] || null); R.ship(host); });
     el('vk-go').addEventListener('click', runShip);
+    if (el('vk-script')) el('vk-script').addEventListener('change', function () { S.shipScript = this.value; if (S.ship) drawShip(); });
     if (S.ship) drawShip();
   };
+  function shipScript() {
+    return ((S.data && S.data.scripts) || []).filter(function (s) { return s.id === S.shipScript; })[0] || null;
+  }
 
   async function runShip() {
     var st = el('vk-state');
@@ -884,9 +952,16 @@
         var L = V.integratedLoudness(chs, buf.sampleRate);
         out.loud = { lufs: L.lufs, advice: V.loudnessAdvice(L.lufs) };
         if (!meta.duration) out.checks = V.shipChecks({ duration: buf.duration });
+        // 話し始めは最初の30秒だけ見れば分かります。
+        out.speech = V.speechStart(await meterOf(buf, function (p) { st.textContent = '話し始めを探しています… ' + p + '%'; }, 30));
+        out.duration = buf.duration;
       } catch (e) {
         out.audioErr = '音声を取り出せませんでした（音声の無い動画か、このブラウザが読めない形式です）。';
       }
+      try {
+        out.scene = await scanScenes(S.fileUrl, meta.duration, shipScript(), function (t) { st.textContent = t; });
+      } catch (e) { out.scene = null; }
+      if (!out.scene) out.sceneErr = 'このブラウザでは動画の絵を取り出せませんでした。';
       S.ship = out;
       st.textContent = '';
       drawShip();
@@ -902,6 +977,7 @@
     h += '<div class="soc-res ' + (mb <= 1024 ? 'ok' : 'ng') + '"><b>' + (mb <= 1024 ? '◯' : '△') + '</b><span>大きさ ' + mb.toFixed(1) + 'MB' + (mb > 1024 ? '（Instagram の上限 1GB を超えています）' : '') + (mb > 4.5 ? '。4.5MB を超えるので、アップロードはブラウザから置き場所へ直接送ります。' : '') + '</span></div>';
     if (o.loud) h += '<div class="soc-res ' + (o.loud.advice.level === 'ok' ? 'ok' : 'ng') + '"><b>音量</b><span>' + (o.loud.lufs == null || !isFinite(o.loud.lufs) ? '測れませんでした' : o.loud.lufs + ' LUFS（目標 −14）') + '。' + esc(o.loud.advice.text) + '</span></div>';
     if (o.audioErr) h += '<div class="soc-res ng"><b>音量</b><span>' + esc(o.audioErr) + '</span></div>';
+    h += shipRetentionHtml(o);
     h += '<p class="soc-small">左の画面の色の帯は、各SNSのボタンやアカウント名が重なりやすい場所です（上 ' + V.RULES.ship.SAFE_TOP_MARGIN + 'px・下 ' + V.RULES.ship.BOTTOM_UI + 'px、1920px の高さのとき）。テロップと大事なものは、帯の外に置いてください。</p>';
     h += '<p class="soc-small">音量は ITU-R BS.1770 の方式（K特性・400ms区切り・−70 LUFS と −10 LU のゲート）で測っています。</p></div></div>';
     el('vk-out').innerHTML = h;
@@ -911,6 +987,50 @@
     });
     v.addEventListener('seeked', drawSafe);
     v.addEventListener('loadedmetadata', drawSafe);
+    if (el('vk-edl')) el('vk-edl').addEventListener('click', function () {
+      var name = (S.file && S.file.name || 'clip').replace(/\.[^.]+$/, '');
+      var end = (o.scene && o.scene.duration) || o.duration || m.duration;
+      download(name + '_冒頭を切る.edl', V.toEdl([{ start: o.speech.trim.end, end: end }], { fps: 30, clip: name, title: name }));
+    });
+    if (el('vk-play')) el('vk-play').addEventListener('click', function () {
+      // 最初の数秒だけを再生して止めます（音も聞いて確かめられるように、ここだけ音あり）。
+      var secs = Number(this.getAttribute('data-sec')) || 3;
+      v.muted = false; v.controls = true;
+      try { v.currentTime = 0; } catch (_) {}
+      v.play().catch(function () {});
+      setTimeout(function () { v.pause(); }, secs * 1000);
+    });
+  }
+
+  /** 出荷前チェックのうち、見続けてもらうための確認（画の切り替わり・話し始め・約束）。 */
+  function shipRetentionHtml(o) {
+    var h = '<h4 class="vid-sub">見続けてもらうための確認（目安）</h4>';
+    var sc = o.scene;
+    if (sc) {
+      var ok = sc.over.length === 0;
+      h += res(ok, '画の切り替わり', mark(ok) + 'カット ' + sc.count + 'か所・1カット平均 ' + sc.avg + '秒（目安 ' + sc.max + '秒まで）。' +
+        (sc.longest && sc.longest.sec > sc.max ? '<br><b>' + esc(sc.text) + '</b>' : sc.longest ? '<br>一番長い画: ' + esc(sc.text) : '') +
+        (sc.over.length > 1 ? '<br>ほかに長い画: ' + sc.over.filter(function (x) { return x !== sc.longest; }).slice(0, 6).map(function (x) { return x.start + '〜' + x.end + '秒（' + x.sec + '秒）'; }).join('、') : '') +
+        (ok ? '' : '<br>寄り・引き・手元・別アングルを差し込むと、同じ話のままでも画が変わり続けます。') +
+        '<br><span class="soc-small">1秒に' + sc.fps + '枚（計' + sc.samples + '枚）を小さくして比べました。ゆっくり溶けるようにつなぐ場面は拾えないことがあります。</span>');
+    } else if (o.sceneErr) h += res(null, '画の切り替わり', esc(o.sceneErr));
+    if (o.speech) {
+      var sp = o.speech;
+      h += res(sp.start == null ? null : !sp.warn, '話し始め', sp.start == null ? '声が見つかりませんでした（BGMだけの動画なら気にしなくて大丈夫です）。'
+        : mark(!sp.warn) + sp.start + '秒から話し始めています（目安 ' + V.SPEECH.LEAD_WARN_SEC + '秒以内）。' +
+          (sp.warn ? '<br>最初の無音で指が次へ動きやすくなります。切る候補: <b>0〜' + sp.trim.end + '秒</b>（話し始めの ' + V.RULES.silence.HANDLE_SEC + '秒手前まで）。' +
+            '<br><button type="button" class="ghost" id="vk-edl" style="font-size:11px;padding:4px 10px;margin-top:4px">冒頭を切った EDL</button>' : ''));
+    }
+    var s = shipScript();
+    if (s) {
+      var pc = V.promiseCheck(s);
+      var op = pc.opening || V.openingText(s.lines, pc.sec);
+      h += res(null, '約束（台本「' + esc(s.title || '無題') + '」）', '最初の' + pc.sec + '秒で、次の言葉が聞こえる・見えるかを目と耳で確かめてください（動画の中の文字や声は自動では読み取りません）。' +
+        (pc.keywords.length ? '<br>約束の言葉: ' + pc.keywords.map(function (k) { return '<span class="vid-tag">' + esc(k) + '</span>'; }).join(' ') : '') +
+        '<br>台本の冒頭: ' + esc((op.telop + ' ／ ' + op.narration).trim() || '（なし）') +
+        '<br><button type="button" class="ghost" id="vk-play" data-sec="' + pc.sec + '" style="font-size:11px;padding:4px 10px;margin-top:4px">最初の' + pc.sec + '秒を再生する</button>');
+    } else if (((S.data && S.data.scripts) || []).length) h += '<p class="soc-small">上で台本を選ぶと、約束の言葉が冒頭にあるかを確かめる手がかりが出ます。</p>';
+    return h;
   }
 
   /** 安全領域の帯（動かない静止の重ね絵）。 */
@@ -948,31 +1068,37 @@
     if (S.cut) drawCut();
   };
 
+  /** 音声をフレーム音量にします。2秒ずつ処理し、そのたびに画面へ順番を返します
+   *  （長い動画でも固まらないように）。maxSec を渡すと、その秒数までだけ。 */
+  async function meterOf(buf, progress, maxSec) {
+    var n = maxSec ? Math.min(buf.length, Math.round(maxSec * buf.sampleRate)) : buf.length;
+    var chs = [];
+    for (var c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+    var meter = V.frameMeter(buf.sampleRate);
+    var CHUNK = buf.sampleRate * 2;
+    var mono = new Float32Array(CHUNK);
+    for (var i = 0; i < n; i += CHUNK) {
+      var len = Math.min(CHUNK, n - i);
+      for (var k = 0; k < len; k++) {
+        var s = 0;
+        for (var ch = 0; ch < chs.length; ch++) s += chs[ch][i + k];
+        mono[k] = s / chs.length;
+      }
+      meter.push(len === CHUNK ? mono : mono.subarray(0, len));
+      progress(Math.min(100, Math.round(((i + len) / n) * 100)));
+      await new Promise(function (r) { setTimeout(r, 0); });
+    }
+    return meter.done();
+  }
+
   async function runSilence() {
     var st = el('vc-state');
     var btn = el('vc-go');
     btn.disabled = true;
     try {
       var buf = await decodeAudio(S.file, function (t) { st.textContent = t; });
-      var n = buf.length;
-      var chs = [];
-      for (var c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
-      var meter = V.frameMeter(buf.sampleRate);
-      var CHUNK = buf.sampleRate * 2;
-      var mono = new Float32Array(CHUNK);
-      // 2秒ずつ処理し、そのたびに画面へ順番を返します（長い動画でも固まらないように）。
-      for (var i = 0; i < n; i += CHUNK) {
-        var len = Math.min(CHUNK, n - i);
-        for (var k = 0; k < len; k++) {
-          var s = 0;
-          for (var ch = 0; ch < chs.length; ch++) s += chs[ch][i + k];
-          mono[k] = s / chs.length;
-        }
-        meter.push(len === CHUNK ? mono : mono.subarray(0, len));
-        st.textContent = '解析しています… ' + Math.min(100, Math.round(((i + len) / n) * 100)) + '%';
-        await new Promise(function (r) { setTimeout(r, 0); });
-      }
-      S.cut = V.silenceCuts(meter.done(), buf.duration);
+      var meter = await meterOf(buf, function (p) { st.textContent = '解析しています… ' + p + '%'; });
+      S.cut = V.silenceCuts(meter, buf.duration);
       st.textContent = '';
       drawCut();
     } catch (e) {
@@ -990,7 +1116,7 @@
         : '切れる無音はありませんでした。') +
         (c.consonantKept ? '　息の音として残した所: ' + c.consonantKept + 'か所。' : '') + '</span></div>' +
       (c.cuts.length ? '<div class="tbl vid-scroll" style="max-height:260px"><table class="vid-table"><thead><tr><th>#</th><th>切る範囲</th><th>長さ</th></tr></thead><tbody>' +
-        c.cuts.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td>' + V.srtTime(x.start).replace(',', '.') + ' 〜 ' + V.srtTime(x.end).replace(',', '.') + '</td><td>' + sec(x.end - x.start) + '</td></tr>'; }).join('') +
+        c.cuts.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td>' + V.srtTime(x.start).replace(',', '.') + ' 〜 ' + V.srtTime(x.end).replace(',', '.') + (x.start === 0 ? '<br><span class="soc-small">冒頭の無音（話し始めまで）</span>' : '') + '</td><td>' + sec(x.end - x.start) + '</td></tr>'; }).join('') +
         '</tbody></table></div>' : '') +
       '<div class="vid-acts"><button type="button" class="ghost" id="vc-csv">候補（CSV）</button><button type="button" class="ghost" id="vc-edl">編集ソフト用（EDL）</button><button type="button" class="ghost" id="vc-keep">残す区間の一覧</button></div>' +
       '<p class="soc-small">EDL は Premiere Pro・DaVinci Resolve・Final Cut（変換が必要）で読み込めます。30fps として書き出しています。</p>';
