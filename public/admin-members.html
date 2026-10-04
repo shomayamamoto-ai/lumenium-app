@@ -492,6 +492,7 @@
     border-radius: 11px; cursor: pointer;
   }
   .soc-net.off { opacity: 0.55; cursor: default; }
+  .soc-net.manual { border-style: dashed; }
   .soc-net.on { border-color: #0f766e; background: rgba(20,184,166,0.09); }
   .soc-net input { width: 15px; height: 15px; accent-color: #14b8a6; }
   .soc-net .nm { font-size: 13px; font-weight: 700; }
@@ -6680,7 +6681,10 @@ window.lumAdmin = {
 
   function netById(id) { for (var i = 0; i < nets.length; i++) if (nets[i].id === id) return nets[i]; return null; }
   function ready() { return nets.filter(function (n) { return n.ready; }); }
-  function picked() { return S.picked.filter(function (id) { var n = netById(id); return n && n.ready; }); }
+  /* 選んだSNS（鍵が無くても選べます。作るところまではどこでも同じなので）と、
+     そのうち実際にここから送れるもの。 */
+  function picked() { return S.picked.filter(function (id) { return !!netById(id); }); }
+  function sendable() { return picked().filter(function (id) { return netById(id).ready; }); }
 
   function payload() {
     return {
@@ -6689,7 +6693,7 @@ window.lumAdmin = {
       campaign: el('social-campaign').value.trim(),
       images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '' }; }),
       variants: S.variants,
-      targets: picked(),
+      targets: sendable(),
       sendId: S.sendId
     };
   }
@@ -6732,16 +6736,19 @@ window.lumAdmin = {
     var c = composeFor(id);
     var k = TX.check(id, c);
     var a = imageIssues(id), b = lineIssues(id);
-    return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: k.warnings.concat(a.warnings, b.warnings) };
+    var n = netById(id);
+    // API の料金の注意は、ここから送るときだけの話です（手で貼るなら掛かりません）。
+    var warns = k.warnings.concat(a.warnings, b.warnings).filter(function (w) { return (n && n.ready) || !/ドル/.test(w); });
+    return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: warns };
   }
 
   /* ---- 1 どこに出すか ---- */
   function renderNets() {
     var host = el('social-nets');
     host.innerHTML = '';
-    ready().forEach(function (n) {
+    nets.forEach(function (n) {
       var lab = document.createElement('label');
-      lab.className = 'soc-net' + (S.picked.indexOf(n.id) !== -1 ? ' on' : '');
+      lab.className = 'soc-net' + (S.picked.indexOf(n.id) !== -1 ? ' on' : '') + (n.ready ? '' : ' manual');
       lab.id = 'soc-' + n.id;
       var cb = document.createElement('input');
       cb.type = 'checkbox';
@@ -6766,7 +6773,7 @@ window.lumAdmin = {
       lab.appendChild(left);
       var sub = document.createElement('span');
       sub.className = 'sub';
-      sub.textContent = n.note;
+      sub.textContent = n.ready ? n.note : '未接続：本文の作成・確認・コピーまで（投稿は各SNSで）';
       lab.appendChild(sub);
       var q = document.createElement('span');
       q.className = 'sub soc-quota';
@@ -6774,6 +6781,7 @@ window.lumAdmin = {
       lab.appendChild(q);
       var acts = document.createElement('span');
       acts.className = 'acts';
+      if (!n.ready) { host.appendChild(lab); return; }
       var t = document.createElement('button');
       t.type = 'button'; t.className = 'linkish'; t.textContent = '接続テスト';
       t.addEventListener('click', function (e) { e.preventDefault(); testNet(n.id); });
@@ -6864,12 +6872,12 @@ window.lumAdmin = {
     renderQuotas();
   }
 
-  /* 鍵の無いSNSは選べる形では出しません。ただ「無いこと」も隠さず、
-     どうすればつながるのかを下にまとめます。 */
+  /* 鍵の無いSNSも選べます（作成・確認・コピーまで）。直接投稿するための
+     つなぎ方は、ここに下にまとめます。 */
   function renderMore() {
     var host = el('social-more');
     var off = nets.filter(function (n) { return !n.ready; });
-    if (!off.length || !ready().length) { host.innerHTML = ''; return; }
+    if (!off.length) { host.innerHTML = ''; return; }
     host.innerHTML = '<details class="soc-more"><summary>まだつないでいないSNS（' + off.length + '）と、つなぎ方</summary>' +
       off.map(setupRow).join('') +
       '<button type="button" class="ghost soc-to-keys" style="margin-top:10px;font-size:12px;padding:7px 12px">取ってきた鍵を貼る（設定状況 › キーの入力）</button></details>';
@@ -6898,25 +6906,21 @@ window.lumAdmin = {
     });
   }
 
-  /* まだ1つも使えないときの案内。投稿欄より先に、これを出します。 */
+  /* まだ1つもつないでいないときの案内。鍵が無くても投稿文は作れるので、
+     投稿欄は隠しません（作って、コピーして、各SNSで貼れば出せます）。 */
   function renderSetup() {
     var box = el('social-setup');
-    if (ready().length) { box.style.display = 'none'; el('social-compose').style.display = ''; return; }
+    el('social-compose').style.display = '';
+    if (ready().length) { box.style.display = 'none'; return; }
     box.style.display = 'block';
-    el('social-compose').style.display = 'none';
     box.innerHTML =
-      '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.45);border-radius:12px;padding:14px 16px">' +
-        '<div style="font-size:13.5px;font-weight:700;margin-bottom:6px">まだ、どのSNSにも投稿できません</div>' +
-        '<div style="font-size:12.5px;color:var(--sub);line-height:1.85;margin-bottom:6px">' +
-          'SNSに投稿するには、各社から「鍵」を取ってきて、この管理画面に貼る必要があります。' +
-          '1つ設定すれば、そのSNSだけ先に使えます。全部そろえる必要はありません。' +
-          '<br>いちばん手間が少ないのは Threads、次が LINE公式アカウントと X です。' +
+      '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.45);border-radius:12px;padding:12px 16px">' +
+        '<div style="font-size:13px;font-weight:700;margin-bottom:4px">まだどのSNSにもつないでいません（投稿文は作れます）</div>' +
+        '<div style="font-size:12px;color:var(--sub);line-height:1.85">' +
+          '下で本文を作り、SNSごとの文字数や見え方を確かめて、3 の「本文をコピー」「開く」から各SNSに貼って投稿できます。' +
+          'ここから直接投稿したいSNSは、下の「まだつないでいないSNSと、つなぎ方」から鍵を設定してください。' +
         '</div>' +
-        nets.map(setupRow).join('') +
-        '<button type="button" class="soc-to-keys" style="margin-top:12px;font-size:12.5px;padding:8px 14px">' +
-          '取ってきた鍵を貼る（設定状況 › キーの入力）</button>' +
       '</div>';
-    wireKeys(box);
   }
 
   /* ---- 2 画像 ---- */
@@ -7103,7 +7107,15 @@ window.lumAdmin = {
         '<div id="soc-v-issues"></div>' +
         '<div id="soc-v-fix"></div>' +
         '<div id="soc-v-preview"></div>' +
+        '<div class="row" style="margin-top:8px">' +
+          '<button type="button" id="soc-v-clip" style="font-size:11.5px;padding:6px 12px">本文をコピー</button>' +
+          '<button type="button" class="ghost" id="soc-v-open" style="font-size:11.5px;padding:6px 12px">コピーして' + esc(n.label) + 'を開く</button>' +
+          '<span class="soc-small" id="soc-v-clipst"></span>' +
+        '</div>' +
+        (n.ready ? '' : '<div class="soc-small" style="margin-top:4px">' + esc(n.label) + ' はまだつないでいないので、ここからは投稿しません。コピーして' + esc(manualHint(id)) + '</div>') +
       '</div>';
+    el('soc-v-clip').addEventListener('click', function () { clip(id, false); });
+    el('soc-v-open').addEventListener('click', function () { clip(id, true); });
     var ta = el('soc-v-text');
     ta.value = v.text || '';
     ta.addEventListener('input', function () {
@@ -7128,6 +7140,44 @@ window.lumAdmin = {
       changed(false);
     });
     refreshVariant();
+  }
+
+  /* ---- 手で投稿するための「コピー」と「開く」 ----
+     鍵が無くても投稿文は作れます。最後の1歩（貼って投稿）だけを各SNSの画面で。
+     X・Threads は本文を入れた状態で開けます。ほかは本文をコピーしてから開きます。 */
+  function manualHint(id) {
+    return {
+      instagram: 'Instagramのアプリで画像を選び、キャプションに貼ってください（画像は「画像」の欄から保存できます）。',
+      line: 'LINE公式アカウントの管理画面（Official Account Manager）の「メッセージ配信」に貼ってください。',
+      facebook: 'Facebookページの投稿欄に貼ってください。',
+      linkedin: 'LinkedInの投稿欄に貼ってください。'
+    }[id] || '投稿欄に貼ってください。';
+  }
+  function openUrl(id, c) {
+    var t = encodeURIComponent(c.text + (c.linkSeparate && c.link ? '\n' + c.link : ''));
+    var u = encodeURIComponent(c.link || '');
+    return {
+      x: 'https://x.com/intent/post?text=' + t,
+      threads: 'https://www.threads.net/intent/post?text=' + t,
+      facebook: c.link ? 'https://www.facebook.com/sharer/sharer.php?u=' + u : 'https://www.facebook.com/',
+      linkedin: c.link ? 'https://www.linkedin.com/sharing/share-offsite/?url=' + u : 'https://www.linkedin.com/feed/',
+      line: 'https://manager.line.biz/',
+      instagram: 'https://www.instagram.com/'
+    }[id] || '';
+  }
+  function clip(id, open) {
+    var c = composeFor(id);
+    var text = c.text + (c.linkSeparate && c.link ? '\n' + c.link : '');
+    var st = el('soc-v-clipst');
+    if (!text.trim()) { st.textContent = '本文がまだありません。'; return; }
+    // 開くのはクリックの直後に（awaitの後だとポップアップとして止められます）。
+    var url = open ? openUrl(id, c) : '';
+    if (url) window.open(url, '_blank', 'noopener');
+    var done = function (ok) {
+      st.textContent = ok ? '✓ コピーしました' + (open ? '。開いた画面に貼ってください。' : '') : 'コピーできませんでした。本文を選んでコピーしてください。';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    else done(false);
   }
 
   /* 画面に出すときだけ、%E7… を日本語に戻します（送るのは元の形のまま）。 */
@@ -7230,7 +7280,7 @@ window.lumAdmin = {
     else {
       notes.push('日付を選ぶと、その日の朝' + (sch.jstHour || 9) + '時ごろに投稿します（' + (sch.jstHour || 9) + '時台のどこかで送られます）。' +
         '時刻まで指定するには Vercel の Pro プランが必要です（無料プランの自動処理は1日1回のため）。');
-      var blind = picked().filter(function (id) { var n = netById(id); return n && !n.scheduled; });
+      var blind = sendable().filter(function (id) { var n = netById(id); return n && !n.scheduled; });
       if (S.when === 'date' && blind.length) {
         notes.push('<span style="color:#b42318">' + esc(blind.map(function (id) { return netById(id).label; }).join('・')) +
           ' の鍵はこの端末のブラウザにだけ保存されているため、予約では送れません。</span>');
@@ -7241,7 +7291,8 @@ window.lumAdmin = {
 
   /* ---- 5 送る ---- */
   function count() {
-    var ids = picked();
+    var ids = sendable();
+    var manual = picked().length - ids.length;
     var bad = 0;
     nets.forEach(function (n) {
       var lab = el('soc-' + n.id);
@@ -7253,7 +7304,8 @@ window.lumAdmin = {
       if (ids.indexOf(n.id) !== -1 && k.errors.length) bad++;
     });
     var notes = [];
-    if (!ids.length) notes.push('投稿先を選んでください');
+    if (!ids.length) notes.push(manual ? '選んだSNSはまだつないでいないため、ここからは投稿しません（3 の「本文をコピー」から各SNSに貼れます）' : '投稿先を選んでください');
+    else if (manual) notes.push('未接続の ' + manual + ' 件は、3 の「本文をコピー」から手で投稿してください');
     if (bad) notes.push(bad + ' 件に直すところがあります（3 の赤い表示）');
     var sched = S.when === 'date';
     if (sched && !S.date) notes.push('日付を選んでください');
@@ -7564,7 +7616,7 @@ window.lumAdmin = {
   async function aiDraft() {
     var ids = picked();
     var st = el('social-ai-state');
-    if (!ids.length) { st.textContent = '先に 1 で出す先を選んでください。'; return; }
+    if (!ids.length) { st.textContent = '先に 1 で出す先を選んでください（つないでいないSNSでも選べます）。'; return; }
     var idx = el('social-ai-news').value;
     var src = idx !== '' && news[Number(idx)] ? news[Number(idx)] : null;
     var topic = el('social-ai-topic').value.trim();
@@ -7648,7 +7700,7 @@ window.lumAdmin = {
 
   async function post() {
     if (busy) return;
-    var ids = picked();
+    var ids = sendable();
     if (!ids.length || !urlNotes()) return;
     var sched = S.when === 'date';
     if (!confirm(confirmText(ids, sched))) return;
