@@ -214,15 +214,97 @@ export function checkScript(script, brand, sources) {
     if (r.changes.length) notation.push({ where, before: String(v), after: r.text, changes: r.changes })
     return r.text
   }
-  for (const k of ['title', 'hook', 'body', 'cta']) if (s[k]) s[k] = fix(s[k], k)
+  const KEYS = ['title', 'thumb_text', 'promise', 'wow', 'hook', 'body', 'cta']
+  for (const k of KEYS) if (s[k]) s[k] = fix(s[k], k)
   s.lines = (s.lines || []).map((l, i) => ({ ...l, narration: fix(l.narration || '', `行${i + 1}のナレーション`), telop: fix(l.telop || '', `行${i + 1}のテロップ`) }))
-  const texts = [s.title, s.hook, s.body, s.cta].concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop))
+  const texts = KEYS.map((k) => s[k]).concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop))
   const banned = findBanned(texts, b.banned_words)
-  const own = [s.title, s.hook, s.body, s.cta].concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop)).filter(Boolean)
+  const own = KEYS.map((k) => s[k]).concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop)).filter(Boolean)
   const orig = originality(own, sources)
   const speed = telopSpeed(s.lines)
   const tags = (s.hashtags || []).length > RULES.post.MAX_HASHTAGS
   return { script: s, ok: banned.length === 0, banned, notation, originality: orig, speed, tooManyTags: tags }
+}
+
+/* ---------------- パッケージ（タイトル・サムネ・約束）と約束を守る ----------------
+   タイトルとサムネ（表紙）は「この動画で何が得られるか」の約束です。見た人は
+   最初の数秒でそれが本当か確かめ、違えば離れます。だから台本より先に約束を
+   決め、冒頭（ショート3秒・長尺10秒）にその言葉を入れます。
+   言葉の取り出しは形態素解析ではなく、漢字・カタカナ・英数字のまとまりを
+   拾う簡単なものです。外れることがあるので、確かめる言葉は手でも直せます。 */
+
+const KW_STOP = ['動画', '今日', '今回', '紹介', '方法', '理由', '全部', '本当', '最後', '簡単', '一番', '自分', '皆さん', '秘密', 'ひみつ', '仕方', '大切', '必見']
+const KW_STOP1 = ['方', '事', '時', '今', '人', '中', '前', '後', '気', '日', '的', '何', '誰', '私', '僕', '皆', '話', '物', '点', '感', '見', '分']
+const PARTICLES = 'のがをはにでともへやかよねな'
+
+/** 比べるための正規化（全角英数→半角、小文字、空白なし）。 */
+export function normText(s) {
+  return String(s == null ? '' : s).normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+}
+
+/** 約束の文から、確かめる言葉（名詞らしいもの）を最大5つ取り出します。
+ *  manual（手で入れた言葉）があれば、そちらを使います。 */
+export function promiseKeywords(promise, manual) {
+  const hand = (Array.isArray(manual) ? manual : String(manual || '').split(/[、,\s]+/)).map((w) => normText(w)).filter(Boolean)
+  if (hand.length) return Array.from(new Set(hand)).slice(0, 8)
+  const t = normText(promise)
+  const out = []
+  const re = /[0-9]+(?:つ|[一-龠々ァ-ヶー%]+)?|[ァ-ヶー]{2,}|[a-z][a-z0-9]+|[一-龠々]+/g
+  let m
+  while ((m = re.exec(t))) {
+    const w = m[0]
+    const next = t[m.index + w.length] || ''
+    if (/^[一-龠々]+$/.test(w)) {
+      if (KW_STOP.indexOf(w) >= 0) continue
+      // 「全部見(せる)」のように、止める語に動詞の頭が付いたものも除きます。
+      if (/[ぁ-ん]/.test(next) && PARTICLES.indexOf(next) < 0 && KW_STOP.indexOf(w.slice(0, -1)) >= 0) continue
+      // 漢字1字は、助詞が続くか文の終わりのときだけ（「見せる」の「見」などを除く）。
+      if (w.length === 1 && (KW_STOP1.indexOf(w) >= 0 || !(next === '' || PARTICLES.indexOf(next) >= 0 || !/[ぁ-ん]/.test(next)))) continue
+    } else if (KW_STOP.indexOf(w) >= 0) continue
+    if (out.indexOf(w) < 0) out.push(w)
+  }
+  return out.slice(0, 5)
+}
+
+/** 冒頭 sec 秒に出る言葉。テロップはその行の間ずっと出ているので丸ごと、
+ *  ナレーションは行の長さに比例して、sec までに話す分だけを数えます。 */
+export function openingText(lines, sec) {
+  const narr = []
+  const telop = []
+  const idx = []
+  ;(lines || []).forEach((l, i) => {
+    const st = Number(l.start) || 0
+    const en = Number(l.end) || 0
+    if (st >= sec) return
+    idx.push(i)
+    if (String(l.telop || '').trim()) telop.push(String(l.telop).trim())
+    const chars = Array.from(String(l.narration || ''))
+    const share = en > st && en > sec ? (sec - st) / (en - st) : 1
+    if (chars.length) narr.push(chars.slice(0, Math.ceil(chars.length * Math.max(0, Math.min(1, share)))).join(''))
+  })
+  return { narration: narr.join(' '), telop: telop.join(' '), lines: idx, sec }
+}
+
+/** 約束を守るか: 約束の言葉が、冒頭（ショート3秒・長尺10秒）のナレーションか
+ *  テロップに出てくるか。出てこない言葉と、直す行を返します。 */
+export function promiseCheck(s) {
+  const M = modeRules(s)
+  const win = M.PROMISE_SEC
+  const promise = String((s && s.promise) || '').trim()
+  if (!promise && !((s && s.promise_keywords) || []).length) return { status: 'none', ok: false, sec: win, keywords: [], found: [], missing: [], text: '約束（見た人が得られること）がまだありません。先に決めると、冒頭で何を見せるかがはっきりします。' }
+  const kws = promiseKeywords(promise, s.promise_keywords)
+  const open = openingText(s.lines, win)
+  if (!kws.length) return { status: 'none', ok: false, sec: win, keywords: [], found: [], missing: [], opening: open, text: '約束から確かめる言葉を取り出せませんでした。「確かめる言葉」に手で入れてください。' }
+  const hay = normText(open.narration + ' ' + open.telop)
+  const found = kws.filter((k) => hay.indexOf(k) >= 0)
+  const missing = kws.filter((k) => hay.indexOf(k) < 0)
+  const fix = (s.lines || []).length ? 0 : null
+  const ok = missing.length === 0
+  return {
+    status: ok ? 'ok' : 'ng', ok, sec: win, keywords: kws, found, missing, opening: open, fixLine: fix,
+    text: ok ? `約束の言葉（${kws.join('・')}）が最初の${win}秒に入っています。`
+      : `最初の${win}秒に「${missing.join('」「')}」が出てきません。${fix != null ? `${fix + 1}行目のテロップかナレーションに入れてください。` : ''}`,
+  }
 }
 
 /* ---------------- 競合の数字 ---------------- */

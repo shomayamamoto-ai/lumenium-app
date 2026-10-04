@@ -294,6 +294,33 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('長さの種類（ショート／長尺）と既定値')
 }
 
+/* ---- パッケージと約束 ---- */
+{
+  assert.deepEqual(V.promiseKeywords('カンパーニュの大きな穴ができる理由が分かる'), ['カンパーニュ', '穴'])
+  assert.deepEqual(V.promiseKeywords('朝4時の仕込みを30秒で全部見せます'), ['朝', '4時', '仕込', '30秒'])
+  assert.deepEqual(V.promiseKeywords('ＳＮＳで集客する3つの方法'), ['sns', '集客', '3つ'], '全角は半角に、「方法」は除く')
+  assert.deepEqual(V.promiseKeywords('なんでも', '穴、 石窯'), ['穴', '石窯'], '手で入れた言葉が優先')
+  const lines = [
+    { start: 0, end: 3, narration: 'この穴、どうやってできると思います？', telop: 'この穴、どうやってできる？' },
+    { start: 3, end: 8, narration: 'カンパーニュは水が多い生地です。', telop: '' },
+  ]
+  const s = { promise: 'カンパーニュの大きな穴ができる理由が分かる', lines }
+  const r = V.promiseCheck(s)
+  assert.equal(r.ok, false)
+  assert.deepEqual(r.missing, ['カンパーニュ'])
+  assert.equal(r.fixLine, 0)
+  assert.match(r.text, /最初の3秒に「カンパーニュ」/)
+  // 長尺は10秒まで見るので、2行目（3〜8秒）のカンパーニュも数えます。
+  assert.equal(V.promiseCheck({ ...s, length_mode: 'long' }).ok, true)
+  // ナレーションは行の長さに比例して数える（0〜10秒の行の、最初の3秒ぶん＝30%）。
+  const o = V.openingText([{ start: 0, end: 10, narration: 'あいうえおかきくけこ', telop: '' }], 3)
+  assert.equal(o.narration, 'あいう')
+  assert.equal(V.promiseCheck({ lines }).status, 'none', '約束が無ければ判定しない')
+  // 禁止ワードはパッケージにも効く
+  assert.equal(V.checkScript({ thumb_text: '日本一の穴', lines: [] }, { banned_words: ['日本一'] }).ok, false)
+  ok('約束を守る（言葉の取り出し・冒頭3秒／10秒・直す行）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

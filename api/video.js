@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 
 const MODEL = 'claude-opus-5-5'
@@ -216,11 +216,14 @@ async function analyze(req, cfg, project, ids) {
   return json({ ok: true, analyzed: updated.length, left: Math.max(0, want.length - pick.length) })
 }
 
+// パッケージ（タイトル・サムネの文字・約束・wow要素）を先に書かせるため、
+// 出力の最初に置いています（AIは決まった順に書きます）。
 const SCRIPT_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['title', 'hook', 'hook_type', 'body', 'cta', 'target_duration_sec', 'lines', 'hashtags', 'rationale'],
+  required: ['title', 'thumb_text', 'promise', 'wow', 'hook', 'hook_type', 'body', 'cta', 'target_duration_sec', 'lines', 'hashtags', 'rationale'],
   properties: {
-    title: { type: 'string' }, hook: { type: 'string' }, hook_type: { type: 'string', enum: HOOK_TYPES },
+    title: { type: 'string' }, thumb_text: { type: 'string' }, promise: { type: 'string' }, wow: { type: 'string' },
+    hook: { type: 'string' }, hook_type: { type: 'string', enum: HOOK_TYPES },
     body: { type: 'string' }, cta: { type: 'string' }, target_duration_sec: { type: 'number' },
     lines: {
       type: 'array',
@@ -252,6 +255,7 @@ async function generate(req, cfg, project, b) {
   const sources = posts.flatMap((p) => [p.title, p.caption]).filter(Boolean)
   const brand = project.brand || {}
   const top = posts.slice(0, 6)
+  const M = RULES.modes[mode]
   const base = [
     `テーマ: ${topic}`,
     `投稿先: ${P.label}`,
@@ -263,9 +267,15 @@ async function generate(req, cfg, project, b) {
     '参考にする競合（構成の型だけを参考にし、言い回しはまねしないこと）:',
     ...top.map((p, i) => `${i + 1}. ${p.title}${p.analysis ? `（フック: ${p.analysis.hook_type}「${p.analysis.hook_text}」、構成: ${(p.analysis.beats || []).map((x) => x.label).join('→')}）` : ''}`),
     '',
-    '作り方:',
-    '- 最初の約3秒（1行目）はフック。見る理由が一言で分かるように。',
-    '- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は2〜5秒。',
+    '作り方（順番を守ること）:',
+    '1. 先にパッケージを決める。title（タイトル）、thumb_text（サムネ＝表紙の文字。10文字前後）、promise（見た人が得られることを1文で）、wow（この店・会社にしか見せられないもの。職人の手元・工程・道具・常連さんとのやりとりなど、お金をかけた派手さではなく「ここでしか見られない」こと）。',
+    `2. 次に、その約束を果たす台本を書く。最初の${M.PROMISE_SEC}秒で約束の中身を見せ、promise の名詞（例: 商品名・悩み・数字）を冒頭のテロップかナレーションにそのまま入れる。約束していないことで引っぱらない（釣りにしない）。`,
+    mode === 'short'
+      ? '- 1行目（3秒以内）がフック。型は「問いかけ」「数字の約束」「意外な主張」「結果を先に見せる」「呼びかけ」「途中から始める」のどれか。あいさつや自己紹介から始めない。'
+      : `- 0〜${M.HOOK_SEC}秒がフック（約束を見せる）。${M.WHY_WATCH_SEC}秒までに「最後まで見ると何が分かるか」を言う。1〜3分は引き込み、3〜6分で一段上げ、後半も約3分ごとに山場（ルール変更・トラブル・発表・どんでん返し）を置く。`,
+    mode === 'short'
+      ? `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は2〜3秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。約${M.INTERRUPT_TARGET_SEC}秒ごとに新しい画・音・問いを入れる。`
+      : `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は5〜10秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。`,
     `- telop（画面の文字）は1秒あたり${RULES.telop.MAX_CPS}文字以内で読める長さに。narration は話す言葉、visual は映す画（英語で具体的に。文字やロゴは入れない）。`,
     '- 最後の行は CTA（保存・フォロー・プロフィールのリンクなど、行動を1つだけ）。',
     `- hashtags は${RULES.post.MAX_HASHTAGS}個以内、# は付けない。`,
@@ -277,22 +287,27 @@ async function generate(req, cfg, project, b) {
   if (guard) return guard
   let attempt = 0
   let avoid = []
+  let promiseMiss = []
   let result = null
   let checks = null
   while (attempt <= RULES.originality.MAX_REGENERATIONS) {
     if (attempt > 0) {
+      // 約束が冒頭に入っていないだけのときも、時間が許せば作り直します。
       // 作り直しも1回として数えます。時間が足りないときは、ここで止めて見せます。
       if (Date.now() - started > BUDGET_MS - 20000) break
       const g = await spendGuard('video-ai', AI_DAILY)
       if (g) break
     }
-    const user = attempt === 0 ? base : base + '\n\n前の案は競合と同じ言い回しが含まれていました。次の部分は使わず、別の言い方にしてください:\n' + avoid.map((x) => `- 「${x}」`).join('\n')
-    const r = await claude(req, { system: 'あなたは日本の小さなお店・会社のショート動画の台本を書く構成作家です。出力は日本語（visual だけ英語）。', user, schema: SCRIPT_SCHEMA, maxTokens: 12000 })
+    const user = attempt === 0 ? base : base + (avoid.length ? '\n\n前の案は競合と同じ言い回しが含まれていました。次の部分は使わず、別の言い方にしてください:\n' + avoid.map((x) => `- 「${x}」`).join('\n') : '') +
+      (promiseMiss.length ? `\n\n前の案は、約束の言葉（${promiseMiss.join('・')}）が最初の${M.PROMISE_SEC}秒に入っていませんでした。冒頭のテロップかナレーションに入れてください。` : '')
+    const r = await claude(req, { system: 'あなたは日本の小さなお店・会社の動画の台本を書く構成作家です。パッケージ（タイトルとサムネ）を先に決め、その約束を冒頭で必ず果たします。出力は日本語（visual だけ英語）。', user, schema: SCRIPT_SCHEMA, maxTokens: 12000 })
     if (r.error) { if (result) break; return r.error }
     attempt++
     result = r.data
     checks = checkScript({ ...result, hashtags: (result.hashtags || []).slice(0, RULES.post.MAX_HASHTAGS) }, brand, sources)
-    if (checks.originality.clean) break
+    const pc = promiseCheck({ ...checks.script, length_mode: mode })
+    promiseMiss = pc.status === 'ng' ? pc.missing : []
+    if (checks.originality.clean && !promiseMiss.length) break
     avoid = checks.originality.findings.map((f) => f.shared)
   }
   const s = checks.script
@@ -313,7 +328,8 @@ async function generate(req, cfg, project, b) {
     ok: true, script: saved.items[0], checks: { banned: checks.banned, notation: checks.notation, originality: checks.originality, speed: checks.speed },
     attempts: attempt, band,
     message: checks.originality.clean
-      ? (attempt > 1 ? `競合と同じ言い回しがあったため${attempt - 1}回作り直しました。` : '台本を作りました。読んで直してから使ってください。')
+      ? (attempt > 1 ? `競合と同じ言い回し、または冒頭に約束の言葉が無かったため${attempt - 1}回作り直しました。` : '台本を作りました。読んで直してから使ってください。') +
+        (promiseMiss.length ? `（最初の${M.PROMISE_SEC}秒に「${promiseMiss.join('」「')}」がまだありません。「約束を守る」を見て直してください）` : '')
       : `作り直しても競合と同じ言い回しが残りました（${checks.originality.findings.length}か所）。下の「流用の疑い」を見て、手で書き換えてください。`,
   })
 }

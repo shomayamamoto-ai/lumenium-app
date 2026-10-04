@@ -455,11 +455,36 @@
     if (s) editor(el('vs-edit'), JSON.parse(JSON.stringify(s)));
   };
 
+  function res(ok, title, body) {
+    return '<div class="soc-res ' + (ok === true ? 'ok' : ok === false ? 'ng' : '') + '"><b>' + title + '</b><span>' + body + '</span></div>';
+  }
+  function mark(ok) { return ok === true ? '◯ ' : ok === false ? '✗ ' : '△ '; }
+
+  /** 見続けてもらう工夫（約束・冒頭・テンポ・山場・最後）。どれも目安の判定です。 */
+  function retentionHtml(s) {
+    var h = '';
+    var pc = V.promiseCheck(s);
+    var op = pc.opening;
+    h += res(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null, '約束を守る', mark(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null) + esc(pc.text) +
+      (pc.keywords.length ? '<br>確かめる言葉: ' + pc.keywords.map(function (k) { return pc.found.indexOf(k) >= 0 ? '<span class="vid-tag ok">' + esc(k) + '</span>' : '<span class="vid-tag ng">' + esc(k) + '</span>'; }).join(' ') : '') +
+      (op ? '<br><span class="soc-small">最初の' + pc.sec + '秒に出る言葉: ' + esc((op.telop + ' ／ ' + op.narration).trim() || '（なし）') + '</span>' : ''));
+    return h;
+  }
+
   function editor(host, s) {
     host.innerHTML =
-      '<div class="soc-fields" style="margin-top:10px">' +
+      '<div class="soc-ai vid-pack" style="margin-top:10px"><div class="soc-ai-body">' +
+      '<b class="vid-pack-h">パッケージ（先に決める）</b>' +
+      '<p class="soc-small">タイトルとサムネ（表紙）は「この動画で何が得られるか」の約束です。見た人は最初の数秒でそれを確かめます。台本より先に決め、冒頭でその約束を見せます。</p>' +
+      '<div class="soc-fields">' +
         fld('長さの種類', '<select id="ve-mode">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '"' + (V.lengthMode(s) === k ? ' selected' : '') + '>' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>') +
         fld('タイトル', '<input type="text" id="ve-title" maxlength="200" value="' + esc(s.title) + '">') +
+        fld('サムネ（表紙）の文字（10文字前後）', '<input type="text" id="ve-thumb" maxlength="60" value="' + esc(s.thumb_text) + '">') +
+        fld('約束（見た人が得られることを1文で）', '<input type="text" id="ve-promise" maxlength="300" placeholder="例：カンパーニュの大きな穴ができる理由が分かる" value="' + esc(s.promise) + '">') +
+        fld('確かめる言葉（空欄なら約束から自動。読点区切り）', '<input type="text" id="ve-kw" maxlength="200" placeholder="例：穴、カンパーニュ" value="' + esc((s.promise_keywords || []).join('、')) + '">') +
+        fld('wow要素（うちにしか見せられないもの）', '<input type="text" id="ve-wow" maxlength="300" placeholder="例：15年使っている石窯から出す瞬間" value="' + esc(s.wow) + '">') +
+      '</div></div></div>' +
+      '<div class="soc-fields" style="margin-top:10px">' +
         fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
         fld('CTA（最後にしてほしい行動を1つ）', '<input type="text" id="ve-cta" maxlength="300" value="' + esc(s.cta) + '">') +
@@ -491,6 +516,8 @@
     function collect() {
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
       s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
+      s.thumb_text = el('ve-thumb').value; s.promise = el('ve-promise').value; s.wow = el('ve-wow').value;
+      s.promise_keywords = el('ve-kw').value.split(/[、,\s]+/).map(function (t) { return t.trim(); }).filter(Boolean);
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
       return s;
     }
@@ -517,12 +544,14 @@
         ? '<div class="soc-res"><b>テロップの速さ</b><span>' + c.speed.map(function (x) { return (x.index + 1) + '行目: 1秒あたり ' + x.cps + '文字'; }).join('、') + '。8文字を超えると読み切れない人が増えます。文字を減らすか、時間を延ばしてください。</span></div>'
         : '<div class="soc-res ok"><b>テロップの速さ</b><span>どの行も1秒あたり8文字以内です。</span></div>';
       if (c.tooManyTags) h += '<div class="soc-res"><b>ハッシュタグ</b><span>5個までにしてください（多いと宣伝くさく見え、読まれにくくなります）。</span></div>';
-      el('ve-checks').innerHTML = h;
+      el('ve-checks').innerHTML = '<h4 class="vid-sub">見続けてもらう工夫（数字はどれも目安です）</h4>' + retentionHtml(s) + '<h4 class="vid-sub">決まりごと</h4>' + h;
       var blocked = c.banned.length > 0;
       document.querySelectorAll('.ve-out').forEach(function (b) { b.disabled = blocked; });
       if (el('ve-norm')) el('ve-norm').addEventListener('click', function () {
         var n = result.script;
         s.title = n.title; s.hook = n.hook; s.cta = n.cta; s.body = n.body; s.lines = n.lines;
+        s.thumb_text = n.thumb_text; s.promise = n.promise; s.wow = n.wow;
+        el('ve-thumb').value = s.thumb_text || ''; el('ve-promise').value = s.promise || ''; el('ve-wow').value = s.wow || '';
         el('ve-title').value = s.title || ''; el('ve-hook').value = s.hook || ''; el('ve-cta').value = s.cta || '';
         rows(); check();
       });

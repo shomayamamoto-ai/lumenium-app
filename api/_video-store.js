@@ -144,6 +144,9 @@ export function cleanScript(s) {
     // 長さの種類。前からある台本（指定なし）はショートです。
     length_mode: s && s.length_mode === 'long' ? 'long' : 'short',
     target_duration_sec: num(s && s.target_duration_sec, 1, 3600),
+    // パッケージ（先に決める約束）。タイトルは title をそのまま使います。
+    thumb_text: str(s && s.thumb_text, 60), promise: str(s && s.promise, 300),
+    promise_keywords: words(s && s.promise_keywords, 8, 30), wow: str(s && s.wow, 300),
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
     lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),
