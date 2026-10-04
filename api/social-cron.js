@@ -12,9 +12,9 @@ export const config = { runtime: 'edge' }
 
 import { json } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
-import { listScheduled, claim, CRON_LAST } from './_social-queue.js'
-import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus, refreshDue } from './_social.js'
-import { readPrefs } from './_social-store.js'
+import { listScheduled, claim, CRON_LAST, planRepeats } from './_social-queue.js'
+import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus, refreshDue, repeatBuilder } from './_social.js'
+import { readPrefs, readTemplates } from './_social-store.js'
 import { runVideoCron } from './video-publish.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
@@ -61,6 +61,15 @@ export async function GET(req) {
     done.push(...ran.filter(Boolean))
   }
 
+  // 繰り返し投稿：8週間先までの予約を足します（今日の分を送ったあとに）。
+  let repeats = null
+  if (BUDGET_MS - (Date.now() - started) > 9000) {
+    try {
+      const tpls = await readTemplates()
+      if (tpls.some((t) => t.repeat)) repeats = await planRepeats(tpls, await repeatBuilder())
+    } catch (e) { repeats = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
+  }
+
   // Threads のトークン。期限が分かっていて、残り10日を切ったら延ばします。
   let threads = null
   try {
@@ -95,7 +104,7 @@ export async function GET(req) {
     catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, threads, metrics, video }
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }

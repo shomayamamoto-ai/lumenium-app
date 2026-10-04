@@ -212,6 +212,31 @@ function tagUrl(url, net, campaign, host) {
   return u.toString()
 }
 
+/* プロフィールのリンク集（/links）。Instagram や TikTok はプロフィールに
+   リンクを1つしか置けないので、そこに /links?from=instagram を置きます。
+   ページの中の自社サイトへのリンクには ?ref=<from>&utm_campaign=bio を付け、
+   アクセス解析で「プロフィールのリンクから来た人」と分かるようにします。
+   from に使える名前は決めておきます（勝手な文字列で数字の列を増やさない）。 */
+var BIO_SOURCES = ['instagram', 'tiktok', 'x', 'threads', 'facebook', 'line', 'youtube', 'bluesky', 'linkedin', 'gbp', 'note']
+var BIO_CAMPAIGN = 'bio'
+
+/** from を確かめて返します（知らない名前は instagram）。 */
+function bioSource(from) {
+  var f = String(from == null ? '' : from).toLowerCase().trim()
+  return BIO_SOURCES.indexOf(f) !== -1 ? f : 'instagram'
+}
+
+/** リンク集の1つのリンク。自社サイトへのものにだけ印を付けます。 */
+function bioUrl(url, from, host) {
+  var raw = String(url == null ? '' : url).trim()
+  var u
+  try { u = new URL(raw) } catch (_) { return raw }
+  if (!/^https?:$/.test(u.protocol) || !sameSite(u.hostname, host)) return raw
+  u.searchParams.set('ref', bioSource(from))
+  u.searchParams.set('utm_campaign', BIO_CAMPAIGN)
+  return u.toString()
+}
+
 /** 本文の中の自社サイトへのリンクにも同じ印を付けます。 */
 function tagText(text, net, campaign, host) {
   var s = String(text == null ? '' : text)
@@ -253,7 +278,14 @@ function compose(net, p, host) {
   var separate = (net === 'facebook' && !images.length) || !!rule.linkButton
   var text = body
   if (link && !inBody && !separate) text = body ? body + '\n' + link : link
+  // スレッドに分ける（選んだ投稿先で、上限を超えているときだけ）。
+  var parts = null
+  var th = p && p.thread
+  if (THREADABLE[net] && th && Array.isArray(th.nets) && th.nets.indexOf(net) !== -1 && lengthFor(net, text) > rule.limit) {
+    parts = splitThread(net, text, { number: th.number !== false })
+  }
   return {
+    parts: parts,
     net: net,
     text: text,
     body: body,
@@ -272,6 +304,11 @@ function check(net, c) {
   var warnings = []
   if (!r) return { count: 0, limit: 0, errors: ['不明な投稿先です。'], warnings: warnings }
   var count = lengthFor(net, c.text)
+  if (c.parts && c.parts.length > 1) {
+    count = 0
+    for (var pi = 0; pi < c.parts.length; pi++) count = Math.max(count, lengthFor(net, c.parts[pi]))
+    if (c.parts.length > THREAD_MAX) errors.push('スレッドは' + THREAD_MAX + '件までにしてください（いま ' + c.parts.length + ' 件）。本文を短くしてください。')
+  }
   var hasText = !!String(c.body || '').trim() || !!c.link
   if (count > r.limit) {
     errors.push(net === 'x'
@@ -288,7 +325,10 @@ function check(net, c) {
     var tags = (String(c.text).match(/[#＃][^\s#＃]+/g) || []).length
     if (tags > r.hashtags) errors.push('ハッシュタグは ' + r.hashtags + ' 個までです（いま ' + tags + ' 個）。')
   }
-  if (net === 'x') {
+  if (net === 'x' && c.parts && c.parts.length > 1) {
+    warnings.push('スレッドは ' + c.parts.length + ' 件の投稿になり、1件ずつ料金がかかります（合計 約' + threadCost(c.parts) + 'ドル。リンクのある件は約0.2ドル）。')
+    if (c.droppedImages > 0) warnings.push('この画像はXには付きません。Xに画像を付けられるのは、この画面からアップロードした画像だけです。')
+  } else if (net === 'x') {
     warnings.push(findUrls(c.text).length
       ? 'リンク付きは1投稿あたり約0.2ドル（リンクなしは約0.015ドル）かかります。'
       : 'X は1投稿あたり約0.015ドルかかります（リンクを入れると約0.2ドル）。')
@@ -312,9 +352,264 @@ function check(net, c) {
   if (net === 'bluesky' && c.droppedImages > 0) {
     warnings.push('この画像はBlueskyには付きません。付けられるのは、この画面からアップロードした画像だけです（1枚1MBまで）。')
   }
+  if (ALT_NETS[net] && c.images.some(function (i) { return !String(i.alt || '').trim() })) {
+    warnings.push('画像に代替テキスト（読み上げ用の説明）がありません。「画像」の欄で、何が写っているかを一言書いておくと、目の不自由な方にも伝わります。')
+  }
 
   return { count: count, limit: r.limit, errors: errors, warnings: warnings }
 }
+
+/* ============================================================ 見え方の区切り ==
+   長い本文は、各SNSのフィードで途中から畳まれます（「…続きを読む」など）。
+   見る人の多くは畳まれた先を開きません。なので、どこで畳まれるかを本文の
+   上に印で出し、リンクや「予約は…」のような大事なところが畳まれた先に
+   あるときに知らせます。
+
+   どれも目安です。各SNSは区切りを公表しておらず、端末の画面幅・文字の大きさ・
+   アプリの版で前後します。ここでは「文字数」と「行数」の両方を持ち、先に
+   来たほうで区切ります。行数は、半角を1・全角を2として幅（width）で折り返して
+   数えます（日本語は半角の2倍の幅なので、125文字より先に2行が尽きます）。
+
+     chars  この文字数を超えると畳まれる（英語圏で言われる目安）
+     lines  この行数を超えると畳まれる（スマホの縦画面）
+     width  1行の幅（半角いくつ分か。スマホ縦の目安）
+     lead   1行目の頭に付くもの（Instagram はアカウント名）の幅
+     notice true なら「畳まれる」ではなく「通知・トーク一覧に出るのはここまで」
+
+   Threads・Bluesky・X は本文が上限までそのまま出るので、ここにはありません。 */
+var FOLD = {
+  instagram: { chars: 125, lines: 2, width: 50, lead: 12, label: '…続きを読む' },
+  facebook: { chars: 480, lines: 3, width: 56, lead: 0, label: '…もっと見る' },
+  linkedin: { chars: 210, lines: 3, width: 56, lead: 0, label: '…さらに表示' },
+  line: { chars: 30, lines: 0, width: 0, lead: 0, label: '通知・トーク一覧に出るのはここまで', notice: true },
+}
+var FOLD_NOTE = '区切りの位置は目安です。スマホの画面幅や文字の大きさ、アプリの版で前後します。'
+
+/** 本文のどこで畳まれるか（text の位置）。畳まれないときは -1。
+ *  URL の途中では区切りません（区切りがかかる URL は、まるごと先に回します）。 */
+function foldAt(net, text) {
+  var r = FOLD[net]
+  var s = String(text == null ? '' : text)
+  if (!r || !s) return -1
+  var urls = findUrls(s)
+  var chars = 0, line = 1, col = r.lead || 0
+  var i = 0
+  var cut = -1
+  for (var ch of s) {
+    if (chars >= r.chars) { cut = i; break }
+    if (ch === '\n') {
+      if (r.lines && line >= r.lines) { cut = i; break }
+      line++; col = 0; chars++; i += 1
+      continue
+    }
+    if (r.width) {
+      var w = cpWeight(ch.codePointAt(0)) / X_RULES.scale
+      if (col + w > r.width) {
+        if (r.lines && line >= r.lines) { cut = i; break }
+        line++; col = 0
+      }
+      col += w
+    }
+    chars++
+    i += ch.length
+  }
+  if (cut < 0) return -1
+  for (var k = 0; k < urls.length; k++) if (cut > urls[k].start && cut < urls[k].end) cut = urls[k].start
+  // 区切りの直前の空白・改行は、見えている側の最後に含めません。
+  while (cut > 0 && /\s/.test(s.charAt(cut - 1))) cut--
+  return cut > 0 ? cut : 0
+}
+
+/* 「大事なところ」とみなすもの。見る人に動いてほしい言葉（予約・問い合わせ
+   など）と、値段・日付。リンクは別に数えます。 */
+var CTA_RE = /ご?予約|お?問い?合わ?せ|お?申し?込|お電話|電話で|DM|プロフィールのリンク|詳しくは|詳細は|ご購入|ご注文|クーポン|ご来店|お気軽に|こちらから|リンクから|受付中|締め切り|締切/
+var KEY_RE = /[0-9０-９][0-9０-９,，]*円|[0-9０-９]+[%％]\s*(?:OFF|オフ|引)|[0-9０-９]{1,2}[\/／月][0-9０-９]{1,2}日?/
+
+/** 区切りの位置と、区切りより後ろにだけある大事なもの。
+ *  戻り値: { at, label, notice, late: ['リンク', '「予約」' …], warnings: [] } */
+function foldCheck(net, text) {
+  var r = FOLD[net]
+  var s = String(text == null ? '' : text)
+  var at = foldAt(net, s)
+  var out = { at: at, label: r ? r.label : '', notice: !!(r && r.notice), late: [], warnings: [] }
+  if (at < 0) return out
+  var head = s.slice(0, at), tail = s.slice(at)
+  // Instagram の本文のリンクは押せないので、ここでは数えません（別の注意が出ます）。
+  if (net !== 'instagram' && findUrls(tail).length && !findUrls(head).length) out.late.push('リンク')
+  var m = tail.match(CTA_RE)
+  if (m && !CTA_RE.test(head)) out.late.push('「' + m[0] + '」')
+  var k = tail.match(KEY_RE)
+  if (k && !KEY_RE.test(head)) out.late.push('値段や日付（' + k[0] + '）')
+  if (out.late.length) {
+    out.warnings.push((r.notice
+      ? '通知やトーク一覧に出るのは最初の約' + r.chars + '文字です。'
+      : '「' + r.label + '」で畳まれる位置より後ろに') +
+      (r.notice ? out.late.join('・') + ' はその先にあります。' : '、' + out.late.join('・') + ' があります。') +
+      '多くの人は畳まれた先を開きません。大事なことは最初の1〜2行に。（区切りは目安です）')
+  }
+  return out
+}
+
+/* ============================================================== スレッド分割 ==
+   X・Threads・Bluesky で上限を超えるとき、文の切れ目（。！？と改行）で分けて、
+   返信の形でつなげて出します。数え方は投稿先ごと（X は日本語=2、URL=23）で、
+   番号（1/3）を付けるときは、その分も数に入れます。
+
+   1つの文が長すぎて収まらないときだけ、文の途中（読点・空白の後ろを優先）で
+   切ります。URL の途中では切りません。X はスレッドの1件ずつに料金がかかります。 */
+var THREADABLE = { x: true, threads: true, bluesky: true }
+var THREAD_MAX = 10
+
+var BOUNDARY = /[。！？!?．]+[」』）)】]*[ \t　]*\n*|\n+/g
+
+/** 文の切れ目の位置（その位置の前までが1文）。URL の中は除きます。 */
+function boundaries(s, urls) {
+  var out = []
+  var re = new RegExp(BOUNDARY.source, 'g')
+  var m
+  while ((m = re.exec(s))) {
+    var end = m.index + m[0].length
+    if (!m[0].length) { re.lastIndex++; continue }
+    var inUrl = false
+    for (var k = 0; k < urls.length; k++) if (m.index >= urls[k].start && m.index < urls[k].end) inUrl = true
+    if (!inUrl && end < s.length) out.push(end)
+  }
+  return out
+}
+
+/** 文の途中で切るときの位置：room に収まるいちばん後ろ（URL の中は避け、
+ *  読点・空白の直後が近くにあればそこ）。 */
+function hardCut(net, s, start, room, urls) {
+  var cps = []
+  for (var i = start; i < s.length;) {
+    var cp = s.codePointAt(i)
+    i += cp > 0xffff ? 2 : 1
+    cps.push(i)
+  }
+  var lo = 0, hi = cps.length - 1, best = -1
+  while (lo <= hi) {
+    var mid = (lo + hi) >> 1
+    if (lengthFor(net, s.slice(start, cps[mid]).trim()) <= room) { best = mid; lo = mid + 1 } else hi = mid - 1
+  }
+  var cut = best >= 0 ? cps[best] : cps[0]
+  for (var k = 0; k < urls.length; k++) {
+    if (cut > urls[k].start && cut < urls[k].end) cut = urls[k].start > start ? urls[k].start : urls[k].end
+  }
+  // 近く（20文字以内）に読点や空白があれば、その直後で。
+  var back = s.slice(Math.max(start, cut - 20), cut)
+  var at = Math.max(back.lastIndexOf('、'), back.lastIndexOf('，'), back.lastIndexOf(' '), back.lastIndexOf('　'))
+  if (at > 0) cut = cut - back.length + at + 1
+  return cut > start ? cut : Math.min(s.length, start + 1)
+}
+
+function pack(net, s, room) {
+  var urls = findUrls(s)
+  var cuts = boundaries(s, urls)
+  var parts = []
+  var start = 0
+  while (start < s.length) {
+    var rest = s.slice(start).trim()
+    if (!rest) break
+    if (lengthFor(net, rest) <= room) { parts.push(rest); break }
+    var best = -1
+    for (var i = 0; i < cuts.length; i++) {
+      if (cuts[i] <= start) continue
+      if (lengthFor(net, s.slice(start, cuts[i]).trim()) <= room) best = cuts[i]
+      else break
+    }
+    var end = best > start ? best : hardCut(net, s, start, room, urls)
+    var part = s.slice(start, end).trim()
+    if (part) parts.push(part)
+    start = end
+    if (parts.length > 50) break
+  }
+  return parts
+}
+
+/** 本文を投稿先の上限に収まる「スレッド」に分けます。収まるなら1件のまま。
+ *  number: true で、各件の最後に「(1/3)」を付けます（その分も数えます）。 */
+function splitThread(net, text, opts) {
+  var r = RULES[net]
+  var s = String(text == null ? '' : text).trim()
+  var number = !!(opts && opts.number)
+  if (!r || lengthFor(net, s) <= r.limit) return [s]
+  var guess = 9
+  for (var t = 0; t < 3; t++) {
+    var tag = '\n(' + guess + '/' + guess + ')'
+    var parts = pack(net, s, r.limit - (number ? lengthFor(net, tag) : 0))
+    if (!number) return parts
+    if (String(parts.length).length <= String(guess).length) {
+      return parts.map(function (p, i) { return p + '\n(' + (i + 1) + '/' + parts.length + ')' })
+    }
+    guess = guess * 10 + 9
+  }
+  return parts
+}
+
+/** X のスレッドの料金の目安（ドル）。リンクのある件は高い料金です。 */
+function threadCost(parts) {
+  var sum = 0
+  for (var i = 0; i < parts.length; i++) sum += findUrls(parts[i]).length ? X_COST.postWithLink : X_COST.post
+  return Math.round(sum * 1000) / 1000
+}
+
+/* ============================================================== 画像の切り抜き ==
+   Instagram は縦横比 4:5（縦長）〜1.91:1（横長）の画像しか受け付けません。
+   画面の切り抜き道具は、ここの計算で枠を決めます（ブラウザの canvas で切り、
+   JPEG にしてからアップロードします）。
+
+   丸めの向き：縦長（比が1未満）は高さを切り下げ、横長は高さを切り上げます。
+   こうすると、丸めたあとの比が 4:5 より縦長に、1.91:1 より横長に
+   はみ出すことがありません（はみ出すと Instagram に断られます）。 */
+var CROP_PRESETS = [
+  { id: '4:5', ratio: 4 / 5, label: '4:5 縦長（Instagram）' },
+  { id: '1:1', ratio: 1, label: '1:1 正方形' },
+  { id: '1.91:1', ratio: 1.91, label: '1.91:1 横長' },
+  { id: '9:16', ratio: 9 / 16, label: '9:16 ストーリーズ・LINE' },
+]
+
+function heightFor(w, ratio) {
+  return ratio >= 1 ? Math.ceil(w / ratio - 1e-9) : Math.floor(w / ratio + 1e-9)
+}
+
+/** 画像（iw×ih）の中に収まる、その比の枠 { x, y, w, h }（整数）。
+ *  scale は収まるいちばん大きい枠に対する大きさ（0.2〜1）、cx・cy は枠の中心。
+ *  枠は画像の外に出ません（はみ出す動かし方をしても、端で止まります）。 */
+function cropFrame(iw, ih, ratio, scale, cx, cy) {
+  iw = Math.max(1, Math.round(iw)); ih = Math.max(1, Math.round(ih))
+  var s = Math.min(1, Math.max(0.2, Number(scale) || 1))
+  var maxW = Math.min(iw, ih * ratio)
+  var w = Math.max(1, Math.floor(maxW * s))
+  var h = Math.max(1, heightFor(w, ratio))
+  if (h > ih) { h = ih; w = Math.max(1, Math.min(iw, Math.floor(ih * ratio))) }
+  var x = Math.round((cx == null ? iw / 2 : cx) - w / 2)
+  var y = Math.round((cy == null ? ih / 2 : cy) - h / 2)
+  x = Math.min(Math.max(0, x), iw - w)
+  y = Math.min(Math.max(0, y), ih - h)
+  return { x: x, y: y, w: w, h: h }
+}
+
+/** 書き出す大きさ。長い辺を maxSide までに縮め、比は同じ向きに丸めます。 */
+function cropOutput(frame, maxSide, ratio) {
+  var k = Math.min(1, maxSide / Math.max(frame.w, frame.h))
+  var w = Math.max(1, Math.round(frame.w * k))
+  var h = ratio ? Math.max(1, heightFor(w, ratio)) : Math.max(1, Math.round(frame.h * k))
+  return { w: w, h: h }
+}
+
+/** Instagram に出せる縦横比か（4:5〜1.91:1）。 */
+function igAspectOk(w, h) {
+  if (!w || !h) return true
+  var r = w / h
+  return r >= 0.8 && r <= 1.91
+}
+
+/* 画像の代替テキスト（目の不自由な方の読み上げ用の説明）を API で送れる投稿先。
+   Facebook ページの写真・LINE・Googleビジネスプロフィールは、投稿の API に
+   その欄が無いので送りません（各SNSの画面で後から足せるものもあります）。
+   Instagram は 2025年3月から画像の投稿（alt_text）に対応しています。 */
+var ALT_NETS = { x: true, instagram: true, threads: true, bluesky: true }
+var ALT_MAX = 1000
 
 /* ===================================================== 投稿前チェック（表現） ==
    出す前に「言い方」で引っかかりそうなところを拾います。決まった言葉と形を
@@ -596,5 +891,5 @@ function styleToLines(style) {
   }
 }
 
-window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
+window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, BIO_SOURCES, BIO_CAMPAIGN, bioSource, bioUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, THREADABLE, THREAD_MAX, splitThread, threadCost, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
 })();

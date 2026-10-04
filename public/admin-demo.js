@@ -1248,7 +1248,15 @@
     return [
       { id: 'demo-q1', date: jstDate(-2), createdAt: ago(3600000), text: '（サンプルの予約）今週末は臨時休業です。ご不便をおかけします。', targets: ['x', 'line'], images: 0, link: '' },
       { id: 'demo-q2', date: jstDate(-6), createdAt: ago(7200000), text: '（サンプルの予約）秋の限定メニュー、はじめます。', targets: ['instagram', 'threads', 'facebook'], images: 1, link: 'https://' + DEMO_HOST + '/menu' }
-    ];
+    ].concat(demoRepeatDates().map(function (d, i) {
+      return { id: 'demo-r' + i, date: d, createdAt: ago(DAY), text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', targets: ['x', 'line'], images: 0, link: '', repeatOf: 'demo-tpl-1' };
+    }));
+  }
+  /* 繰り返し（毎週月曜）の、この先の3回ぶん。 */
+  function demoRepeatDates() {
+    var out = [];
+    for (var i = 1; out.length < 3 && i < 30; i++) { var d = jstDate(-i); if (dow(d) === 1) out.push(d); }
+    return out;
   }
   function social() {
     return {
@@ -1268,11 +1276,64 @@
       style: socialStyle(),
       prefs: { xAutoMetrics: false },
       templates: [
-        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
+        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '', images: [], repeat: { kind: 'weekly', weekday: 1 } },
         { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
-      ]
+      ],
+      approvals: socialApprovals(),
+      links: {
+        title: '', note: '（サンプル）ご予約・メニュー・アクセスはこちらから', latest: 3,
+        items: [
+          { id: 'demo-lk-1', title: 'ご予約', url: 'https://' + DEMO_HOST + '/contact', on: true },
+          { id: 'demo-lk-2', title: '制作実績', url: 'https://' + DEMO_HOST + '/works', on: true },
+          { id: 'demo-lk-3', title: '地図（Googleマップ）', url: 'https://maps.example.com/demo', on: true },
+          { id: 'demo-lk-4', title: '冬季休業のお知らせ', url: 'https://' + DEMO_HOST + '/news', on: false }
+        ]
+      }
     };
   }
+  /* コメントの受信箱（shape: _social-inbox.js readInbox）。 */
+  function socialInbox() {
+    var cm = function (id, from, h, text, answered, hidden) {
+      return { id: id, text: text, from: from, at: ago(h * 3600000), hidden: !!hidden, canHide: true, replies: answered ? 1 : 0, answered: !!answered, mine: false };
+    };
+    return {
+      ok: true, at: new Date().toISOString(), unanswered: 3,
+      nets: {
+        instagram: { ok: true, connected: true, unanswered: 2, posts: [
+          { id: '1790001', text: '（サンプル投稿）秋の限定メニュー、はじめます。', url: '', at: ago(2 * DAY), count: 3, comments: [
+            cm('1780001', '@sample_user_a', 3, '（サンプル）栗のモンブラン、予約できますか？', false),
+            cm('1780002', '@sample_user_b', 20, '（サンプル）おいしそう！週末行きます', true),
+            cm('1780003', '@sample_spam', 26, '（サンプル）フォロワーを増やしませんか？DMください', false, true)
+          ] },
+          { id: '1790002', text: '（サンプル投稿）今週末は臨時休業です。', url: '', at: ago(5 * DAY), count: 1, comments: [
+            cm('1780004', '@sample_user_c', 50, '（サンプル）来週の営業時間はいつも通りですか？', false)
+          ] }
+        ] },
+        facebook: { ok: true, connected: true, unanswered: 1, posts: [
+          { id: '10_200', text: '（サンプル投稿）飲食店さまのホームページを公開しました。', url: '', at: ago(2 * DAY), count: 1, comments: [
+            cm('10_300', '（サンプル）山田さん', 30, '（サンプル）料金の目安を教えてください。', false)
+          ] }
+        ] }
+      },
+      notes: {}
+    };
+  }
+
+  /* 承認の流れ（shape: _social-approve.js listApprovals）。 */
+  function socialApprovals() {
+    var a = function (id, status, label, days, text, targets, extra) {
+      var p = { text: text, link: 'https://' + DEMO_HOST + '/menu', campaign: 'autumn', images: [], variants: {}, targets: targets, sendId: '6f1c1a2e-1d1c-4c1e-9a1e-0123456789ab', gbp: { action: 'LEARN_MORE' } };
+      var o = { id: id, status: status, label: label, createdAt: ago(days * DAY), decidedAt: status === 'pending' ? null : ago(days * DAY - 3600000), date: '', note: '', comment: '', error: '', scheduledId: '', expired: false, targets: targets, text: text, payload: p };
+      for (var k in extra) o[k] = extra[k];
+      return o;
+    };
+    return [
+      a('demo-apv-1', 'pending', '承認待ち', 0.1, '（サンプル）10月12日（土）は秋のマルシェに出店します。ご予約の方には焼き菓子をお取り置きします。', ['instagram', 'x'], { note: '10/12 のイベントの告知です', date: jstDate(-5) }),
+      a('demo-apv-2', 'approved', '承認済み', 1, '（サンプル）秋の限定メニュー「栗のモンブラン」を始めました。', ['x', 'threads', 'facebook'], { comment: 'これで大丈夫です' }),
+      a('demo-apv-3', 'returned', '差し戻し', 2, '（サンプル）業界最安の価格でご提供します！', ['x', 'line'], { comment: '「業界最安」は根拠が無いので外してください' })
+    ];
+  }
+
   /* このサイトの決まり（shape: _social-text.js validateStyle）。 */
   function socialStyle() {
     return {
@@ -1350,7 +1411,9 @@
 
       return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
     }
+    if (a === 'inbox') return socialInbox();
     notice(MSG);
+    if (/^approval-/.test(a)) return blocked({ approvals: socialApprovals() });
     if (a === 'cancel') return blocked({ items: socialQueue() });
     if (a === 'schedule') return blocked({ items: socialQueue() });
     return blocked({ results: [], recent: socialRecent(), posted: 0, total: 0 });

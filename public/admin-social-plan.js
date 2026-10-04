@@ -346,21 +346,17 @@
 
   /* コメントの受信箱があれば、返事を待っている数と、返事までの時間を読みます。
      まだ無い（作られていない・使えない）ときは、何も出しません。 */
+  /* コメントの受信箱は、SNS（文章）の「コメントを読み込む」を押したときだけ
+     Meta に取りに行きます。ここではその結果を使うだけです（開くたびに API を
+     叩かないため）。読み込まれたら、その場で表示を更新します。 */
   async function probeInbox() {
-    var tries = ['/api/social-inbox', '/api/social?inbox=1'];
-    for (var i = 0; i < tries.length; i++) {
-      var r = await api(tries[i]);
-      var d = r.data || {};
-      var list = Array.isArray(d.comments) ? d.comments : Array.isArray(d.items) ? d.items : Array.isArray(d.inbox) ? d.inbox : Array.isArray(d.threads) ? d.threads : null;
-      if (d.ok && (list || typeof d.unanswered === 'number')) {
-        list = list || [];
-        var un = typeof d.unanswered === 'number' ? d.unanswered : list.filter(function (c) { return !C.isAnswered(c); }).length;
-        S.inbox = { unanswered: un, items: list, url: tries[i] };
-        return;
-      }
-    }
-    S.inbox = null;
+    var d = window.lumSocialInbox;
+    S.inbox = d && Array.isArray(d.items) ? d : null;
   }
+  window.addEventListener('lum:inbox', function () {
+    probeInbox();
+    if (S.view === 'plan') render();
+  });
   SECTIONS.push({ id: 'todo', html: checklistHtml, bind: bindChecklist });
 
   /* ================================================================

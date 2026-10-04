@@ -256,6 +256,19 @@ const CALLS = [
   ['social', 'POST', '', JSONH, { action: 'metrics', id: 'none' }],
   ['social', 'POST', '', JSONH, { action: 'schedule', date: new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10), text: 'スモーク', targets: ['threads'] }],
   ['social', 'POST', '', JSONH, { action: 'cancel', id: 'none' }],
+  // 繰り返し投稿つきの定型文（8週間ぶんの予約を入れるところまで通す）。
+  ['social', 'PUT', '', JSONH, { templates: [{ title: 'スモーク', text: '定休日です', nets: ['threads'], repeat: { kind: 'monthly', day: 31 } }] }],
+  ['social', 'PUT', '', JSONH, { links: { latest: 2, items: [{ title: 'ご予約', url: 'https://lumenium.net/booking' }] } }],
+  // プロフィールのリンク集。訪問者が開くページなので、鍵なしで呼ぶ。
+  ['links', 'GET', '?from=instagram', {}],
+  // 承認の流れ：承認待ちの保存と、責任者が開くページ（鍵なし。使えないリンクは 410）。
+  ['social', 'POST', '', JSONH, { action: 'approval-create', text: 'スモーク', targets: ['x'], note: 'smoke' }],
+  ['social', 'POST', '', JSONH, { action: 'approval-send', id: 'none' }],
+  ['social-approve', 'GET', '?t=0000', {}],
+  // コメントの受信箱（押したときだけ読む）と返信。
+  ['social', 'POST', '', JSONH, { action: 'inbox' }],
+  ['social', 'POST', '', JSONH, { action: 'inbox-reply', net: 'instagram', id: '1', message: 'スモーク' }],
+  ['social-approve', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=0000&decision=approve'],
   ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
   ['social-cron', 'GET', '', {}],
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],

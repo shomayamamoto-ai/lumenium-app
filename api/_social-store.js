@@ -11,6 +11,7 @@
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
 import { validateStyle, RULES, cleanCampaign } from './_social-text.js'
+import { cleanRepeat } from './_social-queue.js'
 
 export const STYLE_KEY = `${KV}social:style`
 
@@ -61,7 +62,8 @@ export function cleanPrefs(input) {
 }
 
 /* ---- 定型文 ----
-   ${KV}social:tpl  … [{ id, title, text, nets, campaign, link }]（30個まで）
+   ${KV}social:tpl  … [{ id, title, text, nets, campaign, link, images, repeat }]（30個まで）
+   repeat は繰り返し投稿の決まり（_social-queue.js の cleanRepeat。無ければ null）。
    よく出すお知らせ（定休日・新メニュー・イベント）を、題名をつけて取っておきます。 */
 export const TEMPLATES_KEY = `${KV}social:tpl`
 export const TEMPLATE_MAX = 30
@@ -86,6 +88,11 @@ export function validateTemplates(input) {
       nets: [...new Set((Array.isArray(t.nets) ? t.nets : []).map(String).filter((n) => RULES[n]))],
       campaign: cleanCampaign(t.campaign),
       link: /^https:\/\/\S+$/i.test(link) ? link.slice(0, 500) : '',
+      // 画像（Instagram は画像が要るので、繰り返し投稿でも持っておきます）。
+      images: (Array.isArray(t.images) ? t.images : []).slice(0, 4)
+        .map((i) => ({ url: String((i && i.url) || '').trim(), preview: String((i && i.preview) || '').trim(), alt: String((i && i.alt) || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 1000) }))
+        .filter((i) => /^https:\/\/\S+$/i.test(i.url) && (!i.preview || /^https:\/\/\S+$/i.test(i.preview))),
+      repeat: cleanRepeat(t.repeat),
     })
   }
   return { templates: out, problems }
@@ -110,5 +117,52 @@ export async function savePrefs(input, req) {
   const prefs = cleanPrefs(input)
   const r = await writeJson(PREFS_KEY, prefs, req)
   return { ...r, prefs }
+}
+
+/* ---- プロフィールのリンク集（/links） ----
+   ${KV}social:links  … { title, note, latest, items: [{ id, title, url, on }] }
+   items は並べた順のまま出します。on が false のものは出しません。
+   latest は「最近の投稿のリンク」をいくつ足すか（0〜10）。 */
+export const LINKS_KEY = `${KV}social:links`
+export const LINKS_MAX = 20
+
+export function validateLinks(input) {
+  const v = input && typeof input === 'object' ? input : {}
+  const problems = []
+  const items = []
+  const seen = new Set()
+  for (const it of Array.isArray(v.items) ? v.items : []) {
+    if (!it || typeof it !== 'object') continue
+    const title = String(it.title || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 40)
+    const url = String(it.url || '').trim()
+    if (!title && !url) continue
+    if (!title) { problems.push('名前の無いリンクは保存しません。'); continue }
+    if (!/^https:\/\/[^\s<>"]+$/i.test(url) || url.length > 500) { problems.push(`「${title}」のURLは https:// で始まる形にしてください。`); continue }
+    if (items.length >= LINKS_MAX) { problems.push(`リンクは${LINKS_MAX}個までです。`); break }
+    let id = /^[a-z0-9-]{6,40}$/i.test(String(it.id || '')) ? String(it.id) : crypto.randomUUID()
+    if (seen.has(id)) id = crypto.randomUUID()
+    seen.add(id)
+    items.push({ id, title, url, on: it.on !== false })
+  }
+  const latest = Math.max(0, Math.min(10, Math.round(Number(v.latest) || 0)))
+  return {
+    links: {
+      title: String(v.title || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 40),
+      note: String(v.note || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 120),
+      latest,
+      items,
+    },
+    problems,
+  }
+}
+
+export async function readLinks(req) {
+  return validateLinks(await readJson(LINKS_KEY, req, { latest: 3, items: [] })).links
+}
+
+export async function saveLinks(input, req) {
+  const { links, problems } = validateLinks(input)
+  const r = await writeJson(LINKS_KEY, links, req)
+  return { ...r, links, problems }
 }
 

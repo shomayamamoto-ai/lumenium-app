@@ -19,7 +19,7 @@ import { setting, settingStatus, saveSetting } from './_settings.js'
 import { authHeader } from './_x-oauth1.js'
 import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
-import { RULES, compose, check, isBlobUrl, cleanCampaign } from './_social-text.js'
+import { RULES, compose, check, isBlobUrl, cleanCampaign, ALT_MAX, THREADABLE } from './_social-text.js'
 import { fieldFor } from './_social-insights.js'
 import { GBP_ACTIONS } from './_social-text.js'
 import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
@@ -279,7 +279,7 @@ const X_HINT = '（よくある原因: アプリの権限を「Read and write」
 /** One image, by the documented v2 chunked upload: initialize, one append
  *  (images are at most 5MB, one segment), finalize. Only our own Blob store
  *  is fetched — see isBlobUrl for why. */
-async function xUpload(url, keys, ctx) {
+async function xUpload(url, keys, ctx, alt) {
   if (!isBlobUrl(url)) return { ok: false, message: 'X：アップロードした画像以外は付けられません。' }
   // call() reads text; an image needs its bytes, so this one is fetched here.
   // No redirects: the address was checked, wherever it would lead was not.
@@ -309,20 +309,32 @@ async function xUpload(url, keys, ctx) {
   if (!app.ok) return app
   const fin = await xCall('POST', `${X_API}/media/upload/${encodeURIComponent(id)}/finalize`, keys, undefined, 'X（画像の確定）', ctx)
   if (!fin.ok) return fin
-  return { ok: true, id: String((fin.data && fin.data.data && fin.data.data.id) || id) }
+  const mediaId = String((fin.data && fin.data.data && fin.data.data.id) || id)
+  // 代替テキスト（読み上げ用の説明）。確定のあと、投稿の前に付けます（X の決まり）。
+  // 付けられなくても投稿は止めません。そのことだけを伝えます。
+  let note = ''
+  if (alt) {
+    const meta = await xCall('POST', `${X_API}/media/metadata`, keys,
+      { id: mediaId, metadata: { alt_text: { text: alt } } }, 'X（代替テキスト）', ctx)
+    if (!meta.ok) note = '代替テキストは付けられませんでした'
+  }
+  return { ok: true, id: mediaId, note }
 }
 
 async function postX(c, req, ctx) {
   const keys = await xKeys(req)
   let mediaIds = []
+  let altNote = ''
   if (c.images.length) {
-    const ups = await Promise.all(c.images.map((i) => xUpload(i.url, keys, ctx)))
+    const ups = await Promise.all(c.images.map((i) => xUpload(i.url, keys, ctx, i.alt)))
     const bad = ups.find((u) => !u.ok)
     if (bad) return { ok: false, message: `${bad.message}（画像が付けられなかったため、Xには投稿していません）` }
     mediaIds = ups.map((u) => u.id)
+    altNote = ups.some((u) => u.note) ? '代替テキストは付けられませんでした' : ''
   }
+  const parts = c.parts && c.parts.length > 1 ? c.parts : [c.text]
   const r = await xCall('POST', `${X_API}/tweets`, keys,
-    mediaIds.length ? { text: c.text, media: { media_ids: mediaIds } } : { text: c.text },
+    mediaIds.length ? { text: parts[0], media: { media_ids: mediaIds } } : { text: parts[0] },
     'X', ctx, { publish: true })
   /* いちばん多いつまずきは「権限を Read and write にする前に Access Token を
      作った」です。その鍵は読み取り専用のままで、投稿は 403 になります。
@@ -332,7 +344,28 @@ async function postX(c, req, ctx) {
   }
   if (!r.ok) return r
   const id = r.data && r.data.data && r.data.data.id
-  return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '' }
+  const url = id ? `https://x.com/i/web/status/${id}` : ''
+  // スレッドの2件目から：1つ前の投稿への返信としてつなげます。
+  const rest = await chain(parts, id, async (text, prev) => {
+    const x = await xCall('POST', `${X_API}/tweets`, keys, { text, reply: { in_reply_to_tweet_id: prev } }, 'X', ctx, { publish: true })
+    return x.ok ? { ok: true, id: x.data && x.data.data && x.data.data.id } : x
+  }, 'X')
+  return { ok: true, id, url, parts: parts.length, message: [altNote, rest].filter(Boolean).join('。') }
+}
+
+/** スレッドの2件目以降を順に出します。1件目はもう公開されているので、
+ *  途中で止まっても「成功」のまま、何件目で止まったかを伝えます。 */
+async function chain(parts, firstId, send, label) {
+  let prev = firstId
+  for (let i = 1; i < parts.length; i++) {
+    const r = await send(parts[i], prev, i)
+    if (!r.ok || !r.id) {
+      return `スレッドの ${i + 1}/${parts.length} 件目で止まりました（${String(r.message || '返事に番号がありませんでした').replace(/^.*?：/, '')}）。` +
+        `${r.unknown ? '出たかどうか分かりません。' : ''}続きは${label}の画面で、${i}件目への返信として足してください`
+    }
+    prev = r.id
+  }
+  return parts.length > 1 ? `スレッド ${parts.length} 件をつなげて投稿しました` : ''
 }
 
 /* ------------------------------------------------------------- Facebook -- */
@@ -359,44 +392,60 @@ async function postFacebook(c, req, ctx) {
 
 /* ------------------------------------------------------------ Instagram -- */
 
-async function igToken(req) {
+export async function igToken(req) {
   return (await setting('IG_TOKEN', '', req)) || (await setting('FB_PAGE_TOKEN', '', req))
 }
 
 /** Meta's two-step publish: build a container, wait for it, then publish.
  *  Every step can fail on its own, and each says which one it was. */
-async function postInstagram(c, req, ctx) {
+async function postInstagram(c, req, ctx, p) {
   const user = await setting('IG_USER_ID', '', req)
   const token = await igToken(req)
   if (!token) return { ok: false, message: 'Instagram：アクセストークンが未設定です（Facebookページのトークンでも構いません）。' }
   if (!c.images[0]) return { ok: false, message: 'Instagram：画像が必要です。' }
   const make = new URLSearchParams({ image_url: c.images[0].url, caption: c.text, access_token: token })
+  // 代替テキスト（2025年3月から画像の投稿で使えます。リール・ストーリーズは不可）。
+  if (c.images[0].alt) make.set('alt_text', c.images[0].alt)
   const made = await call(`${GRAPH}/${encodeURIComponent(user)}/media`, { method: 'POST', body: make }, 'Instagram（下書き作成）', ctx)
   if (!made.ok) return made
   const cid = String(made.data.id || '')
   const ready = await waitReady(`${GRAPH}/${encodeURIComponent(cid)}?fields=status_code&access_token=${encodeURIComponent(token)}`,
     'status_code', 'Instagram（画像の確認）', ctx)
   if (!ready.ok) return ready
-  const pub = new URLSearchParams({ creation_id: cid, access_token: token })
-  const p = await call(`${GRAPH}/${encodeURIComponent(user)}/media_publish`, { method: 'POST', body: pub }, 'Instagram（公開）', ctx, { publish: true })
-  if (!p.ok) return p
-  const id = p.data.id
+  const form = new URLSearchParams({ creation_id: cid, access_token: token })
+  const pub = await call(`${GRAPH}/${encodeURIComponent(user)}/media_publish`, { method: 'POST', body: form }, 'Instagram（公開）', ctx, { publish: true })
+  if (!pub.ok) return pub
+  const id = pub.data.id
   let url = ''
   if (ctx.deadline - Date.now() > 2500) {
     const link = await call(`${GRAPH}/${encodeURIComponent(id)}?fields=permalink&access_token=${encodeURIComponent(token)}`, {}, 'Instagram', ctx, { ms: 2500 })
     if (link.ok) url = link.data.permalink || ''
   }
-  return { ok: true, id, url }
+  /* 最初のコメント（ハッシュタグや「リンクはプロフィールから」など）。
+     公開のすぐあとに、自分のアカウントからコメントします。付けられなくても
+     投稿はもう出ているので「成功」のまま、そのことだけを伝えます。
+     instagram_manage_comments の権限が要ります。 */
+  let message = ''
+  const first = String((p && p.firstComment) || '').trim()
+  if (first) {
+    const cm = await call(`${GRAPH}/${encodeURIComponent(id)}/comments`, {
+      method: 'POST', body: new URLSearchParams({ message: first, access_token: token }),
+    }, 'Instagram（最初のコメント）', ctx, { ms: 4000 })
+    message = cm.ok
+      ? '最初のコメントも付けました。'
+      : '最初のコメントは付けられませんでした（鍵に instagram_manage_comments の権限が要ります）。投稿の画面から手でコメントしてください。'
+  }
+  return { ok: true, id, url, message }
 }
 
 /* -------------------------------------------------------------- Threads -- */
 
-async function postThreads(c, req, ctx) {
-  const user = await setting('THREADS_USER_ID', '', req)
-  const token = await setting('THREADS_TOKEN', '', req)
-  const img = c.images[0]
-  const make = new URLSearchParams({ media_type: img ? 'IMAGE' : 'TEXT', text: c.text, access_token: token })
+/** Threads に1件。reply_to があれば、その投稿への返信（スレッドの続き）。 */
+async function threadsOne(user, token, text, img, replyTo, ctx) {
+  const make = new URLSearchParams({ media_type: img ? 'IMAGE' : 'TEXT', text, access_token: token })
   if (img) make.set('image_url', img.url)
+  if (img && img.alt) make.set('alt_text', img.alt)
+  if (replyTo) make.set('reply_to_id', replyTo)
   const made = await call(`${THREADS}/${encodeURIComponent(user)}/threads`, { method: 'POST', body: make }, 'Threads（下書き作成）', ctx)
   if (!made.ok) return made
   const cid = String(made.data.id || '')
@@ -406,13 +455,23 @@ async function postThreads(c, req, ctx) {
   const pub = new URLSearchParams({ creation_id: cid, access_token: token })
   const p = await call(`${THREADS}/${encodeURIComponent(user)}/threads_publish`, { method: 'POST', body: pub }, 'Threads（公開）', ctx, { publish: true })
   if (!p.ok) return p
-  const id = p.data.id
+  return { ok: true, id: p.data.id }
+}
+
+async function postThreads(c, req, ctx) {
+  const user = await setting('THREADS_USER_ID', '', req)
+  const token = await setting('THREADS_TOKEN', '', req)
+  const parts = c.parts && c.parts.length > 1 ? c.parts : [c.text]
+  const first = await threadsOne(user, token, parts[0], c.images[0], '', ctx)
+  if (!first.ok) return first
+  const id = first.id
+  const rest = await chain(parts, id, (text, prev) => threadsOne(user, token, text, null, prev, ctx), 'Threads')
   let url = ''
   if (ctx.deadline - Date.now() > 2500) {
     const link = await call(`${THREADS}/${encodeURIComponent(id)}?fields=permalink&access_token=${encodeURIComponent(token)}`, {}, 'Threads', ctx, { ms: 2500 })
     if (link.ok) url = link.data.permalink || ''
   }
-  return { ok: true, id, url }
+  return { ok: true, id, url, parts: parts.length, message: rest }
 }
 
 /* ------------------------------------------------------------- LinkedIn -- */
@@ -485,6 +544,11 @@ const SENDERS = {
 
 /* -------------------------------------------------------------- payload -- */
 
+/** 画像の代替テキスト。改行は空白に、ALT_MAX 文字まで（X・Instagram の上限）。 */
+function cleanAlt(v) {
+  return String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim().slice(0, ALT_MAX)
+}
+
 /** Read and check what the composer sent, once, for both "send now" and
  *  "send on a date". Returns { ok, payload } or { ok:false, message }. */
 export function readPayload(body) {
@@ -496,7 +560,7 @@ export function readPayload(body) {
   let images = Array.isArray(b.images) ? b.images : []
   if (!images.length && b.imageUrl) images = [{ url: String(b.imageUrl) }]
   images = images.slice(0, 4).map((i) => (typeof i === 'string' ? { url: i } : i || {}))
-    .map((i) => ({ url: String(i.url || '').trim(), preview: String(i.preview || '').trim() }))
+    .map((i) => ({ url: String(i.url || '').trim(), preview: String(i.preview || '').trim(), alt: cleanAlt(i.alt) }))
     .filter((i) => i.url)
 
   if (!targets.length) return { ok: false, message: '投稿先が選ばれていません。' }
@@ -521,7 +585,30 @@ export function readPayload(body) {
   // Googleビジネスプロフィールのボタンの種類（知らない値は「詳細」にします）。
   const gbpAction = String((b.gbp && b.gbp.action) || '')
   const gbp = { action: GBP_ACTIONS[gbpAction] ? gbpAction : 'LEARN_MORE' }
-  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId, gbp } }
+  // Instagram の「最初のコメント」（公開のすぐあとに付けます）。Instagram に出すときだけ。
+  const firstComment = targets.includes('instagram') ? String(b.firstComment || '').trim().slice(0, 2200) : ''
+  const out = { text, link, campaign, images, variants, targets, sendId, gbp }
+  if (firstComment) out.firstComment = firstComment
+  // スレッドに分ける投稿先（X・Threads・Bluesky のうち、選んだもの）と、番号を付けるか。
+  const th = b.thread && typeof b.thread === 'object' ? b.thread : null
+  const thNets = th && Array.isArray(th.nets) ? th.nets.map(String).filter((n) => THREADABLE[n] && targets.includes(n)) : []
+  if (thNets.length) out.thread = { nets: [...new Set(thNets)], number: th.number !== false }
+  return { ok: true, payload: out }
+}
+
+/** 繰り返し投稿の中身を、定型文から作る関数（_social-queue.js の planRepeats に渡します）。
+ *  送り先は「毎朝の自動処理から送れるもの」だけ——ブラウザにだけ置いた鍵は、
+ *  朝9時には見えないためです。 */
+export async function repeatBuilder() {
+  const nets = await socialStatus()
+  return (t) => {
+    const targets = (t.nets || []).filter((id) => nets.some((n) => n.id === id && n.ready && n.scheduled))
+    if (!targets.length) return { ok: false, message: '予約で送れる投稿先がありません（選んだSNSの鍵を、Vercel の環境変数か保存先に入れてください）。' }
+    const r = readPayload({ text: t.text, link: t.link, campaign: t.campaign, targets, images: t.images || [] })
+    if (!r.ok) return r
+    const problems = precheck(r.payload)
+    return problems.length ? { ok: false, message: problems.join(' / ') } : r
+  }
 }
 
 /** Every target, checked before anything is sent. A post that is wrong for
@@ -569,10 +656,12 @@ export async function sendPost(payload, req, opts = {}) {
     const r = s.status === 'fulfilled' ? s.value : { ok: false, message: String((s.reason && s.reason.message) || s.reason).slice(0, 200) }
     let message = r.message || ''
     if (!r.ok && message && !message.startsWith(net.label) && !message.startsWith(net.label.slice(0, 4))) message = `${net.label}：${message}`
-    return {
+    const row = {
       net: id, label: net.label, ok: !!r.ok, unknown: !r.ok && !!r.unknown,
       id: r.id ? String(r.id) : '', url: r.url || '', message,
     }
+    if (r.parts > 1) row.parts = r.parts
+    return row
   })
 
   // What each network was actually handed, when it differed from the base
@@ -583,7 +672,8 @@ export async function sendPost(payload, req, opts = {}) {
   const refs = {}
   for (const id of payload.targets) {
     const c = compose(id, payload, BRAND.host)
-    if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
+    if (c.parts && c.parts.length > 1) texts[id] = c.parts.join('\n―\n').slice(0, 1500)
+    else if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
     if (/[?&]ref=/.test(c.text + ' ' + c.link)) refs[id] = fieldFor(id, payload.campaign)
   }
   const entry = {

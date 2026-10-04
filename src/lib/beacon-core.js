@@ -122,7 +122,12 @@ export function lumBeacon(cfg) {
     var nav = ''
     try { var ne = performance.getEntriesByType('navigation')[0]; nav = ne ? ne.type : '' } catch (e) {}
     var x = read()
-    var again = src || cmp || (ref && nav !== 'reload' && nav !== 'back_forward')
+    // 同じ印（ref と utm_campaign）のリンクを、同じ訪問の中でたどったときは
+    // 続きとして数えます。プロフィールのリンク集（/links?from=instagram）から
+    // 自社のページ（?ref=instagram&utm_campaign=bio）へ移るたびに「新しい
+    // 訪問」が増えると、Instagram から来た1回が2回に数えられるためです。
+    var same = x && src && x.src === src && x.cmp === cmp && now() - x.last <= IDLE
+    var again = (!same && (src || cmp)) || (ref && nav !== 'reload' && nav !== 'back_forward')
     if (!x || now() - x.last > IDLE || again) {
       x = fresh()
       x.src = src; x.med = med; x.cmp = cmp; x.ref = ref

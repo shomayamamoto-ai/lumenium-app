@@ -147,7 +147,8 @@ export function bskyRecord(c, images, now = new Date()) {
   const facets = blueskyFacets(c.text)
   if (facets.length) rec.facets = facets
   if (images && images.length) {
-    rec.embed = { $type: 'app.bsky.embed.images', images: images.map((b) => ({ alt: '', image: b })) }
+    // alt は読み上げ用の説明（空でも送る決まりです）。
+    rec.embed = { $type: 'app.bsky.embed.images', images: images.map((b, i) => ({ alt: String((c.images && c.images[i] && c.images[i].alt) || ''), image: b })) }
   }
   return rec
 }
@@ -162,15 +163,33 @@ export async function postBluesky(c, req, ctx) {
     if (!u.ok) return { ok: false, message: `${u.message}（画像が付けられなかったため、Blueskyには投稿していません）` }
     blobs.push(u.blob)
   }
-  const r = await call(`${BSKY_SERVICE}/xrpc/com.atproto.repo.createRecord`, {
+  const parts = c.parts && c.parts.length > 1 ? c.parts : [c.text]
+  const create = (record) => call(`${BSKY_SERVICE}/xrpc/com.atproto.repo.createRecord`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo: s.data.did, collection: 'app.bsky.feed.post', record: bskyRecord(c, blobs) }),
+    body: JSON.stringify({ repo: s.data.did, collection: 'app.bsky.feed.post', record }),
   }, 'Bluesky', ctx, { publish: true })
+  const r = await create(bskyRecord({ ...c, text: parts[0] }, blobs))
   if (!r.ok) return r
   const uri = String(r.data.uri || '')
   const rkey = uri.split('/').pop()
-  return { ok: true, id: uri, url: rkey ? `https://bsky.app/profile/${s.data.handle || s.data.did}/post/${rkey}` : '' }
+  const url = rkey ? `https://bsky.app/profile/${s.data.handle || s.data.did}/post/${rkey}` : ''
+  /* スレッドの続き。返信には「いちばん最初の投稿（root）」と「すぐ前の投稿
+     （parent）」の両方の uri と cid が要ります。 */
+  const root = { uri, cid: String(r.data.cid || '') }
+  let parent = root
+  let note = parts.length > 1 ? `スレッド ${parts.length} 件をつなげて投稿しました` : ''
+  for (let i = 1; i < parts.length; i++) {
+    const rec = bskyRecord({ text: parts[i], images: [] }, [])
+    rec.reply = { root, parent }
+    const x = await create(rec)
+    if (!x.ok) {
+      note = `スレッドの ${i + 1}/${parts.length} 件目で止まりました（${String(x.message || '').replace(/^.*?：/, '')}）。続きはBlueskyの画面で、${i}件目への返信として足してください`
+      break
+    }
+    parent = { uri: String(x.data.uri || ''), cid: String(x.data.cid || '') }
+  }
+  return { ok: true, id: uri, url, parts: parts.length, message: note }
 }
 
 export async function testBluesky(req, ctx) {
