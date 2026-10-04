@@ -259,6 +259,11 @@ const CALLS = [
   ['social', 'PUT', '', JSONH, { links: { latest: 2, items: [{ title: 'ご予約', url: 'https://lumenium.net/booking' }] } }],
   // プロフィールのリンク集。訪問者が開くページなので、鍵なしで呼ぶ。
   ['links', 'GET', '?from=instagram', {}],
+  // 承認の流れ：承認待ちの保存と、責任者が開くページ（鍵なし。使えないリンクは 410）。
+  ['social', 'POST', '', JSONH, { action: 'approval-create', text: 'スモーク', targets: ['x'], note: 'smoke' }],
+  ['social', 'POST', '', JSONH, { action: 'approval-send', id: 'none' }],
+  ['social-approve', 'GET', '?t=0000', {}],
+  ['social-approve', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=0000&decision=approve'],
   ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
   ['social-cron', 'GET', '', {}],
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],

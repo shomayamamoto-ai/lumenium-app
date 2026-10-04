@@ -36,7 +36,8 @@ function redis(cmds) {
     if (op === 'GET') return { result: kv.get(k) ?? null }
     if (op === 'SET') { kv.set(k, c[2]); return { result: 'OK' } }
     if (op === 'INCR') { const v = (Number(kv.get(k)) || 0) + 1; kv.set(k, String(v)); return { result: v } }
-    if (op === 'EXPIRE' || op === 'DEL') return { result: 1 }
+    if (op === 'EXPIRE') return { result: 1 }
+    if (op === 'DEL') { const had = kv.delete(k) || hashes.delete(k) || lists.delete(k); return { result: had ? 1 : 0 } }
     if (op === 'LPUSH') { const l = lists.get(k) || []; l.unshift(c[2]); lists.set(k, l); return { result: l.length } }
     if (op === 'LTRIM') { const l = lists.get(k) || []; lists.set(k, l.slice(c[2], c[3] + 1)); return { result: 'OK' } }
     if (op === 'LRANGE') { const l = lists.get(k) || []; return { result: l.slice(c[2], c[3] + 1) } }
@@ -1033,6 +1034,92 @@ await test('/links は vercel.json で関数につながっている', () => {
   const i = v.rewrites.findIndex((r) => r.source === '/links' && r.destination === '/api/links')
   const all = v.rewrites.findIndex((r) => r.source === '/(.*)')
   assert.ok(i !== -1 && i < all)
+})
+
+console.log('承認の流れ')
+const SETS = []
+await test('リンク：保存するのはハッシュだけ、7日の期限、用途は social-approve、会員の共有リンクには出ない', async () => {
+  process.env.CRON_SECRET = 'sec'
+  const A = await import('../api/_social-approve.js')
+  const sh = await import('../api/_share.js')
+  const p = S.readPayload({ text: '秋の新作です', targets: ['x'] }).payload
+  const r = await A.createApproval(p, { note: '確認お願いします' })
+  assert.equal(r.ok, true)
+  assert.match(r.token, /^[0-9a-f]{48}$/)
+  const tokKey = [...kv.keys()].find((k) => k.includes('share:t:'))
+  assert.ok(tokKey && !tokKey.includes(r.token) && !JSON.stringify([...kv.values()]).includes(r.token), 'リンクの文字列そのものは保存しない')
+  assert.equal(JSON.parse(kv.get(tokKey)).scope, 'social-approve')
+  assert.equal(JSON.parse(kv.get(tokKey)).ref, r.item.id)
+  assert.ok(Math.abs(Date.parse(r.item.expiresAt) - Date.now() - 7 * 86400000) < 60000)
+  assert.deepEqual((await sh.listShares()).filter((x) => x.scope === 'social-approve'), [])
+  // 会員一覧のリンクとしては使えない
+  assert.equal(await sh.useShare(r.token, 'members'), null)
+  SETS.push(r)
+})
+await test('リンク：開ける → 承認 → もう使えない（1回きり）。差し戻しはコメントが要る', async () => {
+  const A = await import('../api/_social-approve.js')
+  const r = SETS[0]
+  assert.equal((await A.openApproval(r.token)).id, r.item.id)
+  assert.equal(await A.openApproval('0'.repeat(48)), null)
+  const noComment = await A.decideApproval(r.token, 'return', '  ')
+  assert.equal(noComment.ok, false)
+  assert.equal(noComment.retry, true)
+  const ok = await A.decideApproval(r.token, 'approve', 'OKです')
+  assert.equal(ok.ok, true)
+  assert.equal(ok.item.status, 'approved')
+  assert.equal(await A.openApproval(r.token), null)
+  assert.equal((await A.decideApproval(r.token, 'return', 'やっぱり')).ok, false)
+  const list = await A.listApprovals()
+  assert.equal(list.find((x) => x.id === r.item.id).comment, 'OKです')
+})
+await test('日付つきは承認と同時に予約、差し戻しはコメントが管理画面に残る、取り下げでリンクも消える', async () => {
+  const A = await import('../api/_social-approve.js')
+  const tomorrow = new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10)
+  const p = S.readPayload({ text: '予約つき', targets: ['x'] }).payload
+  const a = await A.createApproval(p, { date: tomorrow })
+  const d = await A.decideApproval(a.token, 'approve', '')
+  assert.equal(d.item.status, 'scheduled')
+  assert.ok((await Q.listScheduled()).some((x) => x.id === d.item.scheduledId))
+  const b = await A.createApproval(p, {})
+  assert.equal((await A.decideApproval(b.token, 'return', '日付を直してください')).item.status, 'returned')
+  const c = await A.createApproval(p, {})
+  assert.equal(await A.removeApproval(c.item.id), true)
+  assert.equal(await A.openApproval(c.token), null)
+})
+await test('承認ページ：鍵なしで開け、見え方とチェックが出て、フォームで承認できる', async () => {
+  const A = await import('../api/_social-approve.js')
+  const page = await import('../api/social-approve.js')
+  const p = S.readPayload({ text: '業界最安！ご予約はこちら https://lumenium.net/', targets: ['x', 'instagram'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] }).payload
+  const a = await A.createApproval(p, { note: '急ぎです' })
+  const res = await page.GET(new Request('https://lumenium.net/api/social-approve?t=' + a.token))
+  const html = await res.text()
+  assert.equal(res.status, 200)
+  assert.equal(res.headers.get('x-robots-tag'), 'noindex, nofollow')
+  assert.equal(res.headers.get('referrer-policy'), 'no-referrer')
+  assert.ok(html.includes('急ぎです') && html.includes('Instagram') && html.includes('景品表示法'))
+  assert.ok(html.includes('?ref=x'))
+  const form = new FormData()
+  form.set('t', a.token); form.set('decision', 'approve'); form.set('comment', '')
+  const done = await page.POST(new Request('https://lumenium.net/api/social-approve', { method: 'POST', body: form }))
+  assert.ok((await done.text()).includes('承認しました'))
+  const again = await page.GET(new Request('https://lumenium.net/api/social-approve?t=' + a.token))
+  assert.equal(again.status, 410)
+})
+await test('管理画面：承認済みだけをそのまま投稿でき、投稿済みになる', async () => {
+  route = happy
+  const A = await import('../api/_social-approve.js')
+  const api = await import('../api/social.js')
+  const call = (body) => api.POST(new Request('https://lumenium.net/api/social', { method: 'POST', headers: { authorization: 'Bearer test-admin-key', 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+  const made = await (await call({ action: 'approval-create', text: '承認のテスト', targets: ['x'], note: 'n' })).json()
+  assert.equal(made.ok, true)
+  assert.match(made.link, /^https:\/\/lumenium\.net\/api\/social-approve\?t=[0-9a-f]{48}$/)
+  const id = made.approvals[0].id
+  const early = await call({ action: 'approval-send', id })
+  assert.equal(early.status, 400)
+  await A.decideApproval(new URL(made.link).searchParams.get('t'), 'approve', '')
+  const sent = await (await call({ action: 'approval-send', id })).json()
+  assert.equal(sent.ok, true)
+  assert.equal(sent.approvals.find((x) => x.id === id).status, 'done')
 })
 
 console.log(`\n${passed} 件成功、${failed} 件失敗`)

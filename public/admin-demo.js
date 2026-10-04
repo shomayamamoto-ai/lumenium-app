@@ -1271,6 +1271,7 @@
         { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
         { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
       ],
+      approvals: socialApprovals(),
       links: {
         title: '', note: '（サンプル）ご予約・メニュー・アクセスはこちらから', latest: 3,
         items: [
@@ -1282,6 +1283,21 @@
       }
     };
   }
+  /* 承認の流れ（shape: _social-approve.js listApprovals）。 */
+  function socialApprovals() {
+    var a = function (id, status, label, days, text, targets, extra) {
+      var p = { text: text, link: 'https://' + DEMO_HOST + '/menu', campaign: 'autumn', images: [], variants: {}, targets: targets, sendId: '6f1c1a2e-1d1c-4c1e-9a1e-0123456789ab', gbp: { action: 'LEARN_MORE' } };
+      var o = { id: id, status: status, label: label, createdAt: ago(days * DAY), decidedAt: status === 'pending' ? null : ago(days * DAY - 3600000), date: '', note: '', comment: '', error: '', scheduledId: '', expired: false, targets: targets, text: text, payload: p };
+      for (var k in extra) o[k] = extra[k];
+      return o;
+    };
+    return [
+      a('demo-apv-1', 'pending', '承認待ち', 0.1, '（サンプル）10月12日（土）は秋のマルシェに出店します。ご予約の方には焼き菓子をお取り置きします。', ['instagram', 'x'], { note: '10/12 のイベントの告知です', date: jstDate(-5) }),
+      a('demo-apv-2', 'approved', '承認済み', 1, '（サンプル）秋の限定メニュー「栗のモンブラン」を始めました。', ['x', 'threads', 'facebook'], { comment: 'これで大丈夫です' }),
+      a('demo-apv-3', 'returned', '差し戻し', 2, '（サンプル）業界最安の価格でご提供します！', ['x', 'line'], { comment: '「業界最安」は根拠が無いので外してください' })
+    ];
+  }
+
   /* このサイトの決まり（shape: _social-text.js validateStyle）。 */
   function socialStyle() {
     return {
@@ -1360,6 +1376,7 @@
       return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
     }
     notice(MSG);
+    if (/^approval-/.test(a)) return blocked({ approvals: socialApprovals() });
     if (a === 'cancel') return blocked({ items: socialQueue() });
     if (a === 'schedule') return blocked({ items: socialQueue() });
     return blocked({ results: [], recent: socialRecent(), posted: 0, total: 0 });

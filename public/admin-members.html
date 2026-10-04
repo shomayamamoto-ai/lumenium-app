@@ -666,6 +666,13 @@
   .soc-chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #e7e4dc; color: var(--text); margin: 1px 2px 1px 0; }
   .soc-chip.q { background: rgba(20,184,166,0.16); color: #0f766e; }
   .soc-chip.ng { background: rgba(248,113,113,0.15); color: #b42318; }
+  .soc-chip.pending { background: rgba(251,191,36,.2); color: #92400e; }
+  .soc-chip.approved, .soc-chip.scheduled { background: rgba(20,184,166,0.16); color: #0f766e; }
+  .soc-chip.returned { background: rgba(248,113,113,0.15); color: #b42318; }
+  .soc-chip.done { background: #e7e4dc; color: var(--sub); }
+  .soc-apv { flex-wrap: wrap; }
+  .soc-apv .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .soc-code { font-size: 11.5px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; overflow-wrap: anywhere; word-break: break-all; }
   .soc-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .soc-cal .hd { font-size: 10.5px; color: var(--sub); text-align: center; font-weight: 700; padding: 2px 0; }
   .soc-cal .d { min-height: 64px; background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 3px 4px; font-size: 11px; text-align: left; color: var(--text); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; width: 100%; font-weight: 400; }
@@ -1177,13 +1184,17 @@ header h1, header button, header a { white-space: nowrap; }
         <h3 class="soc-step">5　送る</h3>
         <div class="toolbar" style="margin:12px 0">
           <button type="button" id="social-post">選んだSNSに投稿</button>
+          <button type="button" class="ghost" id="social-approve">責任者に承認をお願いする</button>
           <button type="button" class="ghost" id="social-reload">状態を再取得</button>
           <span id="social-hint"></span>
         </div>
+        <div id="social-approval-out"></div>
       </div>
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 class="soc-h">予約中の投稿</h3>
       <div id="social-queue" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">承認の流れ（承認待ち・承認済み・差し戻し）</h3>
+      <div id="social-approvals" style="margin-bottom:18px"></div>
       <h3 class="soc-h">カレンダー（予約と、これまでの投稿）</h3>
       <div id="social-cal" style="margin-bottom:18px"></div>
       <h3 class="soc-h">投稿の成果（サイトに来た人・問い合わせ）</h3>
@@ -8424,6 +8435,136 @@ window.lumAdmin = {
     });
   }
 
+  /* ---- 承認の流れ（担当者 → 責任者） ----
+     「承認をお願いする」で、いまの内容を承認待ちとして保存し、1回きりの
+     リンク（7日間）を作ります。責任者はそのリンクから、鍵なしで見て
+     「承認」か「差し戻し」を選びます。承認されたものは、ここから投稿・予約
+     します（日付を決めてあれば、承認と同時に予約に入ります）。 */
+  var approvals = [];
+  async function askApproval() {
+    var ids = picked();
+    if (!ids.length) { say('先に 1 で出す先を選んでください。'); return; }
+    if (!urlNotes()) return;
+    var note = prompt('責任者へのひとこと（任意。例：10/12 のイベントの告知です）', '');
+    if (note == null) return;
+    var btn = el('social-approve');
+    btn.disabled = true;
+    say('承認待ちとして保存しています…', true);
+    try {
+      var body = payload();
+      body.targets = ids;
+      body.action = 'approval-create';
+      body.note = note;
+      if (S.when === 'date' && S.date) body.date = S.date;
+      var r = await postJson('/api/social', body);
+      var d = r.data || {};
+      if (d.approvals) { approvals = d.approvals; renderApprovals(); }
+      if (!d.ok) { say(d.message || '保存できませんでした。'); return; }
+      say(d.message, true);
+      var out = el('social-approval-out');
+      out.innerHTML = '<div class="soc-box" style="margin:6px 0 0"><b style="font-size:12.5px">責任者に送るリンク（' + (d.days || 7) + '日間・1回だけ）</b>' +
+        '<div class="soc-small" style="margin:4px 0">このリンクはいまだけ表示されます。LINEやメールで責任者に送ってください。開くのに管理画面の鍵は要りません。</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><code class="soc-code" id="soc-apv-link">' + esc(d.link) + '</code>' +
+        '<button type="button" class="ghost" id="soc-apv-copy" style="font-size:11px;padding:4px 10px">コピー</button></div></div>';
+      el('soc-apv-copy').addEventListener('click', function () {
+        var b = this;
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(d.link).then(function () { b.textContent = '✓ コピーしました'; }, function () {});
+      });
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  function loadIntoComposer(p) {
+    el('social-text').value = p.text || '';
+    el('social-link').value = p.link || '';
+    el('social-campaign').value = p.campaign || '';
+    S.picked = (p.targets || []).filter(function (id) { return !!netById(id); });
+    S.images = (p.images || []).map(function (i) { return { url: i.url, preview: i.preview || '', alt: i.alt || '' }; });
+    S.variants = p.variants || {};
+    S.firstComment = p.firstComment || '';
+    S.thread = p.thread && Array.isArray(p.thread.nets) ? { nets: p.thread.nets.slice(), number: p.thread.number !== false } : { nets: [], number: true };
+    S.gbpAction = (p.gbp && p.gbp.action) || 'LEARN_MORE';
+    S.images.forEach(function (i) { measure(i.url); });
+    renderNets();
+    renderImages();
+    changed(true);
+    var top = el('social-compose');
+    if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start' });
+  }
+  function renderApprovals() {
+    var host = el('social-approvals');
+    if (!approvals.length) {
+      host.innerHTML = '<p class="share-note">承認をお願いしている投稿はありません。担当者が作って、責任者が確かめてから出したいときは、5 の「責任者に承認をお願いする」を使います。</p>';
+      return;
+    }
+    var sch = info.schedule || {};
+    host.innerHTML = '';
+    approvals.forEach(function (a) {
+      var d = document.createElement('div');
+      d.className = 'soc-q soc-apv';
+      var labels = (a.targets || []).map(function (id) { var n = netById(id); return n ? n.label : id; }).join('・');
+      var b = document.createElement('div');
+      b.className = 'body';
+      b.innerHTML = '<span class="soc-chip ' + esc(a.status) + '">' + esc(a.expired ? '期限切れ' : a.label) + '</span> ' +
+        '<span class="soc-small">' + esc(new Date(a.createdAt).toLocaleDateString('ja-JP')) + ' ・ ' + esc(labels) + (a.date ? ' ・ 予定日 ' + esc(a.date) : '') + '</span><br>' +
+        esc(a.text || '（本文なし）') +
+        (a.note ? '<div class="soc-small">担当者：' + esc(a.note) + '</div>' : '') +
+        (a.comment ? '<div class="soc-small" style="color:' + (a.status === 'returned' ? '#b42318' : '#047857') + '">責任者：' + esc(a.comment) + '</div>' : '') +
+        (a.error ? '<div class="soc-small" style="color:#b45309">' + esc(a.error) + '</div>' : '');
+      d.appendChild(b);
+      var acts = document.createElement('div');
+      acts.className = 'acts';
+      var btn = function (label, fn, ghost) {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = ghost === false ? '' : 'ghost'; x.textContent = label;
+        x.addEventListener('click', function () { fn(x); });
+        acts.appendChild(x);
+        return x;
+      };
+      if (a.status === 'approved') {
+        btn('今すぐ投稿', function (x) { approvalAct(x, 'approval-send', a, a.targets.length + ' 件のSNSに、承認された内容をそのまま投稿します（取り消しはできません）。よろしいですか？'); }, false);
+        if (sch.ready) {
+          var di = document.createElement('input');
+          di.type = 'date'; di.min = tomorrowJst(); di.value = a.date && a.date >= tomorrowJst() ? a.date : '';
+          di.setAttribute('aria-label', '予約する日付');
+          di.style.cssText = 'width:auto;font-size:11px;padding:4px 6px';
+          acts.appendChild(di);
+          btn('この日に予約', function (x) {
+            if (!di.value) { say('予約する日付を選んでください。'); return; }
+            approvalAct(x, 'approval-schedule', a, di.value + ' の朝に予約します。よろしいですか？', { date: di.value });
+          });
+        }
+      }
+      if (a.status === 'approved' || a.status === 'returned' || a.status === 'pending') {
+        btn('編集に戻す', function () {
+          if (el('social-text').value.trim() && !confirm('いまの本文を、この記録の内容に置き換えます。よろしいですか？')) return;
+          loadIntoComposer(a.payload || {});
+          say(a.status === 'returned' ? '差し戻された内容を戻しました。直してから、もう一度承認をお願いしてください。' : '内容を戻しました。直したときは、もう一度承認をお願いしてください。', true);
+        });
+      }
+      btn(a.status === 'pending' ? '取り下げる' : '記録から消す', function (x) {
+        if (!confirm(a.status === 'pending' ? '承認のお願いを取り下げます（送ったリンクも使えなくなります）。よろしいですか？' : 'この記録を消します。よろしいですか？')) return;
+        approvalAct(x, 'approval-delete', a);
+      });
+      d.appendChild(acts);
+      host.appendChild(d);
+    });
+  }
+  async function approvalAct(x, action, a, ask, extra) {
+    if (ask && !confirm(ask)) return;
+    x.disabled = true;
+    var body = { action: action, id: a.id };
+    if (extra) for (var k in extra) body[k] = extra[k];
+    var r = await postJson('/api/social', body);
+    var d = r.data || {};
+    if (d.approvals) { approvals = d.approvals; renderApprovals(); }
+    if (d.items) { info.schedule.items = d.items; renderQueue(d.items); }
+    if (d.results) renderResults(d.results, false);
+    if (d.recent) renderLog(d.recent, d.kept || info.stored);
+    say(d.message || (d.ok ? '済みました。' : 'できませんでした。'), !!d.ok);
+    x.disabled = false;
+  }
+
   /* ---- プロフィールのリンク集（/links） ----
      Instagram・TikTok のプロフィールには、リンクを1つしか置けません。
      そこに /links?from=instagram を置くと、ここで決めた一覧が出ます。
@@ -8582,6 +8723,8 @@ window.lumAdmin = {
     renderTemplates();
     if (d.links) links = d.links;
     renderLinks();
+    approvals = d.approvals || [];
+    renderApprovals();
     renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {
@@ -8780,6 +8923,7 @@ window.lumAdmin = {
   });
   el('social-date').addEventListener('change', function () { S.date = el('social-date').value; changed(false); });
   el('social-post').addEventListener('click', post);
+  el('social-approve').addEventListener('click', askApproval);
   el('social-reload').addEventListener('click', load);
   el('social-style-save').addEventListener('click', saveStyleRules);
   el('social-tpl-use').addEventListener('click', useTemplate);

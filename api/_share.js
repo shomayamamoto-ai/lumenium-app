@@ -55,9 +55,14 @@ export function shareReady() {
   return !!storeConfig()
 }
 
-/** Issue a link. Returns { token, link } — the token is not recoverable after
- *  this, because only its digest is written. */
-export async function createShare({ label, days, temp }) {
+/** Issue a link. Returns { token, link, hash } — the token is not recoverable
+ *  after this, because only its digest is written.
+ *
+ *  `scope` and `ref` let other features borrow the same mechanism: the SNS
+ *  approval link (scope 'social-approve') is bound to one draft (`ref`), and
+ *  stays out of the member-list index (`listed: false`), because it is not a
+ *  member share and must not show up — or be revocable — there. */
+export async function createShare({ label, days, temp, scope, ref, listed }) {
   const cfg = storeConfig()
   if (!cfg) return null
 
@@ -67,7 +72,8 @@ export async function createShare({ label, days, temp }) {
   const ttl = temp ? TEMP_TTL : (days > 0 ? days * 24 * 3600 : 0)
   const rec = {
     id,
-    scope: SCOPE,
+    scope: scope || SCOPE,
+    ...(ref ? { ref: String(ref) } : {}),
     label: String(label || '').slice(0, 60) || '共有リンク',
     createdAt: new Date().toISOString(),
     expiresAt: ttl ? new Date(Date.now() + ttl * 1000).toISOString() : null,
@@ -79,10 +85,18 @@ export async function createShare({ label, days, temp }) {
   const cmds = [ttl ? ['SET', TK(hash), JSON.stringify(rec), 'EX', ttl] : ['SET', TK(hash), JSON.stringify(rec)]]
   // Temporary tokens stay out of the index: they expire on their own, and
   // listing them would bury the real links under one row per click.
-  if (!temp) cmds.push(['HSET', INDEX, id, hash])
+  if (!temp && listed !== false) cmds.push(['HSET', INDEX, id, hash])
   await pipeline(cfg, cmds)
 
-  return { token, link: rec }
+  return { token, link: rec, hash }
+}
+
+/** Withdraw a token by its digest (for links kept out of the index). */
+export async function revokeHash(hash) {
+  const cfg = storeConfig()
+  if (!cfg || !/^[0-9a-f]{64}$/.test(String(hash || ''))) return false
+  const [n] = await pipeline(cfg, [['DEL', TK(String(hash))]])
+  return Number(n) > 0
 }
 
 /** Active links, newest first. Expired entries are swept out of the index as
