@@ -124,7 +124,7 @@
     '.inq-hist time{color:var(--sub);margin-right:8px;white-space:nowrap}' +
     '.inq-tbl{width:100%;font-size:12.5px}.inq-tbl td,.inq-tbl th{padding:6px 8px}' +
     '.inq-meter{display:block;height:8px;border-radius:4px;background:#3d3fbf;min-width:2px}' +
-    '.inq-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}' +
+    '.inq-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}' +
     '.inq-check{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.6;margin:6px 0}' +
     '.inq-check input{width:18px;height:18px;margin-top:2px;flex:none}' +
     '.inq-steps{margin:6px 0 0 1.3em;padding:0;font-size:12.5px;line-height:1.8}' +
@@ -375,6 +375,7 @@
 
   function openItem(id) {
     S.open = id;
+    say('');
     try { history.replaceState(history.state, '', location.pathname + location.search + '#inq=' + id); } catch (_) {}
     detail(el('inq-body'), id);
   }
