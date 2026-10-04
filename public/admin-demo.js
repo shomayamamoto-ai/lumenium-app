@@ -1634,6 +1634,22 @@
     return { ok: true, ready: videoReady(), queue: [], caps: { instagram: { ok: true, cap: 25, used: 1 }, tiktok: { ok: true, cap: 25, used: 1 } }, cron: { at: ago(DAY / 3), started: 1, published: 1, failed: 0, waiting: 0 }, jstHour: 9 };
   }
 
+  /* ---- 設定状況のテスト (shape: api/settings-test.js POST) ---- */
+  function liveTest(b) {
+    var t = (b && b.target) || '';
+    var at = new Date().toISOString();
+    if (t === 'resend') {
+      return { ok: true, target: t, state: 'error', at: at, items: [
+        { state: 'ok', text: '（デモ）テストメールを owner@example.com に送りました。数分以内に届くか確認してください（迷惑メールフォルダも）。' },
+        { state: 'error', text: '（デモ）送信元が Resend の試用アドレス（onboarding@resend.dev）のままです。この状態では、お客様あてのメール（会員登録・予約確認・自動返信）は届きません。直し方: resend.com › Domains で自社のドメインを追加し、表示された DNS の値をドメインの管理画面に追加して Verify を押してください。' }
+      ] };
+    }
+    var msg = { github: 'リポジトリを読め、書き込みの権限もあります（実際には何も書き込んでいません）。',
+      ai: 'キーは有効です（このテストに料金はかかりません）。', store: '保存先に書き込み・読み込みができました。',
+      google: 'Google との接続は有効です。' }[t];
+    return { ok: true, target: t, state: 'ok', at: at, message: '（デモ）' + (msg || '確認しました。') };
+  }
+
   /* ---- router ---- */
   function reply(body, status) {
     return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
@@ -1664,6 +1680,8 @@
       // a refused post would blank the sample log.
       if (p === '/api/social') return reply(socialPost(body));
       if (p === '/api/social-write') return reply(socialWrite(body));
+      // 設定状況の「テスト」。実際には何も確かめず、結果の見え方だけを見せます。
+      if (p === '/api/settings-test') return reply(liveTest(body));
     }
     if (!read) {
       notice(MSG);

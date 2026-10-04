@@ -16,6 +16,7 @@ import { listShares } from './_share.js'
 import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
 import { BRAND } from './_brand.js'
+import { senderInfo, SANDBOX_NOTE, DNS_STEPS } from './_sender.js'
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
@@ -50,6 +51,14 @@ export async function GET(req) {
         ? '問い合わせフォームと会員登録が動作します。'
         : '未設定です。お問い合わせフォームが動作していません。resend.com でキーを発行し、Vercel に RESEND_API_KEY を設定してください。',
     },
+    // ボタンを押さなくても分かる問題なので、ここで出します。送信元が Resend の
+    // 試用アドレスのままだと、管理者あての通知は届くのに、お客様あてのメール
+    // （会員登録・予約確認・自動返信）だけが黙って届きません。
+    ...(senderInfo(BRAND.from).sandbox ? [{
+      id: 'sender', label: 'お客様へのメールの送信元', env: 'CONTACT_FROM_EMAIL',
+      state: 'warn',
+      note: SANDBOX_NOTE + ' ' + DNS_STEPS,
+    }] : []),
     {
       id: 'contactTo', label: '問い合わせの宛先', env: 'CONTACT_TO_EMAIL',
       state: has('CONTACT_TO_EMAIL') ? 'ok' : 'warn',
@@ -117,6 +126,16 @@ export async function GET(req) {
         : '未設定のため、週次メールは自動では届きません。Vercel › Settings › Environment Variables に CRON_SECRET（推測できない長い文字列。パスワード管理アプリの自動生成で構いません）を入れて再デプロイすると、毎週月曜の朝9時に先週のまとめが届くようになります。これは「Vercel の定期実行からの呼び出しだけを受け付ける」ための合言葉で、どこにも入力する必要はありません。',
     },
   ]
+
+  // Google は使わないサイトもあるので、接続してあるときだけ行を出します
+  // （テストボタンで接続が切れていないかを確かめられるように）。
+  if (has('GOOGLE_REFRESH_TOKEN')) {
+    checks.push({
+      id: 'google', label: 'Google 連携（予約カレンダー・Search Console）', env: 'GOOGLE_REFRESH_TOKEN',
+      state: 'ok',
+      note: '接続の情報が入っています。「テスト」で、いまも接続が有効かを確かめられます。',
+    })
+  }
 
   // The networks, as one row: which of the five can be posted to right now.
   const nets = await socialStatus(req)

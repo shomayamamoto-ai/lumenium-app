@@ -6259,6 +6259,44 @@ window.lumAdmin = {
       'border-top:1px solid var(--border);padding-top:8px">' + bits.join('<br>') + '</div>';
   }
 
+  /* 「テスト」ボタン。✅ は値が入っていることしか見ていないので、実際に
+     相手のサービスに問い合わせて、動くかどうかと直し方を出します。
+     行の id → テストの種類。送信元の警告の行は、メールのテストで確かめます。 */
+  var TESTS = { resend: 'resend', sender: 'resend', github: 'github', ai: 'ai', store: 'store', google: 'google' };
+  var TEST_HINT = {
+    resend: '管理者の宛先にテストメールを1通送り、送信元ドメインの認証も確かめます',
+    github: '読むだけで、何も書き込みません',
+    ai: '料金はかかりません',
+    store: '60秒で消える目印を書いて読みます',
+    google: '接続が切れていないかを確かめます'
+  };
+
+  async function liveTest() {
+    var btn = this;
+    var out = btn.parentNode.querySelector('.live-out');
+    btn.disabled = true;
+    out.style.display = 'block';
+    out.innerHTML = '<p style="font-size:12px;color:var(--sub)">確かめています…</p>';
+    var r = await window.lumAdmin.fetch('/api/settings-test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: btn.dataset.target })
+    }).catch(function () { return null; });
+    btn.disabled = false;
+    if (!r) { out.innerHTML = '<p style="font-size:12px;color:#b42318">通信に失敗しました。時間をおいてもう一度お試しください。</p>'; return; }
+    if (!r.res.ok || !r.data.ok) {
+      out.innerHTML = '<p style="font-size:12px;color:#b42318;line-height:1.8">' + esc((r.data && r.data.message) || 'テストできませんでした。') + '</p>';
+      return;
+    }
+    var items = r.data.items || [{ state: r.data.state, text: r.data.message }];
+    out.innerHTML = items.map(function (it) {
+      var bad = it.state === 'error';
+      return '<div style="font-size:12px;line-height:1.85;padding:8px 10px;margin-top:6px;border-radius:9px;' +
+        'background:' + (bad ? 'rgba(180,35,24,.07)' : it.state === 'warn' ? 'rgba(251,191,36,.12)' : 'rgba(20,184,166,.10)') +
+        ';border:1px solid ' + MARK[it.state][1] + ';color:' + (bad ? '#b42318' : 'var(--text)') + '">' +
+        MARK[it.state][0] + ' ' + esc(it.text) + '</div>';
+    }).join('');
+  }
+
   function draw(d) {
     var counts = { ok: 0, warn: 0, error: 0 };
     d.checks.forEach(function (c) { counts[c.state] = (counts[c.state] || 0) + 1; });
@@ -6290,8 +6328,17 @@ window.lumAdmin = {
             }).join(' ') : '') +
           '</div>' +
           '<div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:3px">' + esc(c.note) + '</div>' +
+          (TESTS[c.id]
+            ? '<div style="margin-top:8px"><button type="button" class="ghost live-test" data-target="' + TESTS[c.id] +
+              '" style="font-size:12px;padding:6px 12px">テスト</button>' +
+              '<span class="share-note" style="margin-left:8px">' + esc(TEST_HINT[TESTS[c.id]]) + '</span>' +
+              '<div class="live-out" style="display:none;margin-top:8px"></div></div>'
+            : '') +
         '</div></div>';
     }).join('');
+
+    var tbtns = el('health-list').querySelectorAll('.live-test');
+    for (var ti = 0; ti < tbtns.length; ti++) tbtns[ti].addEventListener('click', liveTest);
 
     // The name is the thing you carry to the Vercel settings page, so it is a
     // button rather than a label you have to select by hand.
