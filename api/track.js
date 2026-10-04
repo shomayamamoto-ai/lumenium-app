@@ -11,6 +11,7 @@ export const config = { runtime: 'edge' }
 
 import { storeConfig, pipeline, jstDate, jstHour, K } from './_analytics-store.js'
 import { visitPlan, fromOurPages, selfReferrer } from './_visit.js'
+import { sourceKey } from './_referrers.js'
 
 const enc = new TextEncoder()
 
@@ -35,8 +36,11 @@ function device(ua) {
  *  （アプリ内のリンクやQRは紹介元を送らないため、放っておくと「直接」に
  *  混ざります）。閲覧にも、問い合わせなどの成果にも、同じ決め方を使います。 */
 function sourceOf(body, host) {
-  const src = String(body?.s || '').toLowerCase()
-  return /^[a-z0-9_-]{1,32}$/.test(src) ? `src:${src}` : refHost(body?.r, host)
+  // utm_source=chatgpt.com のようなホスト名の形も受け取ります（sourceKey）。
+  // ChatGPT のアプリから開かれたときは紹介元が空で、手がかりはこれだけです。
+  const key = sourceKey(body?.s)
+  if (key && key !== host.replace(/^www\./, '')) return key
+  return refHost(body?.r, host)
 }
 
 function refHost(ref, selfHost) {

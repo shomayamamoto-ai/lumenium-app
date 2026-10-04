@@ -155,6 +155,12 @@ export const K = {
      出てきません。いちばん取りこぼしの大きいところが見えないままに
      なるので、押された先を数えます（tel / line / mail / 相手のホスト名）。 */
   dayLinks: (d) => `${KV}lk:d:${d}`,
+  /* AIアシスタントから来た訪問が、どのページから始まったか。
+     「AIから来た 3人」だけでは、どの回答で紹介されたのかが分かりません。
+     着いたページが分かれば、AIがどのページを根拠にしたかの見当が付き、
+     そのページを厚くすれば済みます。流入元と同じく訪問の最初の1ページで
+     だけ、「紹介元<TAB>ページ」の形で数えます（上限は他と同じ300）。 */
+  dayAiLandings: (d) => `${KV}pv:ai:${d}`,
   // Enquiry outcomes, so a form that has stopped working is visible.
   dayContact: (d) => `${KV}ct:d:${d}`,
   contactLastError: `${KV}ct:lasterr`,

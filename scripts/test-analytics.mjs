@@ -169,6 +169,28 @@ check('どちらの合図も無い古いブラウザは通す', S(K.dayViews(d))
 await hit({ p: '/', e: 'menu_open' })
 check('無くなった段（menu_open）は受け付けない', !H(K.dayEvents(d)).menu_open)
 
+console.log('track: AIアシスタントからの訪問')
+reset()
+// ChatGPT のアプリから: 紹介元は空で、手がかりは utm_source=chatgpt.com だけ。
+await hit({ p: '/services/web.html', n: 0, s: 'chatgpt.com' })
+// 同じ訪問の2ページ目。流入元も、AIからの入口も、もう数えない。
+await hit({ p: '/about.html', n: 1, s: 'chatgpt.com' })
+await hit({ p: '/', n: 0, r: 'https://www.perplexity.ai/search?q=x' })
+await hit({ p: '/', n: 0, r: 'https://www.google.com' })
+await hit({ p: '/', n: 0, s: 'lumenium.net' })
+check('utm_source=chatgpt.com は chatgpt.com として数える', H(K.dayRefs(d))['chatgpt.com'] === '1', H(K.dayRefs(d)))
+check('自分のドメインの utm_source は流入元にしない', !H(K.dayRefs(d))['lumenium.net'], H(K.dayRefs(d)))
+check('AIからの入口は訪問の最初の1回だけ', H(K.dayAiLandings(d))['chatgpt.com\t/services/web.html'] === '1' && !H(K.dayAiLandings(d))['chatgpt.com\t/about.html'], H(K.dayAiLandings(d)))
+check('紹介元から来た Perplexity も入口を数える', H(K.dayAiLandings(d))['perplexity.ai\t/'] === '1', H(K.dayAiLandings(d)))
+check('検索エンジンからの訪問は AI の入口に入れない', Object.keys(H(K.dayAiLandings(d))).length === 2, H(K.dayAiLandings(d)))
+{
+  const r = await buildReport({ url: REDIS, token: 'test' }, { days: 7 })
+  const ai = r.referrerKinds.find((k) => k.key === 'ai')
+  check('種類は「AIアシスタントから」で2訪問', ai && ai.label === 'AIアシスタントから' && ai.count === 2, ai)
+  check('AIごとの内訳は呼び名で', r.aiSources.map((x) => x.name).sort().join() === 'ChatGPT,Perplexity', r.aiSources)
+  check('AIからの入口ページ', r.aiLandings.some((x) => x.source === 'ChatGPT' && x.path === '/services/web.html' && x.count === 1), r.aiLandings)
+}
+
 console.log('report: 比較・直帰率・期間に関係ない 7日/30日')
 reset()
 // 今日から 13日前まで: 前半7日（前の期間）と後半7日（いまの期間）。
