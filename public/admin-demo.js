@@ -1626,3 +1626,128 @@
     return realFetch(input, init);
   };
 })();
+
+/* ---- デモ：SNS（文章）の運用プラン（shape: api/social-plan.js GET） ----
+   架空のカフェ「サンプル珈琲」の柱・投稿・予約・LINE の人数。上の作りと同じく
+   デモのときだけ動き、/api/social-plan だけを受けます（保存は断ります）。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var DAY = 86400000;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  function jst(ms) { return new Date(ms + 9 * 3600000).toISOString().slice(0, 10); }
+  var now = Date.now();
+  var today = jst(now);
+  var dom = Number(today.slice(8, 10));
+  /* 日本時間の「n日前の h 時」 */
+  function at(daysAgo, h) {
+    var d = Date.parse(jst(now - daysAgo * DAY) + 'T00:00:00Z') + (h - 9) * 3600000;
+    return new Date(Math.min(d, now - 60000)).toISOString();
+  }
+  function dayAfter(n) { return jst(now + n * DAY); }
+  var PILLARS = [
+    { id: 'tips', name: 'お役立ち', desc: 'おうちでコーヒーをおいしく飲むコツ', ideas: ['豆の選び方3つ', '挽き方で味が変わる話', 'アイスコーヒーの淹れ方'], promo: false, color: '#0f766e' },
+    { id: 'ura', name: '裏側', desc: '焙煎・仕込み・スタッフの様子', ideas: ['朝の焙煎の様子', '新しい豆が届いた日', 'スタッフのおすすめ'], promo: false, color: '#3d3fbf' },
+    { id: 'koe', name: 'お客さまの声', desc: 'いただいた感想・人気の組み合わせ', ideas: ['常連さんの好きな一杯', 'いただいたお手紙'], promo: false, color: '#be185d' },
+    { id: 'ad', name: 'お知らせ・宣伝', desc: '新メニュー・イベント・営業日', ideas: ['秋の限定メニュー', '臨時休業のお知らせ'], promo: true, color: '#9a3412' }
+  ];
+  var TEXT = {
+    tips: ['（サンプル）おうちコーヒーがおいしくなる、豆の選び方3つ', '（サンプル）挽き方ひとつで味が変わります。目安の表つき', '（サンプル）冷めてもおいしいアイスコーヒーの淹れ方'],
+    ura: ['（サンプル）朝7時、今日の焙煎がはじまりました', '（サンプル）エチオピアの新しい豆が届きました', '（サンプル）スタッフ山田のおすすめは深煎りのブレンド'],
+    koe: ['（サンプル）「毎朝の一杯が楽しみです」とお便りをいただきました', '（サンプル）常連さんに人気の組み合わせ、ラテとスコーン'],
+    ad: ['（サンプル）秋の限定メニュー「栗のラテ」はじまります', '（サンプル）10月の定休日のお知らせ']
+  };
+  // [何日前, 時, 柱, 出した先, いいね等, サイトに来た人, 問い合わせ]（先月は柱ごとに3本以上）
+  var ROWS = [
+    [2, 12, 'ura', ['instagram', 'threads'], 64, 9, 1], [3, 19, 'tips', ['instagram', 'x'], 41, 6, 0],
+    [5, 12, 'ad', ['instagram', 'x', 'facebook'], 22, 11, 1], [6, 20, 'koe', ['x', 'threads'], 15, 1, 0],
+    [8, 12, 'ura', ['instagram', 'facebook'], 58, 12, 2], [9, 19, 'tips', ['instagram', 'x', 'threads'], 47, 7, 0],
+    [11, 12, 'ad', ['instagram', 'x'], 18, 8, 0], [13, 20, 'tips', ['x', 'threads'], 12, 2, 0],
+    [15, 12, 'ura', ['instagram', 'x'], 71, 15, 2], [17, 19, 'koe', ['instagram', 'facebook'], 26, 2, 0],
+    [19, 12, 'ad', ['instagram', 'x', 'gbp'], 30, 14, 1], [21, 19, 'tips', ['instagram', 'threads'], 39, 5, 0],
+    [23, 12, 'ura', ['instagram', 'x'], 66, 10, 1], [25, 20, 'koe', ['x'], 9, 0, 0],
+    [27, 12, 'tips', ['instagram', 'x'], 44, 4, 0], [30, 19, 'ad', ['instagram', 'facebook'], 20, 9, 0],
+    [33, 12, 'ura', ['instagram', 'x'], 52, 8, 1], [36, 19, 'koe', ['instagram'], 18, 1, 0],
+    [40, 12, 'tips', ['x', 'threads'], 10, 1, 0], [44, 12, 'ad', ['instagram', 'gbp'], 25, 10, 1]
+  ];
+  function post(id, iso, pillar, nets, reactions, visits, inq, k) {
+    var byNet = {};
+    nets.forEach(function (n, i) { byNet[n] = { visits: i ? Math.floor(visits / 4) : visits - Math.floor(visits / 4) * (nets.length - 1), inquiries: i ? 0 : inq }; });
+    var urls = {};
+    nets.forEach(function (n) { urls[n] = 'https://example.com/demo/' + n + '/' + id; });
+    var list = TEXT[pillar] || TEXT.tips;
+    return { id: id, at: iso, scheduledFor: '', text: list[k % list.length], pillar: pillar, nets: nets, urls: urls,
+      reactions: reactions == null ? null : reactions, saves: null,
+      outcome: visits == null ? null : { visits: visits, inquiries: inq, byNet: byNet } };
+  }
+  function posts() {
+    var out = [];
+    // 25分前に出したばかりの投稿（「反応を見る時間」の見本）
+    out.push(post('demo-plan-now', new Date(now - 25 * 60000).toISOString(), 'tips', ['instagram', 'threads'], null, null, 0, 0));
+    ROWS.forEach(function (r, i) {
+      if (r[0] === 0) return;
+      out.push(post('demo-plan-' + i, at(r[0], r[1]), r[2], r[3], r[4], r[5], r[6], i));
+    });
+    // 今月の LINE（3通。予約1通と合わせて4通＝目安の上限）
+    var seen = {};
+    [dom - 1, Math.floor((dom - 1) / 2), 0].forEach(function (d, i) {
+      if (seen[d]) d = Math.max(0, d - 1);
+      seen[d] = true;
+      out.push(post('demo-plan-line' + i, at(d, 11), i === 0 ? 'ad' : 'koe', ['line'], null, 18 - i * 4, i ? 0 : 1, i));
+    });
+    // 先月の LINE（2通）
+    [dom + 4, dom + 15].forEach(function (d, i) { out.push(post('demo-plan-pline' + i, at(d, 11), 'ad', ['line'], null, 20, 1, i)); });
+    return out.sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+  }
+  function queue() {
+    var monthEnd = (function () { var y = Number(today.slice(0, 4)); var m = Number(today.slice(5, 7)); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); })();
+    var lineDay = dayAfter(3) <= monthEnd ? dayAfter(3) : monthEnd > today ? monthEnd : dayAfter(1);
+    return [
+      { id: 'demo-plan-q1', date: dayAfter(1), text: '（サンプルの予約）ハンドドリップのコツ、3つのポイント', targets: ['instagram', 'threads'], pillar: 'tips' },
+      { id: 'demo-plan-q2', date: lineDay, text: '（サンプルの予約）今月のおすすめの豆をご紹介します', targets: ['line'], pillar: 'koe' },
+      { id: 'demo-plan-q3', date: dayAfter(4), text: '（サンプルの予約）秋の限定メニュー、残りわずかです', targets: ['x', 'facebook', 'gbp'], pillar: 'ad' }
+    ];
+  }
+  function trend() {
+    var out = [];
+    for (var i = 30; i >= 0; i -= 2) out.push({ date: jst(now - i * DAY), followers: 192 - Math.round(i * 0.6) + (i % 6 === 0 ? 1 : 0), reach: null });
+    return out;
+  }
+  function plan() {
+    return {
+      ok: true, today: today, stored: true,
+      plan: {
+        pillars: PILLARS,
+        targets: {
+          instagram: { on: true, per: 'week', n: 5 }, x: { on: true, per: 'week', n: 7 }, threads: { on: true, per: 'week', n: 4 },
+          facebook: { on: true, per: 'week', n: 3 }, gbp: { on: true, per: 'week', n: 1 }, line: { on: true, per: 'month', n: 3 },
+          linkedin: { on: false, per: 'week', n: 2 }, bluesky: { on: false, per: 'week', n: 3 }
+        },
+        tags: {}
+      },
+      networks: [['x', 'X'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['threads', 'Threads'], ['linkedin', 'LinkedIn'],
+        ['line', 'LINE公式アカウント'], ['gbp', 'Googleビジネスプロフィール'], ['bluesky', 'Bluesky']].map(function (n) { return { id: n[0], label: n[1], ready: n[0] !== 'linkedin' && n[0] !== 'gbp' }; }),
+      posts: posts(),
+      queue: queue(),
+      recommend: {
+        instagram: { basis: 'posts', n: 14, hours: [[12, 15]], weekdays: [5, 6], text: '', missing: [] },
+        x: { basis: 'general', n: 0, hours: [[7, 9]], weekdays: [1, 2, 3, 4, 5], text: '', missing: [] }
+      },
+      line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 158, date: today, note: '', trend: trend() }
+    };
+  }
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var p = '';
+    try { p = new URL(url, location.href).pathname.replace(/\/+$/, ''); } catch (_) {}
+    if (p !== '/api/social-plan') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    var body = method === 'GET' ? plan() : { ok: false, demo: true, message: MSG };
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();

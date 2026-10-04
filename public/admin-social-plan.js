@@ -99,6 +99,7 @@
     '.spl-list li:first-child{border-top:0}' +
     '.spl-list .body{flex:1 1 240px;min-width:0}' +
     '.spl-list .why{font-size:11px;color:var(--sub)}' +
+    '.spl-wide{min-width:540px}' +
     '.spl-kind{display:inline-block;font-size:10px;font-weight:800;padding:0 7px;border-radius:999px;background:#e7e4dc;margin-right:5px}' +
     '@media (max-width:560px){.spl-tabs{width:100%}.spl-tabs button{flex:1}.spl-sec{padding:11px 12px}}';
 
@@ -522,7 +523,7 @@
       '「出した本数」と「予約している本数」を合わせて数えます。週は月曜〜日曜です。</p>';
     if (!cd.rows.length) return h + '<p class="spl-note">目標が1つもありません。下の「目標を変える」から選んでください。</p>' + targetsForm();
     h += '<p style="font-size:13px;font-weight:800;margin:4px 0 8px">今週（' + md(cd.weekFrom) + '〜' + md(cd.weekTo) + '）は、あと ' + cd.weekLeft + ' 本</p>';
-    h += '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>SNS</th><th>目標<span class="spl-meyasu">目安</span></th><th>今週</th><th>今月</th><th>あと</th><th>空いている日のおすすめ</th></tr></thead><tbody>' +
+    h += '<div class="soc-scroll"><table class="soc-tbl spl-wide"><thead><tr><th>SNS</th><th>目標<span class="spl-meyasu">目安</span></th><th>今週</th><th>今月</th><th>あと</th><th>空いている日のおすすめ</th></tr></thead><tbody>' +
       cd.rows.map(function (r) {
         var w = r.week;
         var m = r.month;
@@ -542,7 +543,7 @@
   function targetsForm() {
     var t = D.plan.targets;
     return '<details style="margin-top:8px" id="spl-t-box"><summary style="font-size:12px;cursor:pointer">目標を変える</summary>' +
-      '<div class="soc-scroll"><table class="soc-tbl" style="margin-top:6px"><tbody>' + Object.keys(C.DEFAULT_TARGETS).map(function (net) {
+      '<div class="soc-scroll"><table class="soc-tbl spl-wide" style="margin-top:6px"><tbody>' + Object.keys(C.DEFAULT_TARGETS).map(function (net) {
         var x = t[net] || C.DEFAULT_TARGETS[net];
         return '<tr><td><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="spl-t-on" data-net="' + net + '"' + (x.on ? ' checked' : '') + '> ' + esc(netLabel(net)) + '</label></td>' +
           '<td><select class="spl-t-per" data-net="' + net + '" aria-label="' + esc(netLabel(net)) + 'の単位" style="width:auto;font-size:12px;padding:4px 6px"><option value="week"' + (x.per === 'week' ? ' selected' : '') + '>週に</option><option value="month"' + (x.per === 'month' ? ' selected' : '') + '>月に</option></select> ' +
@@ -792,13 +793,13 @@
         ms.map(function (m, i) { return '<option value="' + m + '"' + (m === S.month ? ' selected' : '') + '>' + name(m) + (i === 0 ? '（今月・途中）' : '') + '</option>'; }).join('') + '</select>' +
       '<p style="font-size:12.5px;margin:6px 0">' + name(S.month) + 'に出した投稿：<b>' + rv.total + ' 本</b>' + band(rv.reliability) + '</p>';
     if (!rv.total) return h + '<p class="spl-note">この月に出した投稿はありません。</p>';
-    h += '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>柱</th><th>本数</th><th>反応</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
+    h += '<div class="soc-scroll"><table class="soc-tbl spl-wide"><thead><tr><th>柱</th><th>本数</th><th>反応</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
       rv.rows.map(function (r) {
         return '<tr><td>' + (r.id ? chip(pillarById(r.id)) : chip(null)) + '</td><td class="n">' + r.posts + '</td>' +
           '<td class="n">' + num(r.reactions, r.reacted) + '</td><td class="n">' + num(r.visits, r.measured) + '</td><td class="n">' + num(r.inquiries, r.measured) + '</td>' +
           '<td>' + (r.posts ? band(r.reliability) : '') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
-    h += '<div class="soc-scroll"><table class="soc-tbl" style="margin-top:10px"><thead><tr><th>SNS</th><th>本数</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
+    h += '<div class="soc-scroll"><table class="soc-tbl spl-wide" style="margin-top:10px"><thead><tr><th>SNS</th><th>本数</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
       rv.nets.map(function (x) {
         return '<tr><td>' + esc(netLabel(x.net)) + '</td><td class="n">' + x.posts + '</td><td class="n">' + num(x.visits, x.measured) + '</td><td class="n">' + num(x.inquiries, x.measured) + '</td><td>' + band(x.reliability) + '</td></tr>';
       }).join('') + '</tbody></table></div>' +

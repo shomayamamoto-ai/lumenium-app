@@ -612,7 +612,10 @@ function weekChecklist(input) {
   var calm = helpful.slice().sort(function (a, b) { return (weekBy[a.id] || 0) - (weekBy[b.id] || 0) || (by30[a.id] || 0) - (by30[b.id] || 0) })
   var defaultNets = []
   var cd = cadence(items, plan.targets, today)
-  cd.rows.forEach(function (r) { if (r.per === 'week') defaultNets.push(r.net) })
+  // 柱の投稿の出し先：週の目標があるSNSのうち、ふだんの投稿向きのもの（Googleの
+  // お店の情報と LINE の一斉送信は、お知らせ向きなので外します）を3つまで。
+  cd.rows.forEach(function (r) { if (r.per === 'week' && r.net !== 'gbp' && r.net !== 'line') defaultNets.push(r.net) })
+  defaultNets = defaultNets.slice(0, 3)
   if (!defaultNets.length) defaultNets = ['instagram']
 
   if (mix.promoOver && helpful.length) {
