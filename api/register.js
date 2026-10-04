@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' }
 import { issueSession } from './_session.js'
 import { setting } from './_settings.js'
 import { addContact } from './_resend-audience.js'
+import { BRAND } from './_brand.js'
 
 // New-member registration: capture name+email, grant a session immediately,
 // and (best-effort) email the member code for future logins on other devices.
@@ -60,8 +61,8 @@ export async function POST(req) {
     await addContact(apiKey, { name, email, company }).catch((err) =>
       console.error('[api/register] addContact failed', err)
     )
-    const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
-    const owner = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net')
+    const from = BRAND.from
+    const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner)
     const send = (body) =>
       fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -74,14 +75,14 @@ export async function POST(req) {
     const wRes = await send({
       from,
       to: [email],
-      subject: '【Lumenium】会員登録が完了しました',
+      subject: `【${BRAND.name}】会員登録が完了しました`,
       text:
-        `${name} 様\n\nLumenium 会員登録ありがとうございます。\n` +
+        `${name} 様\n\n${BRAND.name} 会員登録ありがとうございます。\n` +
         `ミニゲームで遊ぶ際の会員コードは以下のとおりです。\n\n` +
         `会員コード: ${memberCode}\n\n` +
-        `ログインページ: https://lumenium.net/login.html\n\n` +
+        `ログインページ: ${BRAND.url}/login.html\n\n` +
         `※このメールに心当たりがない場合は破棄してください。\n\n` +
-        `Lumenium — 散文化した目的に、焦点を当てる。\nhttps://lumenium.net`,
+        `${BRAND.name}\n${BRAND.url}`,
     })
     mailed = !!(wRes && wRes.ok)
     if (!mailed) console.error('[api/register] welcome mail failed', wRes && wRes.status)

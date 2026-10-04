@@ -5,6 +5,7 @@ import { setting } from './_settings.js'
 import { SCOPE } from './_share.js'
 
 import { listContacts } from './_resend-audience.js'
+import { BRAND } from './_brand.js'
 
 // Live member list view: GET /api/members-view?s=<share token> renders the
 // always-current list as an HTML table — no download step. Auto-refreshes
@@ -34,7 +35,7 @@ function fmtDate(iso) {
 }
 
 export async function GET(req) {
-  const denied = await requireAdmin(req, { as: 'text', allowQueryKey: true, share: SCOPE })
+  const denied = await requireAdmin(req, { as: 'text', share: SCOPE })
   if (denied) return denied
 
   const apiKey = await setting('RESEND_API_KEY')
@@ -51,7 +52,7 @@ export async function GET(req) {
   // variable that the move to the shared guard had already removed, which
   // meant every authorised request to this page threw before rendering.)
   const url = new URL(req.url)
-  const carried = ['s', 'key']
+  const carried = ['s']
     .map((p) => [p, (url.searchParams.get(p) || '').trim()])
     .find(([, v]) => v)
   const xlsxHref = carried
@@ -75,7 +76,7 @@ export async function GET(req) {
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="refresh" content="60">
-<title>会員リスト（ライブ） | Lumenium 管理</title>
+<title>会員リスト（ライブ） | ${BRAND.name} 管理</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }

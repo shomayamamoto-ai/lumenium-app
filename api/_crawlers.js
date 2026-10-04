@@ -19,11 +19,12 @@
 // says so. It is the difference between 0 and not 0.
 
 import { pipeline, jstDate, lastDays } from './_analytics-store.js'
+import { KV } from './_brand.js'
 
 const TTL = 120 * 24 * 60 * 60
-const DAY = (d) => `lum:bot:d:${d}`      // hash: agent -> visits that day
-const LAST = 'lum:bot:last'              // hash: agent -> "<iso>|<path>"
-const PATHS = (d) => `lum:bot:p:${d}`    // hash: path -> visits that day
+const DAY = (d) => `${KV}bot:d:${d}`      // hash: agent -> visits that day
+const LAST = `${KV}bot:last`              // hash: agent -> "<iso>|<path>"
+const PATHS = (d) => `${KV}bot:p:${d}`    // hash: path -> visits that day
 
 /** The agents worth telling apart, most specific pattern first.
  *

@@ -1,7 +1,9 @@
 // Resend Audiences helper — persistent member/lead storage without a DB.
 // Underscore prefix keeps this file from being exposed as an endpoint.
 
-const AUDIENCE_NAME = 'Lumenium Members'
+import { BRAND } from './_brand.js'
+
+const AUDIENCE_NAME = `${BRAND.name} Members`
 let cachedAudienceId = null // per-isolate cache
 
 async function resend(apiKey, path, init = {}) {

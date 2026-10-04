@@ -10,10 +10,12 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig, pipeline } from './_analytics-store.js'
+import { BRAND, KV } from './_brand.js'
 
-const KEY = '166607f542104bb9e1df8b1892799cdb'
-const HOST = 'lumenium.net'
-const LAST = 'lum:indexnow:last'
+// The key file of the same name must be in public/ (see indexnow.org).
+const KEY = (process.env.INDEXNOW_KEY || '166607f542104bb9e1df8b1892799cdb').trim()
+const HOST = BRAND.host
+const LAST = `${KV}indexnow:last`
 
 async function remember(rec) {
   const cfg = storeConfig()

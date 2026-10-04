@@ -13,6 +13,8 @@
 //
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
+import { BRAND } from './_brand.js'
+
 const enc = new TextEncoder()
 
 export function b64encodeUtf8(str) {
@@ -30,7 +32,7 @@ export function b64decodeUtf8(b64) {
 }
 
 export function repoName() {
-  return process.env.GITHUB_REPO || 'shomayamamoto-ai/lumenium-app'
+  return BRAND.repo
 }
 
 export function gh(token, repo, path, init = {}) {
@@ -39,7 +41,7 @@ export function gh(token, repo, path, init = {}) {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'lumenium-admin',
+      'User-Agent': `${BRAND.slug}-admin`,
       ...(init.headers || {}),
     },
   })

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
+<!-- The one place this page names the company: change it per site. -->
+<meta name="application-name" content="Lumenium">
 <title>会員リスト | Lumenium 管理</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -700,7 +702,7 @@ header h1, header button, header a { white-space: nowrap; }
       <h1 id="page-title">会員リスト</h1>
       <span class="tag">ADMIN</span>
       <button type="button" id="sign-out" style="display:none">ログアウト</button>
-      <a href="/">← lumenium.net</a>
+      <a href="/">← サイトに戻る</a>
     </header>
 
     <div class="panel" id="key-panel">
@@ -806,25 +808,8 @@ header h1, header button, header a { white-space: nowrap; }
             <option value="30" selected>30日間</option>
             <option value="90">90日間</option>
             <option value="365">1年間</option>
-            <option value="0">無期限</option>
           </select>
           <button id="share-issue" type="button">共有リンクを発行</button>
-        </div>
-
-        <!-- Share tokens need Upstash Redis. Until it is connected the old
-             admin-key links are all there is, so they stay — with the warning
-             they never carried. -->
-        <div id="share-legacy" style="display:none">
-          <div class="share">
-            <span class="share-label">ライブ表示リンク（開くだけで最新）</span>
-            <input type="text" id="share-url-view" readonly>
-            <button class="ghost" id="copy-btn-view" type="button">コピー</button>
-          </div>
-          <div class="share">
-            <span class="share-label">Excel直リンク（常に最新）</span>
-            <input type="text" id="share-url" readonly>
-            <button class="ghost" id="copy-btn" type="button">コピー</button>
-          </div>
         </div>
 
         <div class="share-actions">
@@ -1314,6 +1299,24 @@ function buildXlsx(rows) {
 /* Shared admin fetch. Every panel used to read the key and interpret failures
    on its own, so rotating ADMIN_KEY left each one showing a different vague
    message with no way back to the login form. */
+/* Links built from data the admin did not type (AI answers, crawled pages,
+   visitor paths) only open web pages: a javascript: URL would run inside
+   this page, where the admin key lives. */
+window.lumSite = (function () {
+  var m = document.querySelector('meta[name="application-name"]');
+  var name = (m && m.content) || document.title;
+  return {
+    name: name,
+    host: location.hostname.replace(/^www\./, ''),
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'site'
+  };
+})();
+
+window.lumSafeHref = function (u) {
+  u = String(u == null ? '' : u).trim();
+  return /^https?:\/\//i.test(u) || /^\/(?!\/)/.test(u) ? u : '#';
+};
+
 window.lumAdmin = {
   key: function () { try { return sessionStorage.getItem('lum_admin_key') || ''; } catch (_) { return ''; } },
   signOut: function (reason) {
@@ -1447,7 +1450,7 @@ window.lumAdmin = {
     var title = onPortal ? '管理ポータル' : (tab ? tab.label : '');
     var h = document.getElementById('page-title');
     if (h) h.textContent = title;
-    document.title = title + ' | Lumenium 管理';
+    document.title = title + ' | ' + window.lumSite.name + ' 管理';
     if (onPortal) layoutPortal();
     try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
   }
@@ -1957,10 +1960,10 @@ window.lumAdmin = {
     note(msg);
     if (document.getElementById('pomo-notify').checked &&
         window.Notification && Notification.permission === 'granted') {
-      try { new Notification('⏱ ' + pomo.mins + '分が終わりました', { body: 'Lumenium 管理', tag: 'lum-pomo' }); } catch (_) {}
+      try { new Notification('⏱ ' + pomo.mins + '分が終わりました', { body: window.lumSite.name + ' 管理', tag: 'lum-pomo' }); } catch (_) {}
     }
     if (!titleWas) titleWas = document.title;
-    document.title = '⏰ 時間です | Lumenium 管理';
+    document.title = '⏰ 時間です | ' + window.lumSite.name + ' 管理';
     pomoSave();
   }
 
@@ -2473,13 +2476,19 @@ window.lumAdmin = {
   document.getElementById('csv-btn').addEventListener('click', function () {
     var lines = ['name,company,email,created,unsubscribed'];
     members.forEach(function (m) {
-      var esc = function (v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; };
+      // A cell starting with = + - @ is run as a formula by Excel. Names are
+      // typed by the public, so they are written as plain text.
+      var esc = function (v) {
+        v = String(v || '');
+        if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+        return '"' + v.replace(/"/g, '""') + '"';
+      };
       lines.push([esc(m.name), esc(m.company), esc(m.email), esc(m.created), m.unsubscribed ? '1' : '0'].join(','));
     });
     var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'lumenium-members.csv';
+    a.download = window.lumSite.slug + '-members.csv';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -2493,7 +2502,7 @@ window.lumAdmin = {
     var blob = new Blob([xlsx], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'lumenium-members.xlsx';
+    a.download = window.lumSite.slug + '-members.xlsx';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -2511,8 +2520,6 @@ window.lumAdmin = {
       });
     });
   }
-  wireCopy('copy-btn', 'share-url');
-  wireCopy('copy-btn-view', 'share-url-view');
   wireCopy('share-new-copy', 'share-new-url');
 
   /* ---- Share links ----
@@ -2588,30 +2595,30 @@ window.lumAdmin = {
     });
   }
 
-  /* Without Redis there is nowhere to keep a revocable token, so the old
-     admin-key URLs are all there is. They stay — with the warning they should
-     always have carried. */
+  /* Without Redis there is nowhere to keep a revocable token. The old answer
+     was a URL carrying the admin key itself — which lands in history, in
+     server logs, and in the hands of whoever it is forwarded to, and can only
+     be taken back by changing the key. Sharing now simply waits for storage;
+     the owner still opens and downloads the list from here. */
   function showLegacy() {
-    var key = encodeURIComponent(window.lumAdmin.key());
-    document.getElementById('share-legacy').style.display = 'block';
     document.getElementById('share-make').style.display = 'none';
     document.getElementById('share-tbl').style.display = 'none';
     document.getElementById('share-empty').style.display = 'none';
-    document.getElementById('share-url').value = location.origin + '/api/members-xlsx?key=' + key;
-    document.getElementById('share-url-view').value = location.origin + '/api/members-view?key=' + key;
     document.getElementById('share-note').textContent =
-      '⚠ 保存先（Upstash Redis）が未接続のため、失効できる共有リンクを発行できません。上のURLには管理キーがそのまま入っており、' +
-      '渡した相手はこの管理画面と同じ操作（文章の書き換え・お知らせ投稿など）ができます。無効化する方法は Vercel の ADMIN_KEY を' +
-      '変更することだけで、その場合はすべてのリンクが同時に使えなくなります。「設定状況」タブの手順で接続すると、相手ごとに' +
-      '発行して1本ずつ失効できるリンクに変わります。';
+      '保存先（Upstash Redis）が未接続のため、外部の方に渡す共有リンクは発行できません。「設定状況」タブの手順で接続すると、' +
+      '相手ごとに発行して1本ずつ失効できるリンクが使えるようになります。ご自身で見る・保存するのは上のボタンからできます。';
   }
 
-  async function loadShare() {
+  var shareLoading = null;
+  function loadShare() {
+    shareLoading = loadShareNow();
+    return shareLoading;
+  }
+  async function loadShareNow() {
     var r = await window.lumAdmin.fetch('/api/share-links');
     if (r.data && r.data.ready === false) { shareReady = false; showLegacy(); return; }
     if (!r.res.ok) { shareSay((r.data && r.data.message) || '共有リンクを読み込めませんでした。'); return; }
     shareReady = true;
-    document.getElementById('share-legacy').style.display = 'none';
     document.getElementById('share-make').style.display = 'flex';
     document.getElementById('share-note').textContent =
       '共有リンクで開けるのは会員リストだけです（この管理画面や他の操作には使えません）。渡す相手ごとに発行しておくと、' +
@@ -2652,8 +2659,13 @@ window.lumAdmin = {
       var go = function (url) {
         if (tab && !tab.closed) tab.location = url; else location.href = url;
       };
+      // A click before the share state has loaded used to fall through to
+      // the admin-key URL. Wait for it instead.
+      if (!shareReady && shareLoading) { try { await shareLoading; } catch (_) {} }
       if (!shareReady) {
-        go(location.origin + '/api/members-' + kind + '?key=' + encodeURIComponent(window.lumAdmin.key()));
+        if (tab && !tab.closed) tab.close();
+        if (kind === 'xlsx') { document.getElementById('xlsx-btn').click(); return; }
+        shareSay('ライブ表示は保存先（Upstash Redis）の接続後に使えます。会員の一覧はこの下に表示されています。', true);
         return;
       }
       btn.disabled = true;
@@ -2756,8 +2768,8 @@ window.lumAdmin = {
   };
 
   function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
@@ -3218,7 +3230,13 @@ window.lumAdmin = {
     msg.classList.toggle('info', !!isInfo);
   }
   var n = function (v) { return Number(v || 0).toLocaleString('ja-JP') };
-  function esc(t) { var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML }
+  /* Paths and referrers come from anonymous visitors, and some land inside
+     href="…". Reading back innerHTML does not escape quotes, so this must. */
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
 
   /* Zeros mean two completely different things, and the screen has to say
      which: a pair held in this browser can read this page but can never fill
@@ -3294,7 +3312,7 @@ window.lumAdmin = {
     function make() {
       var d = dest.value, hash = '';
       var i = d.indexOf('#'); if (i >= 0) { hash = d.slice(i); d = d.slice(0, i); }
-      out.value = 'https://lumenium.net' + (d || '/') + '?ref=' + encodeURIComponent(src.value) + hash;
+      out.value = location.origin + (d || '/') + '?ref=' + encodeURIComponent(src.value) + hash;
     }
     src.addEventListener('change', make); dest.addEventListener('change', make); make();
     copy.addEventListener('click', function () {
@@ -3452,7 +3470,7 @@ window.lumAdmin = {
              広がりつつ、長いURLは「…」で切れます。max-width:0 だけだと
              列が潰れて、ページ名が一文字も出ません。 */
           '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-            '<a href="https://lumenium.net' + esc(r.name) + '" target="_blank" rel="noopener" ' +
+            '<a href="' + esc(location.origin + r.name) + '" target="_blank" rel="noopener" ' +
             'style="color:var(--text);text-decoration:underline;text-underline-offset:2px">' + esc(r.name) + '</a></td>' +
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.ended + ' / ' + r.opened + '</td>' +
@@ -3551,7 +3569,7 @@ window.lumAdmin = {
         var pct = Math.round(r.rate * 100);
         return '<tr>' +
           '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-            '<a href="https://lumenium.net' + esc(r.name) + '" target="_blank" rel="noopener" ' +
+            '<a href="' + esc(location.origin + r.name) + '" target="_blank" rel="noopener" ' +
             'style="color:var(--text);text-decoration:underline;text-underline-offset:2px">' + esc(r.name) + '</a></td>' +
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.exits + ' / ' + r.opened + '</td>' +
@@ -3798,8 +3816,8 @@ window.lumAdmin = {
   }
   function pct(v) { return (v * 100).toFixed(0) + '%'; }
   function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
@@ -3928,7 +3946,7 @@ window.lumAdmin = {
         return '<tr data-url="' + esc(p.url) + '">' +
           '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap;vertical-align:top">' + p.count + '問</td>' +
           '<td style="padding:5px 0;font-size:12px;word-break:break-all">' +
-            '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a>' +
+            '<a href="' + esc(lumSafeHref(p.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a>' +
             '<div style="font-size:11px;color:var(--sub)"><span class="listing-host">' + esc(p.host) + '</span><span class="listing-state"></span></div>' +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -4080,7 +4098,7 @@ window.lumAdmin = {
         ((r.sourceUrls || []).length
           ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">この質問で読まれたページ:<br>' +
             r.sourceUrls.map(function (u) {
-              return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
+              return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
             }).join('<br>') + '</div>'
           : ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '')) +
       '</details>';
@@ -4154,7 +4172,7 @@ window.lumAdmin = {
     diff(data.prev, s);
     cited(s);
     bars('seo-sources', (s.topSources || []).map(function (h) {
-      var mine = /(^|\.)lumenium\.net$/.test(h.name);
+      var mine = h.name === window.lumSite.host || h.name.slice(-(window.lumSite.host.length + 1)) === '.' + window.lumSite.host;
       return { name: h.name + (mine ? '（自社）' : ''), value: h.count, note: h.count + '問で参照', us: mine };
     }), { labelWidth: 200 });
     rows(run);
@@ -4437,7 +4455,7 @@ window.lumAdmin = {
       return '<tr><td style="padding:5px 8px;font-size:12px">' + mark + ' ' + esc(c.cat) +
         '<span style="color:var(--sub);font-size:11px"> ' + c.asked + '問</span></td>' +
         '<td style="padding:5px 8px;font-size:11.5px">' + (c.pages || []).map(function (u) {
-          return '<a href="' + esc(u) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
+          return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
         }).join('、') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc(note) + '</td></tr>';
     }).join('');
@@ -4647,8 +4665,8 @@ window.lumAdmin = {
 
   function key() { return sessionStorage.getItem('lum_admin_key') || ''; }
   function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
   function say(text) {
@@ -4900,8 +4918,8 @@ window.lumAdmin = {
   var loaded = false;
 
   function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
   function say(text, info) {
@@ -5214,8 +5232,8 @@ window.lumAdmin = {
     var box = document.getElementById('search-box');
     if (!box) return;
     var esc = function (t) {
-      return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     };
     var g = (list || []).filter(function (x) { return x.name === 'GOOGLE_SITE_VERIFICATION'; })[0] || {};
@@ -5275,8 +5293,8 @@ window.lumAdmin = {
     }
     var d = (r && r.data) || {};
     var esc = function (t) {
-      return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     };
     /* 簡易接続ではカレンダーに書き込めないため、予約ごとに「追加」の
@@ -5288,7 +5306,7 @@ window.lumAdmin = {
       var st = new Date(b.key); if (isNaN(st)) return '';
       var en = new Date(st.getTime() + 60 * 60000);
       var f = function (d) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); };
-      var q = new URLSearchParams({ action: 'TEMPLATE', text: '商談: ' + (b.company ? b.company + ' ' : '') + (b.name || '') + '様 × Lumenium',
+      var q = new URLSearchParams({ action: 'TEMPLATE', text: '商談: ' + (b.company ? b.company + ' ' : '') + (b.name || '') + '様 × ' + window.lumSite.name,
         dates: f(st) + '/' + f(en), details: 'メール: ' + (b.email || '') + (b.note ? '\n\n' + b.note : ''), ctz: 'Asia/Tokyo' });
       return 'https://calendar.google.com/calendar/render?' + q.toString();
     }
@@ -5538,8 +5556,8 @@ window.lumAdmin = {
   var started = false;
 
   function esc(t) {
-    return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
@@ -5632,7 +5650,7 @@ window.lumAdmin = {
               '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
             '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
               esc(st.what || '') + '<br>' + esc(st.where || '') +
-              (st.url ? ' <a href="' + esc(st.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
+              (st.url ? ' <a href="' + esc(lumSafeHref(st.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
               '<br><span style="opacity:.75">貼る場所の名前: ' + esc(n.needs.join('・')) + '</span>' +
             '</div>' +
           '</div>';

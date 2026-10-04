@@ -24,6 +24,7 @@ import {
   QUESTIONS, CATEGORIES, BRAND, costEstimateUsd, ASK_MODEL, JUDGE_MODEL, MIN_FOR_RATE,
   namesBrand, citesBrand, hostOf, isHit, VERDICTS,
 } from './_aio-catalog.js'
+import { KV } from './_brand.js'
 
 const MODEL = ASK_MODEL
 
@@ -78,8 +79,8 @@ export const ERROR_HINTS = {
   unknown: '原因を特定できませんでした。下の詳細をそのまま伝えてください。',
 }
 const RUN_TTL = 400 * 24 * 60 * 60
-const RK = (id) => `lum:aio:run:${id}`
-const INDEX = 'lum:aio:index'
+const RK = (id) => `${KV}aio:run:${id}`
+const INDEX = `${KV}aio:index`
 
 // Kept for the store's own errors. A missing store is no longer one of them:
 // a run used to need a database as well as a key, so an admin who had pasted

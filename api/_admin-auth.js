@@ -27,6 +27,7 @@ async function keyMatches(submitted, configured) {
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { useShare } from './_share.js'
+import { KV } from './_brand.js'
 
 const WINDOW_S = 15 * 60
 const MAX_FAILS = 5
@@ -43,7 +44,7 @@ async function failState(ip, cfg) {
     return { count: rec.count, retryAfter: Math.ceil((rec.resetAt - Date.now()) / 1000) }
   }
   try {
-    const [count, ttl] = await pipeline(cfg, [['GET', `lum:rl:${ip}`], ['TTL', `lum:rl:${ip}`]])
+    const [count, ttl] = await pipeline(cfg, [['GET', `${KV}rl:${ip}`], ['TTL', `${KV}rl:${ip}`]])
     return { count: Number(count) || 0, retryAfter: Math.max(0, Number(ttl) || 0) }
   } catch (_) {
     return { count: 0, retryAfter: 0 }
@@ -60,14 +61,14 @@ async function recordFail(ip, cfg) {
     return
   }
   try {
-    await pipeline(cfg, [['INCR', `lum:rl:${ip}`], ['EXPIRE', `lum:rl:${ip}`, WINDOW_S, 'NX']])
+    await pipeline(cfg, [['INCR', `${KV}rl:${ip}`], ['EXPIRE', `${KV}rl:${ip}`, WINDOW_S, 'NX']])
   } catch (_) { /* never block a login on the limiter being unavailable */ }
 }
 
 async function clearFails(ip, cfg) {
   fails.delete(ip)
   if (!cfg) return
-  try { await pipeline(cfg, [['DEL', `lum:rl:${ip}`]]) } catch (_) {}
+  try { await pipeline(cfg, [['DEL', `${KV}rl:${ip}`]]) } catch (_) {}
 }
 
 export function json(body, status = 200, extra) {
@@ -89,16 +90,13 @@ export function json(body, status = 200, extra) {
  *
  *  opts.as: 'text'       — errors as text/plain, for the endpoints that answer
  *                          in HTML or xlsx and cannot return a JSON body.
- *  opts.allowQueryKey    — accept ?key=. Off by default, and deliberately so:
- *                          a credential in a URL survives in history, in
- *                          referrers and in logs, and the admin key opens
- *                          every endpoint. Only the two member endpoints — the
- *                          ones that exist to be opened as a link — set it.
+ *  The key is accepted only in the Authorization header, never as ?key=: a
+ *  credential in a URL survives in history, in referrers and in logs, and
+ *  the admin key opens every endpoint.
  *  opts.share: '<scope>' — also accept ?s=<share token> for that scope. */
 export async function requireAdmin(req, opts) {
   const asText = opts && opts.as === 'text'
   const shareScope = (opts && opts.share) || null
-  const allowQueryKey = !!(opts && opts.allowQueryKey)
   const fail = (body, status, extra) =>
     asText
       ? new Response(body.message, {
@@ -132,10 +130,10 @@ export async function requireAdmin(req, opts) {
   if (shareScope) {
     const token = (url.searchParams.get('s') || '').trim()
     if (token) {
-      if (await useShare(token, shareScope)) {
-        await clearFails(ip, cfg)
-        return null
-      }
+      // A good share token must not reset the failure count: otherwise
+      // anyone holding a link could guess the admin key four times, open
+      // the link once, and guess again — forever.
+      if (await useShare(token, shareScope)) return null
       await recordFail(ip, cfg)
       return fail({
         ok: false, code: 'SHARE_INVALID',
@@ -146,7 +144,7 @@ export async function requireAdmin(req, opts) {
 
   const auth = req.headers.get('authorization') || ''
   const fromHeader = auth.startsWith('Bearer ') ? auth.slice(7) : ''
-  const submitted = (fromHeader || (allowQueryKey ? url.searchParams.get('key') || '' : '')).trim()
+  const submitted = fromHeader.trim()
 
   if (!submitted || !(await keyMatches(submitted, adminKey))) {
     await recordFail(ip, cfg)
@@ -169,7 +167,7 @@ export async function requireAdmin(req, opts) {
 export async function spendGuard(kind, limit) {
   const cfg = storeConfig()
   if (!cfg) return null
-  const key = `lum:aispend:${kind}:${jstDate()}`
+  const key = `${KV}aispend:${kind}:${jstDate()}`
   try {
     const [used] = await pipeline(cfg, [['INCR', key], ['EXPIRE', key, 2 * 24 * 3600, 'NX']])
     if (Number(used) > limit) {

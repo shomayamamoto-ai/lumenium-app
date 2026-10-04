@@ -7,6 +7,8 @@
 //
 // Requires env: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.
 
+import { KV } from './_brand.js'
+
 export const KEEP_DAYS = 400
 const TTL = KEEP_DAYS * 24 * 60 * 60
 
@@ -84,7 +86,7 @@ export async function storeFor(req) {
 export async function storePing(cfg) {
   if (!cfg) return { ok: false, message: '値が足りません。' }
   try {
-    const out = await pipeline(cfg, [['SET', 'lum:ping', String(Date.now()), 'EX', 60], ['GET', 'lum:ping']])
+    const out = await pipeline(cfg, [['SET', `${KV}ping`, String(Date.now()), 'EX', 60], ['GET', `${KV}ping`]])
     return out && out.length === 2 && out[1] ? { ok: true } : { ok: false, message: '応答が想定と違います。' }
   } catch (e) {
     return { ok: false, message: String((e && e.message) || e).slice(0, 120) }
@@ -121,38 +123,40 @@ export function lastDays(n) {
 }
 
 export const K = {
-  totalViews: 'lum:pv:total',
-  dayViews: (d) => `lum:pv:d:${d}`,
-  dayVisitors: (d) => `lum:uv:d:${d}`,   // HyperLogLog — counts uniques, stores no ids
-  dayPaths: (d) => `lum:pv:p:${d}`,
-  dayRefs: (d) => `lum:pv:r:${d}`,
-  dayDevices: (d) => `lum:pv:dev:${d}`,
+  totalViews: `${KV}pv:total`,
+  dayViews: (d) => `${KV}pv:d:${d}`,
+  dayVisitors: (d) => `${KV}uv:d:${d}`,   // HyperLogLog — counts uniques, stores no ids
+  dayPaths: (d) => `${KV}pv:p:${d}`,
+  dayRefs: (d) => `${KV}pv:r:${d}`,
+  dayDevices: (d) => `${KV}pv:dev:${d}`,
+  // Beacons per visitor in the current minute (track.js). Lives 60 seconds.
+  rate: (id) => `${KV}pv:rl:${id}`,
   // Conversion steps. Kept in the same daily hash shape as the rest so the
   // report reads them the same way.
-  dayEvents: (d) => `lum:ev:d:${d}`,
+  dayEvents: (d) => `${KV}ev:d:${d}`,
   // …and the same steps counted in people rather than in times. A funnel
   // measured in event counts cannot be read as a conversion rate: one visitor
   // opening three services is three service_view against one arrival. Same
   // HyperLogLog as the visitor count, so the unit on both sides matches and
   // nothing identifying is kept.
-  dayEventUsers: (d, e) => `lum:evu:d:${d}:${e}`,
+  dayEventUsers: (d, e) => `${KV}evu:d:${d}:${e}`,
   /* 「どのページが最後まで読まれたか」。
      読了は全体の率だけでも意味がありますが、それだけでは直す場所が
      決まりません。「半分で離れる人が多い」は分かっても、どのページを
      書き直せばいいのかが分からないからです。ページごとに数えます。
      増え方はページ数に比例するだけなので、際限なく太りません。 */
-  dayEventPaths: (d, e) => `lum:evp:d:${d}:${e}`,
+  dayEventPaths: (d, e) => `${KV}evp:d:${d}:${e}`,
   /* いつ見られているか（JSTの時間帯、0〜23）。
      お知らせや SNS を出す時刻、問い合わせに気づくべき時間帯を、
      勘ではなく実際の山で決められるようにするためです。 */
-  dayHours: (d) => `lum:pv:h:${d}`,
+  dayHours: (d) => `${KV}pv:h:${d}`,
   /* 出ていったリンク。電話・LINE・メール・外部サイト。
      問い合わせフォームを通らずに直接連絡する人は、導線の数字に一切
      出てきません。いちばん取りこぼしの大きいところが見えないままに
      なるので、押された先を数えます（tel / line / mail / 相手のホスト名）。 */
-  dayLinks: (d) => `lum:lk:d:${d}`,
+  dayLinks: (d) => `${KV}lk:d:${d}`,
   // Enquiry outcomes, so a form that has stopped working is visible.
-  dayContact: (d) => `lum:ct:d:${d}`,
-  contactLastError: 'lum:ct:lasterr',
+  dayContact: (d) => `${KV}ct:d:${d}`,
+  contactLastError: `${KV}ct:lasterr`,
   expire: TTL,
 }

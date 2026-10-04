@@ -4,6 +4,7 @@ import { storeConfig, pipeline, jstDate, K } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { orgLabel, pickTopics } from './_form-options.js'
+import { BRAND, KV } from './_brand.js'
 
 // Per IP. Three enquiries in ten minutes is well past what a real person
 // sends; the daily cap stops a slow drip from adding up to a flooded inbox
@@ -71,12 +72,12 @@ export async function POST(req) {
   // De-duplicate before counting, so a double-tap on the button — or a retry
   // after a slow response — costs the sender nothing from their allowance.
   const fp = await digest(email, message)
-  if (await seenBefore(`lum:ct:dup:${fp}`, 10 * 60)) {
+  if (await seenBefore(`${KV}ct:dup:${fp}`, 10 * 60)) {
     return json({ ok: true, duplicate: true })
   }
 
-  const burst = await hit(`lum:ct:rl:${ip}`, BURST.max, BURST.windowS)
-  const daily = await hit(`lum:ct:rl:d:${ip}`, DAILY.max, DAILY.windowS)
+  const burst = await hit(`${KV}ct:rl:${ip}`, BURST.max, BURST.windowS)
+  const daily = await hit(`${KV}ct:rl:d:${ip}`, DAILY.max, DAILY.windowS)
   if (burst.limited || daily.limited) {
     // Counted apart from failures. A block is the system working; filing it
     // as a failure would make the health page raise an alarm about itself.
@@ -94,8 +95,8 @@ export async function POST(req) {
     return json({ error: 'server_misconfigured' }, 503)
   }
 
-  const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
-  const to = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net')
+  const from = BRAND.from
+  const to = await setting('CONTACT_TO_EMAIL', BRAND.owner)
   const jst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16)
   const from_page = String(payload?.page ?? '').slice(0, 120)
   const withEstimate = /概算見積り|概算:/.test(message)

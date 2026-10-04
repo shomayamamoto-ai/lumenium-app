@@ -6,6 +6,7 @@ import { SCOPE } from './_share.js'
 
 import { listContacts } from './_resend-audience.js'
 import { buildXlsx } from './_xlsx.js'
+import { BRAND } from './_brand.js'
 
 // Permalink Excel export: GET /api/members-xlsx?s=<share token> builds a
 // fresh .xlsx from the live member list on every request, so the same URL
@@ -27,7 +28,7 @@ function fmtDate(iso) {
 }
 
 export async function GET(req) {
-  const denied = await requireAdmin(req, { as: 'text', allowQueryKey: true, share: SCOPE })
+  const denied = await requireAdmin(req, { as: 'text', share: SCOPE })
   if (denied) return denied
 
   const apiKey = await setting('RESEND_API_KEY')
@@ -47,7 +48,7 @@ export async function GET(req) {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="lumenium-members.xlsx"',
+      'Content-Disposition': `attachment; filename="${BRAND.slug}-members.xlsx"`,
       'Cache-Control': 'no-store, private',
       'X-Robots-Tag': 'noindex, nofollow',
     },

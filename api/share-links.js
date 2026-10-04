@@ -24,10 +24,11 @@ const NOT_READY = {
   code: 'STORE_NOT_CONFIGURED',
   ready: false,
   message:
-    '共有リンクの発行には保存先が必要です。Vercel の Storage から Upstash Redis を接続すると、失効できる共有リンクを発行できます。接続するまでは管理キー付きのURLが使われます。',
+    '共有リンクの発行には保存先が必要です。Vercel の Storage から Upstash Redis を接続すると、失効できる共有リンクを発行できます。接続するまでは、外部の方に渡すリンクは発行できません。',
 }
 
-const DAY_CHOICES = [7, 30, 90, 365, 0]   // 0 = 無期限
+// No "never expires": a forgotten link should die on its own.
+const DAY_CHOICES = [7, 30, 90, 365]
 
 function origin(req) {
   // Behind Vercel the request URL is already the public one; the header is a

@@ -7,6 +7,8 @@
 //
 // 時刻はすべて JST。日本には夏時間が無いので UTC+9 の固定で正確です。
 
+import { BRAND, KV } from './_brand.js'
+
 const JST = 9 * 3600 * 1000
 const MIN = 60 * 1000
 
@@ -110,9 +112,9 @@ export const toWire = (s) => ({
 /* ---- 記録 ------------------------------------------------------------ */
 
 const TTL = 180 * 24 * 3600
-const LOCK = (key) => `lum:bk:lock:${key}`
-const REC = (id) => `lum:bk:rec:${id}`
-const INDEX = 'lum:bk:index'
+const LOCK = (key) => `${KV}bk:lock:${key}`
+const REC = (id) => `${KV}bk:rec:${id}`
+const INDEX = `${KV}bk:index`
 
 /** 同じ枠を二人が同時に押したときに、後から押した方を弾く。
  *  Google に繋がっていればカレンダー側でも二重には入りませんが、そこまで
@@ -167,17 +169,17 @@ export function icsFile({ id, startMs, endMs, summary, description, organizer, a
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Lumenium//Booking//JA',
+    `PRODID:-//${BRAND.name}//Booking//JA`,
     'CALSCALE:GREGORIAN',
     'METHOD:REQUEST',
     'BEGIN:VEVENT',
-    `UID:${id}@lumenium.net`,
+    `UID:${id}@${BRAND.host}`,
     `DTSTAMP:${ics(Date.now())}`,
     `DTSTART:${ics(startMs)}`,
     `DTEND:${ics(endMs)}`,
     `SUMMARY:${esc(summary)}`,
     `DESCRIPTION:${esc(description)}`,
-    `ORGANIZER;CN=Lumenium:mailto:${organizer}`,
+    `ORGANIZER;CN=${esc(BRAND.name)}:mailto:${organizer}`,
     `ATTENDEE;CN=${esc(attendee)};RSVP=TRUE:mailto:${attendee}`,
     'STATUS:CONFIRMED',
     'END:VEVENT',

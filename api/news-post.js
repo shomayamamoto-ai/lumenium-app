@@ -83,7 +83,7 @@ export async function POST(req) {
   if (action === 'add' || action === 'edit') {
     if (!title || title.length > 80) return json({ ok: false, code: 'BAD_REQUEST', message: 'タイトルは1〜80文字で入力してください。' }, 400)
     if (body.length > 600) return json({ ok: false, code: 'BAD_REQUEST', message: '本文は600文字以内で入力してください。' }, 400)
-    if (link && !/^https?:\/\/|^\//.test(link)) return json({ ok: false, code: 'BAD_REQUEST', message: 'リンクは http(s):// か / で始まるURLを指定してください。' }, 400)
+    if (link && !/^https?:\/\/|^\/(?!\/)/.test(link)) return json({ ok: false, code: 'BAD_REQUEST', message: 'リンクは http(s):// か / で始まるURL（// で始まるものは不可）を指定してください。' }, 400)
     if (action === 'edit' && !delId) return json({ ok: false, code: 'BAD_REQUEST', message: '編集対象のIDがありません。' }, 400)
   } else if (action === 'delete') {
     if (!delId) return json({ ok: false, code: 'BAD_REQUEST', message: '削除対象のIDがありません。' }, 400)

@@ -15,6 +15,7 @@ import { storeFor, storeConfig, storeEnvNames, pipeline, lastDays, jstDate, K } 
 import { listShares } from './_share.js'
 import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
+import { BRAND } from './_brand.js'
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
@@ -34,8 +35,13 @@ export async function GET(req) {
   const checks = [
     {
       id: 'admin', label: '管理キー', env: 'ADMIN_KEY',
-      state: 'ok',
-      note: 'この画面が開けているので設定済みです。',
+      // Guessing is limited to 5 tries per 15 minutes per address, but an
+      // attacker with many addresses gets many tries. Length is what makes
+      // that hopeless.
+      state: (process.env.ADMIN_KEY || '').trim().length >= 24 ? 'ok' : 'warn',
+      note: (process.env.ADMIN_KEY || '').trim().length >= 24
+        ? 'この画面が開けているので設定済みです。'
+        : '設定済みですが短めです。24文字以上のランダムな文字列に変えると、総当たりで当てられる心配がなくなります（パスワード管理アプリの自動生成がおすすめです）。',
     },
     {
       id: 'resend', label: '問い合わせメール送信', env: 'RESEND_API_KEY',
@@ -49,7 +55,7 @@ export async function GET(req) {
       state: has('CONTACT_TO_EMAIL') ? 'ok' : 'warn',
       note: has('CONTACT_TO_EMAIL')
         ? '指定のアドレスに届きます。'
-        : '未設定のため既定の shoma.yamamoto@lumenium.net に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。',
+        : `未設定のため既定の ${BRAND.owner} に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。`,
     },
     {
       // Two different kinds of "connected": in the environment it serves

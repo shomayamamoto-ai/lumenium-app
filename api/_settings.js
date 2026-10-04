@@ -25,8 +25,9 @@
 
 import { storeConfig, storeFor, pipeline, storeEnvNames } from './_analytics-store.js'
 import { bag, bagReady } from './_keybag.js'
+import { BRAND, KV } from './_brand.js'
 
-const K = (name) => `lum:cfg:${name}`
+const K = (name) => `${KV}cfg:${name}`
 
 /** The groups the admin screen shows these in, in order. */
 export const GROUPS = [
@@ -67,7 +68,7 @@ export const SETTINGS = [
   {
     name: 'CONTACT_TO_EMAIL', label: '問い合わせの宛先', kind: 'text', group: 'site', device: false,
     where: '受け取りたいメールアドレス',
-    why: '未設定のときは shoma.yamamoto@lumenium.net に届きます。',
+    why: `未設定のときは ${BRAND.owner} に届きます。`,
   },
   {
     name: 'ANTHROPIC_API_KEY', label: 'AI（SEO/AIO分析・アドバイザー）', kind: 'secret', group: 'site',
@@ -95,12 +96,12 @@ export const SETTINGS = [
   {
     name: 'GOOGLE_SITE_VERIFICATION', label: 'Google Search Console の確認', kind: 'text', group: 'search', device: false,
     where: 'search.google.com/search-console › プロパティを追加（URLプレフィックス）› HTMLファイル の googleXXXX.html というファイル名',
-    why: 'ファイル名をそのまま貼れば、https://lumenium.net/googleXXXX.html が有効になります。確認後は sitemap.xml と sitemap-content.xml を送信してください。',
+    why: `ファイル名をそのまま貼れば、${BRAND.url}/googleXXXX.html が有効になります。確認後は sitemap.xml と sitemap-content.xml を送信してください。`,
   },
   {
     name: 'BING_SITE_VERIFICATION', label: 'Bing Webmaster Tools の確認', kind: 'text', group: 'search', device: false,
     where: 'bing.com/webmasters › サイト追加 › XMLファイル の <user> に入っている文字列',
-    why: '貼ると https://lumenium.net/BingSiteAuth.xml が有効になります。Bing の索引は ChatGPT検索・Copilot の材料です。',
+    why: `貼ると ${BRAND.url}/BingSiteAuth.xml が有効になります。Bing の索引は ChatGPT検索・Copilot の材料です。`,
   },
 
   // 商談の自動予約。これらは訪問者のリクエストを処理している最中に読む値
@@ -110,7 +111,7 @@ export const SETTINGS = [
   {
     name: 'GOOGLE_CLIENT_ID', label: 'Google クライアントID', kind: 'text', group: 'booking', device: false,
     where: 'console.cloud.google.com › APIとサービス › 認証情報 › OAuth 2.0 クライアント（種類: ウェブアプリケーション）',
-    why: '承認済みのリダイレクトURIに https://lumenium.net/api/google-oauth を登録してください。Google Calendar API の有効化も必要です。',
+    why: `承認済みのリダイレクトURIに ${BRAND.url}/api/google-oauth を登録してください。Google Calendar API の有効化も必要です。`,
   },
   {
     name: 'GOOGLE_CLIENT_SECRET', label: 'Google クライアントシークレット', kind: 'secret', group: 'booking', device: false,

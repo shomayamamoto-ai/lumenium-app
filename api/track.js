@@ -91,7 +91,36 @@ function cleanPath(raw) {
   if (!p.startsWith('/')) p = '/' + p
   p = p.replace(/\/{2,}/g, '/')
   if (p.length > 1) p = p.replace(/\/$/, '')
-  return p.slice(0, 120) || '/'
+  p = p.slice(0, 120) || '/'
+  // A real address arrives percent-encoded, so it only ever holds these
+  // characters. Anything else (quotes, spaces, angle brackets) was typed by
+  // someone posting here directly, and this string is shown in the admin.
+  return /^\/[A-Za-z0-9/_\-.~%]*$/.test(p) ? p : '/(other)'
+}
+
+// How many distinct paths / referrers one day may hold. A real site of this
+// size sees a few dozen; the cap only stops someone inventing new ones to
+// bloat the store and push junk into the report.
+const MAX_FIELDS = 300
+// Beacons per visitor per minute. Reading a page sends a handful; more than
+// this is a script.
+const MAX_PER_MIN = 60
+
+/** One round trip before writing: the caller's rate, and whether the hash
+ *  the value would go into is already full. A value already in the hash is
+ *  always counted; only a new one is folded into "(other)" once it is full. */
+async function guard(cfg, rateKey, slots) {
+  try {
+    const out = await pipeline(cfg, [
+      ['INCR', rateKey], ['EXPIRE', rateKey, 60, 'NX'],
+      ...slots.flatMap(([hash, field]) => [['HLEN', hash], ['HEXISTS', hash, field]]),
+    ])
+    if (Number(out[0]) > MAX_PER_MIN) return null
+    return slots.map(([, field, other], i) =>
+      Number(out[2 + i * 2]) >= MAX_FIELDS && !Number(out[3 + i * 2]) ? other : field)
+  } catch (_) {
+    return slots.map(([, field]) => field)
+  }
 }
 
 async function visitorId(ip, ua, date, salt) {
@@ -134,9 +163,15 @@ export async function POST(req) {
   const salt = (process.env.ADMIN_KEY || 'lumenium') + ':analytics'
   const vid = await visitorId(ip, ua, date, salt)
 
+  // Per address rather than per visitor id: the id changes with the user
+  // agent, which a script can rotate freely.
+  const rateKey = K.rate((await visitorId(ip, '', date, salt)).slice(0, 16))
   const ev = typeof body?.e === 'string' ? body.e : ''
   if (ev) {
     if (!EVENTS.has(ev)) return ok()
+    const g = await guard(cfg, rateKey, [[K.dayEventPaths(date, ev), path, '/(other)']])
+    if (!g) return ok()
+    const [evPath] = g
     /* 出ていった先。tel / line / mail、外部リンクなら相手のホスト名。
        ページ名と同じ hash に混ぜず、専用の一覧に入れます——「どのページで
        押されたか」と「どこへ出ていったか」は別の問いで、混ぜると
@@ -153,7 +188,7 @@ export async function POST(req) {
         ['EXPIRE', K.dayEventUsers(date, ev), K.expire],
         // …そして、どのページで起きたか。全体の読了率だけでは
         // 「どのページを書き直すか」が決まりません。
-        ['HINCRBY', K.dayEventPaths(date, ev), path, 1],
+        ['HINCRBY', K.dayEventPaths(date, ev), evPath, 1],
         ['EXPIRE', K.dayEventPaths(date, ev), K.expire],
         ...(dest ? [
           ['HINCRBY', K.dayLinks(date), dest, 1],
@@ -170,6 +205,9 @@ export async function POST(req) {
   const src = String(body?.s || '').toLowerCase()
   const ref = /^[a-z0-9_-]{1,32}$/.test(src) ? `src:${src}` : refHost(body?.r, host)
   const dev = device(ua)
+  const g = await guard(cfg, rateKey, [[K.dayPaths(date), path, '/(other)'], [K.dayRefs(date), ref, 'other']])
+  if (!g) return ok()
+  const [pvPath, pvRef] = g
 
   try {
     await pipeline(cfg, [
@@ -178,9 +216,9 @@ export async function POST(req) {
       ['EXPIRE', K.dayViews(date), K.expire],
       ['PFADD', K.dayVisitors(date), vid],
       ['EXPIRE', K.dayVisitors(date), K.expire],
-      ['HINCRBY', K.dayPaths(date), path, 1],
+      ['HINCRBY', K.dayPaths(date), pvPath, 1],
       ['EXPIRE', K.dayPaths(date), K.expire],
-      ['HINCRBY', K.dayRefs(date), ref, 1],
+      ['HINCRBY', K.dayRefs(date), pvRef, 1],
       ['EXPIRE', K.dayRefs(date), K.expire],
       ['HINCRBY', K.dayDevices(date), dev, 1],
       ['EXPIRE', K.dayDevices(date), K.expire],

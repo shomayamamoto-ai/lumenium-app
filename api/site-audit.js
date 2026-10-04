@@ -27,6 +27,7 @@ import { storeFor } from './_analytics-store.js'
 import { readCrawls } from './_crawlers.js'
 import { QUESTIONS } from './_aio-catalog.js'
 import { SITE, extract, crossCheck, questionCoverage } from './_audit-rules.js'
+import { BRAND } from './_brand.js'
 
 /* Which page is supposed to answer each measured question. The two halves of
    this screen never met: the probe reported 「動画制作 0%」 and the audit
@@ -74,7 +75,7 @@ export async function GET(req) {
       const path = u.replace(origin, '') || '/'
       const t0 = Date.now()
       try {
-        const res = await fetch(u, { headers: { 'user-agent': 'LumeniumAudit/1' } })
+        const res = await fetch(u, { headers: { 'user-agent': `${BRAND.name}Audit/1` } })
         if (!res.ok) return { url: path, error: `HTTP ${res.status}` }
         const html = await res.text()
         // A page deliberately kept out of the index is not failing at being

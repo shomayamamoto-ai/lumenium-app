@@ -29,6 +29,7 @@ import {
   RULES, candidates, removeBusy, toWire, label, gcalAddUrl,
   takeSlot, releaseSlot, saveBooking, recentBookings, icsFile,
 } from './_booking.js'
+import { BRAND, KV } from './_brand.js'
 
 const LIMITS = { name: 50, email: 100, message: 500 }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -88,7 +89,7 @@ async function openSlots(req, wanted) {
 async function takenSpans(store, slots) {
   if (!store || !slots.length) return []
   try {
-    const out = await pipeline(store, slots.map((s) => ['GET', `lum:bk:lock:${new Date(s.start).toISOString()}`]))
+    const out = await pipeline(store, slots.map((s) => ['GET', `${KV}bk:lock:${new Date(s.start).toISOString()}`]))
     return slots.filter((_, i) => out[i]).map((s) => ({ start: s.start, end: s.end }))
   } catch (_) {
     return []
@@ -127,8 +128,10 @@ export async function GET(req) {
     ok: true,
     enabled: mode !== 'off',
     mode,
-    reason: reason || null,
-    warn: warn || null,
+    // Google's own error text names the calendar setup; visitors only need to
+    // know whether it worked. The detail is in the admin's settings check.
+    reason: reason ? 'calendar_unavailable' : null,
+    warn: warn ? 'calendar_unavailable' : null,
     tz: 'Asia/Tokyo',
     minutes: RULES.slotMin,
     total: total || 0,
@@ -158,14 +161,14 @@ export async function POST(req) {
   if (!email || !EMAIL_RE.test(email) || email.length > LIMITS.email) return json({ error: 'invalid_email' }, 400)
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  const rl = await hit(`lum:bk:rl:${ip}`, BURST.max, BURST.windowS)
+  const rl = await hit(`${KV}bk:rl:${ip}`, BURST.max, BURST.windowS)
   if (rl.limited) {
     return json({ error: 'rate_limited', message: '予約の操作が続いています。しばらくおいてからお試しください。' },
       429, { 'retry-after': String(rl.retryAfter) })
   }
   // 連打・再送信で同じ人が二枠取ってしまわないように。
   const fp = await digest(email, key)
-  if (await seenBefore(`lum:bk:dup:${fp}`, 10 * 60)) return json({ ok: true, duplicate: true })
+  if (await seenBefore(`${KV}bk:dup:${fp}`, 10 * 60)) return json({ ok: true, duplicate: true })
 
   // クライアントが返してきた時刻は使わない。いま作り直した候補の中に
   // 同じ鍵があるかどうかだけを見る。
@@ -181,8 +184,8 @@ export async function POST(req) {
 
   const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
   const when = label(slot.start, slot.end)
-  const owner = await setting('CONTACT_TO_EMAIL', 'shoma.yamamoto@lumenium.net', req)
-  const summary = `商談: ${company ? `${company} ` : ''}${name}様 × Lumenium${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
+  const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner, req)
+  const summary = `商談: ${company ? `${company} ` : ''}${name}様 × ${BRAND.name}${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
   const description = [
     `お名前: ${name}`,
     company ? `会社名: ${company}` : null,
@@ -242,7 +245,7 @@ function b64(text) {
 async function notify(req, rec, owner, ev) {
   const apiKey = await setting('RESEND_API_KEY', '', req)
   if (!apiKey) return
-  const from = process.env.CONTACT_FROM_EMAIL || 'Lumenium <onboarding@resend.dev>'
+  const from = BRAND.from
   const send = (payload) => fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -272,14 +275,14 @@ async function notify(req, rec, owner, ev) {
     subject: `【商談予約】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
     text: lines.join('\n'),
     // 自分のカレンダーにも入れられるように、相手と同じ .ics を添付します。
-    ...(file ? { attachments: [{ filename: 'lumenium-meeting.ics', content: b64(file) }] } : {}),
+    ...(file ? { attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }] } : {}),
   })
 
   if (rec.mode !== 'google') {
     await send({
       to: [rec.email],
       reply_to: owner,
-      subject: `【仮予約を承りました】${rec.when} Lumenium`,
+      subject: `【仮予約を承りました】${rec.when} ${BRAND.name}`,
       text: [
         `${rec.name} 様`,
         '',
@@ -287,10 +290,10 @@ async function notify(req, rec, owner, ev) {
         '担当より、接続用のURLを添えて確定のご連絡を差し上げます。',
         '添付のファイルを開くと、そのままカレンダーに登録できます。',
         '',
-        'Lumenium（ルメニウム）',
-        'https://lumenium.net',
+        `${BRAND.name}（${BRAND.kana}）`,
+        BRAND.url,
       ].join('\n'),
-      attachments: [{ filename: 'lumenium-meeting.ics', content: b64(file) }],
+      attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }],
     })
   }
 }

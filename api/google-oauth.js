@@ -53,6 +53,11 @@ export async function checkState(state) {
   return Number(exp) > Date.now()
 }
 
+// Anything that came from the query string or from Google goes through this:
+// the page is served from the admin's own origin.
+const escHtml = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
 const page = (title, body, ok = true) => new Response(
   `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">` +
   `<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">` +
@@ -65,7 +70,11 @@ const page = (title, body, ok = true) => new Response(
   `code{display:block;background:#171c33;border:1px solid #424a6b;border-radius:8px;padding:10px 12px;` +
   `font-size:12px;word-break:break-all;color:#f5f7fb;margin:8px 0;line-height:1.7}` +
   `</style></head><body><div class="card"><h1>${title}</h1>${body}</div></body></html>`,
-  { status: ok ? 200 : 400, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  { status: ok ? 200 : 400, headers: {
+    'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
+    // No script ever runs here, so allow none.
+    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  } },
 )
 
 export async function GET(req) {
@@ -98,7 +107,7 @@ export async function GET(req) {
 
   /* ---- Googleからの戻り ---- */
   const err = url.searchParams.get('error')
-  if (err) return page('接続を中止しました', `<p>Google 側で「${err}」となりました。管理画面からやり直せます。</p>`, false)
+  if (err) return page('接続を中止しました', `<p>Google 側で「${escHtml(err.slice(0, 80))}」となりました。管理画面からやり直せます。</p>`, false)
 
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state') || ''
@@ -114,7 +123,7 @@ export async function GET(req) {
   try {
     data = await exchangeCode({ clientId: c.clientId, clientSecret: c.clientSecret, redirectUri, code })
   } catch (e) {
-    return page('接続に失敗しました', `<p>${String(e.message || e).slice(0, 200)}</p>`, false)
+    return page('接続に失敗しました', `<p>${escHtml(String(e.message || e).slice(0, 200))}</p>`, false)
   }
 
   if (!data.refresh_token) {

@@ -18,8 +18,9 @@
 //      reasons a page that is fine never gets read.
 
 import { QUESTIONS } from './_aio-catalog.js'
+import { BRAND } from './_brand.js'
 
-export const SITE = 'https://lumenium.net'
+export const SITE = BRAND.url
 
 export const strip = (html) => String(html)
   .replace(/<script[\s\S]*?<\/script>/gi, ' ')

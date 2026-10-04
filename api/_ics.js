@@ -14,6 +14,8 @@
 // 持ち主が東京にいる前提で、そこを厳密にやるには時間帯データベースが要り、
 // 得られる精度に見合いません。
 
+import { BRAND } from './_brand.js'
+
 const JST = 9 * 3600 * 1000
 
 /** 折り返された行を戻す。iCal は75バイトで折り返し、続きは行頭が空白です。 */
@@ -125,7 +127,7 @@ export function busyFromIcs(text, fromMs, toMs) {
 export async function busyFromUrl(url, fromMs, toMs) {
   try {
     const res = await fetch(url, {
-      headers: { 'user-agent': 'LumeniumBooking/1 (+https://lumenium.net/)' },
+      headers: { 'user-agent': `${BRAND.name}Booking/1 (+${BRAND.url}/)` },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return null

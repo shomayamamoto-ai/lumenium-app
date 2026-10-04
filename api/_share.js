@@ -19,9 +19,10 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
 import { storeConfig, pipeline } from './_analytics-store.js'
+import { KV } from './_brand.js'
 
-const TK = (hash) => `lum:share:t:${hash}`
-const INDEX = 'lum:share:ix'
+const TK = (hash) => `${KV}share:t:${hash}`
+const INDEX = `${KV}share:ix`
 
 /** One scope for now: both member endpoints show the same list, so splitting
  *  them would be a distinction without a difference. Stored anyway, so an

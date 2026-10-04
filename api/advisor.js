@@ -18,6 +18,7 @@ import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'
 import { readCrawls } from './_crawlers.js'
+import { KV } from './_brand.js'
 
 const MODEL = 'claude-opus-5'
 const MAX_TURNS = 16
@@ -48,7 +49,7 @@ async function liveNumbers(req) {
   const dates = lastDays(30)
   try {
     const cmds = [
-      ['LRANGE', 'lum:aio:index', 0, 0],
+      ['LRANGE', `${KV}aio:index`, 0, 0],
       ...dates.map((d) => ['GET', K.dayViews(d)]),
       ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
       ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
@@ -80,7 +81,7 @@ async function liveNumbers(req) {
 
     let aio = null
     if (ids.length) {
-      const [raw] = await pipeline(cfg, [['GET', `lum:aio:run:${ids[0]}`]])
+      const [raw] = await pipeline(cfg, [['GET', `${KV}aio:run:${ids[0]}`]])
       try {
         const run = JSON.parse(raw)
         if (run && run.summary) {

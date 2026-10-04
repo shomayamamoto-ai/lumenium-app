@@ -15,6 +15,7 @@
 import { setting } from './_settings.js'
 import { authHeader } from './_x-oauth1.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
+import { KV } from './_brand.js'
 
 const GRAPH = 'https://graph.facebook.com/v21.0'
 const THREADS = 'https://graph.threads.net/v1.0'
@@ -82,7 +83,7 @@ export const NETWORKS = [
   },
 ]
 
-const LOG = 'lum:social:log'
+const LOG = `${KV}social:log`
 
 async function creds(names, req) {
   const out = {}
