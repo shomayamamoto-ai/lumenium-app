@@ -517,6 +517,62 @@
   .soc-post .tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-decoration: none; }
   .soc-post .tag.ok { background: rgba(16,185,129,0.16); color: #047857; }
   .soc-post .tag.ng { background: rgba(248,113,113,0.15); color: #b42318; }
+  .soc-post .tag.unk { background: rgba(251,191,36,0.2); color: #92400e; }
+  .soc-post .mx { font-size: 11px; color: var(--sub); margin-top: 5px; line-height: 1.7; }
+  .soc-net .acts { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; }
+  .soc-net .acts .linkish { font-size: 11px; font-weight: 700; }
+  .soc-net .tres { grid-column: 1 / -1; font-size: 11px; line-height: 1.6; }
+  .soc-small { font-size: 11px; color: var(--sub); line-height: 1.7; }
+  .soc-lab { display: block; font-size: 11.5px; font-weight: 700; color: var(--sub); margin: 10px 0 5px; }
+  .soc-h { font-size: 12px; letter-spacing: .1em; color: var(--sub); font-weight: 700; margin-bottom: 10px; }
+  .soc-more { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; margin-bottom: 6px; }
+  .soc-more summary { font-size: 12px; font-weight: 700; cursor: pointer; }
+  .soc-ai { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; margin-bottom: 10px; }
+  .soc-ai summary { font-size: 12.5px; font-weight: 700; cursor: pointer; color: #0f766e; }
+  .soc-ai select, .soc-ai textarea, .soc-var textarea, .soc-img-add input, .soc-when input[type=date] {
+    width: 100%; padding: 9px 11px; background: #faf9f6; color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; font-size: 13px; font-family: inherit; line-height: 1.7;
+  }
+  .soc-ai textarea, .soc-var textarea { resize: vertical; }
+  .soc-img-add { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .soc-img-add input { flex: 1 1 220px; min-width: 0; width: auto; }
+  .soc-img { display: flex; gap: 9px; align-items: center; padding: 7px 9px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; }
+  .soc-img img { width: 52px; height: 52px; object-fit: cover; border-radius: 7px; border: 1px solid var(--border); flex: none; background: #fff; }
+  .soc-img .meta { flex: 1; min-width: 0; font-size: 11px; color: var(--sub); line-height: 1.6; overflow-wrap: anywhere; }
+  .soc-img button { flex: none; font-size: 11px; padding: 5px 10px; }
+  .soc-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .soc-tab { font-size: 12px; padding: 7px 12px; background: #faf9f6; color: var(--sub); border: 1px solid var(--border); border-radius: 999px; }
+  .soc-tab.on { background: rgba(20,184,166,0.12); color: var(--text); border-color: #0f766e; }
+  .soc-tab .st { font-variant-numeric: tabular-nums; margin-left: 6px; font-weight: 700; }
+  .soc-tab .st.over { color: #b42318; }
+  .soc-var { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; }
+  .soc-var .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 7px; font-size: 11.5px; }
+  .soc-count { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .soc-count.over { color: #b42318; }
+  .soc-issue { font-size: 11.5px; line-height: 1.75; margin-top: 4px; }
+  .soc-issue.err { color: #b42318; }
+  .soc-issue.warn { color: #92400e; }
+  .soc-pv { margin-top: 12px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; max-width: 520px; }
+  .soc-pv .who { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+  .soc-pv .av { width: 30px; height: 30px; border-radius: 50%; background: #dcd8ce; flex: none; }
+  .soc-pv .hd { font-weight: 500; color: var(--sub); font-size: 11.5px; }
+  .soc-pv .tx { font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+  .soc-pv .u { color: #3d3fbf; }
+  .soc-pv .pics { display: grid; gap: 4px; margin-top: 8px; grid-template-columns: repeat(2, 1fr); }
+  .soc-pv .pics.one { grid-template-columns: 1fr; }
+  .soc-pv .pics img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 9px; border: 1px solid var(--border); display: block; }
+  .soc-pv .card { margin-top: 8px; border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; background: #f6f4ef; font-size: 11.5px; color: var(--sub); overflow-wrap: anywhere; }
+  .soc-pv .noimg { aspect-ratio: 1 / 1; max-height: 220px; display: flex; align-items: center; justify-content: center; background: #f6f4ef; border: 1px dashed var(--border); border-radius: 9px; font-size: 12px; color: #b42318; }
+  .soc-pv.line { background: #e9edf2; }
+  .soc-pv.line .bubble { background: #fff; border-radius: 14px; padding: 9px 12px; display: inline-block; max-width: 100%; }
+  .soc-pv .dest { font-size: 11px; color: var(--sub); margin-top: 9px; border-top: 1px solid var(--border); padding-top: 7px; overflow-wrap: anywhere; line-height: 1.7; }
+  .soc-when { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+  .soc-when label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .soc-when input[type=radio] { accent-color: #14b8a6; width: 15px; height: 15px; }
+  .soc-when input[type=date] { width: auto; min-width: 170px; }
+  .soc-q { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
+  .soc-q .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .soc-q button { flex: none; font-size: 11px; padding: 5px 10px; }
 
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -697,6 +753,7 @@ header h1, header button, header a { white-space: nowrap; }
 </head>
 <body>
 <script src="/admin-demo.js"></script>
+<script src="/social-text.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -903,10 +960,11 @@ header h1, header button, header a { white-space: nowrap; }
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS投稿</h2>
       <p class="share-note" style="margin-bottom:14px">
-        ここから X・Facebook・Instagram・Threads・LinkedIn に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
+        ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
       </p>
       <p class="msg" id="social-msg" style="margin-bottom:12px"></p>
+      <div id="social-restore"></div>
 
       <!-- まだ1つも使えないときは、投稿欄より先にここが出ます。
            何をすれば使えるのかが分からないまま、空の投稿欄を見せても仕方が
@@ -916,8 +974,25 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-compose">
         <h3 class="soc-step">1　どこに出すか</h3>
         <div id="social-nets" class="soc-nets"></div>
+        <div id="social-more"></div>
 
         <h3 class="soc-step">2　何を書くか</h3>
+        <details class="soc-ai" id="social-ai">
+          <summary>AIに下書きを作ってもらう（投稿先ごとに書き分けます）</summary>
+          <div class="soc-ai-body">
+            <label class="soc-lab" for="social-ai-news">お知らせから作る（任意）</label>
+            <select id="social-ai-news"><option value="">使わない</option></select>
+            <label class="soc-lab" for="social-ai-topic">何について書くか（メモ）</label>
+            <textarea id="social-ai-topic" rows="3" placeholder="例：10月から秋の限定メニューを始めます。栗のモンブラン 680円。"></textarea>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
+              <button type="button" id="social-ai-go" style="font-size:12.5px;padding:8px 14px">選んだSNSの下書きを作る</button>
+              <span id="social-ai-state" class="soc-small"></span>
+            </div>
+            <p class="soc-small" style="margin-top:6px">書いてあることだけを元にします。金額や実績を勝手に足さないよう指示していますが、送る前に必ず読んでください。</p>
+            <div id="social-ai-out"></div>
+          </div>
+        </details>
+        <label class="soc-lab" for="social-text">共通の本文（どのSNSにも使います。SNSごとに変えたいときは 3 で）</label>
         <textarea id="social-text" rows="5" placeholder="投稿する本文" style="width:100%;padding:12px 13px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;resize:vertical"></textarea>
         <div id="social-tools" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px">
           <span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>
@@ -928,13 +1003,35 @@ header h1, header button, header a { white-space: nowrap; }
           <span class="soc-busy" style="font-size:11px;color:var(--sub);display:none">書き直しています…</span>
         </div>
         <div class="soc-fields" style="margin-top:10px">
-          <input type="url" id="social-link" placeholder="リンク（任意 / https://）" autocomplete="off">
-          <input type="url" id="social-image" placeholder="画像URL（任意 / https://）" autocomplete="off">
+          <input type="url" id="social-link" placeholder="リンク（任意 / https:// で始まるもの）" autocomplete="off">
+          <input type="text" id="social-campaign" placeholder="キャンペーン名（任意）" autocomplete="off" maxlength="40">
         </div>
         <div id="social-urlnote" style="margin-top:6px"></div>
+        <div class="soc-images">
+          <div class="soc-lab" style="margin-top:12px">画像（任意・4枚まで）</div>
+          <div id="social-imgs"></div>
+          <div class="soc-img-add">
+            <input type="url" id="social-image" placeholder="画像のURL（https:// で始まる、公開されているもの）" autocomplete="off">
+            <button type="button" class="ghost" id="social-image-add" style="font-size:12px;padding:8px 12px">URLを追加</button>
+            <button type="button" class="ghost" id="social-upload" style="font-size:12px;padding:8px 12px">手元の画像をアップロード</button>
+            <input type="file" id="social-file" accept="image/jpeg,image/png,image/webp" style="display:none">
+          </div>
+          <div id="social-imgnote" class="soc-small" style="margin-top:6px"></div>
+        </div>
 
-        <h3 class="soc-step">3　確認して送る</h3>
-        <div id="social-preview" style="margin-bottom:12px"></div>
+        <h3 class="soc-step">3　SNSごとに確かめる</h3>
+        <div id="social-tabs" class="soc-tabs" role="tablist"></div>
+        <div id="social-variant"></div>
+
+        <h3 class="soc-step">4　いつ出すか</h3>
+        <div class="soc-when">
+          <label><input type="radio" name="social-when" value="now" checked> 今すぐ投稿</label>
+          <label><input type="radio" name="social-when" value="date" id="social-when-date"> 日付を選んで予約</label>
+          <input type="date" id="social-date" aria-label="投稿する日付">
+        </div>
+        <div id="social-whennote" class="soc-small" style="margin-top:6px"></div>
+
+        <h3 class="soc-step">5　送る</h3>
         <div class="toolbar" style="margin:12px 0">
           <button type="button" id="social-post">選んだSNSに投稿</button>
           <button type="button" class="ghost" id="social-reload">状態を再取得</button>
@@ -942,7 +1039,9 @@ header h1, header button, header a { white-space: nowrap; }
         </div>
       </div>
       <div id="social-results" style="margin-bottom:18px"></div>
-      <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">これまでの投稿</h3>
+      <h3 class="soc-h">予約中の投稿</h3>
+      <div id="social-queue" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">これまでの投稿</h3>
       <div id="social-log"></div>
     </div>
 
@@ -1391,7 +1490,7 @@ window.lumAdmin = {
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
       desc: 'お知らせを出す', accent: '#6d28d9', tint: 'rgba(139,92,246,0.14)' },
     { id: 'social-admin', icon: '📣', label: 'SNS投稿', init: 'lumSocialInit', needs: 'social',
-      desc: '5つのSNSに直接出す', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
+      desc: 'SNSとLINEにまとめて出す', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
     { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
       desc: 'サイトの文章を直す', accent: '#be185d', tint: 'rgba(236,72,153,0.13)' },
     { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
@@ -5547,14 +5646,37 @@ window.lumAdmin = {
 
 <script>
 /* ---- SNS投稿 ----
-   One box, five destinations. Each network is only selectable once its
-   credentials are in, and the row says which ones are missing rather than
-   failing at send time. Nothing here claims a post succeeded: the per-network
-   result is whatever that platform answered. */
+   One text, six destinations, and each destination checked the way that
+   destination counts. Networks without keys are not offered as choices; they
+   are listed underneath with what it takes to connect them. Nothing here
+   claims a post succeeded: the per-network result is whatever that platform
+   answered, and when the server could not find out, it says so.
+
+   The counting and the link tagging come from /social-text.js, which is built
+   from the same file the server uses (api/_social-text.js) — a counter that
+   disagrees with the server is how a 「残り20文字」 post got refused by X. */
 (function () {
   var el = function (id) { return document.getElementById(id); };
+  var TX = window.lumSocialText;
+  var DRAFT_KEY = 'lum_social_draft_v1';
   var nets = [];
+  var brand = { host: location.hostname.replace(/^www\./, ''), name: (window.lumSite && window.lumSite.name) || '' };
+  var info = { schedule: { ready: false, items: [], jstHour: 9 }, upload: { ready: false }, threadsToken: null, stored: false };
+  var quotas = {};
+  var tests = {};
+  var imgMeta = {};
+  var busy = false;
   var started = false;
+  var restoring = false;
+  var S = blank();
+
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
+  }
+  function blank() {
+    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid() };
+  }
 
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
@@ -5562,42 +5684,99 @@ window.lumAdmin = {
     });
   }
 
-  function say(t, info) {
+  function say(t, info2) {
     var m = el('social-msg');
     m.textContent = t || '';
     m.classList.toggle('show', !!t);
-    m.classList.toggle('info', !!info);
+    m.classList.toggle('info', !!info2);
   }
 
-  function body() {
+  /* lumAdmin.fetch throws when the network itself fails (offline, a proxy
+     dropping the line). Every caller here wants an answer either way. */
+  async function api(url, opts) {
+    try { return await window.lumAdmin.fetch(url, opts); }
+    catch (_) { return { res: { ok: false, status: 0 }, data: { ok: false, message: '通信できませんでした。ネットの接続を確かめて、もう一度お試しください。' } }; }
+  }
+  function postJson(url, body) {
+    return api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  }
+
+  function netById(id) { for (var i = 0; i < nets.length; i++) if (nets[i].id === id) return nets[i]; return null; }
+  function ready() { return nets.filter(function (n) { return n.ready; }); }
+  function picked() { return S.picked.filter(function (id) { var n = netById(id); return n && n.ready; }); }
+
+  function payload() {
     return {
       text: el('social-text').value,
       link: el('social-link').value.trim(),
-      imageUrl: el('social-image').value.trim(),
+      campaign: el('social-campaign').value.trim(),
+      images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '' }; }),
+      variants: S.variants,
+      targets: picked(),
+      sendId: S.sendId
     };
   }
+  function composeFor(id) { return TX.compose(id, payload(), brand.host); }
 
-  /* What each network will actually receive, so the counter is not a guess:
-     the link is appended to the body on every one of them. */
-  function payloadLen() {
-    var b = body();
-    return (b.text + (b.link ? '\n' + b.link : '')).length;
+  /* Instagram の画像の決まり（縦横比 4:5〜1.91:1）。URL の画像はブラウザで
+     読み込んで大きさを確かめます。ファイルの大きさは、URL からは分かりません。 */
+  function imageIssues(id) {
+    var out = { errors: [], warnings: [] };
+    if (id !== 'instagram' || !S.images.length) return out;
+    var m = imgMeta[S.images[0].url] || {};
+    if (m.failed) out.errors.push('画像を開けませんでした。公開されているURLか確かめてください。');
+    if (m.w && m.h) {
+      var r = m.w / m.h;
+      if (r < 0.8 || r > 1.91) {
+        out.errors.push('Instagramに出せる縦横比は 4:5（縦長）〜1.91:1（横長）です。この画像は ' + m.w + '×' + m.h + ' なので、切り抜いてから使ってください。');
+      }
+    }
+    var img = S.images[0];
+    if (img.size && img.size > 8 * 1048576) out.errors.push('Instagramの画像は8MBまでです。');
+    if (!img.uploaded && !/\.jpe?g(\?|$)/i.test(img.url)) out.warnings.push('Instagram は JPEG がおすすめです（PNGなどは断られることがあります）。手元の画像をアップロードすると、JPEGに変えて置きます。');
+    if (!img.uploaded) out.warnings.push('URLの画像は大きさ（MB）を確かめられません。8MB以下にしてください。');
+    return out;
   }
 
+  function lineIssues(id) {
+    var out = { errors: [], warnings: [] };
+    if (id !== 'line') return out;
+    var q = quotas.line;
+    if (q && q.ok && q.reach != null && q.remaining != null && q.reach > q.remaining) {
+      out.errors.push('今月の残り通数（' + q.remaining + '通）では、届く人数（' + q.reach + '人）に足りません。LINEは全員に届けられないとき送信そのものが失敗します。');
+    }
+    if (S.images[0] && !S.images[0].preview && !S.images[0].uploaded) {
+      out.warnings.push('LINEは一覧用の小さい画像（1MBまで）も要ります。URLの画像はそのまま使うので、1MBを超えると表示されないことがあります。');
+    }
+    return out;
+  }
+
+  function fullCheck(id) {
+    var c = composeFor(id);
+    var k = TX.check(id, c);
+    var a = imageIssues(id), b = lineIssues(id);
+    return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: k.warnings.concat(a.warnings, b.warnings) };
+  }
+
+  /* ---- 1 どこに出すか ---- */
   function renderNets() {
     var host = el('social-nets');
     host.innerHTML = '';
-    nets.forEach(function (n) {
+    ready().forEach(function (n) {
       var lab = document.createElement('label');
-      lab.className = 'soc-net' + (n.ready ? '' : ' off');
+      lab.className = 'soc-net' + (S.picked.indexOf(n.id) !== -1 ? ' on' : '');
       lab.id = 'soc-' + n.id;
       var cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.disabled = !n.ready;
       cb.dataset.net = n.id;
+      cb.checked = S.picked.indexOf(n.id) !== -1;
       cb.addEventListener('change', function () {
+        var i = S.picked.indexOf(n.id);
+        if (cb.checked && i === -1) S.picked.push(n.id);
+        if (!cb.checked && i !== -1) S.picked.splice(i, 1);
         lab.classList.toggle('on', cb.checked);
-        count();
+        if (cb.checked) S.tab = n.id;
+        changed(true);
       });
       lab.appendChild(cb);
       var nm = document.createElement('span');
@@ -5606,167 +5785,679 @@ window.lumAdmin = {
       lab.appendChild(nm);
       var left = document.createElement('span');
       left.className = 'left';
-      left.title = 'あと何文字書けるか（リンクの分を含む）';
+      left.title = n.weighted ? 'あと何文字書けるか（Xの数え方。日本語は1文字=2）' : 'あと何文字書けるか（リンクの分を含む）';
       lab.appendChild(left);
       var sub = document.createElement('span');
       sub.className = 'sub';
-      if (n.ready) {
-        sub.textContent = n.note;
-      } else {
-        /* 変数名だけでは一歩も進めません。何が要るのか、どこで取るのかを
-           そのまま書きます。名前は「キーの入力」で探すときに要るので
-           残しますが、主役にはしません。 */
-        var st = n.setup || {};
-        sub.innerHTML = '<span style="color:#b45309;font-weight:700">まだ使えません</span>　' +
-          esc(st.what || (n.missing.join('・') + ' が要ります。')) +
-          (st.effort ? '<br><span style="opacity:.85">' + esc(st.effort) + '</span>' : '');
-      }
+      sub.textContent = n.note;
       lab.appendChild(sub);
+      var q = document.createElement('span');
+      q.className = 'sub soc-quota';
+      q.id = 'soc-q-' + n.id;
+      lab.appendChild(q);
+      var acts = document.createElement('span');
+      acts.className = 'acts';
+      var t = document.createElement('button');
+      t.type = 'button'; t.className = 'linkish'; t.textContent = '接続テスト';
+      t.addEventListener('click', function (e) { e.preventDefault(); testNet(n.id); });
+      acts.appendChild(t);
+      if (n.id === 'threads') {
+        var x = document.createElement('button');
+        x.type = 'button'; x.className = 'linkish'; x.textContent = 'トークンを延長';
+        x.addEventListener('click', function (e) { e.preventDefault(); extendThreads(); });
+        acts.appendChild(x);
+      }
+      lab.appendChild(acts);
+      var tr = document.createElement('span');
+      tr.className = 'tres';
+      tr.id = 'soc-t-' + n.id;
+      lab.appendChild(tr);
       host.appendChild(lab);
     });
-    count();
+    renderQuotas();
+    renderTests();
+    renderMore();
   }
 
-  /* まだ1つも使えないときの案内。投稿欄より先に、これを出します。
-     5つの灰色のカードと空の入力欄を見せられても、次に何をすればいいのかは
-     分かりません。 */
+  function renderQuotas() {
+    nets.forEach(function (n) {
+      var q = el('soc-q-' + n.id);
+      if (!q) return;
+      var v = quotas[n.id];
+      var t = '';
+      if (n.id === 'line' && v) {
+        if (!v.ok) t = '通数を確認できませんでした：' + (v.message || '');
+        else {
+          t = (v.unlimited ? '通数の上限なし' : '今月の残り ' + (v.remaining == null ? '不明' : v.remaining + '通') + '（上限 ' + v.limit + '通）') +
+            ' ・ ' + (v.reach != null ? '届く人 ' + v.reach + '人（友だち ' + v.followers + '人）' : '友だちの人数は未集計');
+        }
+      } else if ((n.id === 'instagram' || n.id === 'threads') && v && v.ok) {
+        t = '今日あと ' + v.remaining + ' 件（24時間で ' + v.total + ' 件まで）';
+      } else if (n.id === 'threads' && info.threadsToken && info.threadsToken.daysLeft != null) {
+        t = '';
+      }
+      if (n.id === 'threads' && info.threadsToken && info.threadsToken.daysLeft != null) {
+        t += (t ? ' ・ ' : '') + '鍵の期限：あと約' + info.threadsToken.daysLeft + '日' + (info.threadsToken.estimated ? '（貼った日からの推定）' : '');
+      }
+      q.textContent = t;
+      q.style.display = t ? '' : 'none';
+    });
+  }
+
+  function renderTests() {
+    nets.forEach(function (n) {
+      var tr = el('soc-t-' + n.id);
+      if (!tr) return;
+      var t = tests[n.id];
+      if (!t) { tr.textContent = ''; tr.style.display = 'none'; return; }
+      tr.style.display = '';
+      tr.style.color = t.pending ? 'var(--sub)' : t.ok ? '#047857' : '#b42318';
+      tr.textContent = t.pending ? '確かめています…' : (t.ok ? '✓ ' : '✗ ') + (t.message || '');
+    });
+  }
+
+  async function testNet(id) {
+    tests[id] = { pending: true };
+    renderTests();
+    var r = await postJson('/api/social', { action: 'test', net: id });
+    var d = r.data || {};
+    tests[id] = { ok: !!d.ok, message: d.message || (d.ok ? 'つながりました。' : '確かめられませんでした。') };
+    if (d.token) info.threadsToken = d.token;
+    renderTests();
+    renderQuotas();
+  }
+
+  async function extendThreads() {
+    var t = info.threadsToken || {};
+    if (t.from && t.from !== 'saved') {
+      tests.threads = { ok: false, message: t.from === 'env'
+        ? 'このトークンは Vercel の環境変数に入っているため、ここからは延長できません。設定状況 › キーの入力に貼り直すと、ここから延長できるようになります。'
+        : 'このトークンはこの端末にだけ保存されているため、延長して保存し直せません。保存先（Upstash Redis）を接続してから貼り直してください。' };
+      renderTests();
+      return;
+    }
+    if (!confirm('Threads のトークンを延長します（新しいトークンに置き換わり、期限が60日先になります）。よろしいですか？')) return;
+    tests.threads = { pending: true };
+    renderTests();
+    var r = await postJson('/api/social', { action: 'refresh-threads' });
+    var d = r.data || {};
+    if (d.token) info.threadsToken = d.token;
+    tests.threads = { ok: !!d.ok, message: d.message || '延長できませんでした。' };
+    renderTests();
+    renderQuotas();
+  }
+
+  /* 鍵の無いSNSは選べる形では出しません。ただ「無いこと」も隠さず、
+     どうすればつながるのかを下にまとめます。 */
+  function renderMore() {
+    var host = el('social-more');
+    var off = nets.filter(function (n) { return !n.ready; });
+    if (!off.length || !ready().length) { host.innerHTML = ''; return; }
+    host.innerHTML = '<details class="soc-more"><summary>まだつないでいないSNS（' + off.length + '）と、つなぎ方</summary>' +
+      off.map(setupRow).join('') +
+      '<button type="button" class="ghost soc-to-keys" style="margin-top:10px;font-size:12px;padding:7px 12px">取ってきた鍵を貼る（設定状況 › キーの入力）</button></details>';
+    wireKeys(host);
+  }
+
+  function setupRow(n) {
+    var st = n.setup || {};
+    return '<div style="border-top:1px solid var(--border);padding:10px 0;margin-top:8px">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:3px">' + esc(n.label) +
+        '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
+      '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
+        esc(st.what || '') + '<br>' + esc(st.where || '') +
+        (st.url ? ' <a href="' + esc(window.lumSafeHref(st.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
+        '<br><span style="opacity:.75">貼る場所の名前: ' + esc((n.needs || []).join('・')) + '</span>' +
+      '</div></div>';
+  }
+
+  function wireKeys(box) {
+    Array.prototype.forEach.call(box.querySelectorAll('.soc-to-keys'), function (b) {
+      b.addEventListener('click', function () {
+        if (window.lumShowTab) window.lumShowTab('health-admin');
+        var t = document.getElementById('set-list');
+        if (t) t.scrollIntoView({ block: 'start' });
+      });
+    });
+  }
+
+  /* まだ1つも使えないときの案内。投稿欄より先に、これを出します。 */
   function renderSetup() {
     var box = el('social-setup');
-    var ready = nets.filter(function (n) { return n.ready; });
-    if (ready.length) { box.style.display = 'none'; el('social-compose').style.display = ''; return; }
+    if (ready().length) { box.style.display = 'none'; el('social-compose').style.display = ''; return; }
     box.style.display = 'block';
     el('social-compose').style.display = 'none';
     box.innerHTML =
       '<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.45);border-radius:12px;padding:14px 16px">' +
         '<div style="font-size:13.5px;font-weight:700;margin-bottom:6px">まだ、どのSNSにも投稿できません</div>' +
-        '<div style="font-size:12.5px;color:var(--sub);line-height:1.85;margin-bottom:12px">' +
+        '<div style="font-size:12.5px;color:var(--sub);line-height:1.85;margin-bottom:6px">' +
           'SNSに投稿するには、各社から「鍵」を取ってきて、この管理画面に貼る必要があります。' +
           '1つ設定すれば、そのSNSだけ先に使えます。全部そろえる必要はありません。' +
-          '<br>いちばん手間が少ないのは Threads、次が X です。' +
+          '<br>いちばん手間が少ないのは Threads、次が LINE公式アカウントと X です。' +
         '</div>' +
-        nets.map(function (n) {
-          var st = n.setup || {};
-          return '<div style="border-top:1px solid var(--border);padding:11px 0">' +
-            '<div style="font-size:13px;font-weight:700;margin-bottom:3px">' + esc(n.label) +
-              '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
-            '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
-              esc(st.what || '') + '<br>' + esc(st.where || '') +
-              (st.url ? ' <a href="' + esc(lumSafeHref(st.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
-              '<br><span style="opacity:.75">貼る場所の名前: ' + esc(n.needs.join('・')) + '</span>' +
-            '</div>' +
-          '</div>';
-        }).join('') +
+        nets.map(setupRow).join('') +
         '<button type="button" class="soc-to-keys" style="margin-top:12px;font-size:12.5px;padding:8px 14px">' +
           '取ってきた鍵を貼る（設定状況 › キーの入力）</button>' +
       '</div>';
-    var b = box.querySelector('.soc-to-keys');
-    if (b) b.addEventListener('click', function () {
-      if (window.lumShowTab) window.lumShowTab('health-admin');
-      var t = document.getElementById('set-list');
-      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wireKeys(box);
+  }
+
+  /* ---- 2 画像 ---- */
+  function measure(url) {
+    if (!/^https:\/\//i.test(url) || imgMeta[url]) return;
+    imgMeta[url] = { loading: true };
+    var im = new Image();
+    im.onload = function () { imgMeta[url] = { w: im.naturalWidth, h: im.naturalHeight }; changed(false); renderImages(); };
+    im.onerror = function () { imgMeta[url] = { failed: true }; changed(false); renderImages(); };
+    im.src = url;
+  }
+
+  function renderImages() {
+    var host = el('social-imgs');
+    host.innerHTML = '';
+    S.images.forEach(function (img, i) {
+      var m = imgMeta[img.url] || {};
+      var row = document.createElement('div');
+      row.className = 'soc-img';
+      var pic = document.createElement('img');
+      pic.alt = '';
+      if (/^https:\/\//i.test(img.url)) pic.src = img.url;
+      row.appendChild(pic);
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      var bits = [];
+      if (m.w) bits.push(m.w + '×' + m.h);
+      if (img.size) bits.push((img.size / 1048576).toFixed(1) + 'MB');
+      if (img.uploaded) bits.push('アップロード済み（JPEG）');
+      if (m.failed) bits.push('⚠ 開けませんでした');
+      meta.textContent = (i + 1) + '枚目 ' + (bits.length ? '・' + bits.join('・') + '　' : '') + img.url;
+      row.appendChild(meta);
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'ghost'; rm.textContent = '外す';
+      rm.addEventListener('click', function () { S.images.splice(i, 1); renderImages(); changed(true); });
+      row.appendChild(rm);
+      host.appendChild(row);
+    });
+    var full = S.images.length >= 4;
+    el('social-image-add').disabled = full;
+    el('social-upload').disabled = full || !info.upload.ready;
+    el('social-imgnote').textContent = info.upload.ready
+      ? '手元の画像は、どのSNSでも使える JPEG に変えてから置きます。Xに画像を付けられるのは、アップロードした画像だけです。Facebook・Instagram・Threads・LINE は1枚目だけ送ります。'
+      : '手元の画像をそのまま使うには、画像の置き場所（Vercel Blob）の接続が要ります（設定状況 › キーの入力 › 画像の置き場所）。いまは公開されている画像のURLを貼って使えます。Xには画像が付きません。';
+  }
+
+  function addImageUrl() {
+    var inp = el('social-image');
+    var u = inp.value.trim();
+    if (!u) return;
+    if (!/^https:\/\/\S+$/i.test(u)) { say('画像のURLは https:// で始まるものにしてください（http:// は各SNSが取りに来ません）。'); return; }
+    if (S.images.length >= 4) return;
+    S.images.push({ url: u });
+    inp.value = '';
+    say('', true);
+    measure(u);
+    renderImages();
+    changed(true);
+  }
+
+  var MAX_UP = Math.floor(4.4 * 1048576);
+  function loadFile(file) {
+    return new Promise(function (ok, no) {
+      var u = URL.createObjectURL(file);
+      var im = new Image();
+      im.onload = function () { ok(im); };
+      im.onerror = function () { URL.revokeObjectURL(u); no(new Error('read')); };
+      im.src = u;
+    });
+  }
+  /* キャンバスで JPEG にします。透明な部分は白に。長い辺を maxSide まで、
+     limit を切るまで画質を下げます。 */
+  function toJpeg(im, maxSide, limit) {
+    var scale = Math.min(1, maxSide / Math.max(im.naturalWidth, im.naturalHeight));
+    var w = Math.round(im.naturalWidth * scale), h = Math.round(im.naturalHeight * scale);
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h);
+    cx.drawImage(im, 0, 0, w, h);
+    var qs = [0.9, 0.82, 0.74, 0.66];
+    return (function next(i) {
+      return new Promise(function (ok) { cv.toBlob(ok, 'image/jpeg', qs[i]); }).then(function (b) {
+        if (b && b.size <= limit) return { blob: b, w: w, h: h };
+        if (i + 1 < qs.length) return next(i + 1);
+        return null;
+      });
+    })(0);
+  }
+  async function upload(blob, kind) {
+    try {
+      var res = await fetch('/api/social-upload' + (kind ? '?kind=' + kind : ''), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + window.lumAdmin.key(), 'Content-Type': blob.type || 'image/jpeg' },
+        body: blob
+      });
+      var d = {};
+      try { d = await res.clone().json(); } catch (_) {}
+      if (res.status === 401 && window.lumAdmin.tap) await window.lumAdmin.tap(res);
+      return d;
+    } catch (_) {
+      return { ok: false, message: '通信できませんでした。もう一度お試しください。' };
+    }
+  }
+  async function onFile() {
+    var f = el('social-file').files[0];
+    el('social-file').value = '';
+    if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { say('JPEG・PNG・WebP の画像を選んでください。'); return; }
+    var btn = el('social-upload');
+    btn.disabled = true;
+    say('画像を準備しています…', true);
+    try {
+      var im = await loadFile(f);
+      var main = f.type === 'image/jpeg' && f.size <= MAX_UP ? { blob: f, w: im.naturalWidth, h: im.naturalHeight } : await toJpeg(im, 2160, MAX_UP);
+      if (!main) { say('画像を小さくできませんでした。もっと小さい画像でお試しください。'); return; }
+      say('アップロードしています…', true);
+      var d = await upload(main.blob);
+      if (!d.ok) { say(d.message || 'アップロードできませんでした。'); return; }
+      var preview = '';
+      if (main.blob.size > 1048576) {
+        var small = await toJpeg(im, 640, 1048576);
+        if (small) { var p = await upload(small.blob, 'preview'); if (p.ok) preview = p.url; }
+      }
+      imgMeta[d.url] = { w: main.w, h: main.h };
+      S.images.push({ url: d.url, preview: preview, size: main.blob.size, uploaded: true });
+      say(main.blob === f ? '画像を置きました。' : '画像を JPEG に変えて置きました（どのSNSでも使える形です）。', true);
+      renderImages();
+      changed(true);
+    } catch (_) {
+      say('画像を読み込めませんでした。別の画像でお試しください。');
+    } finally {
+      btn.disabled = S.images.length >= 4 || !info.upload.ready;
+    }
+  }
+
+  /* ---- 3 SNSごとに確かめる ---- */
+  function renderTabs() {
+    var host = el('social-tabs');
+    var ids = picked();
+    if (ids.indexOf(S.tab) === -1) S.tab = ids[0] || '';
+    host.innerHTML = '';
+    if (!ids.length) {
+      host.innerHTML = '<p class="share-note" style="margin:0">1 で出す先を選ぶと、ここにSNSごとの見え方が出ます。</p>';
+      el('social-variant').innerHTML = '';
+      return;
+    }
+    ids.forEach(function (id) {
+      var n = netById(id);
+      var k = fullCheck(id);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'soc-tab' + (id === S.tab ? ' on' : '');
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', id === S.tab ? 'true' : 'false');
+      b.dataset.net = id;
+      b.innerHTML = esc(n.label) + '<span class="st' + (k.errors.length ? ' over' : '') + '">' +
+        (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>';
+      b.addEventListener('click', function () { S.tab = id; renderTabs(); renderVariant(); save(); });
+      host.appendChild(b);
     });
   }
 
+  function renderVariant() {
+    var host = el('social-variant');
+    var id = S.tab;
+    var n = netById(id);
+    if (!n) { host.innerHTML = ''; return; }
+    var v = S.variants[id] || {};
+    var hasLink = !!el('social-link').value.trim();
+    host.innerHTML =
+      '<div class="soc-var">' +
+        '<div style="font-size:13px;font-weight:700;margin-bottom:2px">' + esc(n.label) + ' に送る本文</div>' +
+        '<div class="soc-small" style="margin-bottom:6px">' + esc(n.note) + '</div>' +
+        '<textarea id="soc-v-text" rows="4" placeholder="空欄なら、共通の本文をそのまま使います"></textarea>' +
+        '<div class="row">' +
+          '<button type="button" class="ghost" id="soc-v-copy" style="font-size:11px;padding:4px 10px">共通の本文をコピーして直す</button>' +
+          '<button type="button" class="ghost" id="soc-v-reset" style="font-size:11px;padding:4px 10px">共通の本文に戻す</button>' +
+          (hasLink ? '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="soc-v-nolink"' + (v.noLink ? ' checked' : '') + '> この投稿先にはリンクを付けない</label>' : '') +
+        '</div>' +
+        '<div class="row"><span class="soc-count" id="soc-v-count"></span>' +
+          (n.weighted ? '<span class="soc-small">Xでは日本語は1文字=2として数えます（URLはどれも23）</span>' : '') +
+        '</div>' +
+        '<div id="soc-v-issues"></div>' +
+        '<div id="soc-v-fix"></div>' +
+        '<div id="soc-v-preview"></div>' +
+      '</div>';
+    var ta = el('soc-v-text');
+    ta.value = v.text || '';
+    ta.addEventListener('input', function () {
+      S.variants[id] = S.variants[id] || {};
+      S.variants[id].text = ta.value;
+      changed(false);
+    });
+    el('soc-v-copy').addEventListener('click', function () {
+      if (!ta.value.trim()) { ta.value = el('social-text').value; S.variants[id] = S.variants[id] || {}; S.variants[id].text = ta.value; }
+      ta.focus();
+      changed(false);
+    });
+    el('soc-v-reset').addEventListener('click', function () {
+      ta.value = '';
+      if (S.variants[id]) S.variants[id].text = '';
+      changed(false);
+    });
+    var nl = el('soc-v-nolink');
+    if (nl) nl.addEventListener('change', function () {
+      S.variants[id] = S.variants[id] || {};
+      S.variants[id].noLink = nl.checked;
+      changed(false);
+    });
+    refreshVariant();
+  }
+
+  /* 画面に出すときだけ、%E7… を日本語に戻します（送るのは元の形のまま）。 */
+  function readable(u) {
+    try { return decodeURI(u); } catch (_) { return u; }
+  }
+
+  function hl(text) {
+    var s = String(text || '');
+    var urls = TX.findUrls(s);
+    var out = '', at = 0;
+    urls.forEach(function (u) { out += esc(s.slice(at, u.start)) + '<span class="u">' + esc(readable(u.url)) + '</span>'; at = u.end; });
+    return out + esc(s.slice(at));
+  }
+
+  /* 出す前の見え方。各SNSの画面を大まかになぞった箱です（ロゴは使いません）。
+     送ってからでは直せないので、送る前に一度だけ見えるようにします。 */
+  function previewHtml(id, k) {
+    var c = k.c;
+    var name = esc(brand.name || brand.host);
+    var pics = c.images.length
+      ? '<div class="pics' + (c.images.length === 1 ? ' one' : '') + '">' + c.images.map(function (i) {
+          return /^https:\/\//i.test(i.url) ? '<img src="' + esc(i.url) + '" alt="">' : '';
+        }).join('') + '</div>'
+      : '';
+    var dest = TX.findUrls(c.text + (c.linkSeparate ? '\n' + c.link : '')).map(function (u) { return u.url; });
+    var destHtml = dest.length
+      ? '<div class="dest">リンク先（計測用の印つき）：<br>' + dest.map(function (u) { return esc(readable(u)); }).join('<br>') + '</div>'
+      : '';
+    var who = '<div class="who"><span class="av"></span><span>' + name + ' <span class="hd">' +
+      (id === 'x' || id === 'threads' ? '@' + esc(brand.host.split('.')[0]) + ' · たった今' : 'たった今') + '</span></span></div>';
+    if (id === 'instagram') {
+      return '<div class="soc-pv">' + who +
+        (c.images.length ? pics : '<div class="noimg">画像が必要です</div>') +
+        '<div class="tx" style="margin-top:8px"><b>' + name + '</b> ' + hl(c.text) + '</div>' + destHtml + '</div>';
+    }
+    if (id === 'line') {
+      return '<div class="soc-pv line"><div class="bubble"><div class="tx">' + hl(c.text) + '</div></div>' + pics + destHtml + '</div>';
+    }
+    var card = c.linkSeparate ? '<div class="card">' + esc((function () { try { return new URL(c.link).hostname; } catch (_) { return ''; } })()) + '<br>' + esc(readable(c.link)) + '</div>' : '';
+    return '<div class="soc-pv">' + who + '<div class="tx">' + hl(c.text) + '</div>' + pics + card + destHtml + '</div>';
+  }
+
+  function refreshVariant() {
+    var id = S.tab;
+    if (!netById(id) || !el('soc-v-count')) return;
+    var k = fullCheck(id);
+    var cnt = el('soc-v-count');
+    cnt.textContent = (id === 'x' ? 'Xの数え方で ' : '') + k.count + ' / ' + k.limit + ' 文字' +
+      (k.c.custom ? '（この投稿先だけの本文）' : '（共通の本文）');
+    cnt.classList.toggle('over', k.count > k.limit);
+    el('soc-v-issues').innerHTML =
+      k.errors.map(function (e) { return '<div class="soc-issue err">✗ ' + esc(e) + '</div>'; }).join('') +
+      k.warnings.map(function (w) { return '<div class="soc-issue warn">⚠ ' + esc(w) + '</div>'; }).join('');
+    var fix = el('soc-v-fix');
+    fix.innerHTML = '';
+    if (id === 'instagram' && (k.c.link || TX.findUrls(k.c.body).length)) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'ghost';
+      b.style.cssText = 'font-size:11.5px;padding:5px 12px;margin-top:6px';
+      b.textContent = 'URLを外して「詳しくはプロフィールのリンクから」に置き換える';
+      b.addEventListener('click', function () {
+        var src = (S.variants.instagram && S.variants.instagram.text) || el('social-text').value;
+        var t = src;
+        TX.findUrls(src).reverse().forEach(function (u) { t = t.slice(0, u.start) + t.slice(u.end); });
+        t = t.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (t.indexOf('プロフィールのリンク') === -1) t += (t ? '\n' : '') + '詳しくはプロフィールのリンクから';
+        S.variants.instagram = { text: t, noLink: true };
+        renderVariant();
+        changed(false);
+      });
+      fix.appendChild(b);
+    }
+    if (id === 'line' && quotas.line && quotas.line.ok && quotas.line.reach != null) {
+      var q = quotas.line;
+      fix.innerHTML = '<div class="soc-issue">この送信で約 <b>' + q.reach + '通</b> 使います（友だち ' + q.followers + '人のうち届く人 ' + q.reach + '人 × 1回）。' +
+        (q.remaining != null ? '今月の残りは ' + q.remaining + '通です。' : '') + '</div>';
+    }
+    el('soc-v-preview').innerHTML = previewHtml(id, k);
+  }
+
+  /* ---- 4 いつ出すか ---- */
+  function tomorrowJst() {
+    return new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10);
+  }
+  function renderWhen() {
+    var sch = info.schedule || {};
+    var dateRadio = el('social-when-date');
+    dateRadio.disabled = !sch.ready;
+    if (!sch.ready && S.when === 'date') S.when = 'now';
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="social-when"]'), function (r) { r.checked = r.value === S.when; });
+    var d = el('social-date');
+    d.min = tomorrowJst();
+    d.max = new Date(Date.now() + 9 * 3600000 + 90 * 86400000).toISOString().slice(0, 10);
+    if (S.date && S.date < d.min) S.date = '';
+    d.value = S.date || '';
+    d.disabled = S.when !== 'date';
+    var notes = [];
+    if (!sch.ready) notes.push('<span style="color:#b45309">予約は使えません：' + esc(sch.message || '') + '</span>');
+    else {
+      notes.push('日付を選ぶと、その日の朝' + (sch.jstHour || 9) + '時ごろに投稿します（' + (sch.jstHour || 9) + '時台のどこかで送られます）。' +
+        '時刻まで指定するには Vercel の Pro プランが必要です（無料プランの自動処理は1日1回のため）。');
+      var blind = picked().filter(function (id) { var n = netById(id); return n && !n.scheduled; });
+      if (S.when === 'date' && blind.length) {
+        notes.push('<span style="color:#b42318">' + esc(blind.map(function (id) { return netById(id).label; }).join('・')) +
+          ' の鍵はこの端末のブラウザにだけ保存されているため、予約では送れません。</span>');
+      }
+    }
+    el('social-whennote').innerHTML = notes.join('<br>');
+  }
+
+  /* ---- 5 送る ---- */
   function count() {
-    var len = payloadLen();
-    var img = el('social-image').value.trim();
-    var picked = 0, over = 0, needImg = 0;
+    var ids = picked();
+    var bad = 0;
     nets.forEach(function (n) {
       var lab = el('soc-' + n.id);
       if (!lab) return;
-      var cb = lab.querySelector('input');
+      var k = fullCheck(n.id);
       var left = lab.querySelector('.left');
-      var rest = n.limit - len;
-      left.textContent = n.ready ? String(rest) : '';
-      left.classList.toggle('over', rest < 0);
-      if (!cb.checked) return;
-      picked++;
-      if (rest < 0) over++;
-      if (n.image === 'required' && !img) needImg++;
+      left.textContent = String(k.limit - k.count);
+      left.classList.toggle('over', k.count > k.limit);
+      if (ids.indexOf(n.id) !== -1 && k.errors.length) bad++;
     });
     var notes = [];
-    if (!picked) notes.push('投稿先を選んでください');
-    if (over) notes.push(over + ' 件が文字数超過');
-    if (needImg) notes.push('Instagram は画像URLが必要です');
-    el('social-hint').textContent = notes.length ? notes.join(' / ') : (picked + ' 件に投稿します');
-    el('social-post').disabled = !picked || !!over || !!needImg;
-    preview();
-    urlNotes();
+    if (!ids.length) notes.push('投稿先を選んでください');
+    if (bad) notes.push(bad + ' 件に直すところがあります（3 の赤い表示）');
+    var sched = S.when === 'date';
+    if (sched && !S.date) notes.push('日付を選んでください');
+    var blind = sched && ids.some(function (id) { var n = netById(id); return n && !n.scheduled; });
+    if (blind) notes.push('予約では送れない投稿先があります');
+    el('social-hint').textContent = notes.length ? notes.join(' / ') : (ids.length + ' 件に' + (sched ? S.date + ' の朝に予約します' : '投稿します'));
+    el('social-post').textContent = sched ? '選んだSNSに予約する' : '選んだSNSに投稿';
+    el('social-post').disabled = busy || !ids.length || !!bad || (sched && (!S.date || blind));
   }
 
-  /* 出す前の見え方。本文・リンク・画像が、実際どう並ぶか。
-     送ってからでは直せないので、送る前に一度だけ見えるようにします。 */
-  function preview() {
-    var host = el('social-preview');
-    if (!host) return;
-    var b = body();
-    var picked = nets.filter(function (n) {
-      var lab = el('soc-' + n.id);
-      return lab && lab.querySelector('input').checked;
-    });
-    if (!b.text.trim()) {
-      host.innerHTML = '<p class="share-note">本文を書くと、ここに出方が表示されます。</p>';
-      return;
-    }
-    host.innerHTML =
-      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:13px 15px">' +
-        '<div style="font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--sub);margin-bottom:7px">出方の確認</div>' +
-        '<div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;word-break:break-word">' + esc(b.text) + '</div>' +
-        (b.link ? '<div style="font-size:12.5px;margin-top:6px;color:#3d3fbf;word-break:break-all">' + esc(b.link) + '</div>' : '') +
-        (b.imageUrl && /^https?:\/\//.test(b.imageUrl)
-          ? '<img src="' + esc(b.imageUrl) + '" alt="" style="margin-top:9px;max-height:150px;max-width:100%;border-radius:9px;border:1px solid var(--border);display:block"' +
-            ' onerror="this.style.display=\'none\';this.nextSibling &amp;&amp; (this.nextSibling.style.display=\'block\')">' +
-            '<div style="display:none;font-size:11.5px;color:#b45309;margin-top:6px">⚠ この画像URLは開けませんでした。公開されているURLか確かめてください。</div>'
-          : '') +
-        '<div style="font-size:11px;color:var(--sub);margin-top:9px;line-height:1.8;border-top:1px solid var(--border);padding-top:8px">' +
-          (picked.length
-            ? picked.map(function (n) {
-                var rest = n.limit - payloadLen();
-                var img = n.image === 'required' ? '画像が必要' : n.image === 'ignored' ? '画像は送られません' : '画像は任意';
-                return esc(n.label) + '：残り ' + rest + ' 文字（上限 ' + n.limit + '）・' + img;
-              }).join('<br>')
-            : '出す先が選ばれていません。') +
-        '</div>' +
-      '</div>';
-  }
-
-  /* リンクと画像URLの形。送ってから気づくと、投稿を消して出し直すことに
-     なります。 */
   function urlNotes() {
     var host = el('social-urlnote');
-    if (!host) return;
     var bad = [];
     var lk = el('social-link').value.trim();
-    var im = el('social-image').value.trim();
-    if (lk && !/^https?:\/\/\S+$/.test(lk)) bad.push('リンクが http:// か https:// で始まる形になっていません。');
-    if (im && !/^https?:\/\/\S+$/.test(im)) bad.push('画像URLが http:// か https:// で始まる形になっていません。');
-    host.innerHTML = bad.length
-      ? '<div style="font-size:11.5px;color:#b45309;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>'
-      : '';
+    if (lk && !/^https:\/\/\S+$/i.test(lk)) {
+      bad.push(/^http:\/\//i.test(lk)
+        ? 'リンクは https:// で始まるものにしてください（http:// のリンクは送れません。多くのSNSで「安全でない」と表示されます）。'
+        : 'リンクが https:// で始まる形になっていません。');
+    }
+    var camp = el('social-campaign').value.trim();
+    var own = lk && /^https:\/\//i.test(lk) && TX.tagUrl(lk, 'x', '', brand.host) !== lk;
+    var tip = own
+      ? '自社サイトへのリンクには、SNSごとに ?ref=（x・instagram など）' + (camp ? 'と utm_campaign=' + esc(TX.cleanCampaign(camp)) : '') + ' を自動で付けます。アクセス解析で、どの投稿から来た人かが分かります。'
+      : (camp ? 'キャンペーン名は、自社サイト（' + esc(brand.host) + '）へのリンクにだけ付きます。' : '');
+    host.innerHTML = (bad.length ? '<div style="font-size:11.5px;color:#b42318;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>' : '') +
+      (tip ? '<div class="soc-small">' + tip + '</div>' : '');
+    return !bad.length;
   }
 
-  function renderResults(list) {
+  /* 入力のたびに呼ばれます。full は、タブと本文欄まで作り直すとき
+     （打っている途中の本文欄を作り直すと、カーソルが飛ぶため分けています）。 */
+  function changed(full) {
+    if (full) { renderTabs(); renderVariant(); }
+    else { renderTabs(); refreshVariant(); }
+    urlNotes();
+    renderWhen();
+    count();
+    save();
+  }
+
+  /* ---- 書きかけの保存 ----
+     この端末のブラウザにだけ置きます。消えても困らない「書きかけ」だけです。
+     送り終わったら消します。 */
+  function save() {
+    if (restoring) return;
+    try {
+      var d = {
+        at: new Date().toISOString(),
+        text: el('social-text').value, link: el('social-link').value, campaign: el('social-campaign').value,
+        topic: el('social-ai-topic').value,
+        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId
+      };
+      var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
+      if (empty) localStorage.removeItem(DRAFT_KEY);
+      else localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    } catch (_) {}
+  }
+  function restore() {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (_) { d = null; }
+    if (!d || typeof d !== 'object') return;
+    restoring = true;
+    el('social-text').value = String(d.text || '');
+    el('social-link').value = String(d.link || '');
+    el('social-campaign').value = String(d.campaign || '');
+    el('social-ai-topic').value = String(d.topic || '');
+    S.picked = Array.isArray(d.picked) ? d.picked.map(String) : [];
+    S.images = Array.isArray(d.images) ? d.images.filter(function (i) { return i && /^https:\/\//i.test(i.url); }).slice(0, 4) : [];
+    S.variants = d.variants && typeof d.variants === 'object' ? d.variants : {};
+    S.tab = String(d.tab || '');
+    S.when = d.when === 'date' ? 'date' : 'now';
+    S.date = String(d.date || '');
+    S.sendId = /^[0-9a-f-]{36}$/i.test(String(d.sendId || '')) ? d.sendId : uuid();
+    S.images.forEach(function (i) { measure(i.url); });
+    restoring = false;
+    var box = el('social-restore');
+    box.innerHTML = '<div class="soc-res" style="margin-bottom:12px"><span>前回の書きかけを戻しました（' +
+      esc(new Date(d.at || Date.now()).toLocaleString('ja-JP')) + '）。</span>' +
+      '<button type="button" class="ghost" id="soc-discard" style="font-size:11px;padding:4px 10px;margin-left:auto">消して最初から</button></div>';
+    el('soc-discard').addEventListener('click', function () { clearComposer(); box.innerHTML = ''; });
+  }
+  function clearComposer() {
+    el('social-text').value = '';
+    el('social-link').value = '';
+    el('social-campaign').value = '';
+    el('social-image').value = '';
+    el('social-ai-topic').value = '';
+    el('social-ai-out').innerHTML = '';
+    var keep = S.picked;
+    S = blank();
+    S.picked = keep;
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+    renderNets();
+    renderImages();
+    changed(true);
+  }
+
+  /* ---- 結果・予約・履歴 ---- */
+  function renderResults(list, retryable) {
     var host = el('social-results');
     host.innerHTML = '';
     (list || []).forEach(function (r) {
       var d = document.createElement('div');
       d.className = 'soc-res ' + (r.ok ? 'ok' : 'ng');
       var b = document.createElement('b');
-      b.textContent = (r.ok ? '✓ ' : '✗ ') + r.label;
+      b.textContent = (r.ok ? '✓ ' : r.unknown ? '？ ' : '✗ ') + r.label;
       d.appendChild(b);
       var sp = document.createElement('span');
       if (r.ok && r.url) {
-        sp.innerHTML = '投稿しました — ';
+        sp.appendChild(document.createTextNode('投稿しました' + (r.message ? '（' + r.message + '）' : '') + ' — '));
         var a = document.createElement('a');
-        a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.href = window.lumSafeHref(r.url); a.target = '_blank'; a.rel = 'noopener noreferrer';
         a.textContent = '開く';
         sp.appendChild(a);
       } else {
-        sp.textContent = r.ok ? '投稿しました。' : r.message;
+        sp.textContent = r.ok ? '投稿しました。' + (r.message || '') : r.message;
       }
       d.appendChild(sp);
       host.appendChild(d);
     });
+    if (retryable) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '失敗したSNSだけ再送';
+      btn.style.cssText = 'font-size:12.5px;padding:8px 14px';
+      btn.addEventListener('click', post);
+      row.appendChild(btn);
+      var note = document.createElement('span');
+      note.className = 'soc-small';
+      note.textContent = '投稿できたSNSのチェックは外してあります（同じ投稿が二重に出ないように）。';
+      row.appendChild(note);
+      host.appendChild(row);
+    }
+  }
+
+  function renderQueue(items) {
+    var host = el('social-queue');
+    var sch = info.schedule || {};
+    host.innerHTML = '';
+    if (!items || !items.length) {
+      host.innerHTML = '<p class="share-note">予約中の投稿はありません。' + (sch.ready ? '' : '（いまは予約を使えない設定です）') + '</p>';
+      return;
+    }
+    items.forEach(function (it) {
+      var d = document.createElement('div');
+      d.className = 'soc-q';
+      var b = document.createElement('div');
+      b.className = 'body';
+      var labels = (it.targets || []).map(function (id) { var n = netById(id); return n ? n.label : id; }).join('・');
+      b.innerHTML = '<b>' + esc(it.date) + ' 朝' + (sch.jstHour || 9) + '時ごろ</b>　<span class="soc-small">' + esc(labels) +
+        (it.images ? '・画像' + it.images + '枚' : '') + '</span><br>' + esc(it.text || '（本文なし）');
+      d.appendChild(b);
+      var x = document.createElement('button');
+      x.type = 'button'; x.className = 'ghost'; x.textContent = '取り消す';
+      x.addEventListener('click', async function () {
+        if (!confirm(it.date + ' の予約を取り消します。よろしいですか？')) return;
+        x.disabled = true;
+        var r = await postJson('/api/social', { action: 'cancel', id: it.id });
+        var dd = r.data || {};
+        if (dd.items) { info.schedule.items = dd.items; renderQueue(dd.items); }
+        say(dd.ok ? '予約を取り消しました。' : (dd.message || '取り消せませんでした。'), !!dd.ok);
+        x.disabled = false;
+      });
+      d.appendChild(x);
+      host.appendChild(d);
+    });
+  }
+
+  function metricsText(m) {
+    if (!m) return '';
+    if (!m.ok) return m.message || '';
+    var parts = [];
+    if (m.likes != null) parts.push('いいね ' + m.likes);
+    if (m.comments != null) parts.push('コメント ' + m.comments);
+    if (m.shares != null) parts.push('共有 ' + m.shares);
+    if (m.reach != null) parts.push('届いた ' + m.reach);
+    if (m.impressions != null) parts.push('表示 ' + m.impressions);
+    if (m.clicks != null) parts.push('クリック ' + m.clicks);
+    return parts.join('・') || '数字はまだありません';
   }
 
   function renderLog(list, stored) {
@@ -5786,78 +6477,257 @@ window.lumAdmin = {
       d.className = 'soc-post';
       var w = document.createElement('div');
       w.className = 'when';
-      w.textContent = new Date(p.at).toLocaleString('ja-JP');
+      w.textContent = new Date(p.at).toLocaleString('ja-JP') + (p.scheduledFor ? '（予約投稿）' : '') + (p.campaign ? '　キャンペーン: ' + p.campaign : '');
       d.appendChild(w);
       var t = document.createElement('div');
       t.className = 'body';
-      t.textContent = p.text || '（本文なし）';
+      t.textContent = p.text || '（共通の本文なし・SNSごとの本文で送信）';
       d.appendChild(t);
       var tags = document.createElement('div');
       tags.className = 'tags';
+      var withMx = [];
       (p.results || []).forEach(function (r) {
         var tag;
-        if (r.ok && r.url) {
+        if (r.ok && r.url && window.lumSafeHref(r.url) !== '#') {
           tag = document.createElement('a');
-          tag.href = r.url; tag.target = '_blank'; tag.rel = 'noopener noreferrer';
+          tag.href = window.lumSafeHref(r.url); tag.target = '_blank'; tag.rel = 'noopener noreferrer';
         } else {
           tag = document.createElement('span');
           if (!r.ok) tag.title = r.message || '';
         }
-        tag.className = 'tag ' + (r.ok ? 'ok' : 'ng');
-        tag.textContent = r.label + (r.ok ? '' : ' 失敗');
+        tag.className = 'tag ' + (r.ok ? 'ok' : r.unknown ? 'unk' : 'ng');
+        tag.textContent = r.label + (r.ok ? '' : r.unknown ? ' 結果不明' : ' 失敗');
         tags.appendChild(tag);
+        if (r.metrics) withMx.push(r.label + '：' + metricsText(r.metrics));
       });
+      var canMx = (p.results || []).some(function (r) { return r.ok && r.id && r.net !== 'linkedin'; });
+      if (canMx) {
+        var mb = document.createElement('button');
+        mb.type = 'button'; mb.className = 'linkish';
+        mb.style.cssText = 'font-size:11px;margin-left:4px';
+        mb.textContent = '反応を取得';
+        mb.title = 'いいね・コメント・表示回数などを各SNSから読みます（Xは1件あたり約0.005ドルかかります）';
+        mb.addEventListener('click', async function () {
+          mb.disabled = true;
+          mb.textContent = '取得しています…';
+          var r = await postJson('/api/social', { action: 'metrics', id: p.id || p.at });
+          var dd = r.data || {};
+          if (dd.recent) renderLog(dd.recent, true);
+          else { mb.disabled = false; mb.textContent = '反応を取得'; }
+          var errs = [];
+          var m = dd.metrics || {};
+          Object.keys(m).forEach(function (k) { if (m[k] && !m[k].ok) errs.push(m[k].message); });
+          say(dd.ok ? (errs.length ? '取れなかったもの：' + errs.join(' / ') : '反応を取得しました。') : (dd.message || '取得できませんでした。'), dd.ok && !errs.length);
+        });
+        tags.appendChild(mb);
+      }
       d.appendChild(tags);
+      if (withMx.length) {
+        var mx = document.createElement('div');
+        mx.className = 'mx';
+        mx.textContent = withMx.join('　/　');
+        d.appendChild(mx);
+      }
       host.appendChild(d);
     });
   }
 
+  /* ---- 読み込み ---- */
   async function load() {
-    var r = await window.lumAdmin.fetch('/api/social');
+    var r = await api('/api/social');
     if (!r.res.ok || !r.data.ok) { say((r.data && r.data.message) || '状態を取得できませんでした。'); return; }
-    nets = r.data.networks || [];
+    var d = r.data;
+    nets = d.networks || [];
+    if (d.brand && d.brand.host) brand = { host: String(d.brand.host).replace(/^www\./, ''), name: d.brand.name || brand.name };
+    info = { schedule: d.schedule || { ready: false, items: [] }, upload: d.upload || { ready: false }, threadsToken: d.threadsToken || null, stored: !!d.stored };
+    // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
+    if (!el('social-text').dataset.restored) {
+      el('social-text').dataset.restored = '1';
+      restore();
+    }
     renderNets();
     renderSetup();
-    renderLog(r.data.recent, r.data.stored);
-    // 使えるものが1つも無いときの案内は renderSetup が画面の主役として
-    // 出すので、ここで同じことを二度言いません。
+    renderImages();
+    changed(true);
+    renderQueue(info.schedule.items);
+    renderLog(d.recent, d.stored);
     say('', true);
+    loadQuotas();
+    loadNews();
+  }
+
+  async function loadQuotas() {
+    if (!ready().some(function (n) { return n.id === 'line' || n.id === 'instagram' || n.id === 'threads'; })) return;
+    var r = await api('/api/social?quota=1');
+    quotas = (r.data && r.data.quotas) || {};
+    renderQuotas();
+    changed(false);
+  }
+
+  var newsLoaded = false;
+  var news = [];
+  async function loadNews() {
+    if (newsLoaded) return;
+    newsLoaded = true;
+    try {
+      var res = await fetch('/news.json', { cache: 'no-store' });
+      var list = res.ok ? await res.json() : [];
+      news = Array.isArray(list) ? list.slice(0, 20) : [];
+    } catch (_) { news = []; }
+    var sel = el('social-ai-news');
+    news.forEach(function (n, i) {
+      var o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = (n.date ? n.date + '　' : '') + String(n.title || '').slice(0, 40);
+      sel.appendChild(o);
+    });
+  }
+
+  /* ---- AI の下書き ---- */
+  async function aiDraft() {
+    var ids = picked();
+    var st = el('social-ai-state');
+    if (!ids.length) { st.textContent = '先に 1 で出す先を選んでください。'; return; }
+    var idx = el('social-ai-news').value;
+    var src = idx !== '' && news[Number(idx)] ? news[Number(idx)] : null;
+    var topic = el('social-ai-topic').value.trim();
+    if (!src && !topic) { st.textContent = 'メモを書くか、お知らせを選んでください。'; return; }
+    var btn = el('social-ai-go');
+    btn.disabled = true;
+    st.textContent = '書いています…（20秒ほどかかることがあります）';
+    try {
+      var r = await postJson('/api/social-write', {
+        topic: topic, nets: ids, link: el('social-link').value.trim(),
+        source: src ? { title: src.title, body: src.body, date: src.date } : null
+      });
+      var d = r.data || {};
+      if (!d.ok) { st.textContent = d.message || '下書きを作れませんでした。'; return; }
+      st.textContent = d.message || '';
+      offerDrafts(d);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* 案は本文の下に並べます。「この下書きを使う」を押すまで、何も書き換えません。 */
+  function offerDrafts(d) {
+    var out = el('social-ai-out');
+    var keys = Object.keys(d.drafts || {});
+    out.innerHTML = '<div style="margin-top:10px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:10px;padding:11px 14px">' +
+      '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#0e7490;margin-bottom:6px">AIの下書き（まだどこにも入れていません）</div>' +
+      keys.map(function (k) {
+        var x = d.drafts[k];
+        var n = netById(k);
+        return '<div style="border-top:1px solid var(--border);padding:8px 0">' +
+          '<div style="font-size:12px;font-weight:700">' + esc(n ? n.label : k) +
+          ' <span class="soc-count' + (x.over ? ' over' : '') + '" style="margin-left:6px">' + (k === 'x' ? 'Xの数え方で ' : '') + x.count + ' / ' + x.limit + '</span></div>' +
+          '<div style="font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word">' + esc(x.text) + '</div></div>';
+      }).join('') +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">' +
+        '<button type="button" id="soc-ai-take" style="font-size:11.5px;padding:6px 12px">この下書きを使う（SNSごとの本文に入れる）</button>' +
+        '<button type="button" class="ghost" id="soc-ai-drop" style="font-size:11.5px;padding:6px 12px">使わない</button>' +
+      '</div></div>';
+    el('soc-ai-take').addEventListener('click', function () {
+      keys.forEach(function (k) {
+        S.variants[k] = S.variants[k] || {};
+        S.variants[k].text = d.drafts[k].text;
+      });
+      (d.noLink || []).forEach(function (k) { S.variants[k] = S.variants[k] || {}; S.variants[k].noLink = true; });
+      // 共通の本文が空なら、いちばん長い案を入れておきます（履歴に残る本文になります）。
+      if (!el('social-text').value.trim()) {
+        var longest = keys.slice().sort(function (a, b) { return d.drafts[b].text.length - d.drafts[a].text.length; })[0];
+        if (longest) el('social-text').value = d.drafts[longest].text.replace(/\n\n#[^\n]*$/, '');
+      }
+      out.innerHTML = '';
+      S.tab = keys[0] || S.tab;
+      changed(true);
+      say('下書きを各SNSの本文に入れました。3 のタブで1つずつ読んで、直してから送ってください。', true);
+    });
+    el('soc-ai-drop').addEventListener('click', function () { out.innerHTML = ''; });
+  }
+
+  /* ---- 送信 ---- */
+  function confirmText(ids, sched) {
+    var lines = [];
+    lines.push(sched
+      ? ids.length + ' 件のSNSに、' + S.date + ' の朝' + (info.schedule.jstHour || 9) + '時ごろ投稿するよう予約します。'
+      : ids.length + ' 件のSNSに実際に投稿します（取り消しはできません）。');
+    ids.forEach(function (id) {
+      var n = netById(id);
+      var k = fullCheck(id);
+      var extra = '';
+      if (id === 'x') extra = TX.findUrls(k.c.text).length ? '（約0.2ドル）' : '（約0.015ドル）';
+      if (id === 'line') {
+        var q = quotas.line;
+        extra = q && q.ok && q.reach != null
+          ? '（友だち約' + q.reach + '人に届き、通数を約' + q.reach + '通使います' + (q.remaining != null ? '。今月の残り ' + q.remaining + '通' : '') + '）'
+          : '（友だち全員に届き、その人数ぶん通数を使います）';
+      }
+      lines.push('・' + n.label + extra);
+    });
+    lines.push('よろしいですか？');
+    return lines.join('\n');
   }
 
   async function post() {
-    var picked = [];
-    nets.forEach(function (n) {
-      var lab = el('soc-' + n.id);
-      if (lab && lab.querySelector('input').checked) picked.push(n.id);
-    });
-    if (!picked.length) return;
-    var b = body();
-    if (!confirm(picked.length + ' 件のSNSに実際に投稿します。よろしいですか？')) return;
+    if (busy) return;
+    var ids = picked();
+    if (!ids.length || !urlNotes()) return;
+    var sched = S.when === 'date';
+    if (!confirm(confirmText(ids, sched))) return;
     var btn = el('social-post');
+    busy = true;
     btn.disabled = true;
-    say('投稿中…', true);
-    var r = await window.lumAdmin.fetch('/api/social', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: b.text, link: b.link, imageUrl: b.imageUrl, targets: picked }),
-    });
-    btn.disabled = false;
-    var d = r.data || {};
-    renderResults(d.results);
-    renderLog(d.recent, true);
-    say(d.message || '投稿できませんでした。', !!d.posted);
-    // Only clear when everything went out; a half-failed post still needs its
-    // text to retry with.
-    if (d.posted && d.posted === d.total) {
-      el('social-text').value = '';
-      el('social-link').value = '';
-      el('social-image').value = '';
+    say(sched ? '予約しています…' : '投稿しています…（各SNSの返事を待っています。最長30秒ほど）', true);
+    try {
+      var body = payload();
+      body.action = sched ? 'schedule' : 'post';
+      if (sched) body.date = S.date;
+      var r = await postJson('/api/social', body);
+      var d = r.data || {};
+      if (sched) {
+        if (d.items) { info.schedule.items = d.items; renderQueue(d.items); }
+        say(d.message || (d.ok ? '予約しました。' : '予約できませんでした。'), !!d.ok);
+        if (d.ok) { clearComposer(); el('social-restore').innerHTML = ''; }
+        return;
+      }
+      if (!d.results) { say(d.message || '投稿できませんでした。'); return; }
+      // 成功したもの・結果が分からないもののチェックを外します。
+      // 残るのは「確かに失敗したもの」だけ——再送で二重投稿にならないように。
+      d.results.forEach(function (x) {
+        if (x.ok || x.unknown) {
+          var i = S.picked.indexOf(x.net);
+          if (i !== -1) S.picked.splice(i, 1);
+        }
+      });
+      var failed = d.results.filter(function (x) { return !x.ok && !x.unknown; }).length;
+      renderResults(d.results, failed > 0);
+      if (d.recent) renderLog(d.recent, d.kept || info.stored);
+      say(d.message || '投稿できませんでした。', !!d.posted);
+      if (d.posted && d.posted === d.total) { clearComposer(); el('social-restore').innerHTML = ''; }
+      else { renderNets(); changed(true); }
+    } catch (_) {
+      say('送信中に問題が起きました。各SNSの画面で投稿されたか確かめてから、必要なら出し直してください。');
+    } finally {
+      busy = false;
       count();
     }
   }
 
-  ['social-text', 'social-link', 'social-image'].forEach(function (id) {
-    el(id).addEventListener('input', count);
+  /* ---- つなぎ込み ---- */
+  el('social-text').addEventListener('input', function () { changed(false); });
+  el('social-link').addEventListener('input', function () { changed(true); });
+  el('social-campaign').addEventListener('input', function () { changed(false); });
+  el('social-ai-topic').addEventListener('input', save);
+  el('social-image-add').addEventListener('click', addImageUrl);
+  el('social-image').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addImageUrl(); } });
+  el('social-upload').addEventListener('click', function () { el('social-file').click(); });
+  el('social-file').addEventListener('change', onFile);
+  el('social-ai-go').addEventListener('click', aiDraft);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="social-when"]'), function (r) {
+    r.addEventListener('change', function () { if (r.checked) { S.when = r.value; changed(false); } });
   });
+  el('social-date').addEventListener('change', function () { S.date = el('social-date').value; changed(false); });
   el('social-post').addEventListener('click', post);
   el('social-reload').addEventListener('click', load);
 
@@ -5868,19 +6738,19 @@ window.lumAdmin = {
     b.addEventListener('click', async function () {
       var ta = el('social-text');
       if (!ta.value.trim()) { say('先に本文を書いてください。'); return; }
-      var busy = document.querySelector('.soc-busy');
+      var busyEl = document.querySelector('.soc-busy');
       var ways = document.querySelectorAll('.soc-way');
       Array.prototype.forEach.call(ways, function (x) { x.disabled = true; });
-      busy.style.display = 'inline';
-      var r = await window.lumAdmin.fetch('/api/rewrite', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: ta.value, way: b.dataset.way, where: 'SNSへの投稿本文' }),
-      });
-      busy.style.display = 'none';
-      Array.prototype.forEach.call(ways, function (x) { x.disabled = false; });
-      var d = r.data || {};
-      if (!d.ok) { say(d.message || '書き直せませんでした。'); return; }
-      offerText(ta, d.text, d.label);
+      busyEl.style.display = 'inline';
+      try {
+        var r = await postJson('/api/rewrite', { text: ta.value, way: b.dataset.way, where: 'SNSへの投稿本文' });
+        var d = r.data || {};
+        if (!d.ok) { say(d.message || '書き直せませんでした。'); return; }
+        offerText(ta, d.text, d.label);
+      } finally {
+        busyEl.style.display = 'none';
+        Array.prototype.forEach.call(ways, function (x) { x.disabled = false; });
+      }
     });
   });
 
@@ -5901,13 +6771,14 @@ window.lumAdmin = {
       '</div>';
     el('social-tools').insertAdjacentElement('afterend', box);
     document.getElementById('soc-take').addEventListener('click', function () {
-      ta.value = after; box.remove(); count(); ta.focus();
+      ta.value = after; box.remove(); changed(false); ta.focus();
     });
     document.getElementById('soc-drop').addEventListener('click', function () { box.remove(); });
   }
 
   window.lumSocialInit = function () {
     if (started) return;
+    if (!TX) { say('画面の部品（social-text.js）を読み込めませんでした。再読み込みしてください。'); return; }
     started = true;
     load();
   };

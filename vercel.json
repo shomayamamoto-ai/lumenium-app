@@ -270,5 +270,11 @@
         }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/social-cron",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

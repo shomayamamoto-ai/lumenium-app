@@ -200,7 +200,22 @@ export const SETTINGS = [
   {
     name: 'LI_TOKEN', label: 'LinkedIn アクセストークン', kind: 'secret', group: 'social', net: 'linkedin',
     where: 'linkedin.com/developers › 自分のアプリ › w_member_social（会社ページは w_organization_social）',
-    why: 'UGC Posts API に使います。既定では60日で失効します。',
+    why: '投稿（Posts API）に使います。既定では60日で失効します。切れたら発行し直して貼り直してください。',
+  },
+  {
+    // LINE公式アカウントの一斉送信。送るたびに「友だちの人数ぶん」通数を
+    // 使うので、画面は送る前に残り通数と人数を出します。
+    name: 'LINE_CHANNEL_TOKEN', label: 'LINE チャネルアクセストークン（長期）', kind: 'secret', group: 'social', net: 'line',
+    where: 'LINE Official Account Manager › 設定 › Messaging API で利用開始 → developers.line.biz › チャネル › Messaging API設定 の一番下「チャネルアクセストークン（長期）」',
+    why: 'LINE公式アカウントの友だち全員への一斉送信（ブロードキャスト）に使います。無料プランは月200通までで、1回送ると「友だちの人数」ぶん減ります。',
+  },
+  {
+    // 画像の置き場所。Instagram・Threads・LINE は画像の「URL」を受け取るので、
+    // 公開URLのある置き場所が要ります。Vercel の Storage から Blob を
+    // つなぐと、この名前の環境変数が自動で入ります。
+    name: 'BLOB_READ_WRITE_TOKEN', label: '画像の置き場所（Vercel Blob）', kind: 'secret', group: 'social',
+    where: 'Vercel › プロジェクト › Storage › Create Database › Blob を作成し、このプロジェクトに Connect（BLOB_READ_WRITE_TOKEN が自動で入ります。そのあと再デプロイ）',
+    why: 'SNS投稿の画面で、手元の画像をそのままアップロードできるようになります。無いときは、公開されている画像のURLを貼って使います。Xに画像を付けられるのは、ここに置いた画像だけです。',
   },
 ]
 
