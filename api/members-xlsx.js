@@ -4,7 +4,7 @@ import { requireAdmin } from './_admin-auth.js'
 import { setting } from './_settings.js'
 import { SCOPE } from './_share.js'
 
-import { listContacts } from './_resend-audience.js'
+import { listContacts } from './_members.js'
 import { buildXlsx } from './_xlsx.js'
 import { BRAND } from './_brand.js'
 

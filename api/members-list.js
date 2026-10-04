@@ -3,7 +3,7 @@ export const config = { runtime: 'edge' }
 import { requireAdmin } from './_admin-auth.js'
 import { setting } from './_settings.js'
 
-import { listContacts } from './_resend-audience.js'
+import { listMembers } from './_members.js'
 
 // Admin-only member list. Handles personal data (names + emails), so unlike
 // the game gate this endpoint has NO dev fallback: ADMIN_KEY must be set in
@@ -26,17 +26,20 @@ export async function GET(req) {
     }, 503)
   }
 
-  const members = await listContacts(apiKey)
-  if (members === null) {
+  // Every page of the members segment, plus which groups each person is in
+  // (api/_members.js). The old call read one page only.
+  const got = await listMembers(apiKey, { withSegments: true })
+  if (got === null) {
     return json({
       ok: false, code: 'UPSTREAM_ERROR',
       message: '会員リストを一時的に取得できません（Resend 側の応答がありません）。少し時間をおいて「更新」を押してください。',
     }, 502)
   }
 
-  // Newest first
-  members.sort((a, b) => (b.created || '').localeCompare(a.created || ''))
-  return json({ ok: true, count: members.length, members })
+  // Newest first (listMembers sorts). `mode: 'legacy'` means the account still
+  // uses the old Audiences API, where groups do not exist.
+  const { members, segments, mode, truncated } = got
+  return json({ ok: true, count: members.length, members, segments, mode, truncated })
 }
 
 function json(body, status) {

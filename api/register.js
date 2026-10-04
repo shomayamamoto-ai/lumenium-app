@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { issueSession } from './_session.js'
 import { setting } from './_settings.js'
-import { addContact } from './_resend-audience.js'
+import { addMember } from './_members.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { BRAND, KV } from './_brand.js'
@@ -121,9 +121,9 @@ export async function POST(req) {
   const apiKey = await setting('RESEND_API_KEY')
   const mailedRecently = await seenBefore(`${KV}reg:mail:${await digest('member', email.toLowerCase())}`, 24 * 3600)
   if (apiKey) {
-    // Persist the lead into the Resend audience (member list page reads this).
-    await addContact(apiKey, { name, email, company }).catch((err) =>
-      console.error('[api/register] addContact failed', err)
+    // Persist the member as a Resend contact in the members segment (api/_members.js).
+    await addMember(apiKey, { name, email, company }).catch((err) =>
+      console.error('[api/register] addMember failed', err)
     )
     const from = BRAND.from
     const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner)
