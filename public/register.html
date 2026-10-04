@@ -86,6 +86,10 @@
   .foot a:hover { text-decoration: underline; }
   .back { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--sub); text-decoration: none; }
   .back:hover { color: var(--text); }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  label.consent { display: flex; gap: 9px; align-items: flex-start; font-weight: 400; font-size: 12px; line-height: 1.7; margin: 16px 0 4px; cursor: pointer; }
+  label.consent input { flex: none; width: 18px; height: 18px; margin-top: 2px; }
+  #ts-box { margin-top: 12px; }
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
 </style>
 </head>
@@ -106,9 +110,21 @@
       <input type="email" id="email" name="email" autocomplete="email" inputmode="email" maxlength="100" required>
       <label for="company">会社名・所属（任意）</label>
       <input type="text" id="company" name="company" autocomplete="organization" maxlength="80">
+      <!-- 人には見えない欄。自動で全部の欄を埋めるロボットだけが入力します。 -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">ウェブサイト（入力しないでください）</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <!-- 特定電子メール法: メールを送るには、本人の「同意する」という操作が要ります。
+           以前は登録ボタンを押すこと自体を同意とみなしていました。 -->
+      <label class="consent" for="consent">
+        <input type="checkbox" id="consent" name="consent" required>
+        <span>会員コードのご案内と、会員向けのお知らせをメールで受け取ることに同意します（いつでも配信停止できます）。</span>
+      </label>
+      <div id="ts-box"></div>
       <button type="submit" id="submit-btn">登録して遊ぶ →</button>
-      <p class="note">登録により、会員コードのご案内メールをお送りすることに同意いただいたものとします。</p>
       <p class="error" id="error" role="alert">登録できませんでした。入力内容をご確認のうえ、しばらく待ってからお試しください。</p>
+      <p class="error" id="error-consent" role="alert">メールの受け取りへの同意にチェックを入れてください。会員コードをメールでお送りするために必要です。</p>
     </form>
 
     <p class="foot">すでに会員コードをお持ちの方は<br><a href="/login.html" id="login-link">ログイン</a>へ</p>
@@ -143,20 +159,45 @@
   var err = document.getElementById('error');
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+  var errConsent = document.getElementById('error-consent');
+
+  /* ロボット対策（Cloudflare Turnstile）。管理画面でキーが2つとも入って
+     いるときだけ出します。入っていなければ何も読み込みません。 */
+  var tsToken = '';
+  fetch('/api/register', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || !d.turnstile) return;
+    window.lumTsDone = function (t) { tsToken = t; };
+    window.lumTsReset = function () { tsToken = ''; };
+    var box = document.getElementById('ts-box');
+    box.innerHTML = '<div class="cf-turnstile" data-sitekey="' + String(d.turnstile).replace(/[^A-Za-z0-9_-]/g, '') +
+      '" data-callback="lumTsDone" data-expired-callback="lumTsReset" data-language="ja"></div>';
+    var sc = document.createElement('script');
+    sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    sc.async = true;
+    document.head.appendChild(sc);
+  }).catch(function () {});
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     err.classList.remove('show');
+    errConsent.classList.remove('show');
     var name = document.getElementById('name').value.trim();
     var email = document.getElementById('email').value.trim();
     var company = document.getElementById('company').value.trim();
+    var consent = document.getElementById('consent').checked;
     if (!name || !email || !EMAIL_RE.test(email)) { err.classList.add('show'); return; }
+    if (!consent) { errConsent.classList.add('show'); return; }
     btn.disabled = true;
     btn.textContent = '登録中…';
     try {
       var res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name, email: email, company: company })
+        body: JSON.stringify({
+          name: name, email: email, company: company, consent: consent,
+          website: document.getElementById('website').value,
+          turnstile: tsToken, source: location.pathname
+        })
       });
       var data = await res.json().catch(function () { return {}; });
       if (res.ok && data.ok === true) {

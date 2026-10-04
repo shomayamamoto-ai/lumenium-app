@@ -205,4 +205,74 @@ await t('advisor: 今月の目安が上限に達したら 429（AIを呼ばな�
   assert.equal(calls.filter((c) => c.url.includes('anthropic')).length, 0)
 })
 
+/* ==== 5. 会員登録 ==== */
+const PUB = { 'content-type': 'application/json' }
+const regReq = (body, ip) => new Request('https://sample.example/api/register', {
+  method: 'POST', headers: { ...PUB, 'x-forwarded-for': ip, referer: 'https://sample.example/register.html?next=arena' }, body: JSON.stringify(body),
+})
+const person = (n) => ({ name: 'テスト', email: `m${n}@example.com`, consent: true })
+const mails = () => calls.filter((c) => c.url.includes('api.resend.com/emails'))
+
+await t('register: 同意のチェックが無ければ登録もメールもしない', async () => {
+  on([['api.resend.com', () => res({ id: 'x' })]])
+  const { POST } = await import('../api/register.js')
+  const r = await POST(regReq({ name: 'テスト', email: 'no@example.com' }, '192.0.2.1'))
+  assert.equal(r.status, 400)
+  assert.equal((await r.json()).code, 'CONSENT_REQUIRED')
+  assert.equal(mails().length, 0)
+  assert.equal(r.headers.get('set-cookie'), null)
+})
+
+await t('register: 見えない欄が埋まっていたら、成功に見せて何もしない', async () => {
+  on([['api.resend.com', () => res({ id: 'x' })]])
+  const { POST } = await import('../api/register.js')
+  const r = await POST(regReq({ ...person(1), website: 'http://spam' }, '192.0.2.2'))
+  const d = await r.json()
+  assert.equal(r.status, 200)
+  assert.equal(d.code, undefined, '会員コードを返さない')
+  assert.equal(calls.length, 0)
+})
+
+await t('register: 同意の記録（日時・ページ・IPのハッシュ）を残し、生のIPは残さない', async () => {
+  on([['api.resend.com', () => res({ id: 'x', data: [] })]])
+  const { POST, CONSENT_VERSION } = await import('../api/register.js')
+  const r = await POST(regReq(person(2), '192.0.2.3'))
+  assert.equal(r.status, 200)
+  assert.ok((await r.json()).code)
+  const rec = [...hashes.get([...hashes.keys()].find((k) => k.endsWith('member:consent'))).values()].map((v) => JSON.parse(v))[0]
+  assert.equal(rec.version, CONSENT_VERSION)
+  assert.equal(rec.source, '/register.html')
+  assert.ok(rec.at && rec.ipHash)
+  const everything = JSON.stringify([...store, ...[...hashes].map(([k, h]) => [k, [...h]])]) + JSON.stringify(mails().map((c) => c.init.body))
+  assert.ok(!everything.includes('192.0.2.3'), '生のIPがどこにも残らない')
+  // 同じアドレスへの案内メールは1日1回まで
+  const before = mails().length
+  await POST(regReq(person(2), '192.0.2.4'))
+  assert.equal(mails().length, before)
+})
+
+await t('register: 回数制限は共有の Redis で（6回目から 429）', async () => {
+  on([['api.resend.com', () => res({ id: 'x' })]])
+  const { POST } = await import('../api/register.js')
+  const codes = []
+  for (let i = 0; i < 6; i++) codes.push((await POST(regReq(person(10 + i), '192.0.2.50'))).status)
+  assert.deepEqual(codes, [200, 200, 200, 200, 200, 429])
+  assert.ok([...store.keys()].some((k) => k.includes('reg:rl:')))
+})
+
+await t('register: Turnstile のキーが2つあるときは確認が要る', async () => {
+  process.env.TURNSTILE_SITE_KEY = '0xSITE'
+  process.env.TURNSTILE_SECRET = '0xSECRET'
+  const { POST, GET } = await import('../api/register.js')
+  assert.equal((await (await GET()).json()).turnstile, '0xSITE')
+  on([['challenges.cloudflare.com', () => res({ success: false })], ['api.resend.com', () => res({ id: 'x' })]])
+  const bad = await POST(regReq({ ...person(30), turnstile: 'tok' }, '192.0.2.60'))
+  assert.equal((await bad.json()).code, 'CHALLENGE_FAILED')
+  on([['challenges.cloudflare.com', () => res({ success: true })], ['api.resend.com', () => res({ id: 'x' })]])
+  assert.equal((await POST(regReq({ ...person(31), turnstile: 'tok' }, '192.0.2.61'))).status, 200)
+  delete process.env.TURNSTILE_SITE_KEY
+  delete process.env.TURNSTILE_SECRET
+  assert.equal((await (await GET()).json()).turnstile, null)
+})
+
 console.log(`test-foundation: ${passed} passed`)

@@ -77,6 +77,19 @@ export const SETTINGS = [
     why: 'これが無いと、AIO計測とAIアドバイザーは動きません。',
   },
   {
+    // 会員登録フォームのロボット対策（任意）。2つとも入っているときだけ、
+    // 登録画面に「人間であることの確認」が出ます。訪問者のリクエストで読む
+    // ので、この端末には保存できません。
+    name: 'TURNSTILE_SITE_KEY', label: '会員登録のロボット対策：サイトキー（任意）', kind: 'text', group: 'site', device: false,
+    where: 'dash.cloudflare.com › Turnstile › Add site で発行される「サイトキー」',
+    why: '機械的な大量登録を防ぎます。下の「シークレットキー」と2つそろうと有効になります。入れなくても、回数制限と見えない罠の欄で基本的な対策はしています。',
+  },
+  {
+    name: 'TURNSTILE_SECRET', label: '会員登録のロボット対策：シークレットキー（任意）', kind: 'secret', group: 'site', device: false,
+    where: 'dash.cloudflare.com › Turnstile › 同じサイトの「シークレットキー」',
+    why: 'サイトキーと対で使います。片方だけでは何も変わりません。',
+  },
+  {
     name: 'ADVISOR_MONTHLY_YEN', label: 'AIアドバイザーの月の上限（円）', kind: 'text', group: 'site',
     where: '半角数字（例: 3000）。空なら 3000 円',
     why: '使ったトークンから出した料金の目安がこの額に達すると、その月はアドバイザーが止まります。請求が思ったより膨らまないようにするためです。',

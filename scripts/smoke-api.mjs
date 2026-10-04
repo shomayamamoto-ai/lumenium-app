@@ -344,7 +344,8 @@ const CALLS = [
     { name: 'スモーク', email: 'smoke@example.com', message: 'これは自動チェックの送信です。',
       orgType: 'company', company: '株式会社スモーク', topics: ['video', 'ai'] }],
   ['register', 'POST', '', { 'content-type': 'application/json' },
-    { name: 'スモーク', email: 'smoke@example.com', code: 'SMOKE' }],
+    { name: 'スモーク', email: 'smoke@example.com', code: 'SMOKE', consent: true }],
+  ['register', 'GET', '', {}],
   ['auth', 'POST', '', { 'content-type': 'application/json' }, { code: 'SMOKE' }],
 ]
 
