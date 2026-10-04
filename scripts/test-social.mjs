@@ -533,7 +533,51 @@ await test('成果の読み込み：アクセス解析の日ごとの数を引�
   assert.equal(r.summary.d30.x.visits, 5)
 })
 
+console.log('いつ出すと良いか')
+await test('材料が足りないときは一般論で、足りないものを言う', () => {
+  const r = I.recommend([], {}, '2026-09-25', ['x', 'line'])
+  assert.equal(r.x.basis, 'general')
+  assert.equal(r.x.missing.length, 2)
+  assert.ok(r.x.missing[0].includes('0 件'))
+  assert.deepEqual(r.line.weekdays, I.GENERAL.line.weekdays)
+})
+await test('反応のある投稿が10件以上なら、反応のいちばん大きい曜日と時間帯', () => {
+  const posts = []
+  for (let i = 0; i < 12; i++) {
+    // 火曜 19時（JST）に出した投稿だけ反応が大きい
+    const tue = i % 2 === 0
+    const day = tue ? `2026-09-${String(1 + (i % 4) * 7).padStart(2, '0')}` : `2026-09-${String(3 + (i % 4) * 7).padStart(2, '0')}`
+    const at = new Date(Date.parse(day + 'T00:00:00+09:00') + (tue ? 19 : 8) * 3600000).toISOString()
+    posts.push({ at, results: [{ net: 'x', ok: true, metrics: { ok: true, likes: tue ? 30 : 2, comments: 1 } }] })
+  }
+  const r = I.recommend(posts, {}, '2026-09-25', ['x'])
+  assert.equal(r.x.basis, 'posts')
+  assert.deepEqual(r.x.hours, [[18, 21]])
+  assert.equal(r.x.weekdays[0], 2)
+  // 9件では出さない
+  assert.equal(I.recommend(posts.slice(0, 9), {}, '2026-09-25', ['x']).x.basis, 'general')
+})
+await test('計測リンクからの訪問が30件以上なら、サイトの数字から', () => {
+  const hourly = { '2026-09-18': { 'line\t12': 20, 'line\t20': 5, 'x\t9': 3 }, '2026-09-21': { 'line\t13': 10 } }
+  const r = I.recommend([], hourly, '2026-09-25', ['line', 'x'])
+  assert.equal(r.line.basis, 'site')
+  assert.deepEqual(r.line.hours, [[12, 15]])
+  assert.equal(r.line.weekdays[0], 5)   // 2026-09-18 は金曜
+  assert.equal(r.x.basis, 'general')
+  // 90日より前は数えない
+  assert.equal(I.recommend([], { '2026-05-01': { 'line\t12': 99 } }, '2026-09-25', ['line']).line.basis, 'general')
+})
+await test('訪問の時間帯は、計測リンクの名前ごとに数える（キャンペーン名は入れない）', async () => {
+  const { visitPlan } = await import('../api/_visit.js')
+  const plan = visitPlan({ kind: 'view', ev: '', body: { n: 0, s: 'x', c: 'aki' }, path: '/', date: '2026-09-25', source: 'src:x', selfRef: false, clean: (p) => p, hour: 21 })
+  const slot = plan.slots.find((s) => s[0].endsWith('cp:h:2026-09-25'))
+  assert.deepEqual(slot.slice(1), ['x\t21', 'other'])
+  const none = visitPlan({ kind: 'view', ev: '', body: { n: 1, s: 'x' }, path: '/', date: '2026-09-25', source: 'src:x', selfRef: false, clean: (p) => p, hour: 21 })
+  assert.ok(!none.slots.some((s) => s[0].includes('cp:h:')))
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 
 
 if (failed) process.exit(1)

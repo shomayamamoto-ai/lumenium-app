@@ -589,6 +589,7 @@
   .soc-tbl th { font-size: 11px; color: var(--sub); font-weight: 700; }
   .soc-tbl td.n { text-align: right; }
   .soc-scroll { overflow-x: auto; }
+  @media (max-width: 560px) { .soc-tbl .tx { display: none; } }
   .soc-box { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px; margin-bottom: 10px; }
   .soc-chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #e7e4dc; color: var(--text); margin: 1px 2px 1px 0; }
   .soc-chip.q { background: rgba(20,184,166,0.16); color: #0f766e; }
@@ -1080,6 +1081,7 @@ header h1, header button, header a { white-space: nowrap; }
           <input type="date" id="social-date" aria-label="投稿する日付">
         </div>
         <div id="social-whennote" class="soc-small" style="margin-top:6px"></div>
+        <div id="social-rec" style="margin-top:10px"></div>
 
         <h3 class="soc-step">5　送る</h3>
         <div class="toolbar" style="margin:12px 0">
@@ -7410,6 +7412,50 @@ window.lumAdmin = {
     el('social-whennote').innerHTML = notes.join('<br>');
   }
 
+  /* ---- いつ出すと良いか ----
+     サーバーが出した目安（_social-insights.js の recommend）を、選んだSNSの
+     ぶんだけ並べます。このサイトの数字から出したものと「一般論」は、
+     見て分かるように分けます。曜日のボタンで、その日の予約に切り替えます。 */
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function nextWeekday(w) {
+    var d = tomorrowJst();
+    for (var i = 0; i < 7; i++) {
+      var t = new Date(Date.parse(d + 'T00:00:00Z') + i * 86400000);
+      if (t.getUTCDay() === w) return t.toISOString().slice(0, 10);
+    }
+    return d;
+  }
+  function renderRecommend() {
+    var host = el('social-rec');
+    var rec = insights && insights.recommend;
+    if (!rec) { host.innerHTML = ''; return; }
+    var ids = picked().length ? picked() : ready().map(function (n) { return n.id; });
+    ids = ids.filter(function (id) { return rec[id]; });
+    if (!ids.length) { host.innerHTML = ''; return; }
+    var sch = info.schedule || {};
+    var html = ids.map(function (id) {
+      var r = rec[id];
+      var n = netById(id);
+      var own = r.basis !== 'general';
+      var days = (r.weekdays || []).slice(0, 2).map(function (w) {
+        var date = nextWeekday(w);
+        return sch.ready ? '<button type="button" class="ghost soc-recday" data-date="' + date + '" style="font-size:10.5px;padding:2px 9px;margin:2px 4px 0 0">' +
+          WD[w] + '曜（' + Number(date.slice(5, 7)) + '/' + Number(date.slice(8)) + '）に予約</button>' : '';
+      }).join('');
+      return '<div class="soc-rec" style="padding:6px 0;border-top:1px solid var(--border)"><b>' + esc(n ? n.label : id) + '</b>' +
+        '<span class="lab ' + (own ? 'own' : 'gen') + '">' + (r.basis === 'posts' ? 'このサイトの投稿の反応から' : r.basis === 'site' ? 'このサイトの訪問から' : '一般論') + '</span><br>' +
+        esc(r.text) + (own ? '' : '（一般的な目安で、このサイトの数字ではありません）') +
+        (r.missing && r.missing.length ? '<div class="soc-small">' + (own ? '' : 'このサイトの数字で出すには：') + esc(r.missing.join('。')) + '</div>' : '') +
+        (days ? '<div>' + days + '</div>' : '') + '</div>';
+    }).join('');
+    host.innerHTML = '<div class="soc-box" style="margin:0"><b style="font-size:12.5px">いつ出すと良いか</b>' +
+      '<div class="soc-small">予約投稿は選んだ日の朝' + (sch.jstHour || 9) + '時ごろに出ます（時刻は選べません）。時間帯の目安は「今すぐ投稿」するときの参考にしてください。</div>' +
+      html + '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-recday'), function (b) {
+      b.addEventListener('click', function () { S.when = 'date'; S.date = b.dataset.date; changed(false); say(b.dataset.date + ' に予約する設定にしました（まだ予約はしていません。5 で送ってください）。', true); });
+    });
+  }
+
   /* ---- 5 送る ---- */
   function count() {
     var ids = sendable();
@@ -7459,10 +7505,11 @@ window.lumAdmin = {
   /* 入力のたびに呼ばれます。full は、タブと本文欄まで作り直すとき
      （打っている途中の本文欄を作り直すと、カーソルが飛ぶため分けています）。 */
   function changed(full) {
-    if (full) { renderTabs(); renderVariant(); }
+    if (full) { renderTabs(); renderVariant(); renderRecommend(); }
     else { renderTabs(); refreshVariant(); }
     urlNotes();
     renderWhen();
+
     count();
     save();
   }
@@ -7737,10 +7784,10 @@ window.lumAdmin = {
         var g = got[k];
         var n = netById(k);
         var memo = [];
-        if (g.untagged) memo.push('自社サイトへのリンクなし（数えられません）');
-        if (g.open) memo.push('集計中（' + w + '日たつまで増えます）');
-        if (g.shared && g.shared.length) memo.push(g.shared.map(function (o) { return shortDate(o.at); }).join('・') + ' の投稿と期間が重なっています（同じ数字が両方に入ります）');
-        per.push('<tr><td>' + esc(shortDate(p.at)) + '</td><td>' + esc(String(p.text || '').slice(0, 24)) + (String(p.text || '').length > 24 ? '…' : '') + '</td><td>' + esc(n ? n.label : k) + '</td>' +
+        if (g.untagged) memo.push('リンクなし');
+        if (g.open) memo.push('集計中');
+        if (g.shared && g.shared.length) memo.push(g.shared.map(function (o) { return shortDate(o.at); }).join('・') + ' と重なり');
+        per.push('<tr><td>' + esc(shortDate(p.at)) + '</td><td class="tx">' + esc(String(p.text || '').slice(0, 24)) + (String(p.text || '').length > 24 ? '…' : '') + '</td><td>' + esc(n ? n.label : k) + '</td>' +
           '<td class="n">' + (g.untagged ? '—' : g.visits) + '</td><td class="n">' + (g.untagged ? '—' : g.inquiries) + '</td><td class="soc-small">' + esc(memo.join('。')) + '</td></tr>');
       });
     });
@@ -7758,7 +7805,9 @@ window.lumAdmin = {
       '</div>' +
       '<details class="soc-more"' + (per.length ? ' open' : '') + '><summary>投稿ごとの成果</summary>' +
         (per.length
-          ? '<div class="soc-scroll" style="margin-top:8px"><table class="soc-tbl" id="soc-per"><thead><tr><th>日付</th><th>本文</th><th>SNS</th><th class="n">訪問</th><th class="n">問い合わせ</th><th>メモ</th></tr></thead><tbody>' + per.join('') + '</tbody></table></div>'
+          ? '<div class="soc-scroll" style="margin-top:8px"><table class="soc-tbl" id="soc-per"><thead><tr><th>日付</th><th class="tx">本文</th><th>SNS</th><th class="n">訪問</th><th class="n">問い合わせ</th><th>メモ</th></tr></thead><tbody>' + per.join('') + '</tbody></table></div>' +
+            '<p class="soc-small" style="margin-top:6px">集計中＝投稿から' + w + '日たつまで増えます。重なり＝同じSNS・同じ印の投稿が' + w + '日以内にもう1つあり、その期間の訪問は両方の投稿に入っています（どちらから来たかは分けられません）。リンクなし＝自社サイトへのリンクが無いので数えられません。</p>'
+
           : '<p class="share-note" style="margin:8px 0 0">まだ数字のある投稿はありません。</p>') +
       '</details>';
     Array.prototype.forEach.call(host.querySelectorAll('button[data-days]'), function (b) {

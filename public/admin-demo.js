@@ -1300,7 +1300,24 @@
       recommend: socialRecommend()
     };
   }
-  function socialRecommend() { return null; }
+  /* いつ出すと良いか（shape: _social-insights.js recommend）。 */
+  function socialRecommend() {
+    var gen = function (hours, wds, text, posts, visits) {
+      return { basis: 'general', n: 0, hours: hours, weekdays: wds, text: text,
+        missing: ['反応を取得した投稿が ' + posts + ' 件です（10 件で、反応から出せます）', '計測リンクから来た訪問が直近90日で ' + visits + ' 件です（30 件で、サイトの数字から出せます）'] };
+    };
+    return {
+      x: { basis: 'posts', n: 14, hours: [[18, 21]], weekdays: [2, 4], text: '火・木曜の 18〜21時に出した投稿の反応がいちばん大きい（この画面から出した 14 件の いいね・コメント・共有 の平均）', missing: [] },
+      line: { basis: 'site', n: 61, hours: [[12, 15]], weekdays: [5], text: 'line の計測リンクから来る人は 金曜の 12〜15時に多い（直近90日の訪問 61 件）。少し前に出すと見てもらいやすくなります', missing: ['反応を取得した投稿が 3 件です（10 件で、反応から出せます）'] },
+      facebook: gen([[9, 12]], [1, 2, 3, 4, 5], '平日の午前中（9〜12時）', 2, 11),
+      instagram: gen([[12, 13], [19, 22]], [5, 6, 0], 'お昼（12時台）と夜（19〜22時）、金〜日', 0, 0),
+      threads: gen([[20, 23]], [1, 2, 3, 4, 5], '夜（20〜23時）', 4, 19),
+      linkedin: gen([[8, 10]], [2, 3, 4], '平日の朝（8〜10時）、火〜木', 0, 0),
+      gbp: gen([[9, 12]], [3, 4], '週末やイベントの2〜3日前（水・木）', 0, 8),
+      bluesky: gen([[20, 23]], [1, 2, 3, 4, 5], '夜（20〜23時）', 0, 0)
+    };
+  }
+
   function socialQuotas() {
     return { ok: true, quotas: {
       line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 186, date: jstDate(1), note: '' },

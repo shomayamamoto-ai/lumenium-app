@@ -186,6 +186,9 @@ export const K = {
   // 計測用リンク・広告の名前（source/medium/campaign）→ 訪問数、→ 成果の回数。
   dayCampaigns: (d) => `${KV}cp:d:${d}`,
   dayCampaignEvents: (d, e) => `${KV}cpe:d:${d}:${e}`,
+  // 計測リンクの名前（ref）× 訪問が始まった時（JST）→ 訪問数。SNS（文章）の
+  // 「いつ出すと良いか」が読みます。書くのは _visit.js。
+  dayRefHours: (d) => `${KV}cp:h:${d}`,
   // 週次メール。止めたときの印と、最後に送った結果。
   weeklyOff: `${KV}wr:off`,
   weeklyLast: `${KV}wr:last`,

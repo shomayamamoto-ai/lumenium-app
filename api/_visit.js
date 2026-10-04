@@ -92,7 +92,7 @@ export function timeOf(body) {
  *
  *  kind: 'view'（ページを開いた）、'not_found'、'event'（導線の1段・クリック・離脱）、
  *        'page_time'（サイト内で次のページへ移った） */
-export function visitPlan({ kind, ev, body, path, date, source, selfRef, clean }) {
+export function visitPlan({ kind, ev, body, path, date, source, selfRef, clean, hour }) {
   const n = hitIndex(body)
   const slots = []
   const builders = []
@@ -125,7 +125,17 @@ export function visitPlan({ kind, ev, body, path, date, source, selfRef, clean }
     if (campaign) {
       slot(K.dayCampaigns(date), campaign, 'other', (f) => [['HINCRBY', K.dayCampaigns(date), f, 1], ex(K.dayCampaigns(date))])
     }
+    /* ---- SNS（文章）の「いつ出すと良いか」用 ----
+       計測用リンク（?ref=x など）から来た訪問が、何時（JST）に始まったか。
+       「計測リンクの名前<TAB>時」の形で、1日に最大 名前の数×24 欄です。
+       キャンペーン名は入れません（時間帯を見るのに要らず、欄が増えるだけなので）。 */
+    const refName = tok(body && body.s, 32)
+    if (refName && Number.isInteger(hour) && hour >= 0 && hour < 24) {
+      const h = K.dayRefHours(date)
+      slot(h, `${refName}\t${hour}`, 'other', (f) => [['HINCRBY', h, f, 1], ex(h)])
+    }
   }
+
 
   // 直帰ではなくなった（2ページ目を開いた・操作した・10秒以上見た）。
   if (Number(body && body.g) === 1) {
