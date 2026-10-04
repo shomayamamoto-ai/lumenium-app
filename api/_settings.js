@@ -293,6 +293,57 @@ const NAMES = new Set(SETTINGS.map((s) => s.name))
 // One round trip per isolate per half minute rather than one per request. A
 // key that was just saved has to take effect promptly, so the window is short
 // and saving clears the cache outright.
+/* ---- 保存した値の暗号化 ----
+   Redis に入れた値は、そのままだと Upstash の画面やバックアップを見られる
+   人に全部読めてしまいます（Resend・GitHub・Anthropic などの鍵が並んでいる）。
+   そこで AES-GCM で暗号化してから保存します。鍵は ADMIN_KEY から作ります
+   （端末保存の _keybag.js と同じ作り。ただし用途の印を変えて別の鍵にしています）。
+
+   ・以前に暗号化せずに保存した値もそのまま読めます。次にその項目を保存した
+     ときに暗号化されます。
+   ・ADMIN_KEY を変えると、保存済みの値は読めなくなり「未設定」に戻ります。
+     そのときは「キーの入力」で入れ直してください（画面にも書いてあります）。
+     古い鍵で読めてしまうより、読めずに止まるほうが安全だからです。 */
+const SEALED = 'enc1:'
+
+async function atRestKey() {
+  const admin = (process.env.ADMIN_KEY || '').trim()
+  if (!admin || typeof crypto === 'undefined' || !crypto.subtle) return null
+  try {
+    const seed = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('lum:settings:v1:' + admin))
+    return await crypto.subtle.importKey('raw', seed, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+  } catch (_) { return null }
+}
+
+const b64 = (bytes) => { let t = ''; for (const b of bytes) t += String.fromCharCode(b); return btoa(t) }
+const unb64 = (str) => { const bin = atob(str); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out }
+
+/** 保存する形にする。暗号化できない環境（ADMIN_KEY が無い）では保存しません。 */
+export async function sealValue(value) {
+  const key = await atRestKey()
+  if (!key) return null
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(value)))
+  const out = new Uint8Array(12 + ct.length)
+  out.set(iv)
+  out.set(ct, 12)
+  return SEALED + b64(out)
+}
+
+/** 保存された形から読む。暗号化前の古い値はそのまま返し、読めない値
+ *  （ADMIN_KEY を変えた後など）は空にします。 */
+export async function openValue(stored) {
+  const raw = String(stored || '')
+  if (!raw.startsWith(SEALED)) return raw
+  const key = await atRestKey()
+  if (!key) return ''
+  try {
+    const bytes = unb64(raw.slice(SEALED.length))
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12))
+    return new TextDecoder().decode(plain)
+  } catch (_) { return '' }
+}
+
 let cache = null
 let cacheAt = 0
 const TTL = 30000
@@ -307,7 +358,8 @@ async function all(req) {
     const names = [...NAMES]
     const out = await pipeline(cfg, names.map((n) => ['GET', K(n)]))
     const map = {}
-    names.forEach((n, i) => { if (out[i]) map[n] = String(out[i]) })
+    const opened = await Promise.all(names.map((n, i) => (out[i] ? openValue(out[i]) : '')))
+    names.forEach((n, i) => { if (opened[i]) map[n] = opened[i] })
     cache = map
     cacheAt = now
     return map
@@ -391,7 +443,10 @@ export async function saveSetting(name, value, req) {
   const cfg = await storeFor(req)
   if (!cfg) return { ok: false, message: 'NO_STORE' }
   const v = String(value || '').trim()
-  await pipeline(cfg, [v ? ['SET', K(name), v] : ['DEL', K(name)]])
+  // 保存はいつも暗号化した形で。古い平文の値も、ここを通った時点で置き換わります。
+  const sealed = v ? await sealValue(v) : ''
+  if (v && !sealed) return { ok: false, message: 'ADMIN_KEY が無いため暗号化できず、保存しませんでした。' }
+  await pipeline(cfg, [v ? ['SET', K(name), sealed] : ['DEL', K(name)]])
   cache = null
   return { ok: true, cleared: !v }
 }

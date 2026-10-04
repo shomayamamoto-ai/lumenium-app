@@ -140,4 +140,26 @@ await t('health: ボタンを押さなくても試用の送信元を警告', asy
   assert.ok(row && row.state === 'warn' && /お客様/.test(row.note))
 })
 
+/* ==== 3. 保存した設定の暗号化 ==== */
+await t('settings: 保存は暗号化・読むと元どおり・古い平文も読める・鍵を変えると未設定', async () => {
+  on([])
+  const S = await import('../api/_settings.js')
+  const r = await S.saveSetting('CONTACT_TO_EMAIL', 'owner@shop.example', null)
+  assert.equal(r.ok, true)
+  const raw = [...store].find(([k]) => k.endsWith('cfg:CONTACT_TO_EMAIL'))[1]
+  assert.ok(raw.startsWith('enc1:') && !raw.includes('owner@shop'), '平文で保存しない')
+  assert.equal(await S.openValue(raw), 'owner@shop.example')
+  assert.equal(await S.openValue('legacy-plain'), 'legacy-plain', '暗号化前の値はそのまま')
+  // 古い平文の値は、次に保存した時点で暗号化に置き換わる
+  const k = [...store.keys()].find((x) => x.endsWith('cfg:CONTACT_TO_EMAIL')).replace('CONTACT_TO_EMAIL', 'MEMBER_CODE')
+  store.set(k, 'PLAIN-CODE')
+  await S.saveSetting('MEMBER_CODE', 'NEW-CODE', null)
+  assert.ok(store.get(k).startsWith('enc1:'))
+  assert.equal(await S.setting('MEMBER_CODE', '', null), 'NEW-CODE')
+  const old = process.env.ADMIN_KEY
+  process.env.ADMIN_KEY = 'rotated-admin-key-0123456789'
+  assert.equal(await S.openValue(raw), '', '管理キーを変えたら読めない（未設定に戻る）')
+  process.env.ADMIN_KEY = old
+})
+
 console.log(`test-foundation: ${passed} passed`)

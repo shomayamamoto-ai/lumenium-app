@@ -1262,6 +1262,7 @@ header h1, header button, header a { white-space: nowrap; }
       <p class="share-note" style="margin-bottom:12px">
         ここに貼ると、Vercel の環境変数を触らなくてもその場で有効になります（再デプロイ不要）。
         入力した値は画面に戻しません。末尾4文字だけ、どのキーかを見分けるために表示します。
+        <br>保存先には暗号化して保存します（鍵は管理キーから作ります）。そのため<b>管理キー（ADMIN_KEY）を変えると、ここで保存したキーは読めなくなり「未設定」に戻ります</b>。変えたときは、もう一度ここに入れ直してください。
       </p>
       <p class="msg" id="set-msg" style="margin-bottom:10px"></p>
       <div id="set-steps" style="display:none"></div>
