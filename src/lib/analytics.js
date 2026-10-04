@@ -17,17 +17,66 @@ export function track(eventName, params = {}) {
   }
 }
 
-/** The funnel steps we count ourselves. Names match api/track.js. */
+/* 「見た」は、一度だけ。
+   問い合わせ欄はトップページにいつも置いてあるので、描いただけで
+   「問い合わせ画面に来た」と送っていた頃は、開いた人全員が来たことに
+   なっていました。画面に入ったときに、ページを開いている間に1回だけ送ります。 */
+const sent = new Set()
+function once(name) {
+  if (sent.has(name)) return
+  sent.add(name)
+  sendEvent(name)
+}
+
+/** The funnel steps we count ourselves. Names match api/track.js.
+ *  サービスを見た（service_view）は、サービスの詳しいページ
+ *  （/services/*.html）を開いたときに beacon-core.js が送ります。
+ *  メニュー・見積りの段は、その画面が無くなったので外しました。 */
 export const funnel = {
-  menuOpen: () => sendEvent('menu_open'),
-  serviceView: () => sendEvent('service_view'),
-  estimateStart: () => sendEvent('estimate_start'),
-  estimateDone: () => sendEvent('estimate_done'),
-  contactView: () => sendEvent('contact_view'),
+  contactView: () => once('contact_view'),
   contactStart: () => sendEvent('contact_start'),
+  // 送れたときにだけ。送る前に数えると、失敗した送信も「問い合わせ」に入ります。
   contactSubmit: () => sendEvent('contact_submit'),
-  bookingView: () => sendEvent('booking_view'),
+  bookingView: () => once('booking_view'),
   bookingConfirm: () => sendEvent('booking_confirm'),
+}
+
+/** Calls `onSeen` once, the first time at least half of `el` — or half of the
+ *  screen, for an element taller than two screens — is on screen. Returns a
+ *  function that stops watching.
+ *
+ *  Without IntersectionObserver (old browsers), the first scroll that brings
+ *  the element within 200px of the screen counts instead. */
+export function whenSeen(el, onSeen) {
+  if (!el || typeof window === 'undefined') return () => {}
+  let done = false
+  const fire = () => { if (!done) { done = true; onSeen() } }
+  if (typeof IntersectionObserver === 'function') {
+    const steps = []
+    for (let i = 0; i <= 20; i++) steps.push(i / 20)
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        const vh = (e.rootBounds && e.rootBounds.height) || window.innerHeight
+        if (e.intersectionRatio >= 0.5 || e.intersectionRect.height >= vh * 0.5) {
+          io.disconnect()
+          fire()
+          return
+        }
+      }
+    }, { threshold: steps })
+    io.observe(el)
+    return () => io.disconnect()
+  }
+  const check = () => {
+    const r = el.getBoundingClientRect()
+    if (r.top < window.innerHeight + 200 && r.bottom > -200) {
+      window.removeEventListener('scroll', check)
+      fire()
+    }
+  }
+  window.addEventListener('scroll', check, { passive: true })
+  return () => window.removeEventListener('scroll', check)
 }
 
 // Named conversion shortcuts — keep names stable for GA dashboards

@@ -2,6 +2,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "crons": [
+    {
+      "path": "/api/weekly-report",
+      "schedule": "0 0 * * 1"
+    }
+  ],
   "redirects": [
     {
       "source": "/:path*",

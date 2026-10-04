@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { funnel } from '../lib/analytics'
+import { useEffect, useRef, useState } from 'react'
+import { funnel, whenSeen } from '../lib/analytics'
 
 // フォームを送った直後に出る日程ピッカー。
 //
@@ -21,6 +21,7 @@ export default function BookingPicker({ contact }) {
   const [busyKey, setBusyKey] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const boxRef = useRef(null)
 
   const load = async (all = false) => {
     try {
@@ -30,13 +31,14 @@ export default function BookingPicker({ contact }) {
       setSlots(data.slots)
       setTotal(data.total || data.slots.length)
       setState('open')
-      if (!all) funnel.bookingView()
     } catch (_) {
       setState('off')
     }
   }
 
   useEffect(() => { load(false) }, [])
+  // 画面に入ったときに1回だけ（QuickBook と同じ数え方）。
+  useEffect(() => (state === 'open' ? whenSeen(boxRef.current, funnel.bookingView) : undefined), [state])
 
   const choose = async (slot) => {
     setBusyKey(slot.key)
@@ -98,7 +100,7 @@ export default function BookingPicker({ contact }) {
   }
 
   return (
-    <div className="booking">
+    <div className="booking" ref={boxRef}>
       <p className="booking-title">このまま商談のお時間も決められます</p>
       <p className="booking-lead">
         ご都合のよい枠を選ぶと、その場で確定します。オンライン（Google Meet）で30〜60分、費用はかかりません。

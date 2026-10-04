@@ -1,7 +1,7 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
-import { events, funnel } from '../lib/analytics'
+import { events, funnel, whenSeen } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
 import { ORG_TYPES, TOPICS } from '../data/site'
 import { scrollBehavior } from '../lib/motion'
@@ -58,9 +58,14 @@ export default function ContactForm() {
   // 名前とメールをもう一度打たせるようでは、その場で決める意味が無い。
   const [lastSent, setLastSent] = useState(null)
   const startedRef = useRef(false)
+  const sectionRef = useRef(null)
+
+  // 「問い合わせ画面に来た」は、この欄が実際に画面に入ったときだけ。
+  // トップページにはいつも置いてあるので、描いた時点で送っていた頃は、
+  // 開いた人全員がここまで来たことになっていました。
+  useEffect(() => whenSeen(sectionRef.current, funnel.contactView), [])
 
   useEffect(() => {
-    funnel.contactView()
     // Consumed once: a later visit to the form should start clean rather than
     // repeating an estimate the visitor may have moved on from.
     try { sessionStorage.removeItem('lum_estimate') } catch (_) {}
@@ -120,8 +125,6 @@ export default function ContactForm() {
     }
 
     setSending(true)
-    events.formSubmit('contact')
-    funnel.contactSubmit()
 
     try {
       const res = await fetch('/api/contact', {
@@ -141,6 +144,10 @@ export default function ContactForm() {
         }),
       })
       if (!res.ok) throw new Error(`status ${res.status}`)
+      // 届いたときにだけ数えます。送る前に数えていた頃は、失敗した送信
+      // （通信切れ・送信先の不調）まで「問い合わせ」に入っていました。
+      events.formSubmit('contact')
+      funnel.contactSubmit()
       setSent(true)
       // 日程を決めるところまで、選んだ内容を持っていく。予定の説明にも入るので、
       // 当日は何の話をするのかが分かった状態で始められます。
@@ -175,7 +182,7 @@ export default function ContactForm() {
   }
 
   return (
-    <section className="section section--gray" id="contact-form">
+    <section className="section section--gray" id="contact-form" ref={sectionRef}>
       <div className="container">
         <div className="section-header" data-animate>
           <h2 className="section-title">{rich(SECTION.contact.title)}</h2>

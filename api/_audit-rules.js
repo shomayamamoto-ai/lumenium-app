@@ -183,7 +183,9 @@ export function extract(path, html, extra = {}) {
     '本文量': body.length >= 1000,
     // The home page is the app: its beacon is in the bundle, not in the HTML,
     // and it was verified firing. Flagging it here would be a false alarm.
-    '計測タグ': path === '/' ? true : /api\/track/.test(html),
+    // The beacon now posts to /api/p (a name content blockers do not list);
+    // pages still cached from before post to /api/track. Either is the tag.
+    '計測タグ': path === '/' ? true : /\/api\/(track|p)\b/.test(html),
   }
 
   return {

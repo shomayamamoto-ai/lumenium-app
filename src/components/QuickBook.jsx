@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { funnel } from '../lib/analytics'
+import { useEffect, useRef, useState } from 'react'
+import { funnel, whenSeen } from '../lib/analytics'
 
 /**
  * 空き日時をその場で予約する。
@@ -21,6 +21,7 @@ export default function QuickBook() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const boxRef = useRef(null)
 
   const load = async (wantAll) => {
     try {
@@ -29,12 +30,14 @@ export default function QuickBook() {
       if (!data.ok || !data.enabled || !data.slots.length) { if (!wantAll) setState('off'); return }
       setSlots(data.slots)
       setState('open')
-      if (!wantAll) funnel.bookingView()
     } catch (_) {
       if (!wantAll) setState('off')
     }
   }
   useEffect(() => { load(false) }, [])
+  // 「日程候補を見た」は、候補が実際に画面に入ったときに1回だけ。読み込めた
+  // だけで数えると、ページの下まで来ていない人も「見た」ことになります。
+  useEffect(() => (state === 'open' ? whenSeen(boxRef.current, funnel.bookingView) : undefined), [state])
 
   // 最初は日を分けて3つ。同じ日の30分違いが並ぶより、選びやすい。
   const shown = all ? slots : (() => {
@@ -80,6 +83,9 @@ export default function QuickBook() {
         return
       }
       if (!res.ok || !data.ok) throw new Error(data.message || `status ${res.status}`)
+      // 予約が取れた＝問い合わせが1件来た、です。フォームを通っていない
+      // だけで、成果としては同じなので、送信としても数えます。
+      funnel.contactSubmit()
       funnel.bookingConfirm()
       setResult(data)
       setState('done')
@@ -93,7 +99,7 @@ export default function QuickBook() {
   if (state === 'loading' || state === 'off') return null
 
   return (
-    <section className="qb" aria-labelledby="qb-h">
+    <section className="qb" aria-labelledby="qb-h" ref={boxRef}>
       <div className="lp-wrap qb-in">
         {state === 'done' ? (
           <div className="qb-done" role="status">

@@ -159,4 +159,29 @@ export const K = {
   dayContact: (d) => `${KV}ct:d:${d}`,
   contactLastError: `${KV}ct:lasterr`,
   expire: TTL,
+
+  /* ---- 訪問（セッション）。書くのは _visit.js、読むのは _analytics-report.js ----
+     訪問ごとの記録は持ちません。日ごとの数を足していくだけなので、
+     「誰が」「どの順に」は、ここからは読み出せません。 */
+  // 訪問の数（訪問の最初の1ページで +1）。
+  daySessions: (d) => `${KV}ss:d:${d}`,
+  // 直帰ではなくなった訪問の数。直帰 = 訪問 − これ。
+  dayEngaged: (d) => `${KV}ss:g:${d}`,
+  // 最初に見られたページ → 訪問数 / そのうち直帰しなかった数。
+  dayLanding: (d) => `${KV}ss:l:${d}`,
+  dayLandingEngaged: (d) => `${KV}ss:lg:${d}`,
+  // 見ていた時間。hash の sum（ミリ秒の合計）と n（件数）。
+  dayTime: (d) => `${KV}tm:d:${d}`,
+  // ページごとの、見ていた時間の合計と件数（同じ欄名で2つの hash）。
+  dayPathTime: (d) => `${KV}tm:p:${d}`,
+  dayPathTimeN: (d) => `${KV}tm:pn:${d}`,
+  // 成果（問い合わせ・電話など）ごとの、その訪問の流入元 → 回数。
+  dayEventSources: (d, e) => `${KV}evs:d:${d}:${e}`,
+  // 計測用リンク・広告の名前（source/medium/campaign）→ 訪問数、→ 成果の回数。
+  dayCampaigns: (d) => `${KV}cp:d:${d}`,
+  dayCampaignEvents: (d, e) => `${KV}cpe:d:${d}:${e}`,
+  // 週次メール。止めたときの印と、最後に送った結果。
+  weeklyOff: `${KV}wr:off`,
+  weeklyLast: `${KV}wr:last`,
+  weeklySent: (d) => `${KV}wr:sent:${d}`,
 }

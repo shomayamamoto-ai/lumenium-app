@@ -105,6 +105,17 @@ export async function GET(req) {
         ? '独自の鍵が設定されています。'
         : '未設定のため、リポジトリに公開されている既定の鍵が使われています。ログイン状態を偽造できる状態なので、SESSION_SECRET を設定してください。',
     },
+    {
+      // Not a key the admin can paste: Vercel reads it from the environment and
+      // sends it with each scheduled call, so it has to live there. Without it
+      // the weekly endpoint refuses scheduled calls, because an address that
+      // sends mail on request must not be callable by anyone who finds it.
+      id: 'cron', label: '週次メールの合言葉（おすすめ）', env: 'CRON_SECRET',
+      state: (process.env.CRON_SECRET || '').trim() ? 'ok' : 'warn',
+      note: (process.env.CRON_SECRET || '').trim()
+        ? '毎週月曜の朝9時に、先週のアクセスのまとめがメールで届きます（「アクセス解析」の画面で止められます）。'
+        : '未設定のため、週次メールは自動では届きません。Vercel › Settings › Environment Variables に CRON_SECRET（推測できない長い文字列。パスワード管理アプリの自動生成で構いません）を入れて再デプロイすると、毎週月曜の朝9時に先週のまとめが届くようになります。これは「Vercel の定期実行からの呼び出しだけを受け付ける」ための合言葉で、どこにも入力する必要はありません。',
+    },
   ]
 
   // The networks, as one row: which of the five can be posted to right now.

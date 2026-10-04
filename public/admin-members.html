@@ -1097,9 +1097,12 @@ header h1, header button, header a { white-space: nowrap; }
           <option value="7">過去7日</option>
           <option value="30" selected>過去30日</option>
           <option value="90">過去90日</option>
+          <option value="180">過去180日</option>
+          <option value="365">過去1年（365日）</option>
         </select>
         <span id="stats-updated"></span>
         <button class="ghost" id="stats-reload" type="button">更新</button>
+        <button class="ghost" id="stats-csv" type="button" disabled>CSVで保存</button>
       </div>
       <details class="utm" id="utm-box">
         <summary>計測用リンクを作る（Instagram・LINE・名刺QRなど）</summary>
@@ -1143,7 +1146,18 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="stats-body" style="display:none">
         <div id="stats-note"></div>
         <div id="stats-self"></div>
-        <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px"></div>
+        <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px"></div>
+        <div id="stats-since"></div>
+        <details class="utm" id="stats-about" style="margin-top:4px;margin-bottom:18px">
+          <summary>この数字について</summary>
+          <ul class="share-note" style="margin:10px 0 0;padding-left:18px;line-height:1.9">
+            <li><b>Cookie は使っていません。</b>IPアドレスも保存しません。人数は、その日だけ有効で元に戻せない符号で数えるため、<b>同じ人が2日来れば2人</b>になります（「訪問者（のべ）」と書いているのはそのためです）。</li>
+            <li><b>訪問</b>は、サイトに来てから帰るまでの1回です。30分なにもしなければ、次に開いたときは新しい訪問になります。「どこから来たか」は訪問の最初の1ページで数えます。</li>
+            <li><b>直帰</b>は、1ページだけ見て、10秒未満で、スクロールやボタンなどの操作もなく帰った訪問です。<b>滞在時間</b>は、そのページが画面の表に出ていて操作できる状態だった時間で、1ページ30分で打ち切ります。</li>
+            <li>あなた自身の端末は、下のボタンで数から外せます。外さないと、動作確認のぶんも数に入ります。</li>
+            <li>広告ブロッカーを使っている方の一部（数％程度）は数えられません。自動で動くプログラム（検索エンジンのロボットなど）は除いています。</li>
+          </ul>
+        </details>
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
           <div id="stats-chart" style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
@@ -1152,6 +1166,28 @@ header h1, header button, header a { white-space: nowrap; }
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこから来たか</h3>
           <p class="share-note" style="margin-bottom:10px">対策が効いているかは、ここが動くかで分かります。来ていない経路も 0 のまま並べます——「AI検索から 0」は空欄ではなく結果だからです。</p>
           <div id="stats-kinds"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">問い合わせにつながった流入元</h3>
+          <p class="share-note" style="margin-bottom:10px">どこから来た人が、問い合わせ・予約や、電話・LINE・メールのボタンまで進んだか。「訪問」はその流入元から始まった訪問の数です。</p>
+          <div id="stats-conv"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:22px">
+          <div>
+            <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">最初に見られたページ</h3>
+            <p class="share-note" style="margin-bottom:10px">訪問の入口になったページ。直帰率が高い入口は、最初の画面で「次に見るもの」が伝わっていません。</p>
+            <div id="stats-landings"></div>
+          </div>
+          <div>
+            <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">ページごとの平均滞在</h3>
+            <p class="share-note" style="margin-bottom:10px">そのページを見ていた時間の平均。読ませたいページが短いなら、最初の数行か見出しを見直す合図です。</p>
+            <div id="stats-times"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">計測用リンク・広告</h3>
+          <p class="share-note" style="margin-bottom:10px">計測用リンク（上の「計測用リンクを作る」）や、utm_campaign を付けた広告から始まった訪問と、そのうちの問い合わせ。</p>
+          <div id="stats-campaigns"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこまで読まれたか</h3>
@@ -1195,6 +1231,11 @@ header h1, header button, header a { white-space: nowrap; }
           <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">よく見られたページ</h3><div id="stats-paths"></div></div>
           <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">流入元</h3><div id="stats-refs"></div></div>
           <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">デバイス</h3><div id="stats-devices"></div></div>
+        </div>
+        <div style="margin-top:24px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">週次メール</h3>
+          <p class="share-note" style="margin-bottom:10px">毎週月曜の朝、先週の数字と前の週との比較を、文章でメールにお送りします。この画面を開かなくても、大きな変化に気づけます。</p>
+          <div id="stats-weekly"></div>
         </div>
       </div>
     </div>
@@ -3261,21 +3302,274 @@ window.lumAdmin = {
     }
   }
 
+  /* 秒・分で。0.4秒のような細かさは判断に使えないので、秒で丸めます。 */
+  function secs(ms) {
+    if (ms === null || ms === undefined) return '—';
+    var s = Math.round(ms / 1000);
+    return s >= 60 ? Math.floor(s / 60) + '分' + (s % 60) + '秒' : s + '秒';
+  }
+  function pct(r) { return r === null || r === undefined ? '—' : Math.round(r * 100) + '%'; }
+
+  /* 前の同じ長さの期間との比較を、文で。
+     前の期間の数が小さいうちは割合を出しません。2件が3件になっただけで
+     「50% 増」と書くと、大きな変化に読めてしまうからです。`base` は
+     その割合の母数（件数なら前の値そのもの、直帰率なら前の訪問数）。 */
+  var rangeDays = 30;
+  function change(kind, cur, prev, base) {
+    if (cur === null || cur === undefined || prev === null || prev === undefined) return base !== undefined && base < 10 ? '比較できるほどの数がまだありません' : '';
+    if (base < 10) return '比較できるほどの数がまだありません';
+    var span = '前の' + rangeDays + '日間';
+    if (kind === 'rate') {
+      var pt = Math.round((cur - prev) * 100);
+      return pt === 0 ? span + 'と同じ' : span + 'より ' + Math.abs(pt) + 'ポイント ' + (pt > 0 ? '高い' : '低い');
+    }
+    var p = Math.round(((cur - prev) / prev) * 100);
+    if (p === 0) return span + 'と同じ';
+    if (kind === 'time') return span + 'より ' + Math.abs(p) + '% ' + (p > 0 ? '長い' : '短い');
+    return span + 'より ' + Math.abs(p) + '% ' + (p > 0 ? '増' : '減');
+  }
+
   function cards(d) {
     storeNote(d);
+    rangeDays = (d.range && d.range.days) || 30;
+    var sm = d.summary || {}, c = sm.cur || {}, p = sm.prev || {};
     var items = [
-      ['今日の閲覧数', n(d.totals.today)],
-      ['今日の訪問者', n(d.totals.todayVisitors)],
-      ['過去7日', n(d.totals.last7)],
-      ['過去30日', n(d.totals.last30)],
-      ['期間合計', n(d.totals.rangeViews)],
-      ['累計', n(d.totals.allTime)],
+      ['閲覧数', n(c.views), change('count', c.views, p.views, p.views)],
+      ['訪問者（のべ）', n(c.visitorDays), change('count', c.visitorDays, p.visitorDays, p.visitorDays)],
+      ['訪問数', n(c.visits), change('count', c.visits, p.visits, p.visits)],
+      ['直帰率', pct(c.bounceRate), change('rate', c.bounceRate, p.bounceRate, p.visits || 0)],
+      ['平均滞在（1ページ）', secs(c.avgTimeMs), change('time', c.avgTimeMs, p.avgTimeMs, p.timeN || 0)],
+      ['問い合わせ', n(c.submits) + '件', change('count', c.submits, p.submits, p.submits)],
+      // ここから下は、選んだ期間に関係なく「今日から数えて」の数です。
+      ['今日の閲覧数', n(d.totals.today), ''],
+      ['過去7日の閲覧', n(d.totals.last7), ''],
+      ['過去30日の閲覧', n(d.totals.last30), ''],
+      ['累計の閲覧', n(d.totals.allTime), ''],
     ];
     el('stats-cards').innerHTML = items.map(function (i) {
       return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:12px 14px">' +
         '<div style="font-size:10.5px;letter-spacing:.14em;color:var(--sub)">' + esc(i[0]) + '</div>' +
-        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
+        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div>' +
+        (i[2] ? '<div style="font-size:11px;color:var(--sub);margin-top:4px;line-height:1.55">' + esc(i[2]) + '</div>' : '') +
+        '</div>';
     }).join('');
+
+    /* 訪問・直帰・滞在は、この仕組みを入れた日から数え始めています。
+       それより前の日を含む期間で黙って率を出すと、一部の日だけの率が
+       期間全体の率のように読めてしまいます。 */
+    var since = el('stats-since');
+    if (since) {
+      var from = d.sessionsFrom;
+      since.innerHTML = !from && c.views
+        ? '<p class="share-note" style="margin-bottom:8px">訪問数・直帰率・滞在時間は、この期間にはまだ記録がありません（数え始めた日から先のぶんだけ出ます）。閲覧数は読めます。</p>'
+        : from && d.range && from > d.range.from
+          ? '<p class="share-note" style="margin-bottom:8px">訪問数・直帰率・滞在時間は <b>' + esc(from) + '</b> から数え始めました。それより前の日は閲覧数だけです。</p>'
+          : '';
+    }
+  }
+
+  /* 表ひとつ。1列目は余った幅いっぱいに広がり、長いものは「…」で切れます
+     （width:100% と max-width:0 の組み合わせ。max-width:0 だけだと列が
+     潰れて、名前が一文字も出ません）。 */
+  function table(head, rows) {
+    var td0 = 'padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    var tdn = 'padding:5px 0 5px 12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums';
+    return '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+      '<tr style="color:var(--sub);font-size:11px">' + head.map(function (h, i) {
+        return '<td style="' + (i ? tdn : td0) + ';padding-top:2px;padding-bottom:2px">' + esc(h) + '</td>';
+      }).join('') + '</tr>' +
+      rows.map(function (r) {
+        return '<tr>' + r.map(function (c, i) {
+          return '<td style="' + (i ? tdn : td0) + (c && c.mute ? ';color:var(--sub)' : '') + '">' +
+            (c && c.html !== undefined ? c.html : esc(c && c.text !== undefined ? c.text : c)) + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table>';
+  }
+  function pageLink(name) {
+    if (!/^\//.test(name) || /^\/\(/.test(name)) return esc(name === '/(404)' ? '（見つからないページ）' : name);
+    return '<a href="' + esc(location.origin + name) + '" target="_blank" rel="noopener" ' +
+      'style="color:var(--text);text-decoration:underline;text-underline-offset:2px">' + esc(name) + '</a>';
+  }
+
+  /* 流入元の呼び名。種類の名前は API が返す一覧（_referrers.js）から取ります。 */
+  var kindLabel = {};
+  function srcName(name) {
+    if (!name || name === 'direct') return '直接・不明';
+    if (name === 'other') return 'そのほか';
+    if (/^src:/.test(name)) return (SRC_NAMES[name.slice(4)] || name.slice(4)) + '（計測リンク）';
+    return name;
+  }
+
+  function convTable(rows) {
+    var host = el('stats-conv');
+    if (!host) return;
+    if (!rows.length) {
+      host.innerHTML = '<p class="share-note">まだ記録がありません。問い合わせや予約、電話・LINE・メールのボタンが押されると、どこから来た人だったかがここに出ます。</p>';
+      return;
+    }
+    host.innerHTML = table(['流入元', '訪問', '問い合わせ', '電話・LINE・メール'], rows.map(function (r) {
+      return [
+        { html: esc(srcName(r.name)) + (r.kind && kindLabel[r.kind] && r.name !== 'direct'
+          ? '<span style="font-size:10.5px;color:var(--sub);margin-left:6px">' + esc(kindLabel[r.kind]) + '</span>' : '') },
+        { text: n(r.visits), mute: true },
+        { html: r.submits ? '<b>' + n(r.submits) + '件</b>' : '—' },
+        { text: r.contacts ? n(r.contacts) + '回' : '—', mute: !r.contacts },
+      ];
+    })) +
+    '<p class="share-note" style="margin-top:6px">「問い合わせ」はフォームの送信と、空き日時からの予約。「電話・LINE・メール」はそのボタンが押された回数です（実際につながったかまでは分かりません）。</p>';
+  }
+
+  function landingTable(rows) {
+    var host = el('stats-landings');
+    if (!host) return;
+    if (!rows.length) { host.innerHTML = '<p class="share-note">まだ記録がありません。</p>'; return; }
+    host.innerHTML = table(['ページ', '訪問', '直帰率'], rows.slice(0, 10).map(function (r) {
+      var few = r.visits < 5;
+      return [{ html: pageLink(r.name) }, { text: n(r.visits), mute: true },
+        { text: few ? '—' : pct(r.bounceRate), mute: few }];
+    })) +
+    '<p class="share-note" style="margin-top:6px">直帰率は、訪問が5回以上の入口にだけ出します（1回の訪問が100%に見えてしまうため）。</p>';
+  }
+
+  function timeTable(rows) {
+    var host = el('stats-times');
+    if (!host) return;
+    if (!rows.length) { host.innerHTML = '<p class="share-note">まだ記録がありません。ページを離れたときに記録されます。</p>'; return; }
+    host.innerHTML = table(['ページ', '平均', '件数'], rows.slice(0, 10).map(function (r) {
+      var few = r.samples < 5;
+      return [{ html: pageLink(r.name) }, { text: secs(r.avgMs), mute: few }, { text: n(r.samples), mute: true }];
+    })) +
+    '<p class="share-note" style="margin-top:6px">件数が少ないページの平均は、1人の読み方で大きく動きます。件数と合わせて見てください。</p>';
+  }
+
+  function campaignTable(rows) {
+    var host = el('stats-campaigns');
+    if (!host) return;
+    if (!rows.length) {
+      host.innerHTML = '<p class="share-note">まだありません。計測用リンクや、utm_campaign を付けた広告から来た訪問がここに出ます。</p>';
+      return;
+    }
+    host.innerHTML = table(['名前（どこに貼ったか / 種類 / キャンペーン）', '訪問', '問い合わせ'], rows.map(function (r) {
+      var parts = String(r.name).split('/');
+      var label = (SRC_NAMES[parts[0]] || parts[0]) + (parts[1] && parts[1] !== '-' ? ' / ' + parts[1] : '') + (parts[2] && parts[2] !== '-' ? ' / ' + parts[2] : '');
+      return [{ text: label }, { text: n(r.visits), mute: true }, { html: r.submits ? '<b>' + n(r.submits) + '件</b>' : '—' }];
+    }));
+  }
+
+  /* CSV。Excel でそのまま開けるよう、先頭に BOM を付けた UTF-8 です。
+     ページ名や流入元は訪問者側から来た文字列なので、= + - @ で始まるものは
+     先頭に ' を付けます（表計算ソフトが数式として実行しないように）。 */
+  var lastData = null;
+  function csvCell(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number') return isFinite(v) ? String(v) : '';
+    var t = String(v);
+    if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;
+    return '"' + t.replace(/"/g, '""') + '"';
+  }
+  function downloadCsv() {
+    var d = lastData;
+    if (!d) return;
+    var kname = function (name) { var k = (d.referrerKinds || []).filter(function (x) { return x.key === name; })[0]; return k ? k.label : ''; };
+    var kindOf = function (r) { return r.kind ? kname(r.kind) : ''; };
+    var rows = [];
+    var line = function (cells) { rows.push(cells.map(csvCell).join(',')); };
+    var r1 = function (v) { return v === null || v === undefined ? null : Math.round(v * 1000) / 10; };
+    var sec = function (ms) { return ms === null || ms === undefined ? null : Math.round(ms / 1000); };
+    line(['アクセス解析', d.range.from + ' 〜 ' + d.range.to]);
+    line(['作成', new Date(d.generatedAt || Date.now()).toLocaleString('ja-JP')]);
+    rows.push('');
+    line(['日別']);
+    line(['日付', '閲覧数', '訪問者', '訪問数', '直帰率(%)', '平均滞在(秒/ページ)', '問い合わせ']);
+    (d.series || []).forEach(function (x) {
+      line([x.date, x.views, x.visitors, x.visits, r1(x.bounceRate), sec(x.avgTimeMs), x.submits]);
+    });
+    rows.push('');
+    line(['よく見られたページ']);
+    line(['ページ', '閲覧数']);
+    (d.topPaths || []).forEach(function (x) { line([x.name, x.count]); });
+    rows.push('');
+    line(['流入元（訪問の最初の1ページ）']);
+    line(['流入元', '訪問数']);
+    (d.topReferrers || []).forEach(function (x) { line([srcName(x.name), x.count]); });
+    rows.push('');
+    line(['問い合わせにつながった流入元']);
+    line(['流入元', '種類', '訪問', '問い合わせ', '電話・LINE・メール']);
+    (d.convSources || []).forEach(function (x) { line([srcName(x.name), kindOf(x), x.visits, x.submits, x.contacts]); });
+    rows.push('');
+    line(['最初に見られたページ']);
+    line(['ページ', '訪問', '直帰率(%)']);
+    (d.landings || []).forEach(function (x) { line([x.name, x.visits, r1(x.bounceRate)]); });
+    rows.push('');
+    line(['ページごとの平均滞在']);
+    line(['ページ', '平均滞在(秒)', '件数']);
+    (d.pageTimes || []).forEach(function (x) { line([x.name, sec(x.avgMs), x.samples]); });
+    rows.push('');
+    line(['計測用リンク・広告']);
+    line(['名前', '訪問', '問い合わせ']);
+    (d.campaigns || []).forEach(function (x) { line([x.name, x.visits, x.submits]); });
+    var blob = new Blob(['\uFEFF' + rows.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'access-' + d.range.from + '_' + d.range.to + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  /* 週次メールの状態と、止める／再開する・テスト送信。 */
+  async function weekly(key, act) {
+    var host = el('stats-weekly');
+    if (!host) return;
+    var d, said = '';
+    try {
+      // 操作したら、その結果の一言を控えてから、状態を読み直して描きます
+      // （失敗の返事には状態が付いていないことがあるため）。
+      if (act) {
+        var r = await window.lumAdmin.tap(await fetch('/api/weekly-report', {
+          method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+          body: JSON.stringify(act), cache: 'no-store',
+        }));
+        var o = await r.json().catch(function () { return {}; });
+        said = o.message || (r.ok ? '' : '操作できませんでした。');
+      }
+      var res = await window.lumAdmin.tap(await fetch('/api/weekly-report', {
+        headers: { Authorization: 'Bearer ' + key }, cache: 'no-store',
+      }));
+      d = await res.json();
+    } catch (_) {
+      host.innerHTML = '<p class="share-note">状態を読み込めませんでした。</p>';
+      return;
+    }
+    if (!d || !d.configured) {
+      host.innerHTML = '<p class="share-note">' + esc((d && d.message) || '状態を読み込めませんでした。') + '</p>';
+      return;
+    }
+    var cf = d.configured || {};
+    var lines = [];
+    if (!cf.resend) lines.push('メール送信（RESEND_API_KEY）が未設定のため、送れません。「設定状況」から入れてください。');
+    else if (d.enabled === false) lines.push('いまは<b>止めています</b>。テスト送信は使えます。');
+    else if (!cf.cron) lines.push('自動で送るには、Vercel の環境変数に <code>CRON_SECRET</code> が必要です（「設定状況」に説明があります）。テスト送信はいまでも使えます。');
+    else lines.push(esc(d.schedule || '毎週月曜 9:00') + ' に <b>' + esc(d.to || '') + '</b> へ送ります。');
+    if (d.last && d.last.at) {
+      lines.push('最後の送信: ' + esc(new Date(d.last.at).toLocaleString('ja-JP')) + '　' +
+        (d.last.ok ? '送信しました' : '<span style="color:#b45309">' + esc(d.last.message || '失敗しました') + '</span>') +
+        (d.last.test ? '（テスト）' : ''));
+    }
+    host.innerHTML =
+      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
+        '<p style="font-size:12.5px;line-height:1.85;margin:0 0 8px">' + lines.join('<br>') + '</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          (d.enabled === null ? '' : '<button type="button" class="ghost" id="stats-weekly-toggle" style="font-size:12px;padding:6px 12px">' +
+            (d.enabled ? '週次メールを止める' : '週次メールを再開する') + '</button>') +
+          '<button type="button" class="ghost" id="stats-weekly-test" style="font-size:12px;padding:6px 12px"' + (cf.resend ? '' : ' disabled') + '>今すぐテスト送信</button>' +
+        '</div>' +
+        (said ? '<p class="share-note" role="status" style="margin-top:8px">' + esc(said) + '</p>' : '') +
+      '</div>';
+    var t = el('stats-weekly-toggle');
+    if (t) t.addEventListener('click', function () { t.disabled = true; weekly(key, { action: 'toggle', on: !d.enabled }); });
+    var b = el('stats-weekly-test');
+    if (b) b.addEventListener('click', function () { b.disabled = true; b.textContent = '送信しています…'; weekly(key, { action: 'test' }); });
   }
 
   function chart(series) {
@@ -3578,8 +3872,9 @@ window.lumAdmin = {
             (few ? 'var(--sub)' : pct >= 70 ? '#b45309' : 'inherit') + '">' + (few ? '—' : pct + '%') + '</td>' +
         '</tr>';
       }).join('') + '</table>' +
-      '<p class="share-note" style="margin-top:6px">「離れた / 開かれた」回数。サイト内のリンクを押した場合は除いていますが、' +
-        'ブラウザは「閉じた」と「次へ進んだ」を同じ合図で伝えるため、これは近似です。</p>';
+      '<p class="share-note" style="margin-top:6px">「離れた / 開かれた」回数。ページを本当に閉じた・よそへ移ったときだけを数え、' +
+        'タブを切り替えただけの場合や、サイト内のリンクで次へ進んだ場合は除いています。スマートフォンでアプリごと終了された場合などは' +
+        '合図が届かないため、少なめに出ることがあります。</p>';
   }
 
   function notFound(rows) {
@@ -3653,6 +3948,7 @@ window.lumAdmin = {
         'それ以外の語が出てくるかで決まります。</p>';
   }
 
+  var weeklyDone = false;
   async function load() {
     var key = sessionStorage.getItem('lum_admin_key');
     if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
@@ -3673,10 +3969,19 @@ window.lumAdmin = {
       say(data && data.message ? data.message : 'アクセス解析を表示できませんでした。', res.status === 503);
       return;
     }
+    lastData = data;
+    el('stats-csv').disabled = false;
+    kindLabel = {};
+    (data.referrerKinds || []).forEach(function (k) { kindLabel[k.key] = k.label; });
     cards(data);
     selfSwitch();
     chart(data.series || []);
     kinds(data.referrerKinds || []);
+    convTable(data.convSources || []);
+    landingTable(data.landings || []);
+    timeTable(data.pageTimes || []);
+    campaignTable(data.campaigns || []);
+    if (!weeklyDone) { weeklyDone = true; weekly(key); }
     readDepth(data.funnel || {});
     readPaths(data.readByPath || []);
     hours(data.hours || []);
@@ -3723,7 +4028,6 @@ window.lumAdmin = {
       host.innerHTML = '<p style="font-size:12.5px;color:var(--sub)">まだ記録がありません。サイトで実際に操作されると集計されます。</p>';
       return;
     }
-    var pct = function (v) { return Math.round(v * 100) + '%'; };
     /* 人数が少ないうちは、割合を出しません。
        訪問1人・サービス0人は「−100%」と表示できますが、それは
        「100%が離脱した」ではなく「1人のうち1人が押さなかった」です。
@@ -3750,19 +4054,11 @@ window.lumAdmin = {
 
     var side = f.side || [];
     if (side.some(function (r) { return r.people; })) {
-      out += '<p style="font-size:11.5px;color:var(--sub);margin:12px 0 6px">見積り（通らない人が多い任意の経路です。上の導線とは別に見てください）</p>';
+      out += '<p style="font-size:11.5px;color:var(--sub);margin:12px 0 6px">空き日時の候補（画面に入った人数。予約は上の「商談を予約した」に入ります）</p>';
       out += side.map(function (r) { return fBar(r.label, r.people, r.count, thin ? null : r.rate, '', false); }).join('');
-      if (f.sideCompletion !== null && f.sideCompletion !== undefined) {
-        out += '<p style="font-size:11.5px;color:var(--sub);margin:2px 0 0">開いた人のうち ' + pct(f.sideCompletion) + ' が概算まで到達</p>';
-      }
     }
     // 読まれた深さは、すぐ上に専用の欄があります。同じ数字を二度出すと、
     // 別のものを見ていると思って読んでしまいます。
-    var eng = (f.engagement || []).filter(function (r) { return !/^read_/.test(r.key); });
-    if (eng.some(function (r) { return r.people; })) {
-      out += '<p style="font-size:11.5px;color:var(--sub);margin:12px 0 6px">そのほか</p>';
-      out += eng.map(function (r) { return fBar(r.label, r.people, r.count, thin ? null : r.rate, '', false); }).join('');
-    }
     out += '<p style="font-size:11px;color:var(--sub);margin-top:10px;line-height:1.7">' +
       '太字は人数（同じ日に何度やっても1人）、その右は回数です。割合はすべて「訪問」に対する人数の割合で、' +
       '分母と分子の単位が揃っているので、そのまま到達率として読めます。' +
@@ -3772,6 +4068,7 @@ window.lumAdmin = {
 
   el('stats-range').addEventListener('change', load);
   el('stats-reload').addEventListener('click', load);
+  el('stats-csv').addEventListener('click', downloadCsv);
 
   window.lumStatsInit = function () {
     if (loaded) return;

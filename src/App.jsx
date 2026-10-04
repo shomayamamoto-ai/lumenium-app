@@ -8,21 +8,16 @@ import { SpeedInsights } from '@vercel/speed-insights/react'
 import { events } from './lib/analytics'
 import { initWebVitals } from './lib/webVitals'
 import { scrollBehavior } from './lib/motion'
+import { resolveRoute } from './lib/routes'
+import NotFound from './components/NotFound'
 
 // The landing page is the site now, so it ships in the main bundle.
 // ChatWidget/Privacy stay on-demand.
 const ChatWidget = lazy(() => import('./components/ChatWidget'))
 const Privacy = lazy(() => import('./components/Privacy'))
 
-const LEGACY_ANCHORS = {
-  '': 'top', 'contact-form': 'contact', services: 'services', pricing: 'services',
-  results: 'works', flow: 'flow', faq: 'faq', about: 'top',
-}
-const LEGACY_PAGES = {
-  news: '/news.html', blog: '/blog/index.html', testimonials: '/voice.html',
-  story: '/story.html', positioning: '/positioning.html', pain: '/pain.html',
-  company: '/about.html',
-}
+// The legacy '#/info/<section>' table moved to lib/routes.js, so the pageview
+// code reads the same one and counts what this component actually shows.
 
 export default function App() {
   /* The opening movie, the logo-only search home and its dial are gone.
@@ -47,18 +42,16 @@ export default function App() {
   const isInfo = true
   const infoMounted = true
   const infoSection = ''
+  // Recomputed per hash change; the path itself never changes in the app.
+  const where = resolveRoute(typeof window === 'undefined' ? undefined : { pathname: window.location.pathname, hash: route })
   useEffect(() => {
-    const m = route.match(/^#\/info(?:\/([a-z-]+))?$/)
-    let id = ''
-    if (m) {
-      const sec = m[1] || ''
-      if (LEGACY_PAGES[sec]) { window.location.replace(LEGACY_PAGES[sec]); return }
-      id = LEGACY_ANCHORS[sec] || ''
-      // Leave a clean address behind, without adding a history entry.
-      window.history.replaceState(null, '', window.location.pathname + window.location.search + (id ? '#' + id : ''))
-    } else if (/^#[a-z][\w-]*$/i.test(route)) {
-      id = route.slice(1)
-    }
+    const r = resolveRoute()
+    if (r.redirect) { window.location.replace(r.redirect); return }
+    if (r.kind !== 'page') return
+    const id = r.anchor
+    // Leave a clean address behind, without adding a history entry.
+    // replaceState fires no hashchange, so this is not counted a second time.
+    if (r.legacy) window.history.replaceState(null, '', window.location.pathname + window.location.search + (id ? '#' + id : ''))
     if (!id) return
     requestAnimationFrame(() => {
       const el = document.getElementById(id)
@@ -370,7 +363,7 @@ export default function App() {
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
       <Header />
       <main id="main">
-        <Landing onPrivacy={() => setShowPrivacy(true)} />
+        {where.kind === 'not_found' ? <NotFound /> : <Landing onPrivacy={() => setShowPrivacy(true)} />}
       </main>
       <MobileCTA />
       {chatReady && (

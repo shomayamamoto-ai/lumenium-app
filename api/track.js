@@ -10,10 +10,17 @@ export const config = { runtime: 'edge' }
 // answer "who", which is the only question worth refusing to answer.
 
 import { storeConfig, pipeline, jstDate, jstHour, K } from './_analytics-store.js'
+import { visitPlan, fromOurPages, selfReferrer } from './_visit.js'
 
 const enc = new TextEncoder()
 
-const BOT = /bot|crawler|spider|crawl|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest|vkshare|whatsapp|flipboard|tumblr|headless|lighthouse|pagespeed|gtmetrix|monitor|uptime|curl|wget|python-requests|axios|node-fetch|go-http|java\/|okhttp|postman|preview|scrape/i
+/* 自分で「自動です」と名乗っているものだけを外します。
+   以前は pinterest・flipboard・tumblr・whatsapp などの名前も外していて、
+   それらのアプリの中のブラウザで実際に読んでいる人まで消えていました
+   （アプリ内ブラウザの User-Agent にはアプリ名が入ります）。リンクの
+   プレビューを作るだけのロボットは JavaScript を動かさないので、そもそも
+   ここへは送ってきません。cubot は bot ではなくスマートフォンの名前です。 */
+const BOT = /(?<!cu)bot\b|(?<!cu)bot\/|crawler|spider|crawl|slurp|archiver|headless|phantomjs|selenium|puppeteer|playwright|lighthouse|pagespeed|gtmetrix|pingdom|uptime|curl\/|wget|python|aiohttp|httpx|axios|node-fetch|undici|go-http|java\/|okhttp|libwww|postman|insomnia|scrape|facebookexternalhit|facebookcatalog|embedly|bingpreview|vkshare|flipboardproxy|preview|validator|feedfetcher/i
 
 // Paths that are operational rather than public, so they never enter the stats.
 const IGNORED = /^\/(admin-members|login|register|fix|members|api)\b/
@@ -22,6 +29,14 @@ function device(ua) {
   if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/i.test(ua)) return 'tablet'
   if (/mobi|iphone|ipod|android|blackberry|iemobile|opera mini/i.test(ua)) return 'mobile'
   return 'desktop'
+}
+
+/** その訪問の流入元。計測用リンクから来たなら、紹介元よりそちらを優先します
+ *  （アプリ内のリンクやQRは紹介元を送らないため、放っておくと「直接」に
+ *  混ざります）。閲覧にも、問い合わせなどの成果にも、同じ決め方を使います。 */
+function sourceOf(body, host) {
+  const src = String(body?.s || '').toLowerCase()
+  return /^[a-z0-9_-]{1,32}$/.test(src) ? `src:${src}` : refHost(body?.r, host)
 }
 
 function refHost(ref, selfHost) {
@@ -54,10 +69,9 @@ export const EVENTS = new Set([
   'exit',
   // 存在しないURLに着いた（404 のページから送られます）。
   'not_found',
-  'menu_open',       // the hero menu was opened
+  // メニュー・見積りの段（menu_open / estimate_*）は、その画面が無くなった
+  // ので受け付けません。
   'service_view',    // a service detail was opened
-  'estimate_start',  // the estimator was opened
-  'estimate_done',   // an estimate was produced
   'contact_view',    // the enquiry form was reached
   'contact_start',   // the first field was filled
   'contact_submit',  // an enquiry was sent
@@ -138,6 +152,8 @@ export async function POST(req) {
 
   const ua = req.headers.get('user-agent') || ''
   if (!ua || BOT.test(ua)) return ok()
+  // よそのページに仕込まれた送信は数えません（_visit.js）。
+  if (!fromOurPages(req)) return ok()
 
   /* 自分のアクセスを数えない仕組みは、送る前——訪問者の端末側——に
      あります（src/lib/pageview.js）。ここで cookie を見ないのは、
@@ -167,11 +183,32 @@ export async function POST(req) {
   // agent, which a script can rotate freely.
   const rateKey = K.rate((await visitorId(ip, '', date, salt)).slice(0, 16))
   const ev = typeof body?.e === 'string' ? body.e : ''
+
+  /* ---- 訪問（セッション）: 訪問数・直帰・入口・見ていた時間・成果の流入元 ----
+     何を書くかは _visit.js が決めます。ここではそれを、下の書き込みに
+     相乗りさせるだけです（往復を増やさないため）。 */
+  const self = new URL(req.url).hostname
+  const plan = visitPlan({
+    kind: !ev ? 'view' : ev === 'not_found' ? 'not_found' : ev === 'page_time' ? 'page_time' : 'event',
+    ev, body, path, date,
+    source: sourceOf(body, self),
+    selfRef: selfReferrer(body?.r, self),
+    clean: cleanPath,
+  })
+  // サイト内で次のページへ移った。見ていた時間だけを書きます（閲覧でも、
+  // 導線の段でもありません）。
+  if (ev === 'page_time') {
+    const g = await guard(cfg, rateKey, plan.slots)
+    if (!g) return ok()
+    try { await pipeline(cfg, plan.commands(g)) } catch (_) { /* best-effort */ }
+    return ok()
+  }
+
   if (ev) {
     if (!EVENTS.has(ev)) return ok()
-    const g = await guard(cfg, rateKey, [[K.dayEventPaths(date, ev), path, '/(other)']])
+    const g = await guard(cfg, rateKey, [[K.dayEventPaths(date, ev), path, '/(other)'], ...plan.slots])
     if (!g) return ok()
-    const [evPath] = g
+    const [evPath, ...visitFields] = g
     /* 出ていった先。tel / line / mail、外部リンクなら相手のホスト名。
        ページ名と同じ hash に混ぜず、専用の一覧に入れます——「どのページで
        押されたか」と「どこへ出ていったか」は別の問いで、混ぜると
@@ -194,20 +231,18 @@ export async function POST(req) {
           ['HINCRBY', K.dayLinks(date), dest, 1],
           ['EXPIRE', K.dayLinks(date), K.expire],
         ] : []),
+        ...plan.commands(visitFields),
       ])
     } catch (_) { /* a beacon must never surface an error */ }
     return ok()
   }
 
-  const host = new URL(req.url).hostname
-  // 計測用リンクから来たなら、紹介元よりそちらを優先します（アプリ内の
-  // リンクやQRは紹介元を送らないため、放っておくと「直接」に混ざります）。
-  const src = String(body?.s || '').toLowerCase()
-  const ref = /^[a-z0-9_-]{1,32}$/.test(src) ? `src:${src}` : refHost(body?.r, host)
   const dev = device(ua)
-  const g = await guard(cfg, rateKey, [[K.dayPaths(date), path, '/(other)'], [K.dayRefs(date), ref, 'other']])
+  // 流入元（pv:r）は訪問の最初の1ページでだけ数えるので、plan の側にあります。
+  // サイト内を移るたびに数えていた頃は、移動のぶんだけ「直接」が増えていました。
+  const g = await guard(cfg, rateKey, [[K.dayPaths(date), path, '/(other)'], ...plan.slots])
   if (!g) return ok()
-  const [pvPath, pvRef] = g
+  const [pvPath, ...visitFields] = g
 
   try {
     await pipeline(cfg, [
@@ -218,8 +253,7 @@ export async function POST(req) {
       ['EXPIRE', K.dayVisitors(date), K.expire],
       ['HINCRBY', K.dayPaths(date), pvPath, 1],
       ['EXPIRE', K.dayPaths(date), K.expire],
-      ['HINCRBY', K.dayRefs(date), pvRef, 1],
-      ['EXPIRE', K.dayRefs(date), K.expire],
+      ...plan.commands(visitFields),
       ['HINCRBY', K.dayDevices(date), dev, 1],
       ['EXPIRE', K.dayDevices(date), K.expire],
       ['HINCRBY', K.dayHours(date), String(jstHour()), 1],

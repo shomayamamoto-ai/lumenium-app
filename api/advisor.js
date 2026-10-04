@@ -13,7 +13,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
-import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './analytics.js'
+import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './_analytics-report.js'
 import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'

@@ -201,11 +201,11 @@
     return out;
   }
 
-  /* ---- analytics (shape: api/analytics.js) ---- */
+  /* ---- analytics (shape: api/analytics.js → api/_analytics-report.js) ---- */
   var MAIN = [['service_view', 'サービスを見た', 0.38], ['contact_view', '問い合わせ画面', 0.09],
     ['contact_start', '入力を始めた', 0.045], ['contact_submit', '送信した', 0.018], ['booking_confirm', '商談を予約した', 0.009]];
-  var SIDE = [['estimate_start', '見積りを開いた', 0.06], ['estimate_done', '概算を出した', 0.034], ['booking_view', '日程候補を見た', 0.014]];
-  var ENGAGE = [['read_half', '半分まで読んだ', 0.55], ['read_end', '終わりまで読んだ', 0.24], ['menu_open', 'メニューを開いた', 0.18]];
+  var SIDE = [['booking_view', '日程候補を見た', 0.03]];
+  var ENGAGE = [['read_half', '半分まで読んだ', 0.55], ['read_end', '終わりまで読んだ', 0.24]];
   var STEPS = MAIN.concat(SIDE, ENGAGE);
 
   var dayCache = {};
@@ -223,12 +223,19 @@
       views = Math.round(views * Math.max(0.06, Math.min(1, frac * 1.1)));
     }
     var visitors = Math.round(views * (0.58 + 0.1 * r()));
+    var visits = Math.round(visitors * (1.05 + 0.1 * r()));
+    var engaged = Math.round(visits * (0.38 + 0.14 * r()));
+    var timeN = Math.round(views * 0.86);
+    var timeSum = Math.round(timeN * (38000 + 30000 * r()));
     var ev = {};
     STEPS.forEach(function (s) {
       var people = Math.floor(visitors * s[2] * (0.6 + 0.8 * r()) + r());
       ev[s[0]] = { people: people, count: people + Math.floor(people * 0.3 * r() + r() * 0.6) };
     });
-    return (dayCache[date] = { date: date, views: views, visitors: visitors, ev: ev });
+    return (dayCache[date] = {
+      date: date, views: views, visitors: visitors, visits: visits, engaged: engaged,
+      timeSum: timeSum, timeN: timeN, submits: ev.contact_submit.count, bookings: ev.booking_confirm.count, ev: ev
+    });
   }
 
   var PATHS = [['/', 30], ['/services/web.html', 12], ['/services/ai.html', 9], ['/pricing.html', 8], ['/works.html', 7],
@@ -246,6 +253,9 @@
     { key: 'direct', label: '直接・不明', note: 'URLを直接入力、ブックマーク、QRコード、メールやアプリ内のリンクなど。紹介元が送られてこない経路はすべてここです。' }
   ];
   var HOURS = [2, 1, 1, 0.5, 0.5, 1, 2, 4, 6, 8, 9, 8, 10, 9, 8, 8, 7, 7, 8, 9, 11, 12, 9, 5];
+  // Which sources the sample enquiries came from, by weight.
+  var CONV = [['google.com', 5], ['src:instagram', 3], ['direct', 2], ['src:gbp', 2], ['yahoo.co.jp', 1], ['chatgpt.com', 1]];
+  var CAMPAIGNS = [['instagram/-/-', 5], ['gbp/-/-', 2], ['card/-/-', 2], ['instagram/social/autumn-sale', 1.5], ['mail/email/newsletter-10', 1]];
 
   function pairs(names, counts) {
     return names.map(function (n, i) { return { name: n, count: counts[i] }; })
@@ -253,14 +263,30 @@
       .sort(function (a, b) { return b.count - a.count; });
   }
   function sumOf(list, k) { return list.reduce(function (a, x) { return a + (k ? x[k] : x); }, 0); }
+  function datesEnding(n, end) { var out = []; for (var i = n - 1; i >= 0; i--) out.push(jstDate(end + i)); return out; }
+
+  // Same arithmetic as summarize() in api/_analytics-report.js.
+  function summarize(rows) {
+    var visits = sumOf(rows, 'visits'), engaged = Math.min(visits, sumOf(rows, 'engaged'));
+    var timeSum = sumOf(rows, 'timeSum'), timeN = sumOf(rows, 'timeN');
+    return {
+      views: sumOf(rows, 'views'), visitorDays: sumOf(rows, 'visitors'), visits: visits, engaged: engaged,
+      bounces: visits - engaged, bounceRate: visits ? (visits - engaged) / visits : null,
+      timeSum: timeSum, timeN: timeN, avgTimeMs: timeN ? Math.round(timeSum / timeN) : null,
+      submits: sumOf(rows, 'submits'), bookings: sumOf(rows, 'bookings')
+    };
+  }
 
   function analytics(daysIn) {
-    var days = Math.min(Math.max(parseInt(daysIn || '30', 10) || 30, 1), 90);
+    var days = Math.min(Math.max(parseInt(daysIn || '30', 10) || 30, 1), 365);
     var dates = lastDays(days);
+    var prevDates = datesEnding(days, days);
     var rows = dates.map(dayStats);
     var r = prng(hash('range:' + days + ':' + jstDate(0)));
-    var rangeViews = sumOf(rows, 'views');
-    var arrivals = sumOf(rows, 'visitors');
+    var cur = summarize(rows);
+    var prev = summarize(prevDates.map(dayStats));
+    var rangeViews = cur.views;
+    var arrivals = cur.visitorDays;
     var people = {}, counts = {};
     STEPS.forEach(function (s) {
       people[s[0]] = rows.reduce(function (a, d) { return a + d.ev[s[0]].people; }, 0);
@@ -271,18 +297,20 @@
     };
     var main = MAIN.map(step);
     main.forEach(function (s, n) {
-      var prev = n === 0 ? arrivals : main[n - 1].people;
-      s.drop = prev > 0 && s.people <= prev ? 1 - s.people / prev : null;
-      s.direct = prev > 0 && s.people > prev;
+      var before = n === 0 ? arrivals : main[n - 1].people;
+      s.drop = before > 0 && s.people <= before ? 1 - s.people / before : null;
+      s.direct = before > 0 && s.people > before;
     });
-    var side = SIDE.map(step);
 
     var pathCounts = alloc(rangeViews, PATHS.map(function (p) { return p[1] * (0.85 + 0.3 * r()); }));
     var topPaths = pairs(PATHS.map(function (p) { return p[0]; }), pathCounts);
-    var refCounts = alloc(rangeViews, REFS.map(function (x) { return x[1] * (0.85 + 0.3 * r()); }));
-    var byKind = {};
-    REFS.forEach(function (x, i) { byKind[x[2]] = (byKind[x[2]] || 0) + refCounts[i]; });
+    // Referrers are counted once per visit, so they add up to the visits.
+    var refCounts = alloc(cur.visits, REFS.map(function (x) { return x[1] * (0.85 + 0.3 * r()); }));
+    var byKind = {}, kindOfRef = {};
+    REFS.forEach(function (x, i) { byKind[x[2]] = (byKind[x[2]] || 0) + refCounts[i]; kindOfRef[x[0]] = x[2]; });
     var refTotal = sumOf(refCounts);
+    var visitsBySrc = {};
+    REFS.forEach(function (x, i) { visitsBySrc[x[0]] = refCounts[i]; });
     var hourCounts = alloc(rangeViews, HOURS.map(function (w) { return w * (0.8 + 0.4 * r()); }));
     var devCounts = alloc(rangeViews, [61, 34, 5]);
 
@@ -302,6 +330,36 @@
       Math.max(1, Math.round(3 * days / 30)), days >= 30 ? Math.round(2 * days / 30) : 0, days >= 30 ? 1 : 0
     ]);
 
+    // Landing pages: most visits start at the top or on a service page.
+    var LAND = [['/', 46], ['/services/web.html', 14], ['/services/ai.html', 10], ['/blog/post-3.html', 8], ['/pricing.html', 6],
+      ['/blog/post-7.html', 5], ['/works.html', 4], ['/about.html', 3], ['/(404)', 1]];
+    var landCounts = alloc(cur.visits, LAND.map(function (x) { return x[1] * (0.85 + 0.3 * r()); }));
+    var landings = LAND.map(function (x, i) {
+      var v = landCounts[i];
+      var eng = Math.min(v, Math.round(v * (x[0] === '/' ? 0.52 : /blog/.test(x[0]) ? 0.24 : x[0] === '/(404)' ? 0.2 : 0.4 + 0.15 * r())));
+      return { name: x[0], visits: v, engaged: eng, bounceRate: v ? (v - eng) / v : null };
+    }).filter(function (x) { return x.visits > 0; }).sort(function (a, b) { return b.visits - a.visits; });
+
+    var pageTimes = topPaths.map(function (p) {
+      var samples = Math.round(p.count * 0.86);
+      var avg = /blog/.test(p.name) ? 70000 + 50000 * r() : /services/.test(p.name) ? 45000 + 30000 * r() : 20000 + 30000 * r();
+      return { name: p.name, samples: samples, avgMs: samples ? Math.round(avg) : null };
+    }).filter(function (x) { return x.samples > 0; }).slice(0, 12);
+
+    var convSub = alloc(cur.submits, CONV.map(function (x) { return x[1]; }));
+    var convCalls = alloc(counts.contact_view ? Math.round(arrivals * 0.04) : 0, CONV.map(function (x) { return x[1] * (0.7 + 0.6 * r()); }));
+    var convBook = alloc(cur.bookings, CONV.map(function (x) { return x[1]; }));
+    var convSources = CONV.map(function (x, i) {
+      return { name: x[0], kind: kindOfRef[x[0]] || 'referral', visits: visitsBySrc[x[0]] || 0,
+        submits: convSub[i], bookings: convBook[i], contacts: convCalls[i] };
+    }).filter(function (x) { return x.submits || x.contacts; })
+      .sort(function (a, b) { return (b.submits - a.submits) || (b.contacts - a.contacts); });
+
+    var campVisits = alloc(Math.round(cur.visits * 0.09), CAMPAIGNS.map(function (x) { return x[1]; }));
+    var campSub = alloc(Math.round(cur.submits * 0.3), CAMPAIGNS.map(function (x) { return x[1]; }));
+    var campaigns = CAMPAIGNS.map(function (x, i) { return { name: x[0], visits: campVisits[i], submits: campSub[i] }; })
+      .filter(function (x) { return x.visits || x.submits; });
+
     var win = function (n) { return sumOf(lastDays(n).map(dayStats), 'views'); };
     var today = dayStats(jstDate(0));
     var allTime = 5200 + win(120);
@@ -312,25 +370,31 @@
       keepDays: 400,
       storeFrom: 'env',
       range: { days: days, from: dates[0], to: dates[dates.length - 1] },
+      previous: { from: prevDates[0], to: prevDates[prevDates.length - 1], partial: days * 2 > 400 },
+      sessionsFrom: dates[0],
+      summary: { cur: cur, prev: prev },
       funnel: {
         arrivals: arrivals,
         unit: 'visitor-days',
         main: main,
-        side: side,
-        sideCompletion: side[0].people ? side[1].people / side[0].people : null,
+        side: SIDE.map(step),
         engagement: ENGAGE.map(step)
       },
-      funnelSeries: rows.map(function (d) { return { date: d.date, submit: d.ev.contact_submit.count }; }),
       totals: {
         allTime: allTime,
         today: today.views,
         todayVisitors: today.visitors,
+        todayVisits: today.visits,
         last7: win(7),
         last30: win(30),
         rangeViews: rangeViews,
         rangeVisitorDays: arrivals
       },
-      series: rows.map(function (d) { return { date: d.date, views: d.views, visitors: d.visitors }; }),
+      series: rows.map(function (d) {
+        return { date: d.date, views: d.views, visitors: d.visitors, visits: d.visits, engaged: Math.min(d.engaged, d.visits),
+          bounceRate: d.visits ? (d.visits - Math.min(d.engaged, d.visits)) / d.visits : null,
+          avgTimeMs: d.timeN ? Math.round(d.timeSum / d.timeN) : null, submits: d.submits };
+      }),
       topPaths: topPaths.slice(0, 20),
       topReferrers: pairs(REFS.map(function (x) { return x[0]; }), refCounts).slice(0, 12),
       referrerKinds: REF_KINDS.map(function (k) {
@@ -341,7 +405,23 @@
       readByPath: readByPath,
       links: links,
       exits: exits,
-      notFound: notFound
+      notFound: notFound,
+      landings: landings.slice(0, 12),
+      pageTimes: pageTimes,
+      convSources: convSources.slice(0, 12),
+      campaigns: campaigns
+    };
+  }
+
+  /* ---- weekly mail (shape: api/weekly-report.js GET) ---- */
+  function weeklyReport() {
+    return {
+      ok: true,
+      configured: { resend: true, store: true, cron: true },
+      enabled: true,
+      to: 'owner@example.com',
+      schedule: '毎週月曜 9:00（日本時間）',
+      last: { at: ago(((new Date(Date.now() + JST).getUTCDay() + 6) % 7) * DAY + 3600000), ok: true, test: false, to: 'owner@example.com', message: '送信しました。' }
     };
   }
 
@@ -397,6 +477,7 @@
         c('github', 'お知らせ投稿・文章編集の保存', 'GITHUB_TOKEN', '保存すると自動デプロイが走ります。'),
         c('memberCode', '会員登録コード', 'MEMBER_CODE', '独自のコードが設定されています。'),
         c('sessionSecret', 'ログインセッションの署名鍵', 'SESSION_SECRET', '独自の鍵が設定されています。'),
+        c('cron', '週次メールの合言葉（おすすめ）', 'CRON_SECRET', '毎週月曜の朝9時に、先週のアクセスのまとめがメールで届きます（「アクセス解析」の画面で止められます）。'),
         c('social', 'SNS 投稿', 'X_ACCESS_TOKEN ほか', 'X・Facebook・Threads に管理ポータルから直接投稿できます。残り（Instagram・LinkedIn）は資格情報が未入力です。'),
         c('contactBlocked', '迷惑送信のブロック', '', '直近30日で 3 件を回数制限で遮断しました。受信箱とメール送信枠を守っています。'),
         c('share', '会員リストの共有リンク', '', '2本が有効です（会員リストのみ・この管理画面は開けません）。すべて期限付きで、期日が来れば自動的に使えなくなります。')
@@ -908,6 +989,7 @@
             return reply({ ok: true, overrides: o, commit: commit(6, '文章を更新') });
           });
       case '/api/analytics': return reply(analytics(q.get('days')));
+      case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/aio': return reply(aioGet(q.get('run')));
       case '/api/site-audit': return reply(siteAudit());

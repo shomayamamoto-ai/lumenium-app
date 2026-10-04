@@ -28,6 +28,9 @@ Object.assign(process.env, {
   CONTACT_TO_EMAIL: 'smoke@example.com',
   MEMBER_CODE: 'SMOKE',
   SESSION_SECRET: 'smoke-secret',
+  // 週次メールの定期実行。合言葉つきの呼び出しが本文（集計とメール送信）まで
+  // 通ることを確かめます。
+  CRON_SECRET: 'smoke-cron-secret',
   GITHUB_TOKEN: 'smoke-token',
   GITHUB_REPO: 'smoke/smoke',
   // 商談の自動予約。接続済みのつもりで呼ぶ（枠の計算と同意画面URLの組み立て
@@ -191,7 +194,17 @@ const CALLS = [
   // 400 would stop short of the part that was broken elsewhere.
   ['news-post', 'POST', '', JSONH, { action: 'add', title: 'スモークテスト', body: '', link: '' }],
   ['content-save', 'POST', '', JSONH, { changes: { 'text.hero.lead': 'DIGITAL CREATIVE STUDIO · TOKYO' } }],
-  ['track', 'POST', '', { 'content-type': 'application/json' }, { e: 'menu_open' }],
+  ['track', 'POST', '', { 'content-type': 'application/json' }, { e: 'contact_view', s: 'instagram' }],
+  // 計測の新しい窓口（中身は track と同じ）。訪問の始まり・離れたときの時間・
+  // サイト内の移動、の3通りで呼びます。
+  ['p', 'POST', '', { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', origin: 'https://lumenium.net' },
+    { p: '/', n: 0, r: 'https://www.google.com' }],
+  ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/about.html', e: 'exit', t: 12000, g: 1, l: '/' }],
+  ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/about.html', e: 'page_time', t: 3000 }],
+  // 週次メール: 管理画面の状態、テスト送信、Vercel の定期実行（合言葉つき）。
+  ['weekly-report', 'GET', '', KEY],
+  ['weekly-report', 'POST', '', JSONH, { action: 'test' }],
+  ['weekly-report', 'GET', '', { Authorization: 'Bearer smoke-cron-secret', 'user-agent': 'vercel-cron/1.0' }],
   ['contact', 'POST', '', { 'content-type': 'application/json' },
     { name: 'スモーク', email: 'smoke@example.com', message: 'これは自動チェックの送信です。',
       orgType: 'company', company: '株式会社スモーク', topics: ['video', 'ai'] }],
