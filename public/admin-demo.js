@@ -1857,3 +1857,191 @@
     });
   };
 })();
+
+/* ---- デモ：問い合わせ管理（shape: api/inquiries.js） ----
+   架空の問い合わせ13件。状態・どこから・ジャンル・返信までの時間が
+   ばらけるようにしてあります。名前・会社・アドレスはすべて架空で、
+   アドレスは example.com / example.jp（実在しない決まりのドメイン）です。
+   上の作りと同じくデモのときだけ動き、/api/inquiries だけを受けます。
+   変更（状態・メモ・文例・設定）はすべて断ります。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var H = 3600000;
+  var now = Date.now();
+  var STATUS = { new: '未対応', doing: '対応中', done: '完了' };
+  function iso(hAgo) { return new Date(now - hAgo * H).toISOString(); }
+  function later(at, h) { return new Date(Math.min(now - 60000, Date.parse(at) + h * H)).toISOString(); }
+  var SRC = {
+    ig: { s: 'instagram', c: 'bio', kind: 'social', short: 'Instagram（計測リンク）', label: 'Instagram（計測リンク）から来た人・キャンペーン「bio」' },
+    google: { r: 'google.com', kind: 'search', short: '検索（google.com）', label: '検索エンジン（google.com）から来た人' },
+    gpt: { r: 'chatgpt.com', kind: 'ai', short: 'ChatGPT（AI）', label: 'ChatGPT（AIアシスタントの回答）から来た人' },
+    card: { s: 'card', kind: 'direct', short: '名刺（QR）（計測リンク）', label: '名刺（QR）（計測リンク）から来た人' },
+    line: { s: 'line', c: 'autumn', kind: 'social', short: 'LINE（計測リンク）', label: 'LINE（計測リンク）から来た人・キャンペーン「autumn」' },
+    note: { r: 'note.com', kind: 'social', short: 'SNS（note.com）', label: 'SNS・LINE（note.com）から来た人' },
+    direct: { kind: 'direct', short: '直接・不明', label: '直接・不明（ブックマーク、URLの入力、メールやアプリ内のリンクなど、紹介元が分からない経路）' }
+  };
+  // [何時間前, 名前, 会社, 区分, アドレス, ジャンル, 本文, どこから, 状態, 迷惑, 既読, 返信までの時間, 担当, 見積り, メール通知]
+  var ROWS = [
+    [1.5, '山田 花子', '株式会社サンプル商事', '法人', 'hanako@example.com', ['動画制作'], '会社紹介の動画を作りたいと考えています。1分くらいの短いもので、採用ページに載せる予定です。おおよその費用と期間を教えてください。', 'ig', 'new', false, false, null, '', false, 'sent'],
+    [5, '佐藤 一郎', '', '個人事業主', 'ichiro@example.jp', ['SNS運用・LINE'], 'カフェを一人でやっています。インスタの投稿が続かず困っています。月にどのくらいの費用で手伝ってもらえますか。', 'google', 'new', false, true, null, '', false, 'sent'],
+    [30, '鈴木 美咲', '合同会社みどり工房', '法人', 'misaki@example.com', ['Web制作・システム', 'ロゴ・バナー'], 'ホームページを新しくしたいです。いまのサイトはスマホで見づらいと言われます。\n\n概算: 見積りシミュレーターで約45万円と出ました。', 'gpt', 'new', false, true, null, '', true, 'sent'],
+    [60, '高橋 健', '株式会社テスト建設', '法人', 'ken@example.com', ['AI導入・研修'], '社員20名ほどの会社です。AIの使い方を社内で勉強する研修をお願いできますか。日程は来月以降を考えています。', 'card', 'new', false, false, null, '', false, 'failed'],
+    [20, '伊藤 さくら', '', '個人', 'sakura@example.jp', ['まだ決まっていない'], '何をお願いできるのかよく分かっていないのですが、お店の宣伝について相談に乗っていただけますか。', 'line', 'doing', false, true, 6.5, '山本', false, 'sent'],
+    [50, '渡辺 大輔', '株式会社サンプル物流', '法人', 'daisuke@example.com', ['動画制作', 'キャスト手配'], '展示会で流す動画と、当日の司会の方の手配をまとめてお願いしたいです。', 'google', 'doing', false, true, 30, '山本', false, 'sent'],
+    [100, '中村 由美', 'ゆみ整体院', '個人事業主', 'yumi@example.jp', ['SNS運用・LINE'], 'LINE公式アカウントを始めたいです。最初の設定からお願いできますか。', 'ig', 'done', false, true, 3.2, '山本', false, 'sent'],
+    [170, '小林 誠', '株式会社見本製作所', '法人', 'makoto@example.com', ['Web制作・システム'], '社内の予約管理を簡単なシステムにしたいです。今はExcelで管理しています。', 'gpt', 'done', false, true, 20, '佐々木', true, 'sent'],
+    [260, '加藤 絵里', '', '個人', 'eri@example.jp', ['ロゴ・バナー'], '新しく始める教室のロゴを作ってほしいです。', 'note', 'done', false, true, 52, '', false, 'sent'],
+    [420, '吉田 拓也', '株式会社サンプル食品', '法人', 'takuya@example.com', ['動画制作'], '商品紹介の短い動画を10本ほど作りたいです。', 'line', 'done', false, true, 11, '佐々木', true, 'sent'],
+    [900, '山口 恵', 'めぐみ商店', '個人事業主', 'megumi@example.jp', ['AI導入・研修'], 'お店の文章づくりにAIを使ってみたいです。', 'direct', 'done', false, true, 26, '山本', false, 'sent'],
+    [8, '（迷惑の例）', '', 'その他', 'promo@spam.example.com', [], '貴社のSEOを今すぐ改善します。今だけ特別価格で…', 'direct', 'new', true, true, null, '', false, 'skipped'],
+    [75, '（迷惑の例）', 'Sample Marketing', 'その他', 'offer@mail.example.net', [], '広告枠のご案内です。詳細はリンクから…', 'direct', 'new', true, true, null, '', false, 'sent']
+  ];
+  function rec(r, i) {
+    var src = SRC[r[7]];
+    var at = iso(r[0]);
+    var blockedDomain = r[14] === 'skipped';
+    var hist = [{ at: at, what: 'received', text: blockedDomain ? '受信（ブロックするドメインのため迷惑に分類）' : '受信' }];
+    var replied = r[11] == null ? '' : later(at, r[11]);
+    if (r[12]) hist.push({ at: later(at, Math.min(0.8, r[11] || 0.8)), what: 'assignee', text: '担当: ' + r[12] });
+    if (replied) {
+      hist.push({ at: replied, what: 'replied', text: '返信した' });
+      hist.push({ at: replied, what: 'status', text: '未対応 → 対応中' });
+    }
+    if (r[8] === 'done') hist.push({ at: later(replied || at, 48), what: 'status', text: '対応中 → 完了' });
+    if (r[9] && !blockedDomain) hist.push({ at: later(at, 1), what: 'spam', text: '迷惑に分類' });
+    return {
+      id: 'qdemo' + i, receivedAt: at, name: r[1], company: r[2], org: r[3], email: r[4], phone: i === 3 ? '03-0000-0000' : '',
+      topics: r[5], message: r[6], page: i % 3 === 0 ? '/services/video.html' : '#contact', estimate: r[13],
+      source: { s: src.s || '', m: '', c: src.c || '', r: src.r || '', kind: src.kind, short: src.short, label: src.label },
+      status: r[8], spam: r[9], readAt: r[10] ? later(at, 0.5) : '', repliedAt: replied, assignee: r[12],
+      notes: i === 5 ? [{ at: later(at, 31), text: '電話で日程を相談。来週火曜に見積りを送る。' }] : [],
+      history: hist,
+      mail: {
+        owner: r[14], ownerError: r[14] === 'failed' ? 'Resend が 403 を返しました' : '',
+        auto: r[9] ? 'off' : 'sandbox', autoError: '', line: r[9] ? 'off' : 'sent', lineError: ''
+      }
+    };
+  }
+  var RECS = ROWS.map(rec);
+  function replyH(r) { return r.repliedAt ? (Date.parse(r.repliedAt) - Date.parse(r.receivedAt)) / H : null; }
+  function round(h) { return h == null ? null : Math.round(h * 10) / 10; }
+  function overdue(r) {
+    if (r.spam || r.status === 'done' || r.repliedAt) return '';
+    var h = (now - Date.parse(r.receivedAt)) / H;
+    return h > 48 ? 'late' : h > 24 ? 'warn' : '';
+  }
+  function summary(r) {
+    return {
+      id: r.id, receivedAt: r.receivedAt, name: r.name, company: r.company, email: r.email, topics: r.topics,
+      snippet: r.message.slice(0, 160), status: r.status, spam: r.spam, readAt: r.readAt, repliedAt: r.repliedAt,
+      assignee: r.assignee, source: r.source.short, kind: r.source.kind, campaign: r.source.c, estimate: r.estimate,
+      mailOwner: r.mail.owner, notes: r.notes.length, overdue: overdue(r),
+      ageH: round((now - Date.parse(r.receivedAt)) / H), replyH: round(replyH(r))
+    };
+  }
+  function metrics() {
+    var c = { new: 0, doing: 0, done: 0, spam: 0, unread: 0, mailFailed: 0 };
+    var hs = [], warn = 0, late = 0;
+    RECS.forEach(function (r) {
+      if (r.spam) { c.spam++; return; }
+      c[r.status]++;
+      if (r.status === 'new' && !r.readAt) c.unread++;
+      if (r.mail.owner === 'failed') c.mailFailed++;
+      var o = overdue(r);
+      if (o === 'late') late++; else if (o === 'warn') warn++;
+      var h = replyH(r);
+      if (h != null && now - Date.parse(r.receivedAt) <= 30 * 24 * H) hs.push(h);
+    });
+    hs.sort(function (a, b) { return a - b; });
+    var m = hs.length ? (hs.length % 2 ? hs[(hs.length - 1) / 2] : (hs[hs.length / 2 - 1] + hs[hs.length / 2]) / 2) : null;
+    return {
+      counts: c, warn: warn, late: late, replied30: hs.length, open30: 0,
+      median30: round(m), within: hs.filter(function (h) { return h <= 48; }).length, promised: 48
+    };
+  }
+  function match(r, status, q) {
+    if (status === 'spam') { if (!r.spam) return false; }
+    else if (r.spam) { if (status !== 'all') return false; }
+    else if (STATUS[status] && r.status !== status) return false;
+    if (!q) return true;
+    var hay = [r.name, r.company, r.email, r.message, r.source.short, r.assignee, r.topics.join(' ')].join(' ').toLowerCase();
+    return q.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+  function rank(o) { return Object.keys(o).map(function (k) { return [k, o[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); }
+  function stats(days) {
+    var bs = { new: 0, doing: 0, done: 0, spam: 0 }, bt = {}, bsrc = {}, bc = {}, total = 0;
+    RECS.forEach(function (r) {
+      if (now - Date.parse(r.receivedAt) > days * 24 * H) return;
+      if (r.spam) { bs.spam++; return; }
+      total++; bs[r.status]++;
+      (r.topics.length ? r.topics : ['（選択なし）']).forEach(function (t) { bt[t] = (bt[t] || 0) + 1; });
+      bsrc[r.source.short] = (bsrc[r.source.short] || 0) + 1;
+      if (r.source.c) bc[r.source.c] = (bc[r.source.c] || 0) + 1;
+    });
+    return { days: days, total: total, byStatus: bs, byTopic: rank(bt), bySource: rank(bsrc), byCampaign: rank(bc) };
+  }
+  var SENDER = {
+    from: 'Lumenium <onboarding@resend.dev>', sandbox: true,
+    sandboxNote: '送信元がResendの試用アドレス（onboarding@resend.dev）のため、お客様への受付確認メールは送っていません。試用アドレスからは、Resendに登録した自分のアドレスにしか届かないためです。自社のドメインをResendで認証し、送信元（CONTACT_FROM_EMAIL）をそのアドレスにすると送れるようになります。'
+  };
+  var SETTINGS = {
+    retentionDays: 365, replyHours: 48,
+    autoReply: { on: true, subject: '【{brand}】お問い合わせを受け付けました', body: '{company} {name} 様\n\n{brand} です。お問い合わせありがとうございます。\n内容を確かめて、{reply_hours}時間以内に担当からご返信いたします。\n\nお急ぎの場合や、内容を書き足したい場合は、このメールにそのまま返信してください。\n\n※このメールは送信と同時に自動でお送りしています。\n　お心当たりが無い場合は、お手数ですがこのメールを破棄してください。' },
+    lineOn: true, lineUserId: 'U0123456789abcdef0123456789abcdef', blockedDomains: ['spam.example.com']
+  };
+  var TEMPLATES = [
+    { id: 'thanks', name: 'お礼と日程の相談', subject: '【{brand}】お問い合わせありがとうございます', body: '{company} {name} 様\n\n{brand} です。お問い合わせありがとうございます。\n「{topics}」についてのご相談、詳しくお聞かせいただけますと幸いです。\n\nオンラインで30分ほど、お話をうかがえる日時の候補をいくつかお知らせください。\n\nどうぞよろしくお願いいたします。' },
+    { id: 'estimate', name: '見積りのご案内', subject: '【{brand}】お見積りについて', body: '{company} {name} 様\n\n{brand} です。お問い合わせありがとうございます。\nいただいた内容をもとに、お見積りをお送りします。\n\n（ここに金額と内訳を書きます）\n\nご不明な点があれば、このメールにそのまま返信してください。' },
+    { id: 'decline', name: 'お受けできない場合', subject: '【{brand}】お問い合わせへのご返信', body: '{company} {name} 様\n\n{brand} です。お問い合わせありがとうございます。\n大変申し訳ありませんが、今回のご依頼は、私どもではお受けすることが難しい内容でした。\n\nまたの機会がございましたら、どうぞよろしくお願いいたします。' }
+  ];
+  function cell(v) {
+    var s = v == null ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  function jst(t) { return t ? new Date(Date.parse(t) + 9 * H).toISOString().replace('T', ' ').slice(0, 16) : ''; }
+  function csv(list) {
+    var head = ['受信日時', '状態', 'お名前', '会社名', 'メール', 'ご相談の内容', '本文', 'どこから', '返信した日時', '担当'];
+    var rows = [head.map(cell).join(',')].concat(list.map(function (r) {
+      return [jst(r.receivedAt), r.spam ? '迷惑' : STATUS[r.status], r.name, r.company, r.email, r.topics.join('、'), r.message, r.source.label, jst(r.repliedAt), r.assignee].map(cell).join(',');
+    }));
+    return '﻿' + rows.join('\r\n') + '\r\n';
+  }
+  function answer(u, method) {
+    if (method !== 'GET') return { ok: false, demo: true, message: MSG };
+    var q = u.searchParams;
+    var view = q.get('view') || '';
+    if (q.get('id')) {
+      var r = RECS.filter(function (x) { return x.id === q.get('id'); })[0];
+      if (!r) return { ok: false, missing: true, message: 'その問い合わせは見つかりませんでした（保存期間を過ぎて消えたか、削除されたかもしれません）。' };
+      return { ok: true, stored: true, item: Object.assign({}, r, { overdue: overdue(r), replyH: round(replyH(r)) }), sender: SENDER };
+    }
+    if (view === 'badge') { var m = metrics(); return { ok: true, stored: true, unread: m.counts.unread, late: m.late }; }
+    if (view === 'stats') return { ok: true, stored: true, stats: stats(q.get('days') === '90' ? 90 : 30), retentionDays: 365 };
+    if (view === 'settings') return { ok: true, stored: true, settings: SETTINGS, templates: TEMPLATES, vars: ['name', 'company', 'brand', 'reply_hours', 'topics'], sender: SENDER, lineToken: true, brand: 'Lumenium' };
+    var status = q.get('status') || 'new';
+    var hits = RECS.filter(function (x) { return match(x, status, (q.get('q') || '').trim()); });
+    if (view === 'export') return { csv: csv(hits) };
+    return {
+      ok: true, stored: true, status: status, q: q.get('q') || '', total: hits.length, page: 1, pages: 1, per: 25,
+      items: hits.map(summary), metrics: metrics(), promised: 48, warnH: 24, retentionDays: 365,
+      autoReply: true, lineOn: true, removed: 0, sender: SENDER
+    };
+  }
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/inquiries') return inner(input, init);
+    var body = answer(u, String((init && init.method) || 'GET').toUpperCase());
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      if (body.csv != null) return new Response(body.csv, { status: 200, headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+      return new Response(JSON.stringify(body), { status: body.missing ? 404 : 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
