@@ -1235,7 +1235,7 @@
           res('facebook', 'Facebook', true),
           res('line', 'LINE公式アカウント', true, { ok: true, reach: 186, impressions: 121, clicks: 34, at: ago(DAY) })
         ] },
-      { id: 'demo-p2', at: ago(9 * DAY + 2 * 3600000), scheduledFor: jstDate(9), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: '', images: [],
+      { id: 'demo-p2', at: ago(6 * DAY + 2 * 3600000), scheduledFor: jstDate(6), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: 'https://' + DEMO_HOST + '/works', campaign: 'works-autumn', images: [],
         results: [res('x', 'X', true), res('threads', 'Threads', true), res('instagram', 'Instagram', false, null, true)] },
       { id: 'demo-p3', at: ago(17 * DAY), text: '（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', link: 'https://' + DEMO_HOST + '/blog', images: [],
         results: [res('x', 'X', true), res('facebook', 'Facebook', false)] }
@@ -1276,6 +1276,31 @@
     };
   }
 
+  /* 投稿ごとの成果（shape: _social-insights.js socialInsights）。 */
+  function socialInsights() {
+    var g = function (visits, inq, open, shared) {
+      return { field: '', from: '', to: '', open: !!open, visits: visits, contact: inq, booking: 0, inquiries: inq, shared: shared || [] };
+    };
+    var p1 = { id: 'demo-p1', at: ago(2 * DAY + 4 * 3600000) };
+    var p2 = { id: 'demo-p2', at: ago(6 * DAY + 2 * 3600000) };
+    return {
+      ok: true, window: 7, today: jstDate(0), stored: true,
+      results: {
+        'demo-p1': { x: g(14, 1, true, [p2]), threads: g(5, 0, true, [p2]), facebook: g(3, 0, true), line: g(22, 2, true) },
+        'demo-p2': { x: g(17, 1, true, [p1]), threads: g(6, 0, true, [p1]) },
+        'demo-p3': { x: g(6, 0, false) }
+      },
+      summary: {
+        d30: { x: { posts: 3, tagged: 3, visits: 21, contact: 1, booking: 0, inquiries: 1 }, threads: { posts: 2, tagged: 2, visits: 7, contact: 0, booking: 0, inquiries: 0 },
+          facebook: { posts: 1, tagged: 1, visits: 3, contact: 0, booking: 0, inquiries: 0 }, line: { posts: 1, tagged: 1, visits: 22, contact: 1, booking: 1, inquiries: 2 } },
+        d90: { x: { posts: 9, tagged: 7, visits: 58, contact: 2, booking: 1, inquiries: 3 }, threads: { posts: 5, tagged: 4, visits: 19, contact: 0, booking: 0, inquiries: 0 },
+          facebook: { posts: 4, tagged: 3, visits: 11, contact: 1, booking: 0, inquiries: 1 }, instagram: { posts: 6, tagged: 0, visits: 0, contact: 0, booking: 0, inquiries: 0 },
+          line: { posts: 3, tagged: 3, visits: 61, contact: 2, booking: 2, inquiries: 4 } }
+      },
+      recommend: socialRecommend()
+    };
+  }
+  function socialRecommend() { return null; }
   function socialQuotas() {
     return { ok: true, quotas: {
       line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 186, date: jstDate(1), note: '' },
@@ -1433,7 +1458,8 @@
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });
       case '/api/booking': return reply(q.get('recent') ? bookingRecent() : { ok: true, enabled: false, mode: 'off', slots: [] });
       case '/api/settings': return reply(settings());
-      case '/api/social': return reply(q.get('quota') ? socialQuotas() : social());
+      case '/api/social': return reply(q.get('quota') ? socialQuotas() : q.get('insights') ? socialInsights() : social());
+
       case '/api/google-oauth':
         notice(MSG);
         return reply(blocked());

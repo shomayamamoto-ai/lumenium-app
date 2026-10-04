@@ -1091,6 +1091,8 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 class="soc-h">予約中の投稿</h3>
       <div id="social-queue" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">投稿の成果（サイトに来た人・問い合わせ）</h3>
+      <div id="social-outcome" style="margin-bottom:18px"></div>
       <h3 class="soc-h">これまでの投稿</h3>
       <div id="social-log"></div>
     </div>
@@ -6691,6 +6693,8 @@ window.lumAdmin = {
   var info = { schedule: { ready: false, items: [], jstHour: 9 }, upload: { ready: false }, threadsToken: null, stored: false };
   var quotas = {};
   var style = { ng: [], notation: [] };
+  var insights = null;
+  var outcomeDays = 30;
   var tests = {};
   var imgMeta = {};
   var busy = false;
@@ -7606,7 +7610,9 @@ window.lumAdmin = {
     return parts.join('・') || '数字はまだありません';
   }
 
+  var lastLog = [];
   function renderLog(list, stored) {
+    lastLog = list || [];
     var host = el('social-log');
     host.innerHTML = '';
     if (!stored) {
@@ -7674,7 +7680,89 @@ window.lumAdmin = {
         mx.textContent = withMx.join('　/　');
         d.appendChild(mx);
       }
+      var got = insights && insights.results && insights.results[p.id || p.at];
+      if (got) {
+        var parts = Object.keys(got).filter(function (k) { return !got[k].untagged; }).map(function (k) {
+          var g = got[k];
+          var n = netById(k);
+          return (n ? n.label : k) + ' 訪問' + g.visits + '・問い合わせ' + g.inquiries + (g.shared && g.shared.length ? '（重なりあり）' : '') + (g.open ? '（集計中）' : '');
+        });
+        if (parts.length) {
+          var oc = document.createElement('div');
+          oc.className = 'mx';
+          oc.textContent = 'サイトへ（' + (insights.window || 7) + '日間）：' + parts.join('　/　');
+          d.appendChild(oc);
+        }
+      }
       host.appendChild(d);
+    });
+  }
+
+  /* ---- 投稿の成果 ----
+     投稿に付けた計測用の印（?ref=SNS名・utm_campaign）で、アクセス解析が
+     日ごとに数えている訪問と問い合わせを、投稿から7日分足したものです。
+     同じSNSに同じ印で7日以内に2回出すと、数字はどちらにも入ります
+     （分けようがないので「重なり」と出します）。 */
+  async function loadInsights() {
+    if (!info.stored) { renderOutcome(); return; }
+    var r = await api('/api/social?insights=1');
+    insights = r.data && r.data.ok ? r.data : null;
+    renderOutcome();
+    renderLog(lastLog, info.stored);
+    if (typeof renderRecommend === 'function') renderRecommend();
+  }
+
+  function shortDate(iso) {
+    var d = new Date(iso);
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function renderOutcome() {
+    var host = el('social-outcome');
+    if (!info.stored) { host.innerHTML = '<p class="share-note">保存先（Upstash Redis）が未接続のため、投稿の成果は出せません。</p>'; return; }
+    if (!insights) { host.innerHTML = '<p class="share-note">読み込んでいます…</p>'; return; }
+    var w = insights.window || 7;
+    var sum = (insights.summary || {})[outcomeDays === 90 ? 'd90' : 'd30'] || {};
+    var ids = Object.keys(sum);
+    var rows = ids.map(function (k) {
+      var s = sum[k];
+      var n = netById(k);
+      return '<tr><td>' + esc(n ? n.label : k) + '</td><td class="n">' + s.posts + '</td><td class="n">' + s.tagged + '</td><td class="n">' + s.visits + '</td><td class="n">' + s.inquiries + '</td></tr>';
+    }).join('');
+    var per = [];
+    lastLog.forEach(function (p) {
+      var got = insights.results && insights.results[p.id || p.at];
+      if (!got) return;
+      Object.keys(got).forEach(function (k) {
+        var g = got[k];
+        var n = netById(k);
+        var memo = [];
+        if (g.untagged) memo.push('自社サイトへのリンクなし（数えられません）');
+        if (g.open) memo.push('集計中（' + w + '日たつまで増えます）');
+        if (g.shared && g.shared.length) memo.push(g.shared.map(function (o) { return shortDate(o.at); }).join('・') + ' の投稿と期間が重なっています（同じ数字が両方に入ります）');
+        per.push('<tr><td>' + esc(shortDate(p.at)) + '</td><td>' + esc(String(p.text || '').slice(0, 24)) + (String(p.text || '').length > 24 ? '…' : '') + '</td><td>' + esc(n ? n.label : k) + '</td>' +
+          '<td class="n">' + (g.untagged ? '—' : g.visits) + '</td><td class="n">' + (g.untagged ? '—' : g.inquiries) + '</td><td class="soc-small">' + esc(memo.join('。')) + '</td></tr>');
+      });
+    });
+    host.innerHTML =
+      '<div class="soc-box">' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">' +
+          '<b style="font-size:12.5px">SNSごとのまとめ</b>' +
+          '<button type="button" class="' + (outcomeDays === 30 ? '' : 'ghost') + '" data-days="30" style="font-size:11px;padding:4px 10px">直近30日</button>' +
+          '<button type="button" class="' + (outcomeDays === 90 ? '' : 'ghost') + '" data-days="90" style="font-size:11px;padding:4px 10px">直近90日</button>' +
+        '</div>' +
+        (ids.length
+          ? '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>SNS</th><th class="n">投稿</th><th class="n">印つき</th><th class="n">訪問</th><th class="n">問い合わせ</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+          : '<p class="share-note" style="margin:0">この期間に、この画面から出した投稿はありません。</p>') +
+        '<p class="soc-small" style="margin-top:6px">訪問と問い合わせ（お問い合わせの送信・予約の確定）は、投稿の自社リンクに付けた印（?ref=）から来た人を、投稿した日から' + w + '日間数えたものです。日ごとの集計なので、投稿した日の投稿前の分も入ります。リンクを押さずに検索して来た人は入りません。まとめでは、重なった日を二重に数えていません。</p>' +
+      '</div>' +
+      '<details class="soc-more"' + (per.length ? ' open' : '') + '><summary>投稿ごとの成果</summary>' +
+        (per.length
+          ? '<div class="soc-scroll" style="margin-top:8px"><table class="soc-tbl" id="soc-per"><thead><tr><th>日付</th><th>本文</th><th>SNS</th><th class="n">訪問</th><th class="n">問い合わせ</th><th>メモ</th></tr></thead><tbody>' + per.join('') + '</tbody></table></div>'
+          : '<p class="share-note" style="margin:8px 0 0">まだ数字のある投稿はありません。</p>') +
+      '</details>';
+    Array.prototype.forEach.call(host.querySelectorAll('button[data-days]'), function (b) {
+      b.addEventListener('click', function () { outcomeDays = Number(b.dataset.days); renderOutcome(); });
     });
   }
 
@@ -7700,7 +7788,9 @@ window.lumAdmin = {
     renderQueue(info.schedule.items);
     renderLog(d.recent, d.stored);
     say('', true);
+    loadInsights();
     loadQuotas();
+
     loadNews();
   }
 

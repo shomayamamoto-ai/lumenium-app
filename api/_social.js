@@ -20,6 +20,8 @@ import { authHeader } from './_x-oauth1.js'
 import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
 import { RULES, compose, check, isBlobUrl, cleanCampaign } from './_social-text.js'
+import { fieldFor } from './_social-insights.js'
+
 
 /* API の版は1か所に。Meta は版ごとに約2年で使えなくなり、LinkedIn は
    約1年です。上げるときはここだけを直し、scripts/test-social.mjs を流します。
@@ -549,9 +551,13 @@ export async function sendPost(payload, req, opts = {}) {
   // What each network was actually handed, when it differed from the base
   // text — the history should show what went out, not what was typed.
   const texts = {}
+  // どの投稿先に、計測用の印（?ref=）つきの自社リンクが入っていたか。
+  // 「投稿ごとの成果」は、この名前でアクセス解析の数を引きます。
+  const refs = {}
   for (const id of payload.targets) {
     const c = compose(id, payload, BRAND.host)
     if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
+    if (/[?&]ref=/.test(c.text + ' ' + c.link)) refs[id] = fieldFor(id, payload.campaign)
   }
   const entry = {
     id: crypto.randomUUID(),
@@ -561,6 +567,7 @@ export async function sendPost(payload, req, opts = {}) {
     campaign: payload.campaign || '',
     images: payload.images.map((i) => i.url),
     texts,
+    refs,
     results,
   }
   if (opts.scheduledFor) entry.scheduledFor = opts.scheduledFor

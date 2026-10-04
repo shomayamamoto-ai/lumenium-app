@@ -462,6 +462,78 @@ await test('決まりの保存：管理キーが要り、確かめた形だけ�
   assert.deepEqual((await readStyle()).ng.map((w) => w.word), ['激安'])
 })
 
+console.log('投稿ごとの成果')
+const I = await import('../api/_social-insights.js')
+await test('アクセス解析と同じ名前で数える（ref と utm_campaign）', () => {
+  assert.equal(I.fieldFor('x', ''), 'x/-/-')
+  assert.equal(I.fieldFor('instagram', '秋 セール'), 'instagram/-/秋-セール')
+  assert.equal(I.fieldFor('line', 'Autumn!'), 'line/-/autumn')
+})
+await test('送った記録に、印を付けた投稿先が残る', async () => {
+  route = happy
+  const p = base({ text: '見てね', link: 'https://lumenium.net/', campaign: 'aki', targets: ['x', 'facebook'] })
+  const { entry } = await S.sendPost(p, undefined)
+  assert.deepEqual(entry.refs, { x: 'x/-/aki', facebook: 'facebook/-/aki' })
+  const { entry: e2 } = await S.sendPost(base({ text: 'リンクなし', targets: ['x'] }), undefined)
+  assert.deepEqual(e2.refs, {})
+})
+await test('7日間の訪問と問い合わせを足す。重なる投稿は「重なり」と出し、まとめでは二重に数えない', () => {
+  const at = (day, h = 10) => new Date(Date.parse(day + 'T00:00:00+09:00') + h * 3600000).toISOString()
+  const ok = (net) => ({ net, ok: true })
+  const posts = [
+    { id: 'a', at: at('2026-09-01'), refs: { x: 'x/-/-', line: 'line/-/sale' }, results: [ok('x'), ok('line')] },
+    { id: 'b', at: at('2026-09-05'), refs: { x: 'x/-/-' }, results: [ok('x'), { net: 'threads', ok: false }] },
+    { id: 'c', at: at('2026-09-20'), refs: {}, results: [ok('x')] },
+  ]
+  const daily = {}
+  for (let i = 0; i < 30; i++) {
+    const d = I.addDays('2026-08-31', i)
+    daily[d] = { visits: { 'x/-/-': 1, 'line/-/sale': 2 }, contact_submit: d === '2026-09-03' ? { 'x/-/-': 1 } : {}, booking_confirm: d === '2026-09-12' ? { 'x/-/-': 1 } : {} }
+  }
+  const r = I.attribute(posts, daily, '2026-09-25', 'lumenium.net')
+  // 9/1〜9/8 の8日分
+  assert.equal(r.a.x.visits, 8)
+  assert.equal(r.a.x.inquiries, 1)
+  assert.equal(r.a.line.visits, 16)
+  assert.deepEqual(r.a.x.shared.map((o) => o.id), ['b'])
+  assert.deepEqual(r.a.line.shared, [])
+  // 9/5〜9/12：問い合わせ（9/3）は入らず、予約（9/12）は入る
+  assert.equal(r.b.x.visits, 8)
+  assert.equal(r.b.x.contact, 1 - 1)
+  assert.equal(r.b.x.booking, 1)
+  assert.equal(r.b.threads, undefined)
+  assert.equal(r.c.x.untagged, true)
+  const s = I.summarizeByNet(posts, daily, '2026-09-25', 30, 'lumenium.net')
+  // 9/1〜9/12 の12日分（重なった 9/5〜9/8 は1回だけ）
+  assert.equal(s.x.visits, 12)
+  assert.equal(s.x.posts, 3)
+  assert.equal(s.x.tagged, 2)
+  assert.equal(s.x.inquiries, 2)
+})
+await test('まだ7日たっていない投稿は「集計中」、今日までしか数えない', () => {
+  const posts = [{ id: 'n', at: new Date(Date.parse('2026-09-24T01:00:00Z')).toISOString(), refs: { x: 'x/-/-' }, results: [{ net: 'x', ok: true }] }]
+  const daily = { '2026-09-24': { visits: { 'x/-/-': 3 } }, '2026-09-25': { visits: { 'x/-/-': 4 } } }
+  const r = I.attribute(posts, daily, '2026-09-25', 'h')
+  assert.equal(r.n.x.open, true)
+  assert.equal(r.n.x.to, '2026-09-25')
+  assert.equal(r.n.x.visits, 7)
+})
+await test('古い記録（refs なし）は、送った本文とリンクから判断する', () => {
+  assert.equal(I.taggedField({ texts: { x: '見て https://lumenium.net/?ref=x' }, campaign: '' }, 'x', 'lumenium.net'), 'x/-/-')
+  assert.equal(I.taggedField({ texts: {}, link: 'https://lumenium.net/', campaign: 'c' }, 'facebook', 'lumenium.net'), 'facebook/-/c')
+  assert.equal(I.taggedField({ texts: {}, link: 'https://other.example/' }, 'x', 'lumenium.net'), '')
+})
+await test('成果の読み込み：アクセス解析の日ごとの数を引く', async () => {
+  const day = I.jstDay(Date.now())
+  hashes.set(`${(await import('../api/_brand.js')).KV}cp:d:${day}`, new Map([['x/-/aki', '5']]))
+  const posts = [{ id: 'z', at: new Date().toISOString(), refs: { x: 'x/-/aki' }, results: [{ net: 'x', ok: true }] }]
+  const r = await I.socialInsights(posts, undefined)
+  assert.equal(r.ok, true)
+  assert.equal(r.results.z.x.visits, 5)
+  assert.equal(r.summary.d30.x.visits, 5)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 
 if (failed) process.exit(1)

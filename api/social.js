@@ -4,6 +4,8 @@ export const config = { runtime: 'edge' }
 //
 //   GET                       -> what is configured, what went out, what is booked
 //   GET ?quota=1              -> LINE's monthly allowance and audience, IG/Threads daily room
+//   GET ?insights=1           -> visits / enquiries each post brought (ref tag, 7 days)
+
 //   POST { action:'post', ... }      -> post now, to every target at once, and record it
 //   POST { action:'schedule', date } -> keep the same payload for that morning's run
 //   POST { action:'cancel', id }     -> drop a booked post
@@ -24,6 +26,7 @@ import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, 
 import { setting } from './_settings.js'
 import { BRAND } from './_brand.js'
 import { readStyle, saveStyle } from './_social-store.js'
+import { socialInsights } from './_social-insights.js'
 
 async function state(req) {
   const ready = scheduleReady()
@@ -50,6 +53,10 @@ export async function GET(req) {
   if (denied) return denied
   if (new URL(req.url).searchParams.get('quota')) {
     return json({ ok: true, quotas: await socialQuotas(req) })
+  }
+  // 投稿ごとの成果（と、いつ出すと良いか）。履歴より重いので別に読みます。
+  if (new URL(req.url).searchParams.get('insights')) {
+    return json(await socialInsights(await recentPosts(200, req), req))
   }
   return json({ ok: true, ...(await state(req)) })
 }
