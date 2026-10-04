@@ -6,8 +6,12 @@ import { useEffect, useState } from 'react'
  *  - A new service worker has been installed and is waiting (prompt to refresh)
  */
 export default function NetworkStatus() {
+  // Asked of the window, not of `navigator`: Node has a `navigator` too, with
+  // no onLine on it, so the build-time render of the top page
+  // (scripts/prerender.mjs) read that as offline and wrote 「オフラインです」
+  // into the HTML every crawler reads.
   const [online, setOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
+    typeof window !== 'undefined' && window.navigator ? window.navigator.onLine !== false : true
   )
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [waitingWorker, setWaitingWorker] = useState(null)

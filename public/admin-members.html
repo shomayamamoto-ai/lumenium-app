@@ -1061,7 +1061,7 @@ header h1, header button, header a { white-space: nowrap; }
       <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
         <div class="toolbar" style="margin-bottom:10px">
           <button class="ghost" id="audit-run" type="button">サイト側を点検</button>
-          <span class="share-note" id="audit-note">公開中のページを読み、AIが答えを作るのに要る要素が揃っているかを調べます（無料・数秒）。</span>
+          <span class="share-note" id="audit-note">公開中のページを読み、検索に載る条件（サイトマップ・正規URL・リンク切れ・構造化データ）と、AIが答えを作るのに要る要素が揃っているかを調べます（無料・20秒ほど）。</span>
         </div>
         <!-- Who actually came to read the site. Recorded by /robots.txt and
              /llms.txt, which are served by a function for this reason. It is
@@ -4710,19 +4710,9 @@ window.lumAdmin = {
 
   /* ---- サイト側の点検 ---- */
   var auditDone = false;
-  var WHY = {
-    '説明文': '検索結果や回答に引用される短い紹介文。60〜160字で、何をいくらで提供しているかを書きます。',
-    'FAQ': '質問と答えの組。AIはこの形をそのまま引用できるので、出現率に最も効きます。',
-    '会社情報': '社名・所在地・代表・設立。「実在が確認できない」と答えられる原因はここです。',
-    'パンくず': 'そのページがサイトのどこにあるか。検索結果の表示にも使われます。',
-    '更新日': 'いつ時点の情報か。古いと判断されたページは候補から外れます。',
-    '金額': '計測している質問のほとんどが料金を聞いています。幅でよいので数字を書きます。',
-    '対応地域': '「東京で」「全国対応」。地域を聞く質問に答えるために要ります。',
-    '本文量': '1000字未満は、答えを作る材料としては薄いページです。',
-    '計測タグ': 'このページの訪問がアクセス解析に入りません。',
-    'タイトルの長さ': '15〜62字が目安。長いと途中で切られます。',
-    '見出しH1': '1ページに1つ。何のページかの宣言です。'
-  };
+  /* 何がどう悪いかと直し方の文は、点検する側（api/_audit-rules.js の CHECKS）が
+     結果と一緒に返します。ここに同じ文をもう1組持つと、片方だけ直されて
+     食い違うので。 */
   async function audit() {
     var btn = el('audit-run');
     btn.disabled = true;
@@ -4737,11 +4727,6 @@ window.lumAdmin = {
       btn.disabled = false; return;
     }
     el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）。';
-    var top = (data.issues || []).map(function (i) {
-      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
-        '<div style="font-size:13px;font-weight:700">' + esc(i.name) + ' が無いページ: ' + i.count + ' / ' + data.total + '</div>' +
-        '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(WHY[i.name] || '') + '</div></div>';
-    }).join('');
     /* The join: each measured question next to the page that should answer it.
        A 0% with no page behind it is a different instruction from a 0% with a
        page that says nothing. */
@@ -4772,54 +4757,63 @@ window.lumAdmin = {
             ((q.leadMissing || []).length ? '／冒頭に無い: ' + esc(q.leadMissing.join('、')) : '') +
             '</div></td></tr>';
       }).join('');
-    var worst = (data.pages || []).filter(function (p) { return (p.missing || []).length; }).slice(0, 12).map(function (p) {
-      return '<tr><td style="padding:5px 8px;font-size:12px"><a href="' + esc(p.url) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a></td>' +
-        '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc((p.missing || []).join('、') || p.error || '') + '</td>' +
-        '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + (p.chars || 0) + '字</td></tr>';
-    }).join('');
     var H = function (t) {
       return '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:16px 0 8px">' + t + '</h3>';
     };
     var TABLE = function (rows) { return '<table style="width:100%;border-collapse:collapse"><tbody>' + rows + '</tbody></table>'; };
 
-    /* サイト全体。These four are invisible from inside a single page and are
-       the reasons a page that is fine never gets read: two pages claiming the
-       same title, a page nothing links to, a page that opens without saying
-       anything, a page that takes too long to come back. */
+    /* 点検結果。「必ず直す」は、検索に載らなくなる原因になるものと、検索
+       エンジンの決まりに反しているもの。それ以外の「直したほうが良い」ものは
+       「直すと良い」に。同じ問題はひとまとめにして、ページと直し方を出します。
+       「問題なし」は、確かめて何も見つからなかった項目です（確かめられなかった
+       ものは入りません）。 */
     var s = data.site || {};
-    var whole = [];
-    (s.duplicateTitles || []).forEach(function (d) {
-      whole.push(['同じタイトルのページ', d.urls.join('、'), '検索側はどちらか1つしか出しません。片方を書き換えます。']);
-    });
-    (s.duplicateDescs || []).forEach(function (d) {
-      whole.push(['同じ説明文のページ', d.urls.join('、'), '引用される紹介文が同じだと、別のページとして扱われません。']);
-    });
-    if (s.noProfiles) {
-      whole.push(['公式アカウントのURLが構造化データに入っていない', 'sameAs（全ページの会社情報）',
-        '外の面と同じ会社だと機械に伝える項目です。ここが空だと、答えるエンジンから見て裏の取れない会社になり、' +
-        '「実在が確認できない」と返る原因になります。X・Instagram・YouTube・法人番号公表サイト・事業者ディレクトリなど、' +
-        '実在する公式ページのURLを教えてください（持っていないものは入れません）。']);
-    }
-    if ((s.orphans || []).length) {
-      whole.push(['どこからもリンクされていないページ', s.orphans.join('、'),
-        'サイトマップにしか載っていないページです。リンクをたどるAIには見つかりません。']);
-    }
-    (s.thinLead || []).forEach(function (t) {
-      whole.push(['冒頭に事実が無いページ', t.url, '最初の500字に ' + t.missing.join('・') + ' がありません。答えはページの先頭から作られます。']);
-    });
-    (s.slow || []).forEach(function (t) {
-      whole.push(['表示が遅いページ', t.url, t.ms + 'ミリ秒かかりました。']);
-    });
-    var wholeHtml = whole.map(function (w) {
-      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
-        '<div style="font-size:12.5px;font-weight:700">' + esc(w[0]) + '</div>' +
-        '<div style="font-size:11.5px;color:#3d3fbf;margin-top:3px;word-break:break-all">' + esc(w[1]) + '</div>' +
-        '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(w[2]) + '</div></div>';
+    var counts = data.counts || { must: 0, should: 0, ok: 0 };
+    var pageRef = function (u) {
+      // 1ページなら開けるリンクに。「/a.html、/b.html」のような組はそのまま。
+      if (/^\/[^\s、]*$/.test(u)) {
+        return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
+      }
+      return '<span style="color:#3d3fbf">' + esc(u) + '</span>';
+    };
+    var levelHtml = function (key, label, color) {
+      var by = {}, order = [];
+      (data.findings || []).forEach(function (f) {
+        if (f.level !== key) return;
+        if (!by[f.check]) { by[f.check] = { problem: f.problem, fix: f.fix, rows: [] }; order.push(f.check); }
+        by[f.check].rows.push(f);
+      });
+      if (!order.length) return '';
+      return '<h3 style="font-size:12px;letter-spacing:.1em;color:' + color + ';font-weight:700;margin:16px 0 8px">' +
+          label + '　' + counts[key] + '件</h3>' +
+        order.map(function (k) {
+          var g = by[k];
+          var rows = g.rows.slice(0, 12).map(function (f) {
+            return '<li style="margin:3px 0;word-break:break-all">' + pageRef(f.page) +
+              (f.detail ? '<span style="color:var(--sub)">　' + esc(f.detail) + '</span>' : '') + '</li>';
+          }).join('') + (g.rows.length > 12 ? '<li style="color:var(--sub)">ほか ' + (g.rows.length - 12) + '件</li>' : '');
+          return '<div style="background:#f3f1ec;border:1px solid var(--border);border-left:3px solid ' + color + ';border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
+            '<div style="font-size:12.5px;font-weight:700">' + esc(g.problem) + '<span style="color:var(--sub);font-weight:400">（' + g.rows.length + '）</span></div>' +
+            '<ul style="font-size:11.5px;line-height:1.7;margin:5px 0 0;padding-left:18px">' + rows + '</ul>' +
+            '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:5px">直し方: ' + esc(g.fix) + '</div></div>';
+        }).join('');
+    };
+    var passedHtml = (data.passed || []).length
+      ? '<h3 style="font-size:12px;letter-spacing:.1em;color:#2f6f3e;font-weight:700;margin:16px 0 8px">問題なし　' + counts.ok + '項目</h3>' +
+        '<ul style="font-size:11.5px;line-height:1.8;color:var(--sub);margin:0 0 4px;padding-left:18px">' +
+        data.passed.map(function (p) { return '<li>' + esc(p.label) + '</li>'; }).join('') + '</ul>'
+      : '';
+    var notesHtml = (data.notes || []).map(function (n) {
+      return '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin:0 0 6px">※ ' + esc(n) + '</p>';
     }).join('');
 
     el('audit-body').innerHTML =
-      '<p style="font-size:12.5px;line-height:1.9;margin-bottom:10px">揃っているページ <b>' + data.clean + '</b> / ' + data.total + '。' +
-        (s.medianMs ? '表示にかかる時間は中央値 ' + s.medianMs + 'ミリ秒。' : '') + '</p>' +
+      '<p style="font-size:12.5px;line-height:1.9;margin-bottom:6px">' +
+        '必ず直す <b style="color:#b42318">' + counts.must + '</b>件・直すと良い <b style="color:#b45309">' + counts.should + '</b>件・問題なし <b>' + counts.ok + '</b>項目。' +
+        (s.medianMs ? '表示にかかる時間は中央値 ' + s.medianMs + 'ミリ秒。' : '') + '</p>' + notesHtml +
+      levelHtml('must', '必ず直す', '#b42318') +
+      levelHtml('should', '直すと良い', '#b45309') +
+      passedHtml +
       (cov ? H('計測している質問と、それに答えるページ') + TABLE(cov) : '') +
       (fitRows
         ? H('質問の言葉が、答えるページに載っていない') +
@@ -4828,10 +4822,7 @@ window.lumAdmin = {
           '低い行は、質問文をそのまま見出しにして、その下に2〜3行で答えを書くと上がります。</p>' + TABLE(fitRows)
         : H('質問の言葉と、答えるページ') +
           '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin:-2px 0 8px">' +
-          '計測中の質問はすべて、答えるページの見出しに同じ言葉で載っています。</p>') +
-      (top ? H('足りない要素') + top : '') +
-      (wholeHtml ? H('サイト全体の問題') + wholeHtml : '') +
-      (worst ? H('直すと効くページ') + TABLE(worst) : '');
+          '計測中の質問はすべて、答えるページの見出しに同じ言葉で載っています。</p>');
     btn.disabled = false;
     crawlBox(data);
   }

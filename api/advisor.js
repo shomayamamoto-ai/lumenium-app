@@ -266,7 +266,7 @@ function systemPrompt(live) {
     PAGES.map((p) => `- ${p}`).join('\n'),
     '',
     '既に実施済み（重複提案しないこと）: 構造化データ（Organization/FAQPage/Service/DefinedTerm ほか）、',
-    'sitemap.xml と sitemap-content.xml、llms.txt、about.html での同名企業との区別、',
+    'sitemap.xml（実際に中身が変わった日を lastmod に入れている）、llms.txt、about.html での同名企業との区別、',
     'サービス別静的ページ、カテゴリ別の記事ページ、IndexNow スクリプト。',
     '',
     '【いまの計測値】',

@@ -9,11 +9,13 @@ import { SERVICES as SERVICE_COPY } from '../src/data/services.js'
 import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
 import { ORG_NODE } from '../src/data/org.js'
+import { DATE, stamp, saveLastmod } from './_lastmod.mjs'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
-// Answer engines prefer a page that says when it was last true.
-const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+// Answer engines prefer a page that says when it was last true — so the date
+// is the day the page's content last changed (see _lastmod.mjs), not the day
+// it was built. DATE marks where it goes.
 
 const SERVICES = [
   {
@@ -252,7 +254,7 @@ function page(s) {
         areaServed: { '@type': 'Country', name: 'Japan' },
         offers: { '@type': 'Offer', description: s.price, priceCurrency: 'JPY' },
         url: `${SITE}/services/${s.id}.html`,
-        dateModified: TODAY,
+        dateModified: DATE,
       },
       {
         '@type': 'FAQPage',
@@ -350,7 +352,7 @@ function page(s) {
   </div>
 
 ${CONTACT_STRIP}
-  <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
+  <p style="font-size:12px;color:var(--sub);margin-top:26px">最終更新: ${DATE}　／　東京都を拠点に、オンラインで全国対応しています。</p>
   <footer>
     <span>Lumenium（ルメニウム）— 散文化した目的に、焦点を当てる。</span>
     <a href="/">lumenium.net</a>
@@ -392,7 +394,7 @@ function hub() {
         name: 'サービス一覧',
         description: DESC,
         inLanguage: 'ja-JP',
-        dateModified: TODAY,
+        dateModified: DATE,
         isPartOf: { '@id': `${SITE}/#website` },
       },
       {
@@ -475,7 +477,7 @@ ${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inher
   <h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">東京以外からでも依頼できますか？</h3>
   <p style="font-size:13.5px;line-height:2;color:var(--sub)">東京都を拠点に、打ち合わせはオンラインで全国からご依頼いただいています。撮影やイベントなど現地対応が必要な場合は伺います。</p>
 
-  <p style="font-size:12px;color:var(--sub);margin-top:22px">最終更新: ${TODAY}　／　東京都を拠点に、オンラインで全国対応しています。</p>
+  <p style="font-size:12px;color:var(--sub);margin-top:22px">最終更新: ${DATE}　／　東京都を拠点に、オンラインで全国対応しています。</p>
 
 ${CONTACT_STRIP}
 
@@ -518,8 +520,10 @@ for (const base of SERVICES) {
     examples: c.examples || base.examples,
     tags: c.tags || [],
   }
-  writeFileSync(`public/services/${s.id}.html`, framePage(page(s), `/services/${s.id}.html`))
+  const path = `/services/${s.id}.html`
+  writeFileSync('public' + path, stamp(path, framePage(page(s), path)).html)
   console.log(`public/services/${s.id}.html written`)
 }
-writeFileSync('public/services/index.html', framePage(hub(), '/services/index.html'))
+writeFileSync('public/services/index.html', stamp('/services/index.html', framePage(hub(), '/services/index.html')).html)
 console.log('public/services/index.html written')
+saveLastmod()

@@ -22,6 +22,17 @@ if (first.redirect) {
   // so nothing flashes the built-in wording first. loadContent never rejects
   // and gives up after a couple of seconds, so a bad content.json cannot stop
   // the site from mounting.
+  //
+  // #root already holds the top page, rendered at build time for crawlers
+  // that do not run scripts (scripts/prerender.mjs). It is replaced here with
+  // createRoot, not adopted with hydrateRoot, on purpose. Hydrating requires
+  // the first render in the browser to produce exactly the same markup, and
+  // it does not always: the contact form starts from an estimate left in this
+  // tab's sessionStorage, content.json may be slow, and an unknown address
+  // renders NotFound instead of the landing. Either way React would throw the
+  // page away and redraw it after logging an error, so hydrating would buy
+  // nothing and cost a console error. The prerendered page sits under the
+  // splash, so replacing it is invisible.
   loadContent().finally(() => {
     ReactDOM.createRoot(document.getElementById('root')).render(
       <App />

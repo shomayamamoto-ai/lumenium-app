@@ -19,6 +19,11 @@
       ],
       "destination": "https://lumenium.net/:path*",
       "permanent": true
+    },
+    {
+      "source": "/sitemap-content.xml",
+      "destination": "/sitemap.xml",
+      "permanent": true
     }
   ],
   "rewrites": [
