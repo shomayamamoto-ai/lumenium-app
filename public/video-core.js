@@ -31,7 +31,42 @@ const RULES = {
   post: { DAILY_POST_CAP: { instagram: 25, tiktok: 25, youtube: null }, MAX_GIVEBACK: 0.25, MAX_HASHTAGS: 5 },
   telop: { MAX_CPS: 8 },
   hook: { SEC: 3 },
+  /* 長さの種類ごとの目安。どれも「よく言われる経験則」で、守れば伸びる保証では
+     ありません。画面では必ず「目安」と書きます。
+     ・ショート: 最初の1〜3秒で見続けるかが決まる。同じ画は2〜3秒、
+       約10秒ごとに「切り替え」（新しい画・音・問い）。
+     ・長尺: 最初の1分が一番大事（0〜10秒で約束を見せ、60秒までに
+       「最後まで見る理由」）。同じ画は長くても10秒、約3分ごとに「山場」。 */
+  modes: {
+    short: { MAX_SEC: 90, PROMISE_SEC: 3, HOOK_SEC: 3, SHOT_MAX_SEC: 3.5, SHOT_TARGET: [2, 3], SPLIT_SEC: 2.5, INTERRUPT_TARGET_SEC: 10, INTERRUPT_WARN_SEC: 12 },
+    long: { MIN_SEC: 180, PROMISE_SEC: 10, HOOK_SEC: 10, WHY_WATCH_SEC: 60, SHOT_MAX_SEC: 10, SHOT_TARGET: [4, 8], SPLIT_SEC: 5, PEAK_TARGET_SEC: 180, PEAK_WARN_SEC: 210 },
+  },
 }
+
+/** 長さの種類。保存済みの台本に指定が無ければショートとして扱います。 */
+const LENGTH_MODES = { short: 'ショート（〜90秒）', long: '長尺（YouTube 3分以上）' }
+function lengthMode(s) { return s && s.length_mode === 'long' ? 'long' : 'short' }
+function modeRules(s) { return RULES.modes[lengthMode(s)] }
+
+/** 台本の長さ（最後の行の終わり。行が無ければ目標の長さ）。 */
+function scriptDuration(s) {
+  let end = 0
+  for (const l of (s && s.lines) || []) end = Math.max(end, Number(l.end) || 0)
+  return end || Number(s && s.target_duration_sec) || 0
+}
+
+/** 長さの種類と、実際の長さが合っているか。 */
+function lengthModeCheck(s) {
+  const mode = lengthMode(s)
+  const d = scriptDuration(s)
+  const M = RULES.modes[mode]
+  if (!d) return { mode, ok: true, sec: 0, text: '' }
+  if (mode === 'short' && d > M.MAX_SEC) return { mode, ok: false, sec: d, text: `ショートの目安（${M.MAX_SEC}秒まで）より長い ${round1(d)}秒です。削るか、「長尺」に切り替えてください。` }
+  if (mode === 'long' && d < M.MIN_SEC) return { mode, ok: false, sec: d, text: `長尺の目安（${M.MIN_SEC / 60}分以上）より短い ${round1(d)}秒です。ショートとして作るほうが合っています。` }
+  return { mode, ok: true, sec: d, text: `${LENGTH_MODES[mode]}として ${round1(d)}秒です。` }
+}
+
+function round1(v) { return Math.round(Number(v) * 10) / 10 }
 
 /* 投稿先ごとの長さ。秒は各社の公開している上限（2026年時点）。
    Instagram のリールは 5〜90秒が「リール」として扱われ、それより長いと
@@ -970,5 +1005,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, PLATFORMS, HOOK_TYPES, HOOK_LABELS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();

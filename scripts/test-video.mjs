@@ -280,6 +280,20 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('CSV の読み書き・絵コンテ・長さと縦横比の判定')
 }
 
+/* ---- 長さの種類 ---- */
+{
+  assert.equal(V.lengthMode({}), 'short', '指定の無い台本はショート')
+  assert.equal(V.lengthMode({ length_mode: 'long' }), 'long')
+  assert.equal(V.modeRules({}).SHOT_MAX_SEC, 3.5)
+  assert.equal(V.modeRules({ length_mode: 'long' }).SHOT_MAX_SEC, 10)
+  const L = (end) => ({ lines: [{ start: 0, end }] })
+  assert.equal(V.lengthModeCheck(L(60)).ok, true)
+  assert.equal(V.lengthModeCheck(L(120)).ok, false, 'ショートで90秒超は注意')
+  assert.equal(V.lengthModeCheck({ ...L(120), length_mode: 'long' }).ok, false, '長尺で3分未満は注意')
+  assert.equal(V.lengthModeCheck({ ...L(240), length_mode: 'long' }).ok, true)
+  ok('長さの種類（ショート／長尺）と既定値')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

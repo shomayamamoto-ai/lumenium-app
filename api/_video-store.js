@@ -141,14 +141,16 @@ export function cleanScript(s) {
   return {
     id: idOk(s && s.id) ? s.id : newId('scr'),
     title: str(s && s.title, 200), platform: NET(s && s.platform),
-    target_duration_sec: num(s && s.target_duration_sec, 1, 600),
+    // 長さの種類。前からある台本（指定なし）はショートです。
+    length_mode: s && s.length_mode === 'long' ? 'long' : 'short',
+    target_duration_sec: num(s && s.target_duration_sec, 1, 3600),
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
-    lines: list(s && s.lines, 60, cleanLine),
+    lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),
     rationale: str(s && s.rationale, 1500),
     hook_type: HOOK_TYPES.indexOf(s && s.hook_type) >= 0 ? s.hook_type : '',
     style: str(s && s.style, 300),
-    shots: list(s && s.shots, 60, (x, i) => ({
+    shots: list(s && s.shots, 300, (x, i) => ({
       index: i, start: num(x && x.start, 0, 3600) || 0, end: num(x && x.end, 0, 3600) || 0,
       narration: str(x && x.narration, 300), telop: str(x && x.telop, 120), visual_prompt: str(x && x.visual_prompt, 600),
       camera: str(x && x.camera, 80), transition: str(x && x.transition, 40),

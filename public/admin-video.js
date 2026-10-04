@@ -394,7 +394,7 @@
   function scriptPicker() {
     var d = S.data;
     return '<div class="vid-row"><label class="soc-lab" for="vs-pick" style="margin:0">台本</label><select id="vs-pick">' +
-      (d.scripts.length ? d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') : '<option value="">（まだありません）</option>') +
+      (d.scripts.length ? d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + (V.lengthMode(s) === 'long' ? '（長尺）' : '') + '</option>'; }).join('') : '<option value="">（まだありません）</option>') +
       '</select></div>';
   }
   function bindPicker(after) {
@@ -412,11 +412,12 @@
         '<label class="soc-lab" for="vs-topic">何についての動画か（テーマ・伝えたいこと）</label>' +
         '<textarea id="vs-topic" rows="3" placeholder="例：秋限定のかぼちゃのパン。1日30個。焼き上がりは11時。"></textarea>' +
         '<div class="vid-row" style="margin-top:6px">' +
+          '<select id="vs-mode" aria-label="長さの種類">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '">' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>' +
           '<select id="vs-net" aria-label="投稿先"><option value="instagram">Instagram リール</option><option value="youtube">YouTube ショート</option><option value="tiktok">TikTok</option></select>' +
-          '<input type="number" id="vs-dur" min="5" max="180" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
+          '<input type="number" id="vs-dur" min="5" max="900" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
           '<button type="button" id="vs-gen" style="font-size:12.5px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>台本を作る</button>' +
         '</div>' +
-        '<p class="soc-small" style="margin-top:6px">長さを空欄にすると、競合の上位の長さ（' + (band.ok ? '中央値 ' + band.median + '秒' : 'まだ判断できないため30秒') + '）を使います。冒頭約3秒をフックにし、テロップ・ナレーション・映す画を秒ごとに分けます。' +
+        '<p class="soc-small" style="margin-top:6px">長さを空欄にすると、ショートは競合の上位の長さ（' + (band.ok ? '中央値 ' + band.median + '秒' : 'まだ判断できないため30秒') + '）、長尺は5分にします（長尺は YouTube の通常の動画として作ります）。冒頭をフックにし、テロップ・ナレーション・映す画を秒ごとに分けます。' +
         '作ったあと、禁止ワード・表記の統一・競合との言い回しの重なり（10文字以上）・テロップの速さを機械的に確かめます。重なりがあれば最大2回作り直します。' +
         (S.ready.ai ? '' : '<br>AI のキーが未設定です（「設定状況 › キーの入力」）。') + '</p>' +
       '</div></details>' +
@@ -430,7 +431,7 @@
       if (!topic) { say('テーマを入れてください。'); return; }
       this.disabled = true;
       say('AIが台本を書いています（30秒〜1分ほど）…', true);
-      var r = await post({ action: 'script.generate', topic: topic, platform: el('vs-net').value, duration: num(el('vs-dur').value) });
+      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value) });
       this.disabled = false;
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
       S.scriptId = r.data.script.id;
@@ -443,6 +444,7 @@
       S.scriptId = r.data.item.id;
       await reload();
     });
+    el('vs-mode').addEventListener('change', function () { el('vs-net').disabled = this.value === 'long'; });
     if (el('vs-del')) el('vs-del').addEventListener('click', async function () {
       if (!confirm('この台本を削除します。よろしいですか？')) return;
       await post({ action: 'script.delete', id: S.scriptId });
@@ -456,6 +458,7 @@
   function editor(host, s) {
     host.innerHTML =
       '<div class="soc-fields" style="margin-top:10px">' +
+        fld('長さの種類', '<select id="ve-mode">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '"' + (V.lengthMode(s) === k ? ' selected' : '') + '>' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>') +
         fld('タイトル', '<input type="text" id="ve-title" maxlength="200" value="' + esc(s.title) + '">') +
         fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
@@ -487,7 +490,7 @@
     var result = null;
     function collect() {
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
-      s.platform = el('ve-net').value;
+      s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
       return s;
     }
@@ -495,6 +498,8 @@
       result = V.checkScript(collect(), project().brand, sources());
       var c = result;
       var h = '';
+      var lm = V.lengthModeCheck(s);
+      if (lm.text) h += '<div class="soc-res' + (lm.ok ? ' ok' : '') + '"><b>長さ</b><span>' + esc(lm.text) + '</span></div>';
       h += c.banned.length
         ? '<div class="soc-res ng"><b>禁止ワード</b><span>' + c.banned.map(function (b) { return '「' + esc(b.word) + '」'; }).join('・') + ' が入っています。直すまで書き出しと投稿はできません。</span></div>'
         : '<div class="soc-res ok"><b>禁止ワード</b><span>入っていません。</span></div>';
@@ -531,7 +536,7 @@
       }
       check();
     });
-    host.addEventListener('change', function (e) { if (e.target.id === 've-net' || e.target.id === 've-hook-type') check(); });
+    host.addEventListener('change', function (e) { if (e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
       if (t.classList.contains('ve-x')) {

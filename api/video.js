@@ -241,12 +241,14 @@ async function generate(req, cfg, project, b) {
   const started = Date.now()
   const topic = str(b.topic, 1500).trim()
   if (!topic) return json({ ok: false, message: '何についての動画か（テーマ）を入れてください。' }, 400)
-  const platform = PLATFORMS[b.platform] ? b.platform : 'instagram'
+  // 長尺（3分以上）は YouTube の通常の動画として作ります。
+  const mode = b.length_mode === 'long' ? 'long' : 'short'
+  const platform = mode === 'long' ? 'youtube' : PLATFORMS[b.platform] ? b.platform : 'instagram'
   const posts = scorePosts(await listItems(cfg, project.id, 'posts'))
   const band = durationBand(posts)
-  const P = PLATFORMS[platform]
-  let target = Number(b.duration) > 0 ? Number(b.duration) : band.ok ? band.median : 30
-  target = Math.max(P.minSec, Math.min(P.maxSec, Math.round(target)))
+  const P = mode === 'long' ? { label: 'YouTube（長尺）', minSec: RULES.modes.long.MIN_SEC, maxSec: 900 } : PLATFORMS[platform]
+  let target = Number(b.duration) > 0 ? Number(b.duration) : mode === 'long' ? 300 : band.ok ? band.median : 30
+  target = Math.max(P.minSec, Math.min(mode === 'short' ? Math.min(P.maxSec, RULES.modes.short.MAX_SEC) : P.maxSec, Math.round(target)))
   const sources = posts.flatMap((p) => [p.title, p.caption]).filter(Boolean)
   const brand = project.brand || {}
   const top = posts.slice(0, 6)
@@ -297,6 +299,7 @@ async function generate(req, cfg, project, b) {
   const draft = {
     ...s,
     platform,
+    length_mode: mode,
     target_duration_sec: target,
     hashtags: (s.hashtags || []).map((t) => String(t).replace(/^#/, '')).slice(0, RULES.post.MAX_HASHTAGS),
     style: brand.style || '',
