@@ -18,6 +18,10 @@ export const config = { runtime: 'edge' }
 //      answer it, how much of the question's vocabulary that page uses, and
 //      what it is missing.
 //   3. サイト全体       — duplicates, orphans, slow pages, thin openings.
+//   4. 点検結果         — every problem found, as 「必ず直す」 (keeps a page out
+//      of search, or breaks a search engine's rule) and 「直すと良い」, each
+//      with the page and one sentence on what to do (findings), and the
+//      checks that found nothing (passed).
 //
 // The per-page rules live in _audit-rules.js so they can be run offline
 // against the built files as well as over the live site.
@@ -26,7 +30,7 @@ import { requireAdmin, json } from './_admin-auth.js'
 import { storeFor } from './_analytics-store.js'
 import { readCrawls } from './_crawlers.js'
 import { QUESTIONS } from './_aio-catalog.js'
-import { SITE, extract, crossCheck, questionCoverage } from './_audit-rules.js'
+import { SITE, CHECKS, auditSite, questionCoverage } from './_audit-rules.js'
 import { BRAND } from './_brand.js'
 
 /* Which page is supposed to answer each measured question. The two halves of
@@ -49,46 +53,26 @@ export const ANSWERS = {
   '横断・比較': ['/onestop.html', '/choose.html'],
 }
 
-const LIMIT = 45
+/* Pages that are on the site but are not pages to judge (the mini-games: not
+   something anyone searches for, and measured elsewhere). Links to them are
+   still checked. Pages that ask not to be indexed need no entry here — they
+   are recognised by their noindex. */
+const EXCLUDE = [/^\/(game|racing|runner|hitblow)\.html$/]
+
+/* An edge function has to start answering within 25 seconds. The requests
+   get 18 of them; what is not reached by then is reported as not checked. */
+const BUDGET_MS = 18000
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
+  // The deployment answering is the one read, so a preview checks itself.
   const origin = new URL(req.url).origin
-  let urls = []
-  try {
-    const xml = await (await fetch(origin + '/sitemap.xml', { cf: { cacheTtl: 0 } })).text()
-    urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
-  } catch (_) { /* fall through to the one page we know exists */ }
-  if (!urls.length) urls = [origin + '/']
-  // The games are not marketing pages; they are measured elsewhere.
-  urls = urls
-    .filter((u) => !/\/(game|racing|runner|hitblow)\.html/.test(u))
-    .slice(0, LIMIT)
-    .map((u) => u.replace(SITE, origin))
-
-  const pages = []
-  const BATCH = 8
-  for (let i = 0; i < urls.length; i += BATCH) {
-    const group = await Promise.all(urls.slice(i, i + BATCH).map(async (u) => {
-      const path = u.replace(origin, '') || '/'
-      const t0 = Date.now()
-      try {
-        const res = await fetch(u, { headers: { 'user-agent': `${BRAND.name}Audit/1` } })
-        if (!res.ok) return { url: path, error: `HTTP ${res.status}` }
-        const html = await res.text()
-        // A page deliberately kept out of the index is not failing at being
-        // found; nagging about it is noise.
-        // Attribute order is not fixed: this site writes content before name.
-        if (/<meta[^>]*noindex[^>]*>/i.test(html) && /<meta[^>]*robots[^>]*>/i.test(html)) return null
-        return extract(path, html, { ms: Date.now() - t0 })
-      } catch (e) {
-        return { url: path, error: String((e && e.message) || e).slice(0, 80) }
-      }
-    }))
-    pages.push(...group.filter(Boolean))
-  }
+  const run = await auditSite({
+    origin, site: SITE, exclude: EXCLUDE, budgetMs: BUDGET_MS, agent: `${BRAND.slug}-audit/1`,
+  })
+  const pages = run.pages.filter((p) => !p.excluded)
 
   const ok = pages.filter((p) => !p.error)
   const tally = {}
@@ -97,7 +81,7 @@ export async function GET(req) {
     .map(([name, count]) => ({ name, count, share: ok.length ? count / ok.length : 0 }))
     .sort((a, b) => b.count - a.count)
 
-  const site = crossCheck(pages)
+  const site = run.site
   const questions = questionCoverage(pages, ANSWERS)
 
   // Per category, as before — the row a person reads first — now carrying the
@@ -132,9 +116,11 @@ export async function GET(req) {
   const cfg = await storeFor(req)
   const crawlers = cfg ? await readCrawls(cfg, 30) : null
 
-  // The grams are Sets used by the join above; they are not JSON and not for
-  // reading.
-  for (const p of pages) { delete p.headLines; delete p.bodyGrams; delete p.descText }
+  // The grams and blocks are used by the joins above; they are not for
+  // reading, and some are Sets, which are not JSON.
+  for (const p of pages) {
+    for (const k of ['headLines', 'bodyGrams', 'descText', 'blocks', 'leadBlocks', 'shingles', 'found', 'fetched']) delete p[k]
+  }
 
   return json({
     ok: true,
@@ -148,5 +134,12 @@ export async function GET(req) {
     total: pages.length,
     clean: ok.filter((p) => !p.missing.length).length,
     issues,
+    // 点検結果: 「必ず直す」「直すと良い」 and what passed. The words for each
+    // check travel with it (CHECKS), so the screen and the demo say the same.
+    findings: run.findings.map((f) => ({ ...f, problem: CHECKS[f.check].bad, fix: CHECKS[f.check].fix })),
+    passed: run.passed,
+    counts: run.counts,
+    linksChecked: run.linksChecked,
+    notes: run.notes,
   })
 }

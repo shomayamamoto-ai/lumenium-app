@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
@@ -16,7 +16,8 @@
     "test:analytics": "node scripts/test-analytics.mjs",
     "test:aio": "node scripts/test-engines.mjs && node scripts/test-aio.mjs",
     "check:copy": "node scripts/check-copy-render.mjs",
-    "test:social": "node scripts/test-social.mjs"
+    "test:social": "node scripts/test-social.mjs",
+    "audit:local": "node scripts/audit-local.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",

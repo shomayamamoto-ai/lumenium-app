@@ -117,7 +117,7 @@ export const SETTINGS = [
   {
     name: 'GOOGLE_SITE_VERIFICATION', label: 'Google Search Console の確認', kind: 'text', group: 'search', device: false,
     where: 'search.google.com/search-console › プロパティを追加（URLプレフィックス）› HTMLファイル の googleXXXX.html というファイル名',
-    why: `ファイル名をそのまま貼れば、${BRAND.url}/googleXXXX.html が有効になります。確認後は sitemap.xml と sitemap-content.xml を送信してください。`,
+    why: `ファイル名をそのまま貼れば、${BRAND.url}/googleXXXX.html が有効になります。確認後は sitemap.xml を送信してください（以前あった sitemap-content.xml は sitemap.xml に1本化しました。送信済みなら Search Console から削除して構いません）。`,
   },
   {
     name: 'BING_SITE_VERIFICATION', label: 'Bing Webmaster Tools の確認', kind: 'text', group: 'search', device: false,

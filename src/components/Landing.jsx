@@ -2,7 +2,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
 import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS } from '../data/site'
-import { FAQ_GROUPS } from '../data/faq'
+import { landingFaq } from '../data/faq'
 import LineIcon from './LineIcon'
 import ContactForm from './ContactForm'
 import QuickBook from './QuickBook'
@@ -33,7 +33,7 @@ const priceHead = (p = '') => p.split(/[（(]/)[0].trim()
 
 // 相談を迷っている人が気にすること（料金・納期・進め方）の質問だけを、
 // トップに少し出します。社名の読み方などは /faq.html に。
-const practicalFaq = () => FAQ_GROUPS.slice(1).flatMap((g) => g.items).slice(0, 5)
+const practicalFaq = landingFaq
 
 export default function Landing({ onPrivacy }) {
   // 中心の2つ（Web制作・システム開発、AI研修）は内容まで見せ、ほかは一覧で。

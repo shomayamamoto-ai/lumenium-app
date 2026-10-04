@@ -1,5 +1,7 @@
 node_modules
 dist
+# scripts/prerender.mjs の一時置き場（終わると消えます）
+.prerender-tmp
 .DS_Store
 *.local
 .vercel

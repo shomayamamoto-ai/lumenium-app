@@ -42,6 +42,11 @@ try {
 }
 
 const before = existsSync(OVERRIDES) ? readFileSync(OVERRIDES, 'utf8') : '{}'
+// The ledger of when each page last changed (scripts/_lastmod.mjs). The
+// marked build changes every page, so it would record today as the day
+// every page was edited — and the clean rebuild would keep that date.
+const LEDGER = join(ROOT, 'scripts/lastmod.json')
+const ledger = existsSync(LEDGER) ? readFileSync(LEDGER, 'utf8') : null
 // The marked build also regenerates the static pages under public/, which
 // are committed. Restoring content.json alone left those pages carrying the
 // markers (and they got committed once), so rebuild clean on the way out.
@@ -50,6 +55,7 @@ const restore = () => {
   if (restored) return
   restored = true
   writeFileSync(OVERRIDES, before)
+  if (ledger != null) writeFileSync(LEDGER, ledger)
   try {
     execSync('npm run build', { cwd: ROOT, stdio: 'ignore' })
     console.log('印のない状態でビルドし直しました。')

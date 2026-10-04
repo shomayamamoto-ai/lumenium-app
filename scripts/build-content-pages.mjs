@@ -8,7 +8,8 @@
 //   /pricing|works|voice|flow|contact.html
 //                         (brand-qualified topic pages, so a search for the
 //                          brand can surface several of our URLs, not just one)
-//   /sitemap-content.xml  (all of the above; referenced from robots.txt)
+//   /sitemap.xml          (every indexable page, with the date its content
+//                          last changed — see _lastmod.mjs)
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { BEACON } from './_beacon.mjs'
@@ -22,13 +23,13 @@ import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
 // page is rendered, so the static pages always match what the site shows.
 import { applyOverrides } from '../src/lib/content-registry.js'
 import { ORG_NODE } from '../src/data/org.js'
+import { DATE, TODAY, stamp, lastmodOf, saveLastmod } from './_lastmod.mjs'
 try {
   const n = applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8')))
   if (n) console.log(`content overrides applied: ${n}`)
 } catch (_) { /* no overrides yet — built-in copy stands */ }
 
 const SITE = 'https://lumenium.net'
-const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -175,7 +176,7 @@ function withOrg(ld, canonical, title) {
   if (!graph.some((n) => n && n['@id'] === ORG_NODE['@id'])) graph.push(ORG_NODE)
   if (!graph.some((n) => n && n['@type'] === 'BreadcrumbList') && crumbs.itemListElement.length > 1) graph.push(crumbs)
   if (!graph.some((n) => n && (n.dateModified || n.datePublished))) {
-    graph.push({ '@type': 'WebPage', '@id': canonical + '#page', url: canonical, name: title, dateModified: TODAY, isPartOf: { '@id': `${SITE}/#organization` } })
+    graph.push({ '@type': 'WebPage', '@id': canonical + '#page', url: canonical, name: title, dateModified: DATE, isPartOf: { '@id': `${SITE}/#organization` } })
   }
   return { '@context': 'https://schema.org', '@graph': graph }
 }
@@ -195,7 +196,7 @@ const CONTACT_STRIP = `
     <p class="note">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
   </section>`
 
-function shell({ title, desc, canonical, ld, eyebrow, body }) {
+function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website' }) {
   return framePage(`<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -207,7 +208,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body }) {
 <meta property="og:site_name" content="Lumenium（ルメニウム）">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
-<meta property="og:type" content="article">
+<meta property="og:type" content="${ogType}">
 <meta property="og:url" content="${canonical}">
 <meta property="og:image" content="${SITE}/api/og">
 <meta name="twitter:card" content="summary_large_image">
@@ -276,6 +277,15 @@ function articleDesc(a) {
 mkdirSync('public/blog', { recursive: true })
 const urls = []
 
+/** Write a page with its real last-changed date filled in, and remember it
+ *  for the sitemap with that same date — the two used to disagree with each
+ *  other as well as with the page. */
+function publish(path, html, opts) {
+  const { html: out, date } = stamp(path, html, opts)
+  writeFileSync('public' + path, out)
+  urls.push({ loc: SITE + path, lastmod: date })
+}
+
 /* ---- Blog articles ---- */
 for (const a of articles) {
   const path = `/blog/post-${a.id}.html`
@@ -288,7 +298,8 @@ for (const a of articles) {
     headline: a.title,
     description: articleDesc(a),
     datePublished: isoDate(a.date),
-    dateModified: isoDate(a.date),
+    // 公開した日のまま。あとで本文を書き直したら、その日になります。
+    dateModified: DATE,
     inLanguage: 'ja-JP',
     author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
     publisher: { '@id': `${SITE}/#organization` },
@@ -308,15 +319,20 @@ ${md(a.content)}
   <ul class="list">
     ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="/blog/post-${o.id}.html">${esc(o.title)}</a></li>`).join('\n    ')}
   </ul>`
-  writeFileSync('public' + path, shell({
+  publish(path, shell({
     title: `${a.title} | Lumenium（ルメニウム）ブログ`,
     desc: articleDesc(a),
     canonical: url,
     ld,
     eyebrow: 'ブログ',
     body,
-  }))
-  urls.push({ loc: url, lastmod: isoDate(a.date) })
+    ogType: 'article',
+  }), {
+    initial: isoDate(a.date),
+    // The post's own words only: a new post in 「あわせて読みたい」 below it is
+    // not an edit to this one.
+    source: JSON.stringify([a.title, a.summary, a.category, a.date, a.content]),
+  })
 }
 
 /* ---- Blog index ---- */
@@ -366,7 +382,7 @@ ${md(a.content)}
     ${recent.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="/blog/post-${a.id}.html">${esc(a.title)}</a><p>${esc(a.category)}｜${esc(a.summary)}</p></li>`).join('\n    ')}
   </ul>
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a><a class="ghost" href="/faq.html">よくある質問</a></div>`
-  writeFileSync('public/blog/index.html', shell({
+  publish('/blog/index.html', shell({
     title: 'ブログ（動画・AI・SNS・Webの実務ノウハウ）| Lumenium（ルメニウム）',
     desc: 'AI導入・SNS集客・動画制作・Web制作の現場ノウハウを、実際の案件で使っている手順のまま公開しています。東京拠点のルメニウム（Lumenium）が、中小企業の担当者向けに書いた記事の一覧です。',
     canonical: url,
@@ -374,7 +390,6 @@ ${md(a.content)}
     eyebrow: 'ブログ',
     body,
   }))
-  urls.push({ loc: url, lastmod: TODAY })
 }
 
 /* ---- News ---- */
@@ -397,15 +412,14 @@ ${md(a.content)}
     ${news.map((n) => `<li><time datetime="${esc(n.date)}">${esc(n.date)}</time>${n.link ? `<a href="${esc(n.link)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`).join('\n    ')}
   </ul>
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
-  writeFileSync('public/news.html', shell({
+  publish('/news.html', shell({
     title: 'お知らせ | Lumenium（ルメニウム）',
     desc: 'Lumenium（ルメニウム）からの最新のお知らせ・ニュース一覧です。サービスの追加、制作実績、サイトの更新など、東京拠点のクリエイティブ／DX支援カンパニーの動きをこのページにまとめています。',
     canonical: url,
     ld,
     eyebrow: 'お知らせ',
     body,
-  }))
-  urls.push({ loc: url, lastmod: news[0]?.date || TODAY })
+  }), { initial: news[0]?.date })
 }
 
 /* ---- FAQ ---- */
@@ -439,7 +453,7 @@ ${md(a.content)}
     </dl>
   </details>`).join('\n')}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
-  writeFileSync('public/faq.html', shell({
+  publish('/faq.html', shell({
     title: 'よくある質問（料金・納期・進め方）| Lumenium（ルメニウム）',
     desc: 'ルメニウム（Lumenium）へのご依頼に関するよくある質問。料金の目安は動画制作5万円〜、Web制作（LP30万円〜・サイト60万円〜）。納期・修正対応・NDA・オンライン対応・全国対応まで、実際にいただく質問に答えています。',
     canonical: url,
@@ -447,7 +461,6 @@ ${md(a.content)}
     eyebrow: 'よくある質問',
     body,
   }))
-  urls.push({ loc: url, lastmod: TODAY })
 }
 
 /* ---- About / brand entity page ----
@@ -630,7 +643,7 @@ ${md(a.content)}
     <li><a href="/services/cast.html">キャスト手配・イベント</a></li>
     <li><a href="/services/creative.html">クリエイティブ制作</a></li>
   </ul>`
-  writeFileSync('public/about.html', shell({
+  publish('/about.html', shell({
     title: 'ルメニウム（Lumenium）とは | 東京の動画制作・AI導入・Web制作会社',
     desc: DESC,
     canonical: url,
@@ -638,7 +651,6 @@ ${md(a.content)}
     eyebrow: '会社について',
     body,
   }))
-  urls.push({ loc: url, lastmod: TODAY })
 }
 
 /* ---- Brand-qualified topic pages ----
@@ -976,8 +988,13 @@ TOPIC_PAGES.push(
     lead: '社名の由来、事業の考え方、取り組み方をご紹介します。',
     ld: () => ({
       '@context': 'https://schema.org',
-      '@type': 'Article',
+      // 会社について書いたページで、記事ではありません。Article と書くと
+      // 公開日（datePublished）が必須になり、その日付はどこにも記録が無いので、
+      // 作った日付を書くことになります。
+      '@type': 'AboutPage',
+      name: 'ルメニウム（Lumenium）という社名と、その考え方',
       headline: 'ルメニウム（Lumenium）という社名と、その考え方',
+      dateModified: DATE,
       inLanguage: 'ja-JP',
       author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
       publisher: { '@id': `${SITE}/#organization` },
@@ -1093,10 +1110,9 @@ ${t.body()}${faqHtml}
       },
     ],
   }
-  writeFileSync('public/' + t.file, shell({
+  publish('/' + t.file, shell({
     title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body,
   }))
-  urls.push({ loc: url, lastmod: TODAY })
 }
 
 /* ---- Human-readable site index ----
@@ -1168,7 +1184,7 @@ ${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/">トップページへ</a>
   </div>`
-  writeFileSync('public/sitemap.html', shell({
+  publish('/sitemap.html', shell({
     title: 'サイトマップ | Lumenium（ルメニウム）',
     desc: 'Lumenium（ルメニウム）のページ一覧。サービス、料金、実績、お客様の声、ご依頼の流れ、会社情報、ブログ記事へのリンクをまとめています。',
     canonical: url,
@@ -1176,37 +1192,50 @@ ${SECTIONS.map(([label, items]) => `    <h2>${esc(label)}</h2>
     eyebrow: 'サイトマップ',
     body,
   }))
-  urls.push({ loc: url, lastmod: TODAY })
 }
 
-/* ---- Full sitemap ----
-   Regenerated every build so lastmod is always the deploy date. A stale
-   lastmod is read as "nothing changed here", which pushes the recrawl of
-   these pages further out — exactly what we cannot afford right now. */
+/* ---- Sitemap ----
+   One file. There used to be two — sitemap.xml and sitemap-content.xml —
+   listing the same 32 pages twice, plus pages that ask not to be indexed
+   (特定商取引法の表記) and the mini-games, which are not something anyone
+   searches for. A sitemap that contradicts the pages' own robots meta is the
+   kind Search Console reports as an error.
+
+   lastmod is the day each page's content last changed (_lastmod.mjs), not
+   the build date. The top page's date is recorded by scripts/prerender.mjs,
+   which is the step that sees its content; it runs after this one and
+   corrects the line if the page changed in this build.
+
+   changefreq and priority are left out: Google ignores both, and 「daily」 on
+   a page that changes a few times a year was not true anyway. */
 {
-  const SERVICE_IDS = ['video', 'ai', 'sns', 'web', 'cast', 'creative']
-  const core = [
-    { loc: `${SITE}/`, lastmod: TODAY, changefreq: 'daily', priority: '1.0', images: true },
-    { loc: `${SITE}/about.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
-    { loc: `${SITE}/services/index.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.9' },
-    ...SERVICE_IDS.map((id) => ({ loc: `${SITE}/services/${id}.html`, lastmod: TODAY, changefreq: 'weekly', priority: '0.8' })),
-    ...urls
-      .filter((u) => u.loc !== `${SITE}/about.html`)
-      .map((u) => ({ loc: u.loc, lastmod: u.lastmod, changefreq: 'weekly', priority: '0.7' })),
-    { loc: `${SITE}/specified-commerce.html`, lastmod: TODAY, changefreq: 'yearly', priority: '0.2' },
-    { loc: `${SITE}/runner.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
-    { loc: `${SITE}/game.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
-    { loc: `${SITE}/racing.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.3' },
-    { loc: `${SITE}/hitblow.html`, lastmod: TODAY, changefreq: 'monthly', priority: '0.4' },
+  const SERVICE_IDS = ['web', 'ai', 'video', 'sns', 'creative', 'cast']
+  const candidates = [
+    { path: '/', lastmod: lastmodOf('/') || TODAY, images: true },
+    ...['/services/index.html', ...SERVICE_IDS.map((id) => `/services/${id}.html`)]
+      .map((path) => ({ path, lastmod: lastmodOf(path) || TODAY })),
+    ...urls.map((u) => ({ path: u.loc.replace(SITE, ''), lastmod: u.lastmod })),
+    // Hand-written pages that are not generated here. Each is read below and
+    // left out if it says noindex, so a page that changes its mind about
+    // being indexed drops out of the sitemap by itself.
+    { path: '/specified-commerce.html', lastmod: '' },
   ]
+  const noindex = (path) => {
+    if (path === '/') return false
+    try {
+      const html = readFileSync('public' + path, 'utf8')
+      return [...html.matchAll(/<meta\b[^>]*>/gi)].some((m) =>
+        /name\s*=\s*["']?robots/i.test(m[0]) && /content\s*=\s*["'][^"']*noindex/i.test(m[0]))
+    } catch (_) { return true } // not in public/ at all: nothing to list
+  }
+  const core = candidates.filter((u) => !noindex(u.path))
+  const dropped = candidates.filter((u) => !core.includes(u)).map((u) => u.path)
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
 ${core.map((u) => `  <url>
-    <loc>${u.loc}</loc>
-    <lastmod>${u.lastmod}</lastmod>
-    <changefreq>${u.changefreq}</changefreq>
-    <priority>${u.priority}</priority>${u.images ? `
+    <loc>${SITE}${u.path}</loc>${u.lastmod ? `
+    <lastmod>${u.lastmod}</lastmod>` : ''}${u.images ? `
     <image:image>
       <image:loc>${SITE}/lumenium-logo.png</image:loc>
       <image:title>Lumenium（ルメニウム）ロゴ</image:title>
@@ -1215,23 +1244,10 @@ ${core.map((u) => `  <url>
 </urlset>
 `
   writeFileSync('public/sitemap.xml', xml)
-  writeFileSync('public/sitemap-urls.txt', core.map((u) => u.loc).join('\n') + '\n')
-  console.log(`sitemap.xml written: ${core.length} URLs`)
+  writeFileSync('public/sitemap-urls.txt', core.map((u) => SITE + u.path).join('\n') + '\n')
+  console.log(`sitemap.xml written: ${core.length} URLs` + (dropped.length ? ` (left out, noindex: ${dropped.join(', ')})` : ''))
 }
 
-/* ---- Content sitemap ---- */
-{
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `  <url>
-    <loc>${u.loc}</loc>
-    <lastmod>${u.lastmod}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>`).join('\n')}
-</urlset>
-`
-  writeFileSync('public/sitemap-content.xml', xml)
-}
+saveLastmod()
 
 console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq + about + ${TOPIC_PAGES.length} topic)`)

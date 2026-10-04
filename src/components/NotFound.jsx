@@ -10,11 +10,19 @@ export default function NotFound() {
     const prevTitle = document.title
     document.title = 'ページが見つかりません | Lumenium'
     // 中身はトップと同じ住所の別物なので、検索結果に載せないように。
-    const meta = document.createElement('meta')
-    meta.name = 'robots'
-    meta.content = 'noindex'
-    document.head.appendChild(meta)
-    return () => { document.title = prevTitle; meta.remove() }
+    // index.html の robots（index, follow…）を書き換えます。もう1つ足すと
+    // 「載せて」と「載せないで」が同じページに並びます。
+    const existing = document.head.querySelector('meta[name="robots"]')
+    const meta = existing || document.createElement('meta')
+    const prevRobots = existing ? existing.getAttribute('content') : null
+    meta.setAttribute('name', 'robots')
+    meta.setAttribute('content', 'noindex')
+    if (!existing) document.head.appendChild(meta)
+    return () => {
+      document.title = prevTitle
+      if (existing) existing.setAttribute('content', prevRobots)
+      else meta.remove()
+    }
   }, [])
 
   return (

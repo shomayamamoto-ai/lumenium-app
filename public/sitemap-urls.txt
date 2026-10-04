@@ -1,12 +1,11 @@
 https://lumenium.net/
-https://lumenium.net/about.html
 https://lumenium.net/services/index.html
-https://lumenium.net/services/video.html
-https://lumenium.net/services/ai.html
-https://lumenium.net/services/sns.html
 https://lumenium.net/services/web.html
-https://lumenium.net/services/cast.html
+https://lumenium.net/services/ai.html
+https://lumenium.net/services/video.html
+https://lumenium.net/services/sns.html
 https://lumenium.net/services/creative.html
+https://lumenium.net/services/cast.html
 https://lumenium.net/blog/post-1.html
 https://lumenium.net/blog/post-2.html
 https://lumenium.net/blog/post-3.html
@@ -26,6 +25,7 @@ https://lumenium.net/blog/post-16.html
 https://lumenium.net/blog/index.html
 https://lumenium.net/news.html
 https://lumenium.net/faq.html
+https://lumenium.net/about.html
 https://lumenium.net/pricing.html
 https://lumenium.net/works.html
 https://lumenium.net/voice.html
@@ -38,8 +38,3 @@ https://lumenium.net/positioning.html
 https://lumenium.net/story.html
 https://lumenium.net/profile.html
 https://lumenium.net/sitemap.html
-https://lumenium.net/specified-commerce.html
-https://lumenium.net/runner.html
-https://lumenium.net/game.html
-https://lumenium.net/racing.html
-https://lumenium.net/hitblow.html

@@ -930,7 +930,7 @@
         { cat: 'SNS・LINE', q: 'SNS運用代行を依頼できる会社を教えてください。', head: 71, page: '/services/sns.html', leadMissing: [] }
       ],
       site: {
-        duplicateTitles: [], duplicateDescs: [], noProfiles: false,
+        duplicateTitles: [], duplicateDescs: [], nearDuplicates: [], noProfiles: false,
         orphans: ['/blog/post-9.html'],
         thinLead: [{ url: '/services/creative.html', missing: ['金額'] }],
         slow: [], medianMs: 182
@@ -954,8 +954,39 @@
         { url: '/blog/post-9.html', missing: ['更新日'], chars: 2650 }
       ],
       total: 34, clean: 30,
-      issues: [{ name: '金額', count: 2, share: 2 / 34 }, { name: 'FAQ', count: 2, share: 2 / 34 }, { name: '更新日', count: 1, share: 1 / 34 }]
+      issues: [{ name: '金額', count: 2, share: 2 / 34 }, { name: 'FAQ', count: 2, share: 2 / 34 }, { name: '更新日', count: 1, share: 1 / 34 }],
+      // 点検結果。文は api/_audit-rules.js の CHECKS と同じものです。
+      findings: [
+        auditRow('must', 'links', '/services/movie.html', 'HTTP 404（リンク元: /blog/post-3.html ほか1ページ）',
+          'リンク切れ（リンク先のページが無い）', 'リンクを正しいURLに直すか、外します。'),
+        auditRow('must', 'faq-visible', '/services/creative.html', '1問: 「修正は何回までできますか？」',
+          'FAQの構造化データにある質問・答えが、ページに表示されていない', 'ページに表示している質問と答えだけを構造化データに入れます（Googleのルールです）。'),
+        auditRow('should', 'heading-order', '/', 'h1 の次に h3',
+          '見出しの階層が飛んでいる', '見出しは h1 → h2 → h3 の順に、1段ずつ下げて使います。文字の大きさは見た目の設定で変えます。'),
+        auditRow('should', '金額', '/services/creative.html', '',
+          '本文に金額（〇〇円）が書かれていない', '「〇万円〜」のように、幅でよいので本文に書きます（全ページ共通の部分は数えていません）。'),
+        auditRow('should', '金額', '/services/video.html', '',
+          '本文に金額（〇〇円）が書かれていない', '「〇万円〜」のように、幅でよいので本文に書きます（全ページ共通の部分は数えていません）。'),
+        auditRow('should', 'thin-lead', '/services/creative.html', '最初の500字に 金額・期間 が無い',
+          'ページの冒頭で、料金や地域などの答えを書いていない', '見出しのすぐ下の2〜3行に、料金の目安・対応地域・期間・連絡方法を書きます。'),
+        auditRow('should', 'orphan', '/blog/post-9.html', '',
+          'サイト内のどこからもリンクされていないページ', '関係の近いページから1本リンクを張ります。サイトマップにしか無いページは、リンクをたどるAIに見つかりません。'),
+        auditRow('should', 'img-alt', '/works.html', '2枚（/works/cafe.jpg、/works/school.jpg）',
+          '画像に説明（alt）が無い', '画像が何を表すかを alt に一言で書きます。飾りだけの画像は alt="" にします。')
+      ],
+      passed: [
+        'サイトマップが読める', 'サイトマップのページがすべて開ける', 'サイトマップに「検索に載せない」ページが無い',
+        'すべてのページに正規URL（canonical）がある', '正規URL（canonical）がすべてそのページ自身を指している',
+        '正規URL（canonical）とサイトマップのURLが一致している', '構造化データ（JSON-LD）がすべて読める',
+        '構造化データの必須項目がそろっている', 'タイトルがすべてのページで違う', '本文がほとんど同じページは無い'
+      ].map(function (label) { return { check: '', label: label }; }),
+      counts: { must: 2, should: 6, ok: 10 },
+      linksChecked: 41,
+      notes: []
     };
+  }
+  function auditRow(level, check, page, detail, problem, fix) {
+    return { level: level, check: check, page: page, detail: detail, problem: problem, fix: fix };
   }
 
   function listingCheck(body) {

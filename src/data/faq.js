@@ -95,3 +95,11 @@ export const FAQ_GROUPS = [
     ],
   },
 ]
+
+/** The questions the top page shows: the practical ones (料金・納期・進め方)
+ *  a visitor weighs before asking, not the ones about the company's name —
+ *  those are on /faq.html. Shared with the prerender step, which builds the
+ *  top page's FAQPage markup from exactly this list: the markup has to say
+ *  what the page says (Google's rule for structured data), and it used to
+ *  carry 18 questions over a page that showed 5. */
+export const landingFaq = () => FAQ_GROUPS.slice(1).flatMap((g) => g.items).slice(0, 5)

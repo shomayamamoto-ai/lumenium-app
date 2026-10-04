@@ -28,6 +28,13 @@ const schema = {
   count: Object.keys(defaults).length,
   groups: Object.values(groups),
 }
+// generatedAt moves only when the list itself does: rewriting the file on
+// every build, with nothing in it changed, left a diff after each build.
+try {
+  const prev = JSON.parse(readFileSync('public/content-schema.json', 'utf8'))
+  const same = JSON.stringify({ ...prev, generatedAt: '' }) === JSON.stringify({ ...schema, generatedAt: '' })
+  if (same && prev.generatedAt) schema.generatedAt = prev.generatedAt
+} catch (_) { /* first build: write it */ }
 writeFileSync('public/content-schema.json', JSON.stringify(schema, null, 2) + '\n')
 console.log(`content schema: ${schema.count} editable strings in ${schema.groups.length} groups`)
 
