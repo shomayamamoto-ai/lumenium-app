@@ -909,6 +909,62 @@ export function endingCheck(s) {
   return { mode, ok, cta, loop, endScreen, notes }
 }
 
+/* ---------------- 企画の型 ----------------
+   大きなチャンネルの「プレゼント企画を競争にする」「とんでもない規模」を、
+   小さなお店の規模に置きかえた型です。どれも、見る人に「結果が気になる」
+   理由を作ります。競合の投稿にも型を付け、どの型がよく見られているかを
+   件数の正直な目安（信頼度）と一緒に出します。 */
+
+export const FORMATS = {
+  contest: { label: '競争・対決', small: '店長と新人の対決、スタッフ同士の早作り勝負など', recipe: '2人（2チーム）が同じお題で競い、最後に勝ち負けを発表する。途中でルール変更を1回入れる。' },
+  challenge: { label: '挑戦（制限付き）', small: '「10分で」「1000円で」「片手で」など制限を付けて作る', recipe: '最初に制限（時間・予算・道具）を宣言し、できるかどうかで最後まで引っぱる。' },
+  before_after: { label: 'ビフォーアフター', small: '施術・修理・掃除・盛り付けの前と後', recipe: '最初に「後」を一瞬見せ、「前」から工程を短く区切って見せ、最後に並べて比べる。' },
+  ranking: { label: 'ランキング', small: '人気メニューTOP3、よく聞かれる質問ベスト3など', recipe: '下の順位から発表し、1位は最後。各順位に理由を1つずつ。' },
+  behind: { label: '裏側・工程', small: '仕込み・準備・職人の手元など、ふだん見られないところ', recipe: 'ふだん見られない工程を、手元の寄りで短く区切って見せる。' },
+  test: { label: '検証', small: '「本当に〜？」を自分たちで試してみる', recipe: '最初に疑問を出し、試した結果を最後に見せる。' },
+  vote: { label: 'お客様参加（投票）', small: '次の新作をコメントで投票、お客様の感想など', recipe: '選択肢を2〜3つ見せ、コメントで選んでもらう。結果は次の動画で発表する。' },
+}
+export const FORMAT_KEYS = Object.keys(FORMATS)
+
+const FORMAT_CUES = [
+  ['contest', /対決|vs|勝負|バトル|どっちが|早作り|競争/],
+  ['vote', /投票|どれがいい|どっちがいい|選んで|コメントで教えて|リクエスト/],
+  ['ranking', /ランキング|top\s*[0-9]|ベスト\s*[0-9]|[0-9]位|第[0-9一二三]位/],
+  ['before_after', /ビフォー|アフター|before|after|変身|前後/],
+  ['challenge', /縛り|以内で|だけで|制限|チャレンジ|挑戦|[0-9]+分で|[0-9]+円で/],
+  ['test', /検証|本当に|試してみた|やってみた|実験|比べてみた/],
+  ['behind', /裏側|仕込み|工程|できるまで|舞台裏|作り方|の1日|の一日|朝[0-9]+時/],
+]
+
+/** タイトル・キャプションの言葉から型を推します（当てはまらなければ ''）。 */
+export function guessFormat(text) {
+  const t = String(text || '').normalize('NFKC').toLowerCase()
+  for (const [k, re] of FORMAT_CUES) if (re.test(t)) return k
+  return ''
+}
+
+/** 型ごとの成績（競合の投稿）。metric は score（総合点）・engagement_rate・velocity・views。
+ *  件数が少ない型は「まだ判断できません」と出し、たまたまの差を言い切りません。 */
+export function formatPerformance(posts, metric) {
+  const m = metric || 'score'
+  const groups = {}
+  let untagged = 0
+  for (const p of posts || []) {
+    if (FORMAT_KEYS.indexOf(p.format) < 0) { untagged++; continue }
+    const v = Number(p[m])
+    if (p[m] == null || !isFinite(v)) continue
+    ;(groups[p.format] = groups[p.format] || []).push(v)
+  }
+  const list = Object.keys(groups).map((k) => {
+    const ci = bootstrapCI(groups[k], { seed: RULES.stats.BOOTSTRAP_SEED + FORMAT_KEYS.indexOf(k) })
+    return { format: k, label: FORMATS[k].label, n: groups[k].length, mean: ci.mean, low: ci.low, high: ci.high, reliability: reliability(groups[k].length) }
+  }).sort((a, b) => b.mean - a.mean || b.n - a.n)
+  const top = list[0]
+  const second = list[1]
+  const clear = !!(top && second && top.reliability.band !== 'insufficient' && second.reliability.band !== 'insufficient' && top.low > second.high)
+  return { metric: m, groups: list, untagged, tagged: (posts || []).length - untagged, clear }
+}
+
 /* ---------------- 書き出し ---------------- */
 
 export function csv(rows) {

@@ -291,13 +291,15 @@
         '<button type="button" id="vr-analyze" style="font-size:12px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>未分析の投稿を構成分析（最大8件）</button>' +
         '<button type="button" class="ghost" id="vr-del" style="font-size:12px;padding:8px 12px">選んだ投稿を削除</button></div>' +
       (S.ready.ai ? '' : '<p class="soc-small">構成分析には AI のキーが要ります（「設定状況 › キーの入力」）。</p>') +
-      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th></th><th>順位</th><th>タイトル</th><th>再生</th><th>反応率</th><th>伸び（再生/時）</th><th>長さ</th><th>総合点</th><th>フック</th></tr></thead><tbody>' +
+      formatStatsHtml(d.posts) +
+      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th></th><th>順位</th><th>タイトル</th><th>再生</th><th>反応率</th><th>伸び（再生/時）</th><th>長さ</th><th>総合点</th><th>フック</th><th>企画の型</th></tr></thead><tbody>' +
         (d.posts.length ? d.posts.map(function (p) {
           return '<tr><td><input type="checkbox" class="vr-pick" value="' + esc(p.id) + '" aria-label="選ぶ"></td><td>' + p.rank + '</td>' +
             '<td style="min-width:180px">' + (p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(p.title || '（無題）') + '</a>' : esc(p.title || '（無題）')) + '</td>' +
             '<td>' + int(p.views) + '</td><td>' + pct(p.engagement_rate) + '</td><td>' + int(p.velocity) + '</td><td>' + sec(p.duration_sec) + '</td>' +
-            '<td>' + (p.score == null ? '—' : p.score.toFixed(2)) + '</td><td>' + (p.analysis ? esc(V.HOOK_LABELS[p.analysis.hook_type] || p.analysis.hook_type) : '未分析') + '</td></tr>';
-        }).join('') : '<tr><td colspan="9" class="empty">まだありません。上の「投稿を追加する」から入れてください。</td></tr>') +
+            '<td>' + (p.score == null ? '—' : p.score.toFixed(2)) + '</td><td>' + (p.analysis ? esc(V.HOOK_LABELS[p.analysis.hook_type] || p.analysis.hook_type) : '未分析') + '</td>' +
+            '<td><select class="vr-fmt" data-id="' + esc(p.id) + '" aria-label="企画の型">' + formatOptions(p.format) + '</select>' + (p.format_source ? '<br><span class="soc-small">' + ({ ai: 'AIが推定', manual: '手で設定', guess: '言葉から推定' }[p.format_source] || '') + '</span>' : '') + '</td></tr>';
+        }).join('') : '<tr><td colspan="10" class="empty">まだありません。上の「投稿を追加する」から入れてください。</td></tr>') +
       '</tbody></table></div>' +
       (analysed.length ? '<h3 class="soc-step" style="margin-top:18px">構成分析</h3><p class="soc-small">画面内テロップは動画ファイルが無いので未測定です。下の数字はキャプションの統計です。</p>' +
         analysed.map(function (p) {
@@ -372,6 +374,28 @@
       await reload();
       say(r.data.analyzed + '件を分析しました。' + (r.data.left ? 'あと' + r.data.left + '件あります（もう一度押すと続きを分析します）。' : ''), true);
     });
+    host.querySelectorAll('.vr-fmt').forEach(function (sel) {
+      sel.addEventListener('change', async function () {
+        var p = d.posts.filter(function (x) { return x.id === sel.getAttribute('data-id'); })[0];
+        if (!p) return;
+        var r = await post({ action: 'post.save', item: Object.assign({}, p, { format: sel.value, format_source: sel.value ? 'manual' : '' }) });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('企画の型を保存しました。', true);
+      });
+    });
+    el('vr-guess').addEventListener('click', async function () {
+      var items = d.posts.filter(function (p) { return !p.format; }).map(function (p) {
+        return Object.assign({}, p, { format: V.guessFormat((p.title || '') + ' ' + (p.caption || '')), format_source: 'guess' });
+      }).filter(function (p) { return p.format; });
+      if (!items.length) { say('言葉から型を推せる投稿はありませんでした（AIの構成分析か、手で選んでください）。'); return; }
+      this.disabled = true;
+      var r = await send('/api/video', 'PUT', { kind: 'posts', project: S.pid, items: items });
+      this.disabled = false;
+      if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+      await reload();
+      say(items.length + '件に型を付けました（言葉からの推定です。違うものは表で直してください）。', true);
+    });
     el('vr-del').addEventListener('click', async function () {
       var ids = Array.prototype.map.call(document.querySelectorAll('.vr-pick:checked'), function (c) { return c.value; });
       if (!ids.length) { say('削除する投稿にチェックを入れてください。'); return; }
@@ -381,6 +405,29 @@
       await reload();
     });
   };
+
+  function formatOptions(v) {
+    return '<option value="">（未設定）</option>' + V.FORMAT_KEYS.map(function (k) { return '<option value="' + k + '"' + (v === k ? ' selected' : '') + '>' + V.FORMATS[k].label + '</option>'; }).join('');
+  }
+
+  /** 企画の型ごとの成績（競合）。件数が少ない型は「まだ判断できません」。 */
+  function formatStatsHtml(posts) {
+    var f = V.formatPerformance(posts, 'score');
+    var er = V.formatPerformance(posts, 'engagement_rate');
+    var byEr = {};
+    er.groups.forEach(function (g) { byEr[g.format] = g; });
+    return '<h3 class="soc-step" style="margin-top:14px">企画の型ごとの成績</h3>' +
+      '<p class="soc-small">競合の投稿に付けた型（競争・対決、挑戦、ビフォーアフターなど）ごとに、総合点と反応率の平均を比べます。区間は 95%（ブートストラップ）、件数が3本未満の型は「まだ判断できません」です。型は構成分析（AI）で付くほか、表の「企画の型」で手でも選べます。</p>' +
+      '<div class="vid-row" style="margin-bottom:6px"><button type="button" class="ghost" id="vr-guess" style="font-size:12px;padding:7px 12px">未設定の投稿に、言葉から型を付ける</button><span class="soc-small">型あり ' + f.tagged + '件・未設定 ' + f.untagged + '件</span></div>' +
+      (f.groups.length ? '<div class="tbl vid-scroll" style="max-height:none"><table class="vid-table" id="vr-formats"><thead><tr><th>企画の型</th><th>本数</th><th>総合点の平均（区間）</th><th>反応率の平均</th><th>信頼度</th></tr></thead><tbody>' +
+        f.groups.map(function (g, i) {
+          var e = byEr[g.format];
+          return '<tr><td>' + (i === 0 && f.clear ? '<b>' + esc(g.label) + '</b>' : esc(g.label)) + '</td><td>' + g.n + '</td><td>' + g.mean.toFixed(2) + '（' + g.low.toFixed(2) + '〜' + g.high.toFixed(2) + '）</td>' +
+            '<td>' + (e ? pct(e.mean) : '—') + '</td><td><span class="vid-tag ' + (g.reliability.band === 'insufficient' ? '' : g.reliability.band === 'weak' ? 'warn' : 'ok') + '">' + esc(g.reliability.label) + '（' + g.n + '本）</span></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="soc-small">' + (f.clear ? '一番上の型は、二番目と区間が重ならないので「よく見られている」と言えます。' : '区間が重なっているか件数が少ないため、どの型が強いかはまだ言い切れません。') + '</p>'
+      : '<p class="soc-small">型の付いた投稿がまだありません。</p>');
+  }
 
   /* ---------------- 3. 台本 ---------------- */
 
@@ -413,6 +460,7 @@
         '<textarea id="vs-topic" rows="3" placeholder="例：秋限定のかぼちゃのパン。1日30個。焼き上がりは11時。"></textarea>' +
         '<div class="vid-row" style="margin-top:6px">' +
           '<select id="vs-mode" aria-label="長さの種類">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '">' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>' +
+          '<select id="vs-format" aria-label="企画の型"><option value="">企画の型（おまかせ）</option>' + V.FORMAT_KEYS.map(function (k) { return '<option value="' + k + '">' + V.FORMATS[k].label + '</option>'; }).join('') + '</select>' +
           '<select id="vs-net" aria-label="投稿先"><option value="instagram">Instagram リール</option><option value="youtube">YouTube ショート</option><option value="tiktok">TikTok</option></select>' +
           '<input type="number" id="vs-dur" min="5" max="900" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
           '<button type="button" id="vs-gen" style="font-size:12.5px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>台本を作る</button>' +
@@ -432,7 +480,7 @@
       if (!topic) { say('テーマを入れてください。'); return; }
       this.disabled = true;
       say('AIが台本を書いています（30秒〜1分ほど）…', true);
-      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked });
+      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked, format: el('vs-format').value });
       this.disabled = false;
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
       S.scriptId = r.data.script.id;
@@ -495,6 +543,7 @@
   /** 見続けてもらう工夫（約束・冒頭・テンポ・山場・最後）。どれも目安の判定です。 */
   function retentionHtml(s) {
     var h = timelineHtml(s);
+    if (s.format && V.FORMATS[s.format]) h += res(null, '企画の型', esc(V.FORMATS[s.format].label) + '：' + esc(V.FORMATS[s.format].recipe) + '<br><span class="soc-small">小さなお店なら: ' + esc(V.FORMATS[s.format].small) + '</span>');
     var rc = V.rhythmCheck(s);
     if (rc.dur) {
       h += res(rc.ok, rc.mode === 'short' ? '注意の切り替え' : '山場', mark(rc.ok) + (rc.mode === 'short'
@@ -545,6 +594,7 @@
         fld('サムネ（表紙）の文字（10文字前後）', '<input type="text" id="ve-thumb" maxlength="60" value="' + esc(s.thumb_text) + '">') +
         fld('約束（見た人が得られることを1文で）', '<input type="text" id="ve-promise" maxlength="300" placeholder="例：カンパーニュの大きな穴ができる理由が分かる" value="' + esc(s.promise) + '">') +
         fld('確かめる言葉（空欄なら約束から自動。読点区切り）', '<input type="text" id="ve-kw" maxlength="200" placeholder="例：穴、カンパーニュ" value="' + esc((s.promise_keywords || []).join('、')) + '">') +
+        fld('企画の型', '<select id="ve-format">' + formatOptions(s.format) + '</select>') +
         fld('wow要素（うちにしか見せられないもの）', '<input type="text" id="ve-wow" maxlength="300" placeholder="例：15年使っている石窯から出す瞬間" value="' + esc(s.wow) + '">') +
       '</div></div></div>' +
       '<div class="soc-fields" style="margin-top:10px">' +
@@ -583,7 +633,7 @@
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
       s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
       s.thumb_text = el('ve-thumb').value; s.promise = el('ve-promise').value; s.wow = el('ve-wow').value;
-      s.loop = el('ve-loop').value === '1'; s.end_screen = el('ve-end').value;
+      s.loop = el('ve-loop').value === '1'; s.end_screen = el('ve-end').value; s.format = el('ve-format').value;
       s.promise_keywords = el('ve-kw').value.split(/[、,\s]+/).map(function (t) { return t.trim(); }).filter(Boolean);
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
       return s;
@@ -639,7 +689,7 @@
         check();
         return;
       }
-      if (e.target.id === 've-loop' || e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
+      if (e.target.id === 've-format' || e.target.id === 've-loop' || e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
       if (t.id === 've-hook-ai') {

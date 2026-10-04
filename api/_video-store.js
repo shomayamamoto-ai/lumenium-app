@@ -19,7 +19,7 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { HOOK_TYPES, RULES, PLATFORMS, MARKS } from './_video-core.js'
+import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS } from './_video-core.js'
 
 export const VK = {
   projects: `${KV}video:projects`,
@@ -126,6 +126,9 @@ export function cleanPost(p) {
     views: num(p && p.views, 0, 1e12), likes: num(p && p.likes, 0, 1e12), comments: num(p && p.comments, 0, 1e12), shares: num(p && p.shares, 0, 1e12),
     source: str(p && p.source, 20) || 'manual',
     analysis: cleanAnalysis(p && p.analysis),
+    // 企画の型（競争・対決など）と、誰が付けたか（ai / manual / guess）
+    format: FORMAT_KEYS.indexOf(p && p.format) >= 0 ? p.format : '',
+    format_source: ['ai', 'manual', 'guess'].indexOf(p && p.format_source) >= 0 ? p.format_source : '',
     added_at: iso(p && p.added_at) || new Date().toISOString(),
   }
 }
@@ -151,6 +154,7 @@ export function cleanScript(s) {
     promise_keywords: words(s && s.promise_keywords, 8, 30), wow: str(s && s.wow, 300),
     // 最後: ショートはループにするか、長尺は終了画面のメモ
     loop: !!(s && s.loop), end_screen: str(s && s.end_screen, 300),
+    format: FORMAT_KEYS.indexOf(s && s.format) >= 0 ? s.format : '',
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
     lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),

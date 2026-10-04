@@ -444,6 +444,35 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('ループ（最後が1行目につながる）・CTA は最後に1回1つ・長尺の終了画面')
 }
 
+/* ---- 企画の型 ---- */
+{
+  assert.equal(V.guessFormat('店長 vs 新人 クロワッサン早作り対決'), 'contest')
+  assert.equal(V.guessFormat('1000円だけで作るランチ'), 'challenge')
+  assert.equal(V.guessFormat('人気パンTOP3'), 'ranking')
+  assert.equal(V.guessFormat('カット前と後 ビフォーアフター'), 'before_after')
+  assert.equal(V.guessFormat('朝4時の仕込み、全部見せます'), 'behind')
+  assert.equal(V.guessFormat('冷凍パンは本当においしい？検証'), 'test')
+  assert.equal(V.guessFormat('次の新作、コメントで投票して'), 'vote')
+  assert.equal(V.guessFormat('おいしいパン'), '')
+  const P = (format, score, er) => ({ format, score, engagement_rate: er })
+  const posts = [
+    P('contest', 0.9), P('contest', 0.85), P('contest', 0.8), P('contest', 0.88), P('contest', 0.92), P('contest', 0.86),
+    P('behind', 0.3), P('behind', 0.35), P('behind', 0.25), P('behind', 0.32),
+    P('vote', 0.99), P('vote', 0.95),
+    P('', 0.5), P('nope', 0.4),
+  ]
+  const f = V.formatPerformance(posts)
+  assert.equal(f.untagged, 2, '未設定と知らない型は数えない')
+  assert.equal(f.tagged, 12)
+  assert.deepEqual(f.groups.map((g) => [g.format, g.n, g.reliability.band]), [['vote', 2, 'insufficient'], ['contest', 6, 'usable'], ['behind', 4, 'weak']])
+  assert.equal(f.clear, false, '一番上が2本だけなら「強い」と言わない')
+  const f2 = V.formatPerformance(posts.filter((p) => p.format !== 'vote'))
+  assert.equal(f2.groups[0].format, 'contest')
+  assert.equal(f2.clear, true, '区間が重ならなければ差があると言う')
+  assert.deepEqual(V.formatPerformance(posts), f, '種を固定しているので毎回同じ')
+  ok('企画の型（言葉からの推定・型ごとの成績と信頼度）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

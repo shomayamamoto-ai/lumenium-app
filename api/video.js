@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 
 const MODEL = 'claude-opus-5-5'
@@ -166,9 +166,10 @@ const ANALYSIS_SCHEMA = {
       type: 'array',
       items: {
         type: 'object', additionalProperties: false,
-        required: ['post_id', 'hook_text', 'hook_type', 'beats', 'cta', 'takeaways'],
+        required: ['post_id', 'format', 'hook_text', 'hook_type', 'beats', 'cta', 'takeaways'],
         properties: {
           post_id: { type: 'string' },
+          format: { type: 'string', enum: FORMAT_KEYS.concat(['other']) },
           hook_text: { type: 'string' },
           hook_type: { type: 'string', enum: HOOK_TYPES },
           beats: {
@@ -199,6 +200,7 @@ async function analyze(req, cfg, project, ids) {
     '次のショート動画（競合）の構成を推定してください。手元にあるのはタイトル・キャプション・長さ・数字だけで、映像と画面内の文字は見られません。',
     '分かることだけを書き、映像の中身を想像で断定しないでください。beats の秒数は長さに収め、hook はおおむね最初の3秒です。',
     'takeaways は「自社がまねしてよい型」を日本語で短く2〜3個（文言のコピーではなく構成の工夫）。',
+    `format は企画の型: ${FORMAT_KEYS.map((k) => `${k}=${FORMATS[k].label}`).join('、')}。どれにも当たらなければ other。`,
     '',
     ...pick.map((p) => `post_id: ${p.id}\nタイトル: ${p.title}\nキャプション: ${p.caption.slice(0, 600)}\n長さ: ${p.duration_sec || '不明'}秒\n再生: ${p.views ?? '不明'} / 反応率: ${p.engagement_rate != null ? (p.engagement_rate * 100).toFixed(1) + '%' : '不明'}\n`),
   ].join('\n')
@@ -210,7 +212,9 @@ async function analyze(req, cfg, project, ids) {
     const x = by[p.id]
     const raw = { ...p }
     delete raw.engagement_rate; delete raw.velocity; delete raw.score; delete raw.rank
-    return cleanPost({ ...raw, analysis: { ...x, caption: captionStats(p.caption, p.duration_sec), hashtags: captionStats(p.caption).hashtags, model: MODEL } })
+    // 手で付けた型は、AI の推定で上書きしません。
+    const fmt = raw.format_source === 'manual' ? { format: raw.format, format_source: 'manual' } : FORMAT_KEYS.indexOf(x.format) >= 0 ? { format: x.format, format_source: 'ai' } : {}
+    return cleanPost({ ...raw, ...fmt, analysis: { ...x, caption: captionStats(p.caption, p.duration_sec), hashtags: captionStats(p.caption).hashtags, model: MODEL } })
   })
   const saved = await putItems(cfg, project.id, 'posts', updated)
   if (!saved.ok) return json(saved, 400)
@@ -302,6 +306,8 @@ async function generate(req, cfg, project, b) {
   const brand = project.brand || {}
   const top = posts.slice(0, 6)
   const M = RULES.modes[mode]
+  const format = FORMAT_KEYS.indexOf(b.format) >= 0 ? b.format : ''
+  const fstats = formatPerformance(posts).groups.filter((g) => g.reliability.band !== 'insufficient').slice(0, 2)
   const base = [
     `テーマ: ${topic}`,
     `投稿先: ${P.label}`,
@@ -310,6 +316,8 @@ async function generate(req, cfg, project, b) {
     brand.tone ? `口調: ${brand.tone}` : '',
     (brand.banned_words || []).length ? `使ってはいけない言葉: ${brand.banned_words.join('、')}` : '',
     '',
+    format ? `企画の型: ${FORMATS[format].label}（${FORMATS[format].recipe} 小さなお店なら: ${FORMATS[format].small}）` : '',
+    !format && fstats.length ? `競合でよく見られている企画の型（参考程度）: ${fstats.map((g) => g.label).join('、')}` : '',
     '参考にする競合（構成の型だけを参考にし、言い回しはまねしないこと）:',
     ...top.map((p, i) => `${i + 1}. ${p.title}${p.analysis ? `（フック: ${p.analysis.hook_type}「${p.analysis.hook_text}」、構成: ${(p.analysis.beats || []).map((x) => x.label).join('→')}）` : ''}`),
     '',
@@ -366,6 +374,7 @@ async function generate(req, cfg, project, b) {
     platform,
     length_mode: mode,
     loop,
+    format,
     end_screen: mode === 'long' ? '次に見てほしい動画を終了画面に置く（最後の5〜20秒）' : '',
     target_duration_sec: target,
     hashtags: (s.hashtags || []).map((t) => String(t).replace(/^#/, '')).slice(0, RULES.post.MAX_HASHTAGS),
