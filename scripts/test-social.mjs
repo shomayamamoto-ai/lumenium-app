@@ -760,6 +760,51 @@ await test('定型文の保存：PUT で全体を置き換え、GET で返る', 
   assert.deepEqual(list.map((t) => [t.id, t.title, t.link]), [['tpl-000001', '新メニュー', 'https://lumenium.net/menu']])
 })
 
+console.log('見え方の区切り（目安）')
+await test('短い本文は畳まれない。Threads・Bluesky・X には区切りが無い', () => {
+  assert.equal(T.foldAt('instagram', '秋の新メニューです。'), -1)
+  assert.equal(T.foldAt('threads', 'あ'.repeat(400)), -1)
+  assert.equal(T.foldAt('bluesky', 'あ'.repeat(290)), -1)
+  assert.equal(T.foldAt('x', 'あ'.repeat(140)), -1)
+})
+await test('Instagram：日本語は125文字より先に2行で畳まれる（全角=半角2つ分の幅）', () => {
+  const at = T.foldAt('instagram', 'あ'.repeat(200))
+  // 1行目はアカウント名（幅12）のぶん短い：(50-12)/2 = 19文字、2行目 25文字
+  assert.equal(at, 19 + 25)
+  // 半角だけでも、125文字より先に2行（幅50×2 − 名前の12 = 88文字）に届く
+  assert.equal(T.foldAt('instagram', 'a'.repeat(300)), 38 + 50)
+})
+await test('改行は1行として数え、区切りの前の改行は見えている側に入れない', () => {
+  const t = '1行目\n2行目\n3行目は見えない'
+  assert.equal(T.foldAt('instagram', t), '1行目\n2行目'.length)
+  assert.equal(T.foldAt('facebook', '一\n二\n三\n四'), '一\n二\n三'.length)
+})
+await test('LinkedIn は約210文字、Facebook は約480文字か3行の早いほう', () => {
+  assert.equal(T.foldAt('linkedin', 'a'.repeat(300)), 168) // 3行 × 幅56
+  assert.equal(T.foldAt('linkedin', 'a b '.repeat(100)) <= 210, true)
+  assert.equal(T.foldAt('facebook', 'a'.repeat(170)), 168)
+})
+await test('LINE は通知に出る約30文字', () => {
+  assert.equal(T.foldAt('line', 'あ'.repeat(29)), -1)
+  assert.equal(T.foldAt('line', 'あ'.repeat(31)), 30)
+  assert.equal(T.foldCheck('line', 'あ'.repeat(40) + 'ご予約はこちら').notice, true)
+})
+await test('URL の途中では区切らない', () => {
+  const t = 'あ'.repeat(40) + 'https://lumenium.net/menu-autumn-limited'
+  const at = T.foldAt('instagram', t)
+  assert.equal(at, 40)
+})
+await test('大事なこと（リンク・予約・値段）が区切りの後ろだけにあると知らせる', () => {
+  const late = T.foldCheck('facebook', 'あ'.repeat(200) + '\nご予約は https://lumenium.net/ から。680円です。')
+  assert.deepEqual(late.late, ['リンク', '「ご予約」', '値段や日付（680円）'])
+  assert.match(late.warnings[0], /大事なことは最初の1〜2行に/)
+  const early = T.foldCheck('facebook', 'ご予約は https://lumenium.net/ から。680円です。\n' + 'あ'.repeat(200))
+  assert.deepEqual(early.late, [])
+  assert.equal(early.warnings.length, 0)
+  // Instagram の本文のリンクは押せないので、リンクは数えない
+  assert.deepEqual(T.foldCheck('instagram', 'あ'.repeat(60) + 'https://lumenium.net/').late, [])
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

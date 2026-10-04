@@ -609,6 +609,11 @@
   .soc-pv .noimg { aspect-ratio: 1 / 1; max-height: 220px; display: flex; align-items: center; justify-content: center; background: #f6f4ef; border: 1px dashed var(--border); border-radius: 9px; font-size: 12px; color: #b42318; }
   .soc-pv.line { background: #e9edf2; }
   .soc-pv.line .bubble { background: #fff; border-radius: 14px; padding: 9px 12px; display: inline-block; max-width: 100%; }
+  /* 畳まれる位置の印（「…続きを読む」など）と、その先（押した人だけに見える部分） */
+  .soc-fold { display: block; margin: 4px 0; padding-top: 4px; border-top: 1px dashed #b45309; color: #b45309; font-size: 11.5px; font-weight: 700; white-space: normal; }
+  .soc-fold-rest { color: #8a8a94; }
+  .soc-notice { display: flex; flex-direction: column; gap: 2px; background: #fff; border-radius: 12px; padding: 8px 12px; font-size: 12px; line-height: 1.6; box-shadow: 0 1px 0 rgba(23,23,28,.08); }
+  .soc-notice .ttl { font-weight: 700; }
   .soc-pv .dest { font-size: 11px; color: var(--sub); margin-top: 9px; border-top: 1px solid var(--border); padding-top: 7px; overflow-wrap: anywhere; line-height: 1.7; }
   .soc-when { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
   .soc-when label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -6867,7 +6872,10 @@ window.lumAdmin = {
     var n = netById(id);
     // API の料金の注意は、ここから送るときだけの話です（手で貼るなら掛かりません）。
     var warns = k.warnings.concat(a.warnings, b.warnings).filter(function (w) { return (n && n.ready) || !/ドル/.test(w); });
-    return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: warns };
+    // 畳まれる位置（「…続きを読む」など）より後ろにだけ、大事なことがあるとき。
+    var f = TX.foldCheck(id, c.text);
+    warns = warns.concat(f.warnings);
+    return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: warns, fold: f };
   }
 
   /* ---- 1 どこに出すか ---- */
@@ -7418,10 +7426,14 @@ window.lumAdmin = {
     if (id === 'instagram') {
       return '<div class="soc-pv">' + who +
         (c.images.length ? pics : '<div class="noimg">画像が必要です</div>') +
-        '<div class="tx" style="margin-top:8px"><b>' + name + '</b> ' + hl(c.text) + '</div>' + destHtml + '</div>';
+        '<div class="tx" style="margin-top:8px"><b>' + name + '</b> ' + folded(c.text, k.fold) + '</div>' + destHtml + foldNote(k.fold) + '</div>';
     }
     if (id === 'line') {
-      return '<div class="soc-pv line"><div class="bubble"><div class="tx">' + hl(c.text) + '</div></div>' + pics + destHtml + '</div>';
+      var at = k.fold && k.fold.at >= 0 ? k.fold.at : -1;
+      var head = at >= 0 ? c.text.slice(0, at) : c.text;
+      var notice = '<div class="soc-notice"><span class="ttl">' + name + '</span><span>' + esc(head.replace(/\s+/g, ' ')) + (at >= 0 ? '…' : '') + '</span></div>' +
+        '<div class="soc-small" style="margin:2px 0 8px">↑ スマホの通知・トーク一覧の見え方（目安）。何のお知らせかが、ここで分かるようにします。</div>';
+      return '<div class="soc-pv line">' + notice + '<div class="bubble"><div class="tx">' + hl(c.text) + '</div></div>' + pics + destHtml + '</div>';
     }
     if (id === 'gbp') {
       var act = S.gbpAction || 'LEARN_MORE';
@@ -7432,7 +7444,18 @@ window.lumAdmin = {
         destHtml + '</div>';
     }
     var card = c.linkSeparate ? '<div class="card">' + esc((function () { try { return new URL(c.link).hostname; } catch (_) { return ''; } })()) + '<br>' + esc(readable(c.link)) + '</div>' : '';
-    return '<div class="soc-pv">' + who + '<div class="tx">' + hl(c.text) + '</div>' + pics + card + destHtml + '</div>';
+    return '<div class="soc-pv">' + who + '<div class="tx">' + folded(c.text, k.fold) + '</div>' + pics + card + destHtml + foldNote(k.fold) + '</div>';
+  }
+
+  /* 畳まれる位置に印を付けます。その先は薄く出し、「ここから先は押した人だけ」と書きます。 */
+  function folded(text, f) {
+    if (!f || f.at < 0 || f.notice) return hl(text);
+    return hl(text.slice(0, f.at)) + '<span class="soc-fold">' + esc(f.label) + '</span>' +
+      '<span class="soc-fold-rest" title="ここから先は「' + esc(f.label.replace(/^…/, '')) + '」を押した人だけに見えます">' + hl(text.slice(f.at)) + '</span>';
+  }
+  function foldNote(f) {
+    if (!f || f.at < 0 || f.notice) return '';
+    return '<div class="soc-small" style="margin-top:6px">点線から先は「' + esc(f.label.replace(/^…/, '')) + '」を押した人だけに見えます。' + esc(TX.FOLD_NOTE) + '</div>';
   }
 
   function refreshVariant() {

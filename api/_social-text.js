@@ -314,6 +314,97 @@ export function check(net, c) {
   return { count: count, limit: r.limit, errors: errors, warnings: warnings }
 }
 
+/* ============================================================ 見え方の区切り ==
+   長い本文は、各SNSのフィードで途中から畳まれます（「…続きを読む」など）。
+   見る人の多くは畳まれた先を開きません。なので、どこで畳まれるかを本文の
+   上に印で出し、リンクや「予約は…」のような大事なところが畳まれた先に
+   あるときに知らせます。
+
+   どれも目安です。各SNSは区切りを公表しておらず、端末の画面幅・文字の大きさ・
+   アプリの版で前後します。ここでは「文字数」と「行数」の両方を持ち、先に
+   来たほうで区切ります。行数は、半角を1・全角を2として幅（width）で折り返して
+   数えます（日本語は半角の2倍の幅なので、125文字より先に2行が尽きます）。
+
+     chars  この文字数を超えると畳まれる（英語圏で言われる目安）
+     lines  この行数を超えると畳まれる（スマホの縦画面）
+     width  1行の幅（半角いくつ分か。スマホ縦の目安）
+     lead   1行目の頭に付くもの（Instagram はアカウント名）の幅
+     notice true なら「畳まれる」ではなく「通知・トーク一覧に出るのはここまで」
+
+   Threads・Bluesky・X は本文が上限までそのまま出るので、ここにはありません。 */
+export var FOLD = {
+  instagram: { chars: 125, lines: 2, width: 50, lead: 12, label: '…続きを読む' },
+  facebook: { chars: 480, lines: 3, width: 56, lead: 0, label: '…もっと見る' },
+  linkedin: { chars: 210, lines: 3, width: 56, lead: 0, label: '…さらに表示' },
+  line: { chars: 30, lines: 0, width: 0, lead: 0, label: '通知・トーク一覧に出るのはここまで', notice: true },
+}
+export var FOLD_NOTE = '区切りの位置は目安です。スマホの画面幅や文字の大きさ、アプリの版で前後します。'
+
+/** 本文のどこで畳まれるか（text の位置）。畳まれないときは -1。
+ *  URL の途中では区切りません（区切りがかかる URL は、まるごと先に回します）。 */
+export function foldAt(net, text) {
+  var r = FOLD[net]
+  var s = String(text == null ? '' : text)
+  if (!r || !s) return -1
+  var urls = findUrls(s)
+  var chars = 0, line = 1, col = r.lead || 0
+  var i = 0
+  var cut = -1
+  for (var ch of s) {
+    if (chars >= r.chars) { cut = i; break }
+    if (ch === '\n') {
+      if (r.lines && line >= r.lines) { cut = i; break }
+      line++; col = 0; chars++; i += 1
+      continue
+    }
+    if (r.width) {
+      var w = cpWeight(ch.codePointAt(0)) / X_RULES.scale
+      if (col + w > r.width) {
+        if (r.lines && line >= r.lines) { cut = i; break }
+        line++; col = 0
+      }
+      col += w
+    }
+    chars++
+    i += ch.length
+  }
+  if (cut < 0) return -1
+  for (var k = 0; k < urls.length; k++) if (cut > urls[k].start && cut < urls[k].end) cut = urls[k].start
+  // 区切りの直前の空白・改行は、見えている側の最後に含めません。
+  while (cut > 0 && /\s/.test(s.charAt(cut - 1))) cut--
+  return cut > 0 ? cut : 0
+}
+
+/* 「大事なところ」とみなすもの。見る人に動いてほしい言葉（予約・問い合わせ
+   など）と、値段・日付。リンクは別に数えます。 */
+var CTA_RE = /ご?予約|お?問い?合わ?せ|お?申し?込|お電話|電話で|DM|プロフィールのリンク|詳しくは|詳細は|ご購入|ご注文|クーポン|ご来店|お気軽に|こちらから|リンクから|受付中|締め切り|締切/
+var KEY_RE = /[0-9０-９][0-9０-９,，]*円|[0-9０-９]+[%％]\s*(?:OFF|オフ|引)|[0-9０-９]{1,2}[\/／月][0-9０-９]{1,2}日?/
+
+/** 区切りの位置と、区切りより後ろにだけある大事なもの。
+ *  戻り値: { at, label, notice, late: ['リンク', '「予約」' …], warnings: [] } */
+export function foldCheck(net, text) {
+  var r = FOLD[net]
+  var s = String(text == null ? '' : text)
+  var at = foldAt(net, s)
+  var out = { at: at, label: r ? r.label : '', notice: !!(r && r.notice), late: [], warnings: [] }
+  if (at < 0) return out
+  var head = s.slice(0, at), tail = s.slice(at)
+  // Instagram の本文のリンクは押せないので、ここでは数えません（別の注意が出ます）。
+  if (net !== 'instagram' && findUrls(tail).length && !findUrls(head).length) out.late.push('リンク')
+  var m = tail.match(CTA_RE)
+  if (m && !CTA_RE.test(head)) out.late.push('「' + m[0] + '」')
+  var k = tail.match(KEY_RE)
+  if (k && !KEY_RE.test(head)) out.late.push('値段や日付（' + k[0] + '）')
+  if (out.late.length) {
+    out.warnings.push((r.notice
+      ? '通知やトーク一覧に出るのは最初の約' + r.chars + '文字です。'
+      : '「' + r.label + '」で畳まれる位置より後ろに') +
+      (r.notice ? out.late.join('・') + ' はその先にあります。' : '、' + out.late.join('・') + ' があります。') +
+      '多くの人は畳まれた先を開きません。大事なことは最初の1〜2行に。（区切りは目安です）')
+  }
+  return out
+}
+
 /* ===================================================== 投稿前チェック（表現） ==
    出す前に「言い方」で引っかかりそうなところを拾います。決まった言葉と形を
    探すだけの、機械的な確認です。法律の判断はしません——同じ「日本一」でも、
