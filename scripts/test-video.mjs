@@ -554,6 +554,8 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   assert.equal(ideas[0].target.metric, 'hold_3s')
   assert.equal(ideas[0].target.baseline, 0.6)
   assert.equal(ideas[1].stage, 'plan')
+  const q = V.nextHypotheses({ mode: 'short', duration: 16, drops: mapped, hold3: 0.6, hookType: 'question' })
+  assert.equal(q[0].title, '約束の言葉を冒頭3秒に入れる', 'すでに問いかけなら、問いかけにする案は出さない')
   // 終わり近くの離脱 → 最後を短く
   const endIdeas = V.nextHypotheses({ mode: 'short', duration: 16, drops: [{ from: 14, to: 16, at: 14, drop: 0.1, pct: 10, hook: false, line: 3 }], hold3: 0.85 })
   assert.deepEqual(endIdeas.map((x) => x.title), ['最後を短く、CTAは1つに'])

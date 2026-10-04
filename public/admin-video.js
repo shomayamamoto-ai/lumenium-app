@@ -544,9 +544,11 @@
   function retentionHtml(s) {
     var h = timelineHtml(s);
     if (s.format && V.FORMATS[s.format]) h += res(null, '企画の型', esc(V.FORMATS[s.format].label) + '：' + esc(V.FORMATS[s.format].recipe) + '<br><span class="soc-small">小さなお店なら: ' + esc(V.FORMATS[s.format].small) + '</span>');
+    // 順番: 約束 → 冒頭 → 切り替え・山場 → テンポ → 最後（動画の頭から順に）。
     var rc = V.rhythmCheck(s);
+    var rhythm = '';
     if (rc.dur) {
-      h += res(rc.ok, rc.mode === 'short' ? '注意の切り替え' : '山場', mark(rc.ok) + (rc.mode === 'short'
+      rhythm = res(rc.ok, rc.mode === 'short' ? '注意の切り替え' : '山場', mark(rc.ok) + (rc.mode === 'short'
         ? '印（切り替え・山場）の間隔の目安は約' + rc.target + '秒、' + rc.warn + '秒を超えたら注意です。'
         : '山場の間隔の目安は約' + (rc.target / 60) + '分、' + (rc.warn / 60) + '分を超えたら注意です。') +
         (rc.over.length ? '<br>' + rc.over.map(function (g) { return fmtT(g.from) + '〜' + fmtT(g.to) + '（' + fmtT(g.sec) + '）'; }).join('、') + ' の間に' + (rc.mode === 'short' ? '切り替え（新しい画・音・問い）' : '山場（ルール変更・トラブル・発表・どんでん返し）') + 'がありません。行の「印」で付けられます。' : '<br>間隔は目安に収まっています。') +
@@ -570,6 +572,7 @@
         return '<span class="vid-hook"><span class="vid-tag">' + esc(V.HOOK_LABELS[x.type] || x.type) + '</span> ' + esc(x.narration) + (x.telop ? '（テロップ: ' + esc(x.telop) + '）' : '') +
           '<br><span class="soc-small">' + esc(x.why) + '</span> <button type="button" class="linkish ve-hook-use" data-i="' + i + '">1行目に使う</button></span>';
       }).join('') + '</span>' : ''));
+    h += rhythm;
     var useShots = (s.shots || []).length > 0;
     var tc = V.shotLengthCheck(useShots ? s.shots : s.lines, s);
     h += res(tc.ok, 'テンポ（同じ画の長さ）', mark(tc.ok) + (useShots ? '絵コンテ' : '行') + 'の長さ: 平均 ' + tc.avg + '秒・最長 ' + (tc.longest ? tc.longest.sec : 0) + '秒（目安 ' + tc.target[0] + '〜' + tc.target[1] + '秒、' + tc.max + '秒を超えたら注意）。' +
@@ -1517,6 +1520,7 @@
     });
   };
 
+  function hookTypeOf(u, script) { return (script && (script.hook_type || V.hookCheck(script).type)) || u.hook_type || ''; }
   function pubScript(u) { return (S.data.scripts || []).filter(function (s) { return s.id === u.script_id; })[0] || null; }
 
   /** 1本ぶんの「数字から学ぶ」: 目安との比べ・離脱点と台本の行・次の仮説。 */
@@ -1527,7 +1531,7 @@
     var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
     var bench = V.benchmarks(snap, dur, mode);
     var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
-    var ideas = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur) });
+    var ideas = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur), hookType: hookTypeOf(u, script) });
     var h = '<details class="soc-more vm-learn"' + (open ? ' open' : '') + '><summary>' + esc(String(u.title || u.caption || '').slice(0, 40)) + '　<span class="vid-tag">' + (mode === 'long' ? '長尺' : 'ショート') + '</span></summary><div style="margin-top:6px">';
     h += bench.length ? bench.map(function (b) { return res(b.level === 'ok' ? true : b.level === 'ng' ? false : null, b.key === 'hold_3s' ? '3秒維持率' : '平均視聴率', esc(b.text)); }).join('')
       : '<p class="soc-small">平均視聴秒数か3秒維持率が入ると、目安と比べられます。</p>';
@@ -1580,7 +1584,7 @@
         var mode = script ? V.lengthMode(script) : 'short';
         var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
         var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
-        var x = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur) })[Number(b.getAttribute('data-i'))];
+        var x = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur), hookType: hookTypeOf(u, script) })[Number(b.getAttribute('data-i'))];
         if (!x) return;
         var r = await post({ action: 'pdca.save', item: Object.assign({}, x, { publication_ids: [] }) });
         if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }

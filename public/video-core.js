@@ -371,6 +371,7 @@ function hookCheck(s) {
   if (tooLong) notes.push(`フックの言葉が長め（${charLen(normSpace(text))}文字）です。${M.HOOK_SEC}秒で言い切れる長さ（${M.HOOK_SEC * RULES.telop.MAX_CPS}文字まで）に。`)
   const pc = promiseCheck(s)
   const promiseOk = pc.status === 'ok'
+  if (pc.status === 'ng') notes.push(`約束の言葉（${pc.missing.join('・')}）がまだ冒頭にありません（上の「約束を守る」）。`)
   let whyWatch = null
   if (mode === 'long') {
     const idx = lines.findIndex((l) => (Number(l.start) || 0) < M.WHY_WATCH_SEC && WHY_CUES.test(String(l.narration || '') + String(l.telop || '')))
@@ -728,8 +729,15 @@ function nextHypotheses(ctx) {
   const h = c.hold3
   const hookDrop = drops.find((d) => d.hook)
   if (mode === 'short' && ((h != null && h < B.HOLD3_MIN) || hookDrop)) {
-    add('冒頭を疑問形にする', `最初の3秒で${hookDrop ? hookDrop.pct + '%' : '多くの人'}が離れています。1行目を問いかけにし、約束の言葉を最初の3秒に入れれば、3秒維持率が上がるはず。`, 'hold_3s', h,
-      ['1行目を問いかけに書き直す', '約束の言葉を最初のテロップに入れる', 'あいさつを消して本題から始める'])
+    const lost = hookDrop ? hookDrop.pct + '%' : '多くの人'
+    // すでに問いかけで始めているなら、問いかけにする案は出さず、約束を先に見せる案にします。
+    if (c.hookType === 'question') {
+      add('約束の言葉を冒頭3秒に入れる', `最初の3秒で${lost}が離れています。問いかけはできているので、タイトルとサムネで約束した言葉（または結果の画）を最初の3秒に見せれば、3秒維持率が上がるはず。`, 'hold_3s', h,
+        ['約束の言葉を1行目のテロップに入れる', '完成した画を最初の1秒に一瞬見せる'])
+    } else {
+      add('冒頭を疑問形にする', `最初の3秒で${lost}が離れています。1行目を問いかけにし、約束の言葉を最初の3秒に入れれば、3秒維持率が上がるはず。`, 'hold_3s', h,
+        ['1行目を問いかけに書き直す', '約束の言葉を最初のテロップに入れる', 'あいさつを消して本題から始める'])
+    }
   }
   for (const d of drops.slice(0, 3)) {
     if (d.hook && mode === 'short') continue
