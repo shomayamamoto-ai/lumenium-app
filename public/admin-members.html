@@ -6697,6 +6697,7 @@ window.lumAdmin = {
   var quotas = {};
   var style = { ng: [], notation: [] };
   var insights = null;
+  var prefs = { xAutoMetrics: false };
   var outcomeDays = 30;
   var tests = {};
   var imgMeta = {};
@@ -7753,10 +7754,29 @@ window.lumAdmin = {
         '投稿そのものは動きますが、SEO / AIO 分析の「発信量」も 0 のままになります。</p>';
       return;
     }
+    /* 反応の自動取得。X だけは読み取りに料金がかかるので、ここで選びます。 */
+    var auto = document.createElement('div');
+    auto.className = 'soc-small';
+    auto.style.cssText = 'margin-bottom:8px';
+    auto.innerHTML = '反応（いいね・コメントなど）は、毎朝の自動処理で投稿の1日後と7日後に取ります（LinkedIn・Googleビジネスプロフィールは取れません）。' +
+      '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer;margin-left:4px"><input type="checkbox" id="soc-auto-x"' + (prefs.xAutoMetrics ? ' checked' : '') + '> X も自動で取る（1件あたり約0.005ドル）</label>' +
+      ' <span id="soc-auto-st"></span>';
+    host.appendChild(auto);
+    var ax = auto.querySelector('#soc-auto-x');
+    ax.addEventListener('change', async function () {
+      ax.disabled = true;
+      var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: { xAutoMetrics: ax.checked } }) });
+      var dd = r.data || {};
+      if (dd.ok && dd.prefs) prefs = dd.prefs;
+      else ax.checked = !!prefs.xAutoMetrics;
+      el('soc-auto-st').textContent = dd.message || '';
+      ax.disabled = false;
+    });
     if (!list || !list.length) {
-      host.innerHTML = '<p class="share-note">まだこの画面からの投稿はありません。</p>';
+      host.insertAdjacentHTML('beforeend', '<p class="share-note">まだこの画面からの投稿はありません。</p>');
       return;
     }
+
     list.forEach(function (p) {
       var d = document.createElement('div');
       d.className = 'soc-post';
@@ -7910,6 +7930,7 @@ window.lumAdmin = {
     if (d.brand && d.brand.host) brand = { host: String(d.brand.host).replace(/^www\./, ''), name: d.brand.name || brand.name };
     info = { schedule: d.schedule || { ready: false, items: [] }, upload: d.upload || { ready: false }, threadsToken: d.threadsToken || null, stored: !!d.stored };
     style = d.style || style;
+    prefs = d.prefs || prefs;
     renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {

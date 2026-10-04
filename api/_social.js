@@ -945,6 +945,59 @@ async function metricsFor(r, req, ctx) {
 }
 
 
+/* ---- 毎朝の自動取得 ----
+   投稿の1日後と7日後に、反応を1回ずつ取りに行きます（押さなくても履歴と
+   「いつ出すと良いか」が埋まるように）。1回の実行で取るのは AUTO_MAX 件まで。
+   X は読み取りごとに料金がかかるので、設定で許したときだけです。
+   LinkedIn と Googleビジネスプロフィールは取れないので外します。 */
+export const AUTO_MAX = 8
+export const AUTO_STAGES = [
+  { stage: 'd1', after: 20 * 3600000, until: 3 * 86400000 },
+  { stage: 'd7', after: 6.5 * 86400000, until: 10 * 86400000 },
+]
+const NO_METRICS = ['linkedin', 'gbp']
+
+/** いま取りに行くべきもの [{ entryId, net, id, stage }]。すでにその段階より後に
+ *  取った数字があるもの（手で取った場合も含む）は外します。 */
+export function dueForRefresh(posts, now, opts = {}) {
+  const out = []
+  for (const p of posts || []) {
+    if (!p || !p.at) continue
+    const t = Date.parse(p.at)
+    const age = now - t
+    const st = AUTO_STAGES.find((s) => age >= s.after && age < s.until)
+    if (!st) continue
+    for (const r of p.results || []) {
+      if (!r.ok || !r.id || NO_METRICS.includes(r.net)) continue
+      if (r.net === 'x' && !opts.allowX) continue
+      if (opts.ready && !opts.ready.includes(r.net)) continue
+      const m = r.metrics
+      if (m && m.at && Date.parse(m.at) >= t + st.after) continue
+      out.push({ entryId: p.id || p.at, net: r.net, id: r.id, stage: st.stage })
+      if (out.length >= (opts.max || AUTO_MAX)) return out
+    }
+  }
+  return out
+}
+
+/** 毎朝の自動処理から呼びます。req は無し（保存先と環境変数の鍵だけを使います）。 */
+export async function refreshDue(opts = {}) {
+  const cfg = await cfgFor()
+  if (!cfg) return { ok: false, fetched: 0, message: '保存先がありません。' }
+  const nets = (await socialStatus()).filter((n) => n.scheduled).map((n) => n.id)
+  const due = dueForRefresh(await recentPosts(60), Date.now(), { allowX: !!opts.allowX, ready: nets, max: opts.max })
+  if (!due.length) return { ok: true, fetched: 0, failed: 0 }
+  const ctx = { deadline: Date.now() + Math.max(3000, opts.budget || 8000) }
+  const at = new Date().toISOString()
+  const got = await Promise.all(due.map(async (d) => {
+    try { return [d, { ...(await metricsFor({ net: d.net, id: d.id }, undefined, ctx)), at, stage: d.stage }] }
+    catch (e) { return [d, { ok: false }] }
+  }))
+  const save = got.filter(([, m]) => m.ok).map(([d, m]) => ['HSET', METRICS, `${d.entryId}|${d.net}`, JSON.stringify(m)])
+  if (save.length) { try { await pipeline(cfg, save) } catch (_) {} }
+  return { ok: true, fetched: save.length, failed: got.length - save.length }
+}
+
 /** Likes, comments and reach for one history entry, fetched only when asked
  *  (X charges per read) and kept with the entry so the next look is free. */
 export async function fetchMetrics(entryId, req) {

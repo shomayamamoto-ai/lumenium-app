@@ -695,7 +695,46 @@ await test('Google 接続：GBP は用途つきの署名で、別のトークン
   assert.ok(!decodeURIComponent(d.url).includes('calendar'))
 })
 
+console.log('反応の自動取得')
+await test('1日後と7日後だけ、X は許したときだけ、取れないSNSと取得済みは外す', () => {
+  const now = Date.parse('2026-09-25T00:00:00Z')
+  const H = 3600000
+  const ok = (net, metrics) => ({ net, ok: true, id: net + '-1', metrics })
+  const posts = [
+    { id: 'p1', at: new Date(now - 26 * H).toISOString(), results: [ok('x'), ok('threads'), ok('linkedin'), ok('gbp'), { net: 'line', ok: false }] },
+    { id: 'p7', at: new Date(now - 7 * 24 * H).toISOString(), results: [ok('facebook', { ok: true, at: new Date(now - 0.2 * 24 * H).toISOString() }), ok('bluesky', { ok: true, at: new Date(now - 7 * 24 * H + 2 * H).toISOString() })] },
+    { id: 'p4', at: new Date(now - 4 * 24 * H).toISOString(), results: [ok('threads')] },
+    { id: 'p0', at: new Date(now - 5 * H).toISOString(), results: [ok('threads')] },
+  ]
+  const due = S.dueForRefresh(posts, now)
+  assert.deepEqual(due.map((d) => d.entryId + ':' + d.net + ':' + d.stage), ['p1:threads:d1', 'p7:bluesky:d7'])
+  assert.ok(S.dueForRefresh(posts, now, { allowX: true }).some((d) => d.net === 'x'))
+  assert.equal(S.dueForRefresh(posts, now, { allowX: true, max: 1 }).length, 1)
+  assert.deepEqual(S.dueForRefresh(posts, now, { ready: ['bluesky'] }).map((d) => d.net), ['bluesky'])
+})
+await test('毎朝の取得：数字を保存し、履歴に載る', async () => {
+  lists.clear()
+  hashes.clear()
+  const at = new Date(Date.now() - 30 * 3600000).toISOString()
+  await S.logPosts({ id: 'auto1', at, text: 't', results: [{ net: 'threads', label: 'Threads', ok: true, id: 'TH9' }, { net: 'x', label: 'X', ok: true, id: '1' }] })
+  route = (u) => (u.includes('/TH9/insights') ? json({ data: [{ name: 'likes', values: [{ value: 4 }] }, { name: 'views', values: [{ value: 50 }] }] }) : null)
+  const r = await S.refreshDue({ allowX: false })
+  assert.equal(r.fetched, 1)
+  assert.ok(!calls.some((c) => c.url.includes('api.x.com')))
+  const p = (await S.recentPosts(5)).find((x) => x.id === 'auto1')
+  assert.equal(p.results.find((x) => x.net === 'threads').metrics.likes, 4)
+  assert.equal(p.results.find((x) => x.net === 'threads').metrics.stage, 'd1')
+  assert.equal((await S.refreshDue({ allowX: false })).fetched, 0)
+})
+await test('設定：X の自動取得は true のときだけ', async () => {
+  const st = await import('../api/_social-store.js')
+  assert.deepEqual(st.cleanPrefs({ xAutoMetrics: 'yes' }), { xAutoMetrics: false })
+  await st.savePrefs({ xAutoMetrics: true })
+  assert.deepEqual(await st.readPrefs(), { xAutoMetrics: true })
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 
 
 

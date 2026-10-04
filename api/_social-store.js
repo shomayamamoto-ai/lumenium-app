@@ -48,3 +48,25 @@ export async function saveStyle(input, req) {
   const r = await writeJson(STYLE_KEY, style, req)
   return { ...r, style, problems }
 }
+
+/* ---- SNS（文章）の動き方の設定 ----
+   ${KV}social:prefs  … { xAutoMetrics }
+   xAutoMetrics: 毎朝の自動処理で、X の反応も取るか。X は読み取り1回ごとに
+   料金がかかるので、はじめは取りません（ほかのSNSは無料なので取ります）。 */
+export const PREFS_KEY = `${KV}social:prefs`
+
+export function cleanPrefs(input) {
+  const p = input && typeof input === 'object' ? input : {}
+  return { xAutoMetrics: p.xAutoMetrics === true }
+}
+
+export async function readPrefs(req) {
+  return cleanPrefs(await readJson(PREFS_KEY, req, {}))
+}
+
+export async function savePrefs(input, req) {
+  const prefs = cleanPrefs(input)
+  const r = await writeJson(PREFS_KEY, prefs, req)
+  return { ...r, prefs }
+}
+

@@ -1265,7 +1265,8 @@
       schedule: { ready: true, message: '', code: '', jstHour: 9, items: socialQueue() },
       upload: { ready: true },
       threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 },
-      style: socialStyle()
+      style: socialStyle(),
+      prefs: { xAutoMetrics: false }
     };
   }
   /* このサイトの決まり（shape: _social-text.js validateStyle）。 */

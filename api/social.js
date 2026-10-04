@@ -15,6 +15,8 @@ export const config = { runtime: 'edge' }
 //   POST { action:'gbp-locations' }  -> the Business Profile locations the linked account manages
 //   POST { action:'gbp-pick', location } -> save which location GBP posts go to
 //   PUT  { style }                   -> the site's own wording rules (NG words, notation)
+//   PUT  { prefs }                   -> { xAutoMetrics } for the daily reaction refresh
+
 
 //
 // Admin key only, by the header only: this spends the site's own accounts, so
@@ -28,7 +30,7 @@ import {
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
 import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
-import { readStyle, saveStyle } from './_social-store.js'
+import { readStyle, saveStyle, readPrefs, savePrefs } from './_social-store.js'
 import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 
@@ -49,6 +51,7 @@ async function state(req) {
     upload: { ready: !!(await setting('BLOB_READ_WRITE_TOKEN', '', req)) },
     threadsToken: networks.some((n) => n.id === 'threads' && n.ready) ? await threadsTokenInfo(req) : null,
     style: await readStyle(req),
+    prefs: await readPrefs(req),
   }
 }
 
@@ -75,6 +78,10 @@ export async function PUT(req) {
   if (body && body.style && typeof body.style === 'object') {
     const r = await saveStyle(body.style, req)
     return json({ ...r, message: r.ok ? '決まりを保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  if (body && body.prefs && typeof body.prefs === 'object') {
+    const r = await savePrefs(body.prefs, req)
+    return json({ ...r, message: r.ok ? '設定を保存しました。' : r.message }, r.ok ? 200 : 400)
   }
   return json({ ok: false, message: '保存するものがありません。' }, 400)
 }
