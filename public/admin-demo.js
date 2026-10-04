@@ -1283,6 +1283,34 @@
       }
     };
   }
+  /* コメントの受信箱（shape: _social-inbox.js readInbox）。 */
+  function socialInbox() {
+    var cm = function (id, from, h, text, answered, hidden) {
+      return { id: id, text: text, from: from, at: ago(h * 3600000), hidden: !!hidden, canHide: true, replies: answered ? 1 : 0, answered: !!answered, mine: false };
+    };
+    return {
+      ok: true, at: new Date().toISOString(), unanswered: 3,
+      nets: {
+        instagram: { ok: true, connected: true, unanswered: 2, posts: [
+          { id: '1790001', text: '（サンプル投稿）秋の限定メニュー、はじめます。', url: '', at: ago(2 * DAY), count: 3, comments: [
+            cm('1780001', '@sample_user_a', 3, '（サンプル）栗のモンブラン、予約できますか？', false),
+            cm('1780002', '@sample_user_b', 20, '（サンプル）おいしそう！週末行きます', true),
+            cm('1780003', '@sample_spam', 26, '（サンプル）フォロワーを増やしませんか？DMください', false, true)
+          ] },
+          { id: '1790002', text: '（サンプル投稿）今週末は臨時休業です。', url: '', at: ago(5 * DAY), count: 1, comments: [
+            cm('1780004', '@sample_user_c', 50, '（サンプル）来週の営業時間はいつも通りですか？', false)
+          ] }
+        ] },
+        facebook: { ok: true, connected: true, unanswered: 1, posts: [
+          { id: '10_200', text: '（サンプル投稿）飲食店さまのホームページを公開しました。', url: '', at: ago(2 * DAY), count: 1, comments: [
+            cm('10_300', '（サンプル）山田さん', 30, '（サンプル）料金の目安を教えてください。', false)
+          ] }
+        ] }
+      },
+      notes: {}
+    };
+  }
+
   /* 承認の流れ（shape: _social-approve.js listApprovals）。 */
   function socialApprovals() {
     var a = function (id, status, label, days, text, targets, extra) {
@@ -1375,6 +1403,7 @@
 
       return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
     }
+    if (a === 'inbox') return socialInbox();
     notice(MSG);
     if (/^approval-/.test(a)) return blocked({ approvals: socialApprovals() });
     if (a === 'cancel') return blocked({ items: socialQueue() });

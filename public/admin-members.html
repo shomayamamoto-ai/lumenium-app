@@ -619,6 +619,14 @@
   .soc-count.over { color: #b42318; }
   .soc-issue { font-size: 11.5px; line-height: 1.75; margin-top: 4px; }
   .soc-issue.err { color: #b42318; }
+  .soc-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #b42318; color: #fff; vertical-align: middle; }
+  .soc-inbox-post { padding: 6px 0 8px; border-top: 1px solid var(--border); }
+  .soc-cm { margin: 6px 0 0 10px; padding: 8px 10px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
+  .soc-cm.hid { opacity: .7; }
+  .soc-cm .t { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .soc-cm .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 5px; }
+  .soc-cm .rp { flex: 1 1 200px; min-width: 0; width: auto; font-size: 12px; padding: 5px 8px; }
+  .soc-cm button { font-size: 11px; padding: 4px 10px; }
   .soc-issue.warn { color: #92400e; }
   .soc-pv { margin-top: 12px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; max-width: 520px; }
   .soc-pv .who { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
@@ -1195,6 +1203,8 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-queue" style="margin-bottom:18px"></div>
       <h3 class="soc-h">承認の流れ（承認待ち・承認済み・差し戻し）</h3>
       <div id="social-approvals" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">コメントの受信箱（Instagram・Facebook）<span class="soc-badge" id="social-inbox-badge" style="display:none"></span></h3>
+      <div id="social-inbox" style="margin-bottom:18px"></div>
       <h3 class="soc-h">カレンダー（予約と、これまでの投稿）</h3>
       <div id="social-cal" style="margin-bottom:18px"></div>
       <h3 class="soc-h">投稿の成果（サイトに来た人・問い合わせ）</h3>
@@ -8565,6 +8575,93 @@ window.lumAdmin = {
     x.disabled = false;
   }
 
+  /* ---- コメントの受信箱 ----
+     Instagram と Facebook ページの、最近の投稿（各5件）へのコメント。
+     読むのは「読み込む」を押したときだけです。返信と非表示はその場で。
+     まだ返していないコメント（自分の返信が無く、非表示でもないもの）の数を
+     見出しの横に出します。 */
+  var inbox = null;
+  var NET_NAME = { instagram: 'Instagram', facebook: 'Facebookページ' };
+  function renderInbox() {
+    var host = el('social-inbox');
+    var badge = el('social-inbox-badge');
+    var n = inbox && inbox.ok ? inbox.unanswered : 0;
+    badge.style.display = n ? '' : 'none';
+    badge.textContent = '未返信 ' + n;
+    var head = '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">' +
+      '<button type="button" class="ghost" id="soc-inbox-load" style="font-size:12px;padding:6px 12px">' + (inbox ? '読み込み直す' : 'コメントを読み込む') + '</button>' +
+      '<span class="soc-small">' + (inbox && inbox.at ? esc(new Date(inbox.at).toLocaleString('ja-JP')) + ' に読み込みました。' : '押したときだけ読みに行きます（自動では読みません）。') + '</span></div>' +
+      '<div class="soc-small" style="margin-bottom:6px">要る権限：Instagram は instagram_manage_comments、Facebook は pages_read_engagement・pages_read_user_content（読む）と pages_manage_engagement（返信・非表示）。' +
+      'X のメンション（返信）は読み取り1回ごとに料金がかかるため、ここでは扱いません（X の画面で確認してください）。</div>';
+    if (!inbox) { host.innerHTML = head; bindInboxLoad(); return; }
+    var body = ['instagram', 'facebook'].map(function (id) {
+      var r = inbox.nets && inbox.nets[id];
+      if (!r) return '';
+      var title = '<div style="font-size:12.5px;font-weight:700;margin:8px 0 4px">' + esc(NET_NAME[id]) + (r.ok ? '<span class="soc-small" style="font-weight:500">　未返信 ' + r.unanswered + '件</span>' : '') + '</div>';
+      if (!r.ok) return title + '<div class="soc-issue' + (r.connected ? ' err' : '') + '">' + esc(r.message || '読めませんでした。') + '</div>';
+      var posts = (r.posts || []).filter(function (p) { return p.comments.length || p.error; });
+      if (!posts.length) return title + '<p class="share-note" style="margin:0">最近の投稿にコメントはありません。</p>';
+      return title + posts.map(function (p) {
+        return '<div class="soc-inbox-post"><div class="soc-small">投稿：' + esc(p.text || '（本文なし）') + (p.url ? '　<a href="' + esc(window.lumSafeHref ? window.lumSafeHref(p.url) : p.url) + '" target="_blank" rel="noopener noreferrer">開く</a>' : '') + '</div>' +
+          (p.error ? '<div class="soc-issue err">' + esc(p.error) + '</div>' : '') +
+          p.comments.map(function (c) {
+            return '<div class="soc-cm' + (c.hidden ? ' hid' : '') + '" data-net="' + id + '" data-id="' + esc(c.id) + '">' +
+              '<div><b>' + esc(c.from || '（名前は非公開）') + '</b> <span class="soc-small">' + esc(c.at ? new Date(c.at).toLocaleString('ja-JP') : '') + '</span> ' +
+              (c.answered ? '<span class="soc-chip q">返信済み</span>' : c.hidden ? '<span class="soc-chip">非表示</span>' : '<span class="soc-chip ng">未返信</span>') + '</div>' +
+              '<div class="t">' + esc(c.text) + '</div>' +
+              '<div class="row"><input type="text" class="rp" maxlength="2000" placeholder="返信を書く" aria-label="返信">' +
+              '<button type="button" class="ghost" data-act="reply">返信</button>' +
+              (c.canHide ? '<button type="button" class="ghost" data-act="hide">' + (c.hidden ? '表示に戻す' : '非表示') + '</button>' : '') +
+              '<span class="soc-small st"></span></div></div>';
+          }).join('') + '</div>';
+      }).join('');
+    }).join('');
+    host.innerHTML = head + body;
+    bindInboxLoad();
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-cm'), function (row) {
+      var net = row.dataset.net, id = row.dataset.id;
+      var st = row.querySelector('.st');
+      var find = function () {
+        var r = inbox.nets[net];
+        for (var i = 0; i < r.posts.length; i++) for (var j = 0; j < r.posts[i].comments.length; j++) if (r.posts[i].comments[j].id === id) return r.posts[i].comments[j];
+        return null;
+      };
+      row.querySelector('[data-act="reply"]').addEventListener('click', async function () {
+        var b = this, msg = row.querySelector('.rp').value.trim();
+        if (!msg) { st.textContent = '返信の文を書いてください。'; return; }
+        if (!confirm(NET_NAME[net] + ' のコメントに、この内容で返信します（公開されます）。よろしいですか？\n\n' + msg)) return;
+        b.disabled = true; st.textContent = '送っています…';
+        var r = await postJson('/api/social', { action: 'inbox-reply', net: net, id: id, message: msg });
+        var d = r.data || {};
+        b.disabled = false;
+        st.textContent = d.message || (d.ok ? '返信しました。' : '返信できませんでした。');
+        if (d.ok) { var c = find(); if (c && !c.answered) { c.answered = true; inbox.nets[net].unanswered--; inbox.unanswered--; } renderInbox(); }
+      });
+      var hb = row.querySelector('[data-act="hide"]');
+      if (hb) hb.addEventListener('click', async function () {
+        var c = find();
+        var hide = !(c && c.hidden);
+        hb.disabled = true; st.textContent = '';
+        var r = await postJson('/api/social', { action: 'inbox-hide', net: net, id: id, hide: hide });
+        var d = r.data || {};
+        hb.disabled = false;
+        st.textContent = d.message || '';
+        if (d.ok && c) { c.hidden = hide; renderInbox(); }
+      });
+    });
+  }
+  function bindInboxLoad() {
+    el('soc-inbox-load').addEventListener('click', async function () {
+      var b = this;
+      b.disabled = true;
+      b.textContent = '読み込んでいます…';
+      var r = await postJson('/api/social', { action: 'inbox' });
+      inbox = r.data && r.data.nets ? r.data : { ok: false, nets: {}, unanswered: 0 };
+      if (!r.data || !r.data.nets) say((r.data && r.data.message) || 'コメントを読み込めませんでした。');
+      renderInbox();
+    });
+  }
+
   /* ---- プロフィールのリンク集（/links） ----
      Instagram・TikTok のプロフィールには、リンクを1つしか置けません。
      そこに /links?from=instagram を置くと、ここで決めた一覧が出ます。
@@ -8725,6 +8822,7 @@ window.lumAdmin = {
     renderLinks();
     approvals = d.approvals || [];
     renderApprovals();
+    renderInbox();
     renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {

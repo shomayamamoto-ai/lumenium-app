@@ -1122,6 +1122,59 @@ await test('管理画面：承認済みだけをそのまま投稿でき、投�
   assert.equal(sent.approvals.find((x) => x.id === id).status, 'done')
 })
 
+console.log('コメントの受信箱')
+function inboxRoute(u, init) {
+  if (/\/20\?fields=username/.test(u)) return json({ username: 'shop' })
+  if (/\/20\/media\?/.test(u)) return json({ data: [{ id: '501', caption: '秋の新作', permalink: 'https://instagram.example/p/1', comments_count: 2 }, { id: '502', caption: '静か', comments_count: 0 }] })
+  if (/\/501\/comments\?/.test(u)) return json({ data: [
+    { id: '601', text: '予約できますか？', username: 'a', hidden: false, replies: { data: [] } },
+    { id: '602', text: 'おいしそう', username: 'b', hidden: false, replies: { data: [{ username: 'shop' }] } },
+    { id: '603', text: '宣伝です', username: 'c', hidden: true },
+  ] })
+  if (/\/10\/posts\?/.test(u)) return json({ data: [{ id: '10_1', message: 'ページの投稿', permalink_url: 'https://facebook.example/1' }] })
+  if (/\/10_1\/comments\?/.test(u)) return json({ data: [
+    { id: '10_7', message: '料金は？', from: { id: '99', name: '山田' }, can_hide: true },
+    { id: '10_8', message: 'ありがとう', from: { id: '98', name: '佐藤' }, comments: { data: [{ from: { id: '10' } }] } },
+  ] })
+  if (/\/601\/replies$/.test(u)) return json({ id: '701' })
+  if (/\/10_7\/comments$/.test(u)) return json({ id: '702' })
+  if (/\/(601|10_7)$/.test(u)) return json({ success: true })
+  return null
+}
+await test('読み込み：最近の投稿のコメント、自分の返信があれば返信済み、未返信の数', async () => {
+  route = inboxRoute
+  const I = await import('../api/_social-inbox.js')
+  const r = await I.readInbox(undefined)
+  assert.equal(r.nets.instagram.ok, true)
+  assert.deepEqual(r.nets.instagram.posts[0].comments.map((c) => [c.id, c.answered, c.hidden]), [['601', false, false], ['602', true, false], ['603', false, true]])
+  assert.equal(r.nets.instagram.posts[1].comments.length, 0)
+  assert.ok(!calls.some((c) => c.url.includes('/502/comments')), 'コメントの無い投稿は読まない')
+  assert.deepEqual(r.nets.facebook.posts[0].comments.map((c) => [c.from, c.answered]), [['山田', false], ['佐藤', true]])
+  assert.equal(r.unanswered, 2)
+  assert.ok(calls.find((c) => c.url.includes('/10_1/comments')).url.includes('filter=toplevel'))
+})
+await test('返信と非表示：Instagram は /replies と hide、Facebook は /comments と is_hidden', async () => {
+  route = inboxRoute
+  const I = await import('../api/_social-inbox.js')
+  assert.equal((await I.replyComment('instagram', '601', 'ご予約はプロフィールのリンクからどうぞ', undefined)).ok, true)
+  assert.equal(new URLSearchParams(calls.find((c) => c.url.endsWith('/601/replies')).init.body).get('message'), 'ご予約はプロフィールのリンクからどうぞ')
+  assert.equal((await I.replyComment('facebook', '10_7', '3万円からです', undefined)).ok, true)
+  assert.equal((await I.hideComment('instagram', '601', true, undefined)).ok, true)
+  assert.equal(new URLSearchParams(calls.find((c) => c.url.endsWith('/601') && c.init.method === 'POST').init.body).get('hide'), 'true')
+  assert.equal((await I.hideComment('facebook', '10_7', false, undefined)).ok, true)
+  assert.equal(new URLSearchParams(calls.find((c) => c.url.endsWith('/10_7')).init.body).get('is_hidden'), 'false')
+  assert.equal((await I.replyComment('instagram', '../me', 'x', undefined)).ok, false)
+  assert.equal((await I.replyComment('x', '1', 'x', undefined)).ok, false)
+})
+await test('権限が足りないときは、Meta の返事に要る権限を添える', async () => {
+  route = (u) => (/\/media\?|\/posts\?|username/.test(u) ? json({ error: { message: '(#10) Requires instagram_manage_comments' } }, 403) : null)
+  const I = await import('../api/_social-inbox.js')
+  const r = await I.readInbox(undefined)
+  assert.equal(r.nets.instagram.ok, false)
+  assert.match(r.nets.instagram.message, /instagram_manage_comments/)
+  assert.match(r.nets.facebook.message, /pages_manage_engagement/)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

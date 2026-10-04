@@ -263,6 +263,9 @@ const CALLS = [
   ['social', 'POST', '', JSONH, { action: 'approval-create', text: 'スモーク', targets: ['x'], note: 'smoke' }],
   ['social', 'POST', '', JSONH, { action: 'approval-send', id: 'none' }],
   ['social-approve', 'GET', '?t=0000', {}],
+  // コメントの受信箱（押したときだけ読む）と返信。
+  ['social', 'POST', '', JSONH, { action: 'inbox' }],
+  ['social', 'POST', '', JSONH, { action: 'inbox-reply', net: 'instagram', id: '1', message: 'スモーク' }],
   ['social-approve', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=0000&decision=approve'],
   ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
   ['social-cron', 'GET', '', {}],

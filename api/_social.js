@@ -392,7 +392,7 @@ async function postFacebook(c, req, ctx) {
 
 /* ------------------------------------------------------------ Instagram -- */
 
-async function igToken(req) {
+export async function igToken(req) {
   return (await setting('IG_TOKEN', '', req)) || (await setting('FB_PAGE_TOKEN', '', req))
 }
 

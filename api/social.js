@@ -22,6 +22,8 @@ export const config = { runtime: 'edge' }
 //   POST { action:'approval-send', id }            -> post an approved draft now
 //   POST { action:'approval-schedule', id, date }  -> book an approved draft
 //   POST { action:'approval-delete', id }          -> withdraw / clear from the list
+//   POST { action:'inbox' }                        -> recent Instagram / Facebook comments (on demand only)
+//   POST { action:'inbox-reply', net, id, message } / { action:'inbox-hide', net, id, hide }
 
 
 
@@ -41,6 +43,7 @@ import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplate
 import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 import { createApproval, listApprovals, getApproval, markApproval, removeApproval, approvalUrl, APPROVE_DAYS } from './_social-approve.js'
+import { readInbox, replyComment, hideComment } from './_social-inbox.js'
 
 async function state(req) {
   const ready = scheduleReady()
@@ -151,6 +154,17 @@ export async function POST(req) {
     if (!r.ok) return json({ ok: false, message: r.message === 'NO_STORE' ? '保存先（Upstash Redis）が未接続のため保存できません。Vercel の環境変数 GBP_LOCATION に「' + loc + '」を入れてください。' : r.message }, 400)
     return json({ ok: true, message: '投稿する店舗を保存しました。', networks: await socialStatus(req) })
   }
+  /* ---- コメントの受信箱（押したときだけ読みます） ---- */
+  if (action === 'inbox') return json(await readInbox(req))
+  if (action === 'inbox-reply') {
+    const r = await replyComment(String(body.net || ''), String(body.id || ''), body.message, req)
+    return json(r, r.ok ? 200 : 400)
+  }
+  if (action === 'inbox-hide') {
+    const r = await hideComment(String(body.net || ''), String(body.id || ''), body.hide !== false, req)
+    return json(r, r.ok ? 200 : 400)
+  }
+
   /* ---- 承認の流れ ---- */
   if (action === 'approval-delete') {
     const gone = await removeApproval(String(body.id || ''))
