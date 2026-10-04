@@ -312,6 +312,9 @@ function check(net, c) {
   if (net === 'bluesky' && c.droppedImages > 0) {
     warnings.push('この画像はBlueskyには付きません。付けられるのは、この画面からアップロードした画像だけです（1枚1MBまで）。')
   }
+  if (ALT_NETS[net] && c.images.some(function (i) { return !String(i.alt || '').trim() })) {
+    warnings.push('画像に代替テキスト（読み上げ用の説明）がありません。「画像」の欄で、何が写っているかを一言書いておくと、目の不自由な方にも伝わります。')
+  }
 
   return { count: count, limit: r.limit, errors: errors, warnings: warnings }
 }
@@ -406,6 +409,64 @@ function foldCheck(net, text) {
   }
   return out
 }
+
+/* ============================================================== 画像の切り抜き ==
+   Instagram は縦横比 4:5（縦長）〜1.91:1（横長）の画像しか受け付けません。
+   画面の切り抜き道具は、ここの計算で枠を決めます（ブラウザの canvas で切り、
+   JPEG にしてからアップロードします）。
+
+   丸めの向き：縦長（比が1未満）は高さを切り下げ、横長は高さを切り上げます。
+   こうすると、丸めたあとの比が 4:5 より縦長に、1.91:1 より横長に
+   はみ出すことがありません（はみ出すと Instagram に断られます）。 */
+var CROP_PRESETS = [
+  { id: '4:5', ratio: 4 / 5, label: '4:5 縦長（Instagram）' },
+  { id: '1:1', ratio: 1, label: '1:1 正方形' },
+  { id: '1.91:1', ratio: 1.91, label: '1.91:1 横長' },
+  { id: '9:16', ratio: 9 / 16, label: '9:16 ストーリーズ・LINE' },
+]
+
+function heightFor(w, ratio) {
+  return ratio >= 1 ? Math.ceil(w / ratio - 1e-9) : Math.floor(w / ratio + 1e-9)
+}
+
+/** 画像（iw×ih）の中に収まる、その比の枠 { x, y, w, h }（整数）。
+ *  scale は収まるいちばん大きい枠に対する大きさ（0.2〜1）、cx・cy は枠の中心。
+ *  枠は画像の外に出ません（はみ出す動かし方をしても、端で止まります）。 */
+function cropFrame(iw, ih, ratio, scale, cx, cy) {
+  iw = Math.max(1, Math.round(iw)); ih = Math.max(1, Math.round(ih))
+  var s = Math.min(1, Math.max(0.2, Number(scale) || 1))
+  var maxW = Math.min(iw, ih * ratio)
+  var w = Math.max(1, Math.floor(maxW * s))
+  var h = Math.max(1, heightFor(w, ratio))
+  if (h > ih) { h = ih; w = Math.max(1, Math.min(iw, Math.floor(ih * ratio))) }
+  var x = Math.round((cx == null ? iw / 2 : cx) - w / 2)
+  var y = Math.round((cy == null ? ih / 2 : cy) - h / 2)
+  x = Math.min(Math.max(0, x), iw - w)
+  y = Math.min(Math.max(0, y), ih - h)
+  return { x: x, y: y, w: w, h: h }
+}
+
+/** 書き出す大きさ。長い辺を maxSide までに縮め、比は同じ向きに丸めます。 */
+function cropOutput(frame, maxSide, ratio) {
+  var k = Math.min(1, maxSide / Math.max(frame.w, frame.h))
+  var w = Math.max(1, Math.round(frame.w * k))
+  var h = ratio ? Math.max(1, heightFor(w, ratio)) : Math.max(1, Math.round(frame.h * k))
+  return { w: w, h: h }
+}
+
+/** Instagram に出せる縦横比か（4:5〜1.91:1）。 */
+function igAspectOk(w, h) {
+  if (!w || !h) return true
+  var r = w / h
+  return r >= 0.8 && r <= 1.91
+}
+
+/* 画像の代替テキスト（目の不自由な方の読み上げ用の説明）を API で送れる投稿先。
+   Facebook ページの写真・LINE・Googleビジネスプロフィールは、投稿の API に
+   その欄が無いので送りません（各SNSの画面で後から足せるものもあります）。
+   Instagram は 2025年3月から画像の投稿（alt_text）に対応しています。 */
+var ALT_NETS = { x: true, instagram: true, threads: true, bluesky: true }
+var ALT_MAX = 1000
 
 /* ===================================================== 投稿前チェック（表現） ==
    出す前に「言い方」で引っかかりそうなところを拾います。決まった言葉と形を
@@ -687,5 +748,5 @@ function styleToLines(style) {
   }
 }
 
-window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
+window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
 })();

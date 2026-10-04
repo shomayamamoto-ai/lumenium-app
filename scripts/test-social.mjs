@@ -805,6 +805,64 @@ await test('大事なこと（リンク・予約・値段）が区切りの後�
   assert.deepEqual(T.foldCheck('instagram', 'あ'.repeat(60) + 'https://lumenium.net/').late, [])
 })
 
+console.log('画像の切り抜き・代替テキスト')
+await test('切り抜き：横長の写真から 4:5 の枠（真ん中・画像の中）', () => {
+  const f = T.cropFrame(4000, 3000, 4 / 5, 1)
+  assert.deepEqual(f, { x: 800, y: 0, w: 2400, h: 3000 })
+  assert.ok(T.igAspectOk(f.w, f.h))
+})
+await test('切り抜き：丸めても Instagram の範囲からはみ出さない', () => {
+  for (const [iw, ih] of [[1000, 999], [3001, 1999], [1234, 4567], [999, 523], [5000, 2617]]) {
+    for (const p of T.CROP_PRESETS.filter((x) => x.id !== '9:16')) {
+      for (const s of [1, 0.73, 0.2]) {
+        const f = T.cropFrame(iw, ih, p.ratio, s)
+        assert.ok(f.x >= 0 && f.y >= 0 && f.x + f.w <= iw && f.y + f.h <= ih, `${iw}x${ih} ${p.id} ${s}`)
+        assert.ok(T.igAspectOk(f.w, f.h), `${iw}x${ih} ${p.id} ${s}: ${f.w}x${f.h}`)
+        const o = T.cropOutput(f, 2160, p.ratio)
+        assert.ok(Math.max(o.w, o.h) <= 2161 && T.igAspectOk(o.w, o.h), `out ${o.w}x${o.h}`)
+      }
+    }
+  }
+})
+await test('切り抜き：枠を外へ動かしても端で止まる・小さくしても比は同じ', () => {
+  assert.deepEqual(T.cropFrame(1000, 1000, 1, 0.5, -500, 5000), { x: 0, y: 500, w: 500, h: 500 })
+  const f = T.cropFrame(1080, 1920, 9 / 16, 1)
+  assert.deepEqual([f.w, f.h], [1080, 1920])
+  assert.equal(T.cropFrame(1000, 800, 1.91, 0.1).w, Math.floor(1000 * 0.2))
+  assert.equal(T.igAspectOk(1080, 1920), false)
+  assert.equal(T.igAspectOk(1080, 1350), true)
+})
+await test('代替テキスト：X は metadata、Instagram・Threads は alt_text、Bluesky は alt', async () => {
+  route = (u, init) => (u.endsWith('/2/media/metadata') ? json({ data: { id: 'M1' } }) : bskyRoute(u, init))
+  const img = [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg', alt: '栗のモンブラン\nとコーヒー' }]
+  const read = S.readPayload({ text: '秋の新作', targets: ['x', 'instagram', 'threads', 'bluesky'], images: img })
+  assert.equal(read.payload.images[0].alt, '栗のモンブラン とコーヒー')
+  const { results } = await S.sendPost(read.payload, undefined)
+  assert.ok(results.every((r) => r.ok), JSON.stringify(results))
+  const meta = calls.find((c) => c.url.endsWith('/2/media/metadata'))
+  assert.deepEqual(JSON.parse(meta.init.body), { id: 'M1', metadata: { alt_text: { text: '栗のモンブラン とコーヒー' } } })
+  // metadata は確定（finalize）のあと、投稿の前
+  const order = calls.map((c) => c.url)
+  assert.ok(order.findIndex((u) => u.endsWith('/finalize')) < order.findIndex((u) => u.endsWith('/media/metadata')))
+  assert.ok(order.findIndex((u) => u.endsWith('/media/metadata')) < order.findIndex((u) => u.endsWith('/2/tweets')))
+  const ig = calls.find((c) => c.url.includes('graph.facebook.com') && c.url.endsWith('/media'))
+  assert.equal(new URLSearchParams(ig.init.body).get('alt_text'), '栗のモンブラン とコーヒー')
+  const th = calls.find((c) => c.url.includes('graph.threads.net') && c.url.endsWith('/threads'))
+  assert.equal(new URLSearchParams(th.init.body).get('alt_text'), '栗のモンブラン とコーヒー')
+  const rec = JSON.parse(calls.find((c) => c.url.endsWith('createRecord')).init.body)
+  assert.equal(rec.record.embed.images[0].alt, '栗のモンブラン とコーヒー')
+})
+await test('代替テキスト：無いと知らせる（送れる先だけ）。X で付けられなくても投稿は出す', async () => {
+  const c = T.compose('instagram', base({ text: 'a', images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] }), 'h')
+  assert.ok(T.check('instagram', c).warnings.some((w) => w.includes('代替テキスト')))
+  const fb = T.compose('facebook', base({ text: 'a', images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] }), 'h')
+  assert.ok(!T.check('facebook', fb).warnings.some((w) => w.includes('代替テキスト')))
+  route = (u, init) => (u.endsWith('/2/media/metadata') ? json({ title: 'Bad' }, 400) : happy(u, init))
+  const { results } = await S.sendPost(base({ text: 'a', targets: ['x'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg', alt: '説明' }] }), undefined)
+  assert.equal(results[0].ok, true)
+  assert.ok(results[0].message.includes('代替テキスト'))
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

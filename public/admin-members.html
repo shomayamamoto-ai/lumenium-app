@@ -584,6 +584,15 @@
   .soc-img img { width: 52px; height: 52px; object-fit: cover; border-radius: 7px; border: 1px solid var(--border); flex: none; background: #fff; }
   .soc-img .meta { flex: 1; min-width: 0; font-size: 11px; color: var(--sub); line-height: 1.6; overflow-wrap: anywhere; }
   .soc-img button { flex: none; font-size: 11px; padding: 5px 10px; }
+  .soc-img .soc-alt { display: block; width: 100%; margin-top: 4px; font-size: 12px; padding: 6px 9px; background: #fff; border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+  /* 画像の切り抜き */
+  .soc-crop { margin-top: 8px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .soc-crop-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .soc-crop-presets button { font-size: 11.5px; padding: 5px 11px; }
+  .soc-crop canvas { display: block; max-width: 100%; height: auto; touch-action: none; cursor: move; border-radius: 6px; background: #fff; }
+  .soc-crop canvas:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 2px; }
+  .soc-crop .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 8px; font-size: 11.5px; }
+  .soc-crop input[type=range] { width: 180px; max-width: 100%; accent-color: #14b8a6; }
   .soc-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .soc-tab { font-size: 12px; padding: 7px 12px; background: #faf9f6; color: var(--sub); border: 1px solid var(--border); border-radius: 999px; }
   .soc-tab.on { background: rgba(20,184,166,0.12); color: var(--text); border-color: #0f766e; }
@@ -1116,7 +1125,11 @@ header h1, header button, header a { white-space: nowrap; }
             <button type="button" class="ghost" id="social-image-add" style="font-size:12px;padding:8px 12px">URLを追加</button>
             <button type="button" class="ghost" id="social-upload" style="font-size:12px;padding:8px 12px">手元の画像をアップロード</button>
             <input type="file" id="social-file" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <button type="button" class="ghost" id="social-cropfile" style="font-size:12px;padding:8px 12px">手元の画像を切り抜く</button>
+            <input type="file" id="social-cropin" accept="image/jpeg,image/png,image/webp" style="display:none">
           </div>
+          <!-- 画像の切り抜き（Instagram の縦横比 4:5〜1.91:1 に合わせる道具）。開いたときだけ中身が入ります。 -->
+          <div id="social-crop"></div>
           <div id="social-imgnote" class="soc-small" style="margin-top:6px"></div>
         </div>
 
@@ -6775,6 +6788,8 @@ window.lumAdmin = {
   var outcomeDays = 30;
   var tests = {};
   var imgMeta = {};
+  var imgLocal = {};
+  var crop = null;
   var busy = false;
   var started = false;
   var restoring = false;
@@ -6823,7 +6838,7 @@ window.lumAdmin = {
       text: el('social-text').value,
       link: el('social-link').value.trim(),
       campaign: el('social-campaign').value.trim(),
-      images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '' }; }),
+      images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '', alt: i.alt || '' }; }),
       variants: S.variants,
       targets: sendable(),
       sendId: S.sendId,
@@ -7146,7 +7161,22 @@ window.lumAdmin = {
       if (img.uploaded) bits.push('アップロード済み（JPEG）');
       if (m.failed) bits.push('⚠ 開けませんでした');
       meta.textContent = (i + 1) + '枚目 ' + (bits.length ? '・' + bits.join('・') + '　' : '') + img.url;
+      /* 代替テキスト：目の不自由な方の読み上げに使われる、画像の説明。
+         X・Instagram・Threads・Bluesky には一緒に送ります。 */
+      var alt = document.createElement('input');
+      alt.type = 'text';
+      alt.className = 'soc-alt';
+      alt.maxLength = TX.ALT_MAX;
+      alt.value = img.alt || '';
+      alt.placeholder = '代替テキスト（何が写っているか。例：栗のモンブランとコーヒー）';
+      alt.setAttribute('aria-label', (i + 1) + '枚目の代替テキスト');
+      alt.addEventListener('input', function () { img.alt = alt.value; changed(false); });
+      meta.appendChild(alt);
       row.appendChild(meta);
+      var cr = document.createElement('button');
+      cr.type = 'button'; cr.className = 'ghost'; cr.textContent = '切り抜く';
+      cr.addEventListener('click', function () { openCrop(i); });
+      row.appendChild(cr);
       var rm = document.createElement('button');
       rm.type = 'button'; rm.className = 'ghost'; rm.textContent = '外す';
       rm.addEventListener('click', function () { S.images.splice(i, 1); renderImages(); changed(true); });
@@ -7157,7 +7187,7 @@ window.lumAdmin = {
     el('social-image-add').disabled = full;
     el('social-upload').disabled = full || !info.upload.ready;
     el('social-imgnote').textContent = info.upload.ready
-      ? '手元の画像は、どのSNSでも使える JPEG に変えてから置きます。Xに画像を付けられるのは、アップロードした画像だけです。Facebook・Instagram・Threads・LINE は1枚目だけ送ります。'
+      ? '手元の画像は、どのSNSでも使える JPEG に変えてから置きます。Xに画像を付けられるのは、アップロードした画像だけです。Facebook・Instagram・Threads・LINE は1枚目だけ送ります。代替テキストは X・Instagram・Threads・Bluesky に送ります（Facebook・LINE・Googleビジネスプロフィールは、投稿の仕組みに欄が無いため送りません）。'
       : '手元の画像をそのまま使うには、画像の置き場所（Vercel Blob）の接続が要ります（設定状況 › キーの入力 › 画像の置き場所）。いまは公開されている画像のURLを貼って使えます。Xには画像が付きません。';
   }
 
@@ -7240,7 +7270,8 @@ window.lumAdmin = {
         if (small) { var p = await upload(small.blob, 'preview'); if (p.ok) preview = p.url; }
       }
       imgMeta[d.url] = { w: main.w, h: main.h };
-      S.images.push({ url: d.url, preview: preview, size: main.blob.size, uploaded: true });
+      imgLocal[d.url] = URL.createObjectURL(main.blob);
+      S.images.push({ url: d.url, preview: preview, size: main.blob.size, uploaded: true, alt: '' });
       say(main.blob === f ? '画像を置きました。' : '画像を JPEG に変えて置きました（どのSNSでも使える形です）。', true);
       renderImages();
       changed(true);
@@ -7249,6 +7280,213 @@ window.lumAdmin = {
     } finally {
       btn.disabled = S.images.length >= 4 || !info.upload.ready;
     }
+  }
+
+  /* ---- 画像の切り抜き ----
+     枠の大きさと位置は _social-text.js の cropFrame で決めます（Instagram に
+     断られない向きに丸めます）。枠はドラッグか矢印キーで動かし、大きさは
+     つまみで変えます。動きの演出はありません。切った画像は JPEG にして、
+     いつものアップロードで置きます。置き場所が無いとき（手で投稿するとき）は、
+     保存して各SNSのアプリで選べるようにします。
+
+     ほかのサイトの画像（URLで足したもの）は、ブラウザの決まりで中身を
+     読めないことがあります。そのときは正直にそう言って、手元の画像から
+     切り抜くよう案内します。 */
+  function presetById(id) {
+    for (var i = 0; i < TX.CROP_PRESETS.length; i++) if (TX.CROP_PRESETS[i].id === id) return TX.CROP_PRESETS[i];
+    return TX.CROP_PRESETS[0];
+  }
+  function suggestPreset(w, h) {
+    if (!w || !h) return '4:5';
+    var r = w / h;
+    return r < 0.8 ? '4:5' : r > 1.91 ? '1.91:1' : r >= 1.2 ? '1.91:1' : r >= 0.95 ? '1:1' : '4:5';
+  }
+  function openCropSrc(src, index, cors, presetId) {
+    var im = new Image();
+    if (cors) im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      var iw = im.naturalWidth, ih = im.naturalHeight;
+      crop = { i: index, im: im, iw: iw, ih: ih, preset: presetId || suggestPreset(iw, ih), scale: 1, cx: iw / 2, cy: ih / 2, out: null };
+      renderCrop();
+      var host = el('social-crop');
+      if (host.scrollIntoView) host.scrollIntoView({ block: 'nearest' });
+    };
+    im.onerror = function () {
+      say('この画像は、ここでは切り抜けません（ほかのサイトの画像は、ブラウザの決まりで中身を読めないことがあります）。「手元の画像を切り抜く」から、元の画像を選んでください。');
+    };
+    im.src = src;
+  }
+  function openCrop(i, presetId) {
+    var img = S.images[i];
+    if (!img) return;
+    var local = imgLocal[img.url];
+    openCropSrc(local || img.url, i, !local, presetId);
+  }
+  function cropFrameNow() {
+    var p = presetById(crop.preset);
+    var f = TX.cropFrame(crop.iw, crop.ih, p.ratio, crop.scale, crop.cx, crop.cy);
+    // 端で止まったときは、中心も枠に合わせます（次に動かしたとき跳ばないように）。
+    crop.cx = f.x + f.w / 2; crop.cy = f.y + f.h / 2;
+    return f;
+  }
+  function drawCrop() {
+    var cv = el('soc-crop-cv');
+    if (!cv || !crop) return;
+    var cx = cv.getContext('2d');
+    var k = cv.width / crop.iw;
+    var f = cropFrameNow();
+    cx.clearRect(0, 0, cv.width, cv.height);
+    cx.drawImage(crop.im, 0, 0, cv.width, cv.height);
+    // 枠の外を暗くします（4つの帯）。
+    cx.fillStyle = 'rgba(23,23,28,.55)';
+    var fx = f.x * k, fy = f.y * k, fw = f.w * k, fh = f.h * k;
+    cx.fillRect(0, 0, cv.width, fy);
+    cx.fillRect(0, fy + fh, cv.width, cv.height - fy - fh);
+    cx.fillRect(0, fy, fx, fh);
+    cx.fillRect(fx + fw, fy, cv.width - fx - fw, fh);
+    cx.strokeStyle = '#fff';
+    cx.lineWidth = 2;
+    cx.strokeRect(fx + 1, fy + 1, fw - 2, fh - 2);
+    // 3分割の線（被写体を置く目安）。
+    cx.strokeStyle = 'rgba(255,255,255,.5)';
+    cx.lineWidth = 1;
+    for (var t = 1; t < 3; t++) {
+      cx.beginPath(); cx.moveTo(fx + fw * t / 3, fy); cx.lineTo(fx + fw * t / 3, fy + fh); cx.stroke();
+      cx.beginPath(); cx.moveTo(fx, fy + fh * t / 3); cx.lineTo(fx + fw, fy + fh * t / 3); cx.stroke();
+    }
+    var o = TX.cropOutput(f, 2160, presetById(crop.preset).ratio);
+    el('soc-crop-size').textContent = '切り抜く範囲 ' + f.w + '×' + f.h + '（元 ' + crop.iw + '×' + crop.ih + '）→ 書き出し ' + o.w + '×' + o.h;
+  }
+  function renderCrop() {
+    var host = el('social-crop');
+    if (!crop) { host.innerHTML = ''; return; }
+    var maxW = Math.min(560, (host.clientWidth || 560));
+    var k = Math.min(maxW / crop.iw, 420 / crop.ih, 1);
+    var w = Math.max(1, Math.round(crop.iw * k)), h = Math.max(1, Math.round(crop.ih * k));
+    var target = crop.i >= 0 ? (crop.i + 1) + '枚目の画像' : '選んだ画像';
+    host.innerHTML =
+      '<div class="soc-crop">' +
+        '<div style="font-size:13px;font-weight:700;margin-bottom:4px">' + esc(target) + 'を切り抜く</div>' +
+        '<div class="soc-small" style="margin-bottom:8px">形を選び、明るい枠をドラッグ（または矢印キー）で動かします。大きさは下のつまみで変えます。</div>' +
+        '<div class="soc-crop-presets">' + TX.CROP_PRESETS.map(function (p) {
+          return '<button type="button" class="' + (p.id === crop.preset ? '' : 'ghost') + '" data-preset="' + esc(p.id) + '" aria-pressed="' + (p.id === crop.preset) + '">' + esc(p.label) + '</button>';
+        }).join('') + '</div>' +
+        '<canvas id="soc-crop-cv" width="' + w + '" height="' + h + '" tabindex="0" aria-label="切り抜く範囲。矢印キーで動かせます"></canvas>' +
+        '<div class="row"><label for="soc-crop-scale" style="font-weight:700">枠の大きさ</label>' +
+          '<input type="range" id="soc-crop-scale" min="20" max="100" step="1" value="' + Math.round(crop.scale * 100) + '">' +
+          '<span class="soc-small" id="soc-crop-size"></span></div>' +
+        '<div class="row">' +
+          '<button type="button" id="soc-crop-go" style="font-size:12px;padding:7px 14px">' + (info.upload.ready ? 'この形で切り抜いて使う' : 'この形で切り抜いて保存') + '</button>' +
+          '<button type="button" class="ghost" id="soc-crop-cancel" style="font-size:12px;padding:7px 14px">やめる</button>' +
+          '<span class="soc-small" id="soc-crop-st"></span>' +
+        '</div>' +
+        '<div id="soc-crop-dl"></div>' +
+      '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('[data-preset]'), function (b) {
+      b.addEventListener('click', function () { crop.preset = b.dataset.preset; renderCrop(); });
+    });
+    var cv = el('soc-crop-cv');
+    var drag = null;
+    cv.addEventListener('pointerdown', function (e) {
+      drag = { x: e.clientX, y: e.clientY, cx: crop.cx, cy: crop.cy };
+      if (cv.setPointerCapture) cv.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var r = cv.getBoundingClientRect();
+      var px = crop.iw / (r.width || cv.width);
+      crop.cx = drag.cx + (e.clientX - drag.x) * px;
+      crop.cy = drag.cy + (e.clientY - drag.y) * px;
+      drawCrop();
+    });
+    var end = function () { drag = null; };
+    cv.addEventListener('pointerup', end);
+    cv.addEventListener('pointercancel', end);
+    cv.addEventListener('keydown', function (e) {
+      var step = Math.max(crop.iw, crop.ih) * 0.02;
+      var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      crop.cx += d[0] * step; crop.cy += d[1] * step;
+      drawCrop();
+    });
+    el('soc-crop-scale').addEventListener('input', function () { crop.scale = Number(this.value) / 100; drawCrop(); });
+    el('soc-crop-cancel').addEventListener('click', function () { crop = null; renderCrop(); });
+    el('soc-crop-go').addEventListener('click', applyCrop);
+    drawCrop();
+  }
+  function jpegUnder(cv, limit) {
+    var qs = [0.9, 0.82, 0.74, 0.66];
+    return (function next(i) {
+      return new Promise(function (ok) { cv.toBlob(ok, 'image/jpeg', qs[i]); }).then(function (b) {
+        if (b && b.size <= limit) return b;
+        if (i + 1 < qs.length) return next(i + 1);
+        return null;
+      });
+    })(0);
+  }
+  async function applyCrop() {
+    if (!crop) return;
+    var st = el('soc-crop-st');
+    var p = presetById(crop.preset);
+    var f = cropFrameNow();
+    var o = TX.cropOutput(f, 2160, p.ratio);
+    var cv = document.createElement('canvas');
+    cv.width = o.w; cv.height = o.h;
+    var cx = cv.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, o.w, o.h);
+    cx.drawImage(crop.im, f.x, f.y, f.w, f.h, 0, 0, o.w, o.h);
+    var blob;
+    try { blob = await jpegUnder(cv, MAX_UP); }
+    catch (_) { blob = null; }
+    if (!blob) { st.textContent = 'この画像は書き出せませんでした（ほかのサイトの画像は読めないことがあります）。手元の画像から切り抜いてください。'; return; }
+    var btn = el('soc-crop-go');
+    btn.disabled = true;
+    var d = null;
+    if (info.upload.ready) {
+      st.textContent = 'アップロードしています…';
+      d = await upload(blob);
+    }
+    btn.disabled = false;
+    if (d && d.ok) {
+      var old = crop.i >= 0 ? S.images[crop.i] : null;
+      var item = { url: d.url, preview: '', size: blob.size, uploaded: true, alt: old ? old.alt || '' : '' };
+      // LINE の一覧用の小さい画像（1MBまで）。大きいときだけ作ります。
+      if (blob.size > 1048576) {
+        var ps = Math.min(1, 640 / Math.max(o.w, o.h));
+        var pc = document.createElement('canvas');
+        pc.width = Math.round(o.w * ps); pc.height = Math.round(o.h * ps);
+        pc.getContext('2d').drawImage(cv, 0, 0, pc.width, pc.height);
+        var pb = await jpegUnder(pc, 1048576);
+        if (pb) { var pu = await upload(pb, 'preview'); if (pu.ok) item.preview = pu.url; }
+      }
+      imgMeta[d.url] = { w: o.w, h: o.h };
+      imgLocal[d.url] = URL.createObjectURL(blob);
+      if (old) S.images[crop.i] = item;
+      else if (S.images.length < 4) S.images.push(item);
+      crop = null;
+      renderCrop();
+      renderImages();
+      changed(true);
+      say('切り抜いた画像（' + p.id + '・' + o.w + '×' + o.h + '）に置き換えました。', true);
+      return;
+    }
+    // 置き場所が無い（手で投稿する）か、置けなかったとき：保存して使えるようにします。
+    var href = URL.createObjectURL(blob);
+    var name = 'crop-' + p.id.replace(/[^0-9a-z]+/gi, 'x') + '.jpg';
+    el('soc-crop-dl').innerHTML = '<div class="soc-issue" style="margin-top:8px">' +
+      (d && !d.ok ? esc(d.message || 'アップロードできませんでした。') + '<br>' : '') +
+      '切り抜いた画像（' + o.w + '×' + o.h + '）を保存して、各SNSのアプリで選んでください。 ' +
+      '<a id="soc-crop-save" href="' + href + '" download="' + name + '">画像を保存する</a></div>';
+    st.textContent = '';
+  }
+  function onCropFile() {
+    var f = el('social-cropin').files[0];
+    el('social-cropin').value = '';
+    if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { say('JPEG・PNG・WebP の画像を選んでください。'); return; }
+    openCropSrc(URL.createObjectURL(f), -1, false);
   }
 
   /* ---- 3 SNSごとに確かめる ---- */
@@ -7487,6 +7725,16 @@ window.lumAdmin = {
         changed(false);
       });
       fix.appendChild(b);
+    }
+    // Instagram に出せない縦横比のとき、その場で切り抜けるように。
+    var m0 = S.images[0] && imgMeta[S.images[0].url];
+    if (id === 'instagram' && m0 && m0.w && !TX.igAspectOk(m0.w, m0.h)) {
+      var cb = document.createElement('button');
+      cb.type = 'button'; cb.className = 'ghost';
+      cb.style.cssText = 'font-size:11.5px;padding:5px 12px;margin:6px 6px 0 0';
+      cb.textContent = '1枚目の画像を Instagram の形に切り抜く';
+      cb.addEventListener('click', function () { openCrop(0, suggestPreset(m0.w, m0.h)); });
+      fix.appendChild(cb);
     }
     if (id === 'line' && quotas.line && quotas.line.ok && quotas.line.reach != null) {
       var q = quotas.line;
@@ -8333,6 +8581,8 @@ window.lumAdmin = {
   el('social-image').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addImageUrl(); } });
   el('social-upload').addEventListener('click', function () { el('social-file').click(); });
   el('social-file').addEventListener('change', onFile);
+  el('social-cropfile').addEventListener('click', function () { el('social-cropin').click(); });
+  el('social-cropin').addEventListener('change', onCropFile);
   el('social-ai-go').addEventListener('click', aiDraft);
   Array.prototype.forEach.call(document.querySelectorAll('input[name="social-when"]'), function (r) {
     r.addEventListener('change', function () { if (r.checked) { S.when = r.value; changed(false); } });

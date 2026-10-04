@@ -147,7 +147,8 @@ export function bskyRecord(c, images, now = new Date()) {
   const facets = blueskyFacets(c.text)
   if (facets.length) rec.facets = facets
   if (images && images.length) {
-    rec.embed = { $type: 'app.bsky.embed.images', images: images.map((b) => ({ alt: '', image: b })) }
+    // alt は読み上げ用の説明（空でも送る決まりです）。
+    rec.embed = { $type: 'app.bsky.embed.images', images: images.map((b, i) => ({ alt: String((c.images && c.images[i] && c.images[i].alt) || ''), image: b })) }
   }
   return rec
 }

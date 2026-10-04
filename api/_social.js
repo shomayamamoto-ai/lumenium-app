@@ -19,7 +19,7 @@ import { setting, settingStatus, saveSetting } from './_settings.js'
 import { authHeader } from './_x-oauth1.js'
 import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
-import { RULES, compose, check, isBlobUrl, cleanCampaign } from './_social-text.js'
+import { RULES, compose, check, isBlobUrl, cleanCampaign, ALT_MAX } from './_social-text.js'
 import { fieldFor } from './_social-insights.js'
 import { GBP_ACTIONS } from './_social-text.js'
 import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
@@ -279,7 +279,7 @@ const X_HINT = '（よくある原因: アプリの権限を「Read and write」
 /** One image, by the documented v2 chunked upload: initialize, one append
  *  (images are at most 5MB, one segment), finalize. Only our own Blob store
  *  is fetched — see isBlobUrl for why. */
-async function xUpload(url, keys, ctx) {
+async function xUpload(url, keys, ctx, alt) {
   if (!isBlobUrl(url)) return { ok: false, message: 'X：アップロードした画像以外は付けられません。' }
   // call() reads text; an image needs its bytes, so this one is fetched here.
   // No redirects: the address was checked, wherever it would lead was not.
@@ -309,17 +309,28 @@ async function xUpload(url, keys, ctx) {
   if (!app.ok) return app
   const fin = await xCall('POST', `${X_API}/media/upload/${encodeURIComponent(id)}/finalize`, keys, undefined, 'X（画像の確定）', ctx)
   if (!fin.ok) return fin
-  return { ok: true, id: String((fin.data && fin.data.data && fin.data.data.id) || id) }
+  const mediaId = String((fin.data && fin.data.data && fin.data.data.id) || id)
+  // 代替テキスト（読み上げ用の説明）。確定のあと、投稿の前に付けます（X の決まり）。
+  // 付けられなくても投稿は止めません。そのことだけを伝えます。
+  let note = ''
+  if (alt) {
+    const meta = await xCall('POST', `${X_API}/media/metadata`, keys,
+      { id: mediaId, metadata: { alt_text: { text: alt } } }, 'X（代替テキスト）', ctx)
+    if (!meta.ok) note = '代替テキストは付けられませんでした'
+  }
+  return { ok: true, id: mediaId, note }
 }
 
 async function postX(c, req, ctx) {
   const keys = await xKeys(req)
   let mediaIds = []
+  let altNote = ''
   if (c.images.length) {
-    const ups = await Promise.all(c.images.map((i) => xUpload(i.url, keys, ctx)))
+    const ups = await Promise.all(c.images.map((i) => xUpload(i.url, keys, ctx, i.alt)))
     const bad = ups.find((u) => !u.ok)
     if (bad) return { ok: false, message: `${bad.message}（画像が付けられなかったため、Xには投稿していません）` }
     mediaIds = ups.map((u) => u.id)
+    altNote = ups.some((u) => u.note) ? '代替テキストは付けられませんでした' : ''
   }
   const r = await xCall('POST', `${X_API}/tweets`, keys,
     mediaIds.length ? { text: c.text, media: { media_ids: mediaIds } } : { text: c.text },
@@ -332,7 +343,7 @@ async function postX(c, req, ctx) {
   }
   if (!r.ok) return r
   const id = r.data && r.data.data && r.data.data.id
-  return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '' }
+  return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '', message: altNote }
 }
 
 /* ------------------------------------------------------------- Facebook -- */
@@ -371,6 +382,8 @@ async function postInstagram(c, req, ctx) {
   if (!token) return { ok: false, message: 'Instagram：アクセストークンが未設定です（Facebookページのトークンでも構いません）。' }
   if (!c.images[0]) return { ok: false, message: 'Instagram：画像が必要です。' }
   const make = new URLSearchParams({ image_url: c.images[0].url, caption: c.text, access_token: token })
+  // 代替テキスト（2025年3月から画像の投稿で使えます。リール・ストーリーズは不可）。
+  if (c.images[0].alt) make.set('alt_text', c.images[0].alt)
   const made = await call(`${GRAPH}/${encodeURIComponent(user)}/media`, { method: 'POST', body: make }, 'Instagram（下書き作成）', ctx)
   if (!made.ok) return made
   const cid = String(made.data.id || '')
@@ -397,6 +410,7 @@ async function postThreads(c, req, ctx) {
   const img = c.images[0]
   const make = new URLSearchParams({ media_type: img ? 'IMAGE' : 'TEXT', text: c.text, access_token: token })
   if (img) make.set('image_url', img.url)
+  if (img && img.alt) make.set('alt_text', img.alt)
   const made = await call(`${THREADS}/${encodeURIComponent(user)}/threads`, { method: 'POST', body: make }, 'Threads（下書き作成）', ctx)
   if (!made.ok) return made
   const cid = String(made.data.id || '')
@@ -485,6 +499,11 @@ const SENDERS = {
 
 /* -------------------------------------------------------------- payload -- */
 
+/** 画像の代替テキスト。改行は空白に、ALT_MAX 文字まで（X・Instagram の上限）。 */
+function cleanAlt(v) {
+  return String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim().slice(0, ALT_MAX)
+}
+
 /** Read and check what the composer sent, once, for both "send now" and
  *  "send on a date". Returns { ok, payload } or { ok:false, message }. */
 export function readPayload(body) {
@@ -496,7 +515,7 @@ export function readPayload(body) {
   let images = Array.isArray(b.images) ? b.images : []
   if (!images.length && b.imageUrl) images = [{ url: String(b.imageUrl) }]
   images = images.slice(0, 4).map((i) => (typeof i === 'string' ? { url: i } : i || {}))
-    .map((i) => ({ url: String(i.url || '').trim(), preview: String(i.preview || '').trim() }))
+    .map((i) => ({ url: String(i.url || '').trim(), preview: String(i.preview || '').trim(), alt: cleanAlt(i.alt) }))
     .filter((i) => i.url)
 
   if (!targets.length) return { ok: false, message: '投稿先が選ばれていません。' }
