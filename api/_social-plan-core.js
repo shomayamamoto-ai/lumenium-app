@@ -315,6 +315,98 @@ export function lineMonth(items, day) {
   }
 }
 
+/* ---------------------------------------------- 4. saved and shared -- */
+
+/* Instagram で重く見られるのは「送られた（DMで共有）」と「保存」です。
+   カルーセル（複数枚）は1枚の画像より、届く数が5割ほど、保存が7割ほど多い
+   という調査があります（目安）。 */
+export var CAROUSEL_MIN = 3
+export var CAROUSEL_MAX = 8
+/* 1枚に載せる文字の目安。スマホで読み切れる長さ。 */
+export var SLIDE_CHARS = 60
+export var SAVE_CTA = '保存して見返してね'
+
+var CTA_RE = /(保存|シェア|見返|送って|送ってあげ|友だちに|友達に|ブックマーク|スクショ)/
+var USEFUL_WORDS = /(コツ|方法|手順|やり方|ポイント|ステップ|STEP|チェック|選び方|まとめ|保存版|レシピ|使い方|見分け方|注意|しないこと|理由)/i
+var COUNT_RE = /[0-9０-９一二三四五六七八九十]+\s*(つ|個|選|ステップ|か条|ヶ条|項目|分で|のコツ|の方法)/
+var LIST_LINE = /^\s*([0-9０-９]+[.．、)）]|[①-⑳]|[・●■□✓✔☑-]\s*)/
+var PROMO_RE = /(セール|割引|[%％]\s*(OFF|オフ)|今だけ|限定|クーポン|ご予約はこちら|お買い求め|キャンペーン|特価|値下げ|販売開始|発売|ご注文|お申し込みはこちら)/i
+
+function charLen(s) { return Array.from(String(s || '').replace(/\s+/g, '')).length }
+function sentences(s) { return String(s || '').split(/[。！？!?]+/).filter(function (x) { return x.trim() }).length }
+
+/** 保存・シェアされやすい要素があるか（助言だけ。送るのを止めはしません）。 */
+export function saveShareScore(text) {
+  var t = String(text || '')
+  if (!t.trim()) return null
+  var lines = t.split(/\n/)
+  var listLines = lines.filter(function (l) { return LIST_LINE.test(l) }).length
+  var useful = listLines >= 2 || USEFUL_WORDS.test(t) || COUNT_RE.test(t)
+  var cta = CTA_RE.test(t)
+  var promo = PROMO_RE.test(t)
+  var pureAd = promo && !useful
+  var items = [
+    { id: 'useful', ok: useful, label: '役立つ形になっている（手順・リスト・数字・やり方・チェックリスト）', tip: '「〇〇のコツ3つ」「〜の手順」のように、あとで見返したくなる形にしてみましょう。' },
+    { id: 'cta', ok: cta, label: '「保存して見返してね」「友だちに送ってね」など、保存・シェアをお願いしている', tip: '最後に「保存して見返してね」「友だちにも送ってあげてね」と一言添えましょう。' },
+    { id: 'notad', ok: !pureAd, label: '宣伝だけの投稿になっていない', tip: '宣伝だけだと保存やシェアはされにくいです。選び方や楽しみ方など、役立つ一言を足してみましょう。' },
+  ]
+  var score = items.filter(function (x) { return x.ok }).length
+  return {
+    score: score, max: items.length, items: items, pureAd: pureAd,
+    label: score === 3 ? '保存・シェアされやすい形です' : score === 2 ? 'あと一歩です' : '保存・シェアの要素が少なめです',
+    tips: items.filter(function (x) { return !x.ok }).map(function (x) { return x.tip }),
+  }
+}
+
+/** カルーセルの確認。c: { cover, slides: [..], last, caption } */
+export function carouselCheck(c) {
+  var cover = String((c && c.cover) || '').trim()
+  var slides = ((c && c.slides) || []).map(function (s) { return String(s || '').trim() }).filter(Boolean)
+  var last = String((c && c.last) || '').trim()
+  var caption = String((c && c.caption) || '')
+  var checks = []
+  checks.push({
+    id: 'count', ok: slides.length >= CAROUSEL_MIN && slides.length <= CAROUSEL_MAX,
+    label: '中身の枚数が ' + CAROUSEL_MIN + '〜' + CAROUSEL_MAX + ' 枚',
+    detail: '中身は ' + slides.length + ' 枚です（表紙と最後の1枚は別）。',
+  })
+  var promise = !!cover && charLen(cover) <= 30 && (/[0-9０-９]/.test(cover) || USEFUL_WORDS.test(cover) || /(知らない|しない|できる|簡単|失敗|だけ|前に|ために)/.test(cover))
+  checks.push({
+    id: 'cover', ok: promise, label: '表紙で「見ると何が分かるか」を約束している',
+    detail: !cover ? '表紙の一言がまだありません。' : charLen(cover) > 30 ? '表紙の一言が長めです（30字までが目安）。' : promise ? '' : '「〇〇のコツ3つ」「〜する前に見て」のように、得られることを一言で。',
+  })
+  var many = []
+  slides.forEach(function (s, i) { if (sentences(s) > 2) many.push(i + 2) })
+  checks.push({ id: 'one', ok: slides.length > 0 && !many.length, label: '1枚に1つのことだけ', detail: many.length ? many.join('・') + '枚目に、言いたいことが多めです（2文までが目安）。' : '' })
+  var long = []
+  ;[cover].concat(slides, [last]).forEach(function (s, i) { if (charLen(s) > SLIDE_CHARS) long.push(i + 1) })
+  checks.push({ id: 'length', ok: !long.length, label: '1枚の文字が読み切れる長さ（' + SLIDE_CHARS + '字まで）', detail: long.length ? long.join('・') + '枚目が長めです。' : '' })
+  var cta = CTA_RE.test(last) || CTA_RE.test(caption)
+  checks.push({ id: 'cta', ok: cta, label: '最後に保存・シェアのお願いがある', detail: cta ? '' : '最後の1枚かキャプションに「' + SAVE_CTA + '」などを入れましょう。' })
+  return { checks: checks, ok: checks.filter(function (x) { return x.ok }).length, total: checks.length, slides: slides.length + 2 }
+}
+
+/** キャプションのたたき台（表紙・中身の頭・保存のお願い）。 */
+export function carouselCaption(c) {
+  var cover = String((c && c.cover) || '').trim()
+  var slides = ((c && c.slides) || []).map(function (s) { return String(s || '').trim().split(/\n/)[0] }).filter(Boolean)
+  var parts = []
+  if (cover) parts.push(cover)
+  if (slides.length) parts.push(slides.map(function (s) { return '・' + s.slice(0, 40) }).join('\n'))
+  parts.push('あとで見返せるように、保存しておいてね。役に立ったら、友だちにも送ってみてください。')
+  return parts.join('\n\n')
+}
+
+/** 書き出し用のテキスト（1枚ずつ）。 */
+export function carouselText(c) {
+  var slides = ((c && c.slides) || []).map(function (s) { return String(s || '').trim() }).filter(Boolean)
+  var out = ['【1枚目（表紙）】', String((c && c.cover) || '').trim(), '']
+  slides.forEach(function (s, i) { out.push('【' + (i + 2) + '枚目】', s, '') })
+  out.push('【' + (slides.length + 2) + '枚目（最後）】', String((c && c.last) || '').trim(), '')
+  out.push('【キャプション】', String((c && c.caption) || '').trim())
+  return out.join('\n') + '\n'
+}
+
 /* ------------------------------------------------------ 5. the inbox -- */
 
 /* コメントの受信箱の1件から、届いた時刻・返事をした時刻を読みます。

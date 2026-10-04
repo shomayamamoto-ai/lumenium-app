@@ -519,9 +519,142 @@
   SECTIONS.push({ id: 'cadence', html: cadenceHtml, bind: bindCadence });
 
   /* ================================================================
+     4. 保存・シェアされる投稿（Instagram のカルーセル）
+     ================================================================ */
+  var CK = 'lum_spl_carousel';
+  function carousel() {
+    if (S.car) return S.car;
+    var c = null;
+    try { c = JSON.parse(ls(CK) || 'null'); } catch (_) { c = null; }
+    if (!c || !Array.isArray(c.slides)) c = { pillar: '', cover: '', slides: ['', '', ''], last: C.SAVE_CTA, caption: '' };
+    S.car = c;
+    return c;
+  }
+  function carSave() { ls(CK, JSON.stringify(S.car)); }
+  function carouselHtml() {
+    var c = carousel();
+    var h = '<h3>保存・シェアされる投稿（カルーセル）</h3>' +
+      '<p class="lead">Instagram では「保存」と「DMで送られた数」が特に重く見られます。複数枚の投稿（カルーセル）は、1枚の画像より届く数が5割ほど・保存が7割ほど多いという調査があります<span class="spl-meyasu">目安</span>。' +
+      '表紙で「見ると何が分かるか」を約束し、1枚に1つずつ、最後に「保存して見返してね」で締めるのが基本の形です。</p>' +
+      '<div class="spl-form">' +
+      '<label for="spl-c-pillar">柱（テーマ）</label><select id="spl-c-pillar" class="spl-in" style="width:auto"><option value="">選ばない</option>' +
+        pillars().map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === c.pillar ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select>' +
+      '<label for="spl-c-cover">1枚目：表紙の一言（例：開店前に見て！ コーヒー豆の選び方3つ）</label>' +
+      '<input type="text" id="spl-c-cover" class="spl-car" maxlength="80" value="' + esc(c.cover) + '">' +
+      c.slides.map(function (s, i) {
+        return '<label for="spl-c-s' + i + '">' + (i + 2) + '枚目</label>' +
+          '<div style="display:flex;gap:6px;align-items:flex-start"><textarea id="spl-c-s' + i + '" class="spl-car" rows="2" style="flex:1">' + esc(s) + '</textarea>' +
+          (c.slides.length > C.CAROUSEL_MIN ? '<button type="button" class="ghost spl-c-del" data-i="' + i + '" aria-label="' + (i + 2) + '枚目を消す" style="font-size:11px;padding:5px 9px">消す</button>' : '') + '</div>';
+      }).join('') +
+      (c.slides.length < C.CAROUSEL_MAX ? '<div class="spl-btns" style="margin-top:4px"><button type="button" class="ghost" id="spl-c-add">1枚足す</button></div>' : '') +
+      '<label for="spl-c-last">' + (c.slides.length + 2) + '枚目（最後）：保存・シェアのお願い</label>' +
+      '<input type="text" id="spl-c-last" class="spl-car" maxlength="80" value="' + esc(c.last) + '">' +
+      '<label for="spl-c-cap">キャプション（投稿の本文）</label>' +
+      '<textarea id="spl-c-cap" class="spl-car" rows="4">' + esc(c.caption) + '</textarea>' +
+      '</div>' +
+      '<div class="spl-btns"><button type="button" class="ghost" id="spl-c-mkcap">キャプションのたたき台を作る</button>' +
+        '<button type="button" class="ghost" id="spl-c-copy">テキストをコピー</button>' +
+        '<button type="button" class="ghost" id="spl-c-dl">テキストで保存</button>' +
+        '<button type="button" id="spl-c-use">キャプションを投稿欄に入れる</button>' +
+        '<button type="button" class="ghost" id="spl-c-clear">白紙に戻す</button></div>' +
+      '<div id="spl-c-checks" style="margin-top:10px">' + carouselChecksHtml() + '</div>' +
+      '<p class="spl-note">画像（1枚ずつの絵）は、このテキストを元に Canva などで作ってください。この画面から送れるのは、いまは1枚目の画像だけです。</p>';
+    return h;
+  }
+  function carouselChecksHtml() {
+    var k = C.carouselCheck(S.car || carousel());
+    return '<h4 style="font-size:12.5px;margin:0 0 4px">確認（' + k.ok + ' / ' + k.total + '）<span class="spl-meyasu">目安</span></h4>' +
+      '<ul class="spl-list">' + k.checks.map(function (x) {
+        return '<li><div class="body"><b style="color:' + (x.ok ? '#047857' : '#92400e') + '">' + (x.ok ? 'OK' : 'まだ') + '</b>　' + esc(x.label) +
+          (x.detail && !x.ok ? '<div class="why">' + esc(x.detail) + '</div>' : '') + '</div></li>';
+      }).join('') + '</ul>';
+  }
+  function carRead() {
+    var c = S.car;
+    c.pillar = el('spl-c-pillar').value;
+    c.cover = el('spl-c-cover').value;
+    c.slides = c.slides.map(function (_, i) { return el('spl-c-s' + i).value; });
+    c.last = el('spl-c-last').value;
+    c.caption = el('spl-c-cap').value;
+    carSave();
+  }
+  function bindCarousel() {
+    if (!el('spl-c-cover')) return;
+    var box = el('spl-carousel');
+    box.addEventListener('input', function (e) {
+      if (!e.target.classList.contains('spl-car')) return;
+      carRead();
+      el('spl-c-checks').innerHTML = carouselChecksHtml();
+    });
+    el('spl-c-pillar').addEventListener('change', carRead);
+    var add = el('spl-c-add');
+    if (add) add.addEventListener('click', function () { carRead(); S.car.slides.push(''); carSave(); render(); focusLater('spl-c-s' + (S.car.slides.length - 1)); });
+    Array.prototype.forEach.call(document.querySelectorAll('.spl-c-del'), function (b) {
+      b.addEventListener('click', function () { carRead(); S.car.slides.splice(Number(b.dataset.i), 1); carSave(); render(); focusLater('spl-carousel'); });
+    });
+    el('spl-c-mkcap').addEventListener('click', function () {
+      carRead();
+      if (S.car.caption.trim() && !confirm('いまのキャプションを、たたき台で置き換えますか？')) return;
+      S.car.caption = C.carouselCaption(S.car);
+      el('spl-c-cap').value = S.car.caption;
+      carSave();
+      el('spl-c-checks').innerHTML = carouselChecksHtml();
+    });
+    el('spl-c-copy').addEventListener('click', function () {
+      carRead();
+      var text = C.carouselText(S.car);
+      var done = function () { say('テキストをコピーしました。', true); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { say('コピーできませんでした。「テキストで保存」を使ってください。'); });
+      else say('コピーできませんでした。「テキストで保存」を使ってください。');
+    });
+    el('spl-c-dl').addEventListener('click', function () {
+      carRead();
+      var blob = new Blob([C.carouselText(S.car)], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'carousel-' + D.today + '.txt';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    });
+    el('spl-c-use').addEventListener('click', function () {
+      carRead();
+      if (!S.car.caption.trim()) S.car.caption = C.carouselCaption(S.car);
+      setView('compose');
+      var cb = document.querySelector('#social-nets input[data-net="instagram"]');
+      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+      var ta = el('social-text');
+      if (ta) {
+        if (ta.value.trim() && !confirm('投稿欄の本文を、このキャプションで置き換えますか？')) return;
+        ta.value = S.car.caption;
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        ta.scrollIntoView({ block: 'center' });
+      }
+      S.pillar = S.car.pillar || S.pillar;
+      if (el('spl-pillar')) el('spl-pillar').value = S.pillar;
+      addonUpdate();
+    });
+    el('spl-c-clear').addEventListener('click', function () {
+      if (!confirm('カルーセルの下書きを消して、白紙に戻しますか？')) return;
+      S.car = null; ls(CK, null); render();
+    });
+  }
+  function focusLater(id) { var x = el(id); if (x && x.focus) x.focus(); }
+  SECTIONS.push({ id: 'carousel', html: carouselHtml, bind: bindCarousel });
+
+  /* 投稿欄：保存・シェア要素の点数（助言だけ。送るのは止めません）。 */
+  function scoreAddon() {
+    var ta = el('social-text');
+    var sc = C.saveShareScore(ta ? ta.value : '');
+    if (!sc) return '';
+    return '<div style="margin-top:6px"><b>保存・シェア要素</b>：' + sc.score + ' / ' + sc.max + '（' + esc(sc.label) + '）<span class="spl-meyasu">目安</span>' +
+      (sc.tips.length ? '<div class="soc-small">' + sc.tips.map(esc).join('<br>') + '</div>' : '') + '</div>';
+  }
+
+  /* ================================================================
      投稿欄に足す部品（柱の選択など）。投稿欄そのものは書き換えません。
      ================================================================ */
-  var ADDON = [];
+  var ADDON = [scoreAddon];
   function composerAddon() {
     var anchor = el('social-tpl');
     if (!anchor || el('spl-compose')) return;

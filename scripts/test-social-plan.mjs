@@ -219,4 +219,57 @@ t('isAnswered: 受信箱の形がいろいろでも読める', () => {
   assert.equal(P.isAnswered({ createdAt: '2026-10-01T00:00:00Z' }), false)
 })
 
+/* ---- 4. 保存・シェア ---- */
+t('carouselCheck: 良い形のカルーセルは全部 OK', () => {
+  const k = P.carouselCheck({
+    cover: '開店前に見て！ 豆の選び方3つ',
+    slides: ['1. 焙煎日を見る', '2. 挽くのは飲む直前に', '3. 好みの酸味を伝える'],
+    last: '保存して見返してね',
+    caption: '',
+  })
+  assert.equal(k.ok, k.total)
+  assert.equal(k.slides, 5)
+})
+
+t('carouselCheck: 枚数・表紙・1枚1つ・長さ・お願い の不足を言う', () => {
+  const long = 'あ'.repeat(70)
+  const k = P.carouselCheck({ cover: 'こんにちは', slides: ['一つ目。二つ目。三つ目。', long], last: 'ありがとう', caption: '' })
+  const by = Object.fromEntries(k.checks.map((c) => [c.id, c]))
+  assert.equal(by.count.ok, false)
+  assert.equal(by.cover.ok, false)
+  assert.equal(by.one.ok, false)
+  assert.ok(by.one.detail.includes('2枚目'))
+  assert.equal(by.length.ok, false)
+  assert.ok(by.length.detail.includes('3枚目'))
+  assert.equal(by.cta.ok, false)
+  // キャプションにお願いがあれば OK
+  assert.equal(P.carouselCheck({ cover: 'a', slides: [], last: '', caption: '保存してね' }).checks.find((c) => c.id === 'cta').ok, true)
+})
+
+t('carouselCaption / carouselText: たたき台と書き出し', () => {
+  const c = { cover: '豆の選び方3つ', slides: ['焙煎日を見る\n細かい説明', '挽きたて'], last: '保存して見返してね' }
+  const cap = P.carouselCaption(c)
+  assert.ok(cap.startsWith('豆の選び方3つ'))
+  assert.ok(cap.includes('・焙煎日を見る') && !cap.includes('細かい説明'))
+  assert.ok(cap.includes('保存'))
+  const txt = P.carouselText({ ...c, caption: cap })
+  assert.ok(txt.includes('【1枚目（表紙）】\n豆の選び方3つ'))
+  assert.ok(txt.includes('【4枚目（最後）】\n保存して見返してね'))
+  assert.ok(txt.includes('【キャプション】'))
+})
+
+t('saveShareScore: 手順＋お願い＝3点、宣伝だけ＝低い、空は null', () => {
+  assert.equal(P.saveShareScore('  '), null)
+  const good = P.saveShareScore('おうちで淹れるコツ\n1. 豆は挽きたて\n2. お湯は90度\n保存して見返してね')
+  assert.equal(good.score, 3)
+  const ad = P.saveShareScore('秋の限定メニュー、今だけ10%OFF！ご予約はこちら')
+  assert.equal(ad.pureAd, true)
+  assert.equal(ad.score, 0)
+  assert.equal(ad.tips.length, 3)
+  // 宣伝でも、役立つ形なら「宣伝だけ」ではない
+  const mixed = P.saveShareScore('限定メニューのおいしい食べ方3つ')
+  assert.equal(mixed.pureAd, false)
+  assert.equal(mixed.score, 2)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)
