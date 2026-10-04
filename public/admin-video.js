@@ -196,7 +196,7 @@
       '<div class="vid-grid3">' +
         '<div><label class="soc-lab" for="vp-banned">禁止ワード（1行に1つ）</label><textarea id="vp-banned" rows="4" placeholder="絶対に&#10;必ず儲かる">' + esc((b.banned_words || []).join('\n')) + '</textarea></div>' +
         '<div><label class="soc-lab" for="vp-notation">表記の統一（1行に「元 → 後」）</label><textarea id="vp-notation" rows="4" placeholder="パソコン → PC">' + esc(notationText(b.notation)) + '</textarea></div>' +
-        '<div><label class="soc-lab" for="vp-except">例外（置き換えない語。1行に1つ）</label><textarea id="vp-except" rows="4" placeholder="パソコン教室">' + esc((b.notation_exceptions || []).join('\n')) + '</textarea></div>' +
+        '<div><label class="soc-lab" for="vp-except">例外（置き換えない語・1行に1つ）</label><textarea id="vp-except" rows="4" placeholder="パソコン教室">' + esc((b.notation_exceptions || []).join('\n')) + '</textarea></div>' +
       '</div>' +
       '<label class="soc-lab" for="vp-style">絵コンテの画風（英語。画像生成に渡す文の後ろに付きます）</label>' +
       '<input type="text" id="vp-style" class="vid-in" maxlength="300" placeholder="warm natural light, shallow depth of field, 35mm photo" value="' + esc(b.style) + '">' +

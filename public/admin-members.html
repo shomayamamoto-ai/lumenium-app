@@ -547,6 +547,9 @@
   .vid-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
   .vid-acts button { font-size: 12.5px; padding: 9px 16px; }
   .vid-grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  /* 見出しが1行と2行で混ざると、下の入力欄の高さがずれます。見出しの高さを
+     そろえ、文字は下に寄せます。 */
+  .vid-grid3 > div > .soc-lab { display: flex; align-items: flex-end; min-height: 2.9em; }
   .vid-scroll { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
   .vid-table { font-size: 12px; }
   .vid-table th, .vid-table td { padding: 7px 9px; vertical-align: top; }
@@ -3290,7 +3293,7 @@ window.lumAdmin = {
     return base + {
       title: 'font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.35;',
       label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:#3d3fbf;',
-      lead: 'font-size:14.5px;color:#c7cfe2;',
+      lead: 'font-size:14.5px;color:#4a4f63;',
       q: 'font-size:14px;font-weight:700;',
       body: 'font-size:13.5px;',
     }[kindOf(path)];
@@ -3494,7 +3497,7 @@ window.lumAdmin = {
          出します。保存してデプロイを待たないと分からない、という状態が
          いちばん手が止まります。 */
       var demo = document.createElement('div');
-      demo.style.cssText = 'margin-top:8px;background:#11162a;border:1px solid var(--border);border-radius:9px;padding:10px 13px';
+      demo.style.cssText = 'margin-top:8px;background:#faf9f6;border:1px solid var(--border);border-radius:9px;padding:10px 13px';
       var demoHead = document.createElement('div');
       demoHead.textContent = vkind === 'prose'
         ? '見え方（' + kindLabel(f.path) + '）'
