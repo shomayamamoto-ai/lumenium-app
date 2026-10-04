@@ -253,7 +253,14 @@ function compose(net, p, host) {
   var separate = (net === 'facebook' && !images.length) || !!rule.linkButton
   var text = body
   if (link && !inBody && !separate) text = body ? body + '\n' + link : link
+  // スレッドに分ける（選んだ投稿先で、上限を超えているときだけ）。
+  var parts = null
+  var th = p && p.thread
+  if (THREADABLE[net] && th && Array.isArray(th.nets) && th.nets.indexOf(net) !== -1 && lengthFor(net, text) > rule.limit) {
+    parts = splitThread(net, text, { number: th.number !== false })
+  }
   return {
+    parts: parts,
     net: net,
     text: text,
     body: body,
@@ -272,6 +279,11 @@ function check(net, c) {
   var warnings = []
   if (!r) return { count: 0, limit: 0, errors: ['不明な投稿先です。'], warnings: warnings }
   var count = lengthFor(net, c.text)
+  if (c.parts && c.parts.length > 1) {
+    count = 0
+    for (var pi = 0; pi < c.parts.length; pi++) count = Math.max(count, lengthFor(net, c.parts[pi]))
+    if (c.parts.length > THREAD_MAX) errors.push('スレッドは' + THREAD_MAX + '件までにしてください（いま ' + c.parts.length + ' 件）。本文を短くしてください。')
+  }
   var hasText = !!String(c.body || '').trim() || !!c.link
   if (count > r.limit) {
     errors.push(net === 'x'
@@ -288,7 +300,10 @@ function check(net, c) {
     var tags = (String(c.text).match(/[#＃][^\s#＃]+/g) || []).length
     if (tags > r.hashtags) errors.push('ハッシュタグは ' + r.hashtags + ' 個までです（いま ' + tags + ' 個）。')
   }
-  if (net === 'x') {
+  if (net === 'x' && c.parts && c.parts.length > 1) {
+    warnings.push('スレッドは ' + c.parts.length + ' 件の投稿になり、1件ずつ料金がかかります（合計 約' + threadCost(c.parts) + 'ドル。リンクのある件は約0.2ドル）。')
+    if (c.droppedImages > 0) warnings.push('この画像はXには付きません。Xに画像を付けられるのは、この画面からアップロードした画像だけです。')
+  } else if (net === 'x') {
     warnings.push(findUrls(c.text).length
       ? 'リンク付きは1投稿あたり約0.2ドル（リンクなしは約0.015ドル）かかります。'
       : 'X は1投稿あたり約0.015ドルかかります（リンクを入れると約0.2ドル）。')
@@ -408,6 +423,109 @@ function foldCheck(net, text) {
       '多くの人は畳まれた先を開きません。大事なことは最初の1〜2行に。（区切りは目安です）')
   }
   return out
+}
+
+/* ============================================================== スレッド分割 ==
+   X・Threads・Bluesky で上限を超えるとき、文の切れ目（。！？と改行）で分けて、
+   返信の形でつなげて出します。数え方は投稿先ごと（X は日本語=2、URL=23）で、
+   番号（1/3）を付けるときは、その分も数に入れます。
+
+   1つの文が長すぎて収まらないときだけ、文の途中（読点・空白の後ろを優先）で
+   切ります。URL の途中では切りません。X はスレッドの1件ずつに料金がかかります。 */
+var THREADABLE = { x: true, threads: true, bluesky: true }
+var THREAD_MAX = 10
+
+var BOUNDARY = /[。！？!?．]+[」』）)】]*[ \t　]*\n*|\n+/g
+
+/** 文の切れ目の位置（その位置の前までが1文）。URL の中は除きます。 */
+function boundaries(s, urls) {
+  var out = []
+  var re = new RegExp(BOUNDARY.source, 'g')
+  var m
+  while ((m = re.exec(s))) {
+    var end = m.index + m[0].length
+    if (!m[0].length) { re.lastIndex++; continue }
+    var inUrl = false
+    for (var k = 0; k < urls.length; k++) if (m.index >= urls[k].start && m.index < urls[k].end) inUrl = true
+    if (!inUrl && end < s.length) out.push(end)
+  }
+  return out
+}
+
+/** 文の途中で切るときの位置：room に収まるいちばん後ろ（URL の中は避け、
+ *  読点・空白の直後が近くにあればそこ）。 */
+function hardCut(net, s, start, room, urls) {
+  var cps = []
+  for (var i = start; i < s.length;) {
+    var cp = s.codePointAt(i)
+    i += cp > 0xffff ? 2 : 1
+    cps.push(i)
+  }
+  var lo = 0, hi = cps.length - 1, best = -1
+  while (lo <= hi) {
+    var mid = (lo + hi) >> 1
+    if (lengthFor(net, s.slice(start, cps[mid]).trim()) <= room) { best = mid; lo = mid + 1 } else hi = mid - 1
+  }
+  var cut = best >= 0 ? cps[best] : cps[0]
+  for (var k = 0; k < urls.length; k++) {
+    if (cut > urls[k].start && cut < urls[k].end) cut = urls[k].start > start ? urls[k].start : urls[k].end
+  }
+  // 近く（20文字以内）に読点や空白があれば、その直後で。
+  var back = s.slice(Math.max(start, cut - 20), cut)
+  var at = Math.max(back.lastIndexOf('、'), back.lastIndexOf('，'), back.lastIndexOf(' '), back.lastIndexOf('　'))
+  if (at > 0) cut = cut - back.length + at + 1
+  return cut > start ? cut : Math.min(s.length, start + 1)
+}
+
+function pack(net, s, room) {
+  var urls = findUrls(s)
+  var cuts = boundaries(s, urls)
+  var parts = []
+  var start = 0
+  while (start < s.length) {
+    var rest = s.slice(start).trim()
+    if (!rest) break
+    if (lengthFor(net, rest) <= room) { parts.push(rest); break }
+    var best = -1
+    for (var i = 0; i < cuts.length; i++) {
+      if (cuts[i] <= start) continue
+      if (lengthFor(net, s.slice(start, cuts[i]).trim()) <= room) best = cuts[i]
+      else break
+    }
+    var end = best > start ? best : hardCut(net, s, start, room, urls)
+    var part = s.slice(start, end).trim()
+    if (part) parts.push(part)
+    start = end
+    if (parts.length > 50) break
+  }
+  return parts
+}
+
+/** 本文を投稿先の上限に収まる「スレッド」に分けます。収まるなら1件のまま。
+ *  number: true で、各件の最後に「(1/3)」を付けます（その分も数えます）。 */
+function splitThread(net, text, opts) {
+  var r = RULES[net]
+  var s = String(text == null ? '' : text).trim()
+  var number = !!(opts && opts.number)
+  if (!r || lengthFor(net, s) <= r.limit) return [s]
+  var guess = 9
+  for (var t = 0; t < 3; t++) {
+    var tag = '\n(' + guess + '/' + guess + ')'
+    var parts = pack(net, s, r.limit - (number ? lengthFor(net, tag) : 0))
+    if (!number) return parts
+    if (String(parts.length).length <= String(guess).length) {
+      return parts.map(function (p, i) { return p + '\n(' + (i + 1) + '/' + parts.length + ')' })
+    }
+    guess = guess * 10 + 9
+  }
+  return parts
+}
+
+/** X のスレッドの料金の目安（ドル）。リンクのある件は高い料金です。 */
+function threadCost(parts) {
+  var sum = 0
+  for (var i = 0; i < parts.length; i++) sum += findUrls(parts[i]).length ? X_COST.postWithLink : X_COST.post
+  return Math.round(sum * 1000) / 1000
 }
 
 /* ============================================================== 画像の切り抜き ==
@@ -748,5 +866,5 @@ function styleToLines(style) {
   }
 }
 
-window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
+window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, THREADABLE, THREAD_MAX, splitThread, threadCost, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
 })();

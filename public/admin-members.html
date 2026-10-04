@@ -599,6 +599,11 @@
   .soc-tab .st { font-variant-numeric: tabular-nums; margin-left: 6px; font-weight: 700; }
   .soc-tab .st.over { color: #b42318; }
   .soc-var { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; }
+  .soc-thread { margin-top: 10px; padding: 9px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 5px; }
+  .soc-thread label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 700; }
+  .soc-parts { margin: 4px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .soc-parts .tx { font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .soc-parts .row { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
   .soc-var .soc-fc { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
   .soc-var .soc-fc textarea { width: 100%; }
   .soc-var .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 7px; font-size: 11.5px; }
@@ -6802,7 +6807,7 @@ window.lumAdmin = {
     return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
   }
   function blank() {
-    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE', firstComment: '' };
+    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE', firstComment: '', thread: { nets: [], number: true } };
   }
 
   function esc(t) {
@@ -6845,7 +6850,8 @@ window.lumAdmin = {
       targets: sendable(),
       sendId: S.sendId,
       gbp: { action: S.gbpAction || 'LEARN_MORE' },
-      firstComment: S.firstComment || ''
+      firstComment: S.firstComment || '',
+      thread: S.thread
     };
   }
   function composeFor(id) { return TX.compose(id, payload(), brand.host); }
@@ -7558,6 +7564,7 @@ window.lumAdmin = {
         '<div id="soc-v-issues"></div>' +
         '<div id="soc-v-fix"></div>' +
         '<div id="soc-v-review"></div>' +
+        '<div id="soc-v-thread"></div>' +
         '<div id="soc-v-preview"></div>' +
         '<div class="row" style="margin-top:8px">' +
           '<button type="button" id="soc-v-clip" style="font-size:11.5px;padding:6px 12px">本文をコピー</button>' +
@@ -7707,6 +7714,11 @@ window.lumAdmin = {
         (showBtn ? '<div style="margin-top:8px"><span style="display:inline-block;border:1px solid #1a73e8;color:#1a73e8;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700">' + esc(TX.GBP_ACTIONS[act] || '詳細') + '</span></div>' : '') +
         destHtml + '</div>';
     }
+    if (c.parts && c.parts.length > 1) {
+      return c.parts.map(function (p, i) {
+        return '<div class="soc-pv">' + who + '<div class="tx">' + hl(p) + '</div>' + (i === 0 ? pics : '') + '</div>';
+      }).join('<div class="soc-small" style="margin:4px 0 0 16px">↳ 返信としてつなげます</div>') + '<div class="soc-pv" style="padding:6px 14px">' + destHtml + '</div>';
+    }
     var card = c.linkSeparate ? '<div class="card">' + esc((function () { try { return new URL(c.link).hostname; } catch (_) { return ''; } })()) + '<br>' + esc(readable(c.link)) + '</div>' : '';
     return '<div class="soc-pv">' + who + '<div class="tx">' + folded(c.text, k.fold) + '</div>' + pics + card + destHtml + foldNote(k.fold) + '</div>';
   }
@@ -7727,7 +7739,8 @@ window.lumAdmin = {
     if (!netById(id) || !el('soc-v-count')) return;
     var k = fullCheck(id);
     var cnt = el('soc-v-count');
-    cnt.textContent = (id === 'x' ? 'Xの数え方で ' : '') + k.count + ' / ' + k.limit + ' 文字' +
+    cnt.textContent = (k.c.parts && k.c.parts.length > 1 ? 'スレッド ' + k.c.parts.length + ' 件・いちばん長い件で ' : '') +
+      (id === 'x' ? 'Xの数え方で ' : '') + k.count + ' / ' + k.limit + ' 文字' +
       (k.c.custom ? '（この投稿先だけの本文）' : '（共通の本文）');
     cnt.classList.toggle('over', k.count > k.limit);
     el('soc-v-issues').innerHTML =
@@ -7768,7 +7781,50 @@ window.lumAdmin = {
         (q.remaining != null ? '今月の残りは ' + q.remaining + '通です。' : '') + '</div>';
     }
     renderReview(id, k);
+    renderThread(id, k);
     el('soc-v-preview').innerHTML = previewHtml(id, k);
+  }
+
+  /* ---- スレッドに分ける（X・Threads・Bluesky） ----
+     上限を超えたときだけ出します。分け方は _social-text.js の splitThread
+     （文の切れ目で、その投稿先の数え方で）。1件ずつ見て、手で投稿するときは
+     1件ずつコピーできます。 */
+  function renderThread(id, k) {
+    var box = el('soc-v-thread');
+    if (!box) return;
+    var n = netById(id);
+    if (!TX.THREADABLE[id] || !n) { box.innerHTML = ''; return; }
+    var on = S.thread.nets.indexOf(id) !== -1;
+    var over = TX.lengthFor(id, k.c.text) > n.limit;
+    if (!over && !on) { box.innerHTML = ''; return; }
+    var parts = k.c.parts || [];
+    box.innerHTML = '<div class="soc-thread">' +
+      '<label><input type="checkbox" id="soc-v-th"' + (on ? ' checked' : '') + '> スレッドに分けて投稿（文の切れ目で分け、返信の形でつなげます）</label>' +
+      (on ? '<label><input type="checkbox" id="soc-v-thn"' + (S.thread.number !== false ? ' checked' : '') + '> 番号を付ける（1/3 のように）</label>' : '') +
+      (id === 'x' ? '<div class="soc-small">X はスレッドの1件ずつに料金がかかります（リンクのある件は約0.2ドル、ほかは約0.015ドル）。' +
+        (parts.length > 1 ? 'この内容だと ' + parts.length + ' 件で 約' + TX.threadCost(parts) + 'ドルです。' : '') + '</div>' : '') +
+      (on && !over ? '<div class="soc-small">いまは1件に収まるので、分けずに送ります。</div>' : '') +
+      (on && parts.length > 1 ? '<ol class="soc-parts">' + parts.map(function (p, i) {
+        var len = TX.lengthFor(id, p);
+        return '<li><div class="tx">' + hl(p) + '</div><div class="row"><span class="soc-count' + (len > n.limit ? ' over' : '') + '">' + (i + 1) + '件目 ' + len + ' / ' + n.limit + '</span>' +
+          '<button type="button" class="ghost" data-part="' + i + '" style="font-size:11px;padding:3px 9px">この件をコピー</button></div></li>';
+      }).join('') + '</ol><div class="soc-small">手で投稿するときは、1件目を投稿してから、2件目以降をその投稿への返信として順に貼ってください。</div>' : '') +
+      '</div>';
+    el('soc-v-th').addEventListener('change', function () {
+      var i = S.thread.nets.indexOf(id);
+      if (this.checked && i === -1) S.thread.nets.push(id);
+      if (!this.checked && i !== -1) S.thread.nets.splice(i, 1);
+      changed(false);
+    });
+    var num = el('soc-v-thn');
+    if (num) num.addEventListener('change', function () { S.thread.number = this.checked; changed(false); });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-part]'), function (b) {
+      b.addEventListener('click', function () {
+        var t = parts[Number(b.dataset.part)] || '';
+        var ok = function () { b.textContent = '✓ コピーしました'; };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, function () {});
+      });
+    });
   }
 
   /* ---- 投稿前チェック（表現） ----
@@ -7976,7 +8032,7 @@ window.lumAdmin = {
         at: new Date().toISOString(),
         text: el('social-text').value, link: el('social-link').value, campaign: el('social-campaign').value,
         topic: el('social-ai-topic').value,
-        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction, firstComment: S.firstComment || ''
+        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction, firstComment: S.firstComment || '', thread: S.thread
       };
       var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !d.firstComment.trim() && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
       if (empty) localStorage.removeItem(DRAFT_KEY);
@@ -8001,6 +8057,7 @@ window.lumAdmin = {
     S.sendId = /^[0-9a-f-]{36}$/i.test(String(d.sendId || '')) ? d.sendId : uuid();
     S.gbpAction = TX.GBP_ACTIONS[d.gbpAction] ? d.gbpAction : 'LEARN_MORE';
     S.firstComment = String(d.firstComment || '');
+    S.thread = d.thread && Array.isArray(d.thread.nets) ? { nets: d.thread.nets.filter(function (x) { return TX.THREADABLE[x]; }), number: d.thread.number !== false } : { nets: [], number: true };
     S.images.forEach(function (i) { measure(i.url); });
     restoring = false;
     var box = el('social-restore');
@@ -8541,7 +8598,9 @@ window.lumAdmin = {
       var n = netById(id);
       var k = fullCheck(id);
       var extra = '';
-      if (id === 'x') extra = TX.findUrls(k.c.text).length ? '（約0.2ドル）' : '（約0.015ドル）';
+      if (id === 'x') extra = k.c.parts && k.c.parts.length > 1 ? '（スレッド ' + k.c.parts.length + ' 件・約' + TX.threadCost(k.c.parts) + 'ドル）'
+        : TX.findUrls(k.c.text).length ? '（約0.2ドル）' : '（約0.015ドル）';
+      else if (k.c.parts && k.c.parts.length > 1) extra = '（スレッド ' + k.c.parts.length + ' 件）';
       if (id === 'line') {
         var q = quotas.line;
         extra = q && q.ok && q.reach != null

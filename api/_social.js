@@ -19,7 +19,7 @@ import { setting, settingStatus, saveSetting } from './_settings.js'
 import { authHeader } from './_x-oauth1.js'
 import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
-import { RULES, compose, check, isBlobUrl, cleanCampaign, ALT_MAX } from './_social-text.js'
+import { RULES, compose, check, isBlobUrl, cleanCampaign, ALT_MAX, THREADABLE } from './_social-text.js'
 import { fieldFor } from './_social-insights.js'
 import { GBP_ACTIONS } from './_social-text.js'
 import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
@@ -332,8 +332,9 @@ async function postX(c, req, ctx) {
     mediaIds = ups.map((u) => u.id)
     altNote = ups.some((u) => u.note) ? '代替テキストは付けられませんでした' : ''
   }
+  const parts = c.parts && c.parts.length > 1 ? c.parts : [c.text]
   const r = await xCall('POST', `${X_API}/tweets`, keys,
-    mediaIds.length ? { text: c.text, media: { media_ids: mediaIds } } : { text: c.text },
+    mediaIds.length ? { text: parts[0], media: { media_ids: mediaIds } } : { text: parts[0] },
     'X', ctx, { publish: true })
   /* いちばん多いつまずきは「権限を Read and write にする前に Access Token を
      作った」です。その鍵は読み取り専用のままで、投稿は 403 になります。
@@ -343,7 +344,28 @@ async function postX(c, req, ctx) {
   }
   if (!r.ok) return r
   const id = r.data && r.data.data && r.data.data.id
-  return { ok: true, id, url: id ? `https://x.com/i/web/status/${id}` : '', message: altNote }
+  const url = id ? `https://x.com/i/web/status/${id}` : ''
+  // スレッドの2件目から：1つ前の投稿への返信としてつなげます。
+  const rest = await chain(parts, id, async (text, prev) => {
+    const x = await xCall('POST', `${X_API}/tweets`, keys, { text, reply: { in_reply_to_tweet_id: prev } }, 'X', ctx, { publish: true })
+    return x.ok ? { ok: true, id: x.data && x.data.data && x.data.data.id } : x
+  }, 'X')
+  return { ok: true, id, url, parts: parts.length, message: [altNote, rest].filter(Boolean).join('。') }
+}
+
+/** スレッドの2件目以降を順に出します。1件目はもう公開されているので、
+ *  途中で止まっても「成功」のまま、何件目で止まったかを伝えます。 */
+async function chain(parts, firstId, send, label) {
+  let prev = firstId
+  for (let i = 1; i < parts.length; i++) {
+    const r = await send(parts[i], prev, i)
+    if (!r.ok || !r.id) {
+      return `スレッドの ${i + 1}/${parts.length} 件目で止まりました（${String(r.message || '返事に番号がありませんでした').replace(/^.*?：/, '')}）。` +
+        `${r.unknown ? '出たかどうか分かりません。' : ''}続きは${label}の画面で、${i}件目への返信として足してください`
+    }
+    prev = r.id
+  }
+  return parts.length > 1 ? `スレッド ${parts.length} 件をつなげて投稿しました` : ''
 }
 
 /* ------------------------------------------------------------- Facebook -- */
@@ -418,13 +440,12 @@ async function postInstagram(c, req, ctx, p) {
 
 /* -------------------------------------------------------------- Threads -- */
 
-async function postThreads(c, req, ctx) {
-  const user = await setting('THREADS_USER_ID', '', req)
-  const token = await setting('THREADS_TOKEN', '', req)
-  const img = c.images[0]
-  const make = new URLSearchParams({ media_type: img ? 'IMAGE' : 'TEXT', text: c.text, access_token: token })
+/** Threads に1件。reply_to があれば、その投稿への返信（スレッドの続き）。 */
+async function threadsOne(user, token, text, img, replyTo, ctx) {
+  const make = new URLSearchParams({ media_type: img ? 'IMAGE' : 'TEXT', text, access_token: token })
   if (img) make.set('image_url', img.url)
   if (img && img.alt) make.set('alt_text', img.alt)
+  if (replyTo) make.set('reply_to_id', replyTo)
   const made = await call(`${THREADS}/${encodeURIComponent(user)}/threads`, { method: 'POST', body: make }, 'Threads（下書き作成）', ctx)
   if (!made.ok) return made
   const cid = String(made.data.id || '')
@@ -434,13 +455,23 @@ async function postThreads(c, req, ctx) {
   const pub = new URLSearchParams({ creation_id: cid, access_token: token })
   const p = await call(`${THREADS}/${encodeURIComponent(user)}/threads_publish`, { method: 'POST', body: pub }, 'Threads（公開）', ctx, { publish: true })
   if (!p.ok) return p
-  const id = p.data.id
+  return { ok: true, id: p.data.id }
+}
+
+async function postThreads(c, req, ctx) {
+  const user = await setting('THREADS_USER_ID', '', req)
+  const token = await setting('THREADS_TOKEN', '', req)
+  const parts = c.parts && c.parts.length > 1 ? c.parts : [c.text]
+  const first = await threadsOne(user, token, parts[0], c.images[0], '', ctx)
+  if (!first.ok) return first
+  const id = first.id
+  const rest = await chain(parts, id, (text, prev) => threadsOne(user, token, text, null, prev, ctx), 'Threads')
   let url = ''
   if (ctx.deadline - Date.now() > 2500) {
     const link = await call(`${THREADS}/${encodeURIComponent(id)}?fields=permalink&access_token=${encodeURIComponent(token)}`, {}, 'Threads', ctx, { ms: 2500 })
     if (link.ok) url = link.data.permalink || ''
   }
-  return { ok: true, id, url }
+  return { ok: true, id, url, parts: parts.length, message: rest }
 }
 
 /* ------------------------------------------------------------- LinkedIn -- */
@@ -558,6 +589,10 @@ export function readPayload(body) {
   const firstComment = targets.includes('instagram') ? String(b.firstComment || '').trim().slice(0, 2200) : ''
   const out = { text, link, campaign, images, variants, targets, sendId, gbp }
   if (firstComment) out.firstComment = firstComment
+  // スレッドに分ける投稿先（X・Threads・Bluesky のうち、選んだもの）と、番号を付けるか。
+  const th = b.thread && typeof b.thread === 'object' ? b.thread : null
+  const thNets = th && Array.isArray(th.nets) ? th.nets.map(String).filter((n) => THREADABLE[n] && targets.includes(n)) : []
+  if (thNets.length) out.thread = { nets: [...new Set(thNets)], number: th.number !== false }
   return { ok: true, payload: out }
 }
 
@@ -606,10 +641,12 @@ export async function sendPost(payload, req, opts = {}) {
     const r = s.status === 'fulfilled' ? s.value : { ok: false, message: String((s.reason && s.reason.message) || s.reason).slice(0, 200) }
     let message = r.message || ''
     if (!r.ok && message && !message.startsWith(net.label) && !message.startsWith(net.label.slice(0, 4))) message = `${net.label}：${message}`
-    return {
+    const row = {
       net: id, label: net.label, ok: !!r.ok, unknown: !r.ok && !!r.unknown,
       id: r.id ? String(r.id) : '', url: r.url || '', message,
     }
+    if (r.parts > 1) row.parts = r.parts
+    return row
   })
 
   // What each network was actually handed, when it differed from the base
@@ -620,7 +657,8 @@ export async function sendPost(payload, req, opts = {}) {
   const refs = {}
   for (const id of payload.targets) {
     const c = compose(id, payload, BRAND.host)
-    if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
+    if (c.parts && c.parts.length > 1) texts[id] = c.parts.join('\n―\n').slice(0, 1500)
+    else if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
     if (/[?&]ref=/.test(c.text + ' ' + c.link)) refs[id] = fieldFor(id, payload.campaign)
   }
   const entry = {

@@ -885,6 +885,98 @@ await test('コメントが付けられなくても、投稿は成功のまま�
   assert.match(results[0].message, /instagram_manage_comments/)
 })
 
+console.log('スレッド分割')
+const LONG = '秋の限定メニューを始めました。栗のモンブランは、熊本の和栗を使っています。' +
+  'ほうじ茶のラテもご用意しました！ 平日は14時から、土日は12時からです。' +
+  'お席に限りがありますので、ご予約がおすすめです。詳しくは https://lumenium.net/menu?from=sns&a=b をご覧ください。' +
+  'たくさんのご来店をお待ちしています。テイクアウトもできます。お電話でのご注文は、前の日までにお願いします。'
+await test('収まるなら1件のまま', () => {
+  assert.deepEqual(T.splitThread('x', '短い本文です。', { number: true }), ['短い本文です。'])
+})
+await test('X：日本語=2で数え、文の切れ目で分け、番号の分も数に入れる', () => {
+  const parts = T.splitThread('x', LONG, { number: true })
+  assert.ok(parts.length >= 2)
+  parts.forEach((p, i) => {
+    assert.ok(T.xLength(p) <= 280, p)
+    assert.ok(p.endsWith(`\n(${i + 1}/${parts.length})`))
+  })
+  // 番号を外してつなぐと元の本文（空白の違いを除く）。文の途中で切れていない。
+  const body = parts.map((p) => p.replace(/\n\(\d+\/\d+\)$/, ''))
+  assert.equal(body.join('').replace(/\s/g, ''), LONG.replace(/\s/g, ''))
+  body.forEach((b) => assert.match(b, /[。！？]$/))
+  // URL はどこかの1件にまるごと入る
+  assert.ok(body.some((b) => b.includes('https://lumenium.net/menu?from=sns&a=b')))
+})
+await test('番号なし・Bluesky は見た目の文字数・Threads は 500', () => {
+  const b = T.splitThread('bluesky', LONG + LONG + LONG, { number: false })
+  assert.ok(b.length >= 2 && b.every((p) => T.graphemes(p) <= 300 && !/\(\d+\/\d+\)$/.test(p)))
+  const th = T.splitThread('threads', 'あ。'.repeat(400), { number: true })
+  assert.ok(th.length >= 2 && th.every((p) => p.length <= 500))
+})
+await test('切れ目の無い長い文は、読点・空白の後ろで切る（URL の途中では切らない）', () => {
+  const t = 'あ'.repeat(130) + '、' + 'い'.repeat(100) + ' https://lumenium.net/' + 'z'.repeat(40) + ' おわり'
+  const parts = T.splitThread('x', t, { number: false })
+  assert.ok(parts.every((p) => T.xLength(p) <= 280))
+  assert.ok(parts[0].endsWith('、'))
+  assert.ok(parts.some((p) => p.includes('https://lumenium.net/' + 'z'.repeat(40))))
+})
+await test('10件以上になると番号は2けたぶんを数え、11件以上は送らない', () => {
+  const t = Array.from({ length: 14 }, (_, i) => 'あ'.repeat(120) + i + '。').join('')
+  const parts = T.splitThread('x', t, { number: true })
+  assert.ok(parts.length >= 10)
+  assert.ok(parts.every((p) => T.xLength(p) <= 280))
+  assert.ok(parts[0].endsWith(`(1/${parts.length})`))
+  const c = T.compose('x', base({ text: t, thread: { nets: ['x'], number: true } }), 'h')
+  assert.ok(T.check('x', c).errors.some((e) => e.includes('10件まで')))
+})
+await test('compose：選んだ投稿先で上限を超えたときだけ分け、X は件数ぶんの料金を言う', () => {
+  const p = base({ text: LONG, thread: { nets: ['x', 'threads'], number: true } })
+  const cx = T.compose('x', p, 'lumenium.net')
+  assert.ok(cx.parts.length >= 2)
+  const k = T.check('x', cx)
+  assert.equal(k.errors.length, 0)
+  assert.ok(k.warnings.some((w) => w.includes('1件ずつ料金')))
+  assert.equal(T.compose('threads', p, 'lumenium.net').parts, null) // 500 に収まる
+  assert.ok(T.lengthFor('threads', T.compose('threads', p, 'lumenium.net').text) <= 500)
+  assert.equal(T.compose('bluesky', p, 'lumenium.net').parts, null) // 選んでいない
+  assert.equal(T.threadCost(['a', 'b https://a.jp/', 'c']), 0.23)
+})
+await test('送信：X は in_reply_to_tweet_id、Threads は reply_to_id、Bluesky は root と parent', async () => {
+  let n = 0
+  route = (u, init) => {
+    if (u.endsWith('/2/tweets')) return json({ data: { id: 'T' + (++n) } })
+    if (u.includes('graph.threads.net') && u.endsWith('/threads')) return json({ id: 'TC' + (++n) })
+    if (u.endsWith('/threads_publish')) return json({ id: 'TP' + (++n) })
+    if (u.endsWith('createRecord')) { n++; return json({ uri: 'at://did:plc:abc/app.bsky.feed.post/r' + n, cid: 'c' + n }) }
+    return bskyRoute(u, init)
+  }
+  const text = LONG + LONG + LONG
+  const read = S.readPayload({ text, targets: ['x', 'threads', 'bluesky'], thread: { nets: ['x', 'threads', 'bluesky', 'line'], number: true } })
+  assert.deepEqual(read.payload.thread.nets, ['x', 'threads', 'bluesky'])
+  const { results, entry } = await S.sendPost(read.payload, undefined)
+  assert.ok(results.every((r) => r.ok && r.parts >= 2), JSON.stringify(results))
+  const tw = calls.filter((c) => c.url.endsWith('/2/tweets')).map((c) => JSON.parse(c.init.body))
+  assert.equal(tw[0].reply, undefined)
+  assert.ok(tw.slice(1).every((b) => /^T\d+$/.test(b.reply.in_reply_to_tweet_id)))
+  const th = calls.filter((c) => c.url.includes('graph.threads.net') && c.url.endsWith('/threads')).map((c) => new URLSearchParams(c.init.body))
+  assert.equal(th[0].get('reply_to_id'), null)
+  assert.ok(th.slice(1).every((f) => /^TP\d+$/.test(f.get('reply_to_id'))))
+  const bs = calls.filter((c) => c.url.endsWith('createRecord')).map((c) => JSON.parse(c.init.body).record)
+  assert.equal(bs[0].reply, undefined)
+  assert.equal(bs[1].reply.root.uri, bs[2] ? bs[2].reply.root.uri : bs[1].reply.root.uri)
+  assert.equal(bs[1].reply.parent.uri, bs[1].reply.root.uri)
+  if (bs[2]) assert.notEqual(bs[2].reply.parent.uri, bs[2].reply.root.uri)
+  assert.ok(entry.texts.x.includes('―'))
+})
+await test('送信：途中で止まっても1件目は出ているので成功のまま、何件目かを言う', async () => {
+  let n = 0
+  route = (u, init) => (u.endsWith('/2/tweets') ? (++n === 1 ? json({ data: { id: 'T1' } }) : json({ title: 'Too Many Requests' }, 429)) : happy(u, init))
+  const read = S.readPayload({ text: LONG, targets: ['x'], thread: { nets: ['x'] } })
+  const { results } = await S.sendPost(read.payload, undefined)
+  assert.equal(results[0].ok, true)
+  assert.match(results[0].message, /2\/\d 件目で止まりました/)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 
