@@ -134,6 +134,8 @@ function cleanLine(l) {
   return {
     start: num(l && l.start, 0, 3600) || 0, end: num(l && l.end, 0, 3600) || 0,
     narration: str(l && l.narration, 300), telop: str(l && l.telop, 120), visual: str(l && l.visual, 300),
+    // 切り替え（新しい画・音・問い）か山場（ルール変更・トラブル・発表・どんでん返し）
+    mark: MARKS.indexOf(l && l.mark) >= 0 ? l.mark : '',
   }
 }
 

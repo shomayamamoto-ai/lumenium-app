@@ -662,6 +662,7 @@ function shotsFromLines(lines, style) {
       visual_prompt: prompt,
       camera: i === 0 ? 'close-up, static' : i === all.length - 1 ? 'medium shot, static' : cams[(i - 1) % cams.length],
       transition: i === 0 ? 'cut' : (i % 3 === 0 ? 'whip pan' : 'cut'),
+      mark: MARKS.indexOf(l.mark) >= 0 ? l.mark : '',
     }
   })
 }
@@ -766,6 +767,89 @@ function storyboardEdl(shots, opts) {
     out.push('')
   })
   return out.join('\r\n')
+}
+
+/* ---------------- 山場と注意の切り替え ----------------
+   ショートは約10秒ごとに「切り替え」（新しい画・音・問い）が無いと、指が
+   次へ動きやすいと言われます（12秒を超える間は注意）。長尺は約3分ごとに
+   「山場」（ルール変更・トラブル・発表・どんでん返し）。3分半を超える間は注意。
+   長尺はさらに 0〜1分（つかむ）・1〜3分（引き込む）・3〜6分（夢中にさせる）・
+   6分〜（後半を保つ）に分けて、それぞれに印があるかを見ます。 */
+
+const ACTS = [[0, 60, 'つかむ（0〜1分）'], [60, 180, '引き込む（1〜3分）'], [180, 360, '夢中にさせる（3〜6分）'], [360, Infinity, '後半を保つ（6分〜）']]
+
+/** 行とカットに付けた印を、時刻順に集めます（同じ時刻・同じ種類は1つに）。 */
+function markEvents(s) {
+  const seen = {}
+  const out = []
+  const add = (x, from, i) => {
+    if (!x || !x.mark || MARKS.indexOf(x.mark) < 0) return
+    const t = round1(Number(x.start) || 0)
+    const kind = isPeak(x.mark) ? 'peak' : 'switch'
+    const key = kind + '@' + t
+    if (seen[key]) return
+    seen[key] = 1
+    out.push({ t, kind, mark: x.mark, label: MARK_LABELS[x.mark], from, index: i })
+  }
+  ;((s && s.lines) || []).forEach((l, i) => add(l, 'line', i))
+  ;((s && s.shots) || []).forEach((x, i) => add(x, 'shot', i))
+  return out.sort((a, b) => a.t - b.t || (a.kind === 'peak' ? -1 : 1))
+}
+
+function gapsOf(points, dur, warn) {
+  const ts = Array.from(new Set([0].concat(points).filter((t) => t >= 0 && t < dur))).sort((a, b) => a - b).concat([dur])
+  const gaps = []
+  for (let i = 1; i < ts.length; i++) {
+    const sec = round1(ts[i] - ts[i - 1])
+    gaps.push({ from: ts[i - 1], to: ts[i], sec, over: sec > warn })
+  }
+  return gaps
+}
+
+/** 印どうしの間隔の確認。ショートは切り替え（山場も含む）、長尺は山場の間隔。 */
+function rhythmCheck(s) {
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const dur = scriptDuration(s)
+  const events = markEvents(s)
+  if (!dur) return { mode, ok: true, events, gaps: [], over: [], acts: [], dur: 0 }
+  if (mode === 'short') {
+    const gaps = gapsOf(events.map((e) => e.t), dur, M.INTERRUPT_WARN_SEC)
+    const over = gaps.filter((g) => g.over)
+    return { mode, ok: over.length === 0, events, gaps, over, acts: [], dur, warn: M.INTERRUPT_WARN_SEC, target: M.INTERRUPT_TARGET_SEC }
+  }
+  const peaks = events.filter((e) => e.kind === 'peak')
+  const gaps = gapsOf(peaks.map((e) => e.t), dur, M.PEAK_WARN_SEC)
+  const over = gaps.filter((g) => g.over)
+  const acts = ACTS.filter((a) => a[0] < dur).map(([from, to, label]) => {
+    const end = Math.min(to, dur)
+    const inside = events.filter((e) => e.t >= from && e.t < end)
+    return { from, to: end, label, marks: inside.length, peaks: inside.filter((e) => e.kind === 'peak').length, ok: from === 0 || inside.length > 0 }
+  })
+  return { mode, ok: over.length === 0 && acts.every((a) => a.ok), events, gaps, over, acts, dur, warn: M.PEAK_WARN_SEC, target: M.PEAK_TARGET_SEC }
+}
+
+/** 時間の帯（画面の静止した図）に描くもの。位置は 0〜1 の割合です。 */
+function timelineData(s) {
+  const dur = scriptDuration(s)
+  const lines = (s && s.lines) || []
+  if (!dur || !lines.length) return null
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const r = rhythmCheck(s)
+  const first = lines[0]
+  const last = lines[lines.length - 1]
+  const hookEnd = mode === 'short' ? Math.min(Number(first.end) || 0, dur) : Math.min(M.HOOK_SEC, dur)
+  const at = (t) => Math.max(0, Math.min(1, t / dur))
+  return {
+    dur, mode,
+    hook: { from: 0, to: at(hookEnd), sec: round1(hookEnd) },
+    cta: lines.length > 1 ? { from: at(Number(last.start) || 0), to: 1, sec: round1(dur - (Number(last.start) || 0)) } : null,
+    events: r.events.map((e) => ({ ...e, x: at(e.t) })),
+    gaps: r.over.map((g) => ({ from: at(g.from), to: at(g.to), sec: g.sec })),
+    acts: r.acts.map((a) => ({ ...a, x: at(a.from) })),
+    promiseEnd: at(M.PROMISE_SEC),
+  }
 }
 
 /* ---------------- 書き出し ---------------- */
@@ -1263,5 +1347,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();

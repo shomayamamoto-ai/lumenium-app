@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 
 const MODEL = 'claude-opus-5-5'
@@ -229,8 +229,8 @@ const SCRIPT_SCHEMA = {
     lines: {
       type: 'array',
       items: {
-        type: 'object', additionalProperties: false, required: ['start', 'end', 'narration', 'telop', 'visual'],
-        properties: { start: { type: 'number' }, end: { type: 'number' }, narration: { type: 'string' }, telop: { type: 'string' }, visual: { type: 'string' } },
+        type: 'object', additionalProperties: false, required: ['start', 'end', 'narration', 'telop', 'visual', 'mark'],
+        properties: { start: { type: 'number' }, end: { type: 'number' }, narration: { type: 'string' }, telop: { type: 'string' }, visual: { type: 'string' }, mark: { type: 'string', enum: MARKS } },
       },
     },
     hashtags: { type: 'array', items: { type: 'string' } },
@@ -321,6 +321,7 @@ async function generate(req, cfg, project, b) {
     mode === 'short'
       ? `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は2〜3秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。約${M.INTERRUPT_TARGET_SEC}秒ごとに新しい画・音・問いを入れる。`
       : `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は5〜10秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。`,
+    `- 各行の mark: 新しい画・音・問いで注意を戻す行は switch_visual / switch_sound / switch_question、話が一段動く山場は peak_rule（ルール変更）/ peak_trouble（トラブル）/ peak_reveal（発表）/ peak_twist（どんでん返し）。それ以外は空文字。${mode === 'short' ? `約${M.INTERRUPT_TARGET_SEC}秒ごとに切り替えを置く。` : `約${M.PEAK_TARGET_SEC / 60}分ごとに山場を置く。`}`,
     `- telop（画面の文字）は1秒あたり${RULES.telop.MAX_CPS}文字以内で読める長さに。narration は話す言葉、visual は映す画（英語で具体的に。文字やロゴは入れない）。`,
     '- 最後の行は CTA（保存・フォロー・プロフィールのリンクなど、行動を1つだけ）。',
     `- hashtags は${RULES.post.MAX_HASHTAGS}個以内、# は付けない。`,

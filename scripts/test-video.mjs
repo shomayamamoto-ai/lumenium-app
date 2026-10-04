@@ -386,6 +386,36 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('テンポの確認（ショート3.5秒・長尺10秒）とカット割り（決まった分け方・EDL）')
 }
 
+/* ---- 山場と注意の切り替え ---- */
+{
+  const L = (start, end, mark) => ({ start, end, narration: '', telop: '', mark: mark || '' })
+  // ショート 30秒: 0（フック）→ 8秒の切り替え → 22秒の切り替え → 30秒。8〜22秒の14秒が長い。
+  const s = { lines: [L(0, 3), L(3, 8), L(8, 14, 'switch_visual'), L(14, 22), L(22, 30, 'switch_question')] }
+  const r = V.rhythmCheck(s)
+  assert.equal(r.ok, false)
+  assert.deepEqual(r.gaps.map((g) => g.sec), [8, 14, 8])
+  assert.deepEqual(r.over.map((g) => [g.from, g.to]), [[8, 22]])
+  s.lines[3].mark = 'peak_reveal' // 山場も注意を戻すので、ショートでは切り替えとして数える
+  assert.equal(V.rhythmCheck(s).ok, true)
+  // 同じ時刻の行とカットの印は1つに
+  const ev = V.markEvents({ lines: [L(0, 3, 'switch_sound')], shots: [{ start: 0, end: 3, mark: 'switch_visual' }, { start: 1.5, end: 3, mark: 'peak_twist' }] })
+  assert.deepEqual(ev.map((e) => [e.t, e.kind]), [[0, 'switch'], [1.5, 'peak']])
+  // 長尺 8分: 山場が 2分・4分半 → 4分半〜8分（3分半ちょうど）は可
+  const long = { length_mode: 'long', lines: [L(0, 10), L(10, 120), L(120, 270, 'peak_rule'), L(270, 400, 'peak_trouble'), L(400, 480)] }
+  const lr = V.rhythmCheck(long)
+  assert.deepEqual(lr.gaps.map((g) => g.sec), [120, 150, 210])
+  assert.equal(lr.over.length, 0)
+  assert.deepEqual(lr.acts.map((a) => [a.label, a.ok]), [['つかむ（0〜1分）', true], ['引き込む（1〜3分）', true], ['夢中にさせる（3〜6分）', true], ['後半を保つ（6分〜）', false]])
+  long.lines[3].mark = ''
+  const lr2 = V.rhythmCheck(long)
+  assert.deepEqual(lr2.over.map((g) => [g.from, g.to]), [[120, 480]], '山場が6分空くと注意')
+  const tl = V.timelineData(s)
+  assert.equal(tl.hook.to, 0.1)
+  assert.equal(tl.cta.from, 22 / 30)
+  assert.equal(tl.events.length, 3)
+  ok('切り替え（ショート12秒）・山場（長尺3分半）と 0〜1／1〜3／3〜6分の構成、時間の帯')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

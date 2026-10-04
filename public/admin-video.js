@@ -461,9 +461,47 @@
   }
   function mark(ok) { return ok === true ? '◯ ' : ok === false ? '✗ ' : '△ '; }
 
+  function fmtT(t) {
+    t = Math.round(Number(t) || 0);
+    return t >= 60 ? Math.floor(t / 60) + '分' + (t % 60 ? (t % 60) + '秒' : '') : t + '秒';
+  }
+
+  /** 時間の帯（動かない図）。フック・切り替え・山場・CTA と、間が長すぎるところ。 */
+  function timelineHtml(s) {
+    var d = V.timelineData(s);
+    if (!d) return '';
+    var pc = function (x) { return (Math.round(x * 1000) / 10) + '%'; };
+    var bar = '';
+    d.gaps.forEach(function (g) { bar += '<span class="vid-tl-gap" style="left:' + pc(g.from) + ';width:' + pc(g.to - g.from) + '"></span>'; });
+    bar += '<span class="vid-tl-hook" style="left:0;width:' + pc(d.hook.to) + '"></span>';
+    if (d.cta) bar += '<span class="vid-tl-cta" style="left:' + pc(d.cta.from) + ';width:' + pc(d.cta.to - d.cta.from) + '"></span>';
+    d.acts.forEach(function (a) { if (a.from > 0) bar += '<span class="vid-tl-act" style="left:' + pc(a.x) + '"></span>'; });
+    d.events.forEach(function (e) {
+      bar += '<span class="' + (e.kind === 'peak' ? 'vid-tl-pk' : 'vid-tl-sw') + '" style="left:' + pc(e.x) + '" title="' + esc(fmtT(e.t) + ' ' + e.label) + '"></span>';
+    });
+    var mid = d.dur / 2;
+    var desc = 'フック 0〜' + d.hook.sec + '秒、切り替え ' + d.events.filter(function (e) { return e.kind === 'switch'; }).length + 'か所、山場 ' + d.events.filter(function (e) { return e.kind === 'peak'; }).length + 'か所' + (d.cta ? '、CTA 最後の' + d.cta.sec + '秒' : '');
+    return '<div class="vid-tl" role="img" aria-label="時間の帯: ' + esc(desc) + '"><div class="vid-tl-bar">' + bar + '</div>' +
+      '<div class="vid-tl-axis"><span>0秒</span><span>' + fmtT(mid) + '</span><span>' + fmtT(d.dur) + '</span></div>' +
+      (d.acts.length ? '<div class="vid-tl-acts">' + d.acts.map(function (a) { return '<span class="vid-tag ' + (a.ok ? '' : 'warn') + '">' + esc(a.label) + ' 印' + a.marks + '</span>'; }).join(' ') + '</div>' : '') +
+      '<div class="vid-tl-key"><span><i class="k-hook"></i>フック</span><span><i class="k-sw"></i>切り替え</span><span><i class="k-pk"></i>山場</span><span><i class="k-cta"></i>CTA</span><span><i class="k-gap"></i>間が長い</span></div></div>';
+  }
+
+  function markSelect(cls, v) {
+    return '<select class="' + cls + '" data-k="mark" aria-label="印（切り替え・山場）">' + V.MARKS.map(function (m) { return '<option value="' + m + '"' + ((v || '') === m ? ' selected' : '') + '>' + V.MARK_LABELS[m] + '</option>'; }).join('') + '</select>';
+  }
+
   /** 見続けてもらう工夫（約束・冒頭・テンポ・山場・最後）。どれも目安の判定です。 */
   function retentionHtml(s) {
-    var h = '';
+    var h = timelineHtml(s);
+    var rc = V.rhythmCheck(s);
+    if (rc.dur) {
+      h += res(rc.ok, rc.mode === 'short' ? '注意の切り替え' : '山場', mark(rc.ok) + (rc.mode === 'short'
+        ? '印（切り替え・山場）の間隔の目安は約' + rc.target + '秒、' + rc.warn + '秒を超えたら注意です。'
+        : '山場の間隔の目安は約' + (rc.target / 60) + '分、' + (rc.warn / 60) + '分を超えたら注意です。') +
+        (rc.over.length ? '<br>' + rc.over.map(function (g) { return fmtT(g.from) + '〜' + fmtT(g.to) + '（' + fmtT(g.sec) + '）'; }).join('、') + ' の間に' + (rc.mode === 'short' ? '切り替え（新しい画・音・問い）' : '山場（ルール変更・トラブル・発表・どんでん返し）') + 'がありません。行の「印」で付けられます。' : '<br>間隔は目安に収まっています。') +
+        (rc.acts.length ? rc.acts.filter(function (a) { return !a.ok; }).map(function (a) { return '<br>' + esc(a.label) + ' に印がありません。'; }).join('') : ''));
+    }
     var pc = V.promiseCheck(s);
     var op = pc.opening;
     h += res(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null, '約束を守る', mark(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null) + esc(pc.text) +
@@ -509,8 +547,8 @@
         fld('ハッシュタグ（空白区切り・5個まで）', '<input type="text" id="ve-tags" value="' + esc((s.hashtags || []).join(' ')) + '">') +
         fld('投稿先', '<select id="ve-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
       '</div>' +
-      '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画）</label>' +
-      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
+      '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画・印）</label>' +
+      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th>印</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
       '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button></div>' +
       '<div id="ve-checks" style="margin-top:10px"></div>' +
       (s.rationale ? '<p class="soc-small">この構成にした理由（AI）: ' + esc(s.rationale) + '</p>' : '') +
@@ -526,6 +564,7 @@
           '<td><textarea rows="2" class="ve-f" data-k="narration" aria-label="ナレーション">' + esc(l.narration) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="telop" aria-label="テロップ">' + esc(l.telop) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="visual" aria-label="映す画">' + esc(l.visual) + '</textarea></td>' +
+          '<td>' + markSelect('ve-f', l.mark) + '</td>' +
           '<td><button type="button" class="ghost ve-x" style="font-size:11px;padding:4px 8px" aria-label="この行を消す">消す</button></td></tr>';
       }).join('');
     }
@@ -583,7 +622,14 @@
       }
       check();
     });
-    host.addEventListener('change', function (e) { if (e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
+    host.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.classList.contains('ve-f') && t.getAttribute('data-k') === 'mark') {
+        s.lines[Number(t.closest('tr').getAttribute('data-i'))].mark = t.value;
+        check();
+        return;
+      }
+      if (e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
       if (t.id === 've-hook-ai') {
@@ -662,6 +708,7 @@
         '<label class="soc-lab" for="vb-style">画風（英語）</label>' +
         '<div class="vid-row"><input type="text" id="vb-style" class="vid-in" value="' + esc(style) + '" placeholder="warm natural light, 35mm photo">' +
         '<button type="button" class="ghost" id="vb-make" style="font-size:12px;padding:8px 12px">台本から作り直す</button></div>' +
+        '<div id="vb-tl" style="margin-top:8px">' + timelineHtml(Object.assign({}, s, { shots: shots })) + '</div>' +
         '<div id="vb-tempo" style="margin-top:8px">' + tempoHtml() + '</div>' +
         '<div class="vid-acts" style="margin-top:4px"><button type="button" class="ghost" id="vb-split"' + (V.shotLengthCheck(shots, s).ok ? ' disabled' : '') + '>カット割りを提案</button>' +
           '<span class="soc-small">長いカットを、目安の長さごとに別の角度へ分けます（保存するまで台本は変わりません）。</span></div>' +
@@ -673,7 +720,7 @@
             '<td style="white-space:nowrap">' + len + '秒' + (over ? ' <span class="vid-tag warn">長い</span>' : '') + (x.angle ? '<br><span class="vid-tag">' + esc(x.angle) + '</span>' : '') + '</td><td>' + esc(x.telop) + '</td>' +
             '<td><textarea rows="3" class="vb-f" data-k="visual_prompt" aria-label="映す画">' + esc(x.visual_prompt) + '</textarea></td>' +
             '<td><input type="text" class="vb-f" data-k="camera" value="' + esc(x.camera) + '" aria-label="カメラ"></td>' +
-            '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"></td></tr>';
+            '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"><br>' + markSelect('vb-f', x.mark) + '</td></tr>';
         }).join('') : '<tr><td colspan="7" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
         '</tbody></table></div>' +
         '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button><button type="button" class="ghost" id="vb-edl">絵コンテ（EDL）</button></div>';
@@ -693,11 +740,13 @@
         draw();
       });
       el('vb-style').addEventListener('input', function () { style = this.value; });
-      el('vb-body').addEventListener('input', function (e) {
+      // draw() のたびに呼ばれるので、足し続けないよう代入で置きます。
+      el('vb-body').oninput = function (e) {
         var t = e.target;
         if (!t.classList.contains('vb-f')) return;
         shots[Number(t.closest('tr').getAttribute('data-i'))][t.getAttribute('data-k')] = t.value;
-      });
+        if (t.getAttribute('data-k') === 'mark') el('vb-tl').innerHTML = timelineHtml(Object.assign({}, s, { shots: shots }));
+      };
       el('vb-save').addEventListener('click', async function () {
         var item = Object.assign({}, s, { shots: shots, style: style });
         var r = await post({ action: 'script.save', item: item });
