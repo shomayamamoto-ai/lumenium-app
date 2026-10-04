@@ -112,4 +112,58 @@ t('reliability: 3件未満・6件未満・それ以上', () => {
   assert.equal(P.reliability(6).label, '')
 })
 
+/* ---- 2. ペース ---- */
+t('weekStart: 週は月曜から。日本時間の日付で区切る', () => {
+  assert.equal(P.weekStart('2026-10-07'), '2026-10-05') // 水 → 月
+  assert.equal(P.weekStart('2026-10-05'), '2026-10-05') // 月
+  assert.equal(P.weekStart('2026-10-11'), '2026-10-05') // 日 → その週の月
+  assert.equal(P.weekStart('2026-11-01'), '2026-10-26') // 月をまたぐ
+  // 日曜 23:30（日本時間）＝ 日曜 14:30 UTC。月曜 0:30（日本時間）＝ 日曜 15:30 UTC。
+  assert.equal(P.jstDay('2026-10-11T14:30:00Z'), '2026-10-11')
+  assert.equal(P.jstDay('2026-10-11T15:30:00Z'), '2026-10-12')
+  assert.equal(P.monthEnd('2026-02-10'), '2026-02-28')
+  assert.equal(P.monthEnd('2028-02-10'), '2028-02-29')
+})
+
+t('cadence: 今週の出した分＋予約と、あと何本。週の境目は日本時間', () => {
+  const targets = P.validatePlan({}).plan.targets
+  const hist = [
+    { id: 'a', at: '2026-10-04T15:30:00Z', nets: ['instagram'] }, // 日本時間 10/5（月）0:30 → 今週
+    { id: 'b', at: '2026-10-04T14:30:00Z', nets: ['instagram'] }, // 日本時間 10/4（日）23:30 → 先週
+    { id: 'c', at: at('2026-10-06'), nets: ['instagram', 'line'] },
+  ]
+  const queue = [{ id: 'q1', date: '2026-10-09', targets: ['instagram'] }, { id: 'q2', date: '2026-10-20', targets: ['line'] }]
+  const cd = P.cadence(P.itemsOf(hist, queue), targets, TODAY)
+  assert.equal(cd.weekFrom, '2026-10-05')
+  assert.equal(cd.weekTo, '2026-10-11')
+  const ig = cd.rows.find((r) => r.net === 'instagram')
+  assert.equal(ig.week.done, 2)
+  assert.equal(ig.week.booked, 1)
+  assert.equal(ig.left, 2) // 目標5 − 2 − 1
+  assert.equal(ig.month.done, 3) // 10/4 も今月
+  assert.equal(ig.month.target, Math.round(5 * 31 / 7))
+  const line = cd.rows.find((r) => r.net === 'line')
+  assert.equal(line.per, 'month')
+  assert.equal(line.month.done + line.month.booked, 2)
+  assert.equal(line.left, 1)
+  assert.ok(!cd.rows.some((r) => r.net === 'linkedin')) // 目標に入れていないもの
+})
+
+t('suggestDays: 空いている日から、間を空けて、おすすめの曜日を先に', () => {
+  const it = P.itemsOf([{ id: 'a', at: at('2026-10-07'), nets: ['x'] }], [{ id: 'q', date: '2026-10-09', targets: ['x'] }])
+  // 今日(水)と金は使用済み。残り 木・土・日 から2日
+  const d = P.suggestDays(it, 'x', TODAY, 2, [], 'week')
+  assert.equal(d.length, 2)
+  assert.ok(!d.includes('2026-10-07') && !d.includes('2026-10-09'))
+  assert.ok(d.includes('2026-10-11')) // 日曜がいちばん離れている
+  // おすすめの曜日（木=4）があれば、そちらを先に
+  const d2 = P.suggestDays(it, 'x', TODAY, 1, [4], 'week')
+  assert.deepEqual(d2, ['2026-10-08'])
+  // 足りていれば何も出さない、空きが無ければある分だけ
+  assert.deepEqual(P.suggestDays(it, 'x', TODAY, 0, [], 'week'), [])
+  assert.equal(P.suggestDays(it, 'x', '2026-10-11', 3, [], 'week').length, 1)
+  // 月の目標は今月の残りから
+  assert.ok(P.suggestDays([], 'line', TODAY, 2, [], 'month').every((x) => x >= TODAY && x <= '2026-10-31'))
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)

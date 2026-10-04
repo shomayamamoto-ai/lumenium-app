@@ -350,6 +350,82 @@
   SECTIONS.push({ id: 'pillars', html: pillarsHtml, bind: bindPillars });
 
   /* ================================================================
+     2. ペースの目標
+     ================================================================ */
+  function md(day) { return Number(day.slice(5, 7)) + '/' + Number(day.slice(8, 10)) + '（' + C.WEEKDAYS[C.weekdayOf(day)] + '）'; }
+  function prefFor(net) {
+    var r = (D.recommend || {})[net];
+    return r && Array.isArray(r.weekdays) ? r.weekdays : [];
+  }
+  function suggestFor(it, row) {
+    return C.suggestDays(it, row.net, D.today, row.left, prefFor(row.net), row.per);
+  }
+  function cadenceHtml(it) {
+    var cd = C.cadence(it, D.plan.targets, D.today);
+    var h = '<h3>ペースの目標</h3>' +
+      '<p class="lead">たまにまとめて出すより、決まったペースで出し続けるほうが伸びやすいと言われています' +
+      '（週5本以上出すアカウントは、伸びが2〜3倍速かったという調査があります）<span class="spl-meyasu">目安</span>。' +
+      '「出した本数」と「予約している本数」を合わせて数えます。週は月曜〜日曜です。</p>';
+    if (!cd.rows.length) return h + '<p class="spl-note">目標が1つもありません。下の「目標を変える」から選んでください。</p>' + targetsForm();
+    h += '<p style="font-size:13px;font-weight:800;margin:4px 0 8px">今週（' + md(cd.weekFrom) + '〜' + md(cd.weekTo) + '）は、あと ' + cd.weekLeft + ' 本</p>';
+    h += '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>SNS</th><th>目標<span class="spl-meyasu">目安</span></th><th>今週</th><th>今月</th><th>あと</th><th>空いている日のおすすめ</th></tr></thead><tbody>' +
+      cd.rows.map(function (r) {
+        var w = r.week;
+        var m = r.month;
+        var days = suggestFor(it, r);
+        var rec = (D.recommend || {})[r.net];
+        return '<tr><td><b>' + esc(netLabel(r.net)) + '</b></td>' +
+          '<td>' + (r.per === 'week' ? '週' : '月') + r.n + '本<div class="spl-note" style="margin:0">' + esc(r.note) + '</div></td>' +
+          '<td class="n">' + (r.per === 'week' ? w.done + (w.booked ? '＋予約' + w.booked : '') + ' / ' + w.target : w.done + (w.booked ? '＋予約' + w.booked : '')) + '</td>' +
+          '<td class="n">' + m.done + (m.booked ? '＋予約' + m.booked : '') + ' / ' + m.target + '</td>' +
+          '<td class="n"><b>' + (r.left ? r.left + '本' : '達成') + '</b></td>' +
+          '<td>' + (days.length ? days.map(function (d) { return d === D.today ? '今日' : md(d); }).join('・') : (r.left ? '今' + (r.per === 'week' ? '週' : '月') + 'はもう空いている日がありません' : '—')) +
+          (days.length && rec && rec.basis && rec.basis !== 'general' ? '<div class="spl-note" style="margin:0">反応の良い曜日を優先</div>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="spl-note">おすすめの日は、まだ出していない日を、なるべく間を空けて選んでいます。反応やサイトへの訪問の数字がたまると、その曜日を優先します。</p>';
+    return h + targetsForm();
+  }
+  function targetsForm() {
+    var t = D.plan.targets;
+    return '<details style="margin-top:8px" id="spl-t-box"><summary style="font-size:12px;cursor:pointer">目標を変える</summary>' +
+      '<div class="soc-scroll"><table class="soc-tbl" style="margin-top:6px"><tbody>' + Object.keys(C.DEFAULT_TARGETS).map(function (net) {
+        var x = t[net] || C.DEFAULT_TARGETS[net];
+        return '<tr><td><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="spl-t-on" data-net="' + net + '"' + (x.on ? ' checked' : '') + '> ' + esc(netLabel(net)) + '</label></td>' +
+          '<td><select class="spl-t-per" data-net="' + net + '" aria-label="' + esc(netLabel(net)) + 'の単位" style="width:auto;font-size:12px;padding:4px 6px"><option value="week"' + (x.per === 'week' ? ' selected' : '') + '>週に</option><option value="month"' + (x.per === 'month' ? ' selected' : '') + '>月に</option></select> ' +
+          '<input type="number" class="spl-t-n spl-in" data-net="' + net + '" min="0" max="31" value="' + x.n + '" aria-label="' + esc(netLabel(net)) + 'の本数" style="width:64px;display:inline-block"> 本</td>' +
+          '<td class="spl-note" style="margin:0">おすすめ：' + esc(C.DEFAULT_TARGETS[net].note) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="spl-btns"><button type="button" id="spl-t-save">目標を保存</button><button type="button" class="ghost" id="spl-t-reset">おすすめの値に戻す</button></div></details>';
+  }
+  function bindCadence() {
+    var save = el('spl-t-save');
+    if (!save) return;
+    save.addEventListener('click', async function () {
+      var targets = {};
+      Object.keys(C.DEFAULT_TARGETS).forEach(function (net) {
+        var q = function (cls) { return document.querySelector('.' + cls + '[data-net="' + net + '"]'); };
+        targets[net] = { on: q('spl-t-on').checked, per: q('spl-t-per').value, n: Number(q('spl-t-n').value) };
+      });
+      await savePlanWith({ targets: targets }, '目標を保存しました。');
+    });
+    el('spl-t-reset').addEventListener('click', async function () {
+      await savePlanWith({ targets: {} }, 'おすすめの値に戻しました。');
+    });
+  }
+  async function savePlanWith(part, okText) {
+    var plan = { pillars: D.plan.pillars, targets: D.plan.targets, tags: D.plan.tags };
+    for (var k in part) plan[k] = part[k];
+    var r = await put({ plan: plan });
+    var d = r.data || {};
+    if (!d.ok) { say(d.message || '保存できませんでした。'); return false; }
+    D.plan = d.plan;
+    say(okText || d.message || '保存しました。', true);
+    render();
+    return true;
+  }
+  SECTIONS.push({ id: 'cadence', html: cadenceHtml, bind: bindCadence });
+
+  /* ================================================================
      投稿欄に足す部品（柱の選択など）。投稿欄そのものは書き換えません。
      ================================================================ */
   var ADDON = [];

@@ -221,5 +221,75 @@ var DEFAULT_TARGETS = {
   bluesky: { on: false, per: 'week', n: 3, note: '週3本' },
 }
 
-window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS };
+/** 投稿先ごとの、今週・今月の進み具合（出した分＋予約した分と、目標）。
+ *  週は月曜〜日曜、日付は日本時間です。 */
+function cadence(items, targets, today) {
+  var ws = weekStart(today)
+  var we = addDays(ws, 6)
+  var ms = monthStart(today)
+  var me = monthEnd(today)
+  var dim = Number(me.slice(8, 10))
+  var rows = []
+  Object.keys(DEFAULT_TARGETS).forEach(function (net) {
+    var t = (targets || {})[net]
+    if (!t || !t.on) return
+    var w = { done: 0, booked: 0 }
+    var m = { done: 0, booked: 0 }
+    ;(items || []).forEach(function (it) {
+      if (it.nets.indexOf(net) === -1) return
+      if (!it.scheduled && it.day > today) return
+      var k = it.scheduled ? 'booked' : 'done'
+      if (it.day >= ws && it.day <= we) w[k]++
+      if (it.day >= ms && it.day <= me) m[k]++
+    })
+    var weekly = t.per === 'week'
+    w.target = weekly ? t.n : null
+    m.target = weekly ? Math.round(t.n * dim / 7) : t.n
+    var left = weekly ? Math.max(0, t.n - w.done - w.booked) : Math.max(0, t.n - m.done - m.booked)
+    rows.push({
+      net: net, per: t.per, n: t.n, week: w, month: m, left: left,
+      over: !weekly && m.done + m.booked > t.n,
+      note: DEFAULT_TARGETS[net].note,
+    })
+  })
+  var weekLeft = rows.reduce(function (s, r) { return s + (r.per === 'week' ? r.left : 0) }, 0)
+  return { weekFrom: ws, weekTo: we, monthFrom: ms, monthTo: me, rows: rows, weekLeft: weekLeft }
+}
+
+/** まだ何も出していない日から、目標に足りない本数ぶん日を選びます。
+ *  おすすめの曜日（prefer）を先に、すでに出した日・選んだ日から離れた日を選びます。
+ *  per が 'week' なら今週の残り、'month' なら今月の残りから選びます。 */
+function suggestDays(items, net, today, left, prefer, per) {
+  if (!left) return []
+  var end = per === 'month' ? monthEnd(today) : addDays(weekStart(today), 6)
+  var start = per === 'month' ? monthStart(today) : weekStart(today)
+  var used = []
+  ;(items || []).forEach(function (it) {
+    if (it.nets.indexOf(net) !== -1 && it.day >= start && it.day <= end) used.push(it.day)
+  })
+  var cands = []
+  for (var d = today; d <= end; d = addDays(d, 1)) if (used.indexOf(d) === -1) cands.push(d)
+  var pref = Array.isArray(prefer) ? prefer : []
+  var picked = []
+  var gap = function (x) {
+    var all = used.concat(picked)
+    if (!all.length) return 3
+    var g = Infinity
+    all.forEach(function (u) { g = Math.min(g, Math.abs(Date.parse(u) - Date.parse(x)) / DAY) })
+    return Math.min(3, g)
+  }
+  while (picked.length < left && cands.length) {
+    var best = null
+    var bestScore = -1
+    cands.forEach(function (x) {
+      var s = gap(x) + (pref.indexOf(weekdayOf(x)) !== -1 ? 1.5 : 0)
+      if (s > bestScore) { best = x; bestScore = s }
+    })
+    picked.push(best)
+    cands.splice(cands.indexOf(best), 1)
+  }
+  return picked.sort()
+}
+
+window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays };
 })();
