@@ -207,7 +207,7 @@
     el('vp-save').addEventListener('click', async function () {
       var body = {
         id: p ? p.id : undefined, name: el('vp-name').value, description: el('vp-desc').value,
-        created_at: p ? p.created_at : undefined, research: p ? p.research : [], imported_from: p ? p.imported_from : '',
+        created_at: p ? p.created_at : undefined, research: p ? p.research : [], imported_from: p ? p.imported_from : '', reinvest: p ? p.reinvest : undefined,
         brand: {
           persona: el('vp-persona').value, tone: el('vp-tone').value, banned_words: lines(el('vp-banned').value),
           notation: parseNotation(el('vp-notation').value), notation_exceptions: lines(el('vp-except').value), style: el('vp-style').value
@@ -1454,7 +1454,7 @@
       var pt = V.jstParts(u.published_at);
       var script = S.data.scripts.filter(function (s) { return s.id === u.script_id; })[0];
       return {
-        id: u.id, value: V.metricValue(snap, metric),
+        id: u.id, value: V.metricValue(snap, metric, u.duration_sec || (script && script.target_duration_sec)),
         hook_type: u.hook_type || (script && script.hook_type) || '',
         duration: V.durationBucket(u.duration_sec || (script && script.target_duration_sec)),
         hour: pt.hour, weekday: pt.weekday
@@ -1470,14 +1470,19 @@
       '<p class="soc-small">数字は、押したときに各SNSから取りに行き、その時点の値として記録します（何度でも取れます。あとから伸びを比べられます）。' +
       'Instagram はリールのインサイト（再生・リーチ・保存・平均視聴時間）、YouTube は再生・高評価・コメント、TikTok は動画IDが分かる場合だけ取れます。</p>' +
       '<div class="vid-acts"><button type="button" id="vm-all"' + (pubs.some(function (u) { return u.external_id; }) ? '' : ' disabled') + '>公開済みの数字をまとめて取る</button><span class="soc-small" id="vm-state"></span></div>' +
-      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th>投稿先</th><th>投稿</th><th>日時</th><th>再生</th><th>いいね</th><th>保存</th><th>平均視聴</th><th>維持率</th><th>取得</th></tr></thead><tbody>' +
+      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th>投稿先</th><th>投稿</th><th>日時</th><th>再生</th><th>いいね</th><th>保存</th><th>平均視聴（AVD）</th><th>平均視聴率（AVP）</th><th>3秒維持率</th><th>維持率</th><th>取得</th></tr></thead><tbody>' +
       (pubs.length ? pubs.map(function (u) {
         var s = V.latestSnapshot(u) || {};
         return '<tr><td>' + esc(NET_LABEL[u.platform] || u.platform) + '</td><td style="min-width:160px">' + esc(String(u.title || u.caption || '').slice(0, 40)) + '</td><td>' + esc(String(u.published_at || '').slice(0, 10)) + '</td>' +
-          '<td>' + int(s.views) + '</td><td>' + int(s.likes) + '</td><td>' + int(s.saves) + '</td><td>' + sec(s.avg_watch_sec) + '</td><td>' + pct(s.retention_rate) + '</td>' +
+          '<td>' + int(s.views) + '</td><td>' + int(s.likes) + '</td><td>' + int(s.saves) + '</td><td>' + sec(s.avg_watch_sec) + '</td><td>' + pct(V.avp(s, u.duration_sec)) + '</td><td>' + pct(V.hold3(s)) + '</td><td>' + pct(s.retention_rate) + '</td>' +
           '<td>' + (u.external_id ? '<button type="button" class="linkish vm-one" data-id="' + esc(u.id) + '">取る</button>' : '—') + '</td></tr>';
-      }).join('') : '<tr><td colspan="9" class="empty">公開済みの投稿がまだありません。</td></tr>') +
+      }).join('') : '<tr><td colspan="11" class="empty">公開済みの投稿がまだありません。</td></tr>') +
       '</tbody></table></div>' +
+      '<h3 class="soc-step" style="margin-top:18px">数字から学ぶ（1本ずつ）</h3>' +
+      '<p class="soc-small">平均視聴率（AVP）＝平均視聴秒数（AVD）÷動画の長さ。3秒維持率と維持率の曲線は、各SNSの分析画面（Instagram のインサイト、YouTube Studio のアナリティクス）で見た値を手で入れられます。' +
+        '曲線があれば、' + V.RETENTION.WINDOW_SHORT_SEC + '秒（長尺は' + V.RETENTION.WINDOW_LONG_SEC + '秒）の間に ' + (V.RETENTION.MATERIAL_DROP * 100) + 'ポイント以上下がったところを「離脱点」として、台本の行と結びつけます。目安の値はよく言われる経験則で、保証ではありません。</p>' +
+      (pubs.length ? pubs.map(function (u, i) { return learnHtml(u, i === 0); }).join('') : '<p class="soc-small">公開済みの投稿がまだありません。</p>') +
+      reinvestHtml() +
       '<h3 class="soc-step" style="margin-top:18px">伸ばす仕組み（自社の投稿どうしの比較）</h3>' +
       '<p class="soc-small">フックの型・長さ・投稿した時間帯・曜日で、自社の投稿を比べます。たまたまの差を「勝ちパターン」と呼ばないよう、投稿が6本以上、比べる値ごとに3本以上そろうまでは結果を出しません。区間は 95%（ブートストラップ・乱数の種 ' + V.RULES.stats.BOOTSTRAP_SEED + ' で固定）です。</p>' +
       '<div class="vid-row"><label class="soc-lab" for="vm-metric" style="margin:0">比べる数字</label><select id="vm-metric">' +
@@ -1493,6 +1498,7 @@
       }).join('<br>') + '<br>' + (r.clear ? '一番上と二番目の区間が重なっていないので、差があると言えます。' : '区間が重なっているので、差があるとはまだ言えません。') + '</span></div>';
     }).join('');
     el('vm-metric').addEventListener('change', function () { S.metric = this.value; R.metrics(host); });
+    bindLearn(host);
     host.querySelectorAll('.vm-one').forEach(function (b) {
       b.addEventListener('click', async function () { if (await fetchMetrics(b.getAttribute('data-id'))) { await reload(); say('数字を取りました。', true); } });
     });
@@ -1510,6 +1516,110 @@
       say(ok + '件の数字を取りました。' + (ok < list.length ? '取れなかったものは、上に理由が出ています。' : ''), ok === list.length);
     });
   };
+
+  function pubScript(u) { return (S.data.scripts || []).filter(function (s) { return s.id === u.script_id; })[0] || null; }
+
+  /** 1本ぶんの「数字から学ぶ」: 目安との比べ・離脱点と台本の行・次の仮説。 */
+  function learnHtml(u, open) {
+    var snap = V.latestSnapshot(u) || {};
+    var script = pubScript(u);
+    var mode = script ? V.lengthMode(script) : (Number(u.duration_sec) > V.RULES.modes.short.MAX_SEC ? 'long' : 'short');
+    var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
+    var bench = V.benchmarks(snap, dur, mode);
+    var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
+    var ideas = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur) });
+    var h = '<details class="soc-more vm-learn"' + (open ? ' open' : '') + '><summary>' + esc(String(u.title || u.caption || '').slice(0, 40)) + '　<span class="vid-tag">' + (mode === 'long' ? '長尺' : 'ショート') + '</span></summary><div style="margin-top:6px">';
+    h += bench.length ? bench.map(function (b) { return res(b.level === 'ok' ? true : b.level === 'ng' ? false : null, b.key === 'hold_3s' ? '3秒維持率' : '平均視聴率', esc(b.text)); }).join('')
+      : '<p class="soc-small">平均視聴秒数か3秒維持率が入ると、目安と比べられます。</p>';
+    if ((snap.retention_curve || []).length) {
+      h += res(drops.length ? false : true, '離脱点', drops.length ? drops.map(function (d) { return esc(d.text) + (d.hook ? '（冒頭）' : ''); }).join('<br>') + (script ? '' : '<br><span class="soc-small">台本を紐づけると、どの行かが分かります。</span>')
+        : '維持率の曲線に、目立って下がるところはありません。');
+    }
+    if (ideas.length) {
+      h += '<div class="soc-res"><b>次に試す仮説</b><span>' + ideas.map(function (x, i) {
+        return '<b>' + esc(x.title) + '</b>：' + esc(x.hypothesis) + ' <button type="button" class="linkish vm-pdca" data-id="' + esc(u.id) + '" data-i="' + i + '">PDCAの下書きにする</button>';
+      }).join('<br>') + '</span></div>';
+    }
+    h += '<div class="vid-grid3" style="margin-top:6px">' +
+      '<input type="number" class="vm-h3" min="0" max="100" step="0.1" placeholder="3秒維持率（%）" aria-label="3秒維持率（%）">' +
+      '<input type="number" class="vm-avd" min="0" step="0.1" placeholder="平均視聴秒数" aria-label="平均視聴秒数">' +
+      '<input type="number" class="vm-dur" min="0" step="0.1" placeholder="動画の長さ（秒）" aria-label="動画の長さ（秒）" value="' + esc(u.duration_sec || '') + '">' +
+      '</div><textarea class="vm-curve" rows="2" style="margin-top:6px" placeholder="維持率の曲線（1行に「秒,残っている割合%」。例: 0,100 / 3,72 / 10,55）" aria-label="維持率の曲線"></textarea>' +
+      '<div class="vid-acts" style="margin-top:6px"><button type="button" class="ghost vm-add" data-id="' + esc(u.id) + '" style="font-size:12px;padding:7px 12px">この数字を記録する</button></div>';
+    return h + '</div></details>';
+  }
+
+  function reinvestHtml() {
+    var r = (project() && project().reinvest) || {};
+    return '<h3 class="soc-step" style="margin-top:18px">再投資メモ（任意）</h3>' +
+      '<p class="soc-small">うまくいった回の学びを、次の1本でどこを大きくするかに回すためのメモです。お金をかけることが目的ではありません。「撮影を30分長く」「同じ型をもう1本」のような小さな一歩で十分です。</p>' +
+      '<div class="soc-fields">' +
+        fld('次に増やす予算', '<input type="text" id="vm-rb" maxlength="200" placeholder="例：材料費を2,000円ふやして2種類で対決" value="' + esc(r.budget) + '">') +
+        fld('次に増やす時間', '<input type="text" id="vm-rt" maxlength="200" placeholder="例：撮影を30分長くして手元を多めに" value="' + esc(r.time) + '">') +
+        fld('次に試す企画の型', '<input type="text" id="vm-rf" maxlength="200" placeholder="例：スタッフ対決をお客様投票つきで" value="' + esc(r.format) + '">') +
+      '</div><textarea id="vm-rn" rows="2" maxlength="1000" style="margin-top:6px" placeholder="ひとこと（何が効いたか・次は何を大きくするか）">' + esc(r.note) + '</textarea>' +
+      '<div class="vid-acts"><button type="button" class="ghost" id="vm-rsave" style="font-size:12px;padding:7px 12px">メモを保存</button></div>';
+  }
+
+  /** 曲線の貼り付け（「秒,割合%」）を読みます。 */
+  function parseCurve(text) {
+    return String(text || '').split(/\n|\/|；|;/).map(function (line) {
+      var m = line.replace(/[％%\s]/g, '').split(/[,、\t:]/);
+      var t = parseFloat(m[0]), r = parseFloat(m[1]);
+      return isFinite(t) && isFinite(r) ? { t: t, r: r > 1.5 ? r / 100 : r } : null;
+    }).filter(Boolean);
+  }
+
+  function bindLearn(host) {
+    host.querySelectorAll('.vm-pdca').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        if (!u) return;
+        var snap = V.latestSnapshot(u) || {};
+        var script = pubScript(u);
+        var mode = script ? V.lengthMode(script) : 'short';
+        var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
+        var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
+        var x = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur) })[Number(b.getAttribute('data-i'))];
+        if (!x) return;
+        var r = await post({ action: 'pdca.save', item: Object.assign({}, x, { publication_ids: [] }) });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('PDCA に下書きを作りました（「PDCA」で、試した投稿を紐づけてください）。', true);
+      });
+    });
+    host.querySelectorAll('.vm-add').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var box = b.closest('.vm-learn');
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        if (!u || !box) return;
+        var h3 = num(box.querySelector('.vm-h3').value), avd = num(box.querySelector('.vm-avd').value), dur = num(box.querySelector('.vm-dur').value);
+        var curve = parseCurve(box.querySelector('.vm-curve').value);
+        if (h3 == null && avd == null && !curve.length) { say('3秒維持率・平均視聴秒数・曲線のどれかを入れてください。'); return; }
+        var last = V.latestSnapshot(u) || {};
+        var snap = Object.assign({}, last, { captured_at: new Date().toISOString(), source: 'manual' });
+        if (h3 != null) snap.hold_3s = h3 > 1 ? h3 / 100 : h3;
+        if (avd != null) snap.avg_watch_sec = avd;
+        if (curve.length) snap.retention_curve = curve;
+        var item = Object.assign({}, u, { snapshots: (u.snapshots || []).concat([snap]) });
+        if (dur != null) item.duration_sec = dur;
+        var r = await post({ action: 'pub.save', item: item });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('数字を記録しました。', true);
+      });
+    });
+    el('vm-rsave').addEventListener('click', async function () {
+      var p = project();
+      var body = Object.assign({}, p, { reinvest: { budget: el('vm-rb').value, time: el('vm-rt').value, format: el('vm-rf').value, note: el('vm-rn').value } });
+      var r = await send('/api/video', 'POST', { action: 'project.save', project: body });
+      if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+      var i = S.projects.findIndex(function (x) { return x.id === p.id; });
+      if (i >= 0) S.projects[i] = r.data.project;
+      S.data.project = r.data.project;
+      say('再投資メモを保存しました。', true);
+    });
+  }
 
   /* ---------------- 9. PDCA ---------------- */
 

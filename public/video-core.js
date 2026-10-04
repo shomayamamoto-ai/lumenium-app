@@ -552,6 +552,8 @@ const METRICS = {
   views: { label: '再生数', fmt: 'int' },
   avg_watch_sec: { label: '平均視聴秒数', fmt: 'sec' },
   retention_rate: { label: '視聴維持率', fmt: 'pct' },
+  avp: { label: '平均視聴率（AVP＝平均視聴秒数÷長さ）', fmt: 'pct' },
+  hold_3s: { label: '3秒維持率', fmt: 'pct' },
   engagement_rate: { label: '反応率（いいね・コメント・シェア÷再生）', fmt: 'pct' },
   save_rate: { label: '保存率（保存÷再生）', fmt: 'pct' },
   likes: { label: 'いいね', fmt: 'int' },
@@ -559,8 +561,10 @@ const METRICS = {
   reach: { label: 'リーチ', fmt: 'int' },
 }
 
-function metricValue(snap, metric) {
+function metricValue(snap, metric, durationSec) {
   if (!snap) return null
+  if (metric === 'avp') return avp(snap, durationSec)
+  if (metric === 'hold_3s') return hold3(snap)
   const v = Number(snap.views)
   if (metric === 'engagement_rate') return v > 0 ? ((Number(snap.likes) || 0) + (Number(snap.comments) || 0) + (Number(snap.shares) || 0)) / v : null
   if (metric === 'save_rate') return v > 0 && snap.saves != null ? Number(snap.saves) / v : null
@@ -582,7 +586,7 @@ function pdcaVerdict(cycle, pubs) {
   const baseline = Number(cycle && cycle.target && cycle.target.baseline)
   const ids = (cycle && cycle.publication_ids) || []
   const vals = (pubs || []).filter((p) => ids.indexOf(p.id) >= 0)
-    .map((p) => metricValue(latestSnapshot(p), metric)).filter((v) => v != null)
+    .map((p) => metricValue(latestSnapshot(p), metric, p.duration_sec)).filter((v) => v != null)
   const rel = reliability(vals.length)
   if (!metric) return { verdict: 'none', label: '目標の指標が未設定です。', reliability: rel, n: vals.length }
   if (vals.length < RULES.stats.BANDS[0][0]) {
@@ -595,6 +599,157 @@ function pdcaVerdict(cycle, pubs) {
   if (ci.low > baseline) { verdict = 'improved'; label = '基準値より良くなっています。' }
   else if (ci.high < baseline) { verdict = 'worse'; label = '基準値より下がっています。' }
   return { verdict, label, ci, reliability: rel, n: vals.length, baseline }
+}
+
+/* ---------------- 数字から学ぶ（AVD・AVP・3秒維持率・離脱点） ----------------
+   AVD は平均視聴秒数、AVP はそれを動画の長さで割った割合（ループで見返されると
+   100% を超えることがあります）。3秒維持率は、最初の3秒を見続けた人の割合。
+   維持率の曲線があれば、残っている割合が短い間（ショート2秒・長尺10秒）に
+   5ポイント（MATERIAL_DROP）以上下がったところを「離脱点」として台本の行と
+   結びつけ、次に試す仮説の下書きを作ります。目安の値はよく言われる経験則で、
+   どのアカウントにも当てはまる保証はありません。 */
+
+const RETENTION = { MATERIAL_DROP: 0.05, HOOK_WINDOW_SEC: 3, MIN_VIDEOS_FOR_PATTERN: 6, WINDOW_SHORT_SEC: 2, WINDOW_LONG_SEC: 10 }
+const BENCH = {
+  short: { HOLD3_MIN: 0.65, HOLD3_GOOD: 0.8, AVP: 0.7 },
+  long: { AVP: 0.4 },
+}
+
+/** 平均視聴率（AVP）。長さか平均視聴秒数が無ければ null。 */
+function avp(snap, durationSec) {
+  const a = Number(snap && snap.avg_watch_sec)
+  const d = Number(durationSec)
+  if (!(snap && snap.avg_watch_sec != null && isFinite(a)) || !(d > 0)) return null
+  return Math.round((a / d) * 1000) / 1000
+}
+
+/** 維持率の曲線 [{t, r}] の t 秒時点の値（直線で補間。r は 0〜1、最初の点を 1 とみなして割ります）。 */
+function holdAt(curve, t) {
+  const c = (curve || []).filter((p) => isFinite(p.t) && isFinite(p.r)).slice().sort((a, b) => a.t - b.t)
+  if (c.length < 2 || !(c[0].r > 0) || t > c[c.length - 1].t) return null
+  const base = c[0].r
+  for (let i = 1; i < c.length; i++) {
+    if (c[i].t >= t) {
+      const a = c[i - 1], b = c[i]
+      const r = b.t === a.t ? b.r : a.r + ((b.r - a.r) * (t - a.t)) / (b.t - a.t)
+      return Math.round((r / base) * 1000) / 1000
+    }
+  }
+  return null
+}
+
+/** 3秒維持率。手で入れた値 → スキップ率から → 曲線から、の順に使います。 */
+function hold3(snap) {
+  if (!snap) return null
+  if (snap.hold_3s != null && isFinite(Number(snap.hold_3s))) return Number(snap.hold_3s)
+  if (snap.skip_rate != null && isFinite(Number(snap.skip_rate))) return Math.round((1 - Number(snap.skip_rate)) * 1000) / 1000
+  return holdAt(snap.retention_curve, RETENTION.HOOK_WINDOW_SEC)
+}
+
+/** 目安との比べ（ショートの3秒維持率 65〜80%、平均視聴率など）。 */
+function benchmarks(snap, durationSec, mode) {
+  const out = []
+  const B = BENCH[mode === 'long' ? 'long' : 'short']
+  const h = hold3(snap)
+  if (mode !== 'long' && h != null) {
+    out.push({ key: 'hold_3s', value: h, level: h >= B.HOLD3_GOOD ? 'ok' : h >= B.HOLD3_MIN ? 'mid' : 'ng',
+      text: `3秒維持率 ${Math.round(h * 1000) / 10}%（目安: ${B.HOLD3_GOOD * 100}%以上がねらい、${B.HOLD3_MIN * 100}%を下回ると広がりにくいと言われます）` })
+  }
+  const p = avp(snap, durationSec)
+  if (p != null) out.push({ key: 'avp', value: p, level: p >= B.AVP ? 'ok' : 'mid', text: `平均視聴率（AVP）${Math.round(p * 1000) / 10}%・平均 ${snap.avg_watch_sec}秒（目安: ${mode === 'long' ? '長尺は' : 'ショートは'}${B.AVP * 100}%以上）` })
+  return out
+}
+
+/** 維持率の曲線から離脱点を探します。window 秒の間に MATERIAL_DROP 以上下がる
+ *  区間を集めてつなげ、つながった区間ごとに「どこからどこまでで何ポイント」。 */
+function retentionDrops(curve, opts) {
+  const o = opts || {}
+  const W = o.window || (o.mode === 'long' ? RETENTION.WINDOW_LONG_SEC : RETENTION.WINDOW_SHORT_SEC)
+  const D = o.drop || RETENTION.MATERIAL_DROP
+  const c = (curve || []).filter((p) => isFinite(p.t) && isFinite(p.r)).slice().sort((a, b) => a.t - b.t)
+  if (c.length < 2 || !(c[0].r > 0)) return []
+  const r = c.map((p) => p.r / c[0].r)
+  const marks = []
+  for (let i = 0; i < c.length; i++) {
+    let j = i
+    while (j + 1 < c.length && c[j + 1].t - c[i].t <= W + 1e-9) j++
+    if (j > i && r[i] - r[j] >= D - 1e-9) marks.push([i, j])
+  }
+  const regions = []
+  for (const [i, j] of marks) {
+    const last = regions[regions.length - 1]
+    if (last && i <= last[1]) last[1] = Math.max(last[1], j)
+    else regions.push([i, j])
+  }
+  return regions.map(([i, j]) => {
+    // 区間の端は、実際に下がり始めた点と下がり終えた点に詰めます。
+    while (i < j && r[i + 1] >= r[i]) i++
+    while (j > i && r[j - 1] <= r[j]) j--
+    // いちばん急に下がった1区間の始まり（行に結びつけるのはここ）。
+    let at = c[i].t
+    let steep = -Infinity
+    for (let k = i; k < j; k++) {
+      const sl = (r[k] - r[k + 1]) / Math.max(1e-9, c[k + 1].t - c[k].t)
+      if (sl > steep) { steep = sl; at = c[k].t }
+    }
+    return { from: c[i].t, to: c[j].t, at, drop: Math.round((r[i] - r[j]) * 1000) / 1000, before: Math.round(r[i] * 1000) / 1000, after: Math.round(r[j] * 1000) / 1000, hook: c[i].t < RETENTION.HOOK_WINDOW_SEC }
+  }).filter((x) => x.drop >= D - 1e-9).sort((a, b) => b.drop - a.drop)
+}
+
+/** 離脱点を台本の行に結びつけます（いちばん急に下がった時刻を含む行）。 */
+function mapDropsToLines(drops, lines) {
+  return (drops || []).map((d) => {
+    const L = lines || []
+    const t = d.at != null ? d.at : d.from
+    let idx = L.findIndex((l) => t >= (Number(l.start) || 0) && t < (Number(l.end) || 0))
+    if (idx < 0 && L.length && t >= (Number(L[L.length - 1].end) || 0)) idx = L.length - 1
+    const l = idx >= 0 ? L[idx] : null
+    const pct = Math.round(d.drop * 1000) / 10
+    return {
+      ...d, line: idx, pct,
+      text: l ? `${idx + 1}行目「${String(l.narration || l.telop || '').slice(0, 24)}」（${l.start}〜${l.end}秒）のあたりで ${pct}% 離脱しています。`
+        : `${d.from}〜${d.to}秒で ${pct}% 離脱しています。`,
+    }
+  })
+}
+
+/** いちばん大きな離脱から、次に試す仮説（PDCA の下書き）を作ります。 */
+function nextHypotheses(ctx) {
+  const c = ctx || {}
+  const mode = c.mode === 'long' ? 'long' : 'short'
+  const B = BENCH[mode]
+  const dur = Number(c.duration) || 0
+  const drops = c.drops || []
+  const out = []
+  const add = (title, hypothesis, metric, baseline, actions) => {
+    if (out.some((x) => x.title === title)) return
+    out.push({ title, stage: 'plan', hypothesis, target: { metric, baseline: baseline == null ? null : baseline }, next_actions: actions })
+  }
+  const h = c.hold3
+  const hookDrop = drops.find((d) => d.hook)
+  if (mode === 'short' && ((h != null && h < B.HOLD3_MIN) || hookDrop)) {
+    add('冒頭を疑問形にする', `最初の3秒で${hookDrop ? hookDrop.pct + '%' : '多くの人'}が離れています。1行目を問いかけにし、約束の言葉を最初の3秒に入れれば、3秒維持率が上がるはず。`, 'hold_3s', h,
+      ['1行目を問いかけに書き直す', '約束の言葉を最初のテロップに入れる', 'あいさつを消して本題から始める'])
+  }
+  for (const d of drops.slice(0, 3)) {
+    if (d.hook && mode === 'short') continue
+    if (dur && d.from >= dur * 0.8) {
+      add('最後を短く、CTAは1つに', `終わり近く（${d.from}秒ごろ）で${d.pct}%離れています。締めを短くしてお願いを1つに絞り、${mode === 'short' ? '最後を1行目につなげれば' : '終了画面へすぐつなげれば'}、最後まで見る人が増えるはず。`, 'avp', c.avp,
+        ['締めのあいさつを消す', 'お願いを1つに絞る'])
+    } else if (mode === 'short') {
+      const t = Math.max(1, Math.ceil(d.at != null ? d.at : d.from))
+      add(`${t}秒目に切り替えを足す`, `${t}秒ごろから${d.pct}%離れています${d.line >= 0 ? `（${d.line + 1}行目）` : ''}。その直前に新しい画・音・問いを入れれば、離れる人が減るはず。`, 'avp', c.avp,
+        [`${t}秒目の直前に寄りか手元の画を入れる`, '同じ画を3秒以内に区切る'])
+    } else if (d.from < RULES.modes.long.WHY_WATCH_SEC) {
+      add('60秒までに「最後まで見る理由」を言う', `最初の1分（${d.from}秒ごろ）で${d.pct}%離れています。冒頭10秒で約束を見せ、60秒までに「最後に何が分かるか」を言えば、残る人が増えるはず。`, 'avp', c.avp,
+        ['冒頭10秒で約束の中身を見せる', '「最後に〜を発表します」を入れる'])
+    } else {
+      const m = Math.floor(d.from / 60)
+      add(`${m}分${Math.round(d.from % 60)}秒ごろに山場を置く`, `${m}分${Math.round(d.from % 60)}秒ごろから${d.pct}%離れています。その少し前にルール変更・トラブル・発表などの山場を置けば、離れる人が減るはず。`, 'avp', c.avp,
+        ['離脱の30秒前に山場を入れる', '同じ画を10秒以内に区切る'])
+    }
+  }
+  return out.slice(0, 3)
 }
 
 /** 自社の投稿を「属性ごと」に比べます（フックの型・長さの帯・時刻・曜日）。
@@ -1578,5 +1733,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();

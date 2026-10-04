@@ -88,6 +88,11 @@ export function cleanProject(p) {
     },
     research: list(p && p.research, 20, (r) => ({ keyword: str(r && r.keyword, 100), platform: str(r && r.platform, 20), at: iso(r && r.at) })),
     imported_from: str(p && p.imported_from, 20),
+    // 再投資メモ: 次の動画で何を大きくするか（予算・時間・企画の型・ひとこと）。任意。
+    reinvest: {
+      budget: str(p && p.reinvest && p.reinvest.budget, 200), time: str(p && p.reinvest && p.reinvest.time, 200),
+      format: str(p && p.reinvest && p.reinvest.format, 200), note: str(p && p.reinvest && p.reinvest.note, 1000),
+    },
     created_at: iso(p && p.created_at) || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -183,6 +188,9 @@ export const PUB_STATUS = ['draft', 'uploading', 'scheduled', 'processing', 'pub
 function cleanSnapshot(m) {
   const o = { captured_at: iso(m && m.captured_at) || new Date().toISOString(), source: str(m && m.source, 20) }
   for (const k of ['views', 'likes', 'comments', 'shares', 'saves', 'reach', 'avg_watch_sec', 'retention_rate', 'skip_rate']) o[k] = num(m && m[k], 0, 1e12)
+  // 3秒維持率（0〜1）と、維持率の曲線（秒と残っている割合）。手で入れるか取り込んだときだけ。
+  o.hold_3s = num(m && m.hold_3s, 0, 1)
+  o.retention_curve = list(m && m.retention_curve, 200, (p) => ({ t: num(p && p.t, 0, 36000) || 0, r: num(p && p.r, 0, 10) || 0 }))
   return o
 }
 

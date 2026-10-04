@@ -528,6 +528,44 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('実物の動画: 画の切り替わり（静止と変化の合成フレーム）と話し始めの無音')
 }
 
+/* ---- 数字から学ぶ（AVD・AVP・3秒維持率・離脱点） ---- */
+{
+  assert.equal(V.avp({ avg_watch_sec: 12 }, 24), 0.5)
+  assert.equal(V.avp({ avg_watch_sec: 12 }, 0), null, '長さが無ければ出さない')
+  assert.equal(V.metricValue({ avg_watch_sec: 12 }, 'avp', 24), 0.5)
+  const curve = [[0, 1], [1, 0.9], [2, 0.8], [3, 0.74], [4, 0.72], [5, 0.71], [6, 0.7], [7, 0.69], [8, 0.62], [9, 0.56], [10, 0.55], [12, 0.53], [14, 0.51], [16, 0.5]].map(([t, r]) => ({ t, r }))
+  assert.equal(V.holdAt(curve, 3), 0.74)
+  assert.equal(V.holdAt(curve, 2.5), 0.77, '間は直線で補間')
+  assert.equal(V.hold3({ retention_curve: curve }), 0.74)
+  assert.equal(V.hold3({ hold_3s: 0.8, retention_curve: curve }), 0.8, '手で入れた値が先')
+  assert.equal(V.hold3({ skip_rate: 0.3 }), 0.7, 'スキップ率から')
+  const drops = V.retentionDrops(curve)
+  assert.deepEqual(drops.map((d) => [d.from, d.to, d.at, d.drop, d.hook]), [[0, 4, 0, 0.28, true], [6, 10, 7, 0.15, false]])
+  assert.deepEqual(V.retentionDrops(curve.map((p) => ({ t: p.t, r: 1 - p.t * 0.01 }))), [], 'なだらかに減るだけなら離脱点なし')
+  const lines = [
+    { start: 0, end: 3, narration: 'この穴、どうやってできる？' }, { start: 3, end: 8, narration: '答えは水の量' },
+    { start: 8, end: 14, narration: '粉の8割が水' }, { start: 14, end: 16, narration: '保存してね' },
+  ]
+  const mapped = V.mapDropsToLines(drops, lines)
+  assert.deepEqual(mapped.map((m) => m.line), [0, 1], '7秒（いちばん急なところ）は2行目')
+  assert.equal(mapped[1].text, '2行目「答えは水の量」（3〜8秒）のあたりで 15% 離脱しています。')
+  const ideas = V.nextHypotheses({ mode: 'short', duration: 16, drops: mapped, hold3: 0.6, avp: 0.55 })
+  assert.deepEqual(ideas.map((x) => x.title), ['冒頭を疑問形にする', '7秒目に切り替えを足す'])
+  assert.equal(ideas[0].target.metric, 'hold_3s')
+  assert.equal(ideas[0].target.baseline, 0.6)
+  assert.equal(ideas[1].stage, 'plan')
+  // 終わり近くの離脱 → 最後を短く
+  const endIdeas = V.nextHypotheses({ mode: 'short', duration: 16, drops: [{ from: 14, to: 16, at: 14, drop: 0.1, pct: 10, hook: false, line: 3 }], hold3: 0.85 })
+  assert.deepEqual(endIdeas.map((x) => x.title), ['最後を短く、CTAは1つに'])
+  // 長尺: 2分半の離脱 → 山場を置く。最初の1分 → 最後まで見る理由
+  const longIdeas = V.nextHypotheses({ mode: 'long', duration: 600, drops: [{ from: 150, at: 150, drop: 0.08, pct: 8, line: -1 }, { from: 20, at: 20, drop: 0.06, pct: 6, line: -1 }] })
+  assert.deepEqual(longIdeas.map((x) => x.title), ['2分30秒ごろに山場を置く', '60秒までに「最後まで見る理由」を言う'])
+  const b = V.benchmarks({ hold_3s: 0.6, avg_watch_sec: 20 }, 24, 'short')
+  assert.deepEqual(b.map((x) => [x.key, x.level]), [['hold_3s', 'ng'], ['avp', 'ok']])
+  assert.match(b[0].text, /目安/)
+  ok('数字から学ぶ（AVP・3秒維持率・離脱点と台本の行・次の仮説）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')
