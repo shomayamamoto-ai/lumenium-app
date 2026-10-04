@@ -291,6 +291,147 @@ await t('名前と会社名の修正・グループの出入り', async () => {
   assert.deepEqual(seen.map((x) => x[0]), ['patch', 'join', 'leave', 'make'])
 })
 
+/* ---- お知らせメール ---- */
+
+await t('本文の下に、送信者・住所・問い合わせ先・配信停止のリンクが必ず付く', async () => {
+  const out = M.compose({
+    subject: ' 冬のお知らせ ', body: '■ 営業日\nいつも**ありがとう**ございます。\n\n・28日から休み\n・5日から営業\n\nhttps://example.com/a?b=1 <script>x</script>',
+    footer: { sender: '架空商店', address: '東京都千代田区1-2-3', contact: 'https://example.com/contact.html', unsubscribe: M.RESEND_UNSUB },
+  })
+  assert.equal(out.subject, '冬のお知らせ')
+  for (const part of [out.text, out.html]) {
+    assert.ok(part.includes('架空商店'), '送信者')
+    assert.ok(part.includes('東京都千代田区1-2-3'), '住所')
+    assert.ok(part.includes('https://example.com/contact.html'), '問い合わせ先')
+    assert.ok(part.includes('{{{RESEND_UNSUBSCRIBE_URL}}}'), '配信停止のリンク')
+  }
+  assert.ok(out.html.includes('<h2'), '見出し')
+  assert.ok(out.html.includes('<strong>ありがとう</strong>'), '太字')
+  assert.ok(out.html.includes('<li style="margin:2px 0">28日から休み</li>'), '箇条書き')
+  assert.ok(out.html.includes('<a href="https://example.com/a?b=1"'), 'URL はリンク')
+  assert.equal(out.html.includes('<script>'), false, 'HTML は文字として出す')
+  assert.ok(M.compose({ subject: 's', body: 'b', footer: { unsubscribe: 'u' } }).text.includes('住所: （未設定）'))
+})
+
+await t('配信停止のリンク: 署名が合うときだけ通る（大文字小文字は同じ扱い）', async () => {
+  const url = await M.unsubscribeUrl('Taro@Example.com')
+  const u = new URL(url)
+  assert.equal(u.pathname, '/api/unsubscribe')
+  assert.equal(u.searchParams.get('e'), 'taro@example.com')
+  const tok = u.searchParams.get('t')
+  assert.match(tok, /^[0-9a-f]{32}$/)
+  assert.equal(await M.verifyUnsubscribe('taro@example.com', tok), true)
+  assert.equal(await M.verifyUnsubscribe('TARO@example.com', tok), true)
+  assert.equal(await M.verifyUnsubscribe('jiro@example.com', tok), false, '他人のアドレスでは通らない')
+  assert.equal(await M.verifyUnsubscribe('taro@example.com', tok.replace(/.$/, (c) => (c === '0' ? '1' : '0'))), false)
+  assert.equal(await M.verifyUnsubscribe('taro@example.com', 'short'), false)
+  assert.equal(await M.verifyUnsubscribe('taro@example.com', tok, 'another-secret'), false, '鍵が違えば通らない')
+  assert.ok((await M.unsubscribeUrl('a@example.com', { test: true })).endsWith('&test=1'))
+})
+
+await t('配信停止のページ: 開いただけでは止めず、押したら止める・試し送りは止めない', async () => {
+  standardRoutes()
+  const patched = []
+  routes.push(['PATCH', /^\/contacts\/(.+)$/, (h, b) => { patched.push([decodeURIComponent(h[1]), b]); return { body: { id: 'x' } } }])
+  const mod = await import('../api/unsubscribe.js')
+  const url = await M.unsubscribeUrl('taro@example.com')
+  const page = await mod.GET(new Request(url))
+  assert.equal(page.status, 200)
+  assert.match(await page.text(), /配信を停止する/)
+  assert.equal(patched.length, 0, '開いただけでは止めない')
+  const bad = await mod.GET(new Request(url.replace(/t=[0-9a-f]+/, 't=' + '0'.repeat(32))))
+  assert.equal(bad.status, 400)
+  const done = await mod.POST(new Request(url, { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.1' } }))
+  assert.equal(done.status, 200)
+  assert.deepEqual(patched[0], ['taro@example.com', { unsubscribed: true }])
+  const test = await mod.POST(new Request(await M.unsubscribeUrl('owner@example.com', { test: true }), { method: 'POST', headers: { 'x-forwarded-for': '192.0.2.2' } }))
+  assert.match(await test.text(), /テストのため止めていません/)
+  assert.equal(patched.length, 1)
+})
+
+await t('送信元が Resend の試用アドレスなら送らない（直し方つき）', async () => {
+  standardRoutes()
+  delete process.env.CONTACT_FROM_EMAIL
+  process.env.MAIL_SENDER_ADDRESS = '東京都千代田区1-2-3'
+  const posted = []
+  routes.push(['POST', /^\/broadcasts$/, (_h, b) => { posted.push(b); return { body: { id: 'bc1' } } }])
+  const mod = await import('../api/members.js')
+  const res = await call(mod, 'POST', '', { action: 'mail.send', subject: '件名', body: '本文', confirmCount: 207 })
+  const out = await res.json()
+  assert.equal(res.status, 409)
+  assert.equal(out.code, 'SANDBOX')
+  assert.match(out.steps, /Domains/)
+  assert.equal(posted.length, 0)
+  const view = await (await call(mod, 'GET', '?view=mail')).json()
+  assert.equal(view.sandbox, true)
+})
+
+await t('住所が無ければ送らない・人数が確かめたものと違えば送らない・送れば控えを残す', async () => {
+  standardRoutes()
+  process.env.CONTACT_FROM_EMAIL = '架空商店 <info@example.co.jp>'
+  delete process.env.MAIL_SENDER_ADDRESS
+  const posted = []
+  routes.push(['POST', /^\/broadcasts$/, (_h, b) => { posted.push(b); return { body: { id: 'bc1' } } }])
+  const mod = await import('../api/members.js')
+  const noAddr = await (await call(mod, 'POST', '', { action: 'mail.send', subject: '件名', body: '本文', confirmCount: 207 })).json()
+  assert.equal(noAddr.code, 'NO_ADDRESS')
+  process.env.MAIL_SENDER_ADDRESS = '東京都千代田区1-2-3'
+
+  const n = await (await call(mod, 'POST', '', { action: 'mail.count', segment: '' })).json()
+  assert.equal(n.count, 207, '230人のうち配信停止の23人を除く')
+  assert.equal(n.stopped, 23)
+  const vip = await (await call(mod, 'POST', '', { action: 'mail.count', segment: 'seg_vip' })).json()
+  assert.equal(vip.count, VIP.filter((c) => !c.unsubscribed).length)
+
+  const stale = await (await call(mod, 'POST', '', { action: 'mail.send', subject: '件名', body: '本文', confirmCount: 230 })).json()
+  assert.equal(stale.code, 'COUNT_CHANGED')
+  assert.equal(stale.count, 207)
+  assert.equal(posted.length, 0)
+
+  const ok = await (await call(mod, 'POST', '', { action: 'mail.send', subject: '冬のお知らせ', body: '本文', segment: 'seg_vip', segmentName: '常連さん', confirmCount: vip.count })).json()
+  assert.equal(ok.ok, true)
+  assert.equal(posted.length, 1)
+  const b = posted[0]
+  assert.equal(b.segment_id, 'seg_vip')
+  assert.equal(b.send, true)
+  assert.equal(b.from, '架空商店 <info@example.co.jp>')
+  assert.equal(b.reply_to, 'owner@example.com')
+  assert.ok(b.html.includes('{{{RESEND_UNSUBSCRIBE_URL}}}') && b.text.includes('{{{RESEND_UNSUBSCRIBE_URL}}}'))
+  assert.ok(b.text.includes('東京都千代田区1-2-3'))
+  const log = JSON.parse(lists.get(M.MK.broadcasts)[0])
+  assert.deepEqual([log.id, log.count, log.group, log.subject], ['bc1', vip.count, '常連さん', '冬のお知らせ'])
+  assert.equal(lists.get(M.MK.broadcasts)[0].includes('@'), false, '控えに宛先は入れない')
+
+  const later = await call(mod, 'POST', '', { action: 'mail.send', subject: 's', body: 'b', confirmCount: 207, scheduledAt: new Date(Date.now() + 60000).toISOString() })
+  assert.equal(later.status, 400, '5分より前の予約は受けない')
+})
+
+await t('テスト送信は自分あてに【テスト】・見本と履歴の数字（取れなければ null）', async () => {
+  standardRoutes()
+  const mails = []
+  routes.push(
+    ['POST', /^\/emails$/, (_h, b) => { mails.push(b); return { body: { id: 'e1' } } }],
+    ['GET', /^\/broadcasts\?/, () => ({ body: { object: 'list', has_more: false, data: [{ id: 'bc1', name: '冬', status: 'sent', created_at: '2026-10-01T00:00:00Z', sent_at: '2026-10-01T00:01:00Z' }] } })],
+    ['GET', /^\/broadcasts\/bc1\/recipients\?type=delivered/, () => ({ body: { object: 'list', has_more: false, data: [{ id: 'r1' }, { id: 'r2' }] } })],
+    ['GET', /^\/broadcasts\/bc1\/recipients\?type=opened/, () => ({ body: { object: 'list', has_more: false, data: [{ id: 'r1' }] } })],
+  )
+  const mod = await import('../api/members.js')
+  const sent = await (await call(mod, 'POST', '', { action: 'mail.test', subject: '冬', body: '本文' })).json()
+  assert.equal(sent.to, 'owner@example.com')
+  assert.deepEqual(mails[0].to, ['owner@example.com'])
+  assert.match(mails[0].subject, /^【テスト】冬/)
+  assert.match(mails[0].text, /api\/unsubscribe\?e=owner%40example\.com&t=[0-9a-f]{32}&test=1/)
+  const prev = await (await call(mod, 'POST', '', { action: 'mail.preview', subject: '冬', body: '本文' })).json()
+  assert.ok(prev.html.includes('本文') && prev.text.includes('配信の停止'))
+  const view = await (await call(mod, 'GET', '?view=mail')).json()
+  assert.equal(view.history[0].subject, '冬のお知らせ', 'ここで送った控えの件名')
+  assert.equal(view.history[0].statusLabel, '送信済み')
+  const st = await (await call(mod, 'GET', '?view=broadcast&id=bc1')).json()
+  assert.deepEqual(st.stats.delivered, { n: 2, more: false })
+  assert.deepEqual(st.stats.opened, { n: 1, more: false })
+  assert.equal(st.stats.clicked, null, 'Resend が返さないものは null（画面は「取得できません」）')
+})
+
 if (failed) {
   console.error(`\n${failed} 件の確認が通りませんでした。`)
   process.exit(1)

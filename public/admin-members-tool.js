@@ -400,3 +400,235 @@
     say: say, esc: esc, when: when, api: api, post: post, segName: segName, demo: demo, reload: reload
   };
 })();
+
+/* ---- お知らせメール ----
+   会員にまとめて送るメール。送るのは Resend の Broadcasts で、配信を
+   止めた人には送りません。特定電子メール法で決まっている送信者の名前・
+   住所・問い合わせ先・配信停止のリンクは、本文の下に必ず付きます（ここで
+   消すことはできません）。
+
+   送る前に、見本（プレビュー）と自分あてのテスト送信で確かめ、最後に
+   「◯人に送ります」を確かめてから送ります。送信元が Resend の試用
+   アドレスのままのときは、お客様に届かないので送りません。 */
+(function () {
+  'use strict';
+  var T = window.lumMembersTool;
+  if (!T) return;
+  var el = function (id) { return document.getElementById(id); };
+  var esc = T.esc, when = T.when, say = T.say;
+  var DRAFT = 'lum_mem_mail_draft';
+  var M = { info: null, seg: '', count: null, stopped: 0, confirm: false, preview: null, stats: {}, busy: false };
+
+  function draft(v) {
+    try {
+      if (v === undefined) return JSON.parse(sessionStorage.getItem(DRAFT) || '{}') || {};
+      sessionStorage.setItem(DRAFT, JSON.stringify(v));
+    } catch (_) {}
+    return {};
+  }
+  function form() {
+    var sched = el('mm-when-on') && el('mm-when-on').checked && el('mm-when').value;
+    return {
+      subject: el('mm-subject').value.trim(), body: el('mm-body').value,
+      segment: el('mm-seg').value, segmentName: T.segName(el('mm-seg').value),
+      scheduledAt: sched ? sched + ':00+09:00' : ''
+    };
+  }
+  function keep() { var f = form(); draft({ subject: f.subject, body: f.body }); }
+
+  async function load(body) {
+    body.innerHTML = '<p class="mt-note">読み込み中…</p>';
+    var r = await T.api('/api/members?view=mail');
+    if (!r.data || r.data.ok !== true) {
+      body.innerHTML = '<div class="mt-box red">' + esc((r.data && r.data.message) || '読み込めませんでした。') + '</div>';
+      return;
+    }
+    M.info = r.data;
+    draw(body);
+    count();
+  }
+
+  function banners() {
+    var i = M.info, out = '';
+    if (i.sandbox) {
+      out += '<div class="mt-box red"><strong>いまは送れません。</strong>送信元が Resend の試用アドレス（' + esc(i.from) + '）のままです。この状態では、Resend に登録した本人のアドレス以外には届かないため、お知らせメールは送れません（自分あてのテスト送信だけはできます）。<br>' + esc(i.steps) + '</div>';
+    }
+    if (!i.address) {
+      out += '<div class="mt-box"><strong>送信者の住所が未設定です。</strong>特定電子メール法で、お知らせメールには送信者の住所を書くことが決まっています。「設定状況 › キーの入力」の「お知らせメールに書く住所」に入れると送れるようになります。</div>';
+    }
+    return out;
+  }
+
+  function draw(body) {
+    var S = T.state();
+    var d = draft();
+    var legacy = S.mode === 'legacy';
+    body.innerHTML =
+      '<p class="mt-note" style="margin-top:0">会員にまとめてメールを送ります。送るのは、登録のときにお知らせメールの受け取りに同意した人だけです（配信を止めた人には送りません）。</p>' +
+      banners() +
+      '<div class="mt-card"><h3 style="margin-bottom:8px">新しいお知らせメール</h3>' +
+      '<label class="mt-field">件名<input type="text" id="mm-subject" maxlength="' + M.info.limits.subject + '" placeholder="例: 年末年始の営業日のお知らせ" value="' + esc(d.subject || '') + '"></label>' +
+      '<label class="mt-field" style="margin-top:8px">本文<textarea id="mm-body" maxlength="' + M.info.limits.body + '" placeholder="いつもありがとうございます。&#10;&#10;■ 営業日&#10;・12月28日（土）〜1月5日（日）はお休みです">' + esc(d.body || '') + '</textarea></label>' +
+      '<p class="mt-note">書き方: 空いた行で段落が分かれます。「■ 」で始まる行は見出し、「・」で始まる行は箇条書き、**ここ** は太字、https:// で始まるURLはリンクになります。本文の下には、送信者の名前・住所・問い合わせ先・配信停止のリンクが自動で付きます。</p>' +
+      '<div class="mt-grid" style="margin-top:6px">' +
+      '<label class="mt-field">送る相手<select id="mm-seg"><option value="">会員全員（配信を受け取る人）</option>' +
+      (legacy ? '' : S.segments.map(function (s) { return '<option value="' + esc(s.id) + '">グループ「' + esc(s.name) + '」</option>'; }).join('')) +
+      '</select></label>' +
+      '<div class="mt-field"><label style="display:flex;gap:6px;align-items:center;color:var(--sub)"><input type="checkbox" id="mm-when-on" style="width:18px;height:18px">日時を決めて送る（予約）</label>' +
+      '<input type="datetime-local" id="mm-when" disabled aria-label="送る日時（日本時間）"></div></div>' +
+      '<p class="mt-note" id="mm-count" role="status" style="font-size:13px;color:var(--text)">届く人数: 数えています…</p>' +
+      '<div class="mt-acts"><button type="button" class="ghost" id="mm-preview">見本を見る</button>' +
+      '<button type="button" class="ghost" id="mm-test">テスト送信（' + esc(M.info.owner) + ' あて）</button>' +
+      '<button type="button" id="mm-go">送信の確認へ</button></div>' +
+      '<div id="mm-confirm"></div><div id="mm-prev"></div></div>' +
+      '<div class="mt-card"><h3 style="margin-bottom:8px">送ったお知らせメール</h3><div id="mm-hist"></div></div>';
+    el('mm-seg').value = M.seg;
+    el('mm-seg').addEventListener('change', function () { M.seg = this.value; M.confirm = false; el('mm-confirm').innerHTML = ''; count(); });
+    el('mm-when-on').addEventListener('change', function () { el('mm-when').disabled = !this.checked; M.confirm = false; el('mm-confirm').innerHTML = ''; });
+    ['mm-subject', 'mm-body'].forEach(function (id) {
+      el(id).addEventListener('input', function () { keep(); if (M.confirm) { M.confirm = false; el('mm-confirm').innerHTML = ''; } });
+    });
+    el('mm-preview').addEventListener('click', preview);
+    el('mm-test').addEventListener('click', test);
+    el('mm-go').addEventListener('click', askSend);
+    history();
+  }
+
+  async function count() {
+    var c = el('mm-count');
+    if (!c) return;
+    c.textContent = '届く人数: 数えています…';
+    var seg = M.seg;
+    var r = await T.post({ action: 'mail.count', segment: seg });
+    if (M.seg !== seg || !el('mm-count')) return;
+    if (!r.data || !r.data.ok) { M.count = null; c.textContent = '届く人数: 数えられませんでした（' + ((r.data && r.data.message) || '通信できませんでした') + '）'; return; }
+    M.count = r.data.count;
+    M.stopped = r.data.stopped;
+    c.textContent = '届く人数: ' + r.data.count + '人' + (r.data.stopped ? '（配信を止めた ' + r.data.stopped + '人には送りません）' : '');
+  }
+
+  async function preview() {
+    var f = form();
+    var r = await T.post({ action: 'mail.preview', subject: f.subject, body: f.body });
+    var box = el('mm-prev');
+    if (!r.data || !r.data.ok) { box.innerHTML = '<div class="mt-box red">' + esc((r.data && r.data.message) || '見本を作れませんでした。') + '</div>'; return; }
+    box.innerHTML = '<div class="mt-sec"><h4>見本（実際に届く形）</h4>' +
+      '<p class="mt-note">件名: <strong style="color:var(--text)">' + esc(r.data.subject || '（件名なし）') + '</strong>　配信停止のリンクは、実際のメールでは1人ずつのリンクになります。</p>' +
+      '<iframe id="mm-frame" title="お知らせメールの見本" sandbox="" style="width:100%;height:440px;border:1px solid var(--border);border-radius:10px;background:#fff"></iframe>' +
+      '<details style="margin-top:6px"><summary class="mt-note" style="cursor:pointer">文字だけのメールソフトで見たときの形</summary><pre style="white-space:pre-wrap;font-size:12px;line-height:1.7;background:#faf9f6;border:1px solid var(--border);border-radius:10px;padding:10px;overflow-wrap:anywhere">' + esc(r.data.text) + '</pre></details></div>';
+    el('mm-frame').srcdoc = r.data.html;
+  }
+
+  async function test() {
+    var f = form();
+    var b = el('mm-test');
+    b.disabled = true;
+    var r = await T.post({ action: 'mail.test', subject: f.subject, body: f.body });
+    b.disabled = false;
+    if (!r.data || !r.data.ok) return say((r.data && r.data.message) || 'テストのメールを送れませんでした。');
+    say(r.data.demo ? r.data.message : r.data.to + ' あてにテストのメールを送りました。件名の頭に【テスト】が付きます。届くまで数分かかることがあります。', true);
+  }
+
+  function askSend() {
+    var f = form();
+    var i = M.info;
+    var box = el('mm-confirm');
+    var stop = [];
+    if (i.sandbox) stop.push('送信元が Resend の試用アドレスのため送れません（上の直し方をご覧ください）。');
+    if (!i.address) stop.push('送信者の住所が未設定のため送れません。');
+    if (!f.subject) stop.push('件名を入れてください。');
+    if (!f.body.trim()) stop.push('本文を入れてください。');
+    if (M.count == null) stop.push('届く人数を数えられていません。少し待ってから、もう一度押してください。');
+    else if (M.count < 1) stop.push('送る相手がいません。');
+    if (el('mm-when-on').checked && !el('mm-when').value) stop.push('予約の日時を入れてください。');
+    if (stop.length) { box.innerHTML = '<div class="mt-box red" style="margin-top:10px">' + stop.map(esc).join('<br>') + '</div>'; return; }
+    M.confirm = true;
+    var target = f.segment ? 'グループ「' + T.segName(f.segment) + '」の' : '会員全員のうち配信を受け取る';
+    box.innerHTML = '<div class="mt-box" style="margin-top:10px"><strong>' + esc(target) + ' ' + M.count + '人に、「' + esc(f.subject) + '」を' +
+      (f.scheduledAt ? ' ' + esc(el('mm-when').value.replace('T', ' ')) + '（日本時間）に送ります。' : '今すぐ送ります。') + '</strong><br>' +
+      (f.scheduledAt ? '送る時間までなら、下の履歴から取り消せます。' : '送ったあとは取り消せません。') +
+      ' 見本とテスト送信で、誤字やリンクを確かめましたか？' +
+      '<div class="mt-acts"><button type="button" class="mt-danger" id="mm-send">' + M.count + '人に送信する</button><button type="button" class="ghost" id="mm-cancel">やめる</button></div></div>';
+    el('mm-cancel').addEventListener('click', function () { M.confirm = false; box.innerHTML = ''; });
+    el('mm-send').addEventListener('click', send);
+  }
+
+  async function send() {
+    var f = form();
+    var b = el('mm-send');
+    b.disabled = true;
+    var r = await T.post({ action: 'mail.send', subject: f.subject, body: f.body, segment: f.segment, segmentName: f.segmentName, scheduledAt: f.scheduledAt, confirmCount: M.count });
+    b.disabled = false;
+    if (r.data && r.data.code === 'COUNT_CHANGED') {
+      M.count = r.data.count;
+      el('mm-count').textContent = '届く人数: ' + r.data.count + '人';
+      askSend();
+      return say(r.data.message);
+    }
+    if (!r.data || !r.data.ok) return say((r.data && r.data.message) || '送れませんでした。');
+    M.confirm = false;
+    el('mm-confirm').innerHTML = '';
+    draft({});
+    el('mm-subject').value = '';
+    el('mm-body').value = '';
+    say(r.data.scheduledAt ? r.data.count + '人あての予約をしました（' + when(r.data.scheduledAt) + ' に送ります）。' : r.data.count + '人あてに送り始めました。全員に届くまで数分かかることがあります。', true);
+    reloadInfo();
+  }
+
+  async function reloadInfo() {
+    var r = await T.api('/api/members?view=mail');
+    if (r.data && r.data.ok) { M.info = r.data; history(); }
+  }
+
+  function fmtStat(s) {
+    if (!s) return '取得できません';
+    return s.n + (s.more ? '人以上' : '人');
+  }
+
+  function history() {
+    var box = el('mm-hist');
+    if (!box) return;
+    var items = (M.info && M.info.history) || [];
+    if (!items.length) { box.innerHTML = '<p class="mt-note">まだ送ったものはありません。</p>'; return; }
+    box.innerHTML = (M.info.historyFromResend ? '' : '<div class="mt-box gray">Resend から履歴を読めなかったため、この画面から送った控えだけを出しています。</div>') +
+      '<ul class="mt-list">' + items.map(function (h) {
+        var st = M.stats[h.id];
+        var tagCls = h.status === 'sent' ? 'ok' : (h.status === 'failed' ? 'ng' : '');
+        var line = st === 'loading' ? '<span class="mt-note" style="margin:0">数えています…</span>'
+          : st ? '<span class="mt-note" style="margin:0;color:var(--text)">届いた ' + fmtStat(st.delivered) + '・開いた ' + fmtStat(st.opened) + '・リンクを押した ' + fmtStat(st.clicked) +
+            '・届かなかった ' + fmtStat(st.bounced) + '・配信停止 ' + fmtStat(st.unsubscribed) + '</span>' : '';
+        return '<li><span class="grow"><strong>' + esc(h.subject) + '</strong><br><span class="mt-note" style="margin:0">' +
+          '<span class="mt-tag ' + tagCls + '">' + esc(h.statusLabel) + '</span>' +
+          esc(h.sentAt ? '送信 ' + when(h.sentAt) : h.scheduledAt ? '予約 ' + when(h.scheduledAt) : '作成 ' + when(h.createdAt)) +
+          (h.count != null ? '・' + h.count + '人' : '') + (h.group ? '・' + esc(h.group) : '') + '</span>' +
+          (line ? '<br>' + line : '') + '</span>' +
+          (h.status === 'sent' ? '<button type="button" class="ghost" data-mmstat="' + esc(h.id) + '">数字を見る</button>' : '') +
+          (h.status === 'scheduled' ? '<button type="button" class="ghost" data-mmcancel="' + esc(h.id) + '">予約を取り消す</button>' : '') + '</li>';
+      }).join('') + '</ul>' +
+      '<p class="mt-note">「開いた」「リンクを押した」は、Resend でそのドメインの開封・クリックの計測を有効にしているときだけ数えられます。画像を読み込まないメールソフトでは開いても数えられないため、実際より少なめに出ます。</p>';
+    box.querySelectorAll('[data-mmstat]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var id = b.getAttribute('data-mmstat');
+        M.stats[id] = 'loading';
+        history();
+        var r = await T.api('/api/members?view=broadcast&id=' + encodeURIComponent(id));
+        M.stats[id] = r.data && r.data.ok ? r.data.stats : { delivered: null, opened: null, clicked: null, bounced: null, unsubscribed: null };
+        history();
+      });
+    });
+    box.querySelectorAll('[data-mmcancel]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        b.disabled = true;
+        var r = await T.post({ action: 'mail.cancel', id: b.getAttribute('data-mmcancel') });
+        b.disabled = false;
+        if (!r.data || !r.data.ok) return say((r.data && r.data.message) || '取り消せませんでした。');
+        say('予約を取り消しました。', true);
+        reloadInfo();
+      });
+    });
+  }
+
+  window.lumMembersMail = function (body) {
+    if (M.info) { draw(body); count(); } else load(body);
+  };
+})();

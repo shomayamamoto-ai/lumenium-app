@@ -229,11 +229,13 @@ export async function addMember(apiKey, { name, email, company }) {
   const r = await resend(apiKey, '/contacts', { method: 'POST', body: JSON.stringify(body) })
   if (r.ok) return true
   // 前に登録して削除していない人など、もう連絡先がある場合。グループに入れ直し、
-  // 名前を新しいものにします（配信停止の状態は変えません）。
+  // 名前を新しいものにします。登録フォームで改めて同意したので、配信を
+  // 止めていた人も「受け取る」に戻します（止めた人を戻せるのは本人だけで、
+  // これはその本人の操作です）。
   if (r.status === 409 || r.status === 422) {
     const id = encodeURIComponent(email)
     await resend(apiKey, `/contacts/${id}/segments/${where.id}`, { method: 'POST' })
-    return (await updateMember(apiKey, email, { name, company })).ok
+    return (await updateMember(apiKey, email, { name, company, unsubscribed: false })).ok
   }
   return false
 }
@@ -247,7 +249,7 @@ export async function updateMember(apiKey, id, { name, company, unsubscribed }) 
     body.last_name = String(company)
     if (where && where.mode === 'segments' && (await companyProperty(apiKey))) body.properties = { company: String(company) }
   }
-  if (unsubscribed === true) body.unsubscribed = true
+  if (typeof unsubscribed === 'boolean') body.unsubscribed = unsubscribed
   const path = where && where.mode === 'legacy'
     ? `/audiences/${where.id}/contacts/${encodeURIComponent(id)}` : `/contacts/${encodeURIComponent(id)}`
   return resend(apiKey, path, { method: 'PATCH', body: JSON.stringify(body) })
@@ -515,10 +517,110 @@ export function sendBlockers({ from, address, subject, body, count }) {
   return out
 }
 
+/** 送信元。BRAND.from と同じ決まり（CONTACT_FROM_EMAIL、無ければ試用アドレス）を、
+ *  読み込んだ時ではなく呼ばれた時に読みます（テストで送信元を変えるため）。 */
+export const mailFrom = () => (process.env.CONTACT_FROM_EMAIL || '').trim() || BRAND.from
+
 export const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '')) && String(s).length <= 100
 
 /** 共有リンクの一覧と Excel 用。会員の配列か、取れなければ null。 */
 export async function listContacts(apiKey) {
   const r = await listMembers(apiKey)
   return r ? r.members : null
+}
+
+/* ---- お知らせメール（Resend の Broadcasts） ----
+   一斉送信は Resend の Broadcasts に任せます。送る相手はグループ
+   （セグメント）単位で、配信を止めた人には Resend が送りません。
+   配信停止のリンク {{{RESEND_UNSUBSCRIBE_URL}}} は、Resend が1人ずつの
+   リンクに置き換え、押されるとその人の連絡先を「配信停止」にします。
+
+     作る・送る  POST /broadcasts {segment_id, from, subject, html, text, reply_to, name, send:true, scheduled_at?}
+     一覧        GET  /broadcasts?limit=…
+     取り消し    POST /broadcasts/{id}/cancel （予約したものだけ）
+     数字        GET  /broadcasts/{id}/recipients?type=delivered|opened|clicked|bounced|unsubscribed */
+
+/** 送る相手（グループ。'' は会員全員）の連絡先。 */
+export async function audienceFor(apiKey, seg) {
+  const where = await whereMembers(apiKey)
+  if (!where) return null
+  if (seg && where.mode === 'legacy') return null
+  const id = seg || where.id
+  const base = where.mode === 'legacy' ? `/audiences/${id}/contacts` : `/segments/${encodeURIComponent(id)}/contacts`
+  const got = await collectPages((after) => resend(apiKey, base + qs(after)))
+  if (!got) return null
+  return { where, targetId: id, members: got.items.map((c) => toMember(c)) }
+}
+
+export async function createBroadcast(apiKey, { from, replyTo, subject, html, text, targetId, legacy, scheduledAt }) {
+  const body = {
+    name: String(subject).slice(0, 60), from, subject, html, text, send: true,
+    ...(legacy ? { audience_id: targetId } : { segment_id: targetId }),
+    ...(replyTo ? { reply_to: replyTo } : {}),
+    ...(scheduledAt ? { scheduled_at: scheduledAt } : {}),
+  }
+  return resend(apiKey, '/broadcasts', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export const cancelBroadcast = (apiKey, id) => resend(apiKey, `/broadcasts/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+
+/** 予約の日時を確かめる。'' は今すぐ。5分後〜30日後だけを受けます。 */
+export function scheduleOk(iso, now = Date.now()) {
+  if (!iso) return { ok: true, at: '' }
+  const t = Date.parse(iso)
+  if (!isFinite(t)) return { ok: false, text: '予約の日時を読めませんでした。' }
+  if (t < now + 5 * 60000) return { ok: false, text: '予約は5分より先の日時にしてください。' }
+  if (t > now + 30 * 86400000) return { ok: false, text: '予約は30日先までです。' }
+  return { ok: true, at: new Date(t).toISOString() }
+}
+
+/** 送った控え（件名・人数・グループ名）。宛先は入れません。 */
+export async function logBroadcast(entry) {
+  const cfg = storeConfig()
+  if (!cfg) return false
+  try {
+    await pipeline(cfg, [['LPUSH', MK.broadcasts, JSON.stringify(entry)], ['LTRIM', MK.broadcasts, 0, 99]])
+    return true
+  } catch (_) { return false }
+}
+export async function readBroadcastLog() {
+  const cfg = storeConfig()
+  if (!cfg) return []
+  try {
+    const [rows] = await pipeline(cfg, [['LRANGE', MK.broadcasts, 0, 99]])
+    return (rows || []).map((s) => { try { return JSON.parse(s) } catch (_) { return null } }).filter(Boolean)
+  } catch (_) { return [] }
+}
+
+const STATUS_JA = { draft: '下書き', queued: '送信中', scheduled: '予約', sent: '送信済み', canceled: '取り消し', cancelled: '取り消し', failed: '失敗' }
+
+/** Resend の一覧と、ここで送った控えを合わせた履歴。 */
+export async function broadcastHistory(apiKey) {
+  const [r, log] = await Promise.all([resend(apiKey, '/broadcasts?limit=30'), readBroadcastLog()])
+  const byId = new Map(log.map((x) => [x.id, x]))
+  const remote = r.ok && Array.isArray(r.body?.data) ? r.body.data : null
+  const rows = (remote || log.map((x) => ({ id: x.id, status: x.scheduledAt ? 'scheduled' : 'sent', created_at: x.at, scheduled_at: x.scheduledAt || null, sent_at: null })))
+    .map((b) => {
+      const mine = byId.get(b.id) || {}
+      return {
+        id: b.id, subject: mine.subject || b.name || '（件名不明）', status: b.status || '',
+        statusLabel: STATUS_JA[b.status] || b.status || '不明', createdAt: b.created_at || mine.at || '',
+        scheduledAt: b.scheduled_at || mine.scheduledAt || '', sentAt: b.sent_at || '',
+        count: mine.count == null ? null : mine.count, group: mine.group || '', mine: !!mine.id,
+      }
+    })
+  return { items: rows, remote: !!remote }
+}
+
+/** 1通の数字。Resend が返さなければ null（画面は「取得できません」）。
+ *  1種類につき1,000人まで数え、それより多いときは「1000以上」。 */
+export async function broadcastStats(apiKey, id) {
+  const types = ['delivered', 'opened', 'clicked', 'bounced', 'unsubscribed']
+  const out = {}
+  for (const type of types) {
+    const got = await collectPages((after) =>
+      resend(apiKey, `/broadcasts/${encodeURIComponent(id)}/recipients?type=${type}&limit=100${after ? `&after=${encodeURIComponent(after)}` : ''}`), 10)
+    out[type] = got ? { n: got.items.length, more: !!got.truncated } : null
+  }
+  return out
 }

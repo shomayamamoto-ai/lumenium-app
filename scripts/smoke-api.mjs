@@ -204,6 +204,12 @@ const CALLS = [
   ['members', 'GET', '?view=audit', KEY],
   ['members', 'POST', '', JSONH, { action: 'update', id: 'smoke1', name: 'スモーク', company: '' }],
   ['members', 'POST', '', JSONH, { action: 'segment.create', name: 'スモーク' }],
+  ['members', 'GET', '?view=mail', KEY],
+  ['members', 'GET', '?view=broadcast&id=smoke', KEY],
+  ['members', 'POST', '', JSONH, { action: 'mail.preview', subject: 'スモーク', body: '本文' }],
+  ['members', 'POST', '', JSONH, { action: 'mail.count', segment: '' }],
+  // 配信停止のページ（だれでも開ける）。署名の無いリンクは 400。
+  ['unsubscribe', 'GET', '?e=a%40example.com&t=00', {}],
   // 設定状況の「テスト」。相手のサービスはすべて上の fetch が受け止めます。
   ...['resend', 'github', 'ai', 'store', 'google'].map((t) => ['settings-test', 'POST', '', JSONH, { target: t }]),
   ['members-view', 'GET', '?key=smoke-admin-key', {}],
