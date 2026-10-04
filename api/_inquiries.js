@@ -50,7 +50,7 @@ export const CAPS = {
 export const PROMISED_H = 48
 export const WARN_H = 24
 
-export const NO_STORE_MSG = '保存先が無いため、問い合わせは保存されていません。メールで届いたものだけが手元に残ります。「設定状況 › キーの入力」で保存先（Upstash Redis）を入れると、ここに貯まるようになります。'
+export const NO_STORE_MSG = '保存先が無いため、問い合わせは保存されていません。メールで届いたものだけが手元に残ります。Vercel の環境変数に保存先（Upstash Redis の URL とトークン）を入れると、ここに貯まるようになります（フォームはお客様の側で動くため、この管理画面にだけ入れたキーでは保存できません）。'
 
 export const SANDBOX_MSG = '送信元がResendの試用アドレス（onboarding@resend.dev）のため、お客様への受付確認メールは送っていません。試用アドレスからは、Resendに登録した自分のアドレスにしか届かないためです。自社のドメインをResendで認証し、送信元（CONTACT_FROM_EMAIL）をそのアドレスにすると送れるようになります。'
 
