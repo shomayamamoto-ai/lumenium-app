@@ -10,7 +10,7 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { validateStyle } from './_social-text.js'
+import { validateStyle, RULES, cleanCampaign } from './_social-text.js'
 
 export const STYLE_KEY = `${KV}social:style`
 
@@ -60,7 +60,49 @@ export function cleanPrefs(input) {
   return { xAutoMetrics: p.xAutoMetrics === true }
 }
 
+/* ---- 定型文 ----
+   ${KV}social:tpl  … [{ id, title, text, nets, campaign, link }]（30個まで）
+   よく出すお知らせ（定休日・新メニュー・イベント）を、題名をつけて取っておきます。 */
+export const TEMPLATES_KEY = `${KV}social:tpl`
+export const TEMPLATE_MAX = 30
+
+export function validateTemplates(input) {
+  const problems = []
+  const out = []
+  const seen = new Set()
+  for (const t of Array.isArray(input) ? input : []) {
+    if (!t || typeof t !== 'object') continue
+    const title = String(t.title || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 40)
+    const text = String(t.text || '').slice(0, 5000)
+    if (!title) { problems.push('題名の無い定型文は保存しません。'); continue }
+    if (!text.trim()) { problems.push(`「${title}」は本文が空です。`); continue }
+    if (out.length >= TEMPLATE_MAX) { problems.push(`定型文は${TEMPLATE_MAX}個までです。`); break }
+    let id = /^[a-z0-9-]{6,40}$/i.test(String(t.id || '')) ? String(t.id) : crypto.randomUUID()
+    if (seen.has(id)) id = crypto.randomUUID()
+    seen.add(id)
+    const link = String(t.link || '').trim()
+    out.push({
+      id, title, text,
+      nets: [...new Set((Array.isArray(t.nets) ? t.nets : []).map(String).filter((n) => RULES[n]))],
+      campaign: cleanCampaign(t.campaign),
+      link: /^https:\/\/\S+$/i.test(link) ? link.slice(0, 500) : '',
+    })
+  }
+  return { templates: out, problems }
+}
+
+export async function readTemplates(req) {
+  return validateTemplates(await readJson(TEMPLATES_KEY, req, [])).templates
+}
+
+export async function saveTemplates(input, req) {
+  const { templates, problems } = validateTemplates(input)
+  const r = await writeJson(TEMPLATES_KEY, templates, req)
+  return { ...r, templates, problems }
+}
+
 export async function readPrefs(req) {
+
   return cleanPrefs(await readJson(PREFS_KEY, req, {}))
 }
 

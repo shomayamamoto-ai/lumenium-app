@@ -1266,7 +1266,11 @@
       upload: { ready: true },
       threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 },
       style: socialStyle(),
-      prefs: { xAutoMetrics: false }
+      prefs: { xAutoMetrics: false },
+      templates: [
+        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
+        { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
+      ]
     };
   }
   /* このサイトの決まり（shape: _social-text.js validateStyle）。 */

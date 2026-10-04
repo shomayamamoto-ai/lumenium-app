@@ -16,6 +16,8 @@ export const config = { runtime: 'edge' }
 //   POST { action:'gbp-pick', location } -> save which location GBP posts go to
 //   PUT  { style }                   -> the site's own wording rules (NG words, notation)
 //   PUT  { prefs }                   -> { xAutoMetrics } for the daily reaction refresh
+//   PUT  { templates }               -> the saved post templates (whole list)
+
 
 
 //
@@ -30,7 +32,7 @@ import {
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
 import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
-import { readStyle, saveStyle, readPrefs, savePrefs } from './_social-store.js'
+import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates } from './_social-store.js'
 import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 
@@ -52,6 +54,7 @@ async function state(req) {
     threadsToken: networks.some((n) => n.id === 'threads' && n.ready) ? await threadsTokenInfo(req) : null,
     style: await readStyle(req),
     prefs: await readPrefs(req),
+    templates: await readTemplates(req),
   }
 }
 
@@ -78,6 +81,10 @@ export async function PUT(req) {
   if (body && body.style && typeof body.style === 'object') {
     const r = await saveStyle(body.style, req)
     return json({ ...r, message: r.ok ? '決まりを保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  if (body && Array.isArray(body.templates)) {
+    const r = await saveTemplates(body.templates, req)
+    return json({ ...r, message: r.ok ? '定型文を保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
   }
   if (body && body.prefs && typeof body.prefs === 'object') {
     const r = await savePrefs(body.prefs, req)

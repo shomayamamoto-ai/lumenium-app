@@ -1017,6 +1017,17 @@ header h1, header button, header a { white-space: nowrap; }
         <div id="social-gbp"></div>
 
         <h3 class="soc-step">2　何を書くか</h3>
+        <!-- 定型文：よく出すお知らせを、題名をつけて取っておき、そこから作ります。 -->
+        <div class="soc-box" id="social-tpl">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <label for="social-tpl-sel" style="font-size:12px;font-weight:700">定型文から作る</label>
+            <select id="social-tpl-sel" style="width:auto;max-width:100%;font-size:12.5px;padding:6px 8px"><option value="">選んでください</option></select>
+            <button type="button" id="social-tpl-use" style="font-size:12px;padding:6px 12px">この定型文を使う</button>
+            <button type="button" class="ghost" id="social-tpl-del" style="font-size:12px;padding:6px 12px">削除</button>
+            <button type="button" class="ghost" id="social-tpl-save" style="font-size:12px;padding:6px 12px">いまの内容を定型文として保存</button>
+          </div>
+          <div id="social-tpl-st" class="soc-small" style="margin-top:4px">本文・リンク・キャンペーン名・出す先をまとめて取っておけます（30個まで）。</div>
+        </div>
         <details class="soc-ai" id="social-ai">
           <summary>AIに下書きを作ってもらう（投稿先ごとに書き分けます）</summary>
           <div class="soc-ai-body">
@@ -6701,6 +6712,7 @@ window.lumAdmin = {
   var style = { ng: [], notation: [] };
   var insights = null;
   var prefs = { xAutoMetrics: false };
+  var templates = [];
   var calMonth = '';
   var calSel = '';
   var outcomeDays = 30;
@@ -7995,6 +8007,57 @@ window.lumAdmin = {
     });
   }
 
+  /* ---- 定型文 ---- */
+  function renderTemplates(keep) {
+    var sel = el('social-tpl-sel');
+    sel.innerHTML = '<option value="">' + (templates.length ? '選んでください' : 'まだありません') + '</option>' +
+      templates.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title) + '</option>'; }).join('');
+    if (keep) sel.value = keep;
+  }
+  function tplById(id) { for (var i = 0; i < templates.length; i++) if (templates[i].id === id) return templates[i]; return null; }
+  function tplSay(t) { el('social-tpl-st').textContent = t; }
+  async function putTemplates(list, done) {
+    var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ templates: list }) });
+    var d = r.data || {};
+    if (d.ok && d.templates) { templates = d.templates; renderTemplates(done); }
+    tplSay(d.message || (d.ok ? '保存しました。' : '保存できませんでした。'));
+    return !!d.ok;
+  }
+  function useTemplate() {
+    var t = tplById(el('social-tpl-sel').value);
+    if (!t) { tplSay('使う定型文を選んでください。'); return; }
+    if (el('social-text').value.trim() && !confirm('いまの本文を「' + t.title + '」の内容に置き換えます。よろしいですか？')) return;
+    el('social-text').value = t.text;
+    if (t.link) el('social-link').value = t.link;
+    el('social-campaign').value = t.campaign || '';
+    var ids = (t.nets || []).filter(function (id) { return !!netById(id); });
+    if (ids.length) S.picked = ids;
+    S.variants = {};
+    renderNets();
+    changed(true);
+    tplSay('「' + t.title + '」から作りました。日付や値段など、今回の内容に直してから送ってください。');
+  }
+  async function saveTemplate() {
+    var text = el('social-text').value;
+    if (!text.trim()) { tplSay('先に本文を書いてください。'); return; }
+    var cur = tplById(el('social-tpl-sel').value);
+    var title = prompt('定型文の題名（例：定休日のお知らせ）', cur ? cur.title : '');
+    if (title == null) return;
+    title = title.trim();
+    if (!title) { tplSay('題名を入れてください。'); return; }
+    var same = templates.filter(function (t) { return t.title === title; })[0];
+    if (same && !confirm('「' + title + '」を、いまの内容で上書きします。よろしいですか？')) return;
+    var item = { id: same ? same.id : uuid(), title: title, text: text, nets: picked(), campaign: el('social-campaign').value.trim(), link: el('social-link').value.trim() };
+    var list = templates.filter(function (t) { return t !== same; }).concat([item]);
+    await putTemplates(list, item.id);
+  }
+  async function deleteTemplate() {
+    var t = tplById(el('social-tpl-sel').value);
+    if (!t) { tplSay('削除する定型文を選んでください。'); return; }
+    if (!confirm('定型文「' + t.title + '」を削除します。よろしいですか？')) return;
+    await putTemplates(templates.filter(function (x) { return x.id !== t.id; }), '');
+  }
+
   /* ---- 読み込み ---- */
   async function load() {
     var r = await api('/api/social');
@@ -8005,6 +8068,8 @@ window.lumAdmin = {
     info = { schedule: d.schedule || { ready: false, items: [] }, upload: d.upload || { ready: false }, threadsToken: d.threadsToken || null, stored: !!d.stored };
     style = d.style || style;
     prefs = d.prefs || prefs;
+    templates = d.templates || [];
+    renderTemplates();
     renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {
@@ -8201,6 +8266,10 @@ window.lumAdmin = {
   el('social-post').addEventListener('click', post);
   el('social-reload').addEventListener('click', load);
   el('social-style-save').addEventListener('click', saveStyleRules);
+  el('social-tpl-use').addEventListener('click', useTemplate);
+  el('social-tpl-save').addEventListener('click', saveTemplate);
+  el('social-tpl-del').addEventListener('click', deleteTemplate);
+
 
 
   /* 本文の書き直し。文章編集と同じ窓口を使います。

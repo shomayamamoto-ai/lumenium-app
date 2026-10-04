@@ -733,7 +733,35 @@ await test('設定：X の自動取得は true のときだけ', async () => {
   assert.deepEqual(await st.readPrefs(), { xAutoMetrics: true })
 })
 
+console.log('定型文')
+await test('定型文：題名と本文が要り、知らない投稿先・http のリンクは落とす', async () => {
+  const st = await import('../api/_social-store.js')
+  const { templates, problems } = st.validateTemplates([
+    { title: '定休日', text: '〇日は休みです', nets: ['x', 'line', 'myspace'], campaign: '秋 セール', link: 'http://a.example/' },
+    { title: '', text: 'a' },
+    { title: '空', text: '  ' },
+  ])
+  assert.equal(templates.length, 1)
+  assert.deepEqual(templates[0].nets, ['x', 'line'])
+  assert.equal(templates[0].campaign, '秋-セール')
+  assert.equal(templates[0].link, '')
+  assert.equal(problems.length, 2)
+  assert.equal(st.validateTemplates(Array.from({ length: 40 }, (_, i) => ({ title: 't' + i, text: 'x' }))).templates.length, 30)
+})
+await test('定型文の保存：PUT で全体を置き換え、GET で返る', async () => {
+  const api = await import('../api/social.js')
+  const res = await api.PUT(new Request('https://lumenium.net/api/social', {
+    method: 'PUT', headers: { authorization: 'Bearer test-admin-key', 'content-type': 'application/json' },
+    body: JSON.stringify({ templates: [{ id: 'tpl-000001', title: '新メニュー', text: '始めました', nets: ['instagram'], link: 'https://lumenium.net/menu' }] }) }))
+  const d = await res.json()
+  assert.equal(d.ok, true)
+  const st = await import('../api/_social-store.js')
+  const list = await st.readTemplates()
+  assert.deepEqual(list.map((t) => [t.id, t.title, t.link]), [['tpl-000001', '新メニュー', 'https://lumenium.net/menu']])
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 
 
 
