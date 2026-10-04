@@ -452,6 +452,7 @@
       await reload();
     });
     var s = currentScript();
+    S.hookIdeas = null;
     if (s) editor(el('vs-edit'), JSON.parse(JSON.stringify(s)));
   };
 
@@ -468,6 +469,19 @@
     h += res(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null, '約束を守る', mark(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null) + esc(pc.text) +
       (pc.keywords.length ? '<br>確かめる言葉: ' + pc.keywords.map(function (k) { return pc.found.indexOf(k) >= 0 ? '<span class="vid-tag ok">' + esc(k) + '</span>' : '<span class="vid-tag ng">' + esc(k) + '</span>'; }).join(' ') : '') +
       (op ? '<br><span class="soc-small">最初の' + pc.sec + '秒に出る言葉: ' + esc((op.telop + ' ／ ' + op.narration).trim() || '（なし）') + '</span>' : ''));
+    var hk = V.hookCheck(s);
+    var hs = hk.strength === 'strong' ? true : hk.strength === 'weak' ? false : null;
+    h += res(hs, '冒頭の設計', mark(hs) + '型: <span class="vid-tag">' + esc(V.HOOK_LABELS[hk.type] || hk.type) + '</span>' +
+      (hk.declared && hk.detected !== 'other' && hk.detected !== hk.declared ? '（言葉からは「' + esc(V.HOOK_LABELS[hk.detected]) + '」にも見えます）' : '') +
+      '　強さ: <b>' + hk.label + '</b>' +
+      (hk.mode === 'short' ? '（1行目 ' + hk.sec + '秒・目安 3秒以内）' : '（目安: 0〜10秒で約束、60秒までに最後まで見る理由）') +
+      (hk.whyWatch && hk.whyWatch.ok ? '<br>最後まで見る理由: ' + (hk.whyWatch.index + 1) + '行目' : '') +
+      (hk.notes.length ? '<br>' + hk.notes.map(esc).join('<br>') : '<br>型・長さ・約束がそろっています。') +
+      '<br><button type="button" class="ghost" id="ve-hook-ai" style="font-size:11px;padding:4px 10px;margin-top:4px"' + (S.ready.ai ? '' : ' disabled') + '>別の冒頭をAIに3つ出してもらう</button>' +
+      (S.hookIdeas && S.hookIdeas.length ? '<span class="vid-hooks">' + S.hookIdeas.map(function (x, i) {
+        return '<span class="vid-hook"><span class="vid-tag">' + esc(V.HOOK_LABELS[x.type] || x.type) + '</span> ' + esc(x.narration) + (x.telop ? '（テロップ: ' + esc(x.telop) + '）' : '') +
+          '<br><span class="soc-small">' + esc(x.why) + '</span> <button type="button" class="linkish ve-hook-use" data-i="' + i + '">1行目に使う</button></span>';
+      }).join('') + '</span>' : ''));
     return h;
   }
 
@@ -568,6 +582,26 @@
     host.addEventListener('change', function (e) { if (e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
+      if (t.id === 've-hook-ai') {
+        t.disabled = true;
+        say('AIが冒頭の別案を考えています…', true);
+        var r = await post({ action: 'hook.suggest', script: collect() });
+        if (!r.data.ok) { t.disabled = false; say(r.data.message || '案を出せませんでした。'); return; }
+        S.hookIdeas = r.data.hooks || [];
+        say('冒頭の案を3つ出しました。使うものを選んでください（選ぶまで台本は変わりません）。', true);
+        check();
+        return;
+      }
+      if (t.classList.contains('ve-hook-use')) {
+        var x = S.hookIdeas[Number(t.getAttribute('data-i'))];
+        if (!x) return;
+        if (!s.lines.length) s.lines.push({ start: 0, end: 3, narration: '', telop: '', visual: '' });
+        s.lines[0].narration = x.narration; s.lines[0].telop = x.telop || s.lines[0].telop;
+        s.hook = x.narration; s.hook_type = x.type;
+        el('ve-hook').value = s.hook; el('ve-hook-type').value = x.type;
+        rows(); check();
+        return;
+      }
       if (t.classList.contains('ve-x')) {
         s.lines.splice(Number(t.closest('tr').getAttribute('data-i')), 1);
         rows(); check();

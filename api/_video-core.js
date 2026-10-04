@@ -77,8 +77,15 @@ export const PLATFORMS = {
   tiktok: { label: 'TikTok', minSec: 3, maxSec: 600, caption: 2200 },
 }
 
-export const HOOK_TYPES = ['question', 'statement', 'number', 'negation', 'story', 'other']
-export const HOOK_LABELS = { question: '問いかけ', statement: '言い切り', number: '数字', negation: '否定・意外性', story: '物語', other: 'その他' }
+/* フックの型。前の6つ（question・statement・number・negation・story・other）は
+   保存済みのデータにあるので残し、伸びやすいと言われる型を足しています。
+   STRONG_HOOKS が「よく効くと言われる型」です（数字の約束・意外な主張など）。 */
+export const HOOK_TYPES = ['question', 'number', 'negation', 'result', 'callout', 'cold_open', 'statement', 'story', 'other']
+export const HOOK_LABELS = {
+  question: '問いかけ', number: '数字の約束', negation: '意外な主張', result: '結果を先に見せる', callout: '呼びかけ',
+  cold_open: '途中から始める', statement: '言い切り', story: '物語', other: 'その他',
+}
+export const STRONG_HOOKS = ['question', 'number', 'negation', 'result', 'callout', 'cold_open']
 export const BEAT_LABELS = ['hook', 'context', 'body', 'cta']
 
 /* ---------------- 文字列 ---------------- */
@@ -305,6 +312,73 @@ export function promiseCheck(s) {
     text: ok ? `約束の言葉（${kws.join('・')}）が最初の${win}秒に入っています。`
       : `最初の${win}秒に「${missing.join('」「')}」が出てきません。${fix != null ? `${fix + 1}行目のテロップかナレーションに入れてください。` : ''}`,
   }
+}
+
+/* ---------------- 冒頭の設計 ----------------
+   ショート: 1行目（3秒以内）がフック。型がはっきりしているほど手が止まりやすい
+   と言われます。長尺: 0〜10秒で約束を見せ、60秒までに「最後まで見る理由」を言う。
+   型の判定は言葉の手がかりだけで行う目安です（画面で型を選び直せます）。 */
+
+const HOOK_CUES = [
+  ['cold_open', /^[「『]|^…|^\.\.\.|その瞬間|まさか|いきなり|事件|ハプニング/],
+  ['number', /[0-9]+\s*(つ|選|個|秒|分|円|%|割|倍|日|回|位|年|人|品|種類|ステップ)|[一二三四五六七八九十]+(つ|選|個|割|倍|位)/],
+  ['question', /[?？]|なぜ|なんで|どうして|どうやって|知ってた|知っていますか|って何|ってなに/],
+  ['negation', /実は|じつは|やめ(て|た|る)|しないで|間違|まちが|逆に|意外|ダメ|だめ|ng|損し|知らない|捨て|ではなく|じゃなく/],
+  ['result', /完成|結果|仕上がり|できあがり|出来上がり|ビフォー|アフター|before|after|こうなる|こうなりました|こちらが/],
+  ['callout', /[のなるいむたく](人|方)(へ|に|[、。！!]|$)|さん[、へ!！]|必見|あなた|向け|お悩み/],
+]
+const GREETING = /^(こんにちは|こんばんは|おはよう|どうも|はい[、。]|皆さん|みなさん|今日は|本日は|初めまして|はじめまして)/
+const WHY_CUES = /最後|このあと|この後|後半|あとで|結果|発表|ラスト|最終|果たして|どうなる|決着|勝つ/
+
+/** 言葉の手がかりから、フックの型を推します（当てはまらなければ other）。 */
+export function classifyHook(text) {
+  const t = String(text || '').normalize('NFKC').trim().toLowerCase()
+  if (!t) return 'other'
+  for (const [type, re] of HOOK_CUES) if (re.test(t)) return type
+  return 'other'
+}
+
+/** 冒頭の設計の確認。型・長さ・あいさつ・約束、長尺は「最後まで見る理由」も。 */
+export function hookCheck(s) {
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const lines = (s && s.lines) || []
+  const first = lines[0] || null
+  const text = String((s && s.hook) || (first && (first.narration || first.telop)) || '').trim()
+  const detected = classifyHook([text, first && first.telop].filter(Boolean).join(' '))
+  const declared = s && STRONG_HOOKS.indexOf(s.hook_type) >= 0 ? s.hook_type : ''
+  const type = declared || detected
+  const recognised = STRONG_HOOKS.indexOf(type) >= 0
+  const notes = []
+  let timingOk = !!first
+  let sec = 0
+  if (first) {
+    if (mode === 'short') {
+      sec = round1((Number(first.end) || 0) - (Number(first.start) || 0))
+      timingOk = (Number(first.start) || 0) <= 0.05 && sec > 0 && sec <= M.HOOK_SEC
+      if (!timingOk) notes.push(`1行目（フック）が${sec}秒あります。${M.HOOK_SEC}秒以内に収めてください。`)
+    } else {
+      sec = M.HOOK_SEC
+      timingOk = (Number(first.start) || 0) <= 0.05
+    }
+  } else notes.push('行がまだありません。')
+  const greeting = GREETING.test(text.normalize('NFKC'))
+  if (greeting) notes.push('あいさつや自己紹介から始めると、その間に離れる人が増えます。いきなり本題から。')
+  if (!recognised) notes.push(`型がはっきりしません。「${STRONG_HOOKS.map((k) => HOOK_LABELS[k]).join('」「')}」のどれかにすると強くなります。`)
+  const tooLong = mode === 'short' && charLen(normSpace(text)) > M.HOOK_SEC * RULES.telop.MAX_CPS
+  if (tooLong) notes.push(`フックの言葉が長め（${charLen(normSpace(text))}文字）です。${M.HOOK_SEC}秒で言い切れる長さ（${M.HOOK_SEC * RULES.telop.MAX_CPS}文字まで）に。`)
+  const pc = promiseCheck(s)
+  const promiseOk = pc.status === 'ok'
+  let whyWatch = null
+  if (mode === 'long') {
+    const idx = lines.findIndex((l) => (Number(l.start) || 0) < M.WHY_WATCH_SEC && WHY_CUES.test(String(l.narration || '') + String(l.telop || '')))
+    whyWatch = { ok: idx >= 0, index: idx, sec: M.WHY_WATCH_SEC }
+    if (idx < 0) notes.push(`${M.WHY_WATCH_SEC}秒までに「最後まで見ると何が分かるか」を言う行がありません（例：「最後に、どっちが勝ったか発表します」）。`)
+  }
+  const score = [timingOk, recognised, !greeting && !tooLong, promiseOk].filter(Boolean).length + (whyWatch && !whyWatch.ok ? -1 : 0)
+  const strength = score >= 4 ? 'strong' : score >= 3 ? 'ok' : 'weak'
+  return { mode, text, type, detected, declared, recognised, timingOk, sec, greeting, tooLong, promiseOk, whyWatch, strength, notes,
+    label: { strong: '強い', ok: 'ふつう', weak: '弱い' }[strength] }
 }
 
 /* ---------------- 競合の数字 ---------------- */

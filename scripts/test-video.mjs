@@ -321,6 +321,35 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('約束を守る（言葉の取り出し・冒頭3秒／10秒・直す行）')
 }
 
+/* ---- 冒頭の設計 ---- */
+{
+  assert.equal(V.classifyHook('この穴、どうやってできると思います？'), 'question')
+  assert.equal(V.classifyHook('パンが売り切れる3つの理由'), 'number')
+  assert.equal(V.classifyHook('実はこれ、捨てていました'), 'negation')
+  assert.equal(V.classifyHook('完成するとこうなります'), 'result')
+  assert.equal(V.classifyHook('髪のパサつきに悩む人へ'), 'callout')
+  assert.equal(V.classifyHook('「もう無理です…」'), 'cold_open')
+  assert.equal(V.classifyHook('パンの作り方。'), 'other')
+  const base = { promise: '穴ができる理由', lines: [{ start: 0, end: 3, narration: 'この穴、なぜできる？', telop: '' }, { start: 3, end: 30, narration: 'おいしい', telop: '' }] }
+  const a = V.hookCheck(base)
+  assert.equal(a.timingOk, true)
+  assert.equal(a.type, 'question')
+  assert.equal(a.strength, 'strong')
+  const slow = V.hookCheck({ ...base, lines: [{ start: 0, end: 4.5, narration: 'こんにちは、店長です', telop: '' }] })
+  assert.equal(slow.timingOk, false, 'ショートは1行目が3秒を超えたら注意')
+  assert.equal(slow.greeting, true)
+  assert.equal(slow.strength, 'weak')
+  // 長尺: 10秒までは1行目が長くてもよい。60秒までに「最後まで見る理由」が要る。
+  const long = { ...base, length_mode: 'long', lines: [{ start: 0, end: 8, narration: 'この穴、なぜできる？', telop: '' }, { start: 8, end: 70, narration: '工程を見せます', telop: '' }] }
+  const b = V.hookCheck(long)
+  assert.equal(b.timingOk, true)
+  assert.equal(b.whyWatch.ok, false)
+  long.lines[1].narration = '最後に、どっちが勝ったか発表します'
+  assert.equal(V.hookCheck(long).whyWatch.ok, true)
+  assert.equal(V.hookCheck(long).whyWatch.index, 1)
+  ok('冒頭の設計（型の推定・ショート3秒・長尺10秒と60秒）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

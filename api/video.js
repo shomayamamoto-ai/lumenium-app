@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 
 const MODEL = 'claude-opus-5-5'
@@ -111,6 +111,7 @@ export async function POST(req) {
     }
     if (a === 'analyze') return await analyze(req, cfg, project, b.ids)
     if (a === 'script.generate') return await generate(req, cfg, project, b)
+    if (a === 'hook.suggest') return await suggestHooks(req, project, b.script)
     return json({ ok: false, message: 'その操作には対応していません。' }, 400)
   } catch (e) {
     return json({ ok: false, message: `処理できませんでした（${String((e && e.message) || e).slice(0, 120)}）。` }, 503)
@@ -235,6 +236,50 @@ const SCRIPT_SCHEMA = {
     hashtags: { type: 'array', items: { type: 'string' } },
     rationale: { type: 'string' },
   },
+}
+
+const HOOK_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['hooks'],
+  properties: {
+    hooks: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false, required: ['type', 'narration', 'telop', 'why'],
+        properties: { type: { type: 'string', enum: STRONG_HOOKS }, narration: { type: 'string' }, telop: { type: 'string' }, why: { type: 'string' } },
+      },
+    },
+  },
+}
+
+/** 冒頭（フック）の別案を3つ。保存はせず、画面で選んだものだけを台本に入れます。 */
+async function suggestHooks(req, project, raw) {
+  const s = raw && typeof raw === 'object' ? raw : {}
+  const mode = s.length_mode === 'long' ? 'long' : 'short'
+  const M = RULES.modes[mode]
+  const lines = Array.isArray(s.lines) ? s.lines.slice(0, 6) : []
+  if (!str(s.promise, 300).trim() && !lines.length) return json({ ok: false, message: '約束か台本の行を入れてから頼んでください。' }, 400)
+  const guard = await spendGuard('video-ai', AI_DAILY)
+  if (guard) return guard
+  const brand = project.brand || {}
+  const user = [
+    `動画のタイトル: ${str(s.title, 200)}`,
+    `約束（見た人が得られること）: ${str(s.promise, 300) || '未記入'}`,
+    s.wow ? `この店にしか見せられないもの: ${str(s.wow, 300)}` : '',
+    `長さの種類: ${mode === 'long' ? '長尺（冒頭10秒で約束を見せる）' : 'ショート（フックは3秒以内）'}`,
+    brand.persona ? `話し手: ${brand.persona}` : '',
+    brand.tone ? `口調: ${brand.tone}` : '',
+    (brand.banned_words || []).length ? `使ってはいけない言葉: ${brand.banned_words.join('、')}` : '',
+    '今の冒頭:',
+    ...lines.map((l) => `${l.start}〜${l.end}秒: ${str(l.narration, 300)}（テロップ: ${str(l.telop, 120)}）`),
+    '',
+    `冒頭の別案を3つ、それぞれ違う型で（${STRONG_HOOKS.join(', ')} から選ぶ）。`,
+    `- narration は${M.HOOK_SEC}秒で言える長さ（${M.HOOK_SEC * RULES.telop.MAX_CPS}文字まで）。telop は短く。約束の言葉をそのまま入れる。`,
+    '- あいさつ・自己紹介から始めない。事実（価格・実績・数字）を作らない。why は日本語で1文。',
+  ].filter(Boolean).join('\n')
+  const r = await claude(req, { system: 'あなたは日本の小さなお店の動画の冒頭（フック）を考える編集者です。出力は日本語。', user, schema: HOOK_SCHEMA, maxTokens: 2000 })
+  if (r.error) return r.error
+  const hooks = ((r.data && r.data.hooks) || []).slice(0, 3).map((h) => ({ type: STRONG_HOOKS.indexOf(h.type) >= 0 ? h.type : 'other', narration: str(h.narration, 300), telop: str(h.telop, 120), why: str(h.why, 300) }))
+  return json({ ok: true, hooks })
 }
 
 /** 台本づくり。決まった確認（禁止ワード・表記・流用・テロップの速さ）は
