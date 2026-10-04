@@ -196,6 +196,8 @@ const MEMBER = { cookie: `lum_session=${(await issueSession(false)).token}` }
 // will accept — the point is to reach the end of the function, not to test it.
 const CALLS = [
   ['health', 'GET', '', KEY],
+  // 管理画面のログイン。ADMIN_KEY だけで通ること（Resend に頼らない）。
+  ['admin-ping', 'GET', '', KEY],
   ['members-list', 'GET', '', KEY],
   ['members-view', 'GET', '?key=smoke-admin-key', {}],
   ['members-xlsx', 'GET', '?key=smoke-admin-key', {}],

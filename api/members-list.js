@@ -16,10 +16,23 @@ export async function GET(req) {
   if (denied) return denied
 
   const apiKey = await setting('RESEND_API_KEY')
-  if (!apiKey) return json({ ok: false, code: 'NOT_CONFIGURED' }, 503)
+  // Each refusal says what is actually wrong. The login no longer comes through
+  // here (api/admin-ping.js), so these show inside the member list only, and
+  // must not read as a problem with the admin key.
+  if (!apiKey) {
+    return json({
+      ok: false, code: 'NOT_CONFIGURED',
+      message: '会員リストは未設定です。メール送信サービス Resend の API キー（RESEND_API_KEY）を「設定状況 › キーの入力」に入れると表示されます。',
+    }, 503)
+  }
 
   const members = await listContacts(apiKey)
-  if (members === null) return json({ ok: false, code: 'UPSTREAM_ERROR' }, 502)
+  if (members === null) {
+    return json({
+      ok: false, code: 'UPSTREAM_ERROR',
+      message: '会員リストを一時的に取得できません（Resend 側の応答がありません）。少し時間をおいて「更新」を押してください。',
+    }, 502)
+  }
 
   // Newest first
   members.sort((a, b) => (b.created || '').localeCompare(a.created || ''))

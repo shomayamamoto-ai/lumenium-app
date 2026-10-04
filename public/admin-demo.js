@@ -1671,6 +1671,7 @@
     }
 
     switch (p) {
+      case '/api/admin-ping': return reply({ ok: true });
       case '/api/members-list': return reply(members());
       case '/api/health': return reply(health());
       case '/api/news-post': return reply({ ok: true, items: newsItems(), commit: commit(3, 'お知らせを更新') });
