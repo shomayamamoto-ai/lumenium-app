@@ -35,7 +35,16 @@ const RULES = {
   threads: { limit: 500, needText: false, maxImages: 1, image: 'optional' },
   linkedin: { limit: 3000, needText: true, maxImages: 0, image: 'none' },
   line: { limit: 5000, needText: false, maxImages: 1, image: 'optional' },
+  /* Googleビジネスプロフィールの投稿（最新情報）。本文は1500文字まで、
+     リンクは本文ではなく「ボタン」（詳細・予約・注文など）として付きます。 */
+  gbp: { limit: 1500, needText: true, maxImages: 1, image: 'optional', linkButton: true },
+  /* Bluesky。300「文字」は見た目の1文字（絵文字の組み合わせも1）で数えます。
+     画像は、X と同じく、この画面からアップロードしたものだけ（4枚まで）。 */
+  bluesky: { limit: 300, graphemes: true, needText: false, maxImages: 4, image: 'optional' },
 }
+
+/** Googleビジネスプロフィールのボタンの種類（API の actionType）と、画面での名前。 */
+var GBP_ACTIONS = { LEARN_MORE: '詳細', BOOK: '予約', ORDER: 'オンライン注文', SHOP: '購入', SIGN_UP: '登録', CALL: '今すぐ電話' }
 
 /* X の料金（従量課金）。画面の注意書きに出すだけで、計算には使いません。
    値は 2026年の X の料金表の目安です。変わったらここだけ直します。 */
@@ -131,10 +140,43 @@ function xLength(text) {
   return Math.ceil(total / X_RULES.scale)
 }
 
-/** 投稿先ごとの文字数。X だけは X の数え方、それ以外は画面の文字数です。 */
+/** 見た目の1文字ずつで数えます（Bluesky の数え方）。 */
+function graphemes(text) {
+  var s = String(text == null ? '' : text)
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    var n = 0
+    for (var _ of new Intl.Segmenter('ja', { granularity: 'grapheme' }).segment(s)) n++
+    return n
+  }
+  return Array.from(s).length
+}
+
+/** 投稿先ごとの文字数。X は X の数え方、Bluesky は見た目の文字数、それ以外は画面の文字数です。 */
 function lengthFor(net, text) {
   var r = RULES[net]
-  return r && r.weighted ? xLength(text) : String(text == null ? '' : text).length
+  if (r && r.weighted) return xLength(text)
+  if (r && r.graphemes) return graphemes(text)
+  return String(text == null ? '' : text).length
+}
+
+/** Bluesky の「リンク」「ハッシュタグ」の印（facets）。位置は UTF-8 のバイト数で
+ *  数えます（日本語は1文字=3バイト）。文字数で渡すと、リンクの位置がずれます。 */
+function blueskyFacets(text) {
+  var s = String(text == null ? '' : text)
+  var enc = new TextEncoder()
+  var bytes = function (str) { return enc.encode(str).length }
+  var out = []
+  findUrls(s).forEach(function (u) {
+    var uri = /^https?:\/\//i.test(u.url) ? u.url : 'https://' + u.url
+    out.push({ index: { byteStart: bytes(s.slice(0, u.start)), byteEnd: bytes(s.slice(0, u.end)) },
+      features: [{ $type: 'app.bsky.richtext.facet#link', uri: uri }] })
+  })
+  hashtags(s).forEach(function (h) {
+    if (h.tag.length > 64) return
+    out.push({ index: { byteStart: bytes(s.slice(0, h.start)), byteEnd: bytes(s.slice(0, h.end)) },
+      features: [{ $type: 'app.bsky.richtext.facet#tag', tag: h.tag }] })
+  })
+  return out.sort(function (a, b) { return a.index.byteStart - b.index.byteStart })
 }
 
 /* 計測用リンク。自社サイトへのリンクに ?ref=<SNS名> を付けると、
@@ -142,7 +184,7 @@ function lengthFor(net, text) {
    紹介元を送ってこないことが多く、付けないと「直接」に混ざります）。
    付けるのは自社サイトへのリンクだけです。他社のURLを書き換えるのは失礼で、
    壊すおそれもあります。 */
-var REF_NAMES = { x: 'x', facebook: 'facebook', instagram: 'instagram', threads: 'threads', linkedin: 'linkedin', line: 'line' }
+var REF_NAMES = { x: 'x', facebook: 'facebook', instagram: 'instagram', threads: 'threads', linkedin: 'linkedin', line: 'line', gbp: 'gbp', bluesky: 'bluesky' }
 
 /** キャンペーン名を URL に入れて困らない形にします（空白は - に、40文字まで）。 */
 function cleanCampaign(s) {
@@ -203,11 +245,12 @@ function compose(net, p, host) {
   var rule = RULES[net] || { maxImages: 1 }
   var all = (p && p.images) || []
   var images = all.slice(0, rule.maxImages)
-  if (net === 'x') images = images.filter(function (i) { return isBlobUrl(i.url) })
+  if (net === 'x' || net === 'bluesky') images = images.filter(function (i) { return isBlobUrl(i.url) })
   // 同じリンクが本文に入っているなら、後ろにもう一度付けません。
   var inBody = link && body.indexOf(link) !== -1
   // Facebook は画像なしの投稿ならリンクを別に渡し、カードとして出します。
-  var separate = net === 'facebook' && !images.length
+  // Googleビジネスプロフィールは、リンクをいつもボタンとして別に渡します。
+  var separate = (net === 'facebook' && !images.length) || !!rule.linkButton
   var text = body
   if (link && !inBody && !separate) text = body ? body + '\n' + link : link
   return {
@@ -252,6 +295,8 @@ function check(net, c) {
     if (c.droppedImages > 0) {
       warnings.push('この画像はXには付きません。Xに画像を付けられるのは、この画面からアップロードした画像だけです。')
     }
+  } else if (net === 'bluesky') {
+    // Bluesky の画像の注意は下で。
   } else if (c.droppedImages > 0 && r.maxImages > 0) {
     warnings.push('画像は1枚目だけを送ります。')
   } else if (c.droppedImages > 0) {
@@ -260,6 +305,14 @@ function check(net, c) {
   if (net === 'line' && count > 0) {
     warnings.push('友だち全員に届き、届いた人数ぶん通数を使います。')
   }
+  if (net === 'gbp') {
+    if (findUrls(c.body).length) warnings.push('本文の中のURLは押せず、投稿が断られることもあります。リンクは「リンク」の欄に入れると、ボタンとして付きます。')
+    if (/(?<![0-9])0[0-9]{1,4}[-－‐ ]?[0-9]{1,4}[-－‐ ]?[0-9]{3,4}(?![0-9])/.test(c.body)) warnings.push('本文に電話番号があると、Googleに投稿を断られることがあります。電話はボタン（今すぐ電話）を使ってください。')
+  }
+  if (net === 'bluesky' && c.droppedImages > 0) {
+    warnings.push('この画像はBlueskyには付きません。付けられるのは、この画面からアップロードした画像だけです（1枚1MBまで）。')
+  }
+
   return { count: count, limit: r.limit, errors: errors, warnings: warnings }
 }
 
@@ -543,5 +596,5 @@ function styleToLines(style) {
   }
 }
 
-window.lumSocialText = { X_RULES, RULES, X_COST, urlPattern, findUrls, xLength, lengthFor, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
+window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
 })();

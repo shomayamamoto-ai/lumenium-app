@@ -1219,7 +1219,10 @@
     ['instagram', 'Instagram', 2200, 'required', 1, '画像が必須です（JPEG・縦横比 4:5〜1.91:1・8MB以下）。本文のリンクは押せません。1日100件まで。', ['IG_USER_ID', 'IG_TOKEN'], true],
     ['threads', 'Threads', 500, 'optional', 1, '500文字まで。作成と公開の2段階で送ります。鍵は60日で切れるので「トークンを延長」で延ばします。', ['THREADS_USER_ID', 'THREADS_TOKEN'], true],
     ['linkedin', 'LinkedIn', 3000, 'none', 0, '本文とリンクだけ送ります（画像はアセット登録が別に要るため送りません）。本文が必要です。', ['LI_AUTHOR_URN', 'LI_TOKEN'], false],
-    ['line', 'LINE公式アカウント', 5000, 'optional', 1, '友だち全員に一斉送信します。届いた人数ぶん「通数」を使います（無料プランは月200通）。', ['LINE_CHANNEL_TOKEN'], true]
+    ['line', 'LINE公式アカウント', 5000, 'optional', 1, '友だち全員に一斉送信します。届いた人数ぶん「通数」を使います（無料プランは月200通）。', ['LINE_CHANNEL_TOKEN'], true],
+    ['gbp', 'Googleビジネスプロフィール', 1500, 'optional', 1, 'Google検索・マップのお店の情報に「最新情報」として出ます。1500文字まで。リンクはボタン（詳細・予約など）として付きます。画像は1枚目だけ送ります。',
+      ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GBP_REFRESH_TOKEN', 'GBP_LOCATION'], false, ['GBP_LOCATION']],
+    ['bluesky', 'Bluesky', 300, 'optional', 4, '300文字まで（見た目の文字数で数えます）。リンクとハッシュタグは押せる形で送ります。画像は、この画面からアップロードしたものを4枚まで（1枚1MBまで）。', ['BSKY_HANDLE', 'BSKY_APP_PASSWORD'], true]
   ];
   var DEMO_HOST = 'example.com';
   function socialRecent() {
@@ -1253,9 +1256,9 @@
       brand: { name: (window.lumSite && window.lumSite.name) || 'Sample', host: DEMO_HOST, url: 'https://' + DEMO_HOST },
       networks: NETS.map(function (n) {
         return { id: n[0], label: n[1], mark: '', limit: n[2], image: n[3], maxImages: n[4], weighted: n[0] === 'x',
-          needText: n[0] === 'x' || n[0] === 'linkedin', note: n[5], needs: n[6],
+          needText: n[0] === 'x' || n[0] === 'linkedin' || n[0] === 'gbp', note: n[5], needs: n[6],
           setup: { what: n[1] + ' の資格情報が要ります（デモ表示）。', where: '各SNSの開発者画面で取得します。', url: '', effort: '' },
-          ready: n[7], scheduled: n[7], missing: n[7] ? [] : n[6] };
+          ready: n[7], scheduled: n[7], missing: n[7] ? [] : (n[8] || n[6]) };
       }),
       recent: socialRecent(),
       activity: socialActivity(),
@@ -1332,7 +1335,14 @@
     if (a === 'test') {
       return { ok: true, net: body.net, state: 'ok', message: 'つながりました（デモ表示：実際には確認していません）。' };
     }
+    if (a === 'gbp-locations') {
+      return { ok: true, locations: [
+        { name: 'accounts/100/locations/200', title: 'サンプル珈琲 本店', address: '東京都 渋谷区 神南1-2-3', account: 'サンプル' },
+        { name: 'accounts/100/locations/201', title: 'サンプル珈琲 駅前店', address: '東京都 渋谷区 道玄坂4-5-6', account: 'サンプル' }
+      ] };
+    }
     if (a === 'metrics') {
+
       return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
     }
     notice(MSG);
@@ -1350,14 +1360,16 @@
       instagram: '（デモ用の下書き）\n秋の限定メニュー、はじまりました。\n栗の香りいっぱいのモンブランです。\n\n詳しくはプロフィールのリンクから\n\n#秋限定 #モンブラン #カフェ',
       threads: '（デモ用の下書き）秋のモンブラン、今年もはじめました。栗、好きな人いますか？\n\n#秋限定',
       linkedin: '（デモ用の下書き）秋の限定メニューの提供を開始しました。地元の農家さんの栗を使っています。',
-      line: '（デモ用の下書き）こんにちは！\n秋の限定メニュー「栗のモンブラン」がはじまりました🌰\nご来店をお待ちしています。'
+      line: '（デモ用の下書き）こんにちは！\n秋の限定メニュー「栗のモンブラン」がはじまりました🌰\nご来店をお待ちしています。',
+      gbp: '（デモ用の下書き）秋の限定メニュー「栗のモンブラン」の提供を始めました。地元の農家さんの栗を使っています。10月31日までの期間限定です。',
+      bluesky: '（デモ用の下書き）秋のモンブラン、今年もはじめました🌰 #秋限定'
     };
     var drafts = {};
     nets.forEach(function (n) {
       if (!base[n]) return;
       var t = base[n];
       var sent = body.link ? t + '\nhttps://' + DEMO_HOST + '/' : t;
-      var c = T ? (n === 'x' ? T.xLength(sent) : sent.length) : sent.length;
+      var c = T ? T.lengthFor(n, sent) : sent.length;
       var lim = T && T.RULES[n] ? T.RULES[n].limit : 5000;
       drafts[n] = { text: t, count: c, limit: lim, over: c > lim };
     });

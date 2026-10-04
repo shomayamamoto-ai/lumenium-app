@@ -231,7 +231,31 @@ export const SETTINGS = [
     why: 'LINE公式アカウントの友だち全員への一斉送信（ブロードキャスト）に使います。無料プランは月200通までで、1回送ると「友だちの人数」ぶん減ります。',
   },
   {
+    // Googleビジネスプロフィール。トークンは SNS（文章）の画面の
+    // 「Googleビジネスプロフィールを連携」で入ります（カレンダーとは別の鍵）。
+    // 毎朝の予約投稿でも読むので、端末保存はしません。
+    name: 'GBP_REFRESH_TOKEN', label: 'Googleビジネスプロフィールの接続', kind: 'secret', group: 'social', net: 'gbp', device: false,
+    where: 'SNS（文章）の画面 › Googleビジネスプロフィール ›「Googleビジネスプロフィールを連携」で自動で入ります',
+    why: 'お店の「最新情報」への投稿に使います（business.manage の許可）。',
+  },
+  {
+    name: 'GBP_LOCATION', label: 'Googleビジネスプロフィールの店舗', kind: 'text', group: 'social', net: 'gbp', device: false,
+    where: 'SNS（文章）の画面の「店舗を選ぶ」で入ります（accounts/数字/locations/数字 の形）',
+    why: 'どの店舗に投稿するかの指定です。',
+  },
+  {
+    name: 'BSKY_HANDLE', label: 'Bluesky ハンドル', kind: 'text', group: 'social', net: 'bluesky',
+    where: '例：shop.bsky.social（@ は付けなくて構いません）',
+    why: 'Bluesky に投稿するアカウントです。',
+  },
+  {
+    name: 'BSKY_APP_PASSWORD', label: 'Bluesky アプリパスワード', kind: 'secret', group: 'social', net: 'bluesky',
+    where: 'bsky.app › 設定 › プライバシーとセキュリティ › アプリパスワード',
+    why: 'ログイン用のパスワードではなく、アプリ用に作る別のパスワードです。いつでも取り消せます。',
+  },
+  {
     // 画像の置き場所。Instagram・Threads・LINE は画像の「URL」を受け取るので、
+
     // 公開URLのある置き場所が要ります。Vercel の Storage から Blob を
     // つなぐと、この名前の環境変数が自動で入ります。
     name: 'BLOB_READ_WRITE_TOKEN', label: '画像の置き場所（Vercel Blob）', kind: 'secret', group: 'social',

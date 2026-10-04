@@ -46,12 +46,17 @@ export async function creds(req) {
 export const connected = (c) => !!(c && c.clientId && c.clientSecret && c.refreshToken)
 
 /** 同意画面のURL。state は呼び出し側が使い捨てで発行します。 */
-export function consentUrl({ clientId, redirectUri, state }) {
+/** Googleビジネスプロフィールへの投稿の許可。カレンダーとは別のボタンで、
+ *  別のトークン（GBP_REFRESH_TOKEN）として取ります。 */
+export const GBP_SCOPE = 'https://www.googleapis.com/auth/business.manage'
+
+export function consentUrl({ clientId, redirectUri, state, scope }) {
   const q = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: SCOPES,
+    scope: scope || SCOPES,
+
     // リフレッシュトークンは「初回の同意」でしか返らないため、毎回同意を
     // 求める。接続し直しのたびに空のトークンが返って原因が分からなくなる、
     // という一番ありがちな詰まり方をここで防いでいます。

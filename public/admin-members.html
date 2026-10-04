@@ -998,7 +998,7 @@ header h1, header button, header a { white-space: nowrap; }
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS投稿</h2>
       <p class="share-note" style="margin-bottom:14px">
-        ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
+        ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント・Googleビジネスプロフィール・Bluesky に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
       </p>
       <p class="msg" id="social-msg" style="margin-bottom:12px"></p>
@@ -1013,6 +1013,7 @@ header h1, header button, header a { white-space: nowrap; }
         <h3 class="soc-step">1　どこに出すか</h3>
         <div id="social-nets" class="soc-nets"></div>
         <div id="social-more"></div>
+        <div id="social-gbp"></div>
 
         <h3 class="soc-step">2　何を書くか</h3>
         <details class="soc-ai" id="social-ai">
@@ -6709,7 +6710,7 @@ window.lumAdmin = {
     return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
   }
   function blank() {
-    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid() };
+    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE' };
   }
 
   function esc(t) {
@@ -6750,7 +6751,8 @@ window.lumAdmin = {
       images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '' }; }),
       variants: S.variants,
       targets: sendable(),
-      sendId: S.sendId
+      sendId: S.sendId,
+      gbp: { action: S.gbpAction || 'LEARN_MORE' }
     };
   }
   function composeFor(id) { return TX.compose(id, payload(), brand.host); }
@@ -6962,6 +6964,64 @@ window.lumAdmin = {
     });
   }
 
+  /* ---- Googleビジネスプロフィールの連携 ----
+     サイトの Google 接続に business.manage の許可を足し（別のトークンとして
+     保存）、管理している店舗の一覧から投稿する店舗を選びます。 */
+  var gbpList = null;
+  function renderGbp() {
+    var host = el('social-gbp');
+    var n = netById('gbp');
+    if (!n) { host.innerHTML = ''; return; }
+    var miss = n.missing || [];
+    var needClient = miss.indexOf('GOOGLE_CLIENT_ID') !== -1 || miss.indexOf('GOOGLE_CLIENT_SECRET') !== -1;
+    var linked = miss.indexOf('GBP_REFRESH_TOKEN') === -1;
+    var placed = miss.indexOf('GBP_LOCATION') === -1;
+    var state = n.ready ? '✓ 連携済み・店舗も選んであります' : needClient ? 'サイトの Google 接続（GOOGLE_CLIENT_ID / SECRET）がまだありません' :
+      !linked ? 'まだ連携していません' : '連携済み。投稿する店舗を選んでください';
+    host.innerHTML = '<details class="soc-more" id="soc-gbp"' + (n.ready ? '' : ' open') + '><summary>Googleビジネスプロフィール（地図・検索のお店の情報）への投稿：' + esc(state) + '</summary>' +
+      '<div class="soc-small" style="margin-top:6px">地元のお客さまが Google で見る「最新情報」に出ます。まだ連携していなくても、3 の「コピーして開く」から手で投稿できます。</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
+        '<button type="button" class="ghost" id="soc-gbp-link" style="font-size:12px;padding:7px 12px"' + (needClient ? ' disabled' : '') + '>Googleビジネスプロフィールを連携</button>' +
+        '<button type="button" class="ghost" id="soc-gbp-list" style="font-size:12px;padding:7px 12px"' + (linked && !needClient ? '' : ' disabled') + '>店舗を選ぶ</button>' +
+      '</div>' +
+      '<div id="soc-gbp-out" style="margin-top:8px"></div>' +
+      '<div class="soc-small">Business Profile API は、Google への利用申請が通るまで使えません（申請しても数日かかることがあります）。</div></details>';
+    el('soc-gbp-link').addEventListener('click', gbpConnect);
+    el('soc-gbp-list').addEventListener('click', gbpPickList);
+    if (gbpList) showGbpList();
+  }
+  async function gbpConnect() {
+    var out = el('soc-gbp-out');
+    var w = window.open('', '_blank');
+    var r = await api('/api/google-oauth?start=1&for=gbp');
+    var d = r.data || {};
+    if (!d.ok || !d.url) { if (w) w.close(); out.textContent = d.message || '始められませんでした。'; return; }
+    if (w) w.location = d.url; else location.href = d.url;
+    out.textContent = '開いたタブで Google の許可を済ませてから、「状態を再取得」を押し、「店舗を選ぶ」に進んでください。';
+  }
+  async function gbpPickList() {
+    var out = el('soc-gbp-out');
+    out.textContent = '店舗の一覧を読んでいます…';
+    var r = await postJson('/api/social', { action: 'gbp-locations' });
+    var d = r.data || {};
+    if (!d.ok) { out.textContent = d.message || '一覧を読めませんでした。'; return; }
+    gbpList = d.locations || [];
+    showGbpList();
+  }
+  function showGbpList() {
+    var out = el('soc-gbp-out');
+    if (!gbpList.length) { out.textContent = 'このGoogleアカウントで管理している店舗が見つかりませんでした。'; return; }
+    out.innerHTML = '<select id="soc-gbp-sel" style="width:auto;max-width:100%;font-size:12.5px;padding:6px 8px">' +
+      gbpList.map(function (l) { return '<option value="' + esc(l.name) + '">' + esc(l.title + (l.address ? '（' + l.address + '）' : '')) + '</option>'; }).join('') +
+      '</select> <button type="button" id="soc-gbp-save" style="font-size:12px;padding:6px 12px">この店舗に投稿する</button> <span class="soc-small" id="soc-gbp-st"></span>';
+    el('soc-gbp-save').addEventListener('click', async function () {
+      var r = await postJson('/api/social', { action: 'gbp-pick', location: el('soc-gbp-sel').value });
+      var d = r.data || {};
+      el('soc-gbp-st').textContent = d.message || (d.ok ? '保存しました。' : '保存できませんでした。');
+      if (d.ok && d.networks) { nets = d.networks; gbpList = null; renderNets(); renderGbp(); changed(true); }
+    });
+  }
+
   /* まだ1つもつないでいないときの案内。鍵が無くても投稿文は作れるので、
      投稿欄は隠しません（作って、コピーして、各SNSで貼れば出せます）。 */
   function renderSetup() {
@@ -7159,8 +7219,11 @@ window.lumAdmin = {
           '<button type="button" class="ghost" id="soc-v-reset" style="font-size:11px;padding:4px 10px">共通の本文に戻す</button>' +
           (hasLink ? '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="soc-v-nolink"' + (v.noLink ? ' checked' : '') + '> この投稿先にはリンクを付けない</label>' : '') +
         '</div>' +
+        (id === 'gbp' ? '<div class="row"><label for="soc-v-gbp" style="font-weight:700">ボタンの種類</label><select id="soc-v-gbp" style="width:auto;font-size:12px;padding:5px 8px"></select>' +
+          '<span class="soc-small">リンクの欄のURLが、このボタンの行き先になります（「今すぐ電話」はお店の電話番号にかかります）。</span></div>' : '') +
         '<div class="row"><span class="soc-count" id="soc-v-count"></span>' +
           (n.weighted ? '<span class="soc-small">Xでは日本語は1文字=2として数えます（URLはどれも23）</span>' : '') +
+          (id === 'bluesky' ? '<span class="soc-small">Blueskyは見た目の1文字ずつで数えます（絵文字の組み合わせも1）</span>' : '') +
         '</div>' +
         '<div id="soc-v-issues"></div>' +
         '<div id="soc-v-fix"></div>' +
@@ -7192,6 +7255,16 @@ window.lumAdmin = {
       if (S.variants[id]) S.variants[id].text = '';
       changed(false);
     });
+    var gs = el('soc-v-gbp');
+    if (gs) {
+      Object.keys(TX.GBP_ACTIONS).forEach(function (k) {
+        var o = document.createElement('option');
+        o.value = k; o.textContent = TX.GBP_ACTIONS[k];
+        gs.appendChild(o);
+      });
+      gs.value = S.gbpAction || 'LEARN_MORE';
+      gs.addEventListener('change', function () { S.gbpAction = gs.value; changed(false); });
+    }
     var nl = el('soc-v-nolink');
     if (nl) nl.addEventListener('change', function () {
       S.variants[id] = S.variants[id] || {};
@@ -7209,7 +7282,9 @@ window.lumAdmin = {
       instagram: 'Instagramのアプリで画像を選び、キャプションに貼ってください（画像は「画像」の欄から保存できます）。',
       line: 'LINE公式アカウントの管理画面（Official Account Manager）の「メッセージ配信」に貼ってください。',
       facebook: 'Facebookページの投稿欄に貼ってください。',
-      linkedin: 'LinkedInの投稿欄に貼ってください。'
+      linkedin: 'LinkedInの投稿欄に貼ってください。',
+      gbp: 'Googleビジネスプロフィール（business.google.com、またはGoogle検索で自分のお店を開いた画面）の「最新情報を追加」に貼ってください。リンクは「ボタンを追加」で付けます。',
+      bluesky: 'Blueskyの投稿欄に貼ってください。'
     }[id] || '投稿欄に貼ってください。';
   }
   function openUrl(id, c) {
@@ -7221,7 +7296,9 @@ window.lumAdmin = {
       facebook: c.link ? 'https://www.facebook.com/sharer/sharer.php?u=' + u : 'https://www.facebook.com/',
       linkedin: c.link ? 'https://www.linkedin.com/sharing/share-offsite/?url=' + u : 'https://www.linkedin.com/feed/',
       line: 'https://manager.line.biz/',
-      instagram: 'https://www.instagram.com/'
+      instagram: 'https://www.instagram.com/',
+      gbp: 'https://business.google.com/',
+      bluesky: 'https://bsky.app/intent/compose?text=' + t
     }[id] || '';
   }
   function clip(id, open) {
@@ -7275,6 +7352,14 @@ window.lumAdmin = {
     }
     if (id === 'line') {
       return '<div class="soc-pv line"><div class="bubble"><div class="tx">' + hl(c.text) + '</div></div>' + pics + destHtml + '</div>';
+    }
+    if (id === 'gbp') {
+      var act = S.gbpAction || 'LEARN_MORE';
+      var showBtn = act === 'CALL' || !!c.link;
+      return '<div class="soc-pv">' + '<div class="who"><span class="av"></span><span>' + name + ' <span class="hd">Google検索・マップの「最新情報」</span></span></div>' +
+        pics + '<div class="tx" style="margin-top:6px">' + hl(c.text) + '</div>' +
+        (showBtn ? '<div style="margin-top:8px"><span style="display:inline-block;border:1px solid #1a73e8;color:#1a73e8;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700">' + esc(TX.GBP_ACTIONS[act] || '詳細') + '</span></div>' : '') +
+        destHtml + '</div>';
     }
     var card = c.linkSeparate ? '<div class="card">' + esc((function () { try { return new URL(c.link).hostname; } catch (_) { return ''; } })()) + '<br>' + esc(readable(c.link)) + '</div>' : '';
     return '<div class="soc-pv">' + who + '<div class="tx">' + hl(c.text) + '</div>' + pics + card + destHtml + '</div>';
@@ -7524,7 +7609,7 @@ window.lumAdmin = {
         at: new Date().toISOString(),
         text: el('social-text').value, link: el('social-link').value, campaign: el('social-campaign').value,
         topic: el('social-ai-topic').value,
-        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId
+        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction
       };
       var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
       if (empty) localStorage.removeItem(DRAFT_KEY);
@@ -7547,6 +7632,7 @@ window.lumAdmin = {
     S.when = d.when === 'date' ? 'date' : 'now';
     S.date = String(d.date || '');
     S.sendId = /^[0-9a-f-]{36}$/i.test(String(d.sendId || '')) ? d.sendId : uuid();
+    S.gbpAction = TX.GBP_ACTIONS[d.gbpAction] ? d.gbpAction : 'LEARN_MORE';
     S.images.forEach(function (i) { measure(i.url); });
     restoring = false;
     var box = el('social-restore');
@@ -7699,7 +7785,7 @@ window.lumAdmin = {
         tags.appendChild(tag);
         if (r.metrics) withMx.push(r.label + '：' + metricsText(r.metrics));
       });
-      var canMx = (p.results || []).some(function (r) { return r.ok && r.id && r.net !== 'linkedin'; });
+      var canMx = (p.results || []).some(function (r) { return r.ok && r.id && r.net !== 'linkedin' && r.net !== 'gbp'; });
       if (canMx) {
         var mb = document.createElement('button');
         mb.type = 'button'; mb.className = 'linkish';
@@ -7832,9 +7918,11 @@ window.lumAdmin = {
     }
     renderNets();
     renderSetup();
+    renderGbp();
     renderImages();
     changed(true);
     renderQueue(info.schedule.items);
+
     renderLog(d.recent, d.stored);
     say('', true);
     loadInsights();

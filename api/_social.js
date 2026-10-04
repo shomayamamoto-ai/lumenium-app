@@ -21,6 +21,8 @@ import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
 import { RULES, compose, check, isBlobUrl, cleanCampaign } from './_social-text.js'
 import { fieldFor } from './_social-insights.js'
+import { GBP_ACTIONS } from './_social-text.js'
+import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
 
 
 /* API の版は1か所に。Meta は版ごとに約2年で使えなくなり、LinkedIn は
@@ -105,6 +107,27 @@ export const NETWORKS = [
       where: 'LINE Official Account Manager › 設定 › Messaging API で利用を開始し、LINE Developers のチャネル › Messaging API設定 の一番下で「チャネルアクセストークン（長期）」を発行します。',
       url: 'https://developers.line.biz/console/',
       effort: '20分ほど。送るたびに友だちの人数ぶん通数を使います',
+    },
+  },
+  {
+    id: 'gbp', label: 'Googleビジネスプロフィール', mark: 'G',
+    needs: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GBP_REFRESH_TOKEN', 'GBP_LOCATION'],
+    note: 'Google検索・マップのお店の情報に「最新情報」として出ます。1500文字まで。リンクはボタン（詳細・予約など）として付きます。画像は1枚目だけ送ります。',
+    setup: {
+      what: 'サイトの Google 接続（Googleカレンダーと同じ GOOGLE_CLIENT_ID / SECRET）に、ビジネスプロフィールの許可を足します。',
+      where: '下の「Googleビジネスプロフィールを連携」を押して許可し、「店舗を選ぶ」で投稿する店舗を選びます。Google Cloud で「My Business」の各APIを有効にし、Business Profile API の利用申請が通っている必要があります。',
+      url: 'https://developers.google.com/my-business/content/prereqs',
+      effort: '連携は数分。APIの利用申請は Google の審査に数日かかることがあります',
+    },
+  },
+  {
+    id: 'bluesky', label: 'Bluesky', mark: '🦋', needs: ['BSKY_HANDLE', 'BSKY_APP_PASSWORD'],
+    note: '300文字まで（見た目の文字数で数えます）。リンクとハッシュタグは押せる形で送ります。画像は、この画面からアップロードしたものを4枚まで（1枚1MBまで）。',
+    setup: {
+      what: 'Blueskyのハンドル（例：shop.bsky.social）と「アプリパスワード」が要ります。',
+      where: 'Bluesky の 設定 › プライバシーとセキュリティ › アプリパスワード で作ります（ログイン用のパスワードは使いません）。',
+      url: 'https://bsky.app/settings/app-passwords',
+      effort: '5分ほど。無料です',
     },
   },
 ].map((n) => ({ ...n, ...RULES[n.id] }))
@@ -457,6 +480,7 @@ async function postLine(c, req, ctx, p) {
 const SENDERS = {
   x: postX, facebook: postFacebook, instagram: postInstagram,
   threads: postThreads, linkedin: postLinkedIn, line: postLine,
+  gbp: postGbp, bluesky: postBluesky,
 }
 
 /* -------------------------------------------------------------- payload -- */
@@ -494,7 +518,10 @@ export function readPayload(body) {
     variants[id] = { text: t, noLink: !!v.noLink }
   }
   const sendId = UUID.test(String(b.sendId || '')) ? String(b.sendId) : crypto.randomUUID()
-  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId } }
+  // Googleビジネスプロフィールのボタンの種類（知らない値は「詳細」にします）。
+  const gbpAction = String((b.gbp && b.gbp.action) || '')
+  const gbp = { action: GBP_ACTIONS[gbpAction] ? gbpAction : 'LEARN_MORE' }
+  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId, gbp } }
 }
 
 /** Every target, checked before anything is sent. A post that is wrong for
@@ -776,6 +803,12 @@ export async function testNetwork(id, req) {
   } else if (id === 'line') {
     r = await call(`${LINE_API}/v2/bot/info`, { headers: { Authorization: `Bearer ${await setting('LINE_CHANNEL_TOKEN', '', req)}` } }, 'LINE', ctx)
     if (r.ok) who = r.data.displayName || r.data.basicId || ''
+  } else if (id === 'gbp') {
+    r = await testGbp(req, ctx)
+    if (r.ok) who = r.who || ''
+  } else if (id === 'bluesky') {
+    r = await testBluesky(req, ctx)
+    if (r.ok) who = r.who || ''
   }
   const state = diagnose(r)
   const extra = id === 'threads' ? await threadsTokenInfo(req) : null
@@ -906,8 +939,11 @@ async function metricsFor(r, req, ctx) {
     if (o.delivered == null) return { ok: false, message: 'LINE：まだ集計されていません（送信の翌日以降に出ます。20人未満のときは出ません）。' }
     return { ok: true, reach: num(o.delivered), impressions: num(o.uniqueImpression), clicks: num(o.uniqueClick) }
   }
+  if (r.net === 'bluesky') return blueskyMetrics(r.id, ctx)
+  if (r.net === 'gbp') return { ok: false, message: 'Googleビジネスプロフィールの投稿ごとの反応は、APIでは取れなくなりました（ビジネスプロフィールの「パフォーマンス」でご確認ください）。' }
   return { ok: false, message: 'LinkedIn の反応は、この画面からは取得できません（LinkedIn の画面でご確認ください）。' }
 }
+
 
 /** Likes, comments and reach for one history entry, fetched only when asked
  *  (X charges per read) and kept with the entry so the next look is free. */

@@ -576,7 +576,127 @@ await test('訪問の時間帯は、計測リンクの名前ごとに数える�
   assert.ok(!none.slots.some((s) => s[0].includes('cp:h:')))
 })
 
+console.log('Googleビジネスプロフィール・Bluesky')
+Object.assign(process.env, {
+  GOOGLE_CLIENT_ID: 'gid', GOOGLE_CLIENT_SECRET: 'gsec', GBP_REFRESH_TOKEN: 'gbp-refresh-token-1', GBP_LOCATION: 'accounts/11/locations/22',
+  BSKY_HANDLE: '@shop.bsky.social', BSKY_APP_PASSWORD: 'abcd-efgh-ijkl-mnop',
+})
+await test('数え方：GBP は1500文字、Bluesky は見た目の文字数で300', () => {
+  assert.equal(T.lengthFor('bluesky', '👨‍👩‍👧‍👦あ'), 2)
+  assert.equal(T.lengthFor('gbp', 'あいう'), 3)
+  assert.equal(T.check('bluesky', T.compose('bluesky', base({ text: 'あ'.repeat(300) }), 'h')).errors.length, 0)
+  assert.ok(T.check('bluesky', T.compose('bluesky', base({ text: 'あ'.repeat(301) }), 'h')).errors.length)
+  assert.ok(T.check('gbp', T.compose('gbp', base({ text: 'あ'.repeat(1501) }), 'h')).errors.length)
+})
+await test('GBP：リンクは本文に入れずボタンへ（ref=gbp 付き）。本文の電話番号は注意', () => {
+  const c = T.compose('gbp', base({ text: '秋の新メニュー', link: 'https://lumenium.net/menu' }), 'lumenium.net')
+  assert.equal(c.text, '秋の新メニュー')
+  assert.equal(c.link, 'https://lumenium.net/menu?ref=gbp')
+  assert.ok(c.linkSeparate)
+  const k = T.check('gbp', T.compose('gbp', base({ text: 'お電話は 03-1234-5678 へ' }), 'h'))
+  assert.ok(k.warnings.some((w) => w.includes('電話番号')))
+})
+await test('Bluesky の facets：日本語の位置は UTF-8 のバイト数', () => {
+  const text = '新メニュー https://lumenium.net/a?ref=bluesky と #秋限定 です'
+  const f = T.blueskyFacets(text)
+  assert.equal(f.length, 2)
+  const enc = new TextEncoder()
+  // 「新メニュー 」= 5文字×3バイト + 空白1 = 16
+  assert.deepEqual(f[0].index, { byteStart: 16, byteEnd: 16 + 'https://lumenium.net/a?ref=bluesky'.length })
+  assert.equal(f[0].features[0].uri, 'https://lumenium.net/a?ref=bluesky')
+  const bytes = enc.encode(text)
+  assert.equal(new TextDecoder().decode(bytes.slice(f[1].index.byteStart, f[1].index.byteEnd)), '#秋限定')
+  assert.deepEqual(f[1].features[0], { $type: 'app.bsky.richtext.facet#tag', tag: '秋限定' })
+})
+function gbpRoute(u, init) {
+  if (u.startsWith('https://oauth2.googleapis.com/token')) return json({ access_token: 'g-at', expires_in: 3600 })
+  if (u.includes('mybusiness.googleapis.com/v4/accounts/11/locations/22/localPosts')) {
+    return json({ name: 'accounts/11/locations/22/localPosts/99', searchUrl: 'https://local.google.com/place?id=1&use=posts&lpsid=99' })
+  }
+  if (u.startsWith('https://mybusinessaccountmanagement.googleapis.com/v1/accounts')) return json({ accounts: [{ name: 'accounts/11', accountName: '店' }] })
+  if (u.startsWith('https://mybusinessbusinessinformation.googleapis.com/v1/accounts/11/locations')) {
+    return json({ locations: [{ name: 'locations/22', title: '本店', storefrontAddress: { administrativeArea: '東京都', locality: '渋谷区', addressLines: ['神南1-2-3'] } }] })
+  }
+  return happy(u, init)
+}
+await test('GBP：localPosts.create にボタン・写真・本文を渡す', async () => {
+  route = gbpRoute
+  const p = base({ text: '秋の新メニュー', link: 'https://lumenium.net/menu', targets: ['gbp'], gbp: { action: 'BOOK' },
+    images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] })
+  const { results, entry } = await S.sendPost(p, undefined)
+  assert.equal(results[0].ok, true, results[0].message)
+  assert.equal(results[0].id, 'accounts/11/locations/22/localPosts/99')
+  const sent = calls.find((c) => c.url.includes('/localPosts'))
+  assert.equal(sent.init.headers.Authorization, 'Bearer g-at')
+  const body = JSON.parse(sent.init.body)
+  assert.equal(body.summary, '秋の新メニュー')
+  assert.equal(body.topicType, 'STANDARD')
+  assert.deepEqual(body.callToAction, { actionType: 'BOOK', url: 'https://lumenium.net/menu?ref=gbp' })
+  assert.deepEqual(body.media, [{ mediaFormat: 'PHOTO', sourceUrl: 'https://s.public.blob.vercel-storage.com/a.jpg' }])
+  assert.equal(entry.refs.gbp, 'gbp/-/-')
+})
+await test('GBP：電話ボタンは URL なし、知らないボタンは「詳細」、403 は申請の案内', async () => {
+  const { gbpBody } = await import('../api/_social-more.js')
+  const c = T.compose('gbp', base({ text: 'a', link: 'https://lumenium.net/' }), 'lumenium.net')
+  assert.deepEqual(gbpBody(c, { gbp: { action: 'CALL' } }).callToAction, { actionType: 'CALL' })
+  assert.equal(S.readPayload({ text: 'a', targets: ['gbp'], gbp: { action: 'HACK' } }).payload.gbp.action, 'LEARN_MORE')
+  route = (u, init) => (u.includes('/localPosts') ? json({ error: { code: 403, message: 'denied' } }, 403) : gbpRoute(u, init))
+  const { results } = await S.sendPost(base({ text: 'a', targets: ['gbp'] }), undefined)
+  assert.equal(results[0].ok, false)
+  assert.ok(results[0].message.includes('利用申請'))
+})
+await test('GBP：店舗の一覧（accounts/…/locations/… の形で返す）', async () => {
+  route = gbpRoute
+  const { gbpLocations } = await import('../api/_social-more.js')
+  const r = await gbpLocations(undefined)
+  assert.deepEqual(r.locations, [{ name: 'accounts/11/locations/22', title: '本店', address: '東京都 渋谷区 神南1-2-3', account: '店' }])
+})
+function bskyRoute(u, init) {
+  if (u.endsWith('/xrpc/com.atproto.server.createSession')) return json({ accessJwt: 'jwt', did: 'did:plc:abc', handle: 'shop.bsky.social' })
+  if (u.endsWith('/xrpc/com.atproto.repo.uploadBlob')) return json({ blob: { $type: 'blob', ref: { $link: 'bafy' }, mimeType: 'image/jpeg', size: 4 } })
+  if (u.endsWith('/xrpc/com.atproto.repo.createRecord')) return json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kxyz', cid: 'c' })
+  return happy(u, init)
+}
+await test('Bluesky：ログイン → 画像 → 投稿（facets と画像つき）', async () => {
+  route = bskyRoute
+  const p = base({ text: '見てね #秋', link: 'https://lumenium.net/', targets: ['bluesky'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] })
+  const { results } = await S.sendPost(p, undefined)
+  assert.equal(results[0].ok, true, results[0].message)
+  assert.equal(results[0].url, 'https://bsky.app/profile/shop.bsky.social/post/3kxyz')
+  const login = JSON.parse(calls.find((c) => c.url.endsWith('createSession')).init.body)
+  assert.equal(login.identifier, 'shop.bsky.social')
+  const rec = JSON.parse(calls.find((c) => c.url.endsWith('createRecord')).init.body)
+  assert.equal(rec.repo, 'did:plc:abc')
+  assert.equal(rec.record.text, '見てね #秋\nhttps://lumenium.net/?ref=bluesky')
+  assert.deepEqual(rec.record.facets.map((f) => f.features[0].$type), ['app.bsky.richtext.facet#tag', 'app.bsky.richtext.facet#link'])
+  assert.equal(rec.record.embed.images[0].image.ref.$link, 'bafy')
+})
+await test('Bluesky：パスワード違いは分かる言葉で、1MB を超える画像は送らない', async () => {
+  route = (u, init) => (u.endsWith('createSession') ? json({ error: 'AuthenticationRequired', message: 'Invalid' }, 401) : bskyRoute(u, init))
+  let { results } = await S.sendPost(base({ text: 'a', targets: ['bluesky'] }), undefined)
+  assert.ok(results[0].message.includes('アプリパスワード'))
+  route = (u, init) => (u.includes('vercel-storage.com') ? new Response(new Uint8Array(1000001), { headers: { 'content-type': 'image/jpeg' } }) : bskyRoute(u, init))
+  ;({ results } = await S.sendPost(base({ text: 'a', targets: ['bluesky'], images: [{ url: 'https://s.public.blob.vercel-storage.com/big.jpg' }] }), undefined))
+  assert.equal(results[0].ok, false)
+  assert.ok(results[0].message.includes('1MB'))
+  assert.ok(!calls.some((c) => c.url.endsWith('createRecord')))
+})
+await test('Google 接続：GBP は用途つきの署名で、別のトークンに保存する', async () => {
+  const g = await import('../api/google-oauth.js')
+  const s = await g.makeState('gbp')
+  assert.equal(await g.checkState(s), 'gbp')
+  assert.equal(await g.checkState(await g.makeState()), 'cal')
+  const [exp, , sig] = s.split('.')
+  assert.equal(await g.checkState(`${exp}.cal.${sig}`), false)
+  assert.equal(await g.checkState(`${exp}.${sig}`), false)
+  const res = await g.GET(new Request('https://lumenium.net/api/google-oauth?start=1&for=gbp', { headers: { authorization: 'Bearer test-admin-key' } }))
+  const d = await res.json()
+  assert.ok(decodeURIComponent(d.url).includes('business.manage'))
+  assert.ok(!decodeURIComponent(d.url).includes('calendar'))
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 
 
 

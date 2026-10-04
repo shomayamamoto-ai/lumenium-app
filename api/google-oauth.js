@@ -19,7 +19,7 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { saveSetting, storeReady } from './_settings.js'
-import { creds, consentUrl, exchangeCode } from './_google-cal.js'
+import { creds, consentUrl, exchangeCode, GBP_SCOPE } from './_google-cal.js'
 
 const STATE_TTL_MS = 15 * 60 * 1000
 const enc = new TextEncoder()
@@ -40,17 +40,26 @@ function equal(a, b) {
   return diff === 0
 }
 
-/** 「有効期限.署名」。保存先は要りません。 */
-export async function makeState() {
+/** 「有効期限.署名」。保存先は要りません。
+ *  Googleビジネスプロフィールの連携は「有効期限.gbp.署名」で、用途ごと署名します
+ *  （戻ってきたときに、どちらのトークンとして保存するかを決めるため）。 */
+export async function makeState(purpose = '') {
   const exp = String(Date.now() + STATE_TTL_MS)
-  return `${exp}.${await sign(exp)}`
+  if (!purpose) return `${exp}.${await sign(exp)}`
+  return `${exp}.${purpose}.${await sign(`${exp}|${purpose}`)}`
 }
 
+/** 正しければ用途（カレンダーは 'cal'）、正しくなければ false。 */
 export async function checkState(state) {
-  const [exp, sig] = String(state || '').split('.')
-  if (!exp || !sig) return false
-  if (!equal(sig, await sign(exp))) return false
-  return Number(exp) > Date.now()
+  const parts = String(state || '').split('.')
+  const [exp] = parts
+  const purpose = parts.length === 3 ? parts[1] : ''
+  const sig = parts[parts.length - 1]
+  if (!exp || !sig || parts.length > 3) return false
+  if (purpose && purpose !== 'gbp') return false
+  if (!equal(sig, await sign(purpose ? `${exp}|${purpose}` : exp))) return false
+  if (!(Number(exp) > Date.now())) return false
+  return purpose || 'cal'
 }
 
 // Anything that came from the query string or from Google goes through this:
@@ -96,9 +105,12 @@ export async function GET(req) {
             : 'この2つは訪問者のリクエストで読む値なので、この端末には保存できません。Vercel の環境変数に入れてください。'),
       }, 400)
     }
+    const forGbp = url.searchParams.get('for') === 'gbp'
     return json({
       ok: true,
-      url: consentUrl({ clientId: c.clientId, redirectUri, state: await makeState() }),
+      url: forGbp
+        ? consentUrl({ clientId: c.clientId, redirectUri, state: await makeState('gbp'), scope: GBP_SCOPE })
+        : consentUrl({ clientId: c.clientId, redirectUri, state: await makeState() }),
       redirectUri,
       // 保存先が無いと、受け取ったトークンを保存できません。始める前に伝えます。
       willSave: await storeReady(req),
@@ -113,7 +125,8 @@ export async function GET(req) {
   const state = url.searchParams.get('state') || ''
   if (!code) return page('不正なアクセスです', '<p>このURLは Google からの戻り先です。管理画面の「Googleカレンダーに接続」から始めてください。</p>', false)
 
-  if (!(await checkState(state))) {
+  const purpose = await checkState(state)
+  if (!purpose) {
     return page('接続の有効期限が切れています',
       '<p>管理画面からもう一度「Googleカレンダーに接続」を押してください（開始から15分で無効になります）。</p>', false)
   }
@@ -134,21 +147,28 @@ export async function GET(req) {
       'からこのアプリのアクセス権を削除し、管理画面から接続し直してください。</p>', false)
   }
 
-  const saved = await saveSetting('GOOGLE_REFRESH_TOKEN', data.refresh_token, req)
+  const tokenName = purpose === 'gbp' ? 'GBP_REFRESH_TOKEN' : 'GOOGLE_REFRESH_TOKEN'
+  const saved = await saveSetting(tokenName, data.refresh_token, req)
   if (!saved.ok) {
     /* 保存先が無い。ここで「失敗しました」とだけ出すと、許可は済んでいるのに
        手元には何も残らず、同じ操作を繰り返すことになります。値を出して、
        置き場所を伝えます。 */
     return page('あと1手だけ残っています',
       '<p>Googleの許可は完了しました。ただし保存先（Upstash Redis）が無いため、受け取った値をこちらで保存できません。</p>' +
-      '<p>下の値を Vercel › Settings › Environment Variables に <b>GOOGLE_REFRESH_TOKEN</b> という名前で登録し、再デプロイしてください。' +
+      `<p>下の値を Vercel › Settings › Environment Variables に <b>${tokenName}</b> という名前で登録し、再デプロイしてください。` +
       'これで接続が完了します。</p>' +
       `<code>${String(data.refresh_token).replace(/[<>&]/g, '')}</code>` +
       '<p style="font-size:12px">この値は鍵と同じものです。画面を閉じると二度と表示されません（もう一度接続すれば新しい値が出ます）。' +
       'メールやチャットに貼らないでください。</p>', true)
   }
 
+  if (purpose === 'gbp') {
+    return page('Googleビジネスプロフィールと連携しました',
+      '<p>管理画面の SNS（文章）に戻り、「店舗を選ぶ」で投稿する店舗を選んでください。</p>' +
+      '<p>このタブは閉じて構いません。</p>')
+  }
   return page('Googleカレンダーに接続しました',
+
     '<p>これ以降、フォーム送信直後に出る候補日時はあなたのカレンダーの空きから作られ、' +
     '予約が入ると Google Meet 付きの予定が自動で登録されます。</p>' +
     '<p>このタブは閉じて構いません。</p>')

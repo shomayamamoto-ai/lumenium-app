@@ -24,7 +24,7 @@ import { RULES, lengthFor, xLength } from './_social-text.js'
 const MODEL = 'claude-opus-5-5'
 const TIMEOUT_MS = 22000
 const MAX_IN = 3000
-const TAGGED = ['x', 'instagram', 'threads']
+const TAGGED = ['x', 'instagram', 'threads', 'bluesky']
 
 /* 投稿先ごとの書き方。短い指示にしてあります。長く細かく書くほど、
    どの投稿先の案も同じ型にはまっていきます。 */
@@ -35,6 +35,8 @@ const TONE = {
   threads: '会話のように、少しくだけた口調で。2〜4文。',
   linkedin: '仕事の相手に向けた、落ち着いた文。何が変わったか・誰の役に立つかを具体的に。ハッシュタグは付けない。',
   line: '友だち登録してくれたお客様への短いお便り。あいさつ1文、要点、最後にしてほしいこと1文。絵文字は1〜2個まで。',
+  gbp: 'Google検索やマップでお店を探している人に向けた、事実中心の文。何を・いつまで・いくらかを先に。地名やサービス名を自然に入れる。電話番号・URL・ハッシュタグは書かない（リンクはボタンで付きます）。',
+  bluesky: '会話のように、短く自然な口調で。2〜3文。ハッシュタグは0〜1個。',
 }
 
 const SYSTEM = [

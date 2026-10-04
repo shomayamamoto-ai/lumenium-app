@@ -12,7 +12,10 @@ export const config = { runtime: 'edge' }
 //   POST { action:'test', net }      -> a cheap read with the stored keys (nothing is posted)
 //   POST { action:'refresh-threads' }-> extend the Threads token, saved where it was
 //   POST { action:'metrics', id }    -> likes / comments / reach for one history entry
+//   POST { action:'gbp-locations' }  -> the Business Profile locations the linked account manages
+//   POST { action:'gbp-pick', location } -> save which location GBP posts go to
 //   PUT  { style }                   -> the site's own wording rules (NG words, notation)
+
 //
 // Admin key only, by the header only: this spends the site's own accounts, so
 // it must not be reachable by a share link or a key in a URL.
@@ -23,9 +26,10 @@ import {
   historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo,
 } from './_social.js'
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
-import { setting } from './_settings.js'
+import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
 import { readStyle, saveStyle } from './_social-store.js'
+import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 
 async function state(req) {
@@ -107,6 +111,18 @@ export async function POST(req) {
   if (action === 'metrics') {
     const r = await fetchMetrics(String(body.id || ''), req)
     return json({ ...r, recent: await recentPosts(20, req) }, r.ok ? 200 : 400)
+  }
+  // Googleビジネスプロフィール：連携したアカウントの店舗の一覧と、投稿する店舗の保存。
+  if (action === 'gbp-locations') {
+    const r = await gbpLocations(req)
+    return json(r, r.ok ? 200 : 400)
+  }
+  if (action === 'gbp-pick') {
+    const loc = String(body.location || '')
+    if (!LOCATION_RE.test(loc)) return json({ ok: false, message: '店舗の指定が正しくありません。' }, 400)
+    const r = await saveSetting('GBP_LOCATION', loc, req)
+    if (!r.ok) return json({ ok: false, message: r.message === 'NO_STORE' ? '保存先（Upstash Redis）が未接続のため保存できません。Vercel の環境変数 GBP_LOCATION に「' + loc + '」を入れてください。' : r.message }, 400)
+    return json({ ok: true, message: '投稿する店舗を保存しました。', networks: await socialStatus(req) })
   }
   if (action === 'cancel') {
     const r = await cancelScheduled(body.id)
