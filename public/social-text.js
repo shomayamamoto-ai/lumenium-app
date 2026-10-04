@@ -212,6 +212,31 @@ function tagUrl(url, net, campaign, host) {
   return u.toString()
 }
 
+/* プロフィールのリンク集（/links）。Instagram や TikTok はプロフィールに
+   リンクを1つしか置けないので、そこに /links?from=instagram を置きます。
+   ページの中の自社サイトへのリンクには ?ref=<from>&utm_campaign=bio を付け、
+   アクセス解析で「プロフィールのリンクから来た人」と分かるようにします。
+   from に使える名前は決めておきます（勝手な文字列で数字の列を増やさない）。 */
+var BIO_SOURCES = ['instagram', 'tiktok', 'x', 'threads', 'facebook', 'line', 'youtube', 'bluesky', 'linkedin', 'gbp', 'note']
+var BIO_CAMPAIGN = 'bio'
+
+/** from を確かめて返します（知らない名前は instagram）。 */
+function bioSource(from) {
+  var f = String(from == null ? '' : from).toLowerCase().trim()
+  return BIO_SOURCES.indexOf(f) !== -1 ? f : 'instagram'
+}
+
+/** リンク集の1つのリンク。自社サイトへのものにだけ印を付けます。 */
+function bioUrl(url, from, host) {
+  var raw = String(url == null ? '' : url).trim()
+  var u
+  try { u = new URL(raw) } catch (_) { return raw }
+  if (!/^https?:$/.test(u.protocol) || !sameSite(u.hostname, host)) return raw
+  u.searchParams.set('ref', bioSource(from))
+  u.searchParams.set('utm_campaign', BIO_CAMPAIGN)
+  return u.toString()
+}
+
 /** 本文の中の自社サイトへのリンクにも同じ印を付けます。 */
 function tagText(text, net, campaign, host) {
   var s = String(text == null ? '' : text)
@@ -866,5 +891,5 @@ function styleToLines(style) {
   }
 }
 
-window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, THREADABLE, THREAD_MAX, splitThread, threadCost, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
+window.lumSocialText = { X_RULES, RULES, GBP_ACTIONS, X_COST, urlPattern, findUrls, xLength, graphemes, lengthFor, blueskyFacets, REF_NAMES, cleanCampaign, tagUrl, BIO_SOURCES, BIO_CAMPAIGN, bioSource, bioUrl, tagText, isBlobUrl, compose, check, FOLD, FOLD_NOTE, foldAt, foldCheck, THREADABLE, THREAD_MAX, splitThread, threadCost, CROP_PRESETS, cropFrame, cropOutput, igAspectOk, ALT_NETS, ALT_MAX, REVIEW_KINDS, REVIEW_NOTE, hashtags, review, notationHits, applyNotation, STYLE_LIMITS, validateStyle, parseStyleLines, styleToLines };
 })();

@@ -17,6 +17,7 @@ export const config = { runtime: 'edge' }
 //   PUT  { style }                   -> the site's own wording rules (NG words, notation)
 //   PUT  { prefs }                   -> { xAutoMetrics } for the daily reaction refresh
 //   PUT  { templates }               -> the saved post templates (whole list)
+//   PUT  { links }                   -> the profile link page (/links): title, note, latest, items
 
 
 
@@ -32,7 +33,7 @@ import {
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
 import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
-import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates } from './_social-store.js'
+import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates, readLinks, saveLinks } from './_social-store.js'
 import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 
@@ -55,6 +56,7 @@ async function state(req) {
     style: await readStyle(req),
     prefs: await readPrefs(req),
     templates: await readTemplates(req),
+    links: await readLinks(req),
   }
 }
 
@@ -85,6 +87,11 @@ export async function PUT(req) {
   if (body && Array.isArray(body.templates)) {
     const r = await saveTemplates(body.templates, req)
     return json({ ...r, message: r.ok ? '定型文を保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  // プロフィールのリンク集（/links）の一覧。
+  if (body && body.links && typeof body.links === 'object') {
+    const r = await saveLinks(body.links, req)
+    return json({ ...r, message: r.ok ? 'リンク集を保存しました（数分で /links に出ます）。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
   }
   if (body && body.prefs && typeof body.prefs === 'object') {
     const r = await savePrefs(body.prefs, req)

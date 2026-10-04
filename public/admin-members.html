@@ -599,6 +599,14 @@
   .soc-tab .st { font-variant-numeric: tabular-nums; margin-left: 6px; font-weight: 700; }
   .soc-tab .st.over { color: #b42318; }
   .soc-var { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 13px 15px; }
+  .soc-linkurls .row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12px; padding: 3px 0; }
+  .soc-linkurls .row b { min-width: 72px; }
+  .soc-linkurls code { font-size: 11.5px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; overflow-wrap: anywhere; }
+  .soc-linkurls button { font-size: 11px; padding: 3px 9px; }
+  .soc-lkrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+  .soc-lkrow .t { flex: 1 1 140px; min-width: 0; width: auto; }
+  .soc-lkrow .u { flex: 2 1 220px; min-width: 0; width: auto; }
+  .soc-lkrow button { font-size: 11px; padding: 4px 9px; }
   .soc-thread { margin-top: 10px; padding: 9px 12px; background: #fff; border: 1px solid var(--border); border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 5px; }
   .soc-thread label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 700; }
   .soc-parts { margin: 4px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -1182,6 +1190,8 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-outcome" style="margin-bottom:18px"></div>
       <h3 class="soc-h">これまでの投稿</h3>
       <div id="social-log"></div>
+      <h3 class="soc-h">プロフィールのリンク集（/links）</h3>
+      <div id="social-links" style="margin-bottom:18px"></div>
     </div>
 
     <!-- SNS（動画）。中身は /admin-video.js が組み立てます（項目が多いので別ファイル）。 -->
@@ -8414,6 +8424,99 @@ window.lumAdmin = {
     });
   }
 
+  /* ---- プロフィールのリンク集（/links） ----
+     Instagram・TikTok のプロフィールには、リンクを1つしか置けません。
+     そこに /links?from=instagram を置くと、ここで決めた一覧が出ます。
+     自社サイトへのリンクには ?ref=instagram&utm_campaign=bio が付くので、
+     アクセス解析で「プロフィールから来た人」と分かります。 */
+  var links = { title: '', note: '', latest: 3, items: [] };
+  var LINK_FROM = [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['threads', 'Threads'], ['x', 'X'], ['line', 'LINE'], ['youtube', 'YouTube']];
+  function linksPage(from) { return 'https://' + brand.host + '/links' + (from ? '?from=' + from : ''); }
+  function renderLinks() {
+    var host = el('social-links');
+    host.innerHTML =
+      '<div class="soc-box" style="margin:0">' +
+        '<div class="soc-small" style="margin-bottom:8px">InstagramやTikTokのプロフィールには、リンクを1つしか置けません。そこに下のアドレスを置くと、ここで決めたリンクの一覧が出ます。' +
+          'サイトへのリンクには、どのSNSのプロフィールから来たかの印（?ref=instagram&amp;utm_campaign=bio など）が付き、アクセス解析で分かります。</div>' +
+        '<div class="soc-linkurls">' + LINK_FROM.map(function (f) {
+          return '<div class="row"><b>' + esc(f[1]) + '</b><code>' + esc(linksPage(f[0])) + '</code>' +
+            '<button type="button" class="ghost" data-copy="' + esc(linksPage(f[0])) + '">コピー</button></div>';
+        }).join('') + '</div>' +
+        '<div class="soc-small" style="margin:6px 0 10px"><a href="/links?from=instagram" target="_blank" rel="noopener">いまの /links を開いて確かめる</a>（保存してから数分で反映されます）</div>' +
+        '<label class="soc-lab" for="soc-lk-title">ページの見出し（空ならサイト名）</label>' +
+        '<input type="text" id="soc-lk-title" maxlength="40" value="' + esc(links.title) + '">' +
+        '<label class="soc-lab" for="soc-lk-note">ひとこと（任意）</label>' +
+        '<input type="text" id="soc-lk-note" maxlength="120" value="' + esc(links.note) + '" placeholder="例：ご予約・メニュー・アクセスはこちらから">' +
+        '<div class="soc-lab" style="margin-top:10px">並べるリンク（上から順に出ます。チェックを外すと出しません）</div>' +
+        '<div id="soc-lk-rows"></div>' +
+        '<div class="row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">' +
+          '<button type="button" class="ghost" id="soc-lk-add" style="font-size:12px;padding:6px 12px">リンクを足す</button>' +
+          '<label for="soc-lk-latest" style="font-size:12px">最近の投稿のリンクも出す</label>' +
+          '<select id="soc-lk-latest" style="width:auto;font-size:12px;padding:5px 8px">' + [0, 1, 2, 3, 5, 10].map(function (n) {
+            return '<option value="' + n + '"' + (Number(links.latest) === n ? ' selected' : '') + '>' + (n ? n + '件' : '出さない') + '</option>';
+          }).join('') + '</select>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px">' +
+          '<button type="button" id="soc-lk-save" style="font-size:12px;padding:7px 14px">リンク集を保存</button>' +
+          '<span class="soc-small" id="soc-lk-st"></span>' +
+        '</div>' +
+      '</div>';
+    renderLinkRows();
+    Array.prototype.forEach.call(host.querySelectorAll('[data-copy]'), function (b) {
+      b.addEventListener('click', function () {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(b.dataset.copy).then(function () { b.textContent = '✓ コピーしました'; }, function () {});
+      });
+    });
+    el('soc-lk-title').addEventListener('input', function () { links.title = this.value; });
+    el('soc-lk-note').addEventListener('input', function () { links.note = this.value; });
+    el('soc-lk-latest').addEventListener('change', function () { links.latest = Number(this.value); });
+    el('soc-lk-add').addEventListener('click', function () {
+      if (links.items.length >= 20) { el('soc-lk-st').textContent = 'リンクは20個までです。'; return; }
+      links.items.push({ id: uuid(), title: '', url: 'https://' + brand.host + '/', on: true });
+      renderLinkRows();
+    });
+    el('soc-lk-save').addEventListener('click', saveLinks);
+  }
+  function renderLinkRows() {
+    var host = el('soc-lk-rows');
+    if (!links.items.length) { host.innerHTML = '<p class="share-note" style="margin:4px 0">まだありません。何も無いときは、トップページへのリンクだけを出します。</p>'; return; }
+    host.innerHTML = '';
+    links.items.forEach(function (it, i) {
+      var row = document.createElement('div');
+      row.className = 'soc-lkrow';
+      row.innerHTML = '<input type="checkbox" aria-label="出す"' + (it.on !== false ? ' checked' : '') + '>' +
+        '<input type="text" class="t" maxlength="40" placeholder="名前（例：ご予約）" aria-label="名前">' +
+        '<input type="url" class="u" placeholder="https://" aria-label="URL">' +
+        '<button type="button" class="ghost" data-mv="-1" aria-label="上へ"' + (i ? '' : ' disabled') + '>↑</button>' +
+        '<button type="button" class="ghost" data-mv="1" aria-label="下へ"' + (i < links.items.length - 1 ? '' : ' disabled') + '>↓</button>' +
+        '<button type="button" class="ghost" data-rm="1">外す</button>';
+      var ins = row.querySelectorAll('input');
+      ins[1].value = it.title || '';
+      ins[2].value = it.url || '';
+      ins[0].addEventListener('change', function () { it.on = ins[0].checked; });
+      ins[1].addEventListener('input', function () { it.title = ins[1].value; });
+      ins[2].addEventListener('input', function () { it.url = ins[2].value.trim(); });
+      Array.prototype.forEach.call(row.querySelectorAll('[data-mv]'), function (b) {
+        b.addEventListener('click', function () {
+          var j = i + Number(b.dataset.mv);
+          if (j < 0 || j >= links.items.length) return;
+          var t = links.items[i]; links.items[i] = links.items[j]; links.items[j] = t;
+          renderLinkRows();
+        });
+      });
+      row.querySelector('[data-rm]').addEventListener('click', function () { links.items.splice(i, 1); renderLinkRows(); });
+      host.appendChild(row);
+    });
+  }
+  async function saveLinks() {
+    var st = el('soc-lk-st');
+    st.textContent = '保存しています…';
+    var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ links: links }) });
+    var d = r.data || {};
+    if (d.ok && d.links) { links = d.links; renderLinks(); st = el('soc-lk-st'); }
+    st.textContent = d.message || (d.ok ? '保存しました。' : '保存できませんでした。');
+  }
+
   /* ---- 定型文 ---- */
   function renderTemplates(keep) {
     var sel = el('social-tpl-sel');
@@ -8477,6 +8580,8 @@ window.lumAdmin = {
     prefs = d.prefs || prefs;
     templates = d.templates || [];
     renderTemplates();
+    if (d.links) links = d.links;
+    renderLinks();
     renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {

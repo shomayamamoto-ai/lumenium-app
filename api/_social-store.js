@@ -112,3 +112,50 @@ export async function savePrefs(input, req) {
   return { ...r, prefs }
 }
 
+/* ---- プロフィールのリンク集（/links） ----
+   ${KV}social:links  … { title, note, latest, items: [{ id, title, url, on }] }
+   items は並べた順のまま出します。on が false のものは出しません。
+   latest は「最近の投稿のリンク」をいくつ足すか（0〜10）。 */
+export const LINKS_KEY = `${KV}social:links`
+export const LINKS_MAX = 20
+
+export function validateLinks(input) {
+  const v = input && typeof input === 'object' ? input : {}
+  const problems = []
+  const items = []
+  const seen = new Set()
+  for (const it of Array.isArray(v.items) ? v.items : []) {
+    if (!it || typeof it !== 'object') continue
+    const title = String(it.title || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 40)
+    const url = String(it.url || '').trim()
+    if (!title && !url) continue
+    if (!title) { problems.push('名前の無いリンクは保存しません。'); continue }
+    if (!/^https:\/\/[^\s<>"]+$/i.test(url) || url.length > 500) { problems.push(`「${title}」のURLは https:// で始まる形にしてください。`); continue }
+    if (items.length >= LINKS_MAX) { problems.push(`リンクは${LINKS_MAX}個までです。`); break }
+    let id = /^[a-z0-9-]{6,40}$/i.test(String(it.id || '')) ? String(it.id) : crypto.randomUUID()
+    if (seen.has(id)) id = crypto.randomUUID()
+    seen.add(id)
+    items.push({ id, title, url, on: it.on !== false })
+  }
+  const latest = Math.max(0, Math.min(10, Math.round(Number(v.latest) || 0)))
+  return {
+    links: {
+      title: String(v.title || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 40),
+      note: String(v.note || '').replace(/[\r\n\t]/g, ' ').trim().slice(0, 120),
+      latest,
+      items,
+    },
+    problems,
+  }
+}
+
+export async function readLinks(req) {
+  return validateLinks(await readJson(LINKS_KEY, req, { latest: 3, items: [] })).links
+}
+
+export async function saveLinks(input, req) {
+  const { links, problems } = validateLinks(input)
+  const r = await writeJson(LINKS_KEY, links, req)
+  return { ...r, links, problems }
+}
+

@@ -977,6 +977,64 @@ await test('送信：途中で止まっても1件目は出ているので成功�
   assert.match(results[0].message, /2\/\d 件目で止まりました/)
 })
 
+console.log('プロフィールのリンク集（/links）')
+await test('自社サイトへのリンクにだけ ?ref=<from>&utm_campaign=bio、知らない from は instagram', () => {
+  assert.equal(T.bioUrl('https://lumenium.net/menu?x=1', 'tiktok', 'lumenium.net'), 'https://lumenium.net/menu?x=1&ref=tiktok&utm_campaign=bio')
+  assert.equal(T.bioUrl('https://www.lumenium.net/', 'evil<script>', 'lumenium.net'), 'https://www.lumenium.net/?ref=instagram&utm_campaign=bio')
+  assert.equal(T.bioUrl('https://reserve.example.jp/shop', 'instagram', 'lumenium.net'), 'https://reserve.example.jp/shop')
+})
+await test('一覧の保存：名前と https が要り、20個まで、最近の投稿は0〜10件', async () => {
+  const st = await import('../api/_social-store.js')
+  const { links, problems } = st.validateLinks({ latest: 99, title: 'お店\n', items: [
+    { title: 'ご予約', url: 'https://lumenium.net/booking' },
+    { title: 'メニュー', url: 'http://lumenium.net/menu' },
+    { title: '', url: 'https://a.jp/' },
+    { title: '地図', url: 'https://maps.example.com/x', on: false },
+  ] })
+  assert.equal(links.latest, 10)
+  assert.equal(links.title, 'お店')
+  assert.deepEqual(links.items.map((i) => [i.title, i.on]), [['ご予約', true], ['地図', false]])
+  assert.equal(problems.length, 2)
+  assert.equal(st.validateLinks({ items: Array.from({ length: 30 }, (_, i) => ({ title: 't' + i, url: 'https://a.jp/' + i })) }).links.items.length, 20)
+})
+await test('/links：保存した一覧と最近の投稿のリンク、canonical はクエリなし、計測つき', async () => {
+  const api = await import('../api/social.js')
+  const put = await api.PUT(new Request('https://lumenium.net/api/social', {
+    method: 'PUT', headers: { authorization: 'Bearer test-admin-key', 'content-type': 'application/json' },
+    body: JSON.stringify({ links: { latest: 2, note: 'ご予約はこちら', items: [
+      { title: 'ご予約', url: 'https://lumenium.net/booking' }, { title: '地図', url: 'https://maps.example.com/x' }, { title: '隠す', url: 'https://lumenium.net/h', on: false }] } }) }))
+  assert.equal((await put.json()).ok, true)
+  const L = await import('../api/links.js')
+  const res = await L.GET(new Request('https://lumenium.net/links?from=tiktok'))
+  const html = await res.text()
+  assert.match(res.headers.get('content-type'), /text\/html/)
+  assert.ok(html.includes('href="https://lumenium.net/booking?ref=tiktok&amp;utm_campaign=bio"'))
+  assert.ok(html.includes('href="https://maps.example.com/x" rel="noopener"'))
+  assert.ok(!html.includes('/h?'))
+  assert.ok(html.includes('<link rel="canonical" href="https://lumenium.net/links">'))
+  assert.ok(html.includes('ご予約はこちら'))
+  assert.ok(html.includes('lumBeacon') || html.includes('/api/p'), '計測が入っていません')
+  // 最近の投稿：自社サイトへのリンクで、どこかに出たものだけ、同じ行き先は1つ
+  const posts = [
+    { at: '2026-10-01T00:00:00Z', text: '秋の新作です https://lumenium.net/menu', link: 'https://lumenium.net/menu?ref=x', results: [{ ok: true }] },
+    { at: '2026-09-30T00:00:00Z', text: '同じ行き先', link: 'https://lumenium.net/menu', results: [{ ok: true }] },
+    { at: '2026-09-29T00:00:00Z', text: '失敗', link: 'https://lumenium.net/f', results: [{ ok: false }] },
+    { at: '2026-09-28T00:00:00Z', text: '他社', link: 'https://other.example/', results: [{ ok: true }] },
+  ]
+  assert.deepEqual(L.latestLinks(posts, 5).map((x) => [x.title, x.url]), [['秋の新作です', 'https://lumenium.net/menu?ref=x']])
+})
+await test('関数のページ用の計測（api/_beacon-snippet.js）が元と同じ', async () => {
+  const { build } = await import('./build-beacon-snippet.mjs')
+  assert.equal(readFileSync(new URL('../api/_beacon-snippet.js', import.meta.url), 'utf8'), build(),
+    'api/_beacon-snippet.js が古いままです。node scripts/build-beacon-snippet.mjs を実行してください。')
+})
+await test('/links は vercel.json で関数につながっている', () => {
+  const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
+  const i = v.rewrites.findIndex((r) => r.source === '/links' && r.destination === '/api/links')
+  const all = v.rewrites.findIndex((r) => r.source === '/(.*)')
+  assert.ok(i !== -1 && i < all)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

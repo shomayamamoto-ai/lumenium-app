@@ -1270,7 +1270,16 @@
       templates: [
         { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
         { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
-      ]
+      ],
+      links: {
+        title: '', note: '（サンプル）ご予約・メニュー・アクセスはこちらから', latest: 3,
+        items: [
+          { id: 'demo-lk-1', title: 'ご予約', url: 'https://' + DEMO_HOST + '/contact', on: true },
+          { id: 'demo-lk-2', title: '制作実績', url: 'https://' + DEMO_HOST + '/works', on: true },
+          { id: 'demo-lk-3', title: '地図（Googleマップ）', url: 'https://maps.example.com/demo', on: true },
+          { id: 'demo-lk-4', title: '冬季休業のお知らせ', url: 'https://' + DEMO_HOST + '/news', on: false }
+        ]
+      }
     };
   }
   /* このサイトの決まり（shape: _social-text.js validateStyle）。 */
