@@ -5,7 +5,7 @@ import { setting } from './_settings.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { orgLabel, pickTopics } from './_form-options.js'
 import { BRAND, KV } from './_brand.js'
-import { newRecord, putRecord, loadSettings, blockedBy } from './_inquiries.js'
+import { newRecord, putRecord, loadSettings, blockedBy, fillTemplate, isSandboxSender, looksLikeLink } from './_inquiries.js'
 
 // Per IP. Three enquiries in ten minutes is well past what a real person
 // sends; the daily cap stops a slow drip from adding up to a flooded inbox
@@ -98,10 +98,11 @@ export async function POST(req) {
   // 保存先が無いサイトでは、これまでどおりメールだけです。
   const cfg = storeConfig()
   let rec = null
+  let st = null
   let blocked = false
   if (cfg) {
     try {
-      const st = await loadSettings(cfg)
+      st = await loadSettings(cfg)
       blocked = blockedBy(email, st.blockedDomains)
       rec = newRecord({
         name, company, org, email, phone: payload?.phone, topics, message,
@@ -113,18 +114,19 @@ export async function POST(req) {
       rec = null
     }
   }
-  // 1件の記録の「メールはどうなったか」を書き足す。失敗しても問い合わせは止めません。
-  const settle = async (field, value, error) => {
+  // 1件の記録の「メールはどうなったか」を書き足す。書けなくても問い合わせは止めません。
+  const mark = (field, value, error) => {
     if (!rec) return
     rec.mail[field] = value
     if (error) rec.mail[field + 'Error'] = String(error).slice(0, 200)
-    try { await putRecord(cfg, rec) } catch (_) {}
   }
+  const flush = async () => { if (rec) { try { await putRecord(cfg, rec) } catch (_) {} } }
 
   // ブロックするドメイン（管理画面で指定）からの送信。保存だけして、
   // メールは送りません。送り主には普段どおり「送信しました」と返します。
   if (blocked && rec) {
-    await settle('owner', 'skipped')
+    mark('owner', 'skipped')
+    await flush()
     return json({ ok: true })
   }
 
@@ -132,7 +134,13 @@ export async function POST(req) {
   if (!apiKey) {
     console.error('[api/contact] RESEND_API_KEY is not set')
     await record(false, 'RESEND_API_KEY が未設定')
-    if (rec) { await settle('owner', 'failed', 'RESEND_API_KEY が未設定'); return json({ ok: true, stored: true }) }
+    if (rec) {
+      mark('owner', 'failed', 'RESEND_API_KEY が未設定')
+      if (st.autoReply.on) mark('auto', 'failed', 'RESEND_API_KEY が未設定')
+      await linePush(st, rec, mark)
+      await flush()
+      return json({ ok: true, stored: true })
+    }
     return json({ error: 'server_misconfigured' }, 503)
   }
 
@@ -163,13 +171,70 @@ export async function POST(req) {
     await record(false, sent.reason)
     // 保存できていれば、送り主には「届いた」と返します。管理画面に
     // 「メール未送信」として残っていて、取りこぼしにはならないからです。
-    if (rec) { await settle('owner', 'failed', sent.reason); return json({ ok: true, stored: true }) }
-    return json({ error: sent.network ? 'network' : 'send_failed' }, 502)
+    if (!rec) return json({ error: sent.network ? 'network' : 'send_failed' }, 502)
+    mark('owner', 'failed', sent.reason)
+  } else {
+    mark('owner', 'sent')
+    await record(true)
   }
-  await settle('owner', 'sent')
 
-  await record(true)
-  return json({ ok: true })
+  // ここから先は保存できたときだけ（設定が保存先にあるため）。どれも
+  // 失敗しても、送り主への返事は変えません。
+  if (rec) {
+    await autoReply(st, rec, { apiKey, from, to }, mark)
+    await linePush(st, rec, mark)
+    await flush()
+  }
+  return json(sent.ok ? { ok: true } : { ok: true, stored: true })
+}
+
+/** 送り主への受付確認メール（管理画面で文面を直せます。既定は送らない）。
+ *
+ *  送らない場合が3つあります。
+ *   ・送信元が Resend の試用アドレス: 試用アドレスからはResendに登録した
+ *     本人にしか届かないので、送っても失敗するだけです。管理画面で知らせます。
+ *   ・お名前や会社名に URL やアドレスのようなものがある: 他人のアドレスを
+ *     入れて宣伝文を届けさせる「踏み台」を防ぐためです。本文は入れません。
+ *   ・迷惑に分類されたもの（上で先に返しています）。 */
+async function autoReply(st, rec, { apiKey, from, to }, mark) {
+  if (!st || !st.autoReply.on) return mark('auto', 'off')
+  if (isSandboxSender(from)) return mark('auto', 'sandbox')
+  if (looksLikeLink(rec.name) || looksLikeLink(rec.company)) return mark('auto', 'skipped', 'お名前か会社名にURLのようなものがあるため')
+  const vars = { name: rec.name, company: rec.company, brand: BRAND.name, reply_hours: st.replyHours, topics: rec.topics.join('、') }
+  const r = await sendMail(apiKey, {
+    from, to: [rec.email], reply_to: to,
+    subject: fillTemplate(st.autoReply.subject, vars).replace(/\s+/g, ' ').slice(0, 150),
+    text: fillTemplate(st.autoReply.body, vars),
+  })
+  mark('auto', r.ok ? 'sent' : 'failed', r.ok ? '' : r.reason)
+}
+
+/** 持ち主の LINE に「問い合わせが来ました」を1通（Messaging API の push）。
+ *  公式アカウントの月の無料通数から1通ずつ使います。お客様の本文は送らず、
+ *  名前と区分と管理画面へのリンクだけにしています。 */
+async function linePush(st, rec, mark) {
+  if (!st || !st.lineOn || !st.lineUserId) return mark('line', 'off')
+  const token = await setting('LINE_CHANNEL_TOKEN')
+  if (!token) return mark('line', 'failed', 'LINE_CHANNEL_TOKEN が未設定')
+  const who = rec.company ? `${rec.company} ${rec.name}様` : `${rec.name}様`
+  const text = [
+    '新しいお問い合わせが届きました。',
+    who + (rec.topics.length ? `（${rec.topics.join('、')}）` : ''),
+    rec.mail.owner === 'failed' ? '※メール通知は送れていません。管理画面で確認してください。' : null,
+    `${BRAND.url}/admin-members.html#inq=${rec.id}`,
+  ].filter(Boolean).join('\n')
+  try {
+    const res = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: st.lineUserId, messages: [{ type: 'text', text }] }),
+    })
+    if (res.ok) return mark('line', 'sent')
+    const d = await res.json().catch(() => ({}))
+    mark('line', 'failed', `LINE が ${res.status} を返しました${d && d.message ? `（${String(d.message).slice(0, 80)}）` : ''}`)
+  } catch (_) {
+    mark('line', 'failed', 'LINE への通信エラー')
+  }
 }
 
 /** Resend に1通送る。失敗の理由は、管理画面に出せる日本語で返します。 */
