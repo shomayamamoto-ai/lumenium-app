@@ -146,6 +146,8 @@ export async function POST(req) {
   const read = readPayload(body)
   if (!read.ok) return json(read, 400)
   const payload = read.payload
+  // 運用プランの柱（任意）。予約にも残り、出たときの記録に入ります（api/_social-plan.js）。
+  if (/^[a-z0-9-]{1,40}$/i.test(String(body.pillar || ''))) payload.pillar = String(body.pillar)
   const problems = precheck(payload)
   if (problems.length) {
     return json({ ok: false, code: 'CHECK', problems, message: '送る前の確認で止めました（どこにも送っていません）：' + problems.join(' / ') }, 400)

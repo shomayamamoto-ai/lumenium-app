@@ -1,0 +1,454 @@
+/* ---- SNS（文章）の「運用プラン」 ----
+   何を・どのくらいの間隔で出すかを決めて、守れているかを見る画面。
+   SNS（文章）タブの中に「投稿する／運用プラン」の切り替えとして出ます。
+
+   SNS（文章）の本体（admin-members.html）には手を入れず、決まった id の要素
+   （#social-plan-root・投稿欄の #social-tpl・#social-text・#social-nets など）に
+   あとから部品を足すだけにしています。本体を直している人と、ぶつからないためです。
+
+   数え方（柱の割合・週の区切り・LINE の通数・振り返り）は /social-plan-core.js
+   にあり、サーバーも同じものを使います。目安はどれも一般的な調査から取った
+   「目安」で、件数が少ないうちは「判断できません」「参考程度」と出します。 */
+(function () {
+  'use strict';
+  var C = null;
+  var D = null;
+  var S = { view: 'compose', pillar: '', loading: false, stale: true, editing: false, draft: null, msg: '' };
+  var el = function (id) { return document.getElementById(id); };
+
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pct(v) { return Math.round((Number(v) || 0) * 100) + '%'; }
+  function demo() { try { return sessionStorage.getItem('lum_demo') === '1'; } catch (_) { return false; } }
+  function ls(k, v) {
+    try {
+      if (v === undefined) return localStorage.getItem(k);
+      if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+    } catch (_) {}
+    return null;
+  }
+  async function api(url, opts) {
+    try { return await window.lumAdmin.fetch(url, opts); }
+    catch (_) { return { res: { ok: false, status: 0 }, data: { ok: false, message: '通信できませんでした。ネットの接続を確かめて、もう一度お試しください。' } }; }
+  }
+  function put(body) {
+    return api('/api/social-plan', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  }
+  function say(t, ok) {
+    var m = el('spl-msg');
+    if (!m) return;
+    m.textContent = t || '';
+    m.classList.toggle('show', !!t);
+    m.classList.toggle('info', !!ok);
+  }
+  function netLabel(id) {
+    var n = D && (D.networks || []).filter(function (x) { return x.id === id; })[0];
+    return n ? n.label : (C && C.NET_LABELS[id]) || id;
+  }
+  function pillars() { return (D && D.plan && D.plan.pillars) || []; }
+  function pillarById(id) { return pillars().filter(function (p) { return p.id === id; })[0] || null; }
+  function chip(p) {
+    if (!p) return '<span class="spl-chip none">柱なし</span>';
+    return '<span class="spl-chip" style="background:' + p.color + '1f;color:' + p.color + ';border-color:' + p.color + '55">' +
+      '<i style="background:' + p.color + '"></i>' + esc(p.name) + (p.promo ? '（宣伝）' : '') + '</span>';
+  }
+  function band(r) {
+    return r && r.label ? ' <span class="spl-band ' + r.level + '">' + esc(r.label) + '</span>' : '';
+  }
+
+  /* ---- 見た目（このファイルの部品だけ。動きは付けません） ---- */
+  var CSS =
+    '.spl-tabs{display:flex;gap:0;margin:2px 0 14px;border:1px solid var(--border);border-radius:10px;overflow:hidden;width:max-content;max-width:100%}' +
+    '.spl-tabs button{background:#fff;color:var(--text);border:0;border-radius:0;font-size:12.5px;padding:8px 16px;font-weight:700;box-shadow:none}' +
+    '.spl-tabs button[aria-pressed="true"]{background:#0f766e;color:#fff}' +
+    '.spl-sec{background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:14px}' +
+    '.spl-sec>h3{font-size:14px;font-weight:800;margin:0 0 3px}' +
+    '.spl-sec>.lead{font-size:11.5px;color:var(--sub);line-height:1.75;margin:0 0 9px}' +
+    '.spl-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid var(--border);margin:1px 3px 1px 0;white-space:nowrap}' +
+    '.spl-chip i{display:inline-block;width:8px;height:8px;border-radius:50%}' +
+    '.spl-chip.none{background:#f3f1ec;color:var(--sub)}' +
+    '.spl-band{display:inline-block;font-size:10px;font-weight:700;padding:0 7px;border-radius:999px;margin-left:4px;vertical-align:1px}' +
+    '.spl-band.none{background:#e7e4dc;color:var(--sub)}.spl-band.low{background:rgba(251,191,36,.22);color:#92400e}' +
+    '.spl-meyasu{display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border-radius:999px;background:rgba(99,102,241,.12);color:#3730a3;margin-left:3px;vertical-align:1px}' +
+    '.spl-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#eeeae2;margin:6px 0 4px}' +
+    '.spl-bar span{display:block;height:100%}' +
+    '.spl-meter{position:relative;height:10px;border-radius:5px;background:#eeeae2;margin:4px 0}' +
+    '.spl-meter b{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#0f766e}' +
+    '.spl-meter b.over{background:#b42318}.spl-meter em{position:absolute;top:-3px;bottom:-3px;width:2px;background:#17171c}' +
+    '.spl-warn{background:rgba(251,191,36,.14);border:1px solid rgba(217,119,6,.35);border-radius:9px;padding:7px 11px;font-size:12px;line-height:1.75;margin:6px 0;color:#7c2d12}' +
+    '.spl-good{background:rgba(16,185,129,.09);border:1px solid rgba(4,120,87,.25);border-radius:9px;padding:7px 11px;font-size:12px;line-height:1.75;margin:6px 0;color:#065f46}' +
+    '.spl-note{font-size:11px;color:var(--sub);line-height:1.7;margin-top:6px}' +
+    '.spl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}' +
+    '.spl-card{border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:#fbfaf7;font-size:12px;line-height:1.7;min-width:0;overflow-wrap:anywhere}' +
+    '.spl-card .t{font-weight:800;font-size:12.5px}' +
+    '.spl-form .row{border:1px solid var(--border);border-radius:10px;padding:9px 11px;margin-bottom:8px;background:#fbfaf7}' +
+    '.spl-form label{display:block;font-size:11px;font-weight:700;margin:6px 0 3px}' +
+    '.spl-form input[type=text],.spl-form textarea,.spl-in{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:var(--text)}' +
+    '.spl-sw{display:inline-flex;gap:5px;flex-wrap:wrap}.spl-sw label{display:inline-flex;margin:0;cursor:pointer}' +
+    '.spl-sw input{position:absolute;opacity:0;width:1px;height:1px}.spl-sw span{display:inline-block;width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--border)}' +
+    '.spl-sw input:checked+span{box-shadow:0 0 0 2px #17171c}.spl-sw input:focus-visible+span{outline:2px solid #3d3fbf;outline-offset:2px}' +
+    '.spl-btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}' +
+    '.spl-btns button{font-size:12px;padding:6px 12px}' +
+    '.spl-compose{margin:0 0 10px;padding:9px 12px;border:1px dashed #0f766e;border-radius:11px;background:rgba(20,184,166,.05);font-size:12px;line-height:1.7}' +
+    '.spl-compose select{width:auto;max-width:100%;font-size:12.5px;padding:5px 8px}' +
+    '.spl-list{list-style:none;margin:0;padding:0}' +
+    '.spl-list li{border-top:1px solid var(--border);padding:8px 0;font-size:12.5px;line-height:1.75;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}' +
+    '.spl-list li:first-child{border-top:0}' +
+    '.spl-list .body{flex:1 1 240px;min-width:0}' +
+    '.spl-list .why{font-size:11px;color:var(--sub)}' +
+    '.spl-kind{display:inline-block;font-size:10px;font-weight:800;padding:0 7px;border-radius:999px;background:#e7e4dc;margin-right:5px}' +
+    '@media (max-width:560px){.spl-tabs{width:100%}.spl-tabs button{flex:1}.spl-sec{padding:11px 12px}}';
+
+  function addCss() {
+    if (el('spl-css')) return;
+    var s = document.createElement('style');
+    s.id = 'spl-css';
+    s.textContent = CSS;
+    document.head.appendChild(s);
+  }
+
+  /* ---- 数え方の部品（/social-plan-core.js）を読む ---- */
+  var corePromise = null;
+  function loadCore() {
+    if (window.lumSocialPlan) { C = window.lumSocialPlan; return Promise.resolve(C); }
+    if (corePromise) return corePromise;
+    corePromise = new Promise(function (ok, ng) {
+      var sc = document.createElement('script');
+      sc.src = '/social-plan-core.js';
+      sc.onload = function () { C = window.lumSocialPlan; C ? ok(C) : ng(new Error('core')); };
+      sc.onerror = function () { corePromise = null; ng(new Error('core')); };
+      document.head.appendChild(sc);
+    });
+    return corePromise;
+  }
+
+  /* ---- 切り替え（投稿する／運用プラン） ---- */
+  function setup() {
+    var root = el('social-plan-root');
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = '1';
+    addCss();
+    root.innerHTML =
+      '<div class="spl-tabs" role="group" aria-label="表示の切り替え">' +
+        '<button type="button" id="spl-to-compose" aria-pressed="true">投稿する</button>' +
+        '<button type="button" id="spl-to-plan" aria-pressed="false">運用プラン</button>' +
+      '</div>' +
+      '<div id="spl-view" style="display:none"><p class="msg" id="spl-msg" style="margin-bottom:10px"></p><div id="spl-body"></div></div>';
+    el('spl-to-compose').addEventListener('click', function () { setView('compose'); });
+    el('spl-to-plan').addEventListener('click', function () { setView('plan'); });
+    composerAddon();
+  }
+
+  function setView(v) {
+    S.view = v;
+    var root = el('social-plan-root');
+    var panel = el('social-admin');
+    if (!root || !panel) return;
+    el('spl-to-compose').setAttribute('aria-pressed', v === 'compose' ? 'true' : 'false');
+    el('spl-to-plan').setAttribute('aria-pressed', v === 'plan' ? 'true' : 'false');
+    el('spl-view').style.display = v === 'plan' ? 'block' : 'none';
+    // 運用プランを見ている間は、投稿欄から下を隠します（消しはしません）。
+    var after = false;
+    Array.prototype.forEach.call(panel.children, function (c) {
+      if (c === root) { after = true; return; }
+      if (!after) return;
+      if (v === 'plan') {
+        if (c.dataset.splHid === undefined) c.dataset.splHid = c.style.display || '';
+        c.style.display = 'none';
+      } else if (c.dataset.splHid !== undefined) {
+        c.style.display = c.dataset.splHid;
+        delete c.dataset.splHid;
+      }
+    });
+    if (v === 'plan' && (S.stale || !D)) load();
+    else if (v === 'plan') render();
+  }
+
+  async function load() {
+    if (S.loading) return;
+    S.loading = true;
+    var body = el('spl-body');
+    if (body && !D) body.innerHTML = '<p class="spl-note">読み込んでいます…</p>';
+    try {
+      await loadCore();
+    } catch (_) {
+      S.loading = false;
+      if (body) body.innerHTML = '<p class="spl-warn">画面の部品（social-plan-core.js）を読み込めませんでした。再読み込みしてください。</p>';
+      return;
+    }
+    var r = await api('/api/social-plan');
+    S.loading = false;
+    var d = r.data || {};
+    if (!d.ok) {
+      if (body) body.innerHTML = '<p class="spl-warn">' + esc(d.message || '運用プランを読み込めませんでした。') + '</p>';
+      return;
+    }
+    D = d;
+    S.stale = false;
+    fillPillarSelect();
+    if (S.view === 'plan') render();
+  }
+
+  function items() { return C.itemsOf(D.posts, D.queue, D.plan.tags); }
+
+  /* ---- 画面の組み立て。上から「いま見るもの」の順です ---- */
+  var SECTIONS = [];
+  function render() {
+    var body = el('spl-body');
+    if (!body || !D || !C) return;
+    var it = items();
+    body.innerHTML = SECTIONS.map(function (s) {
+      var h = s.html(it);
+      return h ? '<section class="spl-sec" id="spl-' + s.id + '">' + h + '</section>' : '';
+    }).join('') +
+      (D.stored ? '' : '<p class="spl-warn">保存先（Upstash Redis）が未接続のため、投稿の記録とプランを保存できません。数字はすべて0として出ています。</p>');
+    SECTIONS.forEach(function (s) { if (s.bind) s.bind(it); });
+  }
+
+  /* ================================================================
+     1. 柱（テーマ）と、そのバランス
+     ================================================================ */
+  function pillarsHtml(it) {
+    if (S.editing) return pillarForm();
+    var ps = pillars();
+    var mix = C.pillarMix(it, ps, D.today);
+    var h = '<h3>柱（テーマ）とバランス</h3>' +
+      '<p class="lead">いつも出す話題を3〜5つ決めておくと、毎回「何を書こう」と悩まずに済みます。' +
+      '役立つ話・共感される話を8割、宣伝は2割までが目安です<span class="spl-meyasu">目安</span>。</p>';
+    if (!ps.length) {
+      return h + '<p class="spl-warn">まだ柱が決まっていません。</p>' +
+        '<div class="spl-btns"><button type="button" id="spl-p-sample">おすすめの柱で始める</button>' +
+        '<button type="button" class="ghost" id="spl-p-edit">自分で決める</button></div>';
+    }
+    h += '<div class="spl-grid">' + ps.map(function (p) {
+      var row = mix.rows.filter(function (r) { return r.id === p.id; })[0] || { n: 0, share: 0 };
+      return '<div class="spl-card">' + chip(p) +
+        (p.desc ? '<div>' + esc(p.desc) + '</div>' : '') +
+        (p.ideas.length ? '<div class="spl-note">ネタの例：' + p.ideas.map(esc).join('／') + '</div>' : '') +
+        '<div style="margin-top:4px;font-weight:700">直近30日＋予約：' + row.n + '本' + (mix.tagged ? '（' + pct(row.share) + '）' : '') + '</div></div>';
+    }).join('') + '</div>';
+    h += '<div class="spl-btns"><button type="button" class="ghost" id="spl-p-edit">柱を直す</button></div>';
+    // 割合
+    h += '<h4 style="font-size:12.5px;margin:12px 0 2px">直近30日と予約の割合' + band(mix.reliability) + '</h4>';
+    if (mix.tagged) {
+      h += '<div class="spl-bar" role="img" aria-label="柱ごとの割合">' + mix.rows.filter(function (r) { return r.n; }).map(function (r) {
+        return '<span title="' + esc(r.name) + ' ' + pct(r.share) + '" style="width:' + (r.share * 100) + '%;background:' + r.color + '"></span>';
+      }).join('') + '</div>' +
+        '<div style="font-size:11.5px">' + mix.rows.map(function (r) { return chip(pillarById(r.id)) + r.n + '本 '; }).join('') + '</div>' +
+        '<div style="font-size:12px;margin-top:8px">宣伝の割合：<b>' + pct(mix.promoShare) + '</b>（目安は20%まで<span class="spl-meyasu">目安</span>）</div>' +
+        '<div class="spl-meter"><b class="' + (mix.promoOver ? 'over' : '') + '" style="width:' + Math.min(100, mix.promoShare * 100) + '%"></b><em style="left:20%"></em></div>';
+    } else {
+      h += '<p class="spl-note">柱の付いた投稿がまだありません。投稿欄の「柱」を選んで出すと、ここに割合が出ます。</p>';
+    }
+    if (mix.reliability.note && mix.tagged) h += '<p class="spl-note">' + esc(mix.reliability.note) + '</p>';
+    mix.warnings.forEach(function (w) { h += '<p class="spl-warn">' + esc(w) + '</p>'; });
+    mix.notes.forEach(function (w) { h += '<p class="spl-note">' + esc(w) + '</p>'; });
+    h += untaggedHtml(it);
+    return h;
+  }
+
+  /* 柱の付いていない投稿・予約に、あとから柱を付ける（直近30日分だけ）。 */
+  function untaggedHtml(it) {
+    var from = C.addDays(D.today, -29);
+    var list = it.filter(function (x) { return !x.pillar && x.day >= from; }).slice(0, 8);
+    if (!list.length || !pillars().length) return '';
+    return '<details style="margin-top:8px"><summary style="font-size:12px;cursor:pointer">柱が付いていない投稿に、あとから付ける（' + list.length + '件）</summary>' +
+      '<ul class="spl-list" style="margin-top:6px">' + list.map(function (x) {
+        return '<li><div class="body"><span class="spl-kind">' + (x.scheduled ? '予約 ' : '') + esc(x.day) + '</span>' + esc(String(x.src.text || '').slice(0, 60)) + '</div>' +
+          '<select class="spl-tag" data-id="' + esc(x.id) + '" aria-label="この投稿の柱" style="width:auto;font-size:12px;padding:4px 6px"><option value="">選ぶ</option>' +
+          pillars().map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('') + '</select></li>';
+      }).join('') + '</ul></details>';
+  }
+
+  function pillarForm() {
+    var ps = S.draft || [];
+    var sw = function (i, cur) {
+      return '<div class="spl-sw" role="radiogroup" aria-label="色">' + C.PILLAR_COLORS.map(function (c, k) {
+        return '<label><input type="radio" name="spl-c' + i + '" value="' + c + '"' + (c === cur ? ' checked' : '') + ' aria-label="色' + (k + 1) + '"><span style="background:' + c + '"></span></label>';
+      }).join('') + '</div>';
+    };
+    return '<h3>柱（テーマ）を決める</h3>' +
+      '<p class="lead">3〜5つが目安です<span class="spl-meyasu">目安</span>。「宣伝」に印を付けた柱は、宣伝の割合（20%まで）として数えます。</p>' +
+      '<div class="spl-form">' + ps.map(function (p, i) {
+        return '<div class="row" data-i="' + i + '">' +
+          '<label for="spl-n' + i + '">名前（20字まで）</label><input type="text" id="spl-n' + i + '" maxlength="20" value="' + esc(p.name) + '">' +
+          '<label for="spl-d' + i + '">どんな話か</label><input type="text" id="spl-d' + i + '" maxlength="80" value="' + esc(p.desc) + '">' +
+          '<label for="spl-i' + i + '">ネタの例（1行に1つ）</label><textarea id="spl-i' + i + '" rows="2">' + esc((p.ideas || []).join('\n')) + '</textarea>' +
+          '<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="spl-pr' + i + '"' + (p.promo ? ' checked' : '') + '> 宣伝の柱（新商品・セール・予約のお願いなど）</label>' +
+          '<label>色</label>' + sw(i, p.color) +
+          '<div class="spl-btns"><button type="button" class="ghost spl-p-del" data-i="' + i + '">この柱を消す</button></div></div>';
+      }).join('') + '</div>' +
+      '<div class="spl-btns">' +
+        (ps.length < C.PILLAR_MAX ? '<button type="button" class="ghost" id="spl-p-add">柱を足す</button>' : '') +
+        '<button type="button" id="spl-p-save">保存</button>' +
+        '<button type="button" class="ghost" id="spl-p-cancel">やめる</button>' +
+      '</div>' +
+      (ps.length < C.PILLAR_MIN ? '<p class="spl-note">あと' + (C.PILLAR_MIN - ps.length) + 'つ足すと、目安の3つになります。</p>' : '');
+  }
+
+  function readForm() {
+    return (S.draft || []).map(function (p, i) {
+      var c = document.querySelector('input[name="spl-c' + i + '"]:checked');
+      return {
+        id: p.id, name: el('spl-n' + i).value, desc: el('spl-d' + i).value,
+        ideas: el('spl-i' + i).value.split('\n'), promo: el('spl-pr' + i).checked, color: c ? c.value : p.color
+      };
+    });
+  }
+
+  function bindPillars() {
+    var on = function (id, fn) { var b = el(id); if (b) b.addEventListener('click', fn); };
+    on('spl-p-sample', function () {
+      S.draft = C.SAMPLE_PILLARS.map(function (p, i) { return { id: '', name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: C.PILLAR_COLORS[i] }; });
+      S.editing = true; render();
+    });
+    on('spl-p-edit', function () {
+      S.draft = pillars().map(function (p) { return { id: p.id, name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: p.color }; });
+      if (!S.draft.length) S.draft.push({ id: '', name: '', desc: '', ideas: [], promo: false, color: C.PILLAR_COLORS[0] });
+      S.editing = true; render();
+    });
+    on('spl-p-add', function () {
+      S.draft = readForm();
+      S.draft.push({ id: '', name: '', desc: '', ideas: [], promo: false, color: C.PILLAR_COLORS[S.draft.length % C.PILLAR_COLORS.length] });
+      render();
+    });
+    on('spl-p-cancel', function () { S.editing = false; S.draft = null; render(); });
+    on('spl-p-save', async function () {
+      var next = readForm().filter(function (p) { return String(p.name).trim(); });
+      var plan = { pillars: next, targets: D.plan.targets, tags: D.plan.tags };
+      var r = await put({ plan: plan });
+      var d = r.data || {};
+      if (!d.ok) { say(d.message || '保存できませんでした。'); return; }
+      D.plan = d.plan;
+      S.editing = false; S.draft = null;
+      fillPillarSelect();
+      say(d.message || '保存しました。', true);
+      render();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.spl-p-del'), function (b) {
+      b.addEventListener('click', function () {
+        S.draft = readForm();
+        S.draft.splice(Number(b.dataset.i), 1);
+        render();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.spl-tag'), function (s) {
+      s.addEventListener('change', async function () {
+        if (!s.value) return;
+        var r = await put({ tag: { id: s.dataset.id, pillar: s.value } });
+        var d = r.data || {};
+        if (!d.ok) { say(d.message || '柱を付けられませんでした。'); s.value = ''; return; }
+        D.plan = d.plan;
+        say(d.message || '柱を付けました。', true);
+        render();
+      });
+    });
+  }
+  SECTIONS.push({ id: 'pillars', html: pillarsHtml, bind: bindPillars });
+
+  /* ================================================================
+     投稿欄に足す部品（柱の選択など）。投稿欄そのものは書き換えません。
+     ================================================================ */
+  var ADDON = [];
+  function composerAddon() {
+    var anchor = el('social-tpl');
+    if (!anchor || el('spl-compose')) return;
+    var box = document.createElement('div');
+    box.id = 'spl-compose';
+    box.className = 'spl-compose';
+    box.innerHTML =
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
+        '<label for="spl-pillar" style="font-weight:700">柱（テーマ）</label>' +
+        '<select id="spl-pillar"><option value="">選ばない</option></select>' +
+        '<span class="soc-small" id="spl-pillar-note">選ぶと、運用プランの「バランス」に数えます。</span>' +
+      '</div><div id="spl-addon"></div>';
+    anchor.parentNode.insertBefore(box, anchor);
+    el('spl-pillar').addEventListener('change', function () { S.pillar = el('spl-pillar').value; ls('lum_spl_pillar', S.pillar || null); addonUpdate(); });
+    S.pillar = ls('lum_spl_pillar') || '';
+    // 本文・出す先・日付が変わったら、足した部品を更新します。
+    ['social-text'].forEach(function (id) { var x = el(id); if (x) x.addEventListener('input', addonSoon); });
+    var nets = el('social-nets');
+    if (nets) nets.addEventListener('change', addonSoon);
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t && (t.name === 'social-when' || t.id === 'social-date')) addonSoon();
+    });
+  }
+  function fillPillarSelect() {
+    var s = el('spl-pillar');
+    if (!s) return;
+    var ps = pillars();
+    s.innerHTML = '<option value="">選ばない</option>' + ps.map(function (p) {
+      return '<option value="' + esc(p.id) + '">' + esc(p.name) + (p.promo ? '（宣伝）' : '') + '</option>';
+    }).join('');
+    if (S.pillar && !pillarById(S.pillar)) S.pillar = '';
+    s.value = S.pillar;
+    el('spl-pillar-note').textContent = ps.length ? '選ぶと、運用プランの「バランス」に数えます。' : '柱は「運用プラン」で決められます。';
+    addonUpdate();
+  }
+  var addonTimer = 0;
+  function addonSoon() { clearTimeout(addonTimer); addonTimer = setTimeout(addonUpdate, 250); }
+  function addonUpdate() {
+    var out = el('spl-addon');
+    if (!out || !C) return;
+    out.innerHTML = ADDON.map(function (f) { return f() || ''; }).join('');
+  }
+
+  /* 送るとき、選んだ柱を一緒に渡します（/api/social が予約・記録に残します）。 */
+  var realFetch = window.fetch ? window.fetch.bind(window) : null;
+  if (realFetch) {
+    window.fetch = function (input, init) {
+      try {
+        var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+        var u = new URL(url, location.href);
+        var method = String((init && init.method) || 'GET').toUpperCase();
+        if (u.pathname === '/api/social' && method === 'POST' && init && typeof init.body === 'string') {
+          var b = JSON.parse(init.body);
+          var a = b.action || 'post';
+          if (a === 'post' || a === 'schedule') {
+            if (S.pillar && !b.pillar) {
+              b.pillar = S.pillar;
+              init = Object.assign({}, init, { body: JSON.stringify(b) });
+            }
+            return realFetch(input, init).then(function (res) { afterSend(a, res.clone()); return res; });
+          }
+        }
+      } catch (_) {}
+      return realFetch(input, init);
+    };
+  }
+  function afterSend(action, res) {
+    res.json().then(function (d) {
+      var ok = action === 'post' ? d && d.posted > 0 : d && d.ok;
+      if (!ok) return;
+      S.stale = true;
+      S.pillar = '';
+      ls('lum_spl_pillar', null);
+      var s = el('spl-pillar');
+      if (s) s.value = '';
+      addonUpdate();
+    }).catch(function () {});
+  }
+
+  /* SNS（文章）タブを開いたときに、部品を置いてプランを読みます。 */
+  function hook() {
+    var orig = window.lumSocialInit;
+    if (typeof orig !== 'function' || orig.splWrapped) return;
+    var wrapped = function () {
+      var r = orig.apply(this, arguments);
+      setup();
+      if (!D && !S.loading) load();
+      return r;
+    };
+    wrapped.splWrapped = true;
+    window.lumSocialInit = wrapped;
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook);
+  else hook();
+
+  // テスト・ほかの部品から使う入り口。
+  window.lumSocialPlanUI = { load: load, setView: setView, state: function () { return { S: S, D: D }; } };
+})();

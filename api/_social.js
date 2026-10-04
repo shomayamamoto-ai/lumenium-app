@@ -598,6 +598,7 @@ export async function sendPost(payload, req, opts = {}) {
     results,
   }
   if (opts.scheduledFor) entry.scheduledFor = opts.scheduledFor
+  if (payload.pillar) entry.pillar = payload.pillar // 運用プランの柱（api/social.js が付けたときだけ）
   const kept = await logPosts(entry, req)
   return { entry, results, kept }
 }

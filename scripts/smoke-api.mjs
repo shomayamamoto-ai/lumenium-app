@@ -261,6 +261,10 @@ const CALLS = [
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],
   // 画像の置き場所が無い状態（＝ 503 で理由を返す）。
   ['social-upload', 'POST', '', { ...KEY, 'content-type': 'image/jpeg' }, '__bytes__'],
+  // SNS（文章）の運用プラン。読む・丸ごと保存・あとから柱を付ける。
+  ['social-plan', 'GET', '', KEY],
+  ['social-plan', 'PUT', '', JSONH, { plan: { pillars: [{ name: 'お役立ち' }, { name: '宣伝', promo: true }], targets: { x: { on: true, per: 'week', n: 5 } } } }],
+  ['social-plan', 'PUT', '', JSONH, { tag: { id: 'none', pillar: '' } }],
   // SNS（動画）。プロジェクトを決まった id で作り、その中で一通り呼びます。
   ['video', 'GET', '', KEY],
   ['video', 'POST', '', JSONH, { action: 'project.save', project: { id: 'smoke-prj', name: 'スモーク', brand: { banned_words: ['最安'], notation: { 'ネイル': 'nail' } } } }],
