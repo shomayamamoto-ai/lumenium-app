@@ -5,6 +5,7 @@ import { events, funnel, whenSeen } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
 import { ORG_TYPES, TOPICS } from '../data/site'
 import { scrollBehavior } from '../lib/motion'
+import { visitSource } from '../lib/pageview'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LIMITS = { name: 50, email: 100, company: 80, message: 1000 }
@@ -141,6 +142,8 @@ export default function ContactForm() {
           website: form.website,
           // Which page the enquiry came from, so it can be prioritised.
           page: typeof window !== 'undefined' ? window.location.hash || window.location.pathname : '',
+          // どこから来た訪問か（計測と同じ控え）。問い合わせ管理に出します。
+          src: visitSource(),
         }),
       })
       if (!res.ok) throw new Error(`status ${res.status}`)

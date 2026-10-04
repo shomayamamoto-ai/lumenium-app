@@ -22,6 +22,19 @@ export function sendEvent(name, dest) {
   if (api) api.event(name, dest)
 }
 
+/** いまの訪問の「どこから来たか」（beacon-core.js が sessionStorage に置いた控え）。
+ *  問い合わせフォームが添えて送り、問い合わせ管理で「Instagram（計測リンク）
+ *  から来た人」のように出します。中身は計測が送っているものと同じ4つだけです。 */
+export function visitSource() {
+  try {
+    const x = JSON.parse(window.sessionStorage.getItem('lum_s') || 'null')
+    if (!x) return null
+    return { s: x.src || '', m: x.med || '', c: x.cmp || '', r: x.ref || '' }
+  } catch (_) {
+    return null
+  }
+}
+
 /** Called before the app renders, so the first pageview does not wait for
  *  content.json (it used to wait up to ~2s, and a visitor who left in that
  *  time was never counted at all). */
