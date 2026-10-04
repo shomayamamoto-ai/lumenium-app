@@ -681,6 +681,7 @@
   .soc-chip.returned { background: rgba(248,113,113,0.15); color: #b42318; }
   .soc-chip.done { background: #e7e4dc; color: var(--sub); }
   .soc-apv { flex-wrap: wrap; }
+  .soc-apv .body { flex: 1 1 280px; }
   .soc-apv .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .soc-code { font-size: 11.5px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; overflow-wrap: anywhere; word-break: break-all; }
   .soc-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
@@ -7672,7 +7673,8 @@ window.lumAdmin = {
     }[id] || '投稿欄に貼ってください。';
   }
   function openUrl(id, c) {
-    var t = encodeURIComponent(c.text + (c.linkSeparate && c.link ? '\n' + c.link : ''));
+    // スレッドに分けたときは1件目だけ（続きは「この件をコピー」で返信として）。
+    var t = encodeURIComponent(c.parts && c.parts.length > 1 ? c.parts[0] : c.text + (c.linkSeparate && c.link ? '\n' + c.link : ''));
     var u = encodeURIComponent(c.link || '');
     return {
       x: 'https://x.com/intent/post?text=' + t,
@@ -7687,7 +7689,7 @@ window.lumAdmin = {
   }
   function clip(id, open) {
     var c = composeFor(id);
-    var text = c.text + (c.linkSeparate && c.link ? '\n' + c.link : '');
+    var text = c.parts && c.parts.length > 1 ? c.parts[0] : c.text + (c.linkSeparate && c.link ? '\n' + c.link : '');
     var st = el('soc-v-clipst');
     if (!text.trim()) { st.textContent = '本文がまだありません。'; return; }
     // 開くのはクリックの直後に（awaitの後だとポップアップとして止められます）。

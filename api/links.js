@@ -76,7 +76,7 @@ export function renderLinks({ links, latest, from }) {
   body { margin: 0; min-height: 100vh; }
   .wrap { max-width: 520px; margin: 0 auto; padding: 36px 16px 48px; }
   h1 { font-size: 24px !important; text-align: center; margin: 0 0 6px; }
-  .note { text-align: center; font-size: 13.5px; line-height: 1.8; margin: 0 0 22px; }
+  .lk-note { text-align: center; font-size: 13.5px; line-height: 1.8; margin: 0 0 22px; }
   ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   li::before { content: none !important; }
   .lk { display: flex; flex-direction: column; gap: 2px; padding: 15px 18px; background: var(--card); border: 1px solid var(--hair); border-radius: 14px; text-decoration: none; color: var(--ink); }
@@ -92,7 +92,7 @@ export function renderLinks({ links, latest, from }) {
 <body>
 <main class="wrap">
   <h1>${esc(title)}</h1>
-  ${links.note ? `<p class="note">${esc(links.note)}</p>` : '<p class="note">大事なリンクと、最近のお知らせです。</p>'}
+  ${links.note ? `<p class="lk-note">${esc(links.note)}</p>` : '<p class="lk-note">大事なリンクと、最近のお知らせです。</p>'}
   <ul>
 ${items.map((i) => '    ' + a(i)).join('\n')}
   </ul>
