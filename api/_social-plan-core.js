@@ -407,6 +407,38 @@ export function carouselText(c) {
   return out.join('\n') + '\n'
 }
 
+/** ブロックの割合。LINE が blocks を返していればそれを、無ければ
+ *  「友だち − 届く人数」から出します（届く人数は LINE が数えた targetedReaches）。 */
+export function lineBlockRate(q) {
+  if (!q || typeof q !== 'object') return null
+  var f = Number(q.followers)
+  if (!isFinite(f) || f <= 0 || q.followers == null) return null
+  if (q.blocks != null && isFinite(Number(q.blocks))) return Math.max(0, Number(q.blocks)) / f
+  if (q.reach == null || !isFinite(Number(q.reach))) return null
+  return Math.max(0, f - Number(q.reach)) / f
+}
+
+/** ブロックの割合の目安（20%以下は良好、20〜30%は平均的、30%を超えたら見直し）。 */
+export function blockBand(rate) {
+  if (rate == null) return null
+  if (rate <= 0.2) return { level: 'good', label: '良好', note: 'ブロックの割合は低めです。今のペースで大丈夫です。' }
+  if (rate <= 0.3) return { level: 'avg', label: '平均的', note: 'よくある範囲です。送る回数を増やす前に、内容が友だちに役立つかを見直しましょう。' }
+  return { level: 'act', label: '見直しが必要', note: 'ブロックが多めです。送る回数を減らし、クーポンや役立つ情報など「受け取ってうれしい」内容にしましょう。' }
+}
+
+/** 友だちの人数の移り変わり（1日1回のメモから）。2日分ないときは null。 */
+export function lineTrend(rows) {
+  var r = (rows || []).filter(function (x) { return x && x.date && x.followers != null && isFinite(Number(x.followers)) })
+    .sort(function (a, b) { return a.date < b.date ? -1 : 1 })
+  if (r.length < 2) return null
+  var first = r[0]
+  var last = r[r.length - 1]
+  return {
+    from: first.date, to: last.date, first: Number(first.followers), last: Number(last.followers),
+    diff: Number(last.followers) - Number(first.followers), points: r.slice(-60).map(function (x) { return { date: x.date, n: Number(x.followers) } }),
+  }
+}
+
 /* ------------------------------------------------------ 5. the inbox -- */
 
 /* コメントの受信箱の1件から、届いた時刻・返事をした時刻を読みます。

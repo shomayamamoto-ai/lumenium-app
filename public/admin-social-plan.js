@@ -713,9 +713,82 @@
   }
 
   /* ================================================================
+     6. LINE の送りすぎ注意
+     ================================================================ */
+  function lineHtml(it) {
+    var lt = D.plan.targets.line;
+    var q = D.line;
+    var lm = C.lineMonth(it, D.today);
+    var prevDay = C.addDays(C.monthStart(D.today), -1);
+    var prev = C.lineMonth(it, prevDay);
+    if (!(lt && lt.on) && !q && !lm.count && !prev.count) return '';
+    var h = '<h3>LINE の送りすぎ注意</h3>' +
+      '<p class="lead">LINE 公式アカウントの一斉送信は、月2〜4通が目安です<span class="spl-meyasu">目安</span>。友だちは「多くても週1通まで」を好む人が多く、送りすぎるとブロックされやすくなります。</p>';
+    var w = Math.min(100, lm.count / 6 * 100);
+    h += '<p style="font-size:13px;margin:2px 0"><b>今月（' + Number(D.today.slice(5, 7)) + '月）：' + lm.count + ' 通</b>（送った ' + lm.sent + '・予約 ' + lm.booked + '）　先月：' + prev.count + ' 通</p>' +
+      '<div class="spl-meter" role="img" aria-label="今月の送信数 ' + lm.count + ' 通（目安 2〜4 通）"><b class="' + (lm.count > C.LINE_MAX ? 'over' : '') + '" style="width:' + w + '%"></b>' +
+        '<em style="left:' + (C.LINE_MIN / 6 * 100) + '%"></em><em style="left:' + (C.LINE_MAX / 6 * 100) + '%"></em></div>' +
+      '<p class="spl-note" style="margin-top:0">線のあいだ（2〜4通）が目安の範囲です。</p>';
+    if (lm.state === 'over') h += '<p class="spl-warn">今月は目安の4通を超えています。来月は回数を減らしてみましょう。</p>';
+    else if (lm.state === 'full') h += '<p class="spl-warn">今月はもう4通です。これ以上送ると、ブロックが増えやすくなります。</p>';
+    else if (lm.state === 'few') h += '<p class="spl-note">今月はまだ少なめです。忘れられない程度に、月2通くらいは送りましょう。</p>';
+    else h += '<p class="spl-good">今月は目安の範囲です。</p>';
+    if (!q) {
+      h += '<p class="spl-note">友だちの人数とブロックの割合は、LINE をつなぐと出ます（設定状況の「SNS（文章）」から）。</p>';
+      return h;
+    }
+    if (!q.ok) return h + '<p class="spl-note">LINE の人数を読めませんでした' + (q.message ? '（' + esc(q.message) + '）' : '') + '。</p>';
+    var tr = C.lineTrend(q.trend);
+    h += '<p style="font-size:12.5px;margin:10px 0 2px">友だち：<b>' + (q.followers != null ? Number(q.followers).toLocaleString('ja-JP') + '人' : '—') + '</b>' +
+      (q.reach != null ? '　届く人数：' + Number(q.reach).toLocaleString('ja-JP') + '人' : '') + '</p>';
+    if (tr) {
+      h += '<p style="font-size:12px;margin:0">' + esc(tr.from) + ' から ' + esc(tr.to) + ' で ' + (tr.diff >= 0 ? '+' : '') + tr.diff + '人</p>' + spark(tr.points);
+    } else {
+      h += '<p class="spl-note">人数の移り変わりは、この画面を開いた日ごとにメモしています。2日分たまると出ます。</p>';
+    }
+    if (q.note) h += '<p class="spl-note">' + esc(q.note) + '</p>';
+    var br = C.lineBlockRate(q);
+    var bb = C.blockBand(br);
+    if (bb) {
+      h += '<p style="font-size:12.5px;margin:8px 0 2px">ブロックの割合（おおよそ）：<b>' + pct(br) + '</b>　<span class="spl-band ' + (bb.level === 'act' ? 'low' : 'none') + '">' + esc(bb.label) + '</span></p>' +
+        '<p class="' + (bb.level === 'act' ? 'spl-warn' : 'spl-note') + '">' + esc(bb.note) + '</p>' +
+        '<p class="spl-note">目安：20%以下は良好、20〜30%は平均的、30%を超えたら見直しが必要<span class="spl-meyasu">目安</span>。「友だち − 届く人数」から出しているので、おおよその値です。</p>';
+    }
+    return h;
+  }
+  /* 小さな折れ線（動きなし）。 */
+  function spark(pts) {
+    if (!pts || pts.length < 2) return '';
+    var W = 280, H = 44;
+    var min = Infinity, max = -Infinity;
+    pts.forEach(function (p) { min = Math.min(min, p.n); max = Math.max(max, p.n); });
+    var span = max - min || 1;
+    var d = pts.map(function (p, i) {
+      return (i ? 'L' : 'M') + (i / (pts.length - 1) * (W - 4) + 2).toFixed(1) + ' ' + (H - 4 - (p.n - min) / span * (H - 8)).toFixed(1);
+    }).join(' ');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="max-width:' + W + 'px;height:' + H + 'px;display:block" role="img" aria-label="友だちの人数の移り変わり">' +
+      '<path d="' + d + '" fill="none" stroke="#0f766e" stroke-width="2"/></svg>';
+  }
+  SECTIONS.push({ id: 'line', html: lineHtml });
+
+  /* 投稿欄：LINE を選んでいて、その月の5通目になるときは知らせます（止めはしません）。 */
+  function lineWarnAddon() {
+    if (!D) return '';
+    var cb = document.querySelector('#social-nets input[data-net="line"]');
+    if (!cb || !cb.checked) return '';
+    var when = document.querySelector('input[name="social-when"]:checked');
+    var date = el('social-date');
+    var day = when && when.value === 'date' && date && /^\d{4}-\d{2}-\d{2}$/.test(date.value) ? date.value : D.today;
+    var lm = C.lineMonth(items(), day);
+    if (!lm.nextIsOver) return '';
+    return '<div class="spl-warn">LINE：この送信で ' + Number(day.slice(5, 7)) + '月の ' + (lm.count + 1) + ' 通目になります（送った分と予約を合わせて数えています）。' +
+      '目安は月2〜4通で、送りすぎるとブロックされやすくなります。急ぎでなければ、来月に回すか、ほかのSNSだけにすることも考えてみてください。</div>';
+  }
+
+  /* ================================================================
      投稿欄に足す部品（柱の選択など）。投稿欄そのものは書き換えません。
      ================================================================ */
-  var ADDON = [justPostedAddon, scoreAddon];
+  var ADDON = [justPostedAddon, lineWarnAddon, scoreAddon];
   function composerAddon() {
     var anchor = el('social-tpl');
     if (!anchor || el('spl-compose')) return;

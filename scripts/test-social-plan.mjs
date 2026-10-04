@@ -303,4 +303,43 @@ t('replySpeed: 中央値と1時間以内の割合。時刻が無ければ null',
   assert.equal(P.replySpeed([]), null)
 })
 
+/* ---- 6. LINE ---- */
+t('lineMonth: その月の送った分＋予約。5通目は nextIsOver', () => {
+  const hist = [
+    { id: 'a', at: '2026-09-30T15:30:00Z', nets: ['line'] }, // 日本時間 10/1 0:30 → 10月
+    { id: 'b', at: '2026-09-30T14:00:00Z', nets: ['line'] }, // 日本時間 9/30 → 9月
+    { id: 'c', at: at('2026-10-05'), nets: ['line', 'x'] },
+    { id: 'd', at: at('2026-10-06'), nets: ['x'] },
+  ]
+  const queue = [{ id: 'q1', date: '2026-10-20', targets: ['line'] }, { id: 'q2', date: '2026-11-02', targets: ['line'] }]
+  const it = P.itemsOf(hist, queue)
+  const m = P.lineMonth(it, TODAY)
+  assert.deepEqual([m.sent, m.booked, m.count, m.state], [2, 1, 3, 'ok'])
+  assert.equal(m.nextIsOver, false)
+  const m2 = P.lineMonth(P.itemsOf(hist, queue.concat([{ id: 'q3', date: '2026-10-28', targets: ['line'] }])), TODAY)
+  assert.equal(m2.state, 'full')
+  assert.equal(m2.nextIsOver, true)
+  assert.equal(P.lineMonth(it, '2026-11-15').count, 1)
+  assert.equal(P.lineMonth(it, '2026-09-01').state, 'few')
+})
+
+t('lineBlockRate / blockBand: blocks があればそれ、無ければ 友だち−届く人数', () => {
+  assert.equal(P.lineBlockRate({ followers: 200, blocks: 30 }), 0.15)
+  assert.equal(P.lineBlockRate({ followers: 200, reach: 150 }), 0.25)
+  assert.equal(P.lineBlockRate({ followers: null, reach: 1 }), null)
+  assert.equal(P.lineBlockRate({ followers: 200 }), null)
+  assert.equal(P.blockBand(0.2).level, 'good')
+  assert.equal(P.blockBand(0.25).level, 'avg')
+  assert.equal(P.blockBand(0.31).level, 'act')
+  assert.equal(P.blockBand(null), null)
+})
+
+t('lineTrend: 2日分から。増減を出す', () => {
+  assert.equal(P.lineTrend([{ date: '2026-10-01', followers: 100 }]), null)
+  const tr = P.lineTrend([{ date: '2026-10-03', followers: 104 }, { date: '2026-10-01', followers: 100 }, { date: '2026-10-02', followers: null }])
+  assert.equal(tr.diff, 4)
+  assert.equal(tr.from, '2026-10-01')
+  assert.equal(tr.points.length, 2)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)
