@@ -396,6 +396,11 @@ ${md(a.content)}
 {
   let news = []
   try { news = JSON.parse(readFileSync('public/news.json', 'utf8')) } catch {}
+  /* お知らせは全部残します（以前は50件で古いものが黙って消えていました）。
+     ページが長くなりすぎないよう、新しい30件だけを開いて見せ、残りは
+     「過去のお知らせ」の中に畳みます。動きのない、ブラウザ標準の開閉です。 */
+  const NEWS_SHOWN = 30
+  const newsItem = (n) => `<li><time datetime="${esc(n.date)}">${esc(n.date)}</time>${n.link ? `<a href="${esc(n.link)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`
   const url = `${SITE}/news.html`
   const ld = {
     '@context': 'https://schema.org',
@@ -409,8 +414,12 @@ ${md(a.content)}
   <h1>お知らせ</h1>
   <p class="meta">Lumeniumからの最新のお知らせです。</p>
   <ul class="list">
-    ${news.map((n) => `<li><time datetime="${esc(n.date)}">${esc(n.date)}</time>${n.link ? `<a href="${esc(n.link)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`).join('\n    ')}
-  </ul>
+    ${news.slice(0, NEWS_SHOWN).map(newsItem).join('\n    ')}
+  </ul>${news.length > NEWS_SHOWN ? `
+  <details class="older"><summary>過去のお知らせ（${news.length - NEWS_SHOWN}件）</summary>
+  <ul class="list">
+    ${news.slice(NEWS_SHOWN).map(newsItem).join('\n    ')}
+  </ul></details>` : ''}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
   publish('/news.html', shell({
     title: 'お知らせ | Lumenium（ルメニウム）',

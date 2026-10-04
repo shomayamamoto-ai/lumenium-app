@@ -275,4 +275,66 @@ await t('register: Turnstile のキーが2つあるときは確認が要る', as
   assert.equal((await (await GET()).json()).turnstile, null)
 })
 
+/* ==== 6. お知らせ・反映状況 ==== */
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64')
+
+await t('news: 50件を超えても古いものを消さない', async () => {
+  const { applyNews } = await import('../api/news-post.js')
+  const many = Array.from({ length: 60 }, (_, i) => ({ id: 'n' + i, date: '2026-01-01', title: 't' + i }))
+  const out = applyNews(many, { action: 'add', title: '新しい', body: '', link: '', date: '2026-10-01' })
+  assert.equal(out.items.length, 61)
+  assert.equal(out.items[0].title, '新しい')
+})
+
+await t('news: 保存が重なった（409）ら読み直して載せ直す', async () => {
+  let puts = 0
+  let version = [{ id: 'a', date: '2026-09-01', title: '既存' }]
+  on([['api.github.com/repos/', (u, init) => {
+    if (init.method === 'PUT') {
+      puts++
+      if (puts === 1) { version = [{ id: 'b', date: '2026-09-02', title: '別の人の保存' }, ...version]; return res({ message: 'conflict' }, 409) }
+      const body = JSON.parse(init.body)
+      version = JSON.parse(Buffer.from(body.content, 'base64').toString())
+      return res({ commit: { sha: 'abc1234def' } })
+    }
+    return res({ sha: 'sha' + puts, content: b64(version) })
+  }]])
+  process.env.GITHUB_TOKEN = 'ghp_x'
+  const { POST } = await import('../api/news-post.js')
+  const r = await POST(req('news-post', 'POST', { action: 'add', title: '秋の営業時間', body: '', link: '' }))
+  const d = await r.json()
+  assert.equal(r.status, 200, JSON.stringify(d))
+  assert.equal(puts, 2)
+  assert.equal(d.commit.sha, 'abc1234def')
+  assert.deepEqual(version.map((n) => n.title).sort(), ['既存', '別の人の保存', '秋の営業時間'].sort(), '相手の保存も自分の投稿も残る')
+})
+
+await t('deploy-status: Vercel の結果を「反映中・反映済み・失敗」に読み替える', async () => {
+  const { deployState } = await import('../api/deploy-status.js')
+  assert.equal(deployState({ statuses: [] }, { check_runs: [] }).state, 'none')
+  assert.equal(deployState({ statuses: [{ context: 'Vercel', state: 'pending', target_url: 'https://vercel.com/x' }] }, null).state, 'building')
+  const ok = deployState({ statuses: [{ context: 'Vercel', state: 'success', target_url: 'https://vercel.com/ok' }] }, null)
+  assert.deepEqual(ok, { state: 'live', url: 'https://vercel.com/ok' })
+  assert.equal(deployState({ statuses: [{ context: 'Vercel', state: 'failure', target_url: 'https://vercel.com/f' }] }, null).state, 'failed')
+  // Vercel 以外のチェックが落ちていても、Vercel が成功ならサイトは反映済み
+  assert.equal(deployState(null, { check_runs: [
+    { name: 'lint', status: 'completed', conclusion: 'failure' },
+    { name: 'Vercel – site', status: 'completed', conclusion: 'success', details_url: 'https://vercel.com/c' },
+  ] }).state, 'live')
+  assert.equal(deployState(null, { check_runs: [{ name: 'Vercel', status: 'in_progress' }] }).state, 'building')
+})
+
+await t('deploy-status: GitHub に聞いて答える・権限が無ければその旨', async () => {
+  const { GET } = await import('../api/deploy-status.js')
+  on([['/status', () => res({ statuses: [{ context: 'Vercel', state: 'failure', target_url: 'https://vercel.com/f' }] })], ['/check-runs', () => res({ check_runs: [] })]])
+  const d = await (await GET(req('deploy-status?sha=abc1234'))).json()
+  assert.equal(d.state, 'failed')
+  assert.match(d.message, /担当者に連絡/)
+  on([['/status', () => res({}, 403)], ['/check-runs', () => res({}, 403)]])
+  const u = await (await GET(req('deploy-status?sha=abc1234'))).json()
+  assert.equal(u.state, 'unknown')
+  assert.match(u.message, /権限/)
+  assert.equal((await GET(req('deploy-status?sha=../x'))).status, 400)
+})
+
 console.log(`test-foundation: ${passed} passed`)

@@ -138,11 +138,15 @@ export async function POST(req) {
     return json({ ok: false, code: 'GITHUB_ERROR', message: `保存に失敗しました（${detail}）。` }, 502)
   }
 
+  // The admin follows this commit until the site has been rebuilt with it
+  // (api/deploy-status.js), so a failed build is not mistaken for 「保存済み」.
+  const saved = await put.json().catch(() => ({}))
   return json({
     ok: true,
     overrides: sorted,
     changed,
-    message: `${changed} 件を保存しました。自動デプロイ後、約1〜2分でサイトに反映されます。`,
+    commit: { sha: (saved.commit && saved.commit.sha) || null },
+    message: `${changed} 件を保存しました。サイトへの反映（約1〜2分）を下に表示します。`,
   })
 }
 

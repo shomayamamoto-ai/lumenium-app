@@ -1636,6 +1636,7 @@
   }
 
   /* ---- 設定状況のテスト (shape: api/settings-test.js POST) ---- */
+  var demoDeploy = 0;
   function liveTest(b) {
     var t = (b && b.target) || '';
     var at = new Date().toISOString();
@@ -1683,6 +1684,13 @@
       if (p === '/api/social-write') return reply(socialWrite(body));
       // 設定状況の「テスト」。実際には何も確かめず、結果の見え方だけを見せます。
       if (p === '/api/settings-test') return reply(liveTest(body));
+      // お知らせの保存。保存はしませんが、保存のあとに出る「反映中→反映済み」の
+      // 見え方を見せるため、架空のコミットを返します。
+      if (p === '/api/news-post') {
+        demoDeploy = 0;
+        return reply({ ok: true, demo: true, items: newsItems(), commit: { sha: 'demo0000000' },
+          message: 'デモ版のため保存はされません。実際の画面では、このあと下にサイトへの反映の状況が出ます。' });
+      }
     }
     if (!read) {
       notice(MSG);
@@ -1691,6 +1699,11 @@
 
     switch (p) {
       case '/api/admin-ping': return reply({ ok: true });
+      case '/api/deploy-status':
+        // 1回目は「反映中」、2回目からは「反映済み」。
+        return reply(demoDeploy++ < 1
+          ? { ok: true, state: 'building', url: null, message: '反映中です。' }
+          : { ok: true, state: 'live', url: null, message: 'サイトに反映済みです。' });
       case '/api/members-list': return reply(members());
       case '/api/health': return reply(health());
       case '/api/news-post': return reply({ ok: true, items: newsItems(), commit: commit(3, 'お知らせを更新') });

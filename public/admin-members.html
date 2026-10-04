@@ -1047,7 +1047,7 @@ header h1, header button, header a { white-space: nowrap; }
 
     <div class="panel" id="news-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">お知らせ投稿</h2>
-      <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。</p>
+      <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。反映できたか（失敗していないか）は、保存のあと一覧の上に表示します。</p>
       <form id="news-form">
         <!-- よく使うお知らせは、押すだけで下の欄が埋まります。（ ）の中だけ
              書き換えれば投稿できます。日付とリンクも選ぶだけです。 -->
@@ -2662,6 +2662,54 @@ window.lumAdmin = {
       + 'この画面の' + what + 'は保存された内容です。';
   };
 
+  /* 保存のあと、サイトの作り直し（ビルド）が終わるまでを追いかけます。
+     以前は「保存しました」で終わり、ビルドが失敗してもサイトが古いまま
+     誰も気づきませんでした。GitHub に残る Vercel の結果を10秒ごとに見て、
+     「反映中」→「反映済み」、失敗なら担当者に連絡するよう出します。 */
+  var watching = {};
+  window.lumDeployWatch = function (elId, sha, what) {
+    var el = document.getElementById(elId);
+    if (!el || !sha) return;
+    var started = Date.now();
+    var run = watching[elId] = {};
+    function show(cls, text, url) {
+      el.classList.remove('pending', 'problem');
+      if (cls) el.classList.add(cls);
+      el.textContent = text;
+      if (url && /^https:\/\//.test(url)) {
+        var a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '詳しい状況を開く';
+        a.style.cssText = 'margin-left:6px;color:inherit;text-decoration:underline';
+        el.appendChild(a);
+      }
+    }
+    show('pending', '反映中…（' + what + 'を保存しました。サイトへの反映を確認しています）');
+    function tick() {
+      if (watching[elId] !== run) return;   // a newer save took over
+      window.lumAdmin.fetch('/api/deploy-status?sha=' + encodeURIComponent(sha)).then(function (r) {
+        if (watching[elId] !== run) return;
+        var d = (r && r.data) || {};
+        var mins = (Date.now() - started) / 60000;
+        if (r && r.res.ok && d.ok) {
+          if (d.state === 'live') { show('', '反映済み：保存した' + what + 'がサイトに出ています。', d.url); return; }
+          if (d.state === 'failed') {
+            show('problem', 'サイトの更新（ビルド）が失敗しました。保存した' + what + 'はまだサイトに出ていません。担当者に連絡してください。', d.url);
+            return;
+          }
+          if (d.state === 'unknown') { show('pending', d.message); return; }
+        }
+        if (mins > 12) {
+          show('problem', '保存から12分たっても反映が確認できません。サイトの更新が止まっている可能性があります。担当者に連絡してください。', d.url);
+          return;
+        }
+        show('pending', '反映中…（通常1〜2分。この画面を開いたままにしておくと、終わったらここに出ます）', d.url);
+        setTimeout(tick, 10000);
+      }).catch(function () { setTimeout(tick, 15000); });
+    }
+    setTimeout(tick, 4000);
+  };
+
   function loadNews() {
     // Committed first; the deployed copy only to work out whether it is live.
     Promise.all([
@@ -2704,8 +2752,10 @@ window.lumAdmin = {
         if (x.r.ok && x.d.ok === true) {
           newsSay(x.d.message || '保存しました。', true);
           renderNews(x.d.items || []);
-          // A commit has just landed, so it is by definition ahead of the site.
-          window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
+          // A commit has just landed, so it is by definition ahead of the site;
+          // follow it until the rebuild has finished (or failed).
+          if (x.d.commit && x.d.commit.sha) window.lumDeployWatch('news-state', x.d.commit.sha, 'お知らせ');
+          else window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
           if (payload.action === 'add' || payload.action === 'edit') stopEdit();
         } else {
           newsSay(x.d.message || '保存に失敗しました。');
@@ -3583,8 +3633,10 @@ window.lumAdmin = {
     overrides = data.overrides || {};
     edited = {};
     say(data.message, true);
-    // Just committed, so the site is one deploy behind by definition.
-    window.lumDeployState('copy-state', 'saved', 'live', null, '文章');
+    // Just committed, so the site is one deploy behind by definition; follow
+    // the rebuild so a failed build does not hide behind 「保存しました」.
+    if (data.commit && data.commit.sha) window.lumDeployWatch('copy-state', data.commit.sha, '文章');
+    else window.lumDeployState('copy-state', 'saved', 'live', null, '文章');
     render();
   }
 

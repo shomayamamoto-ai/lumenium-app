@@ -91,61 +91,78 @@ export async function POST(req) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '不明な操作です。' }, 400)
   }
 
-  // Read current file (content + sha for the update)
-  const cur = await ghFile(token, repo, FILE_PATH)
-  if (!cur.ok) {
-    return json({ ok: false, code: 'GITHUB_ERROR', message: `ニュースファイルを読み込めませんでした。${ghDetail(cur.status)}` }, 502)
-  }
-  const curJson = await cur.json()
-  let items = []
-  try {
-    items = JSON.parse(b64decodeUtf8(curJson.content || ''))
-    if (!Array.isArray(items)) items = []
-  } catch {
-    items = []
-  }
+  // Read, change, write — and if someone else saved in between (GitHub
+  // answers 409 because the file's sha moved), read again and re-apply the
+  // same change on top of theirs. A post is a small edit to a list, so
+  // re-applying it is safe; asking the owner to reload and retype was not.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const cur = await ghFile(token, repo, FILE_PATH)
+    if (!cur.ok) {
+      return json({ ok: false, code: 'GITHUB_ERROR', message: `ニュースファイルを読み込めませんでした。${ghDetail(cur.status)}` }, 502)
+    }
+    const curJson = await cur.json()
+    let items = []
+    try {
+      items = JSON.parse(b64decodeUtf8(curJson.content || ''))
+      if (!Array.isArray(items)) items = []
+    } catch {
+      items = []
+    }
 
-  let message
+    const next = applyNews(items, { action, title, body, link, delId, date: date || todayJst, keepDate: date })
+    if (next.error) return json(next.error, next.status)
+
+    const put = await ghFile(token, repo, FILE_PATH, {
+      method: 'PUT',
+      body: JSON.stringify({
+        message: next.message,
+        content: b64encodeUtf8(JSON.stringify(next.items, null, 2) + '\n'),
+        sha: curJson.sha,
+      }),
+    })
+    if (put.status === 409 && attempt < 2) continue
+    if (!put.ok) {
+      const detail = put.status === 409
+        ? '他の保存と重なりました。画面を再読み込みしてからもう一度お試しください'
+        : `GitHub応答: ${put.status}`
+      return json({ ok: false, code: 'GITHUB_ERROR', message: `保存に失敗しました（${detail}）。時間をおいて再度お試しください。` }, 502)
+    }
+    const saved = await put.json().catch(() => ({}))
+    return json({
+      ok: true,
+      items: next.items,
+      // The admin follows this commit until the site has been rebuilt with it.
+      commit: { sha: (saved.commit && saved.commit.sha) || null },
+      message: '保存しました。サイトへの反映（約1〜2分）を下に表示します。',
+    })
+  }
+}
+
+const byDate = (items) => items.map((n, i) => [n, i])
+  .sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
+
+/** The change itself, separate from reading and writing so it can be
+ *  re-applied after a conflict. Every post is kept: the list used to be cut
+ *  at 50, silently dropping the oldest. The site page shows the newest and
+ *  folds the rest (scripts/build-content-pages.mjs). */
+export function applyNews(items, { action, title, body, link, delId, date, keepDate }) {
   if (action === 'add') {
-    const day = date || todayJst
-    const id = `n-${day.replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`
-    items.unshift({ id, date: day, title, body, link })
+    const id = `n-${date.replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`
     // 過去の日付で書いたものも、日付の順に並ぶように（同じ日なら新しいものが上）
-    items = items.map((n, i) => [n, i]).sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
-    if (items.length > 50) items = items.slice(0, 50) // keep the file lean
-    message = `news: ${title}`
-  } else if (action === 'edit') {
+    return { items: byDate([{ id, date, title, body, link }, ...items]), message: `news: ${title}` }
+  }
+  if (action === 'edit') {
     // The id and the date stay. Fixing a typo by deleting and retyping moved
     // the post to today and to the top of the list, which is not a correction.
     const at = items.findIndex((n) => n && n.id === delId)
-    if (at < 0) return json({ ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, 404)
-    items[at] = { id: items[at].id, date: date || items[at].date, title, body, link }
-    items = items.map((n, i) => [n, i]).sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
-    message = `news: edit ${title}`
-  } else {
-    const before = items.length
-    items = items.filter((n) => n && n.id !== delId)
-    if (items.length === before) return json({ ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, 404)
-    message = `news: remove ${delId}`
+    if (at < 0) return { error: { ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, status: 404 }
+    const out = items.slice()
+    out[at] = { id: items[at].id, date: keepDate || items[at].date, title, body, link }
+    return { items: byDate(out), message: `news: edit ${title}` }
   }
-
-  const put = await ghFile(token, repo, FILE_PATH, {
-    method: 'PUT',
-    body: JSON.stringify({
-      message,
-      content: b64encodeUtf8(JSON.stringify(items, null, 2) + '\n'),
-      sha: curJson.sha,
-    }),
-  })
-  if (!put.ok) {
-    return json({ ok: false, code: 'GITHUB_ERROR', message: `保存に失敗しました（GitHub応答: ${put.status}）。時間をおいて再度お試しください。` }, 502)
-  }
-
-  return json({
-    ok: true,
-    items,
-    message: '保存しました。自動デプロイ後、約1〜2分でサイトに反映されます。',
-  })
+  const out = items.filter((n) => n && n.id !== delId)
+  if (out.length === items.length) return { error: { ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, status: 404 }
+  return { items: out, message: `news: remove ${delId}` }
 }
 
 function json(body, status = 200) {

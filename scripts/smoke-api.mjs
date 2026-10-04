@@ -325,6 +325,8 @@ const CALLS = [
   // 400 would stop short of the part that was broken elsewhere.
   ['news-post', 'POST', '', JSONH, { action: 'add', title: 'スモークテスト', body: '', link: '' }],
   ['content-save', 'POST', '', JSONH, { changes: { 'text.hero.lead': 'DIGITAL CREATIVE STUDIO · TOKYO' } }],
+  // 保存のあと、サイトの作り直しが終わったかを GitHub に聞く。
+  ['deploy-status', 'GET', '?sha=deadbeef', KEY],
   ['track', 'POST', '', { 'content-type': 'application/json' }, { e: 'contact_view', s: 'instagram' }],
   // 計測の新しい窓口（中身は track と同じ）。訪問の始まり・離れたときの時間・
   // サイト内の移動、の3通りで呼びます。
