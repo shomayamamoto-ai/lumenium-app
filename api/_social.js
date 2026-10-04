@@ -596,6 +596,21 @@ export function readPayload(body) {
   return { ok: true, payload: out }
 }
 
+/** 繰り返し投稿の中身を、定型文から作る関数（_social-queue.js の planRepeats に渡します）。
+ *  送り先は「毎朝の自動処理から送れるもの」だけ——ブラウザにだけ置いた鍵は、
+ *  朝9時には見えないためです。 */
+export async function repeatBuilder() {
+  const nets = await socialStatus()
+  return (t) => {
+    const targets = (t.nets || []).filter((id) => nets.some((n) => n.id === id && n.ready && n.scheduled))
+    if (!targets.length) return { ok: false, message: '予約で送れる投稿先がありません（選んだSNSの鍵を、Vercel の環境変数か保存先に入れてください）。' }
+    const r = readPayload({ text: t.text, link: t.link, campaign: t.campaign, targets, images: t.images || [] })
+    if (!r.ok) return r
+    const problems = precheck(r.payload)
+    return problems.length ? { ok: false, message: problems.join(' / ') } : r
+  }
+}
+
 /** Every target, checked before anything is sent. A post that is wrong for
  *  one network is refused as a whole: sending it to four and not the fifth
  *  leaves the owner with a half-published mistake to clean up by hand. */

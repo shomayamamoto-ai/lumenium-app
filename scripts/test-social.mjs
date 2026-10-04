@@ -1207,6 +1207,67 @@ await test('先週の投稿数・いちばん人を連れてきた投稿・予�
   assert.ok(empty.includes('先週は、この管理画面からの投稿はありませんでした。'))
 })
 
+console.log('繰り返し投稿')
+await test('日付：毎週◯曜日（両端を含む）', () => {
+  assert.deepEqual(Q.repeatDates({ kind: 'weekly', weekday: 2 }, '2026-10-05', '2026-10-27'), ['2026-10-06', '2026-10-13', '2026-10-20', '2026-10-27'])
+  assert.deepEqual(Q.repeatDates({ kind: 'weekly', weekday: 7 }, '2026-10-05', '2026-10-27'), [])
+  assert.equal(Q.repeatLabel({ kind: 'weekly', weekday: 0 }), '毎週日曜')
+})
+await test('日付：毎月◯日。31日は月末、無い日はその月の最後の日（うるう年も）', () => {
+  assert.deepEqual(Q.repeatDates({ kind: 'monthly', day: 31 }, '2027-01-01', '2027-04-30'), ['2027-01-31', '2027-02-28', '2027-03-31', '2027-04-30'])
+  assert.deepEqual(Q.repeatDates({ kind: 'monthly', day: 30 }, '2028-02-01', '2028-03-31'), ['2028-02-29', '2028-03-30'])
+  assert.deepEqual(Q.repeatDates({ kind: 'monthly', day: 15 }, '2026-12-16', '2027-02-15'), ['2027-01-15', '2027-02-15'])
+  assert.deepEqual(Q.repeatDates({ kind: 'monthly', day: 1 }, '2026-10-02', '2026-11-27'), ['2026-11-01'])
+  assert.equal(Q.repeatLabel({ kind: 'monthly', day: 31 }), '毎月 月末')
+  assert.equal(Q.cleanRepeat({ kind: 'monthly', day: 0 }), null)
+})
+await test('予約：8週間先まで入れ、取り消した1件は入れ直さず、中身を変えたら入れ直す', async () => {
+  process.env.CRON_SECRET = 'sec'
+  for (const k of [...hashes.keys()]) if (k.endsWith('social:queue') || k.endsWith('social:rep')) hashes.delete(k)
+  const tpl = { id: 'tpl-rep-1', title: '定休日', text: '明日は定休日です', nets: ['x'], campaign: '', link: '', images: [], repeat: { kind: 'weekly', weekday: 1 } }
+  const build = (t) => S.readPayload({ text: t.text, targets: t.nets })
+  // addScheduled は「明日以降」を本物の今日で見るので、今日を本物に合わせます。
+  const real = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10)
+  const r = await Q.planRepeats([tpl], build, real)
+  assert.equal(r.added, 8)
+  let items = (await Q.listScheduled()).filter((i) => i.repeatOf === 'tpl-rep-1')
+  assert.equal(items.length, 8)
+  assert.ok(items.every((i) => new Date(i.date + 'T00:00:00Z').getUTCDay() === 1 && i.date > real))
+  assert.equal(new Set(items.map((i) => i.payload.sendId)).size, 8, '1回ごとに別の送信番号')
+  // 1件取り消す → もう一度計画しても戻らない
+  await Q.cancelScheduled(items[0].id)
+  const again = await Q.planRepeats([tpl], build, real)
+  assert.equal(again.added, 0)
+  assert.equal((await Q.listScheduled()).filter((i) => i.repeatOf === 'tpl-rep-1').length, 7)
+  // 本文を変えたら入れ直す
+  const changed = await Q.planRepeats([{ ...tpl, text: '明日はお休みです' }], build, real)
+  assert.equal(changed.removed, 7)
+  assert.equal(changed.added, 8)
+  items = (await Q.listScheduled()).filter((i) => i.repeatOf === 'tpl-rep-1')
+  assert.ok(items.every((i) => i.payload.text === '明日はお休みです'))
+  // 繰り返しをやめたら、まだの予約も消す
+  const stop = await Q.planRepeats([{ ...tpl, repeat: null }], build, real)
+  assert.equal(stop.removed, 8)
+  assert.equal((await Q.listScheduled()).filter((i) => i.repeatOf === 'tpl-rep-1').length, 0)
+})
+await test('予約：作れない中身（Instagram に画像なし）は入れずに理由を言う', async () => {
+  const tpl = { id: 'tpl-rep-2', title: '新作', text: '新作です', nets: ['instagram'], images: [], repeat: { kind: 'monthly', day: 31 } }
+  const build = (t) => { const r = S.readPayload({ text: t.text, targets: t.nets }); const p = S.precheck(r.payload); return p.length ? { ok: false, message: p.join(' / ') } : r }
+  const r = await Q.planRepeats([tpl], build)
+  assert.equal(r.added, 0)
+  assert.ok(r.problems[0].includes('「新作」') && r.problems[0].includes('画像'))
+  await Q.planRepeats([], build)
+})
+await test('定型文の保存：繰り返しと画像を確かめて残す', async () => {
+  const st = await import('../api/_social-store.js')
+  const { templates } = st.validateTemplates([{ title: 'a', text: 'b', repeat: { kind: 'weekly', weekday: 3 }, images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg', alt: '写真' }, { url: 'http://x/a.jpg' }] },
+    { title: 'c', text: 'd', repeat: { kind: 'yearly' } }])
+  assert.deepEqual(templates[0].repeat, { kind: 'weekly', weekday: 3 })
+  assert.equal(templates[0].images.length, 1)
+  assert.equal(templates[0].images[0].alt, '写真')
+  assert.equal(templates[1].repeat, null)
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
 

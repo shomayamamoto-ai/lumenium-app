@@ -256,6 +256,8 @@ const CALLS = [
   ['social', 'POST', '', JSONH, { action: 'metrics', id: 'none' }],
   ['social', 'POST', '', JSONH, { action: 'schedule', date: new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10), text: 'スモーク', targets: ['threads'] }],
   ['social', 'POST', '', JSONH, { action: 'cancel', id: 'none' }],
+  // 繰り返し投稿つきの定型文（8週間ぶんの予約を入れるところまで通す）。
+  ['social', 'PUT', '', JSONH, { templates: [{ title: 'スモーク', text: '定休日です', nets: ['threads'], repeat: { kind: 'monthly', day: 31 } }] }],
   ['social', 'PUT', '', JSONH, { links: { latest: 2, items: [{ title: 'ご予約', url: 'https://lumenium.net/booking' }] } }],
   // プロフィールのリンク集。訪問者が開くページなので、鍵なしで呼ぶ。
   ['links', 'GET', '?from=instagram', {}],

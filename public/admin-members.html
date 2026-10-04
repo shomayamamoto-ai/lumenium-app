@@ -619,6 +619,8 @@
   .soc-count.over { color: #b42318; }
   .soc-issue { font-size: 11.5px; line-height: 1.75; margin-top: 4px; }
   .soc-issue.err { color: #b42318; }
+  .soc-rep { display: block; padding: 8px 10px; background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+  .soc-rep select { width: auto; font-size: 12px; padding: 4px 8px; margin: 2px 4px 2px 0; }
   .soc-badge { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #b42318; color: #fff; vertical-align: middle; }
   .soc-inbox-post { padding: 6px 0 8px; border-top: 1px solid var(--border); }
   .soc-cm { margin: 6px 0 0 10px; padding: 8px 10px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
@@ -1115,7 +1117,9 @@ header h1, header button, header a { white-space: nowrap; }
             <button type="button" class="ghost" id="social-tpl-del" style="font-size:12px;padding:6px 12px">削除</button>
             <button type="button" class="ghost" id="social-tpl-save" style="font-size:12px;padding:6px 12px">いまの内容を定型文として保存</button>
           </div>
-          <div id="social-tpl-st" class="soc-small" style="margin-top:4px">本文・リンク・キャンペーン名・出す先をまとめて取っておけます（30個まで）。</div>
+          <div id="social-tpl-st" class="soc-small" style="margin-top:4px">本文・リンク・キャンペーン名・出す先・画像をまとめて取っておけます（30個まで）。</div>
+          <!-- 繰り返し投稿：選んだ定型文を、毎週◯曜日・毎月◯日に予約します（8週間先まで）。 -->
+          <div id="social-tpl-rep" style="margin-top:8px"></div>
         </div>
         <details class="soc-ai" id="social-ai">
           <summary>AIに下書きを作ってもらう（投稿先ごとに書き分けます）</summary>
@@ -8169,7 +8173,10 @@ window.lumAdmin = {
       var b = document.createElement('div');
       b.className = 'body';
       var labels = (it.targets || []).map(function (id) { var n = netById(id); return n ? n.label : id; }).join('・');
-      b.innerHTML = '<b>' + esc(it.date) + ' 朝' + (sch.jstHour || 9) + '時ごろ</b>　<span class="soc-small">' + esc(labels) +
+      var rt = it.repeatOf ? tplById(it.repeatOf) : null;
+      b.innerHTML = '<b>' + esc(it.date) + ' 朝' + (sch.jstHour || 9) + '時ごろ</b>　' +
+        (it.repeatOf ? '<span class="soc-chip q">繰り返し' + (rt ? '：' + esc(rt.title) + '（' + esc(repeatText(rt.repeat)) + '）' : '') + '</span> ' : '') +
+        '<span class="soc-small">' + esc(labels) +
         (it.images ? '・画像' + it.images + '枚' : '') + '</span><br>' + esc(it.text || '（本文なし）');
       d.appendChild(b);
       var x = document.createElement('button');
@@ -8768,14 +8775,68 @@ window.lumAdmin = {
     var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ templates: list }) });
     var d = r.data || {};
     if (d.ok && d.templates) { templates = d.templates; renderTemplates(done); }
+    if (d.items) { info.schedule.items = d.items; renderQueue(d.items); }
     tplSay(d.message || (d.ok ? '保存しました。' : '保存できませんでした。'));
+    renderTplRepeat();
     return !!d.ok;
+  }
+
+  /* ---- 繰り返し投稿 ----
+     定型文に「毎週◯曜日」「毎月◯日」を付けると、8週間先までの予約を入れます
+     （毎朝の自動処理が、その先を足し続けます）。入った予約は「予約中の投稿」に
+     並び、1件ずつ取り消せます。繰り返しを「なし」にすると、まだ出ていない
+     予約も取り消します。 */
+  var WDN = ['日', '月', '火', '水', '木', '金', '土'];
+  function repeatText(r) {
+    if (!r) return '';
+    if (r.kind === 'weekly') return '毎週' + WDN[r.weekday] + '曜';
+    return r.day === 31 ? '毎月 月末' : '毎月' + r.day + '日';
+  }
+  function renderTplRepeat() {
+    var host = el('social-tpl-rep');
+    var t = tplById(el('social-tpl-sel').value);
+    var sch = info.schedule || {};
+    if (!t) { host.innerHTML = '<div class="soc-small">定型文を選ぶと、繰り返し投稿（毎週◯曜日・毎月◯日）を設定できます。</div>'; return; }
+    var r = t.repeat || null;
+    var next = (sch.items || []).filter(function (i) { return i.repeatOf === t.id; }).map(function (i) {
+      return Number(i.date.slice(5, 7)) + '/' + Number(i.date.slice(8)) + '（' + WDN[new Date(i.date + 'T00:00:00Z').getUTCDay()] + '）';
+    });
+    var days = '';
+    for (var d = 1; d <= 31; d++) days += '<option value="' + d + '"' + (r && r.kind === 'monthly' && r.day === d ? ' selected' : '') + '>' + (d === 31 ? '月末' : d + '日') + '</option>';
+    host.innerHTML = '<div class="soc-rep">' +
+      '<b style="font-size:12px">「' + esc(t.title) + '」を繰り返し投稿</b> ' +
+      '<select id="soc-rep-kind" aria-label="繰り返し"' + (sch.ready ? '' : ' disabled') + '>' +
+        '<option value="">しない</option><option value="weekly"' + (r && r.kind === 'weekly' ? ' selected' : '') + '>毎週</option><option value="monthly"' + (r && r.kind === 'monthly' ? ' selected' : '') + '>毎月</option></select>' +
+      '<select id="soc-rep-wd" aria-label="曜日">' + WDN.map(function (w, i) { return '<option value="' + i + '"' + (r && r.kind === 'weekly' && r.weekday === i ? ' selected' : '') + '>' + w + '曜日</option>'; }).join('') + '</select>' +
+      '<select id="soc-rep-day" aria-label="日">' + days + '</select>' +
+      '<button type="button" id="soc-rep-save" style="font-size:11.5px;padding:5px 12px"' + (sch.ready ? '' : ' disabled') + '>繰り返しを保存</button>' +
+      '<div class="soc-small" style="margin-top:4px">' + (sch.ready
+        ? (r ? repeatText(r) + 'の朝' + (sch.jstHour || 9) + '時ごろに出します。' + (next.length ? '次の予約：' + esc(next.slice(0, 4).join('、')) + (next.length > 4 ? ' ほか' : '') + '（「予約中の投稿」から1件ずつ取り消せます）。' : '') : '8週間先までの予約を入れ、毎朝の自動処理が先を足していきます。「月末」は30日・28日の月も、その月の最後の日に出します。') +
+          ' 出す先は、定型文に保存した投稿先のうち、予約で送れるものだけです。'
+        : '予約投稿が使えない設定のため、繰り返しは使えません：' + esc(sch.message || '')) + '</div></div>';
+    var kind = el('soc-rep-kind'), wd = el('soc-rep-wd'), dy = el('soc-rep-day');
+    var sync = function () { wd.style.display = kind.value === 'weekly' ? '' : 'none'; dy.style.display = kind.value === 'monthly' ? '' : 'none'; };
+    kind.addEventListener('change', sync);
+    sync();
+    el('soc-rep-save').addEventListener('click', async function () {
+      var rep = kind.value === 'weekly' ? { kind: 'weekly', weekday: Number(wd.value) } : kind.value === 'monthly' ? { kind: 'monthly', day: Number(dy.value) } : null;
+      if (!rep && t.repeat && !confirm('「' + t.title + '」の繰り返しをやめます。まだ出ていない繰り返しの予約も取り消します。よろしいですか？')) return;
+      if (rep && (t.nets || []).indexOf('instagram') !== -1 && !(t.images || []).length && !confirm('この定型文には画像がありません。Instagram には出せないため、Instagram の分は入りません。続けますか？')) return;
+      this.disabled = true;
+      var list = templates.map(function (x) { if (x.id !== t.id) return x; var y = {}; for (var k in x) y[k] = x[k]; y.repeat = rep; return y; });
+      await putTemplates(list, t.id);
+    });
   }
   function useTemplate() {
     var t = tplById(el('social-tpl-sel').value);
     if (!t) { tplSay('使う定型文を選んでください。'); return; }
     if (el('social-text').value.trim() && !confirm('いまの本文を「' + t.title + '」の内容に置き換えます。よろしいですか？')) return;
     el('social-text').value = t.text;
+    if (t.images && t.images.length) {
+      S.images = t.images.map(function (i) { return { url: i.url, preview: i.preview || '', alt: i.alt || '', uploaded: /\.public\.blob\.vercel-storage\.com\//.test(i.url) }; });
+      S.images.forEach(function (i) { measure(i.url); });
+      renderImages();
+    }
     if (t.link) el('social-link').value = t.link;
     el('social-campaign').value = t.campaign || '';
     var ids = (t.nets || []).filter(function (id) { return !!netById(id); });
@@ -8795,7 +8856,8 @@ window.lumAdmin = {
     if (!title) { tplSay('題名を入れてください。'); return; }
     var same = templates.filter(function (t) { return t.title === title; })[0];
     if (same && !confirm('「' + title + '」を、いまの内容で上書きします。よろしいですか？')) return;
-    var item = { id: same ? same.id : uuid(), title: title, text: text, nets: picked(), campaign: el('social-campaign').value.trim(), link: el('social-link').value.trim() };
+    var item = { id: same ? same.id : uuid(), title: title, text: text, nets: picked(), campaign: el('social-campaign').value.trim(), link: el('social-link').value.trim(),
+      images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '', alt: i.alt || '' }; }), repeat: same ? same.repeat || null : null };
     var list = templates.filter(function (t) { return t !== same; }).concat([item]);
     await putTemplates(list, item.id);
   }
@@ -8818,6 +8880,7 @@ window.lumAdmin = {
     prefs = d.prefs || prefs;
     templates = d.templates || [];
     renderTemplates();
+    renderTplRepeat();
     if (d.links) links = d.links;
     renderLinks();
     approvals = d.approvals || [];
@@ -9025,6 +9088,7 @@ window.lumAdmin = {
   el('social-reload').addEventListener('click', load);
   el('social-style-save').addEventListener('click', saveStyleRules);
   el('social-tpl-use').addEventListener('click', useTemplate);
+  el('social-tpl-sel').addEventListener('change', renderTplRepeat);
   el('social-tpl-save').addEventListener('click', saveTemplate);
   el('social-tpl-del').addEventListener('click', deleteTemplate);
 

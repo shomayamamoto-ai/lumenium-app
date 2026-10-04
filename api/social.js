@@ -34,9 +34,9 @@ export const config = { runtime: 'edge' }
 import { requireAdmin, json } from './_admin-auth.js'
 import {
   NETWORKS, socialStatus, readPayload, precheck, sendPost, recentPosts, socialActivity,
-  historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo,
+  historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo, repeatBuilder,
 } from './_social.js'
-import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
+import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize, planRepeats } from './_social-queue.js'
 import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
 import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates, readLinks, saveLinks } from './_social-store.js'
@@ -95,7 +95,17 @@ export async function PUT(req) {
   }
   if (body && Array.isArray(body.templates)) {
     const r = await saveTemplates(body.templates, req)
-    return json({ ...r, message: r.ok ? '定型文を保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+    if (!r.ok) return json({ ...r }, 400)
+    // 繰り返し投稿：8週間先までの予約を入れ直します（やめたものは予約も消します）。
+    let plan = null
+    try { plan = await planRepeats(r.templates, await repeatBuilder()) } catch (e) { plan = { ok: false, problems: [String((e && e.message) || e).slice(0, 160)] } }
+    const notes = [...r.problems, ...((plan && plan.problems) || [])]
+    const did = plan && (plan.added || plan.removed)
+      ? `繰り返しの予約を ${plan.added} 件入れました${plan.removed ? `（入れ直しのため ${plan.removed} 件を取り消しました）` : ''}。` : ''
+    return json({
+      ...r, plan, items: (await listScheduled()).map(summarize),
+      message: '定型文を保存しました。' + did + (notes.length ? '（' + notes.join(' ') + '）' : ''),
+    })
   }
   // プロフィールのリンク集（/links）の一覧。
   if (body && body.links && typeof body.links === 'object') {

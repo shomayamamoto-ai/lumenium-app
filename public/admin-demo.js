@@ -1248,7 +1248,15 @@
     return [
       { id: 'demo-q1', date: jstDate(-2), createdAt: ago(3600000), text: '（サンプルの予約）今週末は臨時休業です。ご不便をおかけします。', targets: ['x', 'line'], images: 0, link: '' },
       { id: 'demo-q2', date: jstDate(-6), createdAt: ago(7200000), text: '（サンプルの予約）秋の限定メニュー、はじめます。', targets: ['instagram', 'threads', 'facebook'], images: 1, link: 'https://' + DEMO_HOST + '/menu' }
-    ];
+    ].concat(demoRepeatDates().map(function (d, i) {
+      return { id: 'demo-r' + i, date: d, createdAt: ago(DAY), text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', targets: ['x', 'line'], images: 0, link: '', repeatOf: 'demo-tpl-1' };
+    }));
+  }
+  /* 繰り返し（毎週月曜）の、この先の3回ぶん。 */
+  function demoRepeatDates() {
+    var out = [];
+    for (var i = 1; out.length < 3 && i < 30; i++) { var d = jstDate(-i); if (dow(d) === 1) out.push(d); }
+    return out;
   }
   function social() {
     return {
@@ -1268,7 +1276,7 @@
       style: socialStyle(),
       prefs: { xAutoMetrics: false },
       templates: [
-        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
+        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '', images: [], repeat: { kind: 'weekly', weekday: 1 } },
         { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
       ],
       approvals: socialApprovals(),

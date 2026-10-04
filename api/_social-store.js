@@ -11,6 +11,7 @@
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
 import { validateStyle, RULES, cleanCampaign } from './_social-text.js'
+import { cleanRepeat } from './_social-queue.js'
 
 export const STYLE_KEY = `${KV}social:style`
 
@@ -61,7 +62,8 @@ export function cleanPrefs(input) {
 }
 
 /* ---- 定型文 ----
-   ${KV}social:tpl  … [{ id, title, text, nets, campaign, link }]（30個まで）
+   ${KV}social:tpl  … [{ id, title, text, nets, campaign, link, images, repeat }]（30個まで）
+   repeat は繰り返し投稿の決まり（_social-queue.js の cleanRepeat。無ければ null）。
    よく出すお知らせ（定休日・新メニュー・イベント）を、題名をつけて取っておきます。 */
 export const TEMPLATES_KEY = `${KV}social:tpl`
 export const TEMPLATE_MAX = 30
@@ -86,6 +88,11 @@ export function validateTemplates(input) {
       nets: [...new Set((Array.isArray(t.nets) ? t.nets : []).map(String).filter((n) => RULES[n]))],
       campaign: cleanCampaign(t.campaign),
       link: /^https:\/\/\S+$/i.test(link) ? link.slice(0, 500) : '',
+      // 画像（Instagram は画像が要るので、繰り返し投稿でも持っておきます）。
+      images: (Array.isArray(t.images) ? t.images : []).slice(0, 4)
+        .map((i) => ({ url: String((i && i.url) || '').trim(), preview: String((i && i.preview) || '').trim(), alt: String((i && i.alt) || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 1000) }))
+        .filter((i) => /^https:\/\/\S+$/i.test(i.url) && (!i.preview || /^https:\/\/\S+$/i.test(i.preview))),
+      repeat: cleanRepeat(t.repeat),
     })
   }
   return { templates: out, problems }
