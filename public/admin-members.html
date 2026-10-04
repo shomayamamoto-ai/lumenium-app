@@ -596,7 +596,8 @@
   .soc-chip.ng { background: rgba(248,113,113,0.15); color: #b42318; }
   .soc-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
   .soc-cal .hd { font-size: 10.5px; color: var(--sub); text-align: center; font-weight: 700; padding: 2px 0; }
-  .soc-cal .d { min-height: 64px; background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 3px 4px; font-size: 11px; text-align: left; color: var(--text); cursor: pointer; display: block; width: 100%; }
+  .soc-cal .d { min-height: 64px; background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 3px 4px; font-size: 11px; text-align: left; color: var(--text); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; width: 100%; font-weight: 400; }
+  .soc-cal .d .cs { display: block; line-height: 1.5; }
   .soc-cal .d.out { background: transparent; border-style: dashed; cursor: default; }
   .soc-cal .d.today { border-color: #0f766e; }
   .soc-cal .d.sel { box-shadow: inset 0 0 0 2px #14b8a6; }
@@ -1094,6 +1095,8 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 class="soc-h">予約中の投稿</h3>
       <div id="social-queue" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">カレンダー（予約と、これまでの投稿）</h3>
+      <div id="social-cal" style="margin-bottom:18px"></div>
       <h3 class="soc-h">投稿の成果（サイトに来た人・問い合わせ）</h3>
       <div id="social-outcome" style="margin-bottom:18px"></div>
       <h3 class="soc-h">これまでの投稿</h3>
@@ -6698,6 +6701,8 @@ window.lumAdmin = {
   var style = { ng: [], notation: [] };
   var insights = null;
   var prefs = { xAutoMetrics: false };
+  var calMonth = '';
+  var calSel = '';
   var outcomeDays = 30;
   var tests = {};
   var imgMeta = {};
@@ -7700,6 +7705,8 @@ window.lumAdmin = {
 
   function renderQueue(items) {
     var host = el('social-queue');
+    if (started) renderCal();
+
     var sch = info.schedule || {};
     host.innerHTML = '';
     if (!items || !items.length) {
@@ -7747,6 +7754,7 @@ window.lumAdmin = {
   var lastLog = [];
   function renderLog(list, stored) {
     lastLog = list || [];
+    renderCal();
     var host = el('social-log');
     host.innerHTML = '';
     if (!stored) {
@@ -7918,6 +7926,72 @@ window.lumAdmin = {
       '</details>';
     Array.prototype.forEach.call(host.querySelectorAll('button[data-days]'), function (b) {
       b.addEventListener('click', function () { outcomeDays = Number(b.dataset.days); renderOutcome(); });
+    });
+  }
+
+  /* ---- カレンダー ----
+     予約（これから）と、この画面から出した投稿（これまで）を、日ごとに並べます。
+     幅の狭い画面では、表ではなく日付の一覧で出します（CSS で切り替え）。 */
+  var SHORT = { x: 'X', facebook: 'FB', instagram: 'IG', threads: 'TH', linkedin: 'in', line: 'LINE', gbp: 'G', bluesky: 'BS' };
+  function jstDayOf(iso) { return new Date(Date.parse(iso) + 9 * 3600000).toISOString().slice(0, 10); }
+  function calItems() {
+    var by = {};
+    var add = function (day, it) { (by[day] = by[day] || []).push(it); };
+    ((info.schedule || {}).items || []).forEach(function (q) {
+      add(q.date, { kind: 'q', nets: q.targets || [], text: q.text || '', label: '予約' });
+    });
+    lastLog.forEach(function (p) {
+      if (!p.at) return;
+      add(jstDayOf(p.at), { kind: 'p', nets: (p.results || []).map(function (r) { return { id: r.net, ok: r.ok }; }), text: p.text || '', label: new Date(p.at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + ' 投稿' });
+    });
+    return by;
+  }
+  function chips(it) {
+    return it.nets.map(function (n) {
+      var id = typeof n === 'string' ? n : n.id;
+      var bad = typeof n === 'object' && !n.ok;
+      var nn = netById(id);
+      return '<span class="soc-chip' + (it.kind === 'q' ? ' q' : bad ? ' ng' : '') + '" title="' + esc((nn ? nn.label : id) + (bad ? '（失敗・結果不明）' : '')) + '">' + esc(SHORT[id] || id) + '</span>';
+    }).join('');
+  }
+  function itemHtml(day, it) {
+    return '<div class="soc-cal-item"><b>' + esc(Number(day.slice(5, 7)) + '/' + Number(day.slice(8))) + '</b> ' +
+      '<span class="soc-small">' + esc(it.kind === 'q' ? '予約（朝' + ((info.schedule || {}).jstHour || 9) + '時ごろ）' : it.label) + '</span> ' + chips(it) +
+      '<br>' + esc(String(it.text || '（本文なし）').slice(0, 80)) + '</div>';
+  }
+  function renderCal() {
+    var host = el('social-cal');
+    var today = jstDayOf(new Date().toISOString());
+    if (!calMonth) calMonth = today.slice(0, 7);
+    var y = Number(calMonth.slice(0, 4)), m = Number(calMonth.slice(5, 7));
+    var first = new Date(Date.UTC(y, m - 1, 1));
+    var days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    var by = calItems();
+    var cells = ['日', '月', '火', '水', '木', '金', '土'].map(function (w) { return '<div class="hd">' + w + '</div>'; });
+    for (var i = 0; i < first.getUTCDay(); i++) cells.push('<div class="d out" aria-hidden="true"></div>');
+    var list = [];
+    for (var d = 1; d <= days; d++) {
+      var day = calMonth + '-' + (d < 10 ? '0' : '') + d;
+      var its = by[day] || [];
+      cells.push('<button type="button" class="d' + (day === today ? ' today' : '') + (day === calSel ? ' sel' : '') + '" data-day="' + day + '"' +
+        ' aria-label="' + m + '月' + d + '日 ' + its.length + '件"><span class="num">' + d + '</span><span class="cs">' + its.map(chips).join('') + '</span></button>');
+      its.forEach(function (it) { list.push(itemHtml(day, it)); });
+    }
+    var sel = calSel && by[calSel] ? by[calSel].map(function (it) { return itemHtml(calSel, it); }).join('') : '';
+    host.innerHTML =
+      '<div class="soc-cal-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+        '<button type="button" class="ghost" id="soc-cal-prev" style="font-size:11.5px;padding:4px 10px">‹ 前の月</button>' +
+        '<b style="font-size:13px">' + y + '年' + m + '月</b>' +
+        '<button type="button" class="ghost" id="soc-cal-next" style="font-size:11.5px;padding:4px 10px">次の月 ›</button>' +
+        '<span class="soc-small wk"><span class="soc-chip q">予約</span><span class="soc-chip">投稿済み</span><span class="soc-chip ng">失敗</span></span>' +
+      '</div>' +
+      '<div class="soc-cal">' + cells.join('') + '</div>' +
+      '<div class="soc-cal-list">' + (list.length ? list.join('') : '<p class="share-note">この月の予約・投稿はありません。</p>') + '</div>' +
+      '<div id="soc-cal-day" class="soc-cal-day" style="margin-top:8px">' + (calSel ? (sel || '<p class="share-note">' + esc(calSel) + ' の予約・投稿はありません。</p>') : '') + '</div>';
+    el('soc-cal-prev').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
+    el('soc-cal-next').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-cal .d[data-day]'), function (b) {
+      b.addEventListener('click', function () { calSel = b.dataset.day; renderCal(); });
     });
   }
 
