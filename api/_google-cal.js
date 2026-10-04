@@ -131,7 +131,7 @@ export async function busy(c, fromMs, toMs) {
 }
 
 /** Meet 付きの予定を作り、相手にも招待を送る。 */
-export async function createEvent(c, { startMs, endMs, summary, description, attendee, attendeeName }) {
+export async function createEvent(c, { startMs, endMs, summary, description, attendee, attendeeName, online = true }) {
   const token = await accessToken(c)
   const body = {
     summary,
@@ -141,15 +141,18 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
     attendees: [{ email: attendee, displayName: attendeeName || undefined }],
     // Meet のURLはここで発行されます。requestId は同じ値で再送すると同じ
     // 会議が返る冪等キーなので、枠の時刻から作ります。
-    conferenceData: {
-      createRequest: {
-        requestId: `lum-${startMs}`,
-        conferenceSolutionKey: { type: 'hangoutsMeet' },
+    // 来店型（online: false）のときは会議URLを付けません。
+    ...(online ? {
+      conferenceData: {
+        createRequest: {
+          requestId: `lum-${startMs}`,
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
       },
-    },
+    } : {}),
     reminders: { useDefault: true },
   }
-  const q = new URLSearchParams({ conferenceDataVersion: '1', sendUpdates: 'all' })
+  const q = new URLSearchParams({ conferenceDataVersion: online ? '1' : '0', sendUpdates: 'all' })
   const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events?${q}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -161,4 +164,33 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
     || (data.conferenceData?.entryPoints || []).find((e) => e.entryPointType === 'video')?.uri
     || ''
   return { id: data.id, meet, link: data.htmlLink || '' }
+}
+
+/** 予約の日時を変えた。相手にも変更の知らせが届きます。 */
+export async function moveEvent(c, eventId, { startMs, endMs }) {
+  const token = await accessToken(c)
+  const q = new URLSearchParams({ sendUpdates: 'all' })
+  const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events/${encodeURIComponent(eventId)}?${q}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      start: { dateTime: new Date(startMs).toISOString(), timeZone: 'Asia/Tokyo' },
+      end: { dateTime: new Date(endMs).toISOString(), timeZone: 'Asia/Tokyo' },
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error?.message || `events.patch ${res.status}`)
+  return { id: data.id }
+}
+
+/** 予約の取り消し。相手にも取り消しの知らせが届きます。既に消えていても成功扱い。 */
+export async function deleteEvent(c, eventId) {
+  const token = await accessToken(c)
+  const q = new URLSearchParams({ sendUpdates: 'all' })
+  const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events/${encodeURIComponent(eventId)}?${q}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`events.delete ${res.status}`)
+  return true
 }

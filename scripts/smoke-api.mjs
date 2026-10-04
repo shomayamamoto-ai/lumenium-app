@@ -230,6 +230,8 @@ const CALLS = [
   // 返さないこと。
   ['booking', 'GET', '', {}],
   ['booking', 'GET', '?recent=1', KEY],
+  ['booking', 'GET', '?service=default&all=1', {}],
+  ['booking', 'PUT', '', JSONH, { rules: { wording: '来店', services: [{ id: 'cut', name: 'カット', minutes: 60 }] } }],
   ['booking', 'POST', '', { 'content-type': 'application/json' },
     { key: '2099-01-01T01:00:00.000Z', name: 'スモーク', email: 'smoke@example.com', message: 'テスト' }],
   ['google-oauth', 'GET', '?start=1', KEY],

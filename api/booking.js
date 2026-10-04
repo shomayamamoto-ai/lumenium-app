@@ -26,8 +26,9 @@ import { pickTopics } from './_form-options.js'
 import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.js'
 import { busyFromUrl } from './_ics.js'
 import {
-  RULES, candidates, removeBusy, toWire, label, gcalAddUrl,
+  SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
   takeSlot, releaseSlot, saveBooking, recentBookings, icsFile,
+  readRules, saveRules, pickService, activeServices, bookingNoun,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 
@@ -41,16 +42,17 @@ const json = (payload, status = 200, extra) => new Response(JSON.stringify(paylo
 })
 
 /** いま提示できる枠と、どの仕組みで動いているか。 */
-async function openSlots(req, wanted) {
+async function openSlots(req, wanted, rules, svc) {
   const c = await creds(req)
   const store = storeConfig()
-  const all = candidates()
+  const all = candidates(Date.now(), rules, svc.minutes)
+  const buf = rules.bufferMin
   if (!all.length) return { mode: 'off', slots: [], reason: 'NO_SLOTS' }
 
   if (connected(c)) {
     try {
       const busy = await gcalBusy(c, all[0].start, all[all.length - 1].end)
-      const free = removeBusy(all, busy)
+      const free = removeBusy(all, busy, buf)
       return { mode: 'google', slots: free.slice(0, wanted), total: free.length }
     } catch (e) {
       // 接続が切れている・Googleが落ちている。枠を出さないのではなく、
@@ -74,13 +76,13 @@ async function openSlots(req, wanted) {
     // 既に入った商談も、カレンダーの予定と同じく前後に余白をとって除きます
     // （簡易接続ではカレンダーに書き込めないので、ここで見るしかありません）。
     const taken = store ? await takenSpans(store, all) : []
-    const open = removeBusy(all, icsBusy.concat(taken))
+    const open = removeBusy(all, icsBusy.concat(taken), buf)
     return { mode: 'ics', slots: open.slice(0, wanted), total: open.length }
   }
 
   // 仮予約モード: 既に取られた枠を、前後の余白ごと除く。
   const taken = await takenSpans(store, all)
-  const free = removeBusy(all, taken)
+  const free = removeBusy(all, taken, buf)
   return { mode: 'local', slots: free.slice(0, wanted), total: free.length }
 }
 
@@ -118,12 +120,15 @@ export async function GET(req) {
       // 食い違いを、画面の側で説明できるようにするためです。
       storedHere: !!(await storeFor(req)),
       calendarId: c.calendarId,
+      rules: await readRules(store, pipeline),
       bookings: await recentBookings(store, pipeline, 20),
     })
   }
 
-  const wanted = url.searchParams.get('all') ? RULES.max : RULES.first
-  const { mode, slots, total, warn, reason } = await openSlots(req, wanted)
+  const rules = await readRules(storeConfig(), pipeline)
+  const svc = pickService(rules, url.searchParams.get('service') || '')
+  const wanted = url.searchParams.get('all') ? SHOW.max : SHOW.first
+  const { mode, slots, total, warn, reason } = await openSlots(req, wanted, rules, svc)
   return json({
     ok: true,
     enabled: mode !== 'off',
@@ -133,7 +138,12 @@ export async function GET(req) {
     reason: reason ? 'calendar_unavailable' : null,
     warn: warn ? 'calendar_unavailable' : null,
     tz: 'Asia/Tokyo',
-    minutes: RULES.slotMin,
+    // 画面の「◯分」はこの値から作ります（決め打ちの30分・60分は書かない）。
+    minutes: svc.minutes,
+    service: svc.id,
+    services: activeServices(rules).map(({ id, name, minutes, desc, price }) => ({ id, name, minutes, desc, price })),
+    wording: rules.wording,
+    online: rules.online,
     total: total || 0,
     slots: slots.map(toWire),
   })
@@ -172,7 +182,9 @@ export async function POST(req) {
 
   // クライアントが返してきた時刻は使わない。いま作り直した候補の中に
   // 同じ鍵があるかどうかだけを見る。
-  const { mode, slots } = await openSlots(req, RULES.max)
+  const rules = await readRules(storeConfig(), pipeline)
+  const svc = pickService(rules, String(body?.service ?? ''))
+  const { mode, slots } = await openSlots(req, SHOW.max, rules, svc)
   if (mode === 'off') return json({ error: 'not_available' }, 503)
   const slot = slots.find((s) => new Date(s.start).toISOString() === key)
   if (!slot) return json({ error: 'slot_taken', message: 'その枠は埋まりました。別の日時をお選びください。' }, 409)
@@ -185,8 +197,9 @@ export async function POST(req) {
   const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
   const when = label(slot.start, slot.end)
   const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner, req)
-  const summary = `商談: ${company ? `${company} ` : ''}${name}様 × ${BRAND.name}${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
+  const summary = `${rules.wording}: ${svc.name} ${company ? `${company} ` : ''}${name}様 × ${BRAND.name}${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
   const description = [
+    `メニュー: ${svc.name}（${svc.minutes}分）`,
     `お名前: ${name}`,
     company ? `会社名: ${company}` : null,
     `メール: ${email}`,
@@ -202,7 +215,7 @@ export async function POST(req) {
       const c = await creds(req)
       const ev = await createEvent(c, {
         startMs: slot.start, endMs: slot.end, summary, description,
-        attendee: email, attendeeName: name,
+        attendee: email, attendeeName: name, online: rules.online,
       })
       meet = ev.meet
       eventId = ev.id
@@ -213,13 +226,15 @@ export async function POST(req) {
   }
 
   const rec = {
-    id, key, when, name, email, company, topics, note, page, mode, meet, eventId,
+    id, key, when, start: slot.start, end: slot.end,
+    service: { id: svc.id, name: svc.name, minutes: svc.minutes }, wording: rules.wording,
+    name, email, company, topics, note, page, mode, meet, eventId,
     // 簡易接続・未接続のときに、管理画面とメールから1回でカレンダーに入れる
     addUrl: mode === 'google' ? '' : gcalAddUrl({ startMs: slot.start, endMs: slot.end, summary, description }),
     at: new Date().toISOString(),
   }
   await saveBooking(store, pipeline, rec)
-  await notify(req, rec, owner, { summary, description, startMs: slot.start, endMs: slot.end })
+  await notify(req, rec, owner, { summary, description, startMs: slot.start, endMs: slot.end }, rules)
 
   return json({
     ok: true,
@@ -242,7 +257,8 @@ function b64(text) {
 
 /** 知らせる。Google 経由の招待は相手にしか届かないので、こちら側にも必ず
  *  1通送る。仮予約のときは相手にも .ics を送る。 */
-async function notify(req, rec, owner, ev) {
+async function notify(req, rec, owner, ev, rules) {
+  const noun = bookingNoun(rules)
   const apiKey = await setting('RESEND_API_KEY', '', req)
   if (!apiKey) return
   const from = BRAND.from
@@ -254,6 +270,7 @@ async function notify(req, rec, owner, ev) {
 
   const lines = [
     `日時: ${rec.when}（JST）`,
+    `メニュー: ${rec.service.name}（${rec.service.minutes}分）`,
     `お名前: ${rec.name}`,
     rec.company ? `会社名: ${rec.company}` : null,
     `メール: ${rec.email}`,
@@ -272,7 +289,7 @@ async function notify(req, rec, owner, ev) {
   await send({
     to: [owner],
     reply_to: rec.email,
-    subject: `【商談予約】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
+    subject: `【${noun}】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
     text: lines.join('\n'),
     // 自分のカレンダーにも入れられるように、相手と同じ .ics を添付します。
     ...(file ? { attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }] } : {}),
@@ -286,14 +303,33 @@ async function notify(req, rec, owner, ev) {
       text: [
         `${rec.name} 様`,
         '',
-        `${rec.when}（日本時間）でお席を確保しました。`,
-        '担当より、接続用のURLを添えて確定のご連絡を差し上げます。',
+        `${rec.when}（日本時間）で「${rec.service.name}」のお時間を確保しました。`,
+        rules.online ? '担当より、接続用のURLを添えて確定のご連絡を差し上げます。' : '担当より、確定のご連絡を差し上げます。',
+        rules.place ? `場所: ${rules.place}` : null,
         '添付のファイルを開くと、そのままカレンダーに登録できます。',
         '',
         `${BRAND.name}（${BRAND.kana}）`,
         BRAND.url,
-      ].join('\n'),
+      ].filter((x) => x !== null).join('\n'),
       attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }],
     })
+  }
+}
+
+/** 管理画面から「予約の決まり」（受付時間・休み・メニュー・呼び方）を保存する。 */
+export async function PUT(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+  const store = storeConfig()
+  if (!store) {
+    return json({ ok: false, message: '保存先（Upstash Redis）が Vercel の環境変数に無いため、決まりを保存できません。いまは既定の決まりで動いています。' }, 503)
+  }
+  let body
+  try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
+  try {
+    const { rules, problems } = await saveRules(store, pipeline, body?.rules)
+    return json({ ok: true, rules, problems, message: problems.length ? '保存しました。読めなかった所は直してあります（下の注意をご覧ください）。' : '保存しました。サイトの予約欄には1分以内に反映されます。' })
+  } catch (_) {
+    return json({ ok: false, message: '保存先に書き込めませんでした。少しおいてからもう一度お試しください。' }, 502)
   }
 }
