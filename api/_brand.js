@@ -14,6 +14,10 @@
 //   GITHUB_REPO      文章・お知らせを保存するリポジトリ  例: owner/repo
 //   KV_PREFIX        Redis のキーの頭（1つのデータベースを複数サイトで
 //                    共有するとき、互いのデータを上書きしないように）
+//   SITE_OWNER_NAME  代表者の名前（AIアドバイザーが相手を呼ぶときに使う）
+//   SITE_AREA        拠点の地域             例: 東京
+//   SITE_FOUNDED     設立年                 例: 2026年設立
+//   SITE_DESCRIPTION 事業の一言説明         例: クリエイティブ／DX支援カンパニー
 //   SITE_LOOKALIKES  綴りが似ている別の会社（カンマ区切り）。AIO計測で
 //                    「同名の別会社の話」を自社の出現と数えないために使う。
 //                    例: Lumentum,Lumenium LLC,ルメンタム
@@ -30,8 +34,17 @@ const LUMENIUM_LOOKALIKES = 'Lumentum,Lumenium LLC,ルメンタム'
 const lookalikes = (env('SITE_LOOKALIKES') || (name === 'Lumenium' ? LUMENIUM_LOOKALIKES : ''))
   .split(/[,、]/).map((s) => s.trim()).filter(Boolean)
 
+/* 代表者名・地域などの既定値も、社名が既定（Lumenium）のときだけ使います。
+   別の会社のサイトで、AIアドバイザーが Lumenium の代表の名前で相手を
+   呼ぶことのないようにするためです。 */
+const isDefault = name === 'Lumenium'
+
 export const BRAND = {
   name,
+  ownerName: env('SITE_OWNER_NAME') || (isDefault ? '山本捷真' : ''),
+  area: env('SITE_AREA') || (isDefault ? '東京' : ''),
+  founded: env('SITE_FOUNDED') || (isDefault ? '2026年設立' : ''),
+  description: env('SITE_DESCRIPTION') || (isDefault ? 'クリエイティブ／DX支援カンパニー' : ''),
   kana: env('SITE_NAME_KANA') || 'ルメニウム',
   url,
   host: new URL(url).hostname,

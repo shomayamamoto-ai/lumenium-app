@@ -9,6 +9,10 @@ import assert from 'node:assert/strict'
 const REDIS = 'https://redis.foundation.invalid'
 Object.assign(process.env, {
   ADMIN_KEY: 'foundation-admin-key-0123456789',
+  // 別の会社のサイトに載せた状態で確かめます（AIアドバイザーに元の会社の
+  // 名前が残っていないか、を見るため）。
+  SITE_NAME: 'Sample', SITE_NAME_KANA: 'サンプル', SITE_URL: 'https://sample.example',
+  OWNER_EMAIL: 'owner@sample.example', GITHUB_REPO: 'sample/site',
   UPSTASH_REDIS_REST_URL: REDIS,
   UPSTASH_REDIS_REST_TOKEN: 'x',
 })
@@ -160,6 +164,45 @@ await t('settings: 保存は暗号化・読むと元どおり・古い平文も�
   process.env.ADMIN_KEY = 'rotated-admin-key-0123456789'
   assert.equal(await S.openValue(raw), '', '管理キーを変えたら読めない（未設定に戻る）')
   process.env.ADMIN_KEY = old
+})
+
+/* ==== 4. AIアドバイザー ==== */
+await t('advisor: 社名を差し替えると、元の会社の名前・代表者・ドメインが指示文に残らない', async () => {
+  const { systemPrompt, pagesFromList } = await import('../api/advisor.js')
+  const p = systemPrompt({ analytics: null, aio: null, social: null, crawl: null, pages: ['/menu.html'] })
+  assert.equal((p.match(/lumenium|ルメニウム|山本|捷真/gi) || []).length, 0, 'vendor literal left in prompt')
+  assert.ok(p.includes('sample.example') && p.includes('/menu.html'))
+  assert.deepEqual(pagesFromList('https://sample.example/\nhttps://sample.example/a.html\nhttps://other.example/x', 'https://sample.example'), ['/', '/a.html'])
+  assert.deepEqual(pagesFromList('/menu.html メニュー, /access.html アクセス', 'https://sample.example'), ['/menu.html メニュー', '/access.html アクセス'])
+})
+
+await t('料金の目安: トークン数から円を出す・月に記録・上限の読み方', async () => {
+  const P = await import('../api/_ai-pricing.js')
+  // 入力100万 = $5、出力10万 = $2.5、キャッシュ読み100万 = $0.5、検索10回 = $0.1 → $8.1
+  const c = P.estimateCost('claude-opus-5', { in: 1e6, out: 1e5, cr: 1e6, ws: 10 })
+  assert.equal(Math.round(c.usd * 100), 810)
+  assert.equal(c.yen, Math.round(8.1 * P.YEN_PER_USD))
+  await P.recordUsage('advisor', { input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 5000, server_tool_use: { web_search_requests: 2 } })
+  await P.recordUsage('advisor', { input_tokens: 1000, output_tokens: 200 })
+  const m = await P.monthUsage('advisor', 'claude-opus-5')
+  assert.equal(m.usage.calls, 2)
+  assert.equal(m.usage.in, 2000)
+  assert.equal(m.usage.ws, 2)
+  assert.equal(P.monthlyCap(''), 3000)
+  assert.equal(P.monthlyCap('5,000円'), 5000)
+  assert.equal(P.monthlyCap('abc'), 3000)
+})
+
+await t('advisor: 今月の目安が上限に達したら 429（AIを呼ばない）', async () => {
+  const P = await import('../api/_ai-pricing.js')
+  // 上限 3000円 ≒ $20。出力100万トークン = $25 で超える
+  await P.recordUsage('advisor', { output_tokens: 1e6 })
+  on([])
+  const { POST } = await import('../api/advisor.js')
+  const r = await POST(req('advisor', 'POST', { messages: [{ role: 'user', content: '次に何をすべき？' }] }))
+  assert.equal(r.status, 429)
+  assert.match((await r.json()).message, /上限/)
+  assert.equal(calls.filter((c) => c.url.includes('anthropic')).length, 0)
 })
 
 console.log(`test-foundation: ${passed} passed`)

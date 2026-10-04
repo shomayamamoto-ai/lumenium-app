@@ -76,6 +76,16 @@ export const SETTINGS = [
     where: 'console.anthropic.com › API keys',
     why: 'これが無いと、AIO計測とAIアドバイザーは動きません。',
   },
+  {
+    name: 'ADVISOR_MONTHLY_YEN', label: 'AIアドバイザーの月の上限（円）', kind: 'text', group: 'site',
+    where: '半角数字（例: 3000）。空なら 3000 円',
+    why: '使ったトークンから出した料金の目安がこの額に達すると、その月はアドバイザーが止まります。請求が思ったより膨らまないようにするためです。',
+  },
+  {
+    name: 'ADVISOR_PAGES', label: 'AIアドバイザーに伝える主なページ（任意）', kind: 'text', group: 'site',
+    where: 'カンマ区切り（例: /menu.html メニュー, /access.html アクセス）。空ならサイトの一覧（sitemap）から自動で作ります',
+    why: 'アドバイザーが、実際にあるページについて助言できるようにするためです。',
+  },
   /* AIO計測で「Claude以外のAIにも聞く」ためのキー。どれも任意で、入って
      いるものだけが計測画面で選べるようになります。読むのは管理者自身の
      計測リクエストなので、Claude のキーと同じく端末保存できます。

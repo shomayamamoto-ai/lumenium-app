@@ -18,18 +18,40 @@ import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
 import { QUESTIONS, BRAND, VERDICTS, isHit, isBranded } from './_aio-catalog.js'
 import { readCrawls } from './_crawlers.js'
-import { KV } from './_brand.js'
+import { KV, BRAND as SITE } from './_brand.js'
+import { setting } from './_settings.js'
+import { recordUsage, monthUsage, monthlyCap, ADVISOR_DAILY_CALLS } from './_ai-pricing.js'
 
 const MODEL = 'claude-opus-5'
 const MAX_TURNS = 16
 
-const PAGES = [
-  '/ (トップ・放射状メニュー)', '/about.html ルメニウムとは', '/services/ サービス6領域',
-  '/pricing.html 料金', '/works.html 実績', '/voice.html お客様の声', '/flow.html ご依頼の流れ',
-  '/faq.html よくある質問', '/profile.html 代表プロフィール', '/story.html ストーリー',
-  '/positioning.html ポジショニング', '/pain.html お悩み', '/news.html お知らせ',
-  '/blog/ ブログ', '/contact.html お問い合わせ', '/sitemap.html サイトマップ',
-]
+/* 主なページ。以前はこの会社のページ一覧を手で書いていたため、別のサイトに
+   載せると存在しないページについて助言していました。いまは
+   ・設定 ADVISOR_PAGES（カンマ区切り。「/menu.html メニュー, /access.html アクセス」）があればそれ
+   ・なければ、公開中のサイトの sitemap-urls.txt（ビルド時に作られる一覧）
+   の順で、実際にあるページから作ります。 */
+const MAX_PAGES = 40
+
+export function pagesFromList(text, base) {
+  const host = (() => { try { return new URL(base).host } catch (_) { return '' } })()
+  return String(text || '').split(/[\n,]+/).map((line) => line.trim()).filter(Boolean).map((line) => {
+    if (!/^https?:/i.test(line)) return line
+    try { const u = new URL(line); return u.host === host ? u.pathname : '' } catch (_) { return '' }
+  }).filter(Boolean).slice(0, MAX_PAGES)
+}
+
+async function sitePages(req) {
+  const own = await setting('ADVISOR_PAGES', '', req)
+  if (own) return pagesFromList(own, SITE.url)
+  try {
+    const res = await fetch(`${SITE.url}/sitemap-urls.txt`, { signal: AbortSignal.timeout(3000) })
+    if (res.ok) {
+      const list = pagesFromList(await res.text(), SITE.url)
+      if (list.length) return list
+    }
+  } catch (_) { /* 一覧が読めなくても、相談はできるようにします */ }
+  return ['/']
+}
 
 async function liveNumbers(req) {
   // How much went out, and where. Advice about being invisible in answer
@@ -126,7 +148,7 @@ async function liveNumbers(req) {
   }
 }
 
-function systemPrompt(live) {
+export function systemPrompt(live) {
   const services = SERVICES.map((s) => `- ${s.title}（${s.price}）`).join('\n')
 
   const c = live.crawl
@@ -228,8 +250,8 @@ function systemPrompt(live) {
       ].join('\n')
 
   return [
-    'あなたは lumenium.net（ルメニウム）専属のSEO / AIO（AI検索最適化）アドバイザーです。',
-    '相手はこのサイトのオーナー（山本捷真）本人で、管理画面から相談しています。日本語で答えてください。',
+    `あなたは ${BRAND.domain}（${SITE.kana || SITE.name}）専属のSEO / AIO（AI検索最適化）アドバイザーです。`,
+    `相手はこのサイトのオーナー${SITE.ownerName ? `（${SITE.ownerName}）` : ''}本人で、管理画面から相談しています。日本語で答えてください。`,
     '',
     '【あなたの仕事】',
     '一般論のSEO講座ではなく、このサイトで次に何をするかを具体的に答えること。',
@@ -272,15 +294,15 @@ function systemPrompt(live) {
     '本文の中で「以下の質問から選んでください」などと書かない。',
     '',
     '【このサイトの前提】',
-    `ドメイン: ${BRAND.domain} / 東京 / 代表 山本捷真 / 2026年設立`,
-    'クリエイティブ／DX支援カンパニー。事業は6領域:',
+    [`ドメイン: ${BRAND.domain}`, SITE.area, SITE.ownerName && `代表 ${SITE.ownerName}`, SITE.founded].filter(Boolean).join(' / '),
+    `${SITE.description ? SITE.description + '。' : ''}事業は${SERVICES.length}領域:`,
     services,
     '',
     '主なページ:',
-    PAGES.map((p) => `- ${p}`).join('\n'),
+    ((live && live.pages) || ['/']).map((p) => `- ${p}`).join('\n'),
     '',
     '既に実施済み（重複提案しないこと）: 構造化データ（Organization/FAQPage/Service/DefinedTerm ほか）、',
-    'sitemap.xml（実際に中身が変わった日を lastmod に入れている）、llms.txt、about.html での同名企業との区別、',
+    'sitemap.xml（実際に中身が変わった日を lastmod に入れている）、llms.txt、同名企業との区別、',
     'サービス別静的ページ、カテゴリ別の記事ページ、IndexNow スクリプト。',
     '',
     '【いまの計測値】',
@@ -329,10 +351,22 @@ export async function POST(req) {
     return json({ ok: false, message: '質問が空です。' }, 400)
   }
 
-  const capped = await spendGuard('advisor', 80)
+  const capped = await spendGuard('advisor', ADVISOR_DAILY_CALLS)
   if (capped) return capped
 
-  const live = await liveNumbers(req)
+  // 月の上限（円の目安）。1日の回数だけでは、長い相談が続いた月に請求が
+  // 思ったより膨らむことがあるので、使ったトークンから出した額でも止めます。
+  const cap = monthlyCap(await setting('ADVISOR_MONTHLY_YEN', '', req))
+  const month = await monthUsage('advisor', MODEL)
+  if (month.recorded && month.yen >= cap) {
+    return json({
+      ok: false, code: 'MONTHLY_LIMIT',
+      message: `今月のAIアドバイザーの利用額が上限の目安（約${cap.toLocaleString('ja-JP')}円）に達しました。来月1日に再開します。上限は「設定状況 › キーの入力」の ADVISOR_MONTHLY_YEN で変えられます。`,
+    }, 429)
+  }
+
+  const [live, pages] = await Promise.all([liveNumbers(req), sitePages(req)])
+  live.pages = pages
   const client = new Anthropic({ apiKey: key })
   const encoder = new TextEncoder()
 
@@ -355,6 +389,8 @@ export async function POST(req) {
 
           s.on('text', (t) => send({ t }))
           const final = await s.finalMessage()
+          // 1回ごとの使用量を月の合計に足します（設定状況の「今月の目安」と月の上限に使う）。
+          await recordUsage('advisor', final.usage)
 
           if (final.stop_reason === 'refusal') {
             send({ t: '\n\n（この内容には回答できませんでした。言い方を変えて試してください。）' })

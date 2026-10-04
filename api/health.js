@@ -17,6 +17,9 @@ import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
 import { BRAND } from './_brand.js'
 import { senderInfo, SANDBOX_NOTE, DNS_STEPS } from './_sender.js'
+import { monthUsage, monthlyCap, ADVISOR_DAILY_CALLS, YEN_PER_USD } from './_ai-pricing.js'
+import { setting } from './_settings.js'
+import { KV } from './_brand.js'
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
@@ -126,6 +129,28 @@ export async function GET(req) {
         : '未設定のため、週次メールは自動では届きません。Vercel › Settings › Environment Variables に CRON_SECRET（推測できない長い文字列。パスワード管理アプリの自動生成で構いません）を入れて再デプロイすると、毎週月曜の朝9時に先週のまとめが届くようになります。これは「Vercel の定期実行からの呼び出しだけを受け付ける」ための合言葉で、どこにも入力する必要はありません。',
     },
   ]
+
+  // AIアドバイザーの今月の料金の目安。使ったトークン（API が返す数）から
+  // 出した額で、上限に近づいたら注意に変えます。請求が来てから驚かないように。
+  if (has('ANTHROPIC_API_KEY')) {
+    const cap = monthlyCap(await setting('ADVISOR_MONTHLY_YEN', '', req))
+    const m = await monthUsage('advisor', 'claude-opus-5')
+    let today = 0
+    const cfg = storeConfig()
+    if (cfg) {
+      try { today = Number((await pipeline(cfg, [['GET', `${KV}aispend:advisor:${jstDate()}`]]))[0]) || 0 } catch (_) {}
+    }
+    const near = m.recorded && m.yen >= cap * 0.8
+    checks.push({
+      id: 'aiCost', label: 'AIアドバイザーの利用額（今月の目安）', env: 'ADVISOR_MONTHLY_YEN',
+      state: near ? 'warn' : 'ok',
+      note: m.recorded
+        ? `今月 ${m.usage.calls} 回・約 ${m.yen.toLocaleString('ja-JP')} 円（上限の目安 ${cap.toLocaleString('ja-JP')} 円）。本日 ${today} / ${ADVISOR_DAILY_CALLS} 回。` +
+          (near ? '上限に近づいています。上限に達すると、その月はアドバイザーが止まります。' : '') +
+          `円は 1ドル=${YEN_PER_USD}円で計算した目安です。正確な請求額は console.anthropic.com › Usage で確認できます。`
+        : `保存先（Upstash Redis）が無いため、利用額を記録できません。1日 ${ADVISOR_DAILY_CALLS} 回までの上限も働きません。`,
+    })
+  }
 
   // Google は使わないサイトもあるので、接続してあるときだけ行を出します
   // （テストボタンで接続が切れていないかを確かめられるように）。

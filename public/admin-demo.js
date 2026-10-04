@@ -491,6 +491,7 @@
         c('store', 'アクセス解析・AIOの保存先', 'KV_REST_API_URL, KV_REST_API_TOKEN', 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'),
         c('ai', 'AI（SEO/AIO分析・アドバイザー）', 'ANTHROPIC_API_KEY', 'AIO計測とアドバイザーが使えます。'),
         c('github', 'お知らせ投稿・文章編集の保存', 'GITHUB_TOKEN', '保存すると自動デプロイが走ります。'),
+        c('aiCost', 'AIアドバイザーの利用額（今月の目安）', 'ADVISOR_MONTHLY_YEN', '今月 12 回・約 420 円（上限の目安 3,000 円）。本日 2 / 80 回。円は 1ドル=150円で計算した目安です。正確な請求額は console.anthropic.com › Usage で確認できます。'),
         c('memberCode', '会員登録コード', 'MEMBER_CODE', '独自のコードが設定されています。'),
         c('sessionSecret', 'ログインセッションの署名鍵', 'SESSION_SECRET', '独自の鍵が設定されています。'),
         c('cron', '週次メールの合言葉（おすすめ）', 'CRON_SECRET', '毎週月曜の朝9時に、先週のアクセスのまとめがメールで届きます（「アクセス解析」の画面で止められます）。'),
