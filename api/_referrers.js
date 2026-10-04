@@ -54,7 +54,7 @@ const SOCIAL = [
   'instagram.com', 'l.instagram.com', 'threads.net', 'threads.com',
   'line.me', 'lin.ee', 'liff.line.me',
   'youtube.com', 'm.youtube.com', 'tiktok.com', 'linkedin.com', 'lnkd.in',
-  'note.com', 'pinterest.com', 'reddit.com', 'hatena.ne.jp', 'b.hatena.ne.jp',
+  'note.com', 'bsky.app', 'pinterest.com', 'reddit.com', 'hatena.ne.jp', 'b.hatena.ne.jp',
 ]
 
 export const REF_KINDS = [
@@ -76,7 +76,7 @@ export const SOURCES = {
   card: ['名刺（QR）', 'direct'], flyer: ['チラシ・資料（QR）', 'direct'],
   mail: ['メール署名', 'direct'], seminar: ['セミナー・登壇', 'direct'],
   // SNS の投稿から貼ったリンク（SNS の画面が ?ref= に付ける名前）。
-  threads: ['Threads', 'social'], linkedin: ['LinkedIn', 'social'],
+  threads: ['Threads', 'social'], linkedin: ['LinkedIn', 'social'], bluesky: ['Bluesky', 'social'],
   // AI に自分で載せたリンク（?ref=chatgpt など）。紹介元を送らないアプリから
   // 来ても「AIアシスタントから」に入るように。
   chatgpt: ['ChatGPT', 'ai'], perplexity: ['Perplexity', 'ai'], gemini: ['Gemini', 'ai'],

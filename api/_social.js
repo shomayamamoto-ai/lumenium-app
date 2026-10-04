@@ -20,6 +20,10 @@ import { authHeader } from './_x-oauth1.js'
 import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { KV, BRAND } from './_brand.js'
 import { RULES, compose, check, isBlobUrl, cleanCampaign } from './_social-text.js'
+import { fieldFor } from './_social-insights.js'
+import { GBP_ACTIONS } from './_social-text.js'
+import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
+
 
 /* API の版は1か所に。Meta は版ごとに約2年で使えなくなり、LinkedIn は
    約1年です。上げるときはここだけを直し、scripts/test-social.mjs を流します。
@@ -103,6 +107,27 @@ export const NETWORKS = [
       where: 'LINE Official Account Manager › 設定 › Messaging API で利用を開始し、LINE Developers のチャネル › Messaging API設定 の一番下で「チャネルアクセストークン（長期）」を発行します。',
       url: 'https://developers.line.biz/console/',
       effort: '20分ほど。送るたびに友だちの人数ぶん通数を使います',
+    },
+  },
+  {
+    id: 'gbp', label: 'Googleビジネスプロフィール', mark: 'G',
+    needs: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GBP_REFRESH_TOKEN', 'GBP_LOCATION'],
+    note: 'Google検索・マップのお店の情報に「最新情報」として出ます。1500文字まで。リンクはボタン（詳細・予約など）として付きます。画像は1枚目だけ送ります。',
+    setup: {
+      what: 'サイトの Google 接続（Googleカレンダーと同じ GOOGLE_CLIENT_ID / SECRET）に、ビジネスプロフィールの許可を足します。',
+      where: '下の「Googleビジネスプロフィールを連携」を押して許可し、「店舗を選ぶ」で投稿する店舗を選びます。Google Cloud で「My Business」の各APIを有効にし、Business Profile API の利用申請が通っている必要があります。',
+      url: 'https://developers.google.com/my-business/content/prereqs',
+      effort: '連携は数分。APIの利用申請は Google の審査に数日かかることがあります',
+    },
+  },
+  {
+    id: 'bluesky', label: 'Bluesky', mark: '🦋', needs: ['BSKY_HANDLE', 'BSKY_APP_PASSWORD'],
+    note: '300文字まで（見た目の文字数で数えます）。リンクとハッシュタグは押せる形で送ります。画像は、この画面からアップロードしたものを4枚まで（1枚1MBまで）。',
+    setup: {
+      what: 'Blueskyのハンドル（例：shop.bsky.social）と「アプリパスワード」が要ります。',
+      where: 'Bluesky の 設定 › プライバシーとセキュリティ › アプリパスワード で作ります（ログイン用のパスワードは使いません）。',
+      url: 'https://bsky.app/settings/app-passwords',
+      effort: '5分ほど。無料です',
     },
   },
 ].map((n) => ({ ...n, ...RULES[n.id] }))
@@ -455,6 +480,7 @@ async function postLine(c, req, ctx, p) {
 const SENDERS = {
   x: postX, facebook: postFacebook, instagram: postInstagram,
   threads: postThreads, linkedin: postLinkedIn, line: postLine,
+  gbp: postGbp, bluesky: postBluesky,
 }
 
 /* -------------------------------------------------------------- payload -- */
@@ -492,7 +518,10 @@ export function readPayload(body) {
     variants[id] = { text: t, noLink: !!v.noLink }
   }
   const sendId = UUID.test(String(b.sendId || '')) ? String(b.sendId) : crypto.randomUUID()
-  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId } }
+  // Googleビジネスプロフィールのボタンの種類（知らない値は「詳細」にします）。
+  const gbpAction = String((b.gbp && b.gbp.action) || '')
+  const gbp = { action: GBP_ACTIONS[gbpAction] ? gbpAction : 'LEARN_MORE' }
+  return { ok: true, payload: { text, link, campaign, images, variants, targets, sendId, gbp } }
 }
 
 /** Every target, checked before anything is sent. A post that is wrong for
@@ -549,9 +578,13 @@ export async function sendPost(payload, req, opts = {}) {
   // What each network was actually handed, when it differed from the base
   // text — the history should show what went out, not what was typed.
   const texts = {}
+  // どの投稿先に、計測用の印（?ref=）つきの自社リンクが入っていたか。
+  // 「投稿ごとの成果」は、この名前でアクセス解析の数を引きます。
+  const refs = {}
   for (const id of payload.targets) {
     const c = compose(id, payload, BRAND.host)
     if (c.text !== payload.text) texts[id] = c.text.slice(0, 600)
+    if (/[?&]ref=/.test(c.text + ' ' + c.link)) refs[id] = fieldFor(id, payload.campaign)
   }
   const entry = {
     id: crypto.randomUUID(),
@@ -561,6 +594,7 @@ export async function sendPost(payload, req, opts = {}) {
     campaign: payload.campaign || '',
     images: payload.images.map((i) => i.url),
     texts,
+    refs,
     results,
   }
   if (opts.scheduledFor) entry.scheduledFor = opts.scheduledFor
@@ -769,6 +803,12 @@ export async function testNetwork(id, req) {
   } else if (id === 'line') {
     r = await call(`${LINE_API}/v2/bot/info`, { headers: { Authorization: `Bearer ${await setting('LINE_CHANNEL_TOKEN', '', req)}` } }, 'LINE', ctx)
     if (r.ok) who = r.data.displayName || r.data.basicId || ''
+  } else if (id === 'gbp') {
+    r = await testGbp(req, ctx)
+    if (r.ok) who = r.who || ''
+  } else if (id === 'bluesky') {
+    r = await testBluesky(req, ctx)
+    if (r.ok) who = r.who || ''
   }
   const state = diagnose(r)
   const extra = id === 'threads' ? await threadsTokenInfo(req) : null
@@ -899,7 +939,63 @@ async function metricsFor(r, req, ctx) {
     if (o.delivered == null) return { ok: false, message: 'LINE：まだ集計されていません（送信の翌日以降に出ます。20人未満のときは出ません）。' }
     return { ok: true, reach: num(o.delivered), impressions: num(o.uniqueImpression), clicks: num(o.uniqueClick) }
   }
+  if (r.net === 'bluesky') return blueskyMetrics(r.id, ctx)
+  if (r.net === 'gbp') return { ok: false, message: 'Googleビジネスプロフィールの投稿ごとの反応は、APIでは取れなくなりました（ビジネスプロフィールの「パフォーマンス」でご確認ください）。' }
   return { ok: false, message: 'LinkedIn の反応は、この画面からは取得できません（LinkedIn の画面でご確認ください）。' }
+}
+
+
+/* ---- 毎朝の自動取得 ----
+   投稿の1日後と7日後に、反応を1回ずつ取りに行きます（押さなくても履歴と
+   「いつ出すと良いか」が埋まるように）。1回の実行で取るのは AUTO_MAX 件まで。
+   X は読み取りごとに料金がかかるので、設定で許したときだけです。
+   LinkedIn と Googleビジネスプロフィールは取れないので外します。 */
+export const AUTO_MAX = 8
+export const AUTO_STAGES = [
+  { stage: 'd1', after: 20 * 3600000, until: 3 * 86400000 },
+  { stage: 'd7', after: 6.5 * 86400000, until: 10 * 86400000 },
+]
+const NO_METRICS = ['linkedin', 'gbp']
+
+/** いま取りに行くべきもの [{ entryId, net, id, stage }]。すでにその段階より後に
+ *  取った数字があるもの（手で取った場合も含む）は外します。 */
+export function dueForRefresh(posts, now, opts = {}) {
+  const out = []
+  for (const p of posts || []) {
+    if (!p || !p.at) continue
+    const t = Date.parse(p.at)
+    const age = now - t
+    const st = AUTO_STAGES.find((s) => age >= s.after && age < s.until)
+    if (!st) continue
+    for (const r of p.results || []) {
+      if (!r.ok || !r.id || NO_METRICS.includes(r.net)) continue
+      if (r.net === 'x' && !opts.allowX) continue
+      if (opts.ready && !opts.ready.includes(r.net)) continue
+      const m = r.metrics
+      if (m && m.at && Date.parse(m.at) >= t + st.after) continue
+      out.push({ entryId: p.id || p.at, net: r.net, id: r.id, stage: st.stage })
+      if (out.length >= (opts.max || AUTO_MAX)) return out
+    }
+  }
+  return out
+}
+
+/** 毎朝の自動処理から呼びます。req は無し（保存先と環境変数の鍵だけを使います）。 */
+export async function refreshDue(opts = {}) {
+  const cfg = await cfgFor()
+  if (!cfg) return { ok: false, fetched: 0, message: '保存先がありません。' }
+  const nets = (await socialStatus()).filter((n) => n.scheduled).map((n) => n.id)
+  const due = dueForRefresh(await recentPosts(60), Date.now(), { allowX: !!opts.allowX, ready: nets, max: opts.max })
+  if (!due.length) return { ok: true, fetched: 0, failed: 0 }
+  const ctx = { deadline: Date.now() + Math.max(3000, opts.budget || 8000) }
+  const at = new Date().toISOString()
+  const got = await Promise.all(due.map(async (d) => {
+    try { return [d, { ...(await metricsFor({ net: d.net, id: d.id }, undefined, ctx)), at, stage: d.stage }] }
+    catch (e) { return [d, { ok: false }] }
+  }))
+  const save = got.filter(([, m]) => m.ok).map(([d, m]) => ['HSET', METRICS, `${d.entryId}|${d.net}`, JSON.stringify(m)])
+  if (save.length) { try { await pipeline(cfg, save) } catch (_) {} }
+  return { ok: true, fetched: save.length, failed: got.length - save.length }
 }
 
 /** Likes, comments and reach for one history entry, fetched only when asked

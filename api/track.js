@@ -198,6 +198,7 @@ export async function POST(req) {
     source: sourceOf(body, self),
     selfRef: selfReferrer(body?.r, self),
     clean: cleanPath,
+    hour: jstHour(),
   })
   // サイト内で次のページへ移った。見ていた時間だけを書きます（閲覧でも、
   // 導線の段でもありません）。

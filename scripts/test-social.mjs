@@ -376,5 +376,395 @@ await test('AI下書き：ハッシュタグは3つまで、Xは日本語で収�
   assert.ok(T.xLength('あ'.repeat(budgetFor('x', true)) + '\n\n#ab #cd #ef\nhttps://lumenium.net/') <= 280)
 })
 
+console.log('投稿前チェック（表現）')
+const kinds = (t, net, st) => T.review(t, net, st).map((r) => r.kind + ':' + r.level)
+await test('景品表示法：根拠の無い「最安」「No.1」「絶対〜痩せる」は warn', () => {
+  const k = kinds('地域最安値！No.1の味。絶対に痩せる！', 'facebook')
+  assert.ok(k.includes('keihyo:warn'))
+  assert.equal(T.review('地域最安値', 'x').find((r) => r.kind === 'keihyo').word, '地域最安')
+  assert.ok(T.review('No.1の味', 'x').some((r) => r.word === 'No.1'))
+  assert.ok(k.includes('yakki:warn'))
+  assert.ok(T.review('最安値です', 'x')[0].alt.includes('当店調べ'))
+})
+await test('景品表示法：根拠（※〜調べ）があれば note に下がる', () => {
+  assert.deepEqual(kinds('満足度No.1 ※2026年8月 当社調べ', 'x'), ['keihyo:note'])
+})
+await test('事実の説明は拾わない（完全予約制・果汁100%・必ずご予約・ご来店いただきました）', () => {
+  assert.deepEqual(kinds('完全予約制です。果汁100%ジュース。必ずご予約ください。ご来店いただきました。', 'facebook'), [])
+  assert.ok(kinds('効果100%保証', 'x').includes('keihyo:warn'))
+  // 「最高」は感想のことが多いので note
+  assert.deepEqual(kinds('最高の一日でした', 'x'), ['keihyo:note'])
+})
+await test('薬機法：効き目をうたう言い方（シミが消える・アンチエイジング）', () => {
+  const r = T.review('シミが消える美容液。アンチエイジングに。', 'instagram')
+  assert.deepEqual(r.map((x) => x.word), ['シミが消え', 'アンチエイジング'])
+  assert.ok(r.every((x) => x.alt))
+})
+await test('ステマ規制：提供を受けた紹介で PR 表示が無いときだけ', () => {
+  assert.ok(kinds('〇〇さんから商品をご提供いただきました！', 'x').includes('stema:warn'))
+  assert.deepEqual(kinds('【PR】〇〇さんから商品をご提供いただきました', 'x'), [])
+  assert.deepEqual(kinds('#PR 〇〇さんから商品をご提供いただきました', 'x'), [])
+  assert.deepEqual(kinds('自分のお店の新商品です', 'x'), [])
+})
+await test('二重価格：期間が無いと warn、あると note、比べていなければ何も出ない', () => {
+  assert.deepEqual(kinds('通常価格3,000円→2,400円', 'facebook'), ['nijuu:warn'])
+  assert.deepEqual(kinds('通常価格3,000円→9月30日まで2,400円', 'facebook'), ['nijuu:note'])
+  assert.deepEqual(kinds('通常料金 3,000円です', 'facebook'), [])
+})
+await test('個人の情報：電話・メール・住所（URL の中は見ない）', () => {
+  const r = T.review('お電話は 090-1234-5678 まで。mail: shop@example.com 東京都渋谷区神南1-2-3', 'facebook')
+  assert.deepEqual(r.map((x) => x.kind), ['privacy', 'privacy', 'privacy'])
+  assert.deepEqual(kinds('https://example.com/09012345678', 'facebook'), [])
+})
+await test('ハッシュタグの数：X は3個から、Instagram は6個から、Threads は2個から', () => {
+  assert.equal(T.hashtags('#a ＃b 本文 https://x.com/p#frag #1').length, 2)
+  assert.deepEqual(kinds('#a #b 本文', 'x'), [])
+  assert.deepEqual(kinds('#a #b #c 本文', 'x'), ['platform:warn'])
+  assert.deepEqual(kinds('#a #b #c #d #e', 'instagram'), [])
+  assert.deepEqual(kinds('#a #b #c #d #e #f', 'instagram'), ['platform:note'])
+  assert.deepEqual(kinds('#a', 'threads'), [])
+  assert.deepEqual(kinds('#a #b', 'threads'), ['platform:note'])
+})
+await test('このサイトの決まり：行から読み、確かめ、使わない言葉を拾う', () => {
+  const parsed = T.parseStyleLines('激安 → お求めやすい（安っぽく見えるため）\n\n激安', 'お客様 → お客さま ／ 例外: お客様各位, 関係ない\nWeb → Webサイト\n同じ → 同じ\n片方だけ')
+  const { style, problems } = T.validateStyle(parsed)
+  assert.deepEqual(style.ng, [{ word: '激安', alt: 'お求めやすい', why: '安っぽく見えるため' }])
+  assert.deepEqual(style.notation, [{ from: 'お客様', to: 'お客さま', except: ['お客様各位'] }, { from: 'Web', to: 'Webサイト', except: [] }])
+  assert.equal(problems.length, 2)
+  assert.deepEqual(T.validateStyle(T.parseStyleLines(T.styleToLines(style).ng, T.styleToLines(style).notation)).style, style)
+  const r = T.review('激安セール', 'x', style)
+  assert.equal(r[0].kind, 'ng')
+  assert.equal(r[0].alt, '「お求めやすい」')
+  assert.equal(T.validateStyle({ ng: Array.from({ length: 150 }, (_, i) => 'w' + i) }).style.ng.length, 100)
+  assert.equal(T.validateStyle({ ng: ['a'.repeat(99)] }).style.ng[0].word.length, 30)
+})
+await test('表記の自動修正：例外・直した形・URL の中は変えない', () => {
+  const rules = [{ from: 'お客様', to: 'お客さま', except: ['お客様各位'] }, { from: 'Web', to: 'Webサイト', except: [] }]
+  const r = T.applyNotation('お客様各位　お客様へ。Webサイト と Web の話 https://Web.example.com/Web', rules)
+  assert.equal(r.text, 'お客様各位　お客さまへ。Webサイト と Webサイト の話 https://Web.example.com/Web')
+  assert.equal(r.changes, 2)
+  assert.equal(T.applyNotation(r.text, rules).changes, 0)
+  const item = T.review('お客様へ', 'x', { notation: rules }).find((x) => x.kind === 'notation')
+  assert.equal(item.fix, true)
+  assert.equal(item.count, 1)
+})
+await test('決まりの保存：管理キーが要り、確かめた形だけを保存する', async () => {
+  const api = await import('../api/social.js')
+  const put = (body, key = 'test-admin-key') => api.PUT(new Request('https://lumenium.net/api/social', {
+    method: 'PUT', headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+  assert.equal((await put({ style: { ng: ['激安'] } }, 'wrong')).status, 401)
+  const res = await put({ style: { ng: ['激安', ''], notation: [{ from: 'A', to: 'A' }] } })
+  const d = await res.json()
+  assert.equal(d.ok, true)
+  assert.deepEqual(d.style.ng.map((w) => w.word), ['激安'])
+  assert.equal(d.problems.length, 1)
+  const { readStyle } = await import('../api/_social-store.js')
+  assert.deepEqual((await readStyle()).ng.map((w) => w.word), ['激安'])
+})
+
+console.log('投稿ごとの成果')
+const I = await import('../api/_social-insights.js')
+await test('アクセス解析と同じ名前で数える（ref と utm_campaign）', () => {
+  assert.equal(I.fieldFor('x', ''), 'x/-/-')
+  assert.equal(I.fieldFor('instagram', '秋 セール'), 'instagram/-/秋-セール')
+  assert.equal(I.fieldFor('line', 'Autumn!'), 'line/-/autumn')
+})
+await test('送った記録に、印を付けた投稿先が残る', async () => {
+  route = happy
+  const p = base({ text: '見てね', link: 'https://lumenium.net/', campaign: 'aki', targets: ['x', 'facebook'] })
+  const { entry } = await S.sendPost(p, undefined)
+  assert.deepEqual(entry.refs, { x: 'x/-/aki', facebook: 'facebook/-/aki' })
+  const { entry: e2 } = await S.sendPost(base({ text: 'リンクなし', targets: ['x'] }), undefined)
+  assert.deepEqual(e2.refs, {})
+})
+await test('7日間の訪問と問い合わせを足す。重なる投稿は「重なり」と出し、まとめでは二重に数えない', () => {
+  const at = (day, h = 10) => new Date(Date.parse(day + 'T00:00:00+09:00') + h * 3600000).toISOString()
+  const ok = (net) => ({ net, ok: true })
+  const posts = [
+    { id: 'a', at: at('2026-09-01'), refs: { x: 'x/-/-', line: 'line/-/sale' }, results: [ok('x'), ok('line')] },
+    { id: 'b', at: at('2026-09-05'), refs: { x: 'x/-/-' }, results: [ok('x'), { net: 'threads', ok: false }] },
+    { id: 'c', at: at('2026-09-20'), refs: {}, results: [ok('x')] },
+  ]
+  const daily = {}
+  for (let i = 0; i < 30; i++) {
+    const d = I.addDays('2026-08-31', i)
+    daily[d] = { visits: { 'x/-/-': 1, 'line/-/sale': 2 }, contact_submit: d === '2026-09-03' ? { 'x/-/-': 1 } : {}, booking_confirm: d === '2026-09-12' ? { 'x/-/-': 1 } : {} }
+  }
+  const r = I.attribute(posts, daily, '2026-09-25', 'lumenium.net')
+  // 9/1〜9/8 の8日分
+  assert.equal(r.a.x.visits, 8)
+  assert.equal(r.a.x.inquiries, 1)
+  assert.equal(r.a.line.visits, 16)
+  assert.deepEqual(r.a.x.shared.map((o) => o.id), ['b'])
+  assert.deepEqual(r.a.line.shared, [])
+  // 9/5〜9/12：問い合わせ（9/3）は入らず、予約（9/12）は入る
+  assert.equal(r.b.x.visits, 8)
+  assert.equal(r.b.x.contact, 1 - 1)
+  assert.equal(r.b.x.booking, 1)
+  assert.equal(r.b.threads, undefined)
+  assert.equal(r.c.x.untagged, true)
+  const s = I.summarizeByNet(posts, daily, '2026-09-25', 30, 'lumenium.net')
+  // 9/1〜9/12 の12日分（重なった 9/5〜9/8 は1回だけ）
+  assert.equal(s.x.visits, 12)
+  assert.equal(s.x.posts, 3)
+  assert.equal(s.x.tagged, 2)
+  assert.equal(s.x.inquiries, 2)
+})
+await test('まだ7日たっていない投稿は「集計中」、今日までしか数えない', () => {
+  const posts = [{ id: 'n', at: new Date(Date.parse('2026-09-24T01:00:00Z')).toISOString(), refs: { x: 'x/-/-' }, results: [{ net: 'x', ok: true }] }]
+  const daily = { '2026-09-24': { visits: { 'x/-/-': 3 } }, '2026-09-25': { visits: { 'x/-/-': 4 } } }
+  const r = I.attribute(posts, daily, '2026-09-25', 'h')
+  assert.equal(r.n.x.open, true)
+  assert.equal(r.n.x.to, '2026-09-25')
+  assert.equal(r.n.x.visits, 7)
+})
+await test('古い記録（refs なし）は、送った本文とリンクから判断する', () => {
+  assert.equal(I.taggedField({ texts: { x: '見て https://lumenium.net/?ref=x' }, campaign: '' }, 'x', 'lumenium.net'), 'x/-/-')
+  assert.equal(I.taggedField({ texts: {}, link: 'https://lumenium.net/', campaign: 'c' }, 'facebook', 'lumenium.net'), 'facebook/-/c')
+  assert.equal(I.taggedField({ texts: {}, link: 'https://other.example/' }, 'x', 'lumenium.net'), '')
+})
+await test('成果の読み込み：アクセス解析の日ごとの数を引く', async () => {
+  const day = I.jstDay(Date.now())
+  hashes.set(`${(await import('../api/_brand.js')).KV}cp:d:${day}`, new Map([['x/-/aki', '5']]))
+  const posts = [{ id: 'z', at: new Date().toISOString(), refs: { x: 'x/-/aki' }, results: [{ net: 'x', ok: true }] }]
+  const r = await I.socialInsights(posts, undefined)
+  assert.equal(r.ok, true)
+  assert.equal(r.results.z.x.visits, 5)
+  assert.equal(r.summary.d30.x.visits, 5)
+})
+
+console.log('いつ出すと良いか')
+await test('材料が足りないときは一般論で、足りないものを言う', () => {
+  const r = I.recommend([], {}, '2026-09-25', ['x', 'line'])
+  assert.equal(r.x.basis, 'general')
+  assert.equal(r.x.missing.length, 2)
+  assert.ok(r.x.missing[0].includes('0 件'))
+  assert.deepEqual(r.line.weekdays, I.GENERAL.line.weekdays)
+})
+await test('反応のある投稿が10件以上なら、反応のいちばん大きい曜日と時間帯', () => {
+  const posts = []
+  for (let i = 0; i < 12; i++) {
+    // 火曜 19時（JST）に出した投稿だけ反応が大きい
+    const tue = i % 2 === 0
+    const day = tue ? `2026-09-${String(1 + (i % 4) * 7).padStart(2, '0')}` : `2026-09-${String(3 + (i % 4) * 7).padStart(2, '0')}`
+    const at = new Date(Date.parse(day + 'T00:00:00+09:00') + (tue ? 19 : 8) * 3600000).toISOString()
+    posts.push({ at, results: [{ net: 'x', ok: true, metrics: { ok: true, likes: tue ? 30 : 2, comments: 1 } }] })
+  }
+  const r = I.recommend(posts, {}, '2026-09-25', ['x'])
+  assert.equal(r.x.basis, 'posts')
+  assert.deepEqual(r.x.hours, [[18, 21]])
+  assert.equal(r.x.weekdays[0], 2)
+  // 9件では出さない
+  assert.equal(I.recommend(posts.slice(0, 9), {}, '2026-09-25', ['x']).x.basis, 'general')
+})
+await test('計測リンクからの訪問が30件以上なら、サイトの数字から', () => {
+  const hourly = { '2026-09-18': { 'line\t12': 20, 'line\t20': 5, 'x\t9': 3 }, '2026-09-21': { 'line\t13': 10 } }
+  const r = I.recommend([], hourly, '2026-09-25', ['line', 'x'])
+  assert.equal(r.line.basis, 'site')
+  assert.deepEqual(r.line.hours, [[12, 15]])
+  assert.equal(r.line.weekdays[0], 5)   // 2026-09-18 は金曜
+  assert.equal(r.x.basis, 'general')
+  // 90日より前は数えない
+  assert.equal(I.recommend([], { '2026-05-01': { 'line\t12': 99 } }, '2026-09-25', ['line']).line.basis, 'general')
+})
+await test('訪問の時間帯は、計測リンクの名前ごとに数える（キャンペーン名は入れない）', async () => {
+  const { visitPlan } = await import('../api/_visit.js')
+  const plan = visitPlan({ kind: 'view', ev: '', body: { n: 0, s: 'x', c: 'aki' }, path: '/', date: '2026-09-25', source: 'src:x', selfRef: false, clean: (p) => p, hour: 21 })
+  const slot = plan.slots.find((s) => s[0].endsWith('cp:h:2026-09-25'))
+  assert.deepEqual(slot.slice(1), ['x\t21', 'other'])
+  const none = visitPlan({ kind: 'view', ev: '', body: { n: 1, s: 'x' }, path: '/', date: '2026-09-25', source: 'src:x', selfRef: false, clean: (p) => p, hour: 21 })
+  assert.ok(!none.slots.some((s) => s[0].includes('cp:h:')))
+})
+
+console.log('Googleビジネスプロフィール・Bluesky')
+Object.assign(process.env, {
+  GOOGLE_CLIENT_ID: 'gid', GOOGLE_CLIENT_SECRET: 'gsec', GBP_REFRESH_TOKEN: 'gbp-refresh-token-1', GBP_LOCATION: 'accounts/11/locations/22',
+  BSKY_HANDLE: '@shop.bsky.social', BSKY_APP_PASSWORD: 'abcd-efgh-ijkl-mnop',
+})
+await test('数え方：GBP は1500文字、Bluesky は見た目の文字数で300', () => {
+  assert.equal(T.lengthFor('bluesky', '👨‍👩‍👧‍👦あ'), 2)
+  assert.equal(T.lengthFor('gbp', 'あいう'), 3)
+  assert.equal(T.check('bluesky', T.compose('bluesky', base({ text: 'あ'.repeat(300) }), 'h')).errors.length, 0)
+  assert.ok(T.check('bluesky', T.compose('bluesky', base({ text: 'あ'.repeat(301) }), 'h')).errors.length)
+  assert.ok(T.check('gbp', T.compose('gbp', base({ text: 'あ'.repeat(1501) }), 'h')).errors.length)
+})
+await test('GBP：リンクは本文に入れずボタンへ（ref=gbp 付き）。本文の電話番号は注意', () => {
+  const c = T.compose('gbp', base({ text: '秋の新メニュー', link: 'https://lumenium.net/menu' }), 'lumenium.net')
+  assert.equal(c.text, '秋の新メニュー')
+  assert.equal(c.link, 'https://lumenium.net/menu?ref=gbp')
+  assert.ok(c.linkSeparate)
+  const k = T.check('gbp', T.compose('gbp', base({ text: 'お電話は 03-1234-5678 へ' }), 'h'))
+  assert.ok(k.warnings.some((w) => w.includes('電話番号')))
+})
+await test('Bluesky の facets：日本語の位置は UTF-8 のバイト数', () => {
+  const text = '新メニュー https://lumenium.net/a?ref=bluesky と #秋限定 です'
+  const f = T.blueskyFacets(text)
+  assert.equal(f.length, 2)
+  const enc = new TextEncoder()
+  // 「新メニュー 」= 5文字×3バイト + 空白1 = 16
+  assert.deepEqual(f[0].index, { byteStart: 16, byteEnd: 16 + 'https://lumenium.net/a?ref=bluesky'.length })
+  assert.equal(f[0].features[0].uri, 'https://lumenium.net/a?ref=bluesky')
+  const bytes = enc.encode(text)
+  assert.equal(new TextDecoder().decode(bytes.slice(f[1].index.byteStart, f[1].index.byteEnd)), '#秋限定')
+  assert.deepEqual(f[1].features[0], { $type: 'app.bsky.richtext.facet#tag', tag: '秋限定' })
+})
+function gbpRoute(u, init) {
+  if (u.startsWith('https://oauth2.googleapis.com/token')) return json({ access_token: 'g-at', expires_in: 3600 })
+  if (u.includes('mybusiness.googleapis.com/v4/accounts/11/locations/22/localPosts')) {
+    return json({ name: 'accounts/11/locations/22/localPosts/99', searchUrl: 'https://local.google.com/place?id=1&use=posts&lpsid=99' })
+  }
+  if (u.startsWith('https://mybusinessaccountmanagement.googleapis.com/v1/accounts')) return json({ accounts: [{ name: 'accounts/11', accountName: '店' }] })
+  if (u.startsWith('https://mybusinessbusinessinformation.googleapis.com/v1/accounts/11/locations')) {
+    return json({ locations: [{ name: 'locations/22', title: '本店', storefrontAddress: { administrativeArea: '東京都', locality: '渋谷区', addressLines: ['神南1-2-3'] } }] })
+  }
+  return happy(u, init)
+}
+await test('GBP：localPosts.create にボタン・写真・本文を渡す', async () => {
+  route = gbpRoute
+  const p = base({ text: '秋の新メニュー', link: 'https://lumenium.net/menu', targets: ['gbp'], gbp: { action: 'BOOK' },
+    images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] })
+  const { results, entry } = await S.sendPost(p, undefined)
+  assert.equal(results[0].ok, true, results[0].message)
+  assert.equal(results[0].id, 'accounts/11/locations/22/localPosts/99')
+  const sent = calls.find((c) => c.url.includes('/localPosts'))
+  assert.equal(sent.init.headers.Authorization, 'Bearer g-at')
+  const body = JSON.parse(sent.init.body)
+  assert.equal(body.summary, '秋の新メニュー')
+  assert.equal(body.topicType, 'STANDARD')
+  assert.deepEqual(body.callToAction, { actionType: 'BOOK', url: 'https://lumenium.net/menu?ref=gbp' })
+  assert.deepEqual(body.media, [{ mediaFormat: 'PHOTO', sourceUrl: 'https://s.public.blob.vercel-storage.com/a.jpg' }])
+  assert.equal(entry.refs.gbp, 'gbp/-/-')
+})
+await test('GBP：電話ボタンは URL なし、知らないボタンは「詳細」、403 は申請の案内', async () => {
+  const { gbpBody } = await import('../api/_social-more.js')
+  const c = T.compose('gbp', base({ text: 'a', link: 'https://lumenium.net/' }), 'lumenium.net')
+  assert.deepEqual(gbpBody(c, { gbp: { action: 'CALL' } }).callToAction, { actionType: 'CALL' })
+  assert.equal(S.readPayload({ text: 'a', targets: ['gbp'], gbp: { action: 'HACK' } }).payload.gbp.action, 'LEARN_MORE')
+  route = (u, init) => (u.includes('/localPosts') ? json({ error: { code: 403, message: 'denied' } }, 403) : gbpRoute(u, init))
+  const { results } = await S.sendPost(base({ text: 'a', targets: ['gbp'] }), undefined)
+  assert.equal(results[0].ok, false)
+  assert.ok(results[0].message.includes('利用申請'))
+})
+await test('GBP：店舗の一覧（accounts/…/locations/… の形で返す）', async () => {
+  route = gbpRoute
+  const { gbpLocations } = await import('../api/_social-more.js')
+  const r = await gbpLocations(undefined)
+  assert.deepEqual(r.locations, [{ name: 'accounts/11/locations/22', title: '本店', address: '東京都 渋谷区 神南1-2-3', account: '店' }])
+})
+function bskyRoute(u, init) {
+  if (u.endsWith('/xrpc/com.atproto.server.createSession')) return json({ accessJwt: 'jwt', did: 'did:plc:abc', handle: 'shop.bsky.social' })
+  if (u.endsWith('/xrpc/com.atproto.repo.uploadBlob')) return json({ blob: { $type: 'blob', ref: { $link: 'bafy' }, mimeType: 'image/jpeg', size: 4 } })
+  if (u.endsWith('/xrpc/com.atproto.repo.createRecord')) return json({ uri: 'at://did:plc:abc/app.bsky.feed.post/3kxyz', cid: 'c' })
+  return happy(u, init)
+}
+await test('Bluesky：ログイン → 画像 → 投稿（facets と画像つき）', async () => {
+  route = bskyRoute
+  const p = base({ text: '見てね #秋', link: 'https://lumenium.net/', targets: ['bluesky'], images: [{ url: 'https://s.public.blob.vercel-storage.com/a.jpg' }] })
+  const { results } = await S.sendPost(p, undefined)
+  assert.equal(results[0].ok, true, results[0].message)
+  assert.equal(results[0].url, 'https://bsky.app/profile/shop.bsky.social/post/3kxyz')
+  const login = JSON.parse(calls.find((c) => c.url.endsWith('createSession')).init.body)
+  assert.equal(login.identifier, 'shop.bsky.social')
+  const rec = JSON.parse(calls.find((c) => c.url.endsWith('createRecord')).init.body)
+  assert.equal(rec.repo, 'did:plc:abc')
+  assert.equal(rec.record.text, '見てね #秋\nhttps://lumenium.net/?ref=bluesky')
+  assert.deepEqual(rec.record.facets.map((f) => f.features[0].$type), ['app.bsky.richtext.facet#tag', 'app.bsky.richtext.facet#link'])
+  assert.equal(rec.record.embed.images[0].image.ref.$link, 'bafy')
+})
+await test('Bluesky：パスワード違いは分かる言葉で、1MB を超える画像は送らない', async () => {
+  route = (u, init) => (u.endsWith('createSession') ? json({ error: 'AuthenticationRequired', message: 'Invalid' }, 401) : bskyRoute(u, init))
+  let { results } = await S.sendPost(base({ text: 'a', targets: ['bluesky'] }), undefined)
+  assert.ok(results[0].message.includes('アプリパスワード'))
+  route = (u, init) => (u.includes('vercel-storage.com') ? new Response(new Uint8Array(1000001), { headers: { 'content-type': 'image/jpeg' } }) : bskyRoute(u, init))
+  ;({ results } = await S.sendPost(base({ text: 'a', targets: ['bluesky'], images: [{ url: 'https://s.public.blob.vercel-storage.com/big.jpg' }] }), undefined))
+  assert.equal(results[0].ok, false)
+  assert.ok(results[0].message.includes('1MB'))
+  assert.ok(!calls.some((c) => c.url.endsWith('createRecord')))
+})
+await test('Google 接続：GBP は用途つきの署名で、別のトークンに保存する', async () => {
+  const g = await import('../api/google-oauth.js')
+  const s = await g.makeState('gbp')
+  assert.equal(await g.checkState(s), 'gbp')
+  assert.equal(await g.checkState(await g.makeState()), 'cal')
+  const [exp, , sig] = s.split('.')
+  assert.equal(await g.checkState(`${exp}.cal.${sig}`), false)
+  assert.equal(await g.checkState(`${exp}.${sig}`), false)
+  const res = await g.GET(new Request('https://lumenium.net/api/google-oauth?start=1&for=gbp', { headers: { authorization: 'Bearer test-admin-key' } }))
+  const d = await res.json()
+  assert.ok(decodeURIComponent(d.url).includes('business.manage'))
+  assert.ok(!decodeURIComponent(d.url).includes('calendar'))
+})
+
+console.log('反応の自動取得')
+await test('1日後と7日後だけ、X は許したときだけ、取れないSNSと取得済みは外す', () => {
+  const now = Date.parse('2026-09-25T00:00:00Z')
+  const H = 3600000
+  const ok = (net, metrics) => ({ net, ok: true, id: net + '-1', metrics })
+  const posts = [
+    { id: 'p1', at: new Date(now - 26 * H).toISOString(), results: [ok('x'), ok('threads'), ok('linkedin'), ok('gbp'), { net: 'line', ok: false }] },
+    { id: 'p7', at: new Date(now - 7 * 24 * H).toISOString(), results: [ok('facebook', { ok: true, at: new Date(now - 0.2 * 24 * H).toISOString() }), ok('bluesky', { ok: true, at: new Date(now - 7 * 24 * H + 2 * H).toISOString() })] },
+    { id: 'p4', at: new Date(now - 4 * 24 * H).toISOString(), results: [ok('threads')] },
+    { id: 'p0', at: new Date(now - 5 * H).toISOString(), results: [ok('threads')] },
+  ]
+  const due = S.dueForRefresh(posts, now)
+  assert.deepEqual(due.map((d) => d.entryId + ':' + d.net + ':' + d.stage), ['p1:threads:d1', 'p7:bluesky:d7'])
+  assert.ok(S.dueForRefresh(posts, now, { allowX: true }).some((d) => d.net === 'x'))
+  assert.equal(S.dueForRefresh(posts, now, { allowX: true, max: 1 }).length, 1)
+  assert.deepEqual(S.dueForRefresh(posts, now, { ready: ['bluesky'] }).map((d) => d.net), ['bluesky'])
+})
+await test('毎朝の取得：数字を保存し、履歴に載る', async () => {
+  lists.clear()
+  hashes.clear()
+  const at = new Date(Date.now() - 30 * 3600000).toISOString()
+  await S.logPosts({ id: 'auto1', at, text: 't', results: [{ net: 'threads', label: 'Threads', ok: true, id: 'TH9' }, { net: 'x', label: 'X', ok: true, id: '1' }] })
+  route = (u) => (u.includes('/TH9/insights') ? json({ data: [{ name: 'likes', values: [{ value: 4 }] }, { name: 'views', values: [{ value: 50 }] }] }) : null)
+  const r = await S.refreshDue({ allowX: false })
+  assert.equal(r.fetched, 1)
+  assert.ok(!calls.some((c) => c.url.includes('api.x.com')))
+  const p = (await S.recentPosts(5)).find((x) => x.id === 'auto1')
+  assert.equal(p.results.find((x) => x.net === 'threads').metrics.likes, 4)
+  assert.equal(p.results.find((x) => x.net === 'threads').metrics.stage, 'd1')
+  assert.equal((await S.refreshDue({ allowX: false })).fetched, 0)
+})
+await test('設定：X の自動取得は true のときだけ', async () => {
+  const st = await import('../api/_social-store.js')
+  assert.deepEqual(st.cleanPrefs({ xAutoMetrics: 'yes' }), { xAutoMetrics: false })
+  await st.savePrefs({ xAutoMetrics: true })
+  assert.deepEqual(await st.readPrefs(), { xAutoMetrics: true })
+})
+
+console.log('定型文')
+await test('定型文：題名と本文が要り、知らない投稿先・http のリンクは落とす', async () => {
+  const st = await import('../api/_social-store.js')
+  const { templates, problems } = st.validateTemplates([
+    { title: '定休日', text: '〇日は休みです', nets: ['x', 'line', 'myspace'], campaign: '秋 セール', link: 'http://a.example/' },
+    { title: '', text: 'a' },
+    { title: '空', text: '  ' },
+  ])
+  assert.equal(templates.length, 1)
+  assert.deepEqual(templates[0].nets, ['x', 'line'])
+  assert.equal(templates[0].campaign, '秋-セール')
+  assert.equal(templates[0].link, '')
+  assert.equal(problems.length, 2)
+  assert.equal(st.validateTemplates(Array.from({ length: 40 }, (_, i) => ({ title: 't' + i, text: 'x' }))).templates.length, 30)
+})
+await test('定型文の保存：PUT で全体を置き換え、GET で返る', async () => {
+  const api = await import('../api/social.js')
+  const res = await api.PUT(new Request('https://lumenium.net/api/social', {
+    method: 'PUT', headers: { authorization: 'Bearer test-admin-key', 'content-type': 'application/json' },
+    body: JSON.stringify({ templates: [{ id: 'tpl-000001', title: '新メニュー', text: '始めました', nets: ['instagram'], link: 'https://lumenium.net/menu' }] }) }))
+  const d = await res.json()
+  assert.equal(d.ok, true)
+  const st = await import('../api/_social-store.js')
+  const list = await st.readTemplates()
+  assert.deepEqual(list.map((t) => [t.id, t.title, t.link]), [['tpl-000001', '新メニュー', 'https://lumenium.net/menu']])
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
+
+
+
+
+
 if (failed) process.exit(1)

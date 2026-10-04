@@ -1219,7 +1219,10 @@
     ['instagram', 'Instagram', 2200, 'required', 1, '画像が必須です（JPEG・縦横比 4:5〜1.91:1・8MB以下）。本文のリンクは押せません。1日100件まで。', ['IG_USER_ID', 'IG_TOKEN'], true],
     ['threads', 'Threads', 500, 'optional', 1, '500文字まで。作成と公開の2段階で送ります。鍵は60日で切れるので「トークンを延長」で延ばします。', ['THREADS_USER_ID', 'THREADS_TOKEN'], true],
     ['linkedin', 'LinkedIn', 3000, 'none', 0, '本文とリンクだけ送ります（画像はアセット登録が別に要るため送りません）。本文が必要です。', ['LI_AUTHOR_URN', 'LI_TOKEN'], false],
-    ['line', 'LINE公式アカウント', 5000, 'optional', 1, '友だち全員に一斉送信します。届いた人数ぶん「通数」を使います（無料プランは月200通）。', ['LINE_CHANNEL_TOKEN'], true]
+    ['line', 'LINE公式アカウント', 5000, 'optional', 1, '友だち全員に一斉送信します。届いた人数ぶん「通数」を使います（無料プランは月200通）。', ['LINE_CHANNEL_TOKEN'], true],
+    ['gbp', 'Googleビジネスプロフィール', 1500, 'optional', 1, 'Google検索・マップのお店の情報に「最新情報」として出ます。1500文字まで。リンクはボタン（詳細・予約など）として付きます。画像は1枚目だけ送ります。',
+      ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GBP_REFRESH_TOKEN', 'GBP_LOCATION'], false, ['GBP_LOCATION']],
+    ['bluesky', 'Bluesky', 300, 'optional', 4, '300文字まで（見た目の文字数で数えます）。リンクとハッシュタグは押せる形で送ります。画像は、この画面からアップロードしたものを4枚まで（1枚1MBまで）。', ['BSKY_HANDLE', 'BSKY_APP_PASSWORD'], true]
   ];
   var DEMO_HOST = 'example.com';
   function socialRecent() {
@@ -1235,7 +1238,7 @@
           res('facebook', 'Facebook', true),
           res('line', 'LINE公式アカウント', true, { ok: true, reach: 186, impressions: 121, clicks: 34, at: ago(DAY) })
         ] },
-      { id: 'demo-p2', at: ago(9 * DAY + 2 * 3600000), scheduledFor: jstDate(9), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: '', images: [],
+      { id: 'demo-p2', at: ago(6 * DAY + 2 * 3600000), scheduledFor: jstDate(6), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: 'https://' + DEMO_HOST + '/works', campaign: 'works-autumn', images: [],
         results: [res('x', 'X', true), res('threads', 'Threads', true), res('instagram', 'Instagram', false, null, true)] },
       { id: 'demo-p3', at: ago(17 * DAY), text: '（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', link: 'https://' + DEMO_HOST + '/blog', images: [],
         results: [res('x', 'X', true), res('facebook', 'Facebook', false)] }
@@ -1253,17 +1256,76 @@
       brand: { name: (window.lumSite && window.lumSite.name) || 'Sample', host: DEMO_HOST, url: 'https://' + DEMO_HOST },
       networks: NETS.map(function (n) {
         return { id: n[0], label: n[1], mark: '', limit: n[2], image: n[3], maxImages: n[4], weighted: n[0] === 'x',
-          needText: n[0] === 'x' || n[0] === 'linkedin', note: n[5], needs: n[6],
+          needText: n[0] === 'x' || n[0] === 'linkedin' || n[0] === 'gbp', note: n[5], needs: n[6],
           setup: { what: n[1] + ' の資格情報が要ります（デモ表示）。', where: '各SNSの開発者画面で取得します。', url: '', effort: '' },
-          ready: n[7], scheduled: n[7], missing: n[7] ? [] : n[6] };
+          ready: n[7], scheduled: n[7], missing: n[7] ? [] : (n[8] || n[6]) };
       }),
       recent: socialRecent(),
       activity: socialActivity(),
       schedule: { ready: true, message: '', code: '', jstHour: 9, items: socialQueue() },
       upload: { ready: true },
-      threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 }
+      threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 },
+      style: socialStyle(),
+      prefs: { xAutoMetrics: false },
+      templates: [
+        { id: 'demo-tpl-1', title: '定休日のお知らせ', text: '（定型文の例）〇月〇日（〇）は定休日です。ご不便をおかけしますが、よろしくお願いいたします。', nets: ['x', 'line', 'gbp'], campaign: '', link: '' },
+        { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
+      ]
     };
   }
+  /* このサイトの決まり（shape: _social-text.js validateStyle）。 */
+  function socialStyle() {
+    return {
+      ng: [{ word: '激安', alt: 'お求めやすい', why: '安っぽく見えるため' }, { word: '業界最安', alt: '', why: '' }],
+      notation: [
+        { from: 'お客様', to: 'お客さま', except: ['お客様各位'] },
+        { from: 'ホームページ', to: 'ウェブサイト', except: ['ホームページ制作'] }
+      ]
+    };
+  }
+
+  /* 投稿ごとの成果（shape: _social-insights.js socialInsights）。 */
+  function socialInsights() {
+    var g = function (visits, inq, open, shared) {
+      return { field: '', from: '', to: '', open: !!open, visits: visits, contact: inq, booking: 0, inquiries: inq, shared: shared || [] };
+    };
+    var p1 = { id: 'demo-p1', at: ago(2 * DAY + 4 * 3600000) };
+    var p2 = { id: 'demo-p2', at: ago(6 * DAY + 2 * 3600000) };
+    return {
+      ok: true, window: 7, today: jstDate(0), stored: true,
+      results: {
+        'demo-p1': { x: g(14, 1, true, [p2]), threads: g(5, 0, true, [p2]), facebook: g(3, 0, true), line: g(22, 2, true) },
+        'demo-p2': { x: g(17, 1, true, [p1]), threads: g(6, 0, true, [p1]) },
+        'demo-p3': { x: g(6, 0, false) }
+      },
+      summary: {
+        d30: { x: { posts: 3, tagged: 3, visits: 21, contact: 1, booking: 0, inquiries: 1 }, threads: { posts: 2, tagged: 2, visits: 7, contact: 0, booking: 0, inquiries: 0 },
+          facebook: { posts: 1, tagged: 1, visits: 3, contact: 0, booking: 0, inquiries: 0 }, line: { posts: 1, tagged: 1, visits: 22, contact: 1, booking: 1, inquiries: 2 } },
+        d90: { x: { posts: 9, tagged: 7, visits: 58, contact: 2, booking: 1, inquiries: 3 }, threads: { posts: 5, tagged: 4, visits: 19, contact: 0, booking: 0, inquiries: 0 },
+          facebook: { posts: 4, tagged: 3, visits: 11, contact: 1, booking: 0, inquiries: 1 }, instagram: { posts: 6, tagged: 0, visits: 0, contact: 0, booking: 0, inquiries: 0 },
+          line: { posts: 3, tagged: 3, visits: 61, contact: 2, booking: 2, inquiries: 4 } }
+      },
+      recommend: socialRecommend()
+    };
+  }
+  /* いつ出すと良いか（shape: _social-insights.js recommend）。 */
+  function socialRecommend() {
+    var gen = function (hours, wds, text, posts, visits) {
+      return { basis: 'general', n: 0, hours: hours, weekdays: wds, text: text,
+        missing: ['反応を取得した投稿が ' + posts + ' 件です（10 件で、反応から出せます）', '計測リンクから来た訪問が直近90日で ' + visits + ' 件です（30 件で、サイトの数字から出せます）'] };
+    };
+    return {
+      x: { basis: 'posts', n: 14, hours: [[18, 21]], weekdays: [2, 4], text: '火・木曜の 18〜21時に出した投稿の反応がいちばん大きい（この画面から出した 14 件の いいね・コメント・共有 の平均）', missing: [] },
+      line: { basis: 'site', n: 61, hours: [[12, 15]], weekdays: [5], text: 'line の計測リンクから来る人は 金曜の 12〜15時に多い（直近90日の訪問 61 件）。少し前に出すと見てもらいやすくなります', missing: ['反応を取得した投稿が 3 件です（10 件で、反応から出せます）'] },
+      facebook: gen([[9, 12]], [1, 2, 3, 4, 5], '平日の午前中（9〜12時）', 2, 11),
+      instagram: gen([[12, 13], [19, 22]], [5, 6, 0], 'お昼（12時台）と夜（19〜22時）、金〜日', 0, 0),
+      threads: gen([[20, 23]], [1, 2, 3, 4, 5], '夜（20〜23時）', 4, 19),
+      linkedin: gen([[8, 10]], [2, 3, 4], '平日の朝（8〜10時）、火〜木', 0, 0),
+      gbp: gen([[9, 12]], [3, 4], '週末やイベントの2〜3日前（水・木）', 0, 8),
+      bluesky: gen([[20, 23]], [1, 2, 3, 4, 5], '夜（20〜23時）', 0, 0)
+    };
+  }
+
   function socialQuotas() {
     return { ok: true, quotas: {
       line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 186, date: jstDate(1), note: '' },
@@ -1278,7 +1340,14 @@
     if (a === 'test') {
       return { ok: true, net: body.net, state: 'ok', message: 'つながりました（デモ表示：実際には確認していません）。' };
     }
+    if (a === 'gbp-locations') {
+      return { ok: true, locations: [
+        { name: 'accounts/100/locations/200', title: 'サンプル珈琲 本店', address: '東京都 渋谷区 神南1-2-3', account: 'サンプル' },
+        { name: 'accounts/100/locations/201', title: 'サンプル珈琲 駅前店', address: '東京都 渋谷区 道玄坂4-5-6', account: 'サンプル' }
+      ] };
+    }
     if (a === 'metrics') {
+
       return { ok: true, metrics: { x: { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840 } }, recent: socialRecent() };
     }
     notice(MSG);
@@ -1296,14 +1365,16 @@
       instagram: '（デモ用の下書き）\n秋の限定メニュー、はじまりました。\n栗の香りいっぱいのモンブランです。\n\n詳しくはプロフィールのリンクから\n\n#秋限定 #モンブラン #カフェ',
       threads: '（デモ用の下書き）秋のモンブラン、今年もはじめました。栗、好きな人いますか？\n\n#秋限定',
       linkedin: '（デモ用の下書き）秋の限定メニューの提供を開始しました。地元の農家さんの栗を使っています。',
-      line: '（デモ用の下書き）こんにちは！\n秋の限定メニュー「栗のモンブラン」がはじまりました🌰\nご来店をお待ちしています。'
+      line: '（デモ用の下書き）こんにちは！\n秋の限定メニュー「栗のモンブラン」がはじまりました🌰\nご来店をお待ちしています。',
+      gbp: '（デモ用の下書き）秋の限定メニュー「栗のモンブラン」の提供を始めました。地元の農家さんの栗を使っています。10月31日までの期間限定です。',
+      bluesky: '（デモ用の下書き）秋のモンブラン、今年もはじめました🌰 #秋限定'
     };
     var drafts = {};
     nets.forEach(function (n) {
       if (!base[n]) return;
       var t = base[n];
       var sent = body.link ? t + '\nhttps://' + DEMO_HOST + '/' : t;
-      var c = T ? (n === 'x' ? T.xLength(sent) : sent.length) : sent.length;
+      var c = T ? T.lengthFor(n, sent) : sent.length;
       var lim = T && T.RULES[n] ? T.RULES[n].limit : 5000;
       drafts[n] = { text: t, count: c, limit: lim, over: c > lim };
     });
@@ -1518,7 +1589,8 @@
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });
       case '/api/booking': return reply(q.get('recent') ? bookingRecent() : { ok: true, enabled: false, mode: 'off', slots: [] });
       case '/api/settings': return reply(settings());
-      case '/api/social': return reply(q.get('quota') ? socialQuotas() : social());
+      case '/api/social': return reply(q.get('quota') ? socialQuotas() : q.get('insights') ? socialInsights() : social());
+
       case '/api/google-oauth':
       case '/api/video-oauth':
         notice(MSG);

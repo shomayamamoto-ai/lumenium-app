@@ -617,6 +617,44 @@
   .soc-q { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
   .soc-q .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .soc-q button { flex: none; font-size: 11px; padding: 5px 10px; }
+  /* SNS（文章）: 投稿前チェック・成果・おすすめの時間・カレンダー・定型文 */
+  .soc-rv { margin-top: 10px; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; }
+  .soc-rv h4 { font-size: 12px; font-weight: 700; margin: 0 0 2px; }
+  .soc-rv .it { border-top: 1px solid var(--border); padding: 7px 0 6px; font-size: 11.5px; line-height: 1.75; }
+  .soc-rv .it:first-of-type { border-top: 0; }
+  .soc-rv .kd { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-right: 6px; }
+  .soc-rv .kd.warn { background: rgba(251,191,36,0.22); color: #92400e; }
+  .soc-rv .kd.note { background: rgba(99,102,241,0.12); color: #3730a3; }
+  .soc-rv .w { font-weight: 700; }
+  .soc-rv .alt { color: #0f766e; }
+  .soc-tbl { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .soc-tbl th, .soc-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .soc-tbl th { font-size: 11px; color: var(--sub); font-weight: 700; }
+  .soc-tbl td.n { text-align: right; }
+  .soc-scroll { overflow-x: auto; }
+  @media (max-width: 560px) { .soc-tbl .tx { display: none; } }
+  .soc-box { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px; margin-bottom: 10px; }
+  .soc-chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #e7e4dc; color: var(--text); margin: 1px 2px 1px 0; }
+  .soc-chip.q { background: rgba(20,184,166,0.16); color: #0f766e; }
+  .soc-chip.ng { background: rgba(248,113,113,0.15); color: #b42318; }
+  .soc-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .soc-cal .hd { font-size: 10.5px; color: var(--sub); text-align: center; font-weight: 700; padding: 2px 0; }
+  .soc-cal .d { min-height: 64px; background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 3px 4px; font-size: 11px; text-align: left; color: var(--text); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; width: 100%; font-weight: 400; }
+  .soc-cal .d .cs { display: block; line-height: 1.5; }
+  .soc-cal .d.out { background: transparent; border-style: dashed; cursor: default; }
+  .soc-cal .d.today { border-color: #0f766e; }
+  .soc-cal .d.sel { box-shadow: inset 0 0 0 2px #14b8a6; }
+  .soc-cal .d .num { font-weight: 700; font-size: 11px; display: block; }
+  .soc-cal-list { display: none; }
+  @media (max-width: 560px) {
+    .soc-cal, .soc-cal-nav .wk { display: none; }
+    .soc-cal-list { display: block; }
+  }
+  .soc-cal-item { padding: 7px 10px; margin-bottom: 5px; background: #fff; border: 1px solid var(--border); border-radius: 9px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+  .soc-rec { font-size: 11.5px; line-height: 1.8; }
+  .soc-rec .lab { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 7px; border-radius: 999px; margin-left: 4px; }
+  .soc-rec .lab.own { background: rgba(16,185,129,0.16); color: #047857; }
+  .soc-rec .lab.gen { background: #e7e4dc; color: var(--sub); }
 
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -1006,7 +1044,7 @@ header h1, header button, header a { white-space: nowrap; }
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS（文章）</h2>
       <p class="share-note" style="margin-bottom:14px">
-        ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
+        ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント・Googleビジネスプロフィール・Bluesky に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
       </p>
       <p class="msg" id="social-msg" style="margin-bottom:12px"></p>
@@ -1021,8 +1059,20 @@ header h1, header button, header a { white-space: nowrap; }
         <h3 class="soc-step">1　どこに出すか</h3>
         <div id="social-nets" class="soc-nets"></div>
         <div id="social-more"></div>
+        <div id="social-gbp"></div>
 
         <h3 class="soc-step">2　何を書くか</h3>
+        <!-- 定型文：よく出すお知らせを、題名をつけて取っておき、そこから作ります。 -->
+        <div class="soc-box" id="social-tpl">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <label for="social-tpl-sel" style="font-size:12px;font-weight:700">定型文から作る</label>
+            <select id="social-tpl-sel" style="width:auto;max-width:100%;font-size:12.5px;padding:6px 8px"><option value="">選んでください</option></select>
+            <button type="button" id="social-tpl-use" style="font-size:12px;padding:6px 12px">この定型文を使う</button>
+            <button type="button" class="ghost" id="social-tpl-del" style="font-size:12px;padding:6px 12px">削除</button>
+            <button type="button" class="ghost" id="social-tpl-save" style="font-size:12px;padding:6px 12px">いまの内容を定型文として保存</button>
+          </div>
+          <div id="social-tpl-st" class="soc-small" style="margin-top:4px">本文・リンク・キャンペーン名・出す先をまとめて取っておけます（30個まで）。</div>
+        </div>
         <details class="soc-ai" id="social-ai">
           <summary>AIに下書きを作ってもらう（投稿先ごとに書き分けます）</summary>
           <div class="soc-ai-body">
@@ -1068,6 +1118,19 @@ header h1, header button, header a { white-space: nowrap; }
         <h3 class="soc-step">3　SNSごとに確かめる</h3>
         <div id="social-tabs" class="soc-tabs" role="tablist"></div>
         <div id="social-variant"></div>
+        <!-- このサイトの決まり（使わない言葉・表記の統一）。投稿前チェックが使います。 -->
+        <details class="soc-more" id="social-style" style="margin-top:10px">
+          <summary>このサイトの決まり（使わない言葉・表記の統一）</summary>
+          <div class="soc-small" style="margin-top:6px">ここに書いた言葉は、投稿前チェックで知らせます。1行に1つ書きます。</div>
+          <label class="soc-lab" for="social-style-ng">使わない言葉（例：激安 → お求めやすい（安っぽく見えるため））</label>
+          <textarea id="social-style-ng" rows="3" style="width:100%;padding:9px 11px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;line-height:1.7"></textarea>
+          <label class="soc-lab" for="social-style-nt">表記の統一（例：お客様 → お客さま ／ 例外: お客様各位）</label>
+          <textarea id="social-style-nt" rows="3" style="width:100%;padding:9px 11px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;line-height:1.7"></textarea>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
+            <button type="button" id="social-style-save" style="font-size:12px;padding:7px 13px">決まりを保存</button>
+            <span id="social-style-st" class="soc-small"></span>
+          </div>
+        </details>
 
         <h3 class="soc-step">4　いつ出すか</h3>
         <div class="soc-when">
@@ -1076,6 +1139,7 @@ header h1, header button, header a { white-space: nowrap; }
           <input type="date" id="social-date" aria-label="投稿する日付">
         </div>
         <div id="social-whennote" class="soc-small" style="margin-top:6px"></div>
+        <div id="social-rec" style="margin-top:10px"></div>
 
         <h3 class="soc-step">5　送る</h3>
         <div class="toolbar" style="margin:12px 0">
@@ -1087,6 +1151,10 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 class="soc-h">予約中の投稿</h3>
       <div id="social-queue" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">カレンダー（予約と、これまでの投稿）</h3>
+      <div id="social-cal" style="margin-bottom:18px"></div>
+      <h3 class="soc-h">投稿の成果（サイトに来た人・問い合わせ）</h3>
+      <div id="social-outcome" style="margin-bottom:18px"></div>
       <h3 class="soc-h">これまでの投稿</h3>
       <div id="social-log"></div>
     </div>
@@ -6693,6 +6761,13 @@ window.lumAdmin = {
   var brand = { host: location.hostname.replace(/^www\./, ''), name: (window.lumSite && window.lumSite.name) || '' };
   var info = { schedule: { ready: false, items: [], jstHour: 9 }, upload: { ready: false }, threadsToken: null, stored: false };
   var quotas = {};
+  var style = { ng: [], notation: [] };
+  var insights = null;
+  var prefs = { xAutoMetrics: false };
+  var templates = [];
+  var calMonth = '';
+  var calSel = '';
+  var outcomeDays = 30;
   var tests = {};
   var imgMeta = {};
   var busy = false;
@@ -6705,7 +6780,7 @@ window.lumAdmin = {
     return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
   }
   function blank() {
-    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid() };
+    return { picked: [], images: [], variants: {}, tab: '', when: 'now', date: '', sendId: uuid(), gbpAction: 'LEARN_MORE' };
   }
 
   function esc(t) {
@@ -6746,7 +6821,8 @@ window.lumAdmin = {
       images: S.images.map(function (i) { return { url: i.url, preview: i.preview || '' }; }),
       variants: S.variants,
       targets: sendable(),
-      sendId: S.sendId
+      sendId: S.sendId,
+      gbp: { action: S.gbpAction || 'LEARN_MORE' }
     };
   }
   function composeFor(id) { return TX.compose(id, payload(), brand.host); }
@@ -6958,6 +7034,64 @@ window.lumAdmin = {
     });
   }
 
+  /* ---- Googleビジネスプロフィールの連携 ----
+     サイトの Google 接続に business.manage の許可を足し（別のトークンとして
+     保存）、管理している店舗の一覧から投稿する店舗を選びます。 */
+  var gbpList = null;
+  function renderGbp() {
+    var host = el('social-gbp');
+    var n = netById('gbp');
+    if (!n) { host.innerHTML = ''; return; }
+    var miss = n.missing || [];
+    var needClient = miss.indexOf('GOOGLE_CLIENT_ID') !== -1 || miss.indexOf('GOOGLE_CLIENT_SECRET') !== -1;
+    var linked = miss.indexOf('GBP_REFRESH_TOKEN') === -1;
+    var placed = miss.indexOf('GBP_LOCATION') === -1;
+    var state = n.ready ? '✓ 連携済み・店舗も選んであります' : needClient ? 'サイトの Google 接続（GOOGLE_CLIENT_ID / SECRET）がまだありません' :
+      !linked ? 'まだ連携していません' : '連携済み。投稿する店舗を選んでください';
+    host.innerHTML = '<details class="soc-more" id="soc-gbp"' + (n.ready ? '' : ' open') + '><summary>Googleビジネスプロフィール（地図・検索のお店の情報）への投稿：' + esc(state) + '</summary>' +
+      '<div class="soc-small" style="margin-top:6px">地元のお客さまが Google で見る「最新情報」に出ます。まだ連携していなくても、3 の「コピーして開く」から手で投稿できます。</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
+        '<button type="button" class="ghost" id="soc-gbp-link" style="font-size:12px;padding:7px 12px"' + (needClient ? ' disabled' : '') + '>Googleビジネスプロフィールを連携</button>' +
+        '<button type="button" class="ghost" id="soc-gbp-list" style="font-size:12px;padding:7px 12px"' + (linked && !needClient ? '' : ' disabled') + '>店舗を選ぶ</button>' +
+      '</div>' +
+      '<div id="soc-gbp-out" style="margin-top:8px"></div>' +
+      '<div class="soc-small">Business Profile API は、Google への利用申請が通るまで使えません（申請しても数日かかることがあります）。</div></details>';
+    el('soc-gbp-link').addEventListener('click', gbpConnect);
+    el('soc-gbp-list').addEventListener('click', gbpPickList);
+    if (gbpList) showGbpList();
+  }
+  async function gbpConnect() {
+    var out = el('soc-gbp-out');
+    var w = window.open('', '_blank');
+    var r = await api('/api/google-oauth?start=1&for=gbp');
+    var d = r.data || {};
+    if (!d.ok || !d.url) { if (w) w.close(); out.textContent = d.message || '始められませんでした。'; return; }
+    if (w) w.location = d.url; else location.href = d.url;
+    out.textContent = '開いたタブで Google の許可を済ませてから、「状態を再取得」を押し、「店舗を選ぶ」に進んでください。';
+  }
+  async function gbpPickList() {
+    var out = el('soc-gbp-out');
+    out.textContent = '店舗の一覧を読んでいます…';
+    var r = await postJson('/api/social', { action: 'gbp-locations' });
+    var d = r.data || {};
+    if (!d.ok) { out.textContent = d.message || '一覧を読めませんでした。'; return; }
+    gbpList = d.locations || [];
+    showGbpList();
+  }
+  function showGbpList() {
+    var out = el('soc-gbp-out');
+    if (!gbpList.length) { out.textContent = 'このGoogleアカウントで管理している店舗が見つかりませんでした。'; return; }
+    out.innerHTML = '<select id="soc-gbp-sel" style="width:auto;max-width:100%;font-size:12.5px;padding:6px 8px">' +
+      gbpList.map(function (l) { return '<option value="' + esc(l.name) + '">' + esc(l.title + (l.address ? '（' + l.address + '）' : '')) + '</option>'; }).join('') +
+      '</select> <button type="button" id="soc-gbp-save" style="font-size:12px;padding:6px 12px">この店舗に投稿する</button> <span class="soc-small" id="soc-gbp-st"></span>';
+    el('soc-gbp-save').addEventListener('click', async function () {
+      var r = await postJson('/api/social', { action: 'gbp-pick', location: el('soc-gbp-sel').value });
+      var d = r.data || {};
+      el('soc-gbp-st').textContent = d.message || (d.ok ? '保存しました。' : '保存できませんでした。');
+      if (d.ok && d.networks) { nets = d.networks; gbpList = null; renderNets(); renderGbp(); changed(true); }
+    });
+  }
+
   /* まだ1つもつないでいないときの案内。鍵が無くても投稿文は作れるので、
      投稿欄は隠しません（作って、コピーして、各SNSで貼れば出せます）。 */
   function renderSetup() {
@@ -7129,8 +7263,10 @@ window.lumAdmin = {
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', id === S.tab ? 'true' : 'false');
       b.dataset.net = id;
+      var rw = TX.review(k.c.text, id, style).filter(function (x) { return x.level === 'warn'; }).length;
       b.innerHTML = esc(n.label) + '<span class="st' + (k.errors.length ? ' over' : '') + '">' +
-        (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>';
+        (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>' +
+        (rw ? '<span class="st" style="color:#92400e" title="投稿前チェックで ' + rw + ' 件">⚠' + rw + '</span>' : '');
       b.addEventListener('click', function () { S.tab = id; renderTabs(); renderVariant(); save(); });
       host.appendChild(b);
     });
@@ -7153,11 +7289,15 @@ window.lumAdmin = {
           '<button type="button" class="ghost" id="soc-v-reset" style="font-size:11px;padding:4px 10px">共通の本文に戻す</button>' +
           (hasLink ? '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="soc-v-nolink"' + (v.noLink ? ' checked' : '') + '> この投稿先にはリンクを付けない</label>' : '') +
         '</div>' +
+        (id === 'gbp' ? '<div class="row"><label for="soc-v-gbp" style="font-weight:700">ボタンの種類</label><select id="soc-v-gbp" style="width:auto;font-size:12px;padding:5px 8px"></select>' +
+          '<span class="soc-small">リンクの欄のURLが、このボタンの行き先になります（「今すぐ電話」はお店の電話番号にかかります）。</span></div>' : '') +
         '<div class="row"><span class="soc-count" id="soc-v-count"></span>' +
           (n.weighted ? '<span class="soc-small">Xでは日本語は1文字=2として数えます（URLはどれも23）</span>' : '') +
+          (id === 'bluesky' ? '<span class="soc-small">Blueskyは見た目の1文字ずつで数えます（絵文字の組み合わせも1）</span>' : '') +
         '</div>' +
         '<div id="soc-v-issues"></div>' +
         '<div id="soc-v-fix"></div>' +
+        '<div id="soc-v-review"></div>' +
         '<div id="soc-v-preview"></div>' +
         '<div class="row" style="margin-top:8px">' +
           '<button type="button" id="soc-v-clip" style="font-size:11.5px;padding:6px 12px">本文をコピー</button>' +
@@ -7185,6 +7325,16 @@ window.lumAdmin = {
       if (S.variants[id]) S.variants[id].text = '';
       changed(false);
     });
+    var gs = el('soc-v-gbp');
+    if (gs) {
+      Object.keys(TX.GBP_ACTIONS).forEach(function (k) {
+        var o = document.createElement('option');
+        o.value = k; o.textContent = TX.GBP_ACTIONS[k];
+        gs.appendChild(o);
+      });
+      gs.value = S.gbpAction || 'LEARN_MORE';
+      gs.addEventListener('change', function () { S.gbpAction = gs.value; changed(false); });
+    }
     var nl = el('soc-v-nolink');
     if (nl) nl.addEventListener('change', function () {
       S.variants[id] = S.variants[id] || {};
@@ -7202,7 +7352,9 @@ window.lumAdmin = {
       instagram: 'Instagramのアプリで画像を選び、キャプションに貼ってください（画像は「画像」の欄から保存できます）。',
       line: 'LINE公式アカウントの管理画面（Official Account Manager）の「メッセージ配信」に貼ってください。',
       facebook: 'Facebookページの投稿欄に貼ってください。',
-      linkedin: 'LinkedInの投稿欄に貼ってください。'
+      linkedin: 'LinkedInの投稿欄に貼ってください。',
+      gbp: 'Googleビジネスプロフィール（business.google.com、またはGoogle検索で自分のお店を開いた画面）の「最新情報を追加」に貼ってください。リンクは「ボタンを追加」で付けます。',
+      bluesky: 'Blueskyの投稿欄に貼ってください。'
     }[id] || '投稿欄に貼ってください。';
   }
   function openUrl(id, c) {
@@ -7214,7 +7366,9 @@ window.lumAdmin = {
       facebook: c.link ? 'https://www.facebook.com/sharer/sharer.php?u=' + u : 'https://www.facebook.com/',
       linkedin: c.link ? 'https://www.linkedin.com/sharing/share-offsite/?url=' + u : 'https://www.linkedin.com/feed/',
       line: 'https://manager.line.biz/',
-      instagram: 'https://www.instagram.com/'
+      instagram: 'https://www.instagram.com/',
+      gbp: 'https://business.google.com/',
+      bluesky: 'https://bsky.app/intent/compose?text=' + t
     }[id] || '';
   }
   function clip(id, open) {
@@ -7269,6 +7423,14 @@ window.lumAdmin = {
     if (id === 'line') {
       return '<div class="soc-pv line"><div class="bubble"><div class="tx">' + hl(c.text) + '</div></div>' + pics + destHtml + '</div>';
     }
+    if (id === 'gbp') {
+      var act = S.gbpAction || 'LEARN_MORE';
+      var showBtn = act === 'CALL' || !!c.link;
+      return '<div class="soc-pv">' + '<div class="who"><span class="av"></span><span>' + name + ' <span class="hd">Google検索・マップの「最新情報」</span></span></div>' +
+        pics + '<div class="tx" style="margin-top:6px">' + hl(c.text) + '</div>' +
+        (showBtn ? '<div style="margin-top:8px"><span style="display:inline-block;border:1px solid #1a73e8;color:#1a73e8;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700">' + esc(TX.GBP_ACTIONS[act] || '詳細') + '</span></div>' : '') +
+        destHtml + '</div>';
+    }
     var card = c.linkSeparate ? '<div class="card">' + esc((function () { try { return new URL(c.link).hostname; } catch (_) { return ''; } })()) + '<br>' + esc(readable(c.link)) + '</div>' : '';
     return '<div class="soc-pv">' + who + '<div class="tx">' + hl(c.text) + '</div>' + pics + card + destHtml + '</div>';
   }
@@ -7308,7 +7470,71 @@ window.lumAdmin = {
       fix.innerHTML = '<div class="soc-issue">この送信で約 <b>' + q.reach + '通</b> 使います（友だち ' + q.followers + '人のうち届く人 ' + q.reach + '人 × 1回）。' +
         (q.remaining != null ? '今月の残りは ' + q.remaining + '通です。' : '') + '</div>';
     }
+    renderReview(id, k);
     el('soc-v-preview').innerHTML = previewHtml(id, k);
+  }
+
+  /* ---- 投稿前チェック（表現） ----
+     決まった言葉と形を探すだけの確認です（_social-text.js の review）。
+     送信は止めません。「なぜ」と「言い換え例」を並べて、直すかどうかは
+     書いた人が決めます。 */
+  function renderReview(id, k) {
+    var host = el('soc-v-review');
+    if (!host) return;
+    if (!String(k.c.text || '').trim()) { host.innerHTML = ''; return; }
+    var items = TX.review(k.c.text, id, style);
+    var fixable = items.filter(function (x) { return x.fix; }).reduce(function (a, x) { return a + (x.count || 0); }, 0);
+    host.innerHTML = '<div class="soc-rv" id="soc-rv">' +
+      '<h4>投稿前チェック（表現のリスク）' + (items.length ? '　<span class="soc-small">' + items.length + ' 件</span>' : '') + '</h4>' +
+      (items.length
+        ? items.map(function (x) {
+            return '<div class="it"><span class="kd ' + x.level + '">' + esc(x.label) + '</span>' +
+              '<span class="w">「' + esc(x.word) + '」</span><br>' +
+              '<span>なぜ：' + esc(x.why) + '</span>' +
+              (x.alt ? '<br><span class="alt">言い換え例：' + esc(x.alt) + '</span>' : '') + '</div>';
+          }).join('')
+        : '<div class="soc-small">気になる言い方は見つかりませんでした。</div>') +
+      (fixable ? '<div style="margin-top:6px"><button type="button" class="ghost" id="soc-rv-fix" style="font-size:11.5px;padding:5px 12px">表記をそろえる（' + fixable + 'か所・共通の本文とSNSごとの本文の両方）</button></div>' : '') +
+      '<div class="soc-small" style="margin-top:6px">' + esc(TX.REVIEW_NOTE) + '</div></div>';
+    var b = el('soc-rv-fix');
+    if (b) b.addEventListener('click', fixNotation);
+  }
+
+  function fixNotation() {
+    var n = 0;
+    var ta = el('social-text');
+    var r = TX.applyNotation(ta.value, style.notation);
+    ta.value = r.text; n += r.changes;
+    Object.keys(S.variants).forEach(function (k) {
+      var v = S.variants[k];
+      if (v && v.text) { var x = TX.applyNotation(v.text, style.notation); v.text = x.text; n += x.changes; }
+    });
+    changed(true);
+    say(n ? '表記を ' + n + ' か所そろえました。' : 'そろえるところはありませんでした。', true);
+  }
+
+  function renderStyle() {
+    var lines = TX.styleToLines(style);
+    el('social-style-ng').value = lines.ng;
+    el('social-style-nt').value = lines.notation;
+  }
+
+  async function saveStyleRules() {
+    var st = el('social-style-st');
+    var v = TX.validateStyle(TX.parseStyleLines(el('social-style-ng').value, el('social-style-nt').value));
+    var btn = el('social-style-save');
+    btn.disabled = true;
+    st.textContent = '保存しています…';
+    try {
+      var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ style: v.style }) });
+      var d = r.data || {};
+      if (d.ok && d.style) { style = d.style; renderStyle(); }
+      st.textContent = d.message || (d.ok ? '保存しました。' : '保存できませんでした。');
+      if (v.problems.length) st.textContent += '（' + v.problems.join(' ') + '）';
+      changed(false);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   /* ---- 4 いつ出すか ---- */
@@ -7339,6 +7565,50 @@ window.lumAdmin = {
       }
     }
     el('social-whennote').innerHTML = notes.join('<br>');
+  }
+
+  /* ---- いつ出すと良いか ----
+     サーバーが出した目安（_social-insights.js の recommend）を、選んだSNSの
+     ぶんだけ並べます。このサイトの数字から出したものと「一般論」は、
+     見て分かるように分けます。曜日のボタンで、その日の予約に切り替えます。 */
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function nextWeekday(w) {
+    var d = tomorrowJst();
+    for (var i = 0; i < 7; i++) {
+      var t = new Date(Date.parse(d + 'T00:00:00Z') + i * 86400000);
+      if (t.getUTCDay() === w) return t.toISOString().slice(0, 10);
+    }
+    return d;
+  }
+  function renderRecommend() {
+    var host = el('social-rec');
+    var rec = insights && insights.recommend;
+    if (!rec) { host.innerHTML = ''; return; }
+    var ids = picked().length ? picked() : ready().map(function (n) { return n.id; });
+    ids = ids.filter(function (id) { return rec[id]; });
+    if (!ids.length) { host.innerHTML = ''; return; }
+    var sch = info.schedule || {};
+    var html = ids.map(function (id) {
+      var r = rec[id];
+      var n = netById(id);
+      var own = r.basis !== 'general';
+      var days = (r.weekdays || []).slice(0, 2).map(function (w) {
+        var date = nextWeekday(w);
+        return sch.ready ? '<button type="button" class="ghost soc-recday" data-date="' + date + '" style="font-size:10.5px;padding:2px 9px;margin:2px 4px 0 0">' +
+          WD[w] + '曜（' + Number(date.slice(5, 7)) + '/' + Number(date.slice(8)) + '）に予約</button>' : '';
+      }).join('');
+      return '<div class="soc-rec" style="padding:6px 0;border-top:1px solid var(--border)"><b>' + esc(n ? n.label : id) + '</b>' +
+        '<span class="lab ' + (own ? 'own' : 'gen') + '">' + (r.basis === 'posts' ? 'このサイトの投稿の反応から' : r.basis === 'site' ? 'このサイトの訪問から' : '一般論') + '</span><br>' +
+        esc(r.text) + (own ? '' : '（一般的な目安で、このサイトの数字ではありません）') +
+        (r.missing && r.missing.length ? '<div class="soc-small">' + (own ? '' : 'このサイトの数字で出すには：') + esc(r.missing.join('。')) + '</div>' : '') +
+        (days ? '<div>' + days + '</div>' : '') + '</div>';
+    }).join('');
+    host.innerHTML = '<div class="soc-box" style="margin:0"><b style="font-size:12.5px">いつ出すと良いか</b>' +
+      '<div class="soc-small">予約投稿は選んだ日の朝' + (sch.jstHour || 9) + '時ごろに出ます（時刻は選べません）。時間帯の目安は「今すぐ投稿」するときの参考にしてください。</div>' +
+      html + '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-recday'), function (b) {
+      b.addEventListener('click', function () { S.when = 'date'; S.date = b.dataset.date; changed(false); say(b.dataset.date + ' に予約する設定にしました（まだ予約はしていません。5 で送ってください）。', true); });
+    });
   }
 
   /* ---- 5 送る ---- */
@@ -7390,10 +7660,11 @@ window.lumAdmin = {
   /* 入力のたびに呼ばれます。full は、タブと本文欄まで作り直すとき
      （打っている途中の本文欄を作り直すと、カーソルが飛ぶため分けています）。 */
   function changed(full) {
-    if (full) { renderTabs(); renderVariant(); }
+    if (full) { renderTabs(); renderVariant(); renderRecommend(); }
     else { renderTabs(); refreshVariant(); }
     urlNotes();
     renderWhen();
+
     count();
     save();
   }
@@ -7408,7 +7679,7 @@ window.lumAdmin = {
         at: new Date().toISOString(),
         text: el('social-text').value, link: el('social-link').value, campaign: el('social-campaign').value,
         topic: el('social-ai-topic').value,
-        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId
+        picked: S.picked, images: S.images, variants: S.variants, tab: S.tab, when: S.when, date: S.date, sendId: S.sendId, gbpAction: S.gbpAction
       };
       var empty = !d.text.trim() && !d.link.trim() && !d.images.length && !Object.keys(d.variants).some(function (k) { return (d.variants[k].text || '').trim(); });
       if (empty) localStorage.removeItem(DRAFT_KEY);
@@ -7431,6 +7702,7 @@ window.lumAdmin = {
     S.when = d.when === 'date' ? 'date' : 'now';
     S.date = String(d.date || '');
     S.sendId = /^[0-9a-f-]{36}$/i.test(String(d.sendId || '')) ? d.sendId : uuid();
+    S.gbpAction = TX.GBP_ACTIONS[d.gbpAction] ? d.gbpAction : 'LEARN_MORE';
     S.images.forEach(function (i) { measure(i.url); });
     restoring = false;
     var box = el('social-restore');
@@ -7497,6 +7769,8 @@ window.lumAdmin = {
 
   function renderQueue(items) {
     var host = el('social-queue');
+    if (started) renderCal();
+
     var sch = info.schedule || {};
     host.innerHTML = '';
     if (!items || !items.length) {
@@ -7541,7 +7815,10 @@ window.lumAdmin = {
     return parts.join('・') || '数字はまだありません';
   }
 
+  var lastLog = [];
   function renderLog(list, stored) {
+    lastLog = list || [];
+    renderCal();
     var host = el('social-log');
     host.innerHTML = '';
     if (!stored) {
@@ -7549,10 +7826,29 @@ window.lumAdmin = {
         '投稿そのものは動きますが、SEO / AIO 分析の「発信量」も 0 のままになります。</p>';
       return;
     }
+    /* 反応の自動取得。X だけは読み取りに料金がかかるので、ここで選びます。 */
+    var auto = document.createElement('div');
+    auto.className = 'soc-small';
+    auto.style.cssText = 'margin-bottom:8px';
+    auto.innerHTML = '反応（いいね・コメントなど）は、毎朝の自動処理で投稿の1日後と7日後に取ります（LinkedIn・Googleビジネスプロフィールは取れません）。' +
+      '<label style="display:inline-flex;gap:5px;align-items:center;cursor:pointer;margin-left:4px"><input type="checkbox" id="soc-auto-x"' + (prefs.xAutoMetrics ? ' checked' : '') + '> X も自動で取る（1件あたり約0.005ドル）</label>' +
+      ' <span id="soc-auto-st"></span>';
+    host.appendChild(auto);
+    var ax = auto.querySelector('#soc-auto-x');
+    ax.addEventListener('change', async function () {
+      ax.disabled = true;
+      var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: { xAutoMetrics: ax.checked } }) });
+      var dd = r.data || {};
+      if (dd.ok && dd.prefs) prefs = dd.prefs;
+      else ax.checked = !!prefs.xAutoMetrics;
+      el('soc-auto-st').textContent = dd.message || '';
+      ax.disabled = false;
+    });
     if (!list || !list.length) {
-      host.innerHTML = '<p class="share-note">まだこの画面からの投稿はありません。</p>';
+      host.insertAdjacentHTML('beforeend', '<p class="share-note">まだこの画面からの投稿はありません。</p>');
       return;
     }
+
     list.forEach(function (p) {
       var d = document.createElement('div');
       d.className = 'soc-post';
@@ -7581,7 +7877,7 @@ window.lumAdmin = {
         tags.appendChild(tag);
         if (r.metrics) withMx.push(r.label + '：' + metricsText(r.metrics));
       });
-      var canMx = (p.results || []).some(function (r) { return r.ok && r.id && r.net !== 'linkedin'; });
+      var canMx = (p.results || []).some(function (r) { return r.ok && r.id && r.net !== 'linkedin' && r.net !== 'gbp'; });
       if (canMx) {
         var mb = document.createElement('button');
         mb.type = 'button'; mb.className = 'linkish';
@@ -7609,8 +7905,209 @@ window.lumAdmin = {
         mx.textContent = withMx.join('　/　');
         d.appendChild(mx);
       }
+      var got = insights && insights.results && insights.results[p.id || p.at];
+      if (got) {
+        var parts = Object.keys(got).filter(function (k) { return !got[k].untagged; }).map(function (k) {
+          var g = got[k];
+          var n = netById(k);
+          return (n ? n.label : k) + ' 訪問' + g.visits + '・問い合わせ' + g.inquiries + (g.shared && g.shared.length ? '（重なりあり）' : '') + (g.open ? '（集計中）' : '');
+        });
+        if (parts.length) {
+          var oc = document.createElement('div');
+          oc.className = 'mx';
+          oc.textContent = 'サイトへ（' + (insights.window || 7) + '日間）：' + parts.join('　/　');
+          d.appendChild(oc);
+        }
+      }
       host.appendChild(d);
     });
+  }
+
+  /* ---- 投稿の成果 ----
+     投稿に付けた計測用の印（?ref=SNS名・utm_campaign）で、アクセス解析が
+     日ごとに数えている訪問と問い合わせを、投稿から7日分足したものです。
+     同じSNSに同じ印で7日以内に2回出すと、数字はどちらにも入ります
+     （分けようがないので「重なり」と出します）。 */
+  async function loadInsights() {
+    if (!info.stored) { renderOutcome(); return; }
+    var r = await api('/api/social?insights=1');
+    insights = r.data && r.data.ok ? r.data : null;
+    renderOutcome();
+    renderLog(lastLog, info.stored);
+    if (typeof renderRecommend === 'function') renderRecommend();
+  }
+
+  function shortDate(iso) {
+    var d = new Date(iso);
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function renderOutcome() {
+    var host = el('social-outcome');
+    if (!info.stored) { host.innerHTML = '<p class="share-note">保存先（Upstash Redis）が未接続のため、投稿の成果は出せません。</p>'; return; }
+    if (!insights) { host.innerHTML = '<p class="share-note">読み込んでいます…</p>'; return; }
+    var w = insights.window || 7;
+    var sum = (insights.summary || {})[outcomeDays === 90 ? 'd90' : 'd30'] || {};
+    var ids = Object.keys(sum);
+    var rows = ids.map(function (k) {
+      var s = sum[k];
+      var n = netById(k);
+      return '<tr><td>' + esc(n ? n.label : k) + '</td><td class="n">' + s.posts + '</td><td class="n">' + s.tagged + '</td><td class="n">' + s.visits + '</td><td class="n">' + s.inquiries + '</td></tr>';
+    }).join('');
+    var per = [];
+    lastLog.forEach(function (p) {
+      var got = insights.results && insights.results[p.id || p.at];
+      if (!got) return;
+      Object.keys(got).forEach(function (k) {
+        var g = got[k];
+        var n = netById(k);
+        var memo = [];
+        if (g.untagged) memo.push('リンクなし');
+        if (g.open) memo.push('集計中');
+        if (g.shared && g.shared.length) memo.push(g.shared.map(function (o) { return shortDate(o.at); }).join('・') + ' と重なり');
+        per.push('<tr><td>' + esc(shortDate(p.at)) + '</td><td class="tx">' + esc(String(p.text || '').slice(0, 24)) + (String(p.text || '').length > 24 ? '…' : '') + '</td><td>' + esc(n ? n.label : k) + '</td>' +
+          '<td class="n">' + (g.untagged ? '—' : g.visits) + '</td><td class="n">' + (g.untagged ? '—' : g.inquiries) + '</td><td class="soc-small">' + esc(memo.join('。')) + '</td></tr>');
+      });
+    });
+    host.innerHTML =
+      '<div class="soc-box">' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">' +
+          '<b style="font-size:12.5px">SNSごとのまとめ</b>' +
+          '<button type="button" class="' + (outcomeDays === 30 ? '' : 'ghost') + '" data-days="30" style="font-size:11px;padding:4px 10px">直近30日</button>' +
+          '<button type="button" class="' + (outcomeDays === 90 ? '' : 'ghost') + '" data-days="90" style="font-size:11px;padding:4px 10px">直近90日</button>' +
+        '</div>' +
+        (ids.length
+          ? '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>SNS</th><th class="n">投稿</th><th class="n">印つき</th><th class="n">訪問</th><th class="n">問い合わせ</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+          : '<p class="share-note" style="margin:0">この期間に、この画面から出した投稿はありません。</p>') +
+        '<p class="soc-small" style="margin-top:6px">訪問と問い合わせ（お問い合わせの送信・予約の確定）は、投稿の自社リンクに付けた印（?ref=）から来た人を、投稿した日から' + w + '日間数えたものです。日ごとの集計なので、投稿した日の投稿前の分も入ります。リンクを押さずに検索して来た人は入りません。まとめでは、重なった日を二重に数えていません。</p>' +
+      '</div>' +
+      '<details class="soc-more"' + (per.length ? ' open' : '') + '><summary>投稿ごとの成果</summary>' +
+        (per.length
+          ? '<div class="soc-scroll" style="margin-top:8px"><table class="soc-tbl" id="soc-per"><thead><tr><th>日付</th><th class="tx">本文</th><th>SNS</th><th class="n">訪問</th><th class="n">問い合わせ</th><th>メモ</th></tr></thead><tbody>' + per.join('') + '</tbody></table></div>' +
+            '<p class="soc-small" style="margin-top:6px">集計中＝投稿から' + w + '日たつまで増えます。重なり＝同じSNS・同じ印の投稿が' + w + '日以内にもう1つあり、その期間の訪問は両方の投稿に入っています（どちらから来たかは分けられません）。リンクなし＝自社サイトへのリンクが無いので数えられません。</p>'
+
+          : '<p class="share-note" style="margin:8px 0 0">まだ数字のある投稿はありません。</p>') +
+      '</details>';
+    Array.prototype.forEach.call(host.querySelectorAll('button[data-days]'), function (b) {
+      b.addEventListener('click', function () { outcomeDays = Number(b.dataset.days); renderOutcome(); });
+    });
+  }
+
+  /* ---- カレンダー ----
+     予約（これから）と、この画面から出した投稿（これまで）を、日ごとに並べます。
+     幅の狭い画面では、表ではなく日付の一覧で出します（CSS で切り替え）。 */
+  var SHORT = { x: 'X', facebook: 'FB', instagram: 'IG', threads: 'TH', linkedin: 'in', line: 'LINE', gbp: 'G', bluesky: 'BS' };
+  function jstDayOf(iso) { return new Date(Date.parse(iso) + 9 * 3600000).toISOString().slice(0, 10); }
+  function calItems() {
+    var by = {};
+    var add = function (day, it) { (by[day] = by[day] || []).push(it); };
+    ((info.schedule || {}).items || []).forEach(function (q) {
+      add(q.date, { kind: 'q', nets: q.targets || [], text: q.text || '', label: '予約' });
+    });
+    lastLog.forEach(function (p) {
+      if (!p.at) return;
+      add(jstDayOf(p.at), { kind: 'p', nets: (p.results || []).map(function (r) { return { id: r.net, ok: r.ok }; }), text: p.text || '', label: new Date(p.at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + ' 投稿' });
+    });
+    return by;
+  }
+  function chips(it) {
+    return it.nets.map(function (n) {
+      var id = typeof n === 'string' ? n : n.id;
+      var bad = typeof n === 'object' && !n.ok;
+      var nn = netById(id);
+      return '<span class="soc-chip' + (it.kind === 'q' ? ' q' : bad ? ' ng' : '') + '" title="' + esc((nn ? nn.label : id) + (bad ? '（失敗・結果不明）' : '')) + '">' + esc(SHORT[id] || id) + '</span>';
+    }).join('');
+  }
+  function itemHtml(day, it) {
+    return '<div class="soc-cal-item"><b>' + esc(Number(day.slice(5, 7)) + '/' + Number(day.slice(8))) + '</b> ' +
+      '<span class="soc-small">' + esc(it.kind === 'q' ? '予約（朝' + ((info.schedule || {}).jstHour || 9) + '時ごろ）' : it.label) + '</span> ' + chips(it) +
+      '<br>' + esc(String(it.text || '（本文なし）').slice(0, 80)) + '</div>';
+  }
+  function renderCal() {
+    var host = el('social-cal');
+    var today = jstDayOf(new Date().toISOString());
+    if (!calMonth) calMonth = today.slice(0, 7);
+    var y = Number(calMonth.slice(0, 4)), m = Number(calMonth.slice(5, 7));
+    var first = new Date(Date.UTC(y, m - 1, 1));
+    var days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    var by = calItems();
+    var cells = ['日', '月', '火', '水', '木', '金', '土'].map(function (w) { return '<div class="hd">' + w + '</div>'; });
+    for (var i = 0; i < first.getUTCDay(); i++) cells.push('<div class="d out" aria-hidden="true"></div>');
+    var list = [];
+    for (var d = 1; d <= days; d++) {
+      var day = calMonth + '-' + (d < 10 ? '0' : '') + d;
+      var its = by[day] || [];
+      cells.push('<button type="button" class="d' + (day === today ? ' today' : '') + (day === calSel ? ' sel' : '') + '" data-day="' + day + '"' +
+        ' aria-label="' + m + '月' + d + '日 ' + its.length + '件"><span class="num">' + d + '</span><span class="cs">' + its.map(chips).join('') + '</span></button>');
+      its.forEach(function (it) { list.push(itemHtml(day, it)); });
+    }
+    var sel = calSel && by[calSel] ? by[calSel].map(function (it) { return itemHtml(calSel, it); }).join('') : '';
+    host.innerHTML =
+      '<div class="soc-cal-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+        '<button type="button" class="ghost" id="soc-cal-prev" style="font-size:11.5px;padding:4px 10px">‹ 前の月</button>' +
+        '<b style="font-size:13px">' + y + '年' + m + '月</b>' +
+        '<button type="button" class="ghost" id="soc-cal-next" style="font-size:11.5px;padding:4px 10px">次の月 ›</button>' +
+        '<span class="soc-small wk"><span class="soc-chip q">予約</span><span class="soc-chip">投稿済み</span><span class="soc-chip ng">失敗</span></span>' +
+      '</div>' +
+      '<div class="soc-cal">' + cells.join('') + '</div>' +
+      '<div class="soc-cal-list">' + (list.length ? list.join('') : '<p class="share-note">この月の予約・投稿はありません。</p>') + '</div>' +
+      '<div id="soc-cal-day" class="soc-cal-day" style="margin-top:8px">' + (calSel ? (sel || '<p class="share-note">' + esc(calSel) + ' の予約・投稿はありません。</p>') : '') + '</div>';
+    el('soc-cal-prev').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
+    el('soc-cal-next').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-cal .d[data-day]'), function (b) {
+      b.addEventListener('click', function () { calSel = b.dataset.day; renderCal(); });
+    });
+  }
+
+  /* ---- 定型文 ---- */
+  function renderTemplates(keep) {
+    var sel = el('social-tpl-sel');
+    sel.innerHTML = '<option value="">' + (templates.length ? '選んでください' : 'まだありません') + '</option>' +
+      templates.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title) + '</option>'; }).join('');
+    if (keep) sel.value = keep;
+  }
+  function tplById(id) { for (var i = 0; i < templates.length; i++) if (templates[i].id === id) return templates[i]; return null; }
+  function tplSay(t) { el('social-tpl-st').textContent = t; }
+  async function putTemplates(list, done) {
+    var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ templates: list }) });
+    var d = r.data || {};
+    if (d.ok && d.templates) { templates = d.templates; renderTemplates(done); }
+    tplSay(d.message || (d.ok ? '保存しました。' : '保存できませんでした。'));
+    return !!d.ok;
+  }
+  function useTemplate() {
+    var t = tplById(el('social-tpl-sel').value);
+    if (!t) { tplSay('使う定型文を選んでください。'); return; }
+    if (el('social-text').value.trim() && !confirm('いまの本文を「' + t.title + '」の内容に置き換えます。よろしいですか？')) return;
+    el('social-text').value = t.text;
+    if (t.link) el('social-link').value = t.link;
+    el('social-campaign').value = t.campaign || '';
+    var ids = (t.nets || []).filter(function (id) { return !!netById(id); });
+    if (ids.length) S.picked = ids;
+    S.variants = {};
+    renderNets();
+    changed(true);
+    tplSay('「' + t.title + '」から作りました。日付や値段など、今回の内容に直してから送ってください。');
+  }
+  async function saveTemplate() {
+    var text = el('social-text').value;
+    if (!text.trim()) { tplSay('先に本文を書いてください。'); return; }
+    var cur = tplById(el('social-tpl-sel').value);
+    var title = prompt('定型文の題名（例：定休日のお知らせ）', cur ? cur.title : '');
+    if (title == null) return;
+    title = title.trim();
+    if (!title) { tplSay('題名を入れてください。'); return; }
+    var same = templates.filter(function (t) { return t.title === title; })[0];
+    if (same && !confirm('「' + title + '」を、いまの内容で上書きします。よろしいですか？')) return;
+    var item = { id: same ? same.id : uuid(), title: title, text: text, nets: picked(), campaign: el('social-campaign').value.trim(), link: el('social-link').value.trim() };
+    var list = templates.filter(function (t) { return t !== same; }).concat([item]);
+    await putTemplates(list, item.id);
+  }
+  async function deleteTemplate() {
+    var t = tplById(el('social-tpl-sel').value);
+    if (!t) { tplSay('削除する定型文を選んでください。'); return; }
+    if (!confirm('定型文「' + t.title + '」を削除します。よろしいですか？')) return;
+    await putTemplates(templates.filter(function (x) { return x.id !== t.id; }), '');
   }
 
   /* ---- 読み込み ---- */
@@ -7621,6 +8118,11 @@ window.lumAdmin = {
     nets = d.networks || [];
     if (d.brand && d.brand.host) brand = { host: String(d.brand.host).replace(/^www\./, ''), name: d.brand.name || brand.name };
     info = { schedule: d.schedule || { ready: false, items: [] }, upload: d.upload || { ready: false }, threadsToken: d.threadsToken || null, stored: !!d.stored };
+    style = d.style || style;
+    prefs = d.prefs || prefs;
+    templates = d.templates || [];
+    renderTemplates();
+    renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {
       el('social-text').dataset.restored = '1';
@@ -7628,12 +8130,16 @@ window.lumAdmin = {
     }
     renderNets();
     renderSetup();
+    renderGbp();
     renderImages();
     changed(true);
     renderQueue(info.schedule.items);
+
     renderLog(d.recent, d.stored);
     say('', true);
+    loadInsights();
     loadQuotas();
+
     loadNews();
   }
 
@@ -7811,6 +8317,12 @@ window.lumAdmin = {
   el('social-date').addEventListener('change', function () { S.date = el('social-date').value; changed(false); });
   el('social-post').addEventListener('click', post);
   el('social-reload').addEventListener('click', load);
+  el('social-style-save').addEventListener('click', saveStyleRules);
+  el('social-tpl-use').addEventListener('click', useTemplate);
+  el('social-tpl-save').addEventListener('click', saveTemplate);
+  el('social-tpl-del').addEventListener('click', deleteTemplate);
+
+
 
   /* 本文の書き直し。文章編集と同じ窓口を使います。
      返ってくるのは案で、採るかどうかは押した人が決めます——SNSは出したら

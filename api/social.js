@@ -4,12 +4,22 @@ export const config = { runtime: 'edge' }
 //
 //   GET                       -> what is configured, what went out, what is booked
 //   GET ?quota=1              -> LINE's monthly allowance and audience, IG/Threads daily room
+//   GET ?insights=1           -> visits / enquiries each post brought (ref tag, 7 days)
+
 //   POST { action:'post', ... }      -> post now, to every target at once, and record it
 //   POST { action:'schedule', date } -> keep the same payload for that morning's run
 //   POST { action:'cancel', id }     -> drop a booked post
 //   POST { action:'test', net }      -> a cheap read with the stored keys (nothing is posted)
 //   POST { action:'refresh-threads' }-> extend the Threads token, saved where it was
 //   POST { action:'metrics', id }    -> likes / comments / reach for one history entry
+//   POST { action:'gbp-locations' }  -> the Business Profile locations the linked account manages
+//   POST { action:'gbp-pick', location } -> save which location GBP posts go to
+//   PUT  { style }                   -> the site's own wording rules (NG words, notation)
+//   PUT  { prefs }                   -> { xAutoMetrics } for the daily reaction refresh
+//   PUT  { templates }               -> the saved post templates (whole list)
+
+
+
 //
 // Admin key only, by the header only: this spends the site's own accounts, so
 // it must not be reachable by a share link or a key in a URL.
@@ -20,8 +30,11 @@ import {
   historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo,
 } from './_social.js'
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
-import { setting } from './_settings.js'
+import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
+import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates } from './_social-store.js'
+import { gbpLocations, LOCATION_RE } from './_social-more.js'
+import { socialInsights } from './_social-insights.js'
 
 async function state(req) {
   const ready = scheduleReady()
@@ -39,6 +52,9 @@ async function state(req) {
     },
     upload: { ready: !!(await setting('BLOB_READ_WRITE_TOKEN', '', req)) },
     threadsToken: networks.some((n) => n.id === 'threads' && n.ready) ? await threadsTokenInfo(req) : null,
+    style: await readStyle(req),
+    prefs: await readPrefs(req),
+    templates: await readTemplates(req),
   }
 }
 
@@ -48,7 +64,33 @@ export async function GET(req) {
   if (new URL(req.url).searchParams.get('quota')) {
     return json({ ok: true, quotas: await socialQuotas(req) })
   }
+  // 投稿ごとの成果（と、いつ出すと良いか）。履歴より重いので別に読みます。
+  if (new URL(req.url).searchParams.get('insights')) {
+    return json(await socialInsights(await recentPosts(200, req), req))
+  }
   return json({ ok: true, ...(await state(req)) })
+}
+
+/** Saving the site's own rules. Only what validateStyle keeps is stored, and
+ *  what it dropped is said back, so a line that vanished is not a mystery. */
+export async function PUT(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+  let body
+  try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
+  if (body && body.style && typeof body.style === 'object') {
+    const r = await saveStyle(body.style, req)
+    return json({ ...r, message: r.ok ? '決まりを保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  if (body && Array.isArray(body.templates)) {
+    const r = await saveTemplates(body.templates, req)
+    return json({ ...r, message: r.ok ? '定型文を保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  if (body && body.prefs && typeof body.prefs === 'object') {
+    const r = await savePrefs(body.prefs, req)
+    return json({ ...r, message: r.ok ? '設定を保存しました。' : r.message }, r.ok ? 200 : 400)
+  }
+  return json({ ok: false, message: '保存するものがありません。' }, 400)
 }
 
 function outcome(results) {
@@ -83,6 +125,18 @@ export async function POST(req) {
   if (action === 'metrics') {
     const r = await fetchMetrics(String(body.id || ''), req)
     return json({ ...r, recent: await recentPosts(20, req) }, r.ok ? 200 : 400)
+  }
+  // Googleビジネスプロフィール：連携したアカウントの店舗の一覧と、投稿する店舗の保存。
+  if (action === 'gbp-locations') {
+    const r = await gbpLocations(req)
+    return json(r, r.ok ? 200 : 400)
+  }
+  if (action === 'gbp-pick') {
+    const loc = String(body.location || '')
+    if (!LOCATION_RE.test(loc)) return json({ ok: false, message: '店舗の指定が正しくありません。' }, 400)
+    const r = await saveSetting('GBP_LOCATION', loc, req)
+    if (!r.ok) return json({ ok: false, message: r.message === 'NO_STORE' ? '保存先（Upstash Redis）が未接続のため保存できません。Vercel の環境変数 GBP_LOCATION に「' + loc + '」を入れてください。' : r.message }, 400)
+    return json({ ok: true, message: '投稿する店舗を保存しました。', networks: await socialStatus(req) })
   }
   if (action === 'cancel') {
     const r = await cancelScheduled(body.id)

@@ -1,7 +1,7 @@
 export const config = { runtime: 'edge' }
 
 // 毎朝の自動処理（Vercel Cron）。予約投稿のうち、日付が来たものを送ります。
-// ついでに、期限が近い Threads のトークンを延長します。
+// ついでに、期限が近い Threads のトークンを延長し、1日後・7日後の投稿の反応を取ります。
 //
 // Vercel は CRON_SECRET が環境変数にあると、それを
 // `Authorization: Bearer <CRON_SECRET>` として付けて呼びます。それ以外の
@@ -13,7 +13,8 @@ export const config = { runtime: 'edge' }
 import { json } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { listScheduled, claim, CRON_LAST } from './_social-queue.js'
-import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus } from './_social.js'
+import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus, refreshDue } from './_social.js'
+import { readPrefs } from './_social-store.js'
 import { runVideoCron } from './video-publish.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
@@ -75,6 +76,18 @@ export async function GET(req) {
     threads = { ok: false, message: String((e && e.message) || e).slice(0, 160) }
   }
 
+  // 1日後・7日後の反応を取ります（時間が残っているときだけ。X は設定で許したときだけ）。
+  let metrics = null
+  try {
+    const remaining = BUDGET_MS - (Date.now() - started)
+    if (remaining > 11000) {
+      // 動画の予約のぶんの時間（6秒）を残しておきます。
+      metrics = await refreshDue({ allowX: (await readPrefs()).xAutoMetrics, budget: remaining - 8500 })
+    }
+  } catch (e) {
+    metrics = { ok: false, message: String((e && e.message) || e).slice(0, 160) }
+  }
+
   // SNS（動画）の Instagram リールの予約と「準備中」。残り時間の中でだけ動きます。
   let video = null
   if (BUDGET_MS - (Date.now() - started) > 6000) {
@@ -82,7 +95,7 @@ export async function GET(req) {
     catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, threads, video }
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, threads, metrics, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }
