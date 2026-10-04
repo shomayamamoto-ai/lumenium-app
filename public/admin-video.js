@@ -482,6 +482,10 @@
         return '<span class="vid-hook"><span class="vid-tag">' + esc(V.HOOK_LABELS[x.type] || x.type) + '</span> ' + esc(x.narration) + (x.telop ? '（テロップ: ' + esc(x.telop) + '）' : '') +
           '<br><span class="soc-small">' + esc(x.why) + '</span> <button type="button" class="linkish ve-hook-use" data-i="' + i + '">1行目に使う</button></span>';
       }).join('') + '</span>' : ''));
+    var useShots = (s.shots || []).length > 0;
+    var tc = V.shotLengthCheck(useShots ? s.shots : s.lines, s);
+    h += res(tc.ok, 'テンポ（同じ画の長さ）', mark(tc.ok) + (useShots ? '絵コンテ' : '行') + 'の長さ: 平均 ' + tc.avg + '秒・最長 ' + (tc.longest ? tc.longest.sec : 0) + '秒（目安 ' + tc.target[0] + '〜' + tc.target[1] + '秒、' + tc.max + '秒を超えたら注意）。' +
+      (tc.ok ? '' : '<br>' + tc.over.length + (useShots ? 'カット' : '行') + 'が長めです。「絵コンテ」の「カット割りを提案」で、寄り・引き・手元などに分けられます。'));
     return h;
   }
 
@@ -644,20 +648,44 @@
     if (!s) { el('vb-body').innerHTML = '<p class="soc-small">先に「台本」で台本を作ってください。</p>'; return; }
     var shots = JSON.parse(JSON.stringify(s.shots || []));
     var style = s.style || (project().brand || {}).style || '';
+    function tempoHtml() {
+      var t = V.shotLengthCheck(shots, s);
+      var long = V.lengthMode(s) === 'long';
+      if (!shots.length) return '';
+      return res(t.ok, 'テンポ（同じ画の長さ）', mark(t.ok) + (t.ok
+        ? 'どのカットも' + t.max + '秒以内です（目安 ' + t.target[0] + '〜' + t.target[1] + '秒、' + (long ? '長尺' : 'ショート') + '）。平均 ' + t.avg + '秒・' + t.count + 'カット。'
+        : t.over.length + 'カットが' + t.max + '秒を超えています（目安 ' + t.target[0] + '〜' + t.target[1] + '秒）: ' + t.over.map(function (x) { return '#' + (x.index + 1) + '（' + x.sec + '秒）'; }).join('、') +
+          '。<br>同じ画が続くと「もう分かった」と感じて離れる人が増えます。「カット割りを提案」で、寄り・引き・手元・別アングル・B-roll に分けられます。'));
+    }
     function draw() {
       el('vb-body').innerHTML =
         '<label class="soc-lab" for="vb-style">画風（英語）</label>' +
         '<div class="vid-row"><input type="text" id="vb-style" class="vid-in" value="' + esc(style) + '" placeholder="warm natural light, 35mm photo">' +
         '<button type="button" class="ghost" id="vb-make" style="font-size:12px;padding:8px 12px">台本から作り直す</button></div>' +
-        '<div class="tbl vid-scroll" style="margin-top:8px"><table class="vid-table vid-lines"><thead><tr><th>#</th><th>時間</th><th>テロップ</th><th>映す画（プロンプト）</th><th>カメラ</th><th>つなぎ</th></tr></thead><tbody>' +
+        '<div id="vb-tempo" style="margin-top:8px">' + tempoHtml() + '</div>' +
+        '<div class="vid-acts" style="margin-top:4px"><button type="button" class="ghost" id="vb-split"' + (V.shotLengthCheck(shots, s).ok ? ' disabled' : '') + '>カット割りを提案</button>' +
+          '<span class="soc-small">長いカットを、目安の長さごとに別の角度へ分けます（保存するまで台本は変わりません）。</span></div>' +
+        '<div class="tbl vid-scroll" style="margin-top:8px"><table class="vid-table vid-lines"><thead><tr><th>#</th><th>時間</th><th>長さ</th><th>テロップ</th><th>映す画（プロンプト）</th><th>カメラ</th><th>つなぎ</th></tr></thead><tbody>' +
         (shots.length ? shots.map(function (x, i) {
-          return '<tr data-i="' + i + '"><td>' + (i + 1) + '</td><td style="white-space:nowrap">' + sec(x.start) + '〜' + sec(x.end) + '</td><td>' + esc(x.telop) + '</td>' +
+          var len = Math.round(((Number(x.end) || 0) - (Number(x.start) || 0)) * 10) / 10;
+          var over = len > V.modeRules(s).SHOT_MAX_SEC;
+          return '<tr data-i="' + i + '"><td>' + (i + 1) + (x.part ? '<br><span class="soc-small">' + (Number(x.parent) + 1) + x.part + '</span>' : '') + '</td><td style="white-space:nowrap">' + sec(x.start) + '〜' + sec(x.end) + '</td>' +
+            '<td style="white-space:nowrap">' + len + '秒' + (over ? ' <span class="vid-tag warn">長い</span>' : '') + (x.angle ? '<br><span class="vid-tag">' + esc(x.angle) + '</span>' : '') + '</td><td>' + esc(x.telop) + '</td>' +
             '<td><textarea rows="3" class="vb-f" data-k="visual_prompt" aria-label="映す画">' + esc(x.visual_prompt) + '</textarea></td>' +
             '<td><input type="text" class="vb-f" data-k="camera" value="' + esc(x.camera) + '" aria-label="カメラ"></td>' +
             '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"></td></tr>';
-        }).join('') : '<tr><td colspan="6" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
+        }).join('') : '<tr><td colspan="7" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
         '</tbody></table></div>' +
-        '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button></div>';
+        '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button><button type="button" class="ghost" id="vb-edl">絵コンテ（EDL）</button></div>';
+      el('vb-split').addEventListener('click', function () {
+        var r = V.splitLongShots(shots, s);
+        shots = r.shots;
+        draw();
+        say(r.changed + 'カットを分けました。よければ「保存」を押してください。', true);
+      });
+      el('vb-edl').addEventListener('click', function () {
+        download((s.title || 'storyboard') + '_絵コンテ.edl', V.storyboardEdl(shots, { fps: 30, title: s.title }));
+      });
       el('vb-make').addEventListener('click', function () {
         if (shots.length && !confirm('いまの絵コンテを、台本から作り直します。手で直したところは消えます。よろしいですか？')) return;
         style = el('vb-style').value;
@@ -678,8 +706,8 @@
         say('保存しました。', true);
       });
       el('vb-csv').addEventListener('click', function () {
-        download((s.title || 'storyboard') + '_絵コンテ.csv', V.csv([['#', '開始', '終了', 'ナレーション', 'テロップ', '映す画', 'カメラ', 'つなぎ']].concat(shots.map(function (x, i) {
-          return [i + 1, x.start, x.end, x.narration, x.telop, x.visual_prompt, x.camera, x.transition];
+        download((s.title || 'storyboard') + '_絵コンテ.csv', V.csv([['#', '開始', '終了', 'ナレーション', 'テロップ', '映す画', 'カメラ', '角度', 'つなぎ']].concat(shots.map(function (x, i) {
+          return [i + 1, x.start, x.end, x.narration, x.telop, x.visual_prompt, x.camera, x.angle || '', x.transition];
         }))), 'text/csv;charset=utf-8');
       });
     }

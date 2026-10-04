@@ -664,6 +664,108 @@ export function shotsFromLines(lines, style) {
   })
 }
 
+/* ---------------- テンポ（同じ画の長さ） ----------------
+   同じ画が長く続くと、見る人は「もう分かった」と感じて離れます。目安は
+   ショートで1カット2〜3秒（3.5秒を超えたら注意）、長尺で10秒まで。
+   長いカットは、寄り・引き・手元・別アングル・B-roll（関係する別の画）に
+   分けて撮ると、同じ話のままでも画が変わり続けます。 */
+
+/* 行・カットに付ける印。「切り替え」は新しい画・音・問いで注意を戻すところ、
+   「山場」はルール変更・トラブル・発表・どんでん返しなど、話が一段動くところ。 */
+export const MARKS = ['', 'switch_visual', 'switch_sound', 'switch_question', 'peak_rule', 'peak_trouble', 'peak_reveal', 'peak_twist']
+export const MARK_LABELS = {
+  '': 'なし', switch_visual: '切り替え（新しい画）', switch_sound: '切り替え（音）', switch_question: '切り替え（問い）',
+  peak_rule: '山場（ルール変更）', peak_trouble: '山場（トラブル）', peak_reveal: '山場（発表）', peak_twist: '山場（どんでん返し）',
+}
+export function isPeak(m) { return String(m || '').indexOf('peak_') === 0 }
+export function isSwitch(m) { return String(m || '').indexOf('switch_') === 0 }
+
+export const ANGLES = [
+  { key: 'close', label: '寄り', camera: 'close-up', lead: 'Close-up of' },
+  { key: 'wide', label: '引き', camera: 'wide shot', lead: 'Wide shot of' },
+  { key: 'hands', label: '手元', camera: 'insert shot of hands', lead: 'Overhead insert shot of hands at work:' },
+  { key: 'angle', label: '別アングル', camera: 'side angle', lead: 'Side angle of' },
+  { key: 'broll', label: 'B-roll', camera: 'B-roll cutaway', lead: 'Cutaway detail related to' },
+]
+
+/** カット（なければ台本の行）の長さを見て、目安を超えるものを返します。 */
+export function shotLengthCheck(items, s) {
+  const M = modeRules(s)
+  const list = (items || []).map((x, i) => ({ index: i, start: Number(x.start) || 0, end: Number(x.end) || 0 }))
+    .map((x) => ({ ...x, sec: round1(x.end - x.start) }))
+  const over = list.filter((x) => x.sec > M.SHOT_MAX_SEC)
+  let longest = null
+  for (const x of list) if (!longest || x.sec > longest.sec) longest = x
+  const avg = list.length ? round1(list.reduce((a, x) => a + x.sec, 0) / list.length) : 0
+  return { max: M.SHOT_MAX_SEC, target: M.SHOT_TARGET, over, longest, avg, count: list.length, ok: over.length === 0 }
+}
+
+function basePrompt(p) {
+  return String(p || '').replace(NO_TEXT, '').trim().replace(/[.。]\s*$/, '')
+}
+
+/** 1つの長いカットを、目安の長さ（SPLIT_SEC）ごとの小さなカットに分けます。
+ *  1つ目は元の画のまま、2つ目からは寄り→引き→手元→別アングル→B-roll の順。
+ *  時刻は0.1秒単位で、最後のカットは元の終わりにぴったり合わせます。 */
+export function splitShot(shot, s) {
+  const M = modeRules(s)
+  const st = Number(shot.start) || 0
+  const en = Number(shot.end) || 0
+  const len = en - st
+  if (!(len > M.SHOT_MAX_SEC)) return [{ ...shot }]
+  const n = Math.ceil(len / M.SPLIT_SEC - 1e-9)
+  const out = []
+  const base = basePrompt(shot.visual_prompt) || String(shot.narration || '').trim()
+  for (let k = 0; k < n; k++) {
+    const a = k === 0 ? null : ANGLES[(k - 1) % ANGLES.length]
+    const ps = round1(st + (len * k) / n)
+    const pe = k === n - 1 ? en : round1(st + (len * (k + 1)) / n)
+    out.push({
+      ...shot,
+      start: ps, end: pe,
+      narration: k === 0 ? shot.narration || '' : '',
+      camera: a ? a.camera : shot.camera,
+      angle: a ? a.label : (shot.angle || '元の画'),
+      part: String.fromCharCode(97 + k),
+      visual_prompt: a ? `${a.lead} ${base.charAt(0).toLowerCase()}${base.slice(1)}. ${NO_TEXT}` : shot.visual_prompt,
+      transition: 'cut',
+      mark: k === 0 ? shot.mark || '' : '',
+    })
+  }
+  return out
+}
+
+/** 絵コンテ全体で、目安を超えるカットだけを分けます。番号は振り直します。 */
+export function splitLongShots(shots, s) {
+  const out = []
+  let changed = 0
+  ;(shots || []).forEach((x, i) => {
+    const parts = splitShot({ ...x, parent: x.parent != null ? x.parent : i }, s)
+    if (parts.length > 1) changed++
+    for (const p of parts) out.push(p)
+  })
+  return { shots: out.map((x, i) => ({ ...x, index: i })), changed }
+}
+
+/** 絵コンテの EDL（CMX3600）。素材はまだ無いので、録画側と同じ時刻を置き、
+ *  カメラと画の指示をコメントに入れます（編集ソフトで並べる下書き用）。 */
+export function storyboardEdl(shots, opts) {
+  const o = opts || {}
+  const fps = Math.round(Number(o.fps) || 30)
+  const title = String(o.title || '').replace(/[^\x20-\x7e]/g, '').trim() || 'STORYBOARD'
+  const out = [`TITLE: ${title.slice(0, 60)}`, 'FCM: NON-DROP FRAME', '']
+  ;(shots || []).forEach((x, i) => {
+    const a = timecode(x.start, fps)
+    const b = timecode(x.end, fps)
+    out.push(`${pad(i + 1, 3)}  AX       V     C        ${a} ${b} ${a} ${b}`)
+    // EDL は英数字だけにします（日本語を読めない編集ソフトがあるため）。
+    out.push(`* FROM CLIP NAME: SHOT ${(x.parent != null ? x.parent + 1 : i + 1)}${x.part || ''} ${String(x.camera || '').replace(/[^\x20-\x7e]/g, '')}`)
+    out.push(`* COMMENT: ${basePrompt(x.visual_prompt).replace(/[^\x20-\x7e]/g, '').slice(0, 120)}`)
+    out.push('')
+  })
+  return out.join('\r\n')
+}
+
 /* ---------------- 書き出し ---------------- */
 
 export function csv(rows) {

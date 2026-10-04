@@ -19,7 +19,7 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { HOOK_TYPES, RULES, PLATFORMS } from './_video-core.js'
+import { HOOK_TYPES, RULES, PLATFORMS, MARKS } from './_video-core.js'
 
 export const VK = {
   projects: `${KV}video:projects`,
@@ -157,6 +157,9 @@ export function cleanScript(s) {
       index: i, start: num(x && x.start, 0, 3600) || 0, end: num(x && x.end, 0, 3600) || 0,
       narration: str(x && x.narration, 300), telop: str(x && x.telop, 120), visual_prompt: str(x && x.visual_prompt, 600),
       camera: str(x && x.camera, 80), transition: str(x && x.transition, 40),
+      // カット割りで分けたとき: 元の行の番号・a/b/c・寄り/引きなど
+      parent: num(x && x.parent, 0, 1000), part: str(x && x.part, 4), angle: str(x && x.angle, 20),
+      mark: MARKS.indexOf(x && x.mark) >= 0 ? x.mark : '',
     })),
     originality: s && s.originality && typeof s.originality === 'object' ? {
       clean: !!s.originality.clean, attempts: num(s.originality.attempts, 0, 10),

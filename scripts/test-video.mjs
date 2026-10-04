@@ -350,6 +350,42 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('冒頭の設計（型の推定・ショート3秒・長尺10秒と60秒）')
 }
 
+/* ---- テンポ（同じ画の長さ）とカット割り ---- */
+{
+  const shots = V.shotsFromLines([
+    { start: 0, end: 3, visual: 'A loaf' },
+    { start: 3, end: 10, visual: 'Baker folding dough', narration: 'こねます' },
+    { start: 10, end: 13.5, visual: 'Oven' },
+  ], 'warm light')
+  const c = V.shotLengthCheck(shots, {})
+  assert.equal(c.ok, false)
+  assert.deepEqual(c.over.map((x) => x.index), [1], 'ショートは3.5秒を超えたカットだけ（3.5秒ちょうどは可）')
+  assert.equal(c.longest.sec, 7)
+  assert.equal(V.shotLengthCheck(shots, { length_mode: 'long' }).ok, true, '長尺は10秒まで')
+  const r1 = V.splitLongShots(shots, {})
+  const r2 = V.splitLongShots(shots, {})
+  assert.deepEqual(r1, r2, '同じ入力なら同じ分け方')
+  assert.equal(r1.changed, 1)
+  const parts = r1.shots.filter((x) => x.parent === 1)
+  assert.equal(parts.length, 3, '7秒 ÷ 2.5秒 → 3カット')
+  assert.deepEqual(parts.map((x) => [x.start, x.end]), [[3, 5.3], [5.3, 7.7], [7.7, 10]])
+  assert.deepEqual(parts.map((x) => x.angle), ['元の画', '寄り', '引き'])
+  assert.equal(parts[0].narration, 'こねます')
+  assert.equal(parts[1].narration, '')
+  assert.match(parts[1].visual_prompt, /^Close-up of baker folding dough, warm light\. No text/)
+  assert.deepEqual(r1.shots.map((x) => x.index), [0, 1, 2, 3, 4], '番号は振り直す')
+  assert.equal(V.shotLengthCheck(r1.shots, {}).ok, true, '分けたあとは目安に収まる')
+  // 長尺: 25秒のカット → 5秒ずつ5つ、寄り・引き・手元・別アングルの順
+  const longParts = V.splitShot({ start: 0, end: 25, visual_prompt: 'Shop', camera: 'wide' }, { length_mode: 'long' })
+  assert.deepEqual(longParts.map((x) => x.angle), ['元の画', '寄り', '引き', '手元', '別アングル'])
+  const edl = V.storyboardEdl(r1.shots, { title: 'テスト' })
+  assert.match(edl, /002  AX       V     C        00:00:03:00 00:00:05:09 00:00:03:00 00:00:05:09/)
+  assert.match(edl, /SHOT 2b close-up/)
+  assert.ok(!/[^\x00-\x7e]/.test(edl), 'EDL は英数字だけ')
+  assert.match(edl, /^TITLE: STORYBOARD\r\n/)
+  ok('テンポの確認（ショート3.5秒・長尺10秒）とカット割り（決まった分け方・EDL）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')
