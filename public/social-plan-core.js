@@ -441,6 +441,66 @@ function lineTrend(rows) {
   }
 }
 
+/* ---------------------------------------------------- 7. the month -- */
+
+function per(a, b) { return b ? a / b : 0 }
+
+/** 月次の振り返り。month は 'YYYY-MM'。予約は入れず、出した投稿だけで数えます。
+ *  反応（いいね・コメント・共有）と、サイトに来た人・問い合わせ（計測リンク）は、
+ *  取れている投稿の分だけ足します。 */
+function monthlyReview(items, pillars, month) {
+  var posts = (items || []).filter(function (it) { return !it.scheduled && it.day.slice(0, 7) === month })
+  var mk = function (id, name, color, promo) {
+    return { id: id, name: name, color: color || '', promo: !!promo, posts: 0, reacted: 0, reactions: 0, measured: 0, visits: 0, inquiries: 0 }
+  }
+  var rows = (pillars || []).map(function (p) { return mk(p.id, p.name, p.color, p.promo) })
+  var none = mk('', '柱なし', '', false)
+  var byId = {}
+  rows.forEach(function (r) { byId[r.id] = r })
+  var nets = {}
+  posts.forEach(function (it) {
+    var r = byId[it.pillar] || none
+    var s = it.src || {}
+    r.posts++
+    if (s.reactions != null) { r.reacted++; r.reactions += Number(s.reactions) || 0 }
+    if (s.outcome) { r.measured++; r.visits += Number(s.outcome.visits) || 0; r.inquiries += Number(s.outcome.inquiries) || 0 }
+    it.nets.forEach(function (net) {
+      var x = nets[net] || (nets[net] = { net: net, posts: 0, measured: 0, visits: 0, inquiries: 0 })
+      x.posts++
+      var o = s.outcome && s.outcome.byNet && s.outcome.byNet[net]
+      if (o) { x.measured++; x.visits += Number(o.visits) || 0; x.inquiries += Number(o.inquiries) || 0 }
+    })
+  })
+  if (none.posts) rows.push(none)
+  rows.forEach(function (r) { r.reliability = reliability(r.posts) })
+  var netRows = Object.keys(nets).map(function (k) { nets[k].reliability = reliability(nets[k].posts); return nets[k] })
+    .sort(function (a, b) { return b.posts - a.posts })
+
+  var tips = []
+  var ok = rows.filter(function (r) { return r.id && r.posts >= 3 && (r.measured || r.reacted) })
+  if (!ok.length) {
+    tips.push('まだ件数が少ないため、どの柱が良いかは判断できません（1つの柱で3本以上から比べます）。今の配分で続けて、来月また見ましょう。')
+  } else {
+    var score = function (r) { return per(r.inquiries, r.measured) * 1000 + per(r.visits, r.measured) + per(r.reactions, r.reacted) / 1000 }
+    var sorted = ok.slice().sort(function (a, b) { return score(b) - score(a) })
+    var best = sorted[0]
+    var lbl = function (r) { return r.reliability.label ? '（' + r.reliability.label + '）' : '' }
+    if (best.inquiries > 0) tips.push('「' + best.name + '」の投稿が、問い合わせにいちばんつながっています（' + best.posts + '本で ' + best.inquiries + ' 件）' + lbl(best) + '。来月は「' + best.name + '」を週1本増やしてみましょう。')
+    else if (best.visits > 0) tips.push('サイトに来た人がいちばん多いのは「' + best.name + '」の投稿です（' + best.posts + '本で ' + best.visits + ' 人）' + lbl(best) + '。来月は「' + best.name + '」を週1本増やしてみましょう。')
+    else if (best.reactions > 0) tips.push('反応（いいね・コメント・共有）がいちばん多いのは「' + best.name + '」です' + lbl(best) + '。来月も続けましょう。')
+    var worst = sorted[sorted.length - 1]
+    if (sorted.length > 1 && worst !== best && worst.inquiries === 0 && per(worst.visits, worst.measured) < per(best.visits, best.measured) / 3) {
+      tips.push('「' + worst.name + '」は反応が少なめでした' + lbl(worst) + '。本数を減らすか、出し方（カルーセル・写真・書き出しの一言）を変えてみましょう。')
+    }
+  }
+  var tagged = rows.filter(function (r) { return r.id }).reduce(function (s, r) { return s + r.posts }, 0)
+  var promo = rows.filter(function (r) { return r.promo }).reduce(function (s, r) { return s + r.posts }, 0)
+  if (tagged >= 3 && promo / tagged > PROMO_MAX) tips.push('宣伝の投稿が ' + Math.round(promo / tagged * 100) + '% でした。来月は20%以内（5本に1本まで）を目安にしましょう。')
+  var bestNet = netRows.filter(function (x) { return x.posts >= 3 && x.inquiries > 0 }).sort(function (a, b) { return per(b.inquiries, b.measured) - per(a.inquiries, a.measured) })[0]
+  if (bestNet) tips.push((NET_LABELS[bestNet.net] || bestNet.net) + ' からの問い合わせが ' + bestNet.inquiries + ' 件ありました' + (bestNet.reliability.label ? '（' + bestNet.reliability.label + '）' : '') + '。')
+  return { month: month, total: posts.length, rows: rows, nets: netRows, tips: tips, reliability: reliability(posts.length) }
+}
+
 /* ------------------------------------------------------ 5. the inbox -- */
 
 /* コメントの受信箱の1件から、届いた時刻・返事をした時刻を読みます。
@@ -609,5 +669,5 @@ function weekChecklist(input) {
   return out
 }
 
-window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, lineBlockRate, blockBand, lineTrend, isAnswered, REPLY_TARGET_MIN, replySpeed, FIRST_HOUR_MIN, firstHour, draftTopic, weekChecklist };
+window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, lineBlockRate, blockBand, lineTrend, monthlyReview, isAnswered, REPLY_TARGET_MIN, replySpeed, FIRST_HOUR_MIN, firstHour, draftTopic, weekChecklist };
 })();

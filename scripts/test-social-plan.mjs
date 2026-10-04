@@ -342,4 +342,40 @@ t('lineTrend: 2日分から。増減を出す', () => {
   assert.equal(tr.points.length, 2)
 })
 
+/* ---- 7. 月次の振り返り ---- */
+t('monthlyReview: 柱ごと・SNSごとに足し、件数の少なさを正直に', () => {
+  const o = (v, q, net = 'instagram') => ({ visits: v, inquiries: q, byNet: { [net]: { visits: v, inquiries: q } } })
+  const hist = [
+    { id: '1', at: at('2026-09-02'), nets: ['instagram'], pillar: 'ura', outcome: o(10, 2), reactions: 30 },
+    { id: '2', at: at('2026-09-09'), nets: ['instagram'], pillar: 'ura', outcome: o(8, 1), reactions: 20 },
+    { id: '3', at: at('2026-09-16'), nets: ['instagram'], pillar: 'ura', outcome: o(6, 0), reactions: 10 },
+    { id: '4', at: at('2026-09-03'), nets: ['x'], pillar: 'tips', outcome: o(0, 0, 'x'), reactions: 1 },
+    { id: '5', at: at('2026-09-10'), nets: ['x'], pillar: 'tips', outcome: o(1, 0, 'x'), reactions: null },
+    { id: '6', at: at('2026-09-17'), nets: ['x'], pillar: 'tips', outcome: null, reactions: null },
+    { id: '7', at: at('2026-09-20'), nets: ['x'] }, // 柱なし
+    { id: '8', at: at('2026-10-02'), nets: ['x'], pillar: 'ura' }, // 別の月
+  ]
+  const rv = P.monthlyReview(P.itemsOf(hist, [{ id: 'q', date: '2026-09-30', targets: ['x'], pillar: 'ura' }]), PILLARS, '2026-09')
+  assert.equal(rv.total, 7) // 予約は入れない
+  const ura = rv.rows.find((r) => r.id === 'ura')
+  assert.deepEqual([ura.posts, ura.reactions, ura.visits, ura.inquiries], [3, 60, 24, 3])
+  assert.equal(ura.reliability.label, '参考程度')
+  const tips = rv.rows.find((r) => r.id === 'tips')
+  assert.deepEqual([tips.posts, tips.reacted, tips.measured, tips.visits], [3, 1, 2, 1])
+  assert.equal(rv.rows.find((r) => r.id === 'koe').reliability.label, '判断できません')
+  assert.ok(rv.rows.some((r) => r.id === '' && r.posts === 1)) // 柱なし
+  assert.ok(rv.tips[0].includes('「裏側」') && rv.tips[0].includes('問い合わせ') && rv.tips[0].includes('週1本増やして'))
+  assert.ok(rv.tips.some((x) => x.includes('「お役立ち」') && x.includes('少なめ')))
+  const ig = rv.nets.find((x) => x.net === 'instagram')
+  assert.deepEqual([ig.posts, ig.visits, ig.inquiries], [3, 24, 3])
+  assert.equal(rv.nets.find((x) => x.net === 'x').posts, 4)
+})
+
+t('monthlyReview: 少ないときは「判断できません」とだけ言う', () => {
+  const rv = P.monthlyReview(P.itemsOf([{ id: '1', at: at('2026-09-02'), nets: ['x'], pillar: 'ura', outcome: { visits: 50, inquiries: 5 } }], []), PILLARS, '2026-09')
+  assert.equal(rv.tips.length, 1)
+  assert.ok(rv.tips[0].includes('判断できません'))
+  assert.equal(rv.reliability.label, '判断できません')
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)

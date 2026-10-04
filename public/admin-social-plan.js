@@ -771,6 +771,48 @@
   }
   SECTIONS.push({ id: 'line', html: lineHtml });
 
+  /* ================================================================
+     7. 月次の振り返り
+     ================================================================ */
+  function months() {
+    var out = [];
+    var d = D.today;
+    for (var i = 0; i < 3; i++) { out.push(d.slice(0, 7)); d = C.addDays(C.monthStart(d), -1); }
+    return out;
+  }
+  function reviewHtml(it) {
+    var ms = months();
+    if (!S.month || ms.indexOf(S.month) === -1) S.month = ms[1];
+    var rv = C.monthlyReview(it, pillars(), S.month);
+    var name = function (m) { return Number(m.slice(0, 4)) + '年' + Number(m.slice(5, 7)) + '月'; };
+    var num = function (v, has) { return has ? Number(v).toLocaleString('ja-JP') : '—'; };
+    var h = '<h3>月次の振り返り</h3>' +
+      '<p class="lead">柱ごと・SNSごとに、出した本数と、反応・サイトに来た人・問い合わせを並べます。サイトに来た人と問い合わせは、計測リンクの付いた投稿の分だけです（投稿から7日間）。件数が少ないうちは「判断できません」「参考程度」と出します。</p>' +
+      '<label for="spl-month" style="font-size:12px;font-weight:700">月</label> <select id="spl-month" style="width:auto;font-size:12.5px;padding:5px 8px">' +
+        ms.map(function (m, i) { return '<option value="' + m + '"' + (m === S.month ? ' selected' : '') + '>' + name(m) + (i === 0 ? '（今月・途中）' : '') + '</option>'; }).join('') + '</select>' +
+      '<p style="font-size:12.5px;margin:6px 0">' + name(S.month) + 'に出した投稿：<b>' + rv.total + ' 本</b>' + band(rv.reliability) + '</p>';
+    if (!rv.total) return h + '<p class="spl-note">この月に出した投稿はありません。</p>';
+    h += '<div class="soc-scroll"><table class="soc-tbl"><thead><tr><th>柱</th><th>本数</th><th>反応</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
+      rv.rows.map(function (r) {
+        return '<tr><td>' + (r.id ? chip(pillarById(r.id)) : chip(null)) + '</td><td class="n">' + r.posts + '</td>' +
+          '<td class="n">' + num(r.reactions, r.reacted) + '</td><td class="n">' + num(r.visits, r.measured) + '</td><td class="n">' + num(r.inquiries, r.measured) + '</td>' +
+          '<td>' + (r.posts ? band(r.reliability) : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+    h += '<div class="soc-scroll"><table class="soc-tbl" style="margin-top:10px"><thead><tr><th>SNS</th><th>本数</th><th>サイトに来た人</th><th>問い合わせ</th><th></th></tr></thead><tbody>' +
+      rv.nets.map(function (x) {
+        return '<tr><td>' + esc(netLabel(x.net)) + '</td><td class="n">' + x.posts + '</td><td class="n">' + num(x.visits, x.measured) + '</td><td class="n">' + num(x.inquiries, x.measured) + '</td><td>' + band(x.reliability) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="spl-note">「—」は数字が取れていないものです（反応は「反応を取得」した投稿だけ、サイトの数字は計測リンクの付いた投稿だけ）。</p>';
+    h += '<h4 style="font-size:12.5px;margin:10px 0 2px">来月の配分のヒント<span class="spl-meyasu">目安</span></h4>' +
+      rv.tips.map(function (x) { return '<p class="spl-good" style="color:var(--text)">' + esc(x) + '</p>'; }).join('');
+    return h;
+  }
+  function bindReview() {
+    var s = el('spl-month');
+    if (s) s.addEventListener('change', function () { S.month = s.value; render(); var r = el('spl-review'); if (r) r.scrollIntoView({ block: 'start' }); });
+  }
+  SECTIONS.push({ id: 'review', html: reviewHtml, bind: bindReview });
+
   /* 投稿欄：LINE を選んでいて、その月の5通目になるときは知らせます（止めはしません）。 */
   function lineWarnAddon() {
     if (!D) return '';
