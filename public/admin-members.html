@@ -918,6 +918,7 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/video-core.js"></script>
 <script src="/admin-video.js"></script>
 <script src="/admin-social-plan.js"></script>
+<script src="/admin-inquiries.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -1257,6 +1258,9 @@ header h1, header button, header a { white-space: nowrap; }
 
     <!-- SNS（動画）。中身は /admin-video.js が組み立てます（項目が多いので別ファイル）。 -->
     <div class="panel" id="video-admin" style="display:none; margin-top:20px"></div>
+
+    <!-- 問い合わせ管理。中身は /admin-inquiries.js が組み立てます。 -->
+    <div class="panel" id="inquiries-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">設定状況</h2>
@@ -1771,6 +1775,11 @@ window.lumAdmin = {
   var TABS = [
     { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit',
       desc: '何が使えるか確認', accent: '#047857', tint: 'rgba(16,185,129,0.14)' },
+    /* The store: without it enquiries arrive by mail only and there is no
+       list to keep. The unread count on this tab and its card comes from
+       /admin-inquiries.js (lumInqBadge, called from buildTabs). */
+    { id: 'inquiries-admin', icon: '📨', label: '問い合わせ管理', init: 'lumInquiriesInit', needs: 'store',
+      desc: '届いた問い合わせと返信', accent: '#1d4ed8', tint: 'rgba(59,130,246,0.13)' },
     { id: 'list-view', icon: '👥', label: '会員リスト', needs: 'resend',
       desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
@@ -1876,6 +1885,7 @@ window.lumAdmin = {
       });
     });
     buildPortal();
+    if (window.lumInqBadge) window.lumInqBadge();
     var saved = null;
     try { saved = sessionStorage.getItem('lum_admin_tab'); } catch (_) {}
     showTab(NAV.some(function (t) { return t.id === saved; }) ? saved : PORTAL);
