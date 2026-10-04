@@ -14,6 +14,7 @@ import { json } from './_admin-auth.js'
 import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { listScheduled, claim, CRON_LAST } from './_social-queue.js'
 import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus } from './_social.js'
+import { runVideoCron } from './video-publish.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
 const BUDGET_MS = 21000
@@ -74,7 +75,14 @@ export async function GET(req) {
     threads = { ok: false, message: String((e && e.message) || e).slice(0, 160) }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, threads }
+  // SNS（動画）の Instagram リールの予約と「準備中」。残り時間の中でだけ動きます。
+  let video = null
+  if (BUDGET_MS - (Date.now() - started) > 6000) {
+    try { video = await runVideoCron(BUDGET_MS - (Date.now() - started) - 1000) }
+    catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
+  }
+
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, threads, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }
