@@ -574,6 +574,42 @@
   .soc-q { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
   .soc-q .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .soc-q button { flex: none; font-size: 11px; padding: 5px 10px; }
+  /* SNS（文章）: 投稿前チェック・成果・おすすめの時間・カレンダー・定型文 */
+  .soc-rv { margin-top: 10px; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; }
+  .soc-rv h4 { font-size: 12px; font-weight: 700; margin: 0 0 2px; }
+  .soc-rv .it { border-top: 1px solid var(--border); padding: 7px 0 6px; font-size: 11.5px; line-height: 1.75; }
+  .soc-rv .it:first-of-type { border-top: 0; }
+  .soc-rv .kd { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-right: 6px; }
+  .soc-rv .kd.warn { background: rgba(251,191,36,0.22); color: #92400e; }
+  .soc-rv .kd.note { background: rgba(99,102,241,0.12); color: #3730a3; }
+  .soc-rv .w { font-weight: 700; }
+  .soc-rv .alt { color: #0f766e; }
+  .soc-tbl { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .soc-tbl th, .soc-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .soc-tbl th { font-size: 11px; color: var(--sub); font-weight: 700; }
+  .soc-tbl td.n { text-align: right; }
+  .soc-scroll { overflow-x: auto; }
+  .soc-box { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 11px 14px; margin-bottom: 10px; }
+  .soc-chip { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #e7e4dc; color: var(--text); margin: 1px 2px 1px 0; }
+  .soc-chip.q { background: rgba(20,184,166,0.16); color: #0f766e; }
+  .soc-chip.ng { background: rgba(248,113,113,0.15); color: #b42318; }
+  .soc-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .soc-cal .hd { font-size: 10.5px; color: var(--sub); text-align: center; font-weight: 700; padding: 2px 0; }
+  .soc-cal .d { min-height: 64px; background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 3px 4px; font-size: 11px; text-align: left; color: var(--text); cursor: pointer; display: block; width: 100%; }
+  .soc-cal .d.out { background: transparent; border-style: dashed; cursor: default; }
+  .soc-cal .d.today { border-color: #0f766e; }
+  .soc-cal .d.sel { box-shadow: inset 0 0 0 2px #14b8a6; }
+  .soc-cal .d .num { font-weight: 700; font-size: 11px; display: block; }
+  .soc-cal-list { display: none; }
+  @media (max-width: 560px) {
+    .soc-cal, .soc-cal-nav .wk { display: none; }
+    .soc-cal-list { display: block; }
+  }
+  .soc-cal-item { padding: 7px 10px; margin-bottom: 5px; background: #fff; border: 1px solid var(--border); border-radius: 9px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+  .soc-rec { font-size: 11.5px; line-height: 1.8; }
+  .soc-rec .lab { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 7px; border-radius: 999px; margin-left: 4px; }
+  .soc-rec .lab.own { background: rgba(16,185,129,0.16); color: #047857; }
+  .soc-rec .lab.gen { background: #e7e4dc; color: var(--sub); }
 
   .env-copy {
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -1023,6 +1059,19 @@ header h1, header button, header a { white-space: nowrap; }
         <h3 class="soc-step">3　SNSごとに確かめる</h3>
         <div id="social-tabs" class="soc-tabs" role="tablist"></div>
         <div id="social-variant"></div>
+        <!-- このサイトの決まり（使わない言葉・表記の統一）。投稿前チェックが使います。 -->
+        <details class="soc-more" id="social-style" style="margin-top:10px">
+          <summary>このサイトの決まり（使わない言葉・表記の統一）</summary>
+          <div class="soc-small" style="margin-top:6px">ここに書いた言葉は、投稿前チェックで知らせます。1行に1つ書きます。</div>
+          <label class="soc-lab" for="social-style-ng">使わない言葉（例：激安 → お求めやすい（安っぽく見えるため））</label>
+          <textarea id="social-style-ng" rows="3" style="width:100%;padding:9px 11px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;line-height:1.7"></textarea>
+          <label class="soc-lab" for="social-style-nt">表記の統一（例：お客様 → お客さま ／ 例外: お客様各位）</label>
+          <textarea id="social-style-nt" rows="3" style="width:100%;padding:9px 11px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;line-height:1.7"></textarea>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
+            <button type="button" id="social-style-save" style="font-size:12px;padding:7px 13px">決まりを保存</button>
+            <span id="social-style-st" class="soc-small"></span>
+          </div>
+        </details>
 
         <h3 class="soc-step">4　いつ出すか</h3>
         <div class="soc-when">
@@ -6641,6 +6690,7 @@ window.lumAdmin = {
   var brand = { host: location.hostname.replace(/^www\./, ''), name: (window.lumSite && window.lumSite.name) || '' };
   var info = { schedule: { ready: false, items: [], jstHour: 9 }, upload: { ready: false }, threadsToken: null, stored: false };
   var quotas = {};
+  var style = { ng: [], notation: [] };
   var tests = {};
   var imgMeta = {};
   var busy = false;
@@ -7077,8 +7127,10 @@ window.lumAdmin = {
       b.setAttribute('role', 'tab');
       b.setAttribute('aria-selected', id === S.tab ? 'true' : 'false');
       b.dataset.net = id;
+      var rw = TX.review(k.c.text, id, style).filter(function (x) { return x.level === 'warn'; }).length;
       b.innerHTML = esc(n.label) + '<span class="st' + (k.errors.length ? ' over' : '') + '">' +
-        (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>';
+        (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>' +
+        (rw ? '<span class="st" style="color:#92400e" title="投稿前チェックで ' + rw + ' 件">⚠' + rw + '</span>' : '');
       b.addEventListener('click', function () { S.tab = id; renderTabs(); renderVariant(); save(); });
       host.appendChild(b);
     });
@@ -7106,6 +7158,7 @@ window.lumAdmin = {
         '</div>' +
         '<div id="soc-v-issues"></div>' +
         '<div id="soc-v-fix"></div>' +
+        '<div id="soc-v-review"></div>' +
         '<div id="soc-v-preview"></div>' +
         '<div class="row" style="margin-top:8px">' +
           '<button type="button" id="soc-v-clip" style="font-size:11.5px;padding:6px 12px">本文をコピー</button>' +
@@ -7256,7 +7309,71 @@ window.lumAdmin = {
       fix.innerHTML = '<div class="soc-issue">この送信で約 <b>' + q.reach + '通</b> 使います（友だち ' + q.followers + '人のうち届く人 ' + q.reach + '人 × 1回）。' +
         (q.remaining != null ? '今月の残りは ' + q.remaining + '通です。' : '') + '</div>';
     }
+    renderReview(id, k);
     el('soc-v-preview').innerHTML = previewHtml(id, k);
+  }
+
+  /* ---- 投稿前チェック（表現） ----
+     決まった言葉と形を探すだけの確認です（_social-text.js の review）。
+     送信は止めません。「なぜ」と「言い換え例」を並べて、直すかどうかは
+     書いた人が決めます。 */
+  function renderReview(id, k) {
+    var host = el('soc-v-review');
+    if (!host) return;
+    if (!String(k.c.text || '').trim()) { host.innerHTML = ''; return; }
+    var items = TX.review(k.c.text, id, style);
+    var fixable = items.filter(function (x) { return x.fix; }).reduce(function (a, x) { return a + (x.count || 0); }, 0);
+    host.innerHTML = '<div class="soc-rv" id="soc-rv">' +
+      '<h4>投稿前チェック（表現のリスク）' + (items.length ? '　<span class="soc-small">' + items.length + ' 件</span>' : '') + '</h4>' +
+      (items.length
+        ? items.map(function (x) {
+            return '<div class="it"><span class="kd ' + x.level + '">' + esc(x.label) + '</span>' +
+              '<span class="w">「' + esc(x.word) + '」</span><br>' +
+              '<span>なぜ：' + esc(x.why) + '</span>' +
+              (x.alt ? '<br><span class="alt">言い換え例：' + esc(x.alt) + '</span>' : '') + '</div>';
+          }).join('')
+        : '<div class="soc-small">気になる言い方は見つかりませんでした。</div>') +
+      (fixable ? '<div style="margin-top:6px"><button type="button" class="ghost" id="soc-rv-fix" style="font-size:11.5px;padding:5px 12px">表記をそろえる（' + fixable + 'か所・共通の本文とSNSごとの本文の両方）</button></div>' : '') +
+      '<div class="soc-small" style="margin-top:6px">' + esc(TX.REVIEW_NOTE) + '</div></div>';
+    var b = el('soc-rv-fix');
+    if (b) b.addEventListener('click', fixNotation);
+  }
+
+  function fixNotation() {
+    var n = 0;
+    var ta = el('social-text');
+    var r = TX.applyNotation(ta.value, style.notation);
+    ta.value = r.text; n += r.changes;
+    Object.keys(S.variants).forEach(function (k) {
+      var v = S.variants[k];
+      if (v && v.text) { var x = TX.applyNotation(v.text, style.notation); v.text = x.text; n += x.changes; }
+    });
+    changed(true);
+    say(n ? '表記を ' + n + ' か所そろえました。' : 'そろえるところはありませんでした。', true);
+  }
+
+  function renderStyle() {
+    var lines = TX.styleToLines(style);
+    el('social-style-ng').value = lines.ng;
+    el('social-style-nt').value = lines.notation;
+  }
+
+  async function saveStyleRules() {
+    var st = el('social-style-st');
+    var v = TX.validateStyle(TX.parseStyleLines(el('social-style-ng').value, el('social-style-nt').value));
+    var btn = el('social-style-save');
+    btn.disabled = true;
+    st.textContent = '保存しています…';
+    try {
+      var r = await api('/api/social', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ style: v.style }) });
+      var d = r.data || {};
+      if (d.ok && d.style) { style = d.style; renderStyle(); }
+      st.textContent = d.message || (d.ok ? '保存しました。' : '保存できませんでした。');
+      if (v.problems.length) st.textContent += '（' + v.problems.join(' ') + '）';
+      changed(false);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   /* ---- 4 いつ出すか ---- */
@@ -7569,6 +7686,8 @@ window.lumAdmin = {
     nets = d.networks || [];
     if (d.brand && d.brand.host) brand = { host: String(d.brand.host).replace(/^www\./, ''), name: d.brand.name || brand.name };
     info = { schedule: d.schedule || { ready: false, items: [] }, upload: d.upload || { ready: false }, threadsToken: d.threadsToken || null, stored: !!d.stored };
+    style = d.style || style;
+    renderStyle();
     // 書きかけを戻すのは最初の1回だけ（「状態を再取得」で打ち直しを消さない）。
     if (!el('social-text').dataset.restored) {
       el('social-text').dataset.restored = '1';
@@ -7759,6 +7878,8 @@ window.lumAdmin = {
   el('social-date').addEventListener('change', function () { S.date = el('social-date').value; changed(false); });
   el('social-post').addEventListener('click', post);
   el('social-reload').addEventListener('click', load);
+  el('social-style-save').addEventListener('click', saveStyleRules);
+
 
   /* 本文の書き直し。文章編集と同じ窓口を使います。
      返ってくるのは案で、採るかどうかは押した人が決めます——SNSは出したら

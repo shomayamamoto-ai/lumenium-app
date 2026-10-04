@@ -1261,9 +1261,21 @@
       activity: socialActivity(),
       schedule: { ready: true, message: '', code: '', jstHour: 9, items: socialQueue() },
       upload: { ready: true },
-      threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 }
+      threadsToken: { from: 'saved', canRefresh: true, expiresAt: ago(-41 * DAY), estimated: true, daysLeft: 41 },
+      style: socialStyle()
     };
   }
+  /* このサイトの決まり（shape: _social-text.js validateStyle）。 */
+  function socialStyle() {
+    return {
+      ng: [{ word: '激安', alt: 'お求めやすい', why: '安っぽく見えるため' }, { word: '業界最安', alt: '', why: '' }],
+      notation: [
+        { from: 'お客様', to: 'お客さま', except: ['お客様各位'] },
+        { from: 'ホームページ', to: 'ウェブサイト', except: ['ホームページ制作'] }
+      ]
+    };
+  }
+
   function socialQuotas() {
     return { ok: true, quotas: {
       line: { ok: true, unlimited: false, limit: 200, used: 14, remaining: 186, followers: 192, reach: 186, date: jstDate(1), note: '' },

@@ -10,6 +10,7 @@ export const config = { runtime: 'edge' }
 //   POST { action:'test', net }      -> a cheap read with the stored keys (nothing is posted)
 //   POST { action:'refresh-threads' }-> extend the Threads token, saved where it was
 //   POST { action:'metrics', id }    -> likes / comments / reach for one history entry
+//   PUT  { style }                   -> the site's own wording rules (NG words, notation)
 //
 // Admin key only, by the header only: this spends the site's own accounts, so
 // it must not be reachable by a share link or a key in a URL.
@@ -22,6 +23,7 @@ import {
 import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize } from './_social-queue.js'
 import { setting } from './_settings.js'
 import { BRAND } from './_brand.js'
+import { readStyle, saveStyle } from './_social-store.js'
 
 async function state(req) {
   const ready = scheduleReady()
@@ -39,6 +41,7 @@ async function state(req) {
     },
     upload: { ready: !!(await setting('BLOB_READ_WRITE_TOKEN', '', req)) },
     threadsToken: networks.some((n) => n.id === 'threads' && n.ready) ? await threadsTokenInfo(req) : null,
+    style: await readStyle(req),
   }
 }
 
@@ -49,6 +52,20 @@ export async function GET(req) {
     return json({ ok: true, quotas: await socialQuotas(req) })
   }
   return json({ ok: true, ...(await state(req)) })
+}
+
+/** Saving the site's own rules. Only what validateStyle keeps is stored, and
+ *  what it dropped is said back, so a line that vanished is not a mystery. */
+export async function PUT(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+  let body
+  try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
+  if (body && body.style && typeof body.style === 'object') {
+    const r = await saveStyle(body.style, req)
+    return json({ ...r, message: r.ok ? '決まりを保存しました。' + (r.problems.length ? '（' + r.problems.join(' ') + '）' : '') : r.message }, r.ok ? 200 : 400)
+  }
+  return json({ ok: false, message: '保存するものがありません。' }, 400)
 }
 
 function outcome(results) {

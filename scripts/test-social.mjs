@@ -376,5 +376,92 @@ await test('AI下書き：ハッシュタグは3つまで、Xは日本語で収�
   assert.ok(T.xLength('あ'.repeat(budgetFor('x', true)) + '\n\n#ab #cd #ef\nhttps://lumenium.net/') <= 280)
 })
 
+console.log('投稿前チェック（表現）')
+const kinds = (t, net, st) => T.review(t, net, st).map((r) => r.kind + ':' + r.level)
+await test('景品表示法：根拠の無い「最安」「No.1」「絶対〜痩せる」は warn', () => {
+  const k = kinds('地域最安値！No.1の味。絶対に痩せる！', 'facebook')
+  assert.ok(k.includes('keihyo:warn'))
+  assert.equal(T.review('地域最安値', 'x').find((r) => r.kind === 'keihyo').word, '地域最安')
+  assert.ok(T.review('No.1の味', 'x').some((r) => r.word === 'No.1'))
+  assert.ok(k.includes('yakki:warn'))
+  assert.ok(T.review('最安値です', 'x')[0].alt.includes('当店調べ'))
+})
+await test('景品表示法：根拠（※〜調べ）があれば note に下がる', () => {
+  assert.deepEqual(kinds('満足度No.1 ※2026年8月 当社調べ', 'x'), ['keihyo:note'])
+})
+await test('事実の説明は拾わない（完全予約制・果汁100%・必ずご予約・ご来店いただきました）', () => {
+  assert.deepEqual(kinds('完全予約制です。果汁100%ジュース。必ずご予約ください。ご来店いただきました。', 'facebook'), [])
+  assert.ok(kinds('効果100%保証', 'x').includes('keihyo:warn'))
+  // 「最高」は感想のことが多いので note
+  assert.deepEqual(kinds('最高の一日でした', 'x'), ['keihyo:note'])
+})
+await test('薬機法：効き目をうたう言い方（シミが消える・アンチエイジング）', () => {
+  const r = T.review('シミが消える美容液。アンチエイジングに。', 'instagram')
+  assert.deepEqual(r.map((x) => x.word), ['シミが消え', 'アンチエイジング'])
+  assert.ok(r.every((x) => x.alt))
+})
+await test('ステマ規制：提供を受けた紹介で PR 表示が無いときだけ', () => {
+  assert.ok(kinds('〇〇さんから商品をご提供いただきました！', 'x').includes('stema:warn'))
+  assert.deepEqual(kinds('【PR】〇〇さんから商品をご提供いただきました', 'x'), [])
+  assert.deepEqual(kinds('#PR 〇〇さんから商品をご提供いただきました', 'x'), [])
+  assert.deepEqual(kinds('自分のお店の新商品です', 'x'), [])
+})
+await test('二重価格：期間が無いと warn、あると note、比べていなければ何も出ない', () => {
+  assert.deepEqual(kinds('通常価格3,000円→2,400円', 'facebook'), ['nijuu:warn'])
+  assert.deepEqual(kinds('通常価格3,000円→9月30日まで2,400円', 'facebook'), ['nijuu:note'])
+  assert.deepEqual(kinds('通常料金 3,000円です', 'facebook'), [])
+})
+await test('個人の情報：電話・メール・住所（URL の中は見ない）', () => {
+  const r = T.review('お電話は 090-1234-5678 まで。mail: shop@example.com 東京都渋谷区神南1-2-3', 'facebook')
+  assert.deepEqual(r.map((x) => x.kind), ['privacy', 'privacy', 'privacy'])
+  assert.deepEqual(kinds('https://example.com/09012345678', 'facebook'), [])
+})
+await test('ハッシュタグの数：X は3個から、Instagram は6個から、Threads は2個から', () => {
+  assert.equal(T.hashtags('#a ＃b 本文 https://x.com/p#frag #1').length, 2)
+  assert.deepEqual(kinds('#a #b 本文', 'x'), [])
+  assert.deepEqual(kinds('#a #b #c 本文', 'x'), ['platform:warn'])
+  assert.deepEqual(kinds('#a #b #c #d #e', 'instagram'), [])
+  assert.deepEqual(kinds('#a #b #c #d #e #f', 'instagram'), ['platform:note'])
+  assert.deepEqual(kinds('#a', 'threads'), [])
+  assert.deepEqual(kinds('#a #b', 'threads'), ['platform:note'])
+})
+await test('このサイトの決まり：行から読み、確かめ、使わない言葉を拾う', () => {
+  const parsed = T.parseStyleLines('激安 → お求めやすい（安っぽく見えるため）\n\n激安', 'お客様 → お客さま ／ 例外: お客様各位, 関係ない\nWeb → Webサイト\n同じ → 同じ\n片方だけ')
+  const { style, problems } = T.validateStyle(parsed)
+  assert.deepEqual(style.ng, [{ word: '激安', alt: 'お求めやすい', why: '安っぽく見えるため' }])
+  assert.deepEqual(style.notation, [{ from: 'お客様', to: 'お客さま', except: ['お客様各位'] }, { from: 'Web', to: 'Webサイト', except: [] }])
+  assert.equal(problems.length, 2)
+  assert.deepEqual(T.validateStyle(T.parseStyleLines(T.styleToLines(style).ng, T.styleToLines(style).notation)).style, style)
+  const r = T.review('激安セール', 'x', style)
+  assert.equal(r[0].kind, 'ng')
+  assert.equal(r[0].alt, '「お求めやすい」')
+  assert.equal(T.validateStyle({ ng: Array.from({ length: 150 }, (_, i) => 'w' + i) }).style.ng.length, 100)
+  assert.equal(T.validateStyle({ ng: ['a'.repeat(99)] }).style.ng[0].word.length, 30)
+})
+await test('表記の自動修正：例外・直した形・URL の中は変えない', () => {
+  const rules = [{ from: 'お客様', to: 'お客さま', except: ['お客様各位'] }, { from: 'Web', to: 'Webサイト', except: [] }]
+  const r = T.applyNotation('お客様各位　お客様へ。Webサイト と Web の話 https://Web.example.com/Web', rules)
+  assert.equal(r.text, 'お客様各位　お客さまへ。Webサイト と Webサイト の話 https://Web.example.com/Web')
+  assert.equal(r.changes, 2)
+  assert.equal(T.applyNotation(r.text, rules).changes, 0)
+  const item = T.review('お客様へ', 'x', { notation: rules }).find((x) => x.kind === 'notation')
+  assert.equal(item.fix, true)
+  assert.equal(item.count, 1)
+})
+await test('決まりの保存：管理キーが要り、確かめた形だけを保存する', async () => {
+  const api = await import('../api/social.js')
+  const put = (body, key = 'test-admin-key') => api.PUT(new Request('https://lumenium.net/api/social', {
+    method: 'PUT', headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+  assert.equal((await put({ style: { ng: ['激安'] } }, 'wrong')).status, 401)
+  const res = await put({ style: { ng: ['激安', ''], notation: [{ from: 'A', to: 'A' }] } })
+  const d = await res.json()
+  assert.equal(d.ok, true)
+  assert.deepEqual(d.style.ng.map((w) => w.word), ['激安'])
+  assert.equal(d.problems.length, 1)
+  const { readStyle } = await import('../api/_social-store.js')
+  assert.deepEqual((await readStyle()).ng.map((w) => w.word), ['激安'])
+})
+
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
+
 if (failed) process.exit(1)
