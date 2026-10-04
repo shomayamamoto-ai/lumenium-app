@@ -12,6 +12,7 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
 import { K } from './_analytics-store.js'
+import { refKind } from './_referrers.js'
 
 /** 1ページで数える時間の上限（開きっぱなしで席を外した場合）。 */
 export const MAX_TIME_MS = 30 * 60 * 1000
@@ -108,6 +109,14 @@ export function visitPlan({ kind, ev, body, path, date, source, selfRef, clean }
 
   if (countRef) {
     slot(K.dayRefs(date), source, 'other', (f) => [['HINCRBY', K.dayRefs(date), f, 1], ex(K.dayRefs(date))])
+    /* AIアシスタントから来た訪問は、どのページに着いたかも数えます。
+       流入元と同じ条件（訪問の最初の1回）なので、ここの合計が
+       「AIアシスタントから」の訪問数を超えることはありません。 */
+    if (refKind(source) === 'ai') {
+      const h = K.dayAiLandings(date)
+      const landing = kind === 'not_found' ? NOT_FOUND_LANDING : path
+      slot(h, `${source}\t${landing}`, `${source}\t/(other)`, (f) => [['HINCRBY', h, f, 1], ex(h)])
+    }
   }
   if (starts) {
     plain(() => [['INCR', K.daySessions(date)], ex(K.daySessions(date))])

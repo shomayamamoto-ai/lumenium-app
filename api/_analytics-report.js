@@ -8,7 +8,7 @@
 // Files starting with "_" in /api are not exposed as endpoints by Vercel.
 
 import { pipeline, jstDate, K, KEEP_DAYS } from './_analytics-store.js'
-import { REF_KINDS, refKind } from './_referrers.js'
+import { REF_KINDS, refKind, aiName } from './_referrers.js'
 
 // The enquiry path, and the things that are measured but are not steps on it.
 // 見積り and メニュー used to be listed here; the screens that sent them are
@@ -165,6 +165,8 @@ const LISTS = [
   ['srcMail', (d) => K.dayEventSources(d, 'click_mail')],
   ['campaigns', K.dayCampaigns],
   ['campaignSubmit', (d) => K.dayCampaignEvents(d, 'contact_submit')],
+  // AIアシスタントから来た訪問の「紹介元<TAB>入口のページ」。
+  ['aiLandings', K.dayAiLandings],
 ]
 
 /**
@@ -339,7 +341,7 @@ export async function buildReport(cfg, { days = 30, endOffset = 0 } = {}) {
     topPaths: merge(lists.paths, 20),
     topReferrers: refsAll.slice(0, 12),
     /* 紹介元を種類でまとめたもの。来ていない種類も 0 のまま並べます——
-       「AI検索から 0」は空欄ではなく結果で、対策が効き始めたかどうかは
+       「AIアシスタントから 0」は空欄ではなく結果で、対策が効き始めたかどうかは
        その行が動くかで分かるからです。保存してあるホスト名を読み直して
        分類します（上限なし。表示は12件でも、集計は全部）。 */
     referrerKinds: (() => {
@@ -354,6 +356,36 @@ export async function buildReport(cfg, { days = 30, endOffset = 0 } = {}) {
         count: byKind[k.key] || 0,
         share: total ? (byKind[k.key] || 0) / total : 0,
       }))
+    })(),
+    /* AIアシスタントから来た訪問の内訳。どのAIから、何回。
+       保存してあるホスト名から数え直すので、上の種類別の数と食い違いません。
+       chat.openai.com と chatgpt.com のような同じAIの別名は1行にまとめます。 */
+    aiSources: (() => {
+      const by = new Map()
+      for (const { name, count } of refsAll) {
+        if (refKind(name) !== 'ai') continue
+        const label = aiName(name)
+        const row = by.get(label) || { name: label, hosts: [], count: 0 }
+        row.count += count
+        if (!row.hosts.includes(name)) row.hosts.push(name)
+        by.set(label, row)
+      }
+      return [...by.values()].sort((a, b) => b.count - a.count).slice(0, 12)
+    })(),
+    /* …そして、その訪問がどのページから始まったか。AIがどのページを根拠に
+       紹介したかの見当になります。記録を始めた日からのぶんだけです。 */
+    aiLandings: (() => {
+      const by = new Map()
+      for (const { name, count } of merge(lists.aiLandings, Infinity)) {
+        const tab = name.indexOf('\t')
+        const source = aiName(tab < 0 ? name : name.slice(0, tab))
+        const path = tab < 0 ? '/' : name.slice(tab + 1)
+        const k = source + '\t' + path
+        const row = by.get(k) || { source, path, count: 0 }
+        row.count += count
+        by.set(k, row)
+      }
+      return [...by.values()].sort((a, b) => b.count - a.count).slice(0, 15)
     })(),
     devices: merge(lists.devices, 5),
     /* いつ見られているか。0時から23時まで、来ていない時間も 0 で残します

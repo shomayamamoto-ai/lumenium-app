@@ -1088,10 +1088,11 @@ header h1, header button, header a { white-space: nowrap; }
           <button class="ghost" id="audit-run" type="button">サイト側を点検</button>
           <span class="share-note" id="audit-note">公開中のページを読み、AIが答えを作るのに要る要素が揃っているかを調べます（無料・数秒）。</span>
         </div>
-        <!-- Who actually came to read the site. Recorded by /robots.txt and
-             /llms.txt, which are served by a function for this reason. It is
-             the only measurement on this screen that is not inference, so it
-             is placed before the ones that are. -->
+        <!-- Who actually came to read the site. Recorded by the root
+             middleware.js for every page, sitemap, robots.txt and llms.txt,
+             and read from /api/crawlers. It is the only measurement on this
+             screen that is not inference, so it is placed before the ones
+             that are. -->
         <div id="crawl-body"></div>
         <div id="audit-body"></div>
       </div>
@@ -1189,8 +1190,13 @@ header h1, header button, header a { white-space: nowrap; }
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこから来たか</h3>
-          <p class="share-note" style="margin-bottom:10px">対策が効いているかは、ここが動くかで分かります。来ていない経路も 0 のまま並べます——「AI検索から 0」は空欄ではなく結果だからです。</p>
+          <p class="share-note" style="margin-bottom:10px">対策が効いているかは、ここが動くかで分かります。来ていない経路も 0 のまま並べます——「AIアシスタントから 0」は空欄ではなく結果だからです。</p>
           <div id="stats-kinds"></div>
+        </div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">AIアシスタントから来た人</h3>
+          <p class="share-note" style="margin-bottom:10px">ChatGPT・Perplexity・Gemini などの回答に載ったリンクから来た訪問。最初に開いたページは、AIが紹介の根拠にしたページの見当になります。</p>
+          <div id="stats-ai"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">問い合わせにつながった流入元</h3>
@@ -3624,6 +3630,8 @@ window.lumAdmin = {
     instagram: 'Instagram', 'instagram-post': 'Instagram 投稿', x: 'X', line: 'LINE', facebook: 'Facebook',
     youtube: 'YouTube', tiktok: 'TikTok', note: 'note', gbp: 'Googleビジネスプロフィール',
     card: '名刺QR', flyer: 'チラシ・資料QR', mail: 'メール署名', seminar: 'セミナー・登壇',
+    threads: 'Threads', linkedin: 'LinkedIn',
+    chatgpt: 'ChatGPT', perplexity: 'Perplexity', gemini: 'Gemini', copilot: 'Copilot', claude: 'Claude',
   };
   (function utmBuilder() {
     var src = document.getElementById('utm-src'), dest = document.getElementById('utm-dest');
@@ -3708,7 +3716,7 @@ window.lumAdmin = {
     });
   }
 
-  /* どこから来たか。0 の行も消さずに並べます——「AI検索から 0」は
+  /* どこから来たか。0 の行も消さずに並べます——「AIアシスタントから 0」は
      空欄ではなく結果で、対策が効き始めたかはその行が動くかで分かります。 */
   function kinds(rows) {
     var host = el('stats-kinds');
@@ -3732,6 +3740,41 @@ window.lumAdmin = {
         '<div style="font-size:11px;color:var(--sub);line-height:1.75">' + esc(r.note) + '</div>' +
       '</div>';
     }).join('');
+  }
+
+  /* AIアシスタントから来た人。どのAIから何回、そして最初に開いたページ。
+     「AIから3人」だけでは、どの回答で紹介されたのかが分かりません。
+     着いたページが分かれば、そのページを厚くすれば済みます。
+     0 のときも、何が分からないのかを書いて残します。 */
+  function aiBox(d) {
+    var host = el('stats-ai');
+    if (!host) return;
+    var src = d.aiSources || [], land = d.aiLandings || [];
+    var cell = 'padding:5px 8px;font-size:12px;border-bottom:1px solid rgba(23,23,28,.06)';
+    var num = cell + ';text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap';
+    if (!src.length) {
+      host.innerHTML = '<p class="share-note">この期間はまだありません。AIの回答にリンク付きで紹介されると、ここに出ます。' +
+        'GoogleのAIによる概要から来た人は、Googleが区別を教えないため「検索エンジンから」に入ります。</p>';
+      return;
+    }
+    host.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">' +
+      '<div><div style="font-size:11.5px;color:var(--sub);font-weight:700;margin-bottom:4px">どのAIから</div>' +
+        '<table style="width:100%;border-collapse:collapse"><tbody>' +
+        src.map(function (x) {
+          return '<tr><td style="' + cell + ';font-weight:700">' + esc(x.name) + '</td>' +
+            '<td style="' + num + '">' + x.count + '訪問</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+      '<div><div style="font-size:11.5px;color:var(--sub);font-weight:700;margin-bottom:4px">最初に開いたページ</div>' +
+        (land.length
+          ? '<table style="width:100%;border-collapse:collapse"><tbody>' +
+            land.map(function (x) {
+              return '<tr><td style="' + cell + ';word-break:break-all">' + esc(x.path) + '</td>' +
+                '<td style="' + cell + ';color:var(--sub);white-space:nowrap">' + esc(x.source) + '</td>' +
+                '<td style="' + num + '">' + x.count + '</td></tr>';
+            }).join('') + '</tbody></table>'
+          : '<p class="share-note">入口のページは、この記録を始めた日からのぶんだけ出ます。</p>') +
+      '</div></div>';
   }
 
   /* どこまで読まれたか。半分と終わりの2点だけ。割合の母数は訪問者数です。 */
@@ -4002,6 +4045,7 @@ window.lumAdmin = {
     selfSwitch();
     chart(data.series || []);
     kinds(data.referrerKinds || []);
+    aiBox(data);
     convTable(data.convSources || []);
     landingTable(data.landings || []);
     timeTable(data.pageTimes || []);
@@ -5298,119 +5342,299 @@ window.lumAdmin = {
       (wholeHtml ? H('サイト全体の問題') + wholeHtml : '') +
       (worst ? H('直すと効くページ') + TABLE(worst) : '');
     btn.disabled = false;
-    crawlBox(data);
   }
 
-  /* クローラーの来訪。The one number on this screen that is not inference:
-     /robots.txt と /llms.txt はCDNではなく関数が返しているので、誰が取りに
-     来たかがそのまま記録されます。*/
-  function crawlBox(data) {
+  /* クローラーの来訪。この画面で唯一、推測ではない数字です。
+     root の middleware.js が、すべてのページ・サイトマップ・robots.txt・
+     llms.txt について「どのbotが、どのページを、いつ」読んだかを記録して
+     います。点検（/api/site-audit）とは別に /api/crawlers から読むので、
+     点検を待たずに出ます。
+
+     書き方の決まり:
+       ・数字はすべて「名乗っているアクセス数」。User-Agent は誰でも名乗れる
+         ので、本物かどうかは確かめていません。それを毎回書きます。
+       ・Google-Extended のような robots.txt 上の名前は、訪問としては一度も
+         現れません。「まだ来ていない」に並べると、無い問題を作るので別に。 */
+  var CRAWL_UNVERIFIED = '名乗っているアクセス数（なりすましを含む可能性あり）';
+  async function crawlBox() {
     var box = el('crawl-body');
-    if (!data.crawlStore) {
-      box.innerHTML = '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px">' +
-        '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪：記録できていません</div>' +
-        '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:5px">' +
-        '「誰にも読まれていない」ではなく「記録する先が無い」状態です。Vercel の環境変数に ' +
-        'UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を設定すると、' +
-        'GPTBot・ClaudeBot・PerplexityBot・Googlebot などがいつ来たかが、この場所に出ます。</div></div>';
+    if (!box) return;
+    var wrap = function (inner) {
+      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">' + inner + '</div>';
+    };
+    var small = 'font-size:11.5px;color:var(--sub);line-height:1.85';
+    var r;
+    try { r = await window.lumAdmin.fetch('/api/crawlers'); } catch (_) { r = null; }
+    var d = (r && r.data) || {};
+    if (!r || (!d.ok && d.store !== false)) {
+      box.innerHTML = wrap('<div style="font-size:12.5px;font-weight:700">AI・検索エンジンのクローラーの来訪</div>' +
+        '<div style="' + small + ';margin-top:5px">' + esc(d.message || '読み込めませんでした。時間をおいて再度お試しください。') + '</div>');
       return;
     }
-    var c = data.crawlers || { total: 0, agents: [], missing: [] };
-    var KIND = { ai: '回答エンジン', search: '検索エンジン', visit: 'AIが人の代わりに開いた', social: 'SNSのリンク展開', tool: '調査ツール', other: 'その他' };
-    var rows = (c.agents || []).map(function (a) {
-      var when = a.lastAt ? new Date(a.lastAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-      return '<tr><td style="padding:5px 8px;font-size:12px;font-weight:700">' + esc(a.id) + '</td>' +
-        '<td style="padding:5px 8px;font-size:11px;color:var(--sub)">' + esc(KIND[a.kind] || '') + '</td>' +
-        '<td style="padding:5px 8px;font-size:11.5px;text-align:right">' + a.hits + '回</td>' +
-        '<td style="padding:5px 8px;font-size:11px;color:var(--sub);text-align:right;white-space:nowrap">' + esc(when) + '</td></tr>';
+    if (d.store === false) {
+      box.innerHTML = wrap('<div style="font-size:12.5px;font-weight:700">AI・検索エンジンのクローラーの来訪：記録できていません</div>' +
+        '<div style="' + small + ';margin-top:5px">' +
+        '「誰にも読まれていない」ではなく「記録する先が無い」状態です。Vercel の環境変数に ' +
+        'UPSTASH_REDIS_REST_URL と UPSTASH_REDIS_REST_TOKEN を設定すると、' +
+        'GPTBot・ClaudeBot・PerplexityBot・Googlebot などが、いつ・どのページを読んだかが、この場所に出ます。</div>');
+      return;
+    }
+    var c = d.crawlers || { total: 0, agents: [], groups: [], missing: [], tokens: [] };
+    var when = function (iso) {
+      if (!iso) return '—';
+      var t = new Date(iso);
+      return isNaN(t) ? '—' : t.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+    var H = function (t) { return '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:14px 0 4px">' + t + '</h4>'; };
+    var line = 'border-bottom:1px solid rgba(23,23,28,.06)';
+    var groups = (c.groups || []).filter(function (g) { return g.key !== 'other' || g.hits; });
+
+    // 種類ごとの合計と、その種類が何を意味するか。
+    var groupRows = groups.map(function (g) {
+      return '<div style="padding:7px 0;' + line + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px">' +
+          '<span style="font-weight:700">' + esc(g.label) + '</span>' +
+          '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">' + (g.hits || 0) + '回' +
+            (g.agents ? '<span style="color:var(--sub);font-size:11px">（' + g.agents + '種類）</span>' : '') + '</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--sub);line-height:1.75;margin-top:2px">' + esc(g.note || '') + '</div>' +
+      '</div>';
     }).join('');
-    box.innerHTML =
-      '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px">' +
-      '<div style="font-size:12.5px;font-weight:700">AIクローラーの来訪（直近30日）' +
-        '<span style="color:var(--sub);font-weight:400;font-size:11px">　回答エンジン ' + (c.ai || 0) + '回・検索 ' + (c.search || 0) + '回</span></div>' +
+
+    // botごと。表は狭い画面で横にはみ出すので、1体を1つの段にします。
+    var agentRows = (c.agents || []).map(function (a) {
+      var pages = (a.topPaths || []).map(function (p) {
+        return '<span style="display:inline-block;margin:2px 8px 0 0;word-break:break-all">' + esc(p.path) +
+          '<span style="color:var(--sub)"> ' + p.hits + '回</span></span>';
+      }).join('');
+      return '<div style="padding:8px 0;' + line + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:4px 10px;align-items:baseline;flex-wrap:wrap">' +
+          '<span style="font-size:12.5px;font-weight:700">' + esc(a.id) +
+            '<span style="font-size:11px;color:var(--sub);font-weight:400;margin-left:6px">' + esc(a.groupLabel || '') +
+            (a.owner ? '・' + esc(a.owner) : '') + '</span></span>' +
+          '<span style="font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap">' + a.hits + '回' +
+            '<span style="color:var(--sub);margin-left:8px">最後 ' + esc(when(a.lastAt)) + '</span></span>' +
+        '</div>' +
+        (a.note ? '<div style="font-size:11px;color:var(--sub);line-height:1.7;margin-top:2px">' + esc(a.note) + '</div>' : '') +
+        (pages ? '<div style="font-size:11px;line-height:1.6;margin-top:3px"><span style="color:var(--sub)">よく読んだページ：</span>' + pages + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    // 主要なのに来ていないもの。種類ごとに、どうすればよいかを1回だけ書きます。
+    var missHtml = '';
+    if ((c.missing || []).length) {
+      var byGroup = {}, order = [], advice = {};
+      c.missing.forEach(function (m) {
+        if (!byGroup[m.group]) { byGroup[m.group] = { label: m.groupLabel, ids: [] }; order.push(m.group); }
+        byGroup[m.group].ids.push(m.id);
+      });
+      (c.groups || []).forEach(function (g) { advice[g.key] = g.ifMissing || ''; });
+      missHtml = H('主要なのに、この' + (c.days || 30) + '日で一度も来ていないもの') +
+        order.map(function (k) {
+          var g = byGroup[k];
+          return '<div style="font-size:12px;line-height:1.8;margin-bottom:6px"><b>' + esc(g.label) + '</b>：' + esc(g.ids.join('、')) +
+            (advice[k] ? '<div style="font-size:11px;color:var(--sub)">' + esc(advice[k]) + '</div>' : '') + '</div>';
+        }).join('');
+    }
+
+    var tokens = (c.tokens || []).length
+      ? H('robots.txtでの許可設定のみ（訪問としては現れません）') +
+        '<div style="' + small + '">' + c.tokens.map(function (t) {
+          return '<div><b>' + esc(t.id) + '</b>　' + esc(t.note) + '</div>';
+        }).join('') +
+        '<div style="margin-top:3px">これらは「学習や回答に使ってよいか」を伝える設定の名前です。読み取り自体は Googlebot・Applebot などが行うので、来訪としてここに出ることはありません。</div></div>'
+      : '';
+
+    box.innerHTML = wrap(
+      '<div style="font-size:12.5px;font-weight:700">AI・検索エンジンのクローラーの来訪（直近' + (c.days || 30) + '日）' +
+        '<span style="color:var(--sub);font-weight:400;font-size:11px">　合計 ' + (c.total || 0) + '回</span></div>' +
+      '<div style="font-size:11px;color:#b45309;line-height:1.75;margin-top:3px">数字はすべて「' + CRAWL_UNVERIFIED + '」です。' +
+        'bot の名前は誰でも名乗れるため、本物かどうかまでは確かめていません。</div>' +
       (c.total
-        ? '<table style="width:100%;border-collapse:collapse;margin-top:8px"><tbody>' + rows + '</tbody></table>' +
-          ((c.missing || []).length
-            ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:8px">まだ一度も来ていない回答エンジン: ' +
-              esc(c.missing.join('、')) + '</div>' : '')
-        : '<div style="font-size:11.5px;color:var(--sub);line-height:1.85;margin-top:5px">' +
-          'まだ1件も記録がありません。記録は /robots.txt と /llms.txt が読まれた時点から貯まります。' +
+        ? H('種類ごと') + groupRows + H('botごと（多い順）') + agentRows
+        : '<div style="' + small + ';margin-top:6px">' +
+          'まだ1件も記録がありません。記録は、ページ・サイトマップ・robots.txt・llms.txt が読まれるたびに貯まります。' +
           '数日経っても0のままなら、サイトがまだどのクローラーにも見つかっていないということです。' +
-          'その場合に効くのは、ページを直すことではなく、外部から1本でもリンクを張ることです。</div>') +
-      '<div style="font-size:11px;color:var(--sub);line-height:1.8;margin-top:8px;opacity:.85">' +
-      '記録しているのは、robots.txt と llms.txt を取りに来たbotの名前・時刻・どちらのファイルかだけです。' +
-      'ページ本文がどこまで読まれたかまでは分かりません。</div></div>';
+          'その場合に効くのは、ページを直すことではなく、サイトマップの送信と、外部から1本でもリンクを張ることです。</div>') +
+      missHtml + tokens +
+      '<div style="font-size:11px;color:var(--sub);line-height:1.8;margin-top:10px;opacity:.85">' +
+      '記録しているのは bot の名前・時刻・読んだページだけで、人の訪問は含みません。' +
+      '読まれたことと、AIの回答に使われたことは別です。使われたかどうかは、上のAIO計測と、アクセス解析の「AIアシスタントから来た人」で確かめます。</div>');
   }
   el('audit-run').addEventListener('click', audit);
 
-  /* Google検索での見え方。指名（社名を含む検索）と非指名を分けて出します。
-     合計だけ見ると、社名で検索した人の数字に隠れて、本当に増やしたい方の
-     数字が見えません。 */
-  async function loadSearchConsole() {
+  /* Google検索での見え方。Search Console の数字を、そのまま、言葉を添えて。
+
+     並べる順番に意味があります。
+       1. 合計と、前の28日との差（Google が出す合計そのもの。語の足し算ではない）
+       2. 社名で探された検索（指名）と、それ以外（非指名）。増やしたいのは後者
+       3. あと少しで1ページ目の語。手を入れる順番がいちばん分かりやすい
+       4. 語ごとに、どのページが出ているか
+       5. 端末別
+     Search Console の数字は1日1回しか変わらないので、6時間は保存した結果を
+     出します。「再取得」はそれを飛ばして Google に聞き直します。 */
+  var gscBusy = false;
+  async function loadSearchConsole(fresh) {
     var host = el('gsc-body');
-    if (!host) return;
+    if (!host || gscBusy) return;
+    gscBusy = true;
     var r;
-    try { r = await window.lumAdmin.fetch('/api/search-console'); } catch (_) { return; }
+    try { r = await window.lumAdmin.fetch('/api/search-console' + (fresh ? '?fresh=1' : '')); } catch (_) { r = null; }
+    gscBusy = false;
     var d = (r && r.data) || {};
-    var box = function (inner) {
+    var sub = 'color:var(--sub)';
+    var H = function (t) { return '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:14px 0 4px">' + t + '</h4>'; };
+    var note = function (t) { return '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin:2px 0 6px">' + t + '</p>'; };
+    var line = 'border-bottom:1px solid rgba(23,23,28,.06)';
+    var box = function (inner, withButton) {
       return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:13px 15px">' +
-        '<div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Google検索での見え方' +
-        (d.days ? '（直近' + d.days + '日）' : '') + '</div>' + inner + '</div>';
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">' +
+          '<div style="font-size:12.5px;font-weight:700">Google検索での見え方' + (d.days ? '（直近' + d.days + '日）' : '') + '</div>' +
+          (withButton
+            ? '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;' + sub + '">' +
+                (d.fetchedAt ? esc(new Date(d.fetchedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + ' に取得' : '') +
+              '</span><button class="ghost" type="button" id="gsc-refresh" style="padding:5px 12px;font-size:12px">再取得</button></div>'
+            : '') +
+        '</div>' + inner + '</div>';
     };
-    if (!d.ok) { host.innerHTML = ''; return; }
-    if (!d.registered) {
-      host.innerHTML = box('<div style="font-size:11.5px;color:var(--sub);line-height:1.85">' + esc(d.message || '') + '</div>');
+    var bind = function () {
+      var b = el('gsc-refresh');
+      if (b) b.addEventListener('click', function () { b.disabled = true; b.textContent = '取得中…'; loadSearchConsole(true); });
+    };
+    if (!r || !d.ok) {
+      host.innerHTML = r ? box(note(esc(d.message || '読み込めませんでした。')), false) : '';
       return;
     }
-    var card = function (label, v, sub) {
-      return '<div style="background:#faf9f6;border-radius:10px;padding:10px 12px">' +
-        '<div style="font-size:11px;color:var(--sub)">' + label + '</div>' +
-        '<div style="font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">' + v + '</div>' +
-        (sub ? '<div style="font-size:11px;color:var(--sub)">' + sub + '</div>' : '') + '</div>';
+    if (!d.registered || !d.total) {
+      host.innerHTML = box('<div style="font-size:11.5px;color:var(--sub);line-height:1.85">' + esc(d.message || '') + '</div>', !!d.registered);
+      bind();
+      return;
+    }
+
+    var n = function (x) { return Number(x || 0).toLocaleString('ja-JP'); };
+    var days = d.days || 28;
+    var GOOD = '#0e7490', BAD = '#b45309';
+    // 差を、ふつうの言葉で。順位は数字が小さいほど上なので向きが逆です。
+    var diff = function (v, unit, lowerIsBetter) {
+      if (v === null || v === undefined) return '<span style="' + sub + '">前の' + days + '日と比べられません</span>';
+      if (!v) return '<span style="' + sub + '">前の' + days + '日と同じ</span>';
+      var good = lowerIsBetter ? v < 0 : v > 0;
+      var a = Math.abs(Math.round(v * 10) / 10);
+      var text = lowerIsBetter
+        ? '前の' + days + '日より ' + a + '位' + (v < 0 ? '上がりました' : '下がりました')
+        : '前の' + days + '日より ' + (v > 0 ? '+' : '−') + n(a) + unit;
+      return '<span style="color:' + (good ? GOOD : BAD) + '">' + text + '</span>';
     };
-    var rows = (list) => list.map(function (q) {
-      return '<tr><td style="padding:4px 8px 4px 0;font-size:12px">' + esc(q.query) + '</td>' +
-        '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">' + q.impressions + '回表示</td>' +
-        '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">' + q.clicks + 'クリック</td>' +
-        '<td style="padding:4px 0;font-size:11.5px;color:var(--sub);text-align:right;white-space:nowrap">平均' + q.position + '位</td></tr>';
-    }).join('');
-    host.innerHTML = box(
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px">' +
-        card('非指名の表示回数', d.open.impressions, '社名を知らない人の検索') +
-        card('非指名のクリック', d.open.clicks, d.open.ctr + '%') +
-        card('非指名の平均順位', d.open.position || '—', d.open.queries + '語') +
-        card('指名の表示回数', d.branded.impressions, '社名での検索') +
+    var card = function (label, v, foot) {
+      return '<div style="background:#faf9f6;border-radius:10px;padding:10px 12px">' +
+        '<div style="font-size:11px;' + sub + '">' + label + '</div>' +
+        '<div style="font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">' + v + '</div>' +
+        (foot ? '<div style="font-size:11px;line-height:1.6;margin-top:2px">' + foot + '</div>' : '') + '</div>';
+    };
+    var t = d.total, ch = d.change;
+    var cards = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px">' +
+      card('検索結果に出た回数', n(t.impressions) + '回', diff(ch && ch.impressions, '回')) +
+      card('クリックされた回数', n(t.clicks) + '回', diff(ch && ch.clicks, '回')) +
+      card('クリック率', t.ctr + '%', diff(ch && ch.ctr, 'ポイント')) +
+      card('平均の掲載順位', t.position ? t.position + '位' : '—', diff(ch && ch.position, '', true)) +
+      '</div>';
+
+    // ひとことで。
+    var trend = function (v, word) {
+      return word + (v > 0 ? 'は増えました' : v < 0 ? 'は減りました' : 'は変わっていません');
+    };
+    var summary = !ch
+      ? '前の' + days + '日の数字が取れなかったため、比べた結果は出していません。'
+      : '前の' + days + '日と比べて、' + trend(ch.impressions, '検索結果に出た回数') + '（' + (ch.impressions > 0 ? '+' : '') + n(ch.impressions) + '回）。' +
+        trend(ch.clicks, 'クリック') + '（' + (ch.clicks > 0 ? '+' : '') + n(ch.clicks) + '回）。' +
+        (ch.position === null ? '' : ch.position < 0 ? '平均の順位は上がっています。' : ch.position > 0 ? '平均の順位は下がっています。' : '');
+
+    // 指名と非指名。
+    var o = d.open || {}, b = d.branded || {};
+    var split = H('社名で探された検索と、それ以外') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">' +
+        card('社名以外の語（非指名）', n(o.impressions) + '回表示',
+          n(o.clicks) + 'クリック・平均' + (o.position || '—') + '位<br>' + diff(d.openChange && d.openChange.impressions, '回')) +
+        card('社名での検索（指名）', n(b.impressions) + '回表示', n(b.clicks) + 'クリック・平均' + (b.position || '—') + '位') +
       '</div>' +
-      '<p style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-bottom:8px">' +
-        (d.open.impressions
-          ? '社名を知らない人の検索にも出ています。順位を上げるより先に、出ている語に対して答えるページがあるかを見てください。'
-          : '社名を知らない人の検索では、まだ1回も表示されていません。まずは表示されること（インデックスと外部からの言及）が先です。') +
-      '</p>' +
-      (d.topOpen.length
-        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:10px 0 2px">非指名で表示された語</h4>' +
-          '<table style="width:100%;border-collapse:collapse"><tbody>' + rows(d.topOpen) + '</tbody></table>'
-        : '') +
-      (d.topBranded.length
-        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 2px">指名で表示された語</h4>' +
-          '<table style="width:100%;border-collapse:collapse"><tbody>' + rows(d.topBranded) + '</tbody></table>'
-        : '') +
-      (d.topPages && d.topPages.length
-        ? '<h4 style="font-size:11.5px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:12px 0 2px">表示されているページ</h4>' +
-          '<table style="width:100%;border-collapse:collapse"><tbody>' +
-          d.topPages.map(function (p) {
-            return '<tr><td style="padding:4px 8px 4px 0;font-size:12px">' + esc(p.page || '/') + '</td>' +
-              '<td style="padding:4px 8px;font-size:11.5px;color:var(--sub);text-align:right">' + p.impressions + '回表示</td>' +
-              '<td style="padding:4px 0;font-size:11.5px;color:var(--sub);text-align:right">平均' + p.position + '位</td></tr>';
-          }).join('') + '</tbody></table>'
-        : '')
-    );
+      note((o.impressions
+          ? '社名を知らない人の検索にも出ています。増やしたいのはこちらです。'
+          : '社名を知らない人の検索には、まだ出ていません。まずは表示されること（ページが登録され、外から言及されること）が先です。') +
+        (d.hidden && d.hidden.impressions
+          ? '　ほかに、Google が語を伏せている検索が ' + n(d.hidden.impressions) + '回表示ぶんあります（件数の少ない語は、個人の特定を防ぐため Google が中身を出しません）。'
+          : '') +
+        (d.splitExact === false ? '　※ 指名・非指名の内訳は、上位の語を足した概算です（少なめに出ます）。' : ''));
+
+    // あと少しで1ページ目。
+    var near = d.near || { from: 8, to: 20, minImpressions: 10 };
+    var ops = d.opportunities || [];
+    var opHtml = H('あと少しで1ページ目') +
+      note('平均' + near.from + '〜' + near.to + '位あたり（1ページ目の下か2ページ目）で、' + days + '日に' + near.minImpressions +
+        '回以上出ている語です。1ページ目に入るとクリックが大きく増えます。その語で出ているページに、この語への答えをはっきり書き足すのが近道です。') +
+      (ops.length
+        ? ops.map(function (x) {
+            return '<div style="padding:6px 0;' + line + '">' +
+              '<div style="font-size:12.5px;font-weight:700;word-break:break-all">' + esc(x.query) + '</div>' +
+              '<div style="font-size:11.5px;' + sub + ';display:flex;flex-wrap:wrap;gap:2px 12px">' +
+                '<span>平均' + x.position + '位</span><span>' + n(x.impressions) + '回表示</span><span>' + n(x.clicks) + 'クリック</span>' +
+                '<span style="word-break:break-all">ページ：' + esc(x.page || '（不明）') + '</span></div></div>';
+          }).join('')
+        : note('いまは該当する語がありません。'));
+
+    // 語ごとのページ（上位25語）。
+    var qp = d.queryPages || [];
+    var qpHtml = qp.length
+      ? H('よく出ている語と、出ているページ（上位' + qp.length + '語）') +
+        note('同じ語で2つ以上のページが出ているときは、Google がどちらを出すか迷っている合図です。どちらか1つに内容をまとめると、順位が安定しやすくなります。') +
+        qp.map(function (q) {
+          var pages = (q.pages || []).map(function (p) {
+            return '<span style="display:inline-block;margin-right:10px;word-break:break-all">' + esc(p.page) + '<span style="' + sub + '"> ' + p.position + '位</span></span>';
+          }).join('');
+          return '<div style="padding:6px 0;' + line + '">' +
+            '<div style="display:flex;justify-content:space-between;gap:4px 10px;flex-wrap:wrap;font-size:12px">' +
+              '<span style="font-weight:700;word-break:break-all">' + esc(q.query) +
+                (q.branded ? '<span style="font-size:10px;' + sub + ';font-weight:400;margin-left:6px">指名</span>' : '') +
+                ((q.pages || []).length > 1 ? '<span style="font-size:10px;color:' + BAD + ';font-weight:400;margin-left:6px">ページが' + q.pages.length + 'つ</span>' : '') + '</span>' +
+              '<span style="font-size:11.5px;' + sub + ';white-space:nowrap;font-variant-numeric:tabular-nums">' + n(q.impressions) + '回表示・' + n(q.clicks) + 'クリック・平均' + q.position + '位</span>' +
+            '</div>' +
+            (pages ? '<div style="font-size:11px;margin-top:2px">' + pages + '</div>' : '') +
+          '</div>';
+        }).join('')
+      : '';
+
+    // 端末別。
+    var dev = d.devices || [];
+    var devHtml = dev.length
+      ? H('端末別') +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">' +
+        dev.map(function (x) {
+          return card(esc(x.label), n(x.impressions) + '回表示', n(x.clicks) + 'クリック（' + x.ctr + '%）・平均' + x.position + '位');
+        }).join('') + '</div>'
+      : '';
+
+    var pagesHtml = (d.topPages || []).length
+      ? H('検索結果に出ているページ') +
+        d.topPages.map(function (p) {
+          return '<div style="display:flex;justify-content:space-between;gap:4px 10px;flex-wrap:wrap;padding:4px 0;font-size:12px;' + line + '">' +
+            '<span style="word-break:break-all">' + esc(p.page || '/') + '</span>' +
+            '<span style="font-size:11.5px;' + sub + ';white-space:nowrap">' + n(p.impressions) + '回表示・' + n(p.clicks) + 'クリック・平均' + p.position + '位</span></div>';
+        }).join('')
+      : '';
+
+    host.innerHTML = box(
+      cards + note(summary) + split + opHtml + qpHtml + devHtml + pagesHtml +
+      '<p style="font-size:11px;color:var(--sub);line-height:1.8;margin-top:10px;opacity:.85">' +
+        'Google Search Console の数字です。集計途中の直近2日は含みません。数字は1日1回しか変わらないため、取得した結果を6時間使い回します。' +
+        (d.range ? '（' + esc(d.range.startDate) + '〜' + esc(d.range.endDate) + '）' : '') + '</p>',
+      true);
+    bind();
   }
 
   window.lumSeoInit = function () {
     if (loaded) return; loaded = true; load();
     // Free and fast, so it runs without being asked — the panel should say
     // something useful before any money has been spent on a measurement.
-    if (!auditDone) { auditDone = true; audit(); loadSearchConsole(); }
+    if (!auditDone) { auditDone = true; audit(); crawlBox(); loadSearchConsole(); }
   };
 })();
 </script>

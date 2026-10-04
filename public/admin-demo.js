@@ -244,9 +244,12 @@
   var REFS = [['direct', 34, 'direct'], ['google.com', 26, 'search'], ['yahoo.co.jp', 7, 'search'], ['src:instagram', 5, 'social'],
     ['bing.com', 3, 'search'], ['instagram.com', 3, 'social'], ['chatgpt.com', 2.5, 'ai'], ['src:gbp', 2, 'search'],
     ['x.com', 2, 'social'], ['src:card', 2, 'direct'], ['note.com', 1.5, 'social'], ['line.me', 1.5, 'social'],
-    ['perplexity.ai', 1, 'ai'], ['directory.example.com', 1, 'referral']];
+    ['perplexity.ai', 1, 'ai'], ['directory.example.com', 1, 'referral'], ['gemini.google.com', 0.6, 'ai']];
+  // AIアシスタントの呼び名（api/_referrers.js の AI_HOSTS と同じ）と、AIから来た訪問の入口。
+  var AI_NAMES = { 'chatgpt.com': 'ChatGPT', 'perplexity.ai': 'Perplexity', 'gemini.google.com': 'Gemini' };
+  var AI_LAND = [['/services/web.html', 0.45], ['/pricing.html', 0.25], ['/', 0.2], ['/faq.html', 0.1]];
   var REF_KINDS = [
-    { key: 'ai', label: 'AI検索から', note: 'ChatGPT・Perplexity などの回答に載って、そこから来た人。AIO対策が効いているかは、ここが動くかで分かります。' },
+    { key: 'ai', label: 'AIアシスタントから', note: 'ChatGPT・Perplexity・Gemini・Copilot・Claude などの回答に載って、そこから来た人。AIO対策が効いているかは、ここが動くかで分かります。' },
     { key: 'search', label: '検索エンジンから', note: 'Google・Yahoo・Bing の検索結果から。GoogleのAIによる概要から来た人も、Googleが区別を教えないためここに入ります。' },
     { key: 'social', label: 'SNS・LINEから', note: 'X・Instagram・LINE・YouTube などの投稿やプロフィール欄のリンクから。' },
     { key: 'referral', label: '他のサイトから', note: '掲載先・紹介記事・ディレクトリなど。増えると外部掲載が効いている証拠です。' },
@@ -400,6 +403,19 @@
       referrerKinds: REF_KINDS.map(function (k) {
         return { key: k.key, label: k.label, note: k.note, count: byKind[k.key] || 0, share: refTotal ? (byKind[k.key] || 0) / refTotal : 0 };
       }),
+      // Same shape as aiSources / aiLandings in api/_analytics-report.js.
+      aiSources: REFS.filter(function (x) { return x[2] === 'ai'; }).map(function (x) {
+        return { name: AI_NAMES[x[0]] || x[0], hosts: [x[0]], count: visitsBySrc[x[0]] || 0 };
+      }).filter(function (x) { return x.count > 0; }).sort(function (a, b) { return b.count - a.count; }),
+      aiLandings: (function () {
+        var out = [];
+        REFS.forEach(function (x) {
+          if (x[2] !== 'ai') return;
+          var c = alloc(visitsBySrc[x[0]] || 0, AI_LAND.map(function (l) { return l[1]; }));
+          AI_LAND.forEach(function (l, i) { if (c[i]) out.push({ source: AI_NAMES[x[0]] || x[0], path: l[0], count: c[i] }); });
+        });
+        return out.sort(function (a, b) { return b.count - a.count; }).slice(0, 15);
+      })(),
       devices: pairs(['mobile', 'desktop', 'tablet'], devCounts),
       hours: hourCounts.map(function (c, h) { return { hour: h, count: c }; }),
       readByPath: readByPath,
@@ -521,7 +537,7 @@
     };
   }
 
-  /* ---- search console (shape: api/search-console.js) ---- */
+  /* ---- search console (shape: api/search-console.js summarise / GET) ---- */
   function searchConsole() {
     var q = function (query, branded, clicks, impressions, position) {
       return { query: query, branded: branded, clicks: clicks, impressions: impressions, position: position };
@@ -539,13 +555,57 @@
         position: imp ? Math.round(list.reduce(function (n, x) { return n + x.position * x.impressions; }, 0) / imp * 10) / 10 : 0
       };
     };
+    var change = function (cur, prev) {
+      return {
+        clicks: cur.clicks - prev.clicks, impressions: cur.impressions - prev.impressions,
+        ctr: Math.round((cur.ctr - prev.ctr) * 10) / 10, position: Math.round((cur.position - prev.position) * 10) / 10
+      };
+    };
     var day = function (back) { return new Date(Date.now() - back * DAY).toISOString().slice(0, 10); };
+    var bOpen = part(open), bBrand = part(branded);
+    // Google's own total is larger than the sum of the rows: the rest is
+    // queries it withholds. The demo keeps that gap so the note shows.
+    var total = { impressions: bOpen.impressions + bBrand.impressions + 184, clicks: bOpen.clicks + bBrand.clicks + 3 };
+    total.ctr = Math.round(total.clicks / total.impressions * 1000) / 10;
+    total.position = 12.4;
+    var prev = { impressions: 702, clicks: 38, ctr: 5.4, position: 13.6 };
+    var openPrev = { impressions: 541, clicks: 9, ctr: 1.7, position: 17.2 };
+    var pagesFor = {
+      'ホームページ制作 東京 中小企業': [['/services/web.html', 180, 13.9], ['/', 34, 16.0]],
+      '生成AI 研修 社員向け': [['/services/ai.html', 167, 11.8]],
+      '採用動画 制作 費用': [['/services/video.html', 121, 18.6]],
+      'LINE公式アカウント 構築 代行': [['/services/sns.html', 98, 9.4]],
+      'ホームページ リニューアル 相談': [['/services/web.html', 76, 21.3]],
+      'SNS運用代行 相場': [['/services/sns.html', 54, 27.9]],
+      '会社紹介動画 費用': [['/services/video.html', 41, 16.0]],
+      'lumenium': [['/', 46, 1.2]], 'ルメニウム': [['/', 19, 1.4]]
+    };
+    var withPages = function (x) {
+      var o = {}; for (var k in x) o[k] = x[k];
+      o.pages = (pagesFor[x.query] || []).map(function (p) { return { page: p[0], clicks: 0, impressions: p[1], position: p[2] }; });
+      return o;
+    };
+    var byImpr = function (a, b) { return b.impressions - a.impressions; };
+    var all = open.concat(branded).sort(byImpr);
     return {
       ok: true, connected: true, authorised: true, registered: true,
       siteUrl: 'sc-domain:example.com', days: 28,
-      range: { startDate: day(30), endDate: day(2) },
-      total: part(open.concat(branded)), branded: part(branded), open: part(open),
+      near: { from: 8, to: 20, minImpressions: 10 },
+      range: { startDate: day(29), endDate: day(2) },
+      prevRange: { startDate: day(57), endDate: day(30) },
+      fetchedAt: ago(2 * 3600000), cached: true,
+      total: total, prev: prev, change: change(total, prev),
+      branded: bBrand, open: bOpen, openPrev: openPrev, openChange: change(bOpen, openPrev),
+      hidden: { impressions: 184, clicks: 3 }, splitExact: true,
       topOpen: open, topBranded: branded,
+      queryPages: all.map(withPages),
+      opportunities: open.filter(function (x) { return x.position >= 8 && x.position <= 20 && x.impressions >= 10; })
+        .sort(byImpr).map(function (x) { var o = withPages(x); o.page = o.pages[0] ? o.pages[0].page : null; delete o.pages; return o; }),
+      devices: [
+        { key: 'mobile', label: 'スマホ', clicks: 30, impressions: 612, ctr: 4.9, position: 11.8 },
+        { key: 'desktop', label: 'パソコン', clicks: 14, impressions: 389, ctr: 3.6, position: 13.4 },
+        { key: 'tablet', label: 'タブレット', clicks: 1, impressions: 35, ctr: 2.9, position: 12.9 }
+      ],
       topPages: [
         { page: '/', clicks: 22, impressions: 260, position: 8.1 },
         { page: '/services/web.html', clicks: 7, impressions: 231, position: 13.5 },
@@ -553,6 +613,70 @@
         { page: '/pricing.html', clicks: 3, impressions: 88, position: 15.2 },
         { page: '/blog/post-3.html', clicks: 1, impressions: 52, position: 19.7 }
       ]
+    };
+  }
+
+  /* ---- crawler visits (shape: api/crawlers.js → readCrawls in api/_crawlers.js) ----
+     Names and groups as the real list has them; the counts are made up. */
+  function crawlers() {
+    var G = {
+      'ai-search': ['AI検索のための読み取り', 'ChatGPT・Claude・Perplexity などが「検索して答える」ときの材料を集めに来ています。ここに来ていないAIの回答には、このサイトは出てきません。',
+        'robots.txt でこの名前を断っていないか確認してください。断っていなければ、外部サイトからのリンクやサイトマップの送信で見つけてもらうのが先です。'],
+      'ai-user': ['ユーザーの依頼で読みに来たAI', '誰かがAIに「このページを読んで」「この会社について調べて」と頼み、その場で開きに来たものです。その先には、このサイトに関心のある人がいます。',
+        '来ていなくても異常ではありません。AIとの会話でこのサイトが話題に出たときにだけ来ます。'],
+      'ai-train': ['AIの学習用', 'AIの学習データを集めるためのものです。来ても、すぐに回答に出るわけではありません。',
+        '急ぐものではありません。学習に使われたくない場合は、robots.txt で断ることもできます。'],
+      'search': ['検索エンジン', 'Google・Bing などの検索結果のための読み取りです。GoogleのAIによる概要や Copilot の材料も、ここを経由します。',
+        'Search Console・Bing Webmaster Tools にサイトマップを送ってください。何日経っても来ない場合は robots.txt とサイトの公開設定を確認します。'],
+      'social': ['SNSのリンク展開', 'SNSやチャットにこのサイトのURLが貼られ、プレビューを作るために読みに来たものです。', '']
+    };
+    var a = function (id, group, owner, hits, agoMs, note, paths) {
+      return { id: id, hits: hits, group: group, groupLabel: G[group][0], owner: owner, note: note,
+        lastAt: ago(agoMs), lastPath: paths[0][0],
+        topPaths: paths.map(function (p) { return { path: p[0], hits: p[1] }; }) };
+    };
+    var H = 3600000;
+    var agents = [
+      a('Googlebot', 'search', 'Google', 412, 2 * H, 'Google 検索。AIによる概要の材料もここ経由です',
+        [['/', 61], ['/services/web.html', 38], ['/sitemap.xml', 30], ['/robots.txt', 29], ['/pricing.html', 22]]),
+      a('Bingbot', 'search', 'Microsoft', 188, 5 * H, 'Bing 検索。Copilot の材料でもあります',
+        [['/', 31], ['/robots.txt', 30], ['/services/ai.html', 17], ['/faq.html', 12], ['/sitemap.xml', 9]]),
+      a('GPTBot', 'ai-train', 'OpenAI', 96, 9 * H, 'OpenAI の学習用',
+        [['/robots.txt', 28], ['/', 14], ['/services/web.html', 9], ['/about.html', 7], ['/blog/post-3.html', 5]]),
+      a('OAI-SearchBot', 'ai-search', 'OpenAI', 64, 14 * H, 'ChatGPT の検索用。ここが来ていないと ChatGPT の検索回答には出ません',
+        [['/robots.txt', 22], ['/', 11], ['/pricing.html', 8], ['/llms.txt', 6], ['/services/web.html', 5]]),
+      a('ClaudeBot', 'ai-train', 'Anthropic', 41, 26 * H, 'Anthropic（Claude）の学習用',
+        [['/robots.txt', 15], ['/llms.txt', 7], ['/', 6], ['/services/ai.html', 4], ['/faq.html', 3]]),
+      a('PerplexityBot', 'ai-search', 'Perplexity', 23, 40 * H, 'Perplexity の検索用',
+        [['/robots.txt', 9], ['/', 5], ['/faq.html', 3], ['/llms.txt', 2], ['/services/web.html', 2]]),
+      a('ChatGPT-User', 'ai-user', 'OpenAI', 7, 3 * 24 * H, 'ChatGPT の利用者に頼まれて開いた',
+        [['/pricing.html', 3], ['/services/web.html', 2], ['/', 2]]),
+      a('Twitterbot', 'social', 'X', 5, 6 * 24 * H, 'X（Twitter）でリンクが展開された', [['/', 4], ['/news.html', 1]])
+    ];
+    var sum = function (g) { return agents.filter(function (x) { return x.group === g; }).reduce(function (n, x) { return n + x.hits; }, 0); };
+    var count = function (g) { return agents.filter(function (x) { return x.group === g; }).length; };
+    var groups = ['ai-search', 'ai-user', 'ai-train', 'search', 'social'].map(function (k) {
+      return { key: k, label: G[k][0], note: G[k][1], ifMissing: G[k][2], hits: sum(k), agents: count(k) };
+    });
+    var total = agents.reduce(function (n, x) { return n + x.hits; }, 0);
+    return {
+      ok: true, store: true,
+      crawlers: {
+        days: 30, verified: false, total: total,
+        ai: sum('ai-search') + sum('ai-train'), search: sum('search'), visit: sum('ai-user'),
+        groups: groups, agents: agents,
+        perDay: lastDays(30).map(function (d, i) { return { date: d, hits: Math.round(total / 30 * (0.6 + (i % 5) * 0.2)) }; }),
+        paths: [{ path: '/', hits: 133 }, { path: '/robots.txt', hits: 133 }, { path: '/services/web.html', hits: 56 }],
+        missing: [
+          { id: 'Claude-SearchBot', owner: 'Anthropic', group: 'ai-search', groupLabel: G['ai-search'][0], note: 'Claude の検索用' },
+          { id: 'Claude-User', owner: 'Anthropic', group: 'ai-user', groupLabel: G['ai-user'][0], note: 'Claude の利用者に頼まれて開いた' },
+          { id: 'Perplexity-User', owner: 'Perplexity', group: 'ai-user', groupLabel: G['ai-user'][0], note: 'Perplexity の利用者に頼まれて開いた' }
+        ],
+        tokens: [
+          { id: 'Google-Extended', note: 'Gemini などの学習・回答に使ってよいか（読み取り自体は Googlebot が行います）' },
+          { id: 'Applebot-Extended', note: 'Apple Intelligence の学習に使ってよいか（読み取り自体は Applebot が行います）' }
+        ]
+      }
     };
   }
 
@@ -1188,6 +1312,7 @@
       case '/api/analytics': return reply(analytics(q.get('days')));
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
+      case '/api/crawlers': return reply(crawlers());
       case '/api/aio': return reply(aioGet(q.get('run')));
       case '/api/site-audit': return reply(siteAudit());
       case '/api/indexnow':

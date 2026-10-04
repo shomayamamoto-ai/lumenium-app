@@ -133,11 +133,14 @@ function systemPrompt(live) {
   const crawl = !c
     ? '記録できていません（Upstash Redis 未設定のため、来訪を保存する先がありません）。'
     : c.total === 0
-      ? '直近30日で0件。どのクローラーも robots.txt / llms.txt を取りに来ていません。'
+      ? '直近30日で0件。どのクローラーも、ページ・robots.txt・llms.txt のどれも取りに来ていません。'
       : [
-          `合計 ${c.total}回（回答エンジン ${c.ai}回 / 検索エンジン ${c.search}回 / AIが人の代わりに開いた ${c.visit}回）`,
-          '内訳: ' + c.agents.map((a) => `${a.id} ${a.hits}回（最終 ${String(a.lastAt || '').slice(0, 10)}）`).join(' / '),
-          c.missing.length ? '一度も来ていない回答エンジン: ' + c.missing.join('、') : '',
+          // 名乗っているだけで、本物かどうかは確かめていない数です。
+          `合計 ${c.total}回（User-Agent の名乗りによる数。なりすましを含む可能性あり）`,
+          '種類別: ' + (c.groups || []).filter((g) => g.hits).map((g) => `${g.label} ${g.hits}回`).join(' / '),
+          '内訳: ' + c.agents.map((a) => `${a.id} ${a.hits}回（最終 ${String(a.lastAt || '').slice(0, 10)}` +
+            ((a.topPaths || []).length ? `、よく読んだページ ${a.topPaths.slice(0, 3).map((p) => p.path).join(' ')}` : '') + '）').join(' / '),
+          c.missing.length ? '一度も来ていない主要なクローラー: ' + c.missing.map((m) => `${m.id}（${m.groupLabel}）`).join('、') : '',
         ].filter(Boolean).join('\n')
 
   const aio = live.aio

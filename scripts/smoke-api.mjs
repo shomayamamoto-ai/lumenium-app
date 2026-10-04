@@ -90,6 +90,12 @@ globalThis.fetch = async (input, init = {}) => {
   if (u.includes('oauth2.googleapis.com')) return ok({ access_token: 'at', expires_in: 3600 })
   if (u.includes('webmasters/v3')) {
     if (u.endsWith('/sites')) return ok({ siteEntry: [{ siteUrl: 'sc-domain:lumenium.net' }] })
+    // 問い合わせの次元ごとに、その形の行を返す（合計・語・ページ・語×ページ・端末）。
+    const dims = (JSON.parse(init.body || '{}').dimensions || []).join(',')
+    if (!dims) return ok({ rows: [{ clicks: 3, impressions: 120, ctr: 0.025, position: 14.1 }] })
+    if (dims === 'query,page') return ok({ rows: [{ keys: ['東京 動画制作', 'https://lumenium.net/services/video.html'], clicks: 1, impressions: 20, position: 18.2 }] })
+    if (dims === 'page') return ok({ rows: [{ keys: ['https://lumenium.net/services/video.html'], clicks: 1, impressions: 20, position: 18.2 }] })
+    if (dims === 'device') return ok({ rows: [{ keys: ['MOBILE'], clicks: 1, impressions: 20, position: 18.2 }] })
     return ok({ rows: [{ keys: ['東京 動画制作'], clicks: 1, impressions: 20, position: 18.2 }] })
   }
   if (u.includes('googleapis.com/calendar')) return ok({ calendars: { primary: { busy: [] } } })
@@ -157,6 +163,10 @@ const CALLS = [
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
   ['verify', 'GET', '', {}],
   ['search-console', 'GET', '', KEY],
+  // 「再取得」。保存した結果を飛ばして Google に聞き直す側。
+  ['search-console', 'GET', '?fresh=1', KEY],
+  // クローラーの来訪（middleware.js が記録したもの）を管理画面に返す。
+  ['crawlers', 'GET', '', KEY],
   ['listing-check', 'POST', '', JSONH, { urls: ['https://dir.example.jp/list'] }],
   ['indexnow', 'GET', '', KEY],
   ['indexnow', 'POST', '', JSONH, {}],
@@ -205,6 +215,10 @@ const CALLS = [
     { p: '/', n: 0, r: 'https://www.google.com' }],
   ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/about.html', e: 'exit', t: 12000, g: 1, l: '/' }],
   ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/about.html', e: 'page_time', t: 3000 }],
+  // ChatGPT のアプリから来た人は紹介元が空で、手がかりは utm_source=chatgpt.com
+  // だけ。AIからの入口ページの記録まで通す。
+  ['p', 'POST', '', { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', origin: 'https://lumenium.net' },
+    { p: '/services/web.html', n: 0, s: 'chatgpt.com' }],
   // 週次メール: 管理画面の状態、テスト送信、Vercel の定期実行（合言葉つき）。
   ['weekly-report', 'GET', '', KEY],
   ['weekly-report', 'POST', '', JSONH, { action: 'test' }],
