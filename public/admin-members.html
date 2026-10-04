@@ -991,14 +991,34 @@ header h1, header button, header a { white-space: nowrap; }
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SEO / AIO 分析</h2>
-      <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答にルメニウムが出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
+      <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答に自社の名前が出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
-        <button class="ghost" id="seo-probe" type="button">1問だけ試す（約$0.10）</button>
+        <button class="ghost" id="seo-probe" type="button">1問だけ試す（1回分の料金）</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
         <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
         <select id="seo-pick" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
         <span id="seo-cost"></span>
+      </div>
+      <!-- 計測の設定。始める前に決めて、始める前に費用が分かるように。
+           同じ質問を何回聞くか・どのAIに聞くかで、呼び出しの回数は何倍にも
+           変わります。 -->
+      <div id="seo-setup" style="display:none;background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:8px">
+          <label for="seo-samples" style="font-size:12.5px;font-weight:700">1つの質問を聞く回数</label>
+          <select id="seo-samples" style="padding:7px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
+          <span class="share-note" style="margin:0">回数が多いほど、数字の幅（誤差）が狭くなります。</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-bottom:8px">
+          <span style="font-size:12.5px;font-weight:700">聞くAI</span>
+          <span id="seo-engines" style="display:flex;flex-wrap:wrap;gap:6px 14px"></span>
+        </div>
+        <p id="seo-plan" style="font-size:12px;line-height:1.8;margin:0"></p>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="ghost" id="seo-qedit-open" type="button" style="font-size:12px;padding:6px 12px">質問を編集</button>
+          <span id="seo-qset" class="share-note" style="margin:0"></span>
+        </div>
+        <div id="seo-qedit" style="display:none;margin-top:10px"></div>
       </div>
       <div id="seo-progress" style="display:none;margin-bottom:12px">
         <div style="height:6px;background:#faf9f6;border-radius:999px;overflow:hidden">
@@ -1012,7 +1032,11 @@ header h1, header button, header a { white-space: nowrap; }
       <div id="gsc-body" style="margin-bottom:18px"></div>
       <div id="seo-social" style="margin-bottom:18px"></div>
       <div id="seo-body" style="display:none">
-        <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px"></div>
+        <div id="seo-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px"></div>
+        <!-- この数字の読み方。幅つきの数字は、読み方を添えないと読まれない。 -->
+        <div id="seo-howto" style="margin-bottom:12px"></div>
+        <div id="seo-extra" style="margin-bottom:14px"></div>
+        <div id="seo-engine-rows" style="margin-bottom:14px"></div>
         <div id="seo-breakdown" style="margin-bottom:18px"></div>
         <!-- The part that is worth reading: what the numbers above mean you
              should do, each item naming the evidence it came from. -->
@@ -1022,7 +1046,8 @@ header h1, header button, header a { white-space: nowrap; }
           <div id="seo-cats"></div>
         </div>
         <div style="margin-bottom:20px">
-          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">競合とのシェア（非指名の質問で名前が挙がった回数）</h3>
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">競合とのシェア（非指名の質問で名前が挙がった回数）</h3>
+          <p class="share-note" style="margin-bottom:8px">「株式会社」「（株）」や全角・半角の違いはそろえて、同じ会社は1社として数えています。自社の名前は、扱われ方が「候補」か「言及」だった回答だけを数えます。</p>
           <div id="seo-comp"></div>
         </div>
         <!-- 前回との差。繰り返し測る意味はここにしかない。 -->
@@ -4132,18 +4157,108 @@ window.lumAdmin = {
     absent: '出てこない'
   };
 
+  /* 幅つきの率。AIは同じ質問に毎回少し違う答えを返すので、1回の計測の
+     「42%」は、本当の率がその前後のどこかにある、という意味でしかありません。
+     その幅をことばで添えます。r は { k, n, p, lo, hi }（_aio-stats.js）。 */
+  function range(r) {
+    if (!r || !r.n) return '';
+    return '95%の確からしさで ' + Math.round(r.lo * 100) + '〜' + Math.round(r.hi * 100) + '%';
+  }
+  function pctRange(r) {
+    if (!r || !r.n) return '—';
+    return pct(r.p) + '（' + range(r) + '）';
+  }
+  var ENGINE_NAME = { claude: 'Claude', openai: 'ChatGPT', perplexity: 'Perplexity', gemini: 'Gemini' };
+  function engineName(id) {
+    var m = meta && (meta.engines || []).filter(function (e) { return e.id === id; })[0];
+    return (m && m.label) || ENGINE_NAME[id] || id;
+  }
+
   function cards(s) {
-    var items = [
-      ['候補として挙がった（非指名）', pct(s.recommendRate || 0)],
-      ['出現率（非指名）', pct(s.openMentionRate)],
-      ['自社サイトが情報源', pct(s.citeRate)],
-      ['判定できた質問', String(s.asked) + (s.unjudged ? ' (+' + s.unjudged + '未判定)' : '')]
+    var st = s.stats;
+    // 以前の形式の計測（幅の記録が無い）は、これまでどおり率だけを出す。
+    var items = st ? [
+      ['候補として挙がった（非指名）', st.recommend],
+      ['名前が出た（非指名）', st.openMention],
+      ['答えの出典になった', st.cite],
+      ['検索で読まれた', st.searched]
+    ] : [
+      ['候補として挙がった（非指名）', { p: s.recommendRate || 0 }],
+      ['出現率（非指名）', { p: s.openMentionRate }],
+      ['自社サイトが情報源', { p: s.citeRate }]
     ];
-    el('seo-cards').innerHTML = items.map(function (i) {
+    var html = items.map(function (i) {
+      var r = i[1] || { p: 0 };
       return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
         '<div style="font-size:11px;color:var(--sub)">' + i[0] + '</div>' +
-        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div></div>';
+        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + pct(r.p || 0) + '</div>' +
+        (r.n ? '<div style="font-size:11px;color:var(--sub);line-height:1.6;margin-top:3px">（' + range(r) + '）<br>' + r.n + '回中 ' + r.k + '回</div>' : '') +
+        '</div>';
     }).join('');
+    html += '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:12px 13px">' +
+      '<div style="font-size:11px;color:var(--sub)">数えた回答</div>' +
+      '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + s.asked + '</div>' +
+      '<div style="font-size:11px;color:var(--sub);line-height:1.6;margin-top:3px">' +
+      (s.questions ? s.questions + '問 × ' + (s.samples || 1) + '回' + ((s.engineIds || []).length > 1 ? ' × ' + s.engineIds.length + 'つのAI' : '') : '') +
+      (s.total && s.total !== s.asked ? '<br>出した ' + s.total + '回のうち' : '') + '</div></div>';
+    el('seo-cards').innerHTML = html;
+  }
+
+  /* この数字の読み方。3〜4文で、幅の意味と「誤差の範囲」の意味だけを言う。 */
+  function howto(s) {
+    var host = el('seo-howto');
+    if (!s.stats) { host.innerHTML = ''; return; }
+    host.innerHTML = '<div style="background:#faf9f6;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
+      '<div style="font-size:12.5px;font-weight:700;margin-bottom:4px">この数字の読み方</div>' +
+      '<p style="font-size:12px;line-height:1.85;color:var(--sub);margin:0">' +
+      'AIは同じ質問にも、聞くたびに少し違う答えを返します。そのため1つの質問を' + (s.samples || 1) + '回ずつ聞き、' +
+      '社名の入っていない質問への回答 ' + s.stats.openMention.n + '回から率を出しています。' +
+      'かっこ内の幅は「本当の率はおそらくこの間にある」という範囲で、回答の数が少ないほど広くなります。' +
+      '前回との差がこの幅の中に収まるときは「誤差の範囲」と表示し、上がった・下がったとは言いません。</p></div>';
+  }
+
+  /* 順番・書かれ方・シェア。どれも「名前が出たか」の次に知りたいこと。 */
+  function extra(s) {
+    var host = el('seo-extra');
+    var parts = [];
+    if (s.position) {
+      parts.push('<div><b>名前が出たときの順番</b>：平均 ' + s.position.avg.toFixed(1) + '番目' +
+        '<span style="color:var(--sub)">（社名の入っていない質問で名前が出た ' + s.position.n + '回のうち、1番目に挙がったのは ' + s.position.first + '回）</span></div>');
+    }
+    var se = s.sentiment;
+    if (se && (se.positive + se.neutral + se.negative)) {
+      parts.push('<div><b>書かれ方</b>：好意的 ' + se.positive + '回 ／ 中立 ' + se.neutral + '回 ／ 否定的 ' + se.negative + '回' +
+        (se.negative ? '<span style="color:#b42318">（否定的な回答は、下の「質問ごとの結果」で中身を確かめてください）</span>' : '') + '</div>');
+    }
+    var sv = s.shareOfVoice;
+    if (sv && (sv.ours + sv.others)) {
+      parts.push('<div><b>名前のシェア</b>：社名の入っていない質問の回答で挙がった会社名 ' + (sv.ours + sv.others) + '件のうち、自社は ' +
+        sv.ours + '件（' + pct(sv.value) + '）</div>');
+    }
+    host.innerHTML = parts.length ? '<div style="font-size:12.5px;line-height:1.95">' + parts.join('') + '</div>' : '';
+  }
+
+  /* AIごとの成績。「ChatGPTでは出るのにClaudeでは出ない」は、平均すると
+     見えなくなります。1つのAIだけで測った回は出しません。 */
+  function engineRows(s) {
+    var host = el('seo-engine-rows');
+    var list = s.engines || [];
+    if (list.length < 2) { host.innerHTML = ''; return; }
+    host.innerHTML = '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">AIごとの結果</h3>' +
+      list.map(function (e) {
+        var st = e.stats || {};
+        return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
+          '<div style="font-size:13px;font-weight:700">' + esc(e.label || engineName(e.id)) +
+            '<span style="font-weight:400;color:var(--sub);font-size:11px">　数えた回答 ' + e.asked + ' / ' + e.total + '回' +
+            (e.failed ? '・取得できず ' + e.failed : '') + (e.truncated ? '・途中で切れた ' + e.truncated : '') + '</span></div>' +
+          '<div style="font-size:12px;line-height:1.85;margin-top:3px">' +
+            '候補として挙がった（非指名）: ' + pctRange(st.recommend) + '<br>' +
+            '名前が出た（非指名）: ' + pctRange(st.openMention) + '<br>' +
+            '答えの出典になった: ' + pctRange(st.cite) + '<br>' +
+            '検索で読まれた: ' + pctRange(st.searched) +
+          '</div></div>';
+      }).join('') +
+      '<p class="share-note">AIごとに検索する先も出典の示し方も違うため、数字が違うのは普通です。AI同士を比べるときも、かっこ内の幅が重なっていれば「違うとは言えない」と読んでください。</p>';
   }
 
   /* 発信量。An answer engine can only cite what exists, so a mention rate
@@ -4196,23 +4311,41 @@ window.lumAdmin = {
       host.innerHTML = '<p class="share-note">前回の計測がまだありません。2回目から、ここに前回との差が出ます。</p>';
       return;
     }
-    var d = (s.openMentionRate || 0) - (prev.openMentionRate || 0);
-    var dc = (s.citeRate || 0) - (prev.citeRate || 0);
-    var arrow = function (n) {
-      if (Math.abs(n) < 0.005) return '<span style="color:var(--sub)">変わらず</span>';
-      return n > 0
-        ? '<span style="color:#047857">+' + Math.round(n * 100) + 'pt</span>'
-        : '<span style="color:#b42318">' + Math.round(n * 100) + 'pt</span>';
-    };
     var when = prev.finishedAt ? new Date(prev.finishedAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    /* 比べてよいのは、同じ質問を同じAIに聞いた回だけ。質問を入れ替えた
+       だけで「上がった」と読めてしまうので、違う回とは並べません。 */
+    if (prev.comparable === false) {
+      host.innerHTML = '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
+        '<div style="font-size:12.5px;font-weight:700">前回（' + esc(when) + '）とは比べられません</div>' +
+        '<div style="font-size:12px;color:var(--sub);line-height:1.8;margin-top:4px">' + esc(prev.reason || '計測の条件が違います') +
+        '。条件の違う回の数字を並べると、質問やAIを変えただけの差が「変化」に見えてしまいます。同じ条件で次に測った回から、ここに差が出ます。</div></div>';
+      return;
+    }
+    /* 差を「誤差の範囲」かどうかで言う。幅の中の上下は、同じ条件でもう
+       一度測っただけで起きる大きさで、施策の効果とは言えません。 */
+    var CH = {
+      same: '<span style="color:var(--sub)">誤差の範囲</span>',
+      up: '<span style="color:#047857">上がりました（誤差を超える差）</span>',
+      down: '<span style="color:#b42318">下がりました（誤差を超える差）</span>',
+      na: '<span style="color:var(--sub)">比べられません</span>'
+    };
+    var line = function (label, c, beforeRate, afterRate) {
+      var b = c && c.before ? c.before.p : (beforeRate || 0);
+      var a = c && c.after ? c.after.p : (afterRate || 0);
+      return '<div>' + label + '：' + pct(b) + ' → ' + pct(a) + '　' + (c ? CH[c.change] || CH.na : CH.na) + '</div>';
+    };
+    var cmp = prev.compare || {};
     host.innerHTML =
       '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:11px 13px">' +
       '<div style="font-size:12.5px;font-weight:700">前回（' + esc(when) + '）との差</div>' +
       '<div style="font-size:12.5px;line-height:1.9;margin-top:5px">' +
-        '非指名の出現率 ' + arrow(d) + '（' + Math.round((prev.openMentionRate || 0) * 100) + '% → ' + Math.round((s.openMentionRate || 0) * 100) + '%）' +
-        '　／　自社サイトが情報源 ' + arrow(dc) +
-        '　／　取れた質問 ' + prev.asked + '問 → ' + s.asked + '問' +
+        line('候補として挙がった（非指名）', cmp.recommend, prev.recommendRate, s.recommendRate) +
+        line('名前が出た（非指名）', cmp.openMention, prev.openMentionRate, s.openMentionRate) +
+        line('答えの出典になった', cmp.cite, prev.citeRate, s.citeRate) +
       '</div>' +
+      '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:2px">' +
+        '「誤差の範囲」は、同じ条件で測り直しただけでも起きる大きさの差、という意味です。' +
+        '回答の数を増やす（聞く回数を5回にする）と、小さな差も見分けられるようになります。</div>' +
       ((prev.newCompetitors || []).length
         ? '<div style="font-size:11.5px;color:var(--sub);line-height:1.8;margin-top:4px">今回から挙がった会社: ' + esc(prev.newCompetitors.join('、')) + '</div>' : '') +
       ((prev.goneCompetitors || []).length
@@ -4302,7 +4435,7 @@ window.lumAdmin = {
           esc(r.name) + '</span>' +
         '<span style="flex:1;height:8px;background:#faf9f6;border-radius:999px;overflow:hidden">' +
           '<span style="display:block;height:100%;width:' + w + '%;background:' + col + '"></span></span>' +
-        '<span style="flex:none;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums">' + esc(r.note) + '</span>' +
+        '<span style="flex:0 1 auto;min-width:0;max-width:45%;text-align:right;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums">' + esc(r.note) + '</span>' +
       '</div>';
     }).join('') : '<p style="font-size:12.5px;color:var(--sub)">データがありません。</p>';
   }
@@ -4329,17 +4462,19 @@ window.lumAdmin = {
     // Questions that never came back are as important as the ones that did: a
     // rate over 7 of 16 looks exactly like a rate over 16 of 16 unless it says
     // so. Both numbers are now named, next to the total.
-    var missing = (s.unjudged || 0) + (s.failed || 0);
+    var missing = (s.unjudged || 0) + (s.failed || 0) + (s.truncated || 0);
     var total = s.asked + missing;
     var thin = missing && missing >= s.asked;
+    var unit = s.stats ? '回' : '問';
     host.innerHTML = '<p style="font-size:12px;color:var(--sub);line-height:1.9">' +
       '内訳: ' + (parts.length ? parts.join(' ／ ') : '—') +
       (s.unjudged ? ' ／ 判定できず <b>' + s.unjudged + '</b>' : '') +
+      (s.truncated ? ' ／ 途中で切れた <b>' + s.truncated + '</b>' : '') +
       (s.failed ? ' ／ 取得できず <b>' + s.failed + '</b>' : '') +
-      '<br>この回で数えられたのは <b>' + s.asked + '</b> / ' + total + ' 問です。' +
+      '<br>この回で数えられた回答は <b>' + s.asked + '</b> / ' + total + ' ' + unit + 'です。' +
       '</p>' +
       (thin ? '<p style="font-size:11.5px;color:#b45309;line-height:1.7">⚠ ' + s.asked +
-        '問しか判定できていません（' + missing + '問は分母から除外）。割合は参考程度に見てください。</p>' : '') +
+        unit + 'しか判定できていません（' + missing + unit + 'は分母から除外）。割合は参考程度に見てください。</p>' : '') +
       /* なぜ取れなかったのか。ここが無いと、画面に残るのは英語の一文だけ
          になり、直し方が決まりません。種類・件数・かかった時間・素のメッセ
          ージを、そのまま並べます。 */
@@ -4355,7 +4490,7 @@ window.lumAdmin = {
         : '') +
       (s.errors && s.errors.length
         ? '<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:11px;padding:11px 13px;margin-top:8px">' +
-          '<div style="font-size:12.5px;font-weight:700;color:#b42318">取れなかった質問の内訳</div>' +
+          '<div style="font-size:12.5px;font-weight:700;color:#b42318">取れなかった回答の内訳</div>' +
           s.errors.map(function (e) {
             return '<div style="margin-top:7px">' +
               '<div style="font-size:12px;font-weight:700">' + esc(e.label || e.kind) + ' <b>' + e.count + '</b> 件' +
@@ -4370,35 +4505,81 @@ window.lumAdmin = {
       '（新しいサイトでは「見つかりませんでした」という回答こそ社名を含むためです）。</p>';
   }
 
+  var MARK = { recommended: '🟢', mentioned: '🟡', denied: '🔴', other_company: '🟠', absent: '⚪️' };
+  var SENTIMENT_LABEL = { positive: '好意的', neutral: '中立', negative: '否定的' };
+
+  /* 自社の名前かどうか。社名はサイトごとに違うので、計測側が知っている
+     名前で見ます（直書きの社名で見ると、別の会社のサイトでは働かない）。 */
+  function isUs(name) {
+    var n = String(name || '').toLowerCase();
+    var mine = [meta && meta.brandName, window.lumSite && window.lumSite.name].filter(Boolean);
+    return mine.some(function (m) { return n.indexOf(String(m).toLowerCase()) >= 0; });
+  }
+
+  /* 1回分の回答。何番目に挙がったか・書かれ方・出典にしたURL（出典）と、
+     検索で読んだだけのURL（検索で読まれた）を分けて出します。 */
+  function answerBlock(r) {
+    var head = (r.engine ? engineName(r.engine) + ' ' : '') + ((r.sample || 0) + 1) + '回目';
+    var mark = r.error ? '⚠️' : r.truncated ? '✂️' : (r.verdict ? MARK[r.verdict] : (r.named ? '🟡' : '⚪️'));
+    var note = r.error ? '失敗: ' + esc(r.error)
+      : r.truncated ? '途中で切れた回答（率には入れていません）'
+      : r.verdict
+        ? VERDICT_LABEL[r.verdict] +
+          (r.position ? '・' + r.position + '番目' : '') +
+          (r.sentiment ? '・' + (SENTIMENT_LABEL[r.sentiment] || r.sentiment) : '') +
+          (r.cited ? '・自社サイトが出典' + (r.citedRank ? '（' + r.citedRank + '番目の出典）' : '') : r.searched ? '・自社サイトは検索で読まれた（出典ではない）' : '')
+        : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
+    // 相手が「足りない」と言ったこと。ここが次に書く材料になります。
+    if (r.missing) note += '<div style="font-size:11.5px;color:#b45309;margin-top:3px">相手が足りないとした情報: ' + esc(r.missing) + '</div>';
+    /* Who took the slot. When we did not appear, these are the answer to
+       「誰が出たのか」 — the shortlist to be compared against, which is the
+       only part of a miss that can be acted on. */
+    var rivals = (r.companies || []).filter(function (c) { return !isUs(c); });
+    var co = rivals.length
+      ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">' +
+        (r.verdict === 'recommended' ? '同時に挙がった会社: ' : 'ここで挙がっていた会社: ') + esc(rivals.join('、')) + '</div>'
+      : '';
+    var link = function (u) {
+      return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
+    };
+    var citedUrls = (r.citedUrls || []).map(function (c) { return c.url; }).filter(Boolean);
+    var read = (r.sourceUrls || []).filter(function (u) { return citedUrls.indexOf(u) < 0; });
+    return '<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">' +
+      '<div style="font-size:12px"><b>' + mark + ' ' + esc(head) + '</b>　<span style="color:var(--sub)">' + note + '</span></div>' + co +
+      (r.answer ? '<div style="font-size:12.5px;margin-top:6px;white-space:pre-wrap;line-height:1.7">' + esc(r.answer) + '</div>' : '') +
+      (citedUrls.length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:6px">出典にしたページ（順に）:<br>' + citedUrls.map(link).join('<br>') + '</div>' : '') +
+      (read.length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:6px">検索で読んだページ:<br>' + read.map(link).join('<br>') + '</div>'
+        : (!citedUrls.length && (r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:6px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '')) +
+      '</div>';
+  }
+
+  /* 質問ごと。同じ質問を何回か聞いているので、1行は「何回中何回」で出し、
+     開くと1回ずつの回答が読めます。 */
   function rows(run) {
-    el('seo-rows').innerHTML = (run.results || []).map(function (r) {
-      var MARK = { recommended: '🟢', mentioned: '🟡', denied: '🔴', other_company: '🟠', absent: '⚪️' };
-      var mark = r.error ? '⚠️' : (r.verdict ? MARK[r.verdict] : (r.named ? '🟡' : '⚪️'));
-      var note = r.error ? '失敗: ' + esc(r.error)
-        : r.verdict
-          ? VERDICT_LABEL[r.verdict] + (r.cited ? '・自社サイトが情報源' : '')
-          : (r.named ? '本文に社名あり（扱われ方は未判定）' : '社名なし（未判定）');
-      // 相手が「足りない」と言ったこと。ここが次に書く材料になります。
-      if (r.missing) note += '<div style="font-size:11.5px;color:#b45309;margin-top:4px">相手が足りないとした情報: ' + esc(r.missing) + '</div>';
-      /* Who took the slot. When we did not appear, these are the answer to
-         「誰が出たのか」 — the shortlist to be compared against, which is the
-         only part of a miss that can be acted on. */
-      var rivals = (r.companies || []).filter(function (c) { return !/lumenium|ルメニウム/i.test(c); });
-      var co = rivals.length
-        ? '<div style="font-size:11.5px;color:var(--sub);margin-top:3px">' +
-          (r.verdict === 'recommended' ? '同時に挙がった会社: ' : 'ここで挙がっていた会社: ') +
-          esc(rivals.join('、')) + '</div>'
-        : '';
+    var results = run.results || [];
+    var byQ = (run.summary && run.summary.byQuestion) || null;
+    if (!byQ) {
+      // 以前の形式：1問1回。
+      byQ = results.map(function (r) { return { id: r.id, cat: r.cat, q: r.q, n: 0, legacy: true }; });
+    }
+    el('seo-rows').innerHTML = byQ.map(function (row) {
+      var mine = results.filter(function (r) { return r.id === row.id; });
+      var mark, tally = '';
+      if (row.legacy) {
+        var r0 = mine[0] || {};
+        mark = r0.error ? '⚠️' : (r0.verdict ? MARK[r0.verdict] : (r0.named ? '🟡' : '⚪️'));
+      } else {
+        mark = !row.n ? '⚠️' : row.recs ? '🟢' : row.hits ? '🟡'
+          : mine.some(function (r) { return r.verdict === 'denied'; }) ? '🔴' : '⚪️';
+        tally = '<span style="font-size:11.5px;color:var(--sub);white-space:nowrap">　名前 ' + row.hits + '/' + row.n + '回' +
+          (row.recs ? '・候補 ' + row.recs + '回' : '') + (row.cites ? '・出典 ' + row.cites + '回' : '') + '</span>';
+      }
       return '<details style="background:#f3f1ec;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px">' +
-        '<summary style="cursor:pointer;font-size:13px;list-style:none">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(r.cat) + '</span> ' + esc(r.q) + '</summary>' +
-        '<div style="font-size:12px;color:var(--sub);margin-top:8px">' + note + '</div>' + co +
-        '<div style="font-size:12.5px;margin-top:8px;white-space:pre-wrap;line-height:1.7">' + esc(r.answer || '') + '</div>' +
-        ((r.sourceUrls || []).length
-          ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">この質問で読まれたページ:<br>' +
-            r.sourceUrls.map(function (u) {
-              return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
-            }).join('<br>') + '</div>'
-          : ((r.sources || []).length ? '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">検索された情報源: ' + esc(r.sources.join('、')) + '</div>' : '')) +
+        '<summary style="cursor:pointer;font-size:13px;list-style:none;line-height:1.6">' + mark + ' <span style="color:var(--sub);font-size:11px">' + esc(row.cat) + '</span>' +
+          (row.branded ? ' <span style="font-size:10.5px;border:1px solid var(--border);border-radius:6px;padding:0 5px;color:var(--sub)">社名入り</span>' : '') +
+          ' ' + esc(row.q) + tally + '</summary>' +
+        (row.branded ? '<div style="font-size:11.5px;color:var(--sub);margin-top:6px">社名の入った質問なので、「非指名」の率には入れていません。</div>' : '') +
+        mine.map(answerBlock).join('') +
       '</details>';
     }).join('');
   }
@@ -4436,7 +4617,7 @@ window.lumAdmin = {
       // unfinalised, and the panel then reported "no results" as if the work
       // had never happened.
       pending = run;
-      say('前回の計測が' + run.results.length + '問で中断しています。「中断分を集計」で結果にできます。', true);
+      say('前回の計測が' + run.results.length + '回分の回答を取ったところで中断しています。「中断分を集計」で結果にできます。', true);
       el('seo-resume').style.display = 'inline-block';
       el('seo-body').style.display = 'none';
       return;
@@ -4449,20 +4630,25 @@ window.lumAdmin = {
     }
     var s = run.summary;
     cards(s);
+    howto(s);
+    extra(s);
+    engineRows(s);
     breakdown(s);
     actions(run);
     /* 分野ごとの成績。返ってきた答えが少ない分野は、率ではなく
        「3問中1問」だけを出します。1問の率は 0% か 100% にしかならず、
        分野の傾向としては読めないのに、他と同じ顔で並んでしまうからです。
-       返ってこなかった問がある分野には、その旨も書きます。 */
+       同じ質問を何回聞いても、分野の傾向は質問の数ぶんしか分かりません。
+       返ってこなかった回答がある分野には、その旨も書きます。 */
+    var unit = s.stats ? '回' : '問';
     bars('seo-cats', s.byCategory.map(function (c) {
       var lost = (c.planned || c.asked) - c.asked;
-      var note = c.mentions + '/' + c.asked + (c.thin ? '（率は出せません）' : '');
-      if (lost > 0) note += '　' + lost + '問未取得';
-      return { name: c.cat, value: c.thin ? 0 : c.rate, note: note, us: false };
+      var note = c.mentions + '/' + c.asked + unit + (c.thin ? '（' + (c.questions || c.asked) + '問のみ・率は出せません）' : '');
+      if (lost > 0) note += '　' + lost + unit + '未取得';
+      return { name: c.cat + (c.branded ? '（社名入り）' : ''), value: c.thin ? 0 : c.rate, note: note, us: false };
     }), { labelWidth: 150 });
     bars('seo-comp', (s.competitors || []).map(function (c) {
-      return { name: c.name, value: c.count, note: String(c.count) + '回', us: c.us };
+      return { name: c.name + (c.us ? '（自社）' : ''), value: c.count, note: String(c.count) + '回', us: c.us };
     }), { labelWidth: 170 });
     bars('seo-own', (s.ownPages || []).map(function (o) {
       return { name: o.path, value: o.count, note: o.count + '問で参照', us: true };
@@ -4476,12 +4662,180 @@ window.lumAdmin = {
     rows(run);
     var h = (data.history || []).slice(0, 12).reverse();
     bars('seo-trend', h.map(function (r) {
-      return { name: (r.finishedAt || '').slice(0, 10), value: r.openMentionRate, note: pct(r.openMentionRate), us: false };
+      var st = r.stats && r.stats.openMention;
+      return { name: (r.finishedAt || '').slice(0, 10), value: r.openMentionRate,
+        note: pct(r.openMentionRate) + (st && st.n ? '（' + Math.round(st.lo * 100) + '〜' + Math.round(st.hi * 100) + '%）' : ''), us: false };
     }), { labelWidth: 100 });
     el('seo-body').style.display = 'block';
     say((run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '') +
       (data.localOnly ? '（この端末に保存されている結果です。次の計測から保存先にも残ります）' : ''), true);
   }
+
+  /* ---- 計測の設定 ---- */
+  /* 選んだ回数とAIは、この端末で覚えておく（次に開いたときも同じ条件で
+     測れるように。条件が同じでないと、前回と比べられません）。 */
+  var PREF = 'lum_aio_setup';
+  function readPref() {
+    try { return JSON.parse(localStorage.getItem(PREF) || 'null') || {}; } catch (_) { return {}; }
+  }
+  function writePref(p) {
+    try { localStorage.setItem(PREF, JSON.stringify(p)); } catch (_) { /* 覚えられないだけ */ }
+  }
+  function chosenSamples() { return Number(el('seo-samples').value) || (meta && meta.samples && meta.samples.default) || 3; }
+  function chosenEngines() {
+    var out = [];
+    var boxes = el('seo-engines').querySelectorAll('input[type=checkbox]');
+    for (var i = 0; i < boxes.length; i++) if (boxes[i].checked && !boxes[i].disabled) out.push(boxes[i].value);
+    return out;
+  }
+
+  /* 始める前の見積り。呼び出しの回数＝質問数×回数×AIの数＋判定の回数。 */
+  function planOf(samples, engines) {
+    var q = meta.questions;
+    var answers = q * samples * engines.length;
+    var judge = Math.ceil(answers / (meta.judgeBatch || 4));
+    var usd = engines.reduce(function (sum, id) {
+      var e = (meta.engines || []).filter(function (x) { return x.id === id; })[0];
+      return sum + q * samples * ((e && e.estUsd) || 0.06);
+    }, 0) + judge * (meta.judgeEstUsd || 0.014);
+    // 同時に3つずつ聞くので、1回の回答に20秒として。
+    var minutes = Math.max(1, Math.round(q * samples * 20 / 3 / 60));
+    return { answers: answers, judge: judge, calls: answers + judge, usd: usd, minutes: minutes };
+  }
+  function showPlan() {
+    if (!meta) return;
+    var engines = chosenEngines(), samples = chosenSamples();
+    writePref({ samples: samples, engines: engines });
+    if (!engines.length) {
+      el('seo-plan').innerHTML = '<span style="color:#b42318">聞くAIを1つ以上選んでください。</span>';
+      el('seo-run').disabled = true;
+      return;
+    }
+    var p = planOf(samples, engines);
+    var cap = meta.limits && meta.limits.callsPerDay;
+    el('seo-plan').innerHTML =
+      meta.questions + '問 × ' + samples + '回 × ' + engines.length + 'つのAI ＝ 回答 ' + p.answers + '回 ＋ 判定 ' + p.judge + '回' +
+      '（判定はどのAIの回答も Claude が読みます）<br>' +
+      '<b>呼び出し ' + p.calls + '回・約 $' + p.usd.toFixed(2) + '（目安）・' + p.minutes + '分ほど</b>' +
+      (cap && p.calls > cap ? '<br><span style="color:#b42318">1日の上限（' + cap + '回）を越えるため、この設定では始められません。</span>' : '');
+    el('seo-run').disabled = !meta.aiReady || (cap && p.calls > cap);
+  }
+  function setup() {
+    var pref = readPref();
+    var opts = (meta.samples && meta.samples.options) || [1, 3, 5];
+    var dflt = opts.indexOf(pref.samples) >= 0 ? pref.samples : ((meta.samples && meta.samples.default) || 3);
+    el('seo-samples').innerHTML = opts.map(function (n) {
+      return '<option value="' + n + '"' + (n === dflt ? ' selected' : '') + '>' + n + '回' + (n === 1 ? '（幅が広い・安い）' : n === 5 ? '（幅が狭い・高い）' : '（標準）') + '</option>';
+    }).join('');
+    var want = Array.isArray(pref.engines) && pref.engines.length ? pref.engines : ['claude'];
+    el('seo-engines').innerHTML = (meta.engines || []).map(function (e) {
+      var on = e.ready && want.indexOf(e.id) >= 0;
+      return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;white-space:nowrap' + (e.ready ? '' : ';color:var(--sub)') + '">' +
+        '<input type="checkbox" value="' + esc(e.id) + '"' + (on ? ' checked' : '') + (e.ready ? '' : ' disabled') + '> ' + esc(e.label) +
+        (e.ready ? '' : '<span style="font-size:11px">（キー未設定）</span>') + '</label>';
+    }).join('');
+    var qs = meta.questionSet || {};
+    el('seo-qset').textContent = (qs.custom ? 'この会社用に編集した質問 ' : '既定の質問 ') + meta.questions + '問' +
+      ((meta.engines || []).some(function (e) { return !e.ready; }) ? '・他のAIは「設定状況」でキーを入れると選べます' : '');
+    el('seo-setup').style.display = 'block';
+    showPlan();
+  }
+  el('seo-samples').addEventListener('change', showPlan);
+  el('seo-engines').addEventListener('change', showPlan);
+
+  /* ---- 質問の編集 ----
+     質問は会社ごとに違うので、ここで書き換えられるようにしてあります。
+     保存先（データベース）に残し、次の計測から使います。 */
+  var qdraft = null;
+  function drawEditor() {
+    var host = el('seo-qedit');
+    var lim = (meta && meta.limits) || { questions: 60, q: 200, cat: 30 };
+    var input = 'padding:7px 9px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:inherit;width:100%;box-sizing:border-box';
+    host.innerHTML =
+      '<p class="share-note" style="margin-bottom:8px">お客様が実際に打ちそうな言い方で書きます。社名の入った質問には「社名入り」を付けてください' +
+      '（付け忘れても、社名が文中にあれば自動で社名入りとして扱います）。質問を変えると、それより前の計測とは比べられなくなります。' +
+      '最大' + lim.questions + '問・1問' + lim.q + '字まで。</p>' +
+      qdraft.map(function (r, i) {
+        return '<div data-i="' + i + '" style="border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:#fff">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px">' +
+            '<span style="font-size:11px;color:var(--sub)">' + (i + 1) + '　カテゴリ</span>' +
+            '<input class="qe-cat" maxlength="' + lim.cat + '" placeholder="例: 動画制作" aria-label="カテゴリ" value="' + esc(r.cat) + '" style="' + input + ';width:auto;flex:1;min-width:120px">' +
+            '<label style="font-size:12px;white-space:nowrap"><input type="checkbox" class="qe-branded"' + (r.branded ? ' checked' : '') + '> 社名入り</label>' +
+            '<button type="button" class="ghost qe-del" style="font-size:11.5px;padding:4px 10px">削除</button>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--sub);margin-bottom:3px">質問文</div>' +
+          '<textarea class="qe-q" maxlength="' + lim.q + '" rows="2" placeholder="例: 東京で採用動画を頼める会社を教えてください。" aria-label="質問文" style="' + input + ';resize:vertical">' + esc(r.q) + '</textarea>' +
+        '</div>';
+      }).join('') +
+      '<div class="toolbar" style="margin-top:8px">' +
+        '<button type="button" class="ghost" id="qe-add" style="font-size:12px;padding:6px 12px">質問を追加</button>' +
+        '<button type="button" id="qe-save" style="font-size:12px;padding:6px 14px">保存</button>' +
+        '<button type="button" class="ghost" id="qe-reset" style="font-size:12px;padding:6px 12px">既定に戻す</button>' +
+        '<button type="button" class="ghost" id="qe-close" style="font-size:12px;padding:6px 12px">閉じる</button>' +
+        '<span id="qe-note" class="share-note" style="margin:0"></span>' +
+      '</div>';
+  }
+  function readEditor() {
+    var rowsEl = el('seo-qedit').querySelectorAll('[data-i]');
+    for (var i = 0; i < rowsEl.length; i++) {
+      var r = qdraft[Number(rowsEl[i].getAttribute('data-i'))];
+      r.cat = rowsEl[i].querySelector('.qe-cat').value;
+      r.q = rowsEl[i].querySelector('.qe-q').value;
+      r.branded = rowsEl[i].querySelector('.qe-branded').checked;
+    }
+  }
+  async function saveQuestions(payload) {
+    var note = el('qe-note');
+    note.textContent = '保存しています…';
+    var res, d = null;
+    try {
+      res = await window.lumAdmin.tap(await fetch('/api/aio', {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + key(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }));
+      d = await res.json();
+    } catch (_) { note.textContent = '保存できませんでした（通信に失敗しました）。'; return; }
+    if (!res.ok || !d || d.ok !== true) { note.textContent = (d && d.message) || '保存できませんでした。'; return; }
+    el('seo-qedit').style.display = 'none';
+    qdraft = null;
+    await load();
+    say(payload.reset ? '既定の質問に戻しました。次の計測から使います。' : '質問を保存しました（' + d.questions + '問）。次の計測から使います。', true);
+  }
+  el('seo-qedit-open').addEventListener('click', function () {
+    if (!meta) return;
+    var host = el('seo-qedit');
+    if (host.style.display === 'block') { host.style.display = 'none'; return; }
+    qdraft = ((meta.questionSet && meta.questionSet.list) || []).map(function (r) {
+      return { id: r.id, cat: r.cat, q: r.q, branded: !!r.branded };
+    });
+    drawEditor();
+    host.style.display = 'block';
+  });
+  el('seo-qedit').addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (!qdraft || !t || t.tagName !== 'BUTTON') return;
+    readEditor();
+    if (t.classList.contains('qe-del')) {
+      var row = t.closest('[data-i]');
+      qdraft.splice(Number(row.getAttribute('data-i')), 1);
+      drawEditor();
+    } else if (t.id === 'qe-add') {
+      var lim = (meta.limits && meta.limits.questions) || 60;
+      if (qdraft.length >= lim) { el('qe-note').textContent = '質問は' + lim + '問までです。'; return; }
+      qdraft.push({ id: '', cat: '', q: '', branded: false });
+      drawEditor();
+    } else if (t.id === 'qe-save') {
+      var list = qdraft.filter(function (r) { return String(r.q).trim(); });
+      if (!list.length) { el('qe-note').textContent = '質問が1つもありません。'; return; }
+      saveQuestions({ questions: list });
+    } else if (t.id === 'qe-reset') {
+      if (confirm('質問を既定の' + ((meta.questionSet && meta.questionSet.defaults) || '') + '問に戻します。よろしいですか？')) saveQuestions({ reset: true });
+    } else if (t.id === 'qe-close') {
+      el('seo-qedit').style.display = 'none';
+      qdraft = null;
+    }
+  });
 
   async function load(runId) {
     var res, data;
@@ -4492,13 +4846,14 @@ window.lumAdmin = {
     } catch (_) { say('通信に失敗しました。'); return; }
     if (data.meta) {
       meta = data.meta;
-      el('seo-cost').textContent = '1回あたり約 $' + data.meta.estimateUsd.toFixed(2) +
-        '（' + data.meta.questions + '問）' + (data.meta.aiReady ? '' : '・APIキー未設定') +
-        (data.meta.stored === false ? '・結果はこの端末に保存' : '');
+      el('seo-cost').textContent = (data.meta.aiReady ? '' : 'APIキー未設定') +
+        (data.meta.stored === false ? (data.meta.aiReady ? '' : '・') + '結果はこの端末に保存' : '');
+      setup();
       // The key is the only thing a run needs. Without a database the run is
       // driven from here and the report is kept in this browser; it used to be
       // refused outright, which is what "キーを入れたのに動かない" was.
-      el('seo-run').disabled = !data.meta.aiReady;
+      // (Enabled in showPlan(), which also refuses a run over the day's cap.)
+      if (!data.meta.aiReady) el('seo-run').disabled = true;
       // Nothing came from the server because there is nowhere to keep it —
       // draw what this browser kept instead.
       /* Reports this browser is holding. They were kept here while there was
@@ -4512,7 +4867,8 @@ window.lumAdmin = {
           var want = runId ? mine.filter(function (r) { return r.id === runId; })[0] : null;
           data.latest = want || mine[0];
           data.history = mine.map(function (r) {
-            return { id: r.id, finishedAt: r.finishedAt, openMentionRate: r.summary.openMentionRate };
+            return { id: r.id, finishedAt: r.finishedAt, openMentionRate: r.summary.openMentionRate,
+              stats: r.summary.stats ? { openMention: r.summary.stats.openMention } : null };
           });
           data.runs = data.history;
           data.localOnly = true;
@@ -4574,6 +4930,108 @@ window.lumAdmin = {
     return data;
   }
 
+  function sleep(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+
+  /* 同時にいくつか進める。1回の回答に十数秒かかるので、1つずつ待つと
+     28問×3回で30分近くになります。提供元の上限に当たらない程度に、
+     3つずつ並べて投げます。 */
+  async function pool(items, size, fn) {
+    var next = 0;
+    async function worker() {
+      while (next < items.length) {
+        var i = next++;
+        await fn(items[i], i);
+      }
+    }
+    var ws = [];
+    for (var w = 0; w < Math.min(size, items.length); w++) ws.push(worker());
+    await Promise.all(ws);
+  }
+
+  /* 1つの質問を、1つのAIに1回聞く。
+     失敗したら同じ条件のまま2回まで掛け直します（検索の回数などを減らして
+     掛け直すと、別のものを測ることになるため）。検索の途中で止まった回答は、
+     止まったところから続けさせます（最大 maxContinuations 回）。それでも
+     終わらなければ、サーバー側で「途中で切れた回答」として記録されます。 */
+  async function askOne(started, item, index, sample, engine, onNote) {
+    var lastErr = '', lastKind = '', lastStatus = null;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (attempt) {
+        onNote('再試行中…（' + attempt + '回目）');
+        // 呼びすぎで断られたときは、待つ以外に効く手がない。
+        await sleep(lastKind === 'rate' ? attempt * 8000 : attempt * 2500);
+      }
+      try {
+        var payload = { action: 'ask', runId: started.runId, index: index, sample: sample, engine: engine,
+          question: item, attempt: attempt, continuation: 0 };
+        var r = await post(payload);
+        var got = r.result;
+        var cont = 0;
+        while (got && got.paused && cont < (started.maxContinuations || 2)) {
+          cont++;
+          onNote('検索の続きを待っています…');
+          payload.continuation = cont;
+          payload.resume = got.resume;
+          r = await post(payload);
+          got = r.result;
+        }
+        if (got) {
+          delete got.resume;
+          delete got.paused;
+          return got;
+        }
+      } catch (e) { lastErr = e.message; lastKind = e.kind || ''; lastStatus = e.status || null; }
+    }
+    return {
+      key: item.id + '#' + engine + '#' + sample, id: item.id, cat: item.cat, q: item.q, branded: !!item.branded,
+      engine: engine, sample: sample, answer: '', named: false, verdict: null,
+      cited: false, citedUrls: [], searched: false, sources: [], sourceUrls: [], ownPages: [], companies: [],
+      error: lastErr || '応答がありませんでした',
+      // サーバー側の失敗と同じ形にしておく。そうしないと内訳の集計から
+      // 漏れ、画面には理由が出ません。
+      errorKind: lastKind || 'unknown',
+      detail: { kind: lastKind || 'unknown', status: lastStatus, ms: 0, message: lastErr || '' }
+    };
+  }
+
+  /* 回答を読む（判定）。4件ずつ Claude に渡して、扱われ方・挙がった会社・
+     順番・書かれ方を返してもらいます。判定できなかった回答は、率の分母
+     から外れるだけで、「出てこなかった」にはしません。 */
+  async function judgeAll(collected, batchSize, onProgress) {
+    var todo = collected.filter(function (r) { return r && r.answer && !r.error && !r.truncated && !r.verdict; });
+    var batches = [];
+    for (var i = 0; i < todo.length; i += batchSize) batches.push(todo.slice(i, i + batchSize));
+    var failures = [], doneN = 0;
+    await pool(batches, 3, async function (batch) {
+      var items = batch.map(function (r) { return { key: r.key, q: r.q, answer: r.answer }; });
+      var verdicts = null, failure = null;
+      for (var attempt = 0; attempt < 2 && !verdicts; attempt++) {
+        if (attempt) await sleep(3000);
+        try {
+          var d = await post({ action: 'judge', items: items });
+          if (d.failure) failure = d.failure;
+          else verdicts = d.verdicts || {};
+        } catch (e) { failure = { keys: items.map(function (x) { return x.key; }), kind: e.kind || 'unknown', message: e.message }; }
+      }
+      if (verdicts) {
+        batch.forEach(function (r) {
+          var v = verdicts[r.key];
+          if (!v) return;
+          r.verdict = v.verdict;
+          r.companies = v.companies || [];
+          r.missing = v.missing || '';
+          r.position = v.position == null ? null : v.position;
+          r.sentiment = v.sentiment || null;
+        });
+      } else if (failure) {
+        failures.push(failure);
+      }
+      doneN += batch.length;
+      onProgress(doneN, todo.length);
+    });
+    return failures;
+  }
+
   async function run() {
     if (running) return;
     running = true;
@@ -4582,80 +5040,68 @@ window.lumAdmin = {
     say('');
     var started;
     try {
-      started = await post({ action: 'start' });
-    } catch (e) { say('開始できませんでした: ' + e.message); running = false; el('seo-run').disabled = false; return; }
+      started = await post({ action: 'start', samples: chosenSamples(), engines: chosenEngines() });
+    } catch (e) { say('開始できませんでした: ' + e.message); running = false; el('seo-run').disabled = false; el('seo-progress').style.display = 'none'; return; }
 
-    var total = started.questions.length, hit = 0;
+    var Q = started.questions, S = started.samples || 1, E = started.engines || ['claude'];
+    // 1回目を全問 → 2回目を全問…の順。途中で止まっても、どの質問も
+    // 少なくとも1回は聞けている状態にするため。
+    var jobs = [];
+    for (var s = 0; s < S; s++) for (var i = 0; i < Q.length; i++) jobs.push({ i: i, s: s });
+    var totalAnswers = jobs.length * E.length;
+    var answered = 0;
     // Held here as well as in the store, because without a store this is the
     // only copy — it is what gets sent back to be summarised.
     var collected = [];
-    for (var i = 0; i < total; i++) {
-      el('seo-bar').style.width = (i / total * 100) + '%';
-      el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を計測中… ' + started.questions[i].q;
-      // 間を置かずに16問を続けて投げると、上限に当たって後半がまとめて
-      // 落ちます。1.5秒だけ空けます（全体で+24秒）。
-      if (i) await new Promise(function (ok) { setTimeout(ok, 1500); });
-      /* Twice more on failure, with a wait between. A web-searched answer can
-         take half a minute and these go out back to back, so a question that
-         fails once usually succeeds on the next try — and a question that
-         fails is not silently dropped any more: it goes into the report as a
-         failure, with its reason. The last run kept 7 of 16 questions and the
-         report never said where the other 9 went. */
-      var got = null, lastErr = '', lastKind = '', lastStatus = null;
-      for (var attempt = 0; attempt < 3 && !got; attempt++) {
-        if (attempt) {
-          el('seo-progress-text').textContent = (i + 1) + ' / ' + total + '問目を再試行中…（' + attempt + '回目）';
-          // 呼びすぎで断られたときは、待つ以外に効く手がない。
-          var wait = lastKind === 'rate' ? attempt * 8000 : attempt * 2500;
-          await new Promise(function (ok) { setTimeout(ok, wait); });
-        }
-        try {
-          var r = await post({ action: 'ask', runId: started.runId, index: i, attempt: attempt });
-          if (r.result) got = r.result;
-        } catch (e) { lastErr = e.message; lastKind = e.kind || ''; lastStatus = e.status || null; }
-      }
-      if (got) {
-        collected.push(got);
-        if (got.named) hit++;
-      } else {
-        var qq = started.questions[i];
-        collected.push({ id: qq.id, cat: qq.cat, q: qq.q, answer: '', named: false, verdict: null,
-                         cited: false, sources: [], searched: 0, companies: [],
-                         error: lastErr || '応答がありませんでした',
-                         // サーバー側の失敗と同じ形にしておく。そうしないと
-                         // 内訳の集計から漏れ、画面には理由が出ません。
-                         errorKind: lastKind || 'unknown',
-                         detail: { kind: lastKind || 'unknown', status: lastStatus, ms: 0, message: lastErr || '' } });
-        el('seo-progress-text').textContent = (i + 1) + '問目は取得できませんでした（続行します）';
-      }
-    }
-    /* 落ちた質問を、最後にもう一度だけ拾い直す。
-       上限で断られる失敗は、時間が経てば通ります。本編の16問を投げ終えた
-       頃には窓が空いているので、そこでまとめて掛け直すのが一番よく効きます
-       （16問中7問が落ちたまま集計に回っていました）。 */
+    var progress = function (text) {
+      el('seo-bar').style.width = (answered / totalAnswers * 90) + '%';
+      el('seo-progress-text').textContent = answered + ' / ' + totalAnswers + '回 ' + text;
+    };
+    await pool(jobs, 3, async function (job, n) {
+      var item = Q[job.i];
+      // 続けざまに投げると、提供元の1分あたりの上限に当たって後半が
+      // まとめて落ちます。少しずつずらして投げます。
+      if (n && started.paceMs) await sleep(started.paceMs);
+      progress('聞いています… ' + item.q);
+      var got = await Promise.all(E.map(function (engine) {
+        return askOne(started, item, job.i, job.s, engine, function (t) { progress(t + ' ' + item.q); });
+      }));
+      got.forEach(function (r) { collected.push(r); });
+      answered += got.length;
+      progress('');
+    });
+
+    /* 落ちた回答を、最後にもう一度だけ拾い直す。
+       上限で断られる失敗は、時間が経てば通ります。全部を投げ終えた頃には
+       窓が空いているので、そこでまとめて掛け直すのが一番よく効きます。 */
     var missed = collected.filter(function (r) { return r.error; });
-    if (missed.length) {
-      for (var m = 0; m < missed.length; m++) {
-        var idx = started.questions.findIndex(function (q) { return q.id === missed[m].id; });
-        if (idx < 0) continue;
-        el('seo-progress-text').textContent = '取れなかった ' + missed.length + ' 問を拾い直しています…（' + (m + 1) + '/' + missed.length + '）';
-        await new Promise(function (ok) { setTimeout(ok, 5000); });
-        try {
-          var again = await post({ action: 'ask', runId: started.runId, index: idx, attempt: 1 });
-          if (again.result && !again.result.error) {
-            collected = collected.map(function (r) { return r.id === missed[m].id ? again.result : r; });
-          }
-        } catch (_) { /* 拾えなければそのまま。理由は既に記録済み */ }
+    for (var m = 0; m < missed.length; m++) {
+      var idx = -1;
+      for (var k = 0; k < Q.length; k++) if (Q[k].id === missed[m].id) idx = k;
+      if (idx < 0) continue;
+      el('seo-progress-text').textContent = '取れなかった ' + missed.length + ' 回を拾い直しています…（' + (m + 1) + '/' + missed.length + '）';
+      await sleep(5000);
+      var again = await askOne(started, Q[idx], idx, missed[m].sample, missed[m].engine, function () {});
+      if (!again.error) {
+        collected = collected.map(function (r) { return r.key === missed[m].key ? again : r; });
       }
     }
+
+    el('seo-bar').style.width = '92%';
+    el('seo-progress-text').textContent = '回答を読み取っています…';
+    var failures = await judgeAll(collected, started.judgeBatch || 4, function (done, all) {
+      el('seo-bar').style.width = (92 + done / Math.max(1, all) * 7) + '%';
+      el('seo-progress-text').textContent = '回答を読み取っています… ' + done + ' / ' + all + '回';
+    });
+
     el('seo-bar').style.width = '100%';
     el('seo-progress-text').textContent = '集計中…';
     try {
-      // Sent in both cases: with a store it fills in the questions that never
+      // Sent in both cases: with a store it fills in the answers that never
       // reached it, without one it is the whole run.
       var done = await post({
-        action: 'finalize', runId: started.runId,
-        startedAt: started.startedAt, results: collected
+        action: 'finalize', runId: started.runId, startedAt: started.startedAt,
+        settings: started.settings, results: collected, analysisFailures: failures
       });
       if (done.stored === false && done.run) saveLocal(done.run);
     } catch (e) { say('集計に失敗しました: ' + e.message); }
@@ -4666,14 +5112,19 @@ window.lumAdmin = {
   }
 
   el('seo-run').addEventListener('click', function () {
-    var n = meta ? meta.questions : 16;
-    var cost = meta ? ('約 $' + meta.estimateUsd.toFixed(2)) : '';
-    if (confirm(n + '問をAIに質問します（API呼び出し ' + (n + 1) + '回・' + cost + '）。数分かかります。実行しますか？')) run();
+    if (!meta) return;
+    var samples = chosenSamples(), engines = chosenEngines();
+    if (!engines.length) { say('聞くAIを1つ以上選んでください。'); return; }
+    var p = planOf(samples, engines);
+    var names = engines.map(engineName).join('・');
+    if (confirm(meta.questions + '問を ' + samples + '回ずつ、' + names + ' に質問します。\n' +
+        '回答 ' + p.answers + '回＋判定 ' + p.judge + '回＝呼び出し ' + p.calls + '回、約 $' + p.usd.toFixed(2) + '（目安）。' +
+        p.minutes + '分ほどかかります。実行しますか？')) run();
   });
   el('seo-reload').addEventListener('click', function () { load(); });
   el('seo-pick').addEventListener('change', function () { load(el('seo-pick').value); });
-  /* 動くかどうかを確かめるのに、毎回16問$1.54を払う必要はない。
-     1問だけ投げて、返ってきたもの（かかった時間・検索の回数・引用元・
+  /* 動くかどうかを確かめるのに、毎回全問ぶんを払う必要はない。
+     1問だけ投げて、返ってきたもの（かかった時間・検索の件数・出典・
      失敗ならその種類）をそのまま出します。 */
   el('seo-probe').addEventListener('click', async function () {
     var btn = el('seo-probe');
@@ -4689,8 +5140,11 @@ window.lumAdmin = {
     btn.disabled = false;
     var p = d.probe || {};
     if (p.ok) {
-      say('通りました（' + Math.round(p.ms / 1000) + '秒・検索 ' + p.searched + '件' +
-        (p.cited ? '・自社サイトが引用元に入っています' : '・自社サイトは引用元に入っていません') + '）。' +
+      say('通りました（' + Math.round(p.ms / 1000) + '秒・検索結果 ' + (p.searchCount || 0) + '件' +
+        (p.cited ? '・自社サイトが答えの出典に入っています'
+          : p.searched ? '・自社サイトは検索で読まれましたが、出典には入っていません'
+          : '・自社サイトは出典にも検索結果にも入っていません') +
+        (p.truncated ? '・回答が途中で切れました' : '') + '）。' +
         '回答の冒頭: ' + String(p.preview || '').slice(0, 80), true);
     } else {
       say('失敗しました（' + (p.kind || '不明') + '・' + Math.round((p.ms || 0) / 1000) + '秒）。' +
@@ -4698,11 +5152,22 @@ window.lumAdmin = {
     }
   });
 
+  /* 中断した計測を結果にする。取れていた回答を読んで（判定して）から
+     集計します。読まずに集計すると、本文に社名があるかだけの古い数え方に
+     なってしまうためです。 */
   el('seo-resume').addEventListener('click', async function () {
     if (!pending) return;
     el('seo-resume').disabled = true;
+    say('取れていた回答を読み取っています…', true);
+    var results = (pending.results || []).slice();
+    var failures = await judgeAll(results, (meta && meta.judgeBatch) || 4, function (done, all) {
+      say('取れていた回答を読み取っています… ' + done + ' / ' + all + '回', true);
+    });
     say('集計しています…', true);
-    try { await post({ action: 'finalize', runId: pending.id }); } catch (e) { say('集計に失敗しました: ' + e.message); }
+    try {
+      await post({ action: 'finalize', runId: pending.id, startedAt: pending.startedAt, settings: pending.settings,
+        results: results, analysisFailures: failures });
+    } catch (e) { say('集計に失敗しました: ' + e.message); }
     el('seo-resume').disabled = false;
     pending = null;
     await load();

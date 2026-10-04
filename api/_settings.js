@@ -75,6 +75,27 @@ export const SETTINGS = [
     where: 'console.anthropic.com › API keys',
     why: 'これが無いと、AIO計測とAIアドバイザーは動きません。',
   },
+  /* AIO計測で「Claude以外のAIにも聞く」ためのキー。どれも任意で、入って
+     いるものだけが計測画面で選べるようになります。読むのは管理者自身の
+     計測リクエストなので、Claude のキーと同じく端末保存できます。
+     回答の判定（候補として挙がったか等）は、どのAIの回答も Claude が
+     行います——判定の物差しをそろえるためで、そのため Claude のキーは
+     これらを使うときにも必要です。 */
+  {
+    name: 'OPENAI_API_KEY', label: 'AIO計測: ChatGPT（OpenAI）', kind: 'secret', group: 'site',
+    where: 'platform.openai.com › API keys',
+    why: '入れると、AIO計測で ChatGPT（ウェブ検索つき）にも同じ質問をして、Claude と並べて結果を出せます。1回の回答ごとに検索料金がかかります。',
+  },
+  {
+    name: 'PERPLEXITY_API_KEY', label: 'AIO計測: Perplexity', kind: 'secret', group: 'site',
+    where: 'perplexity.ai › Settings › API › API Keys',
+    why: '入れると、AIO計測で Perplexity にも同じ質問をして結果を並べます。答えに必ず出典が付くAIなので、「自社サイトが出典になったか」が最もはっきり出ます。',
+  },
+  {
+    name: 'GEMINI_API_KEY', label: 'AIO計測: Gemini（Google）', kind: 'secret', group: 'site',
+    where: 'aistudio.google.com › Get API key',
+    why: '入れると、AIO計測で Gemini（Google検索つき）にも同じ質問をして結果を並べます。Google の AI 回答に近い条件で見られます。',
+  },
   {
     name: 'GITHUB_TOKEN', label: 'お知らせ・文章編集の保存', kind: 'secret', group: 'site',
     where: 'github.com › Settings › Developer settings › Fine-grained tokens（対象リポジトリの Contents: Read and write）',

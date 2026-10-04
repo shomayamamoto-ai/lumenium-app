@@ -142,9 +142,13 @@ const CALLS = [
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],
   ['aio', 'GET', '', KEY],
-  // 1問だけのお試し。壊れているかどうかを $1.54 払わずに確かめる入口なので、
-  // これ自体が壊れていては意味がない。
+  // 1問だけのお試し。壊れているかどうかを全問ぶん払わずに確かめる入口
+  // なので、これ自体が壊れていては意味がない。
   ['aio', 'POST', '', JSONH, { action: 'probe', index: 0 }],
+  // 計測の開始（回数とAIを選んで、呼び出し回数の予約まで。AIは呼ばない）。
+  ['aio', 'POST', '', JSONH, { action: 'start', samples: 3, engines: ['claude'] }],
+  // 質問の編集。中身の検査で断られるのも、応答のうちです。
+  ['aio', 'PUT', '', JSONH, { questions: [{ cat: '動画制作', q: '東京の動画制作会社を教えてください。' }] }],
   ['site-audit', 'GET', '', KEY],
   // 文章編集の「AIに書き直してもらう」。押すのが手軽なぶん、壊れていると
   // 編集の手が止まります。

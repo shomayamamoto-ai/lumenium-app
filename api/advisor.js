@@ -16,7 +16,7 @@ import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
 import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './_analytics-report.js'
 import { socialActivity, socialStatus } from './_social.js'
 import { SERVICES } from '../src/data/services.js'
-import { QUESTIONS, BRAND, VERDICTS, isHit } from './_aio-catalog.js'
+import { QUESTIONS, BRAND, VERDICTS, isHit, isBranded } from './_aio-catalog.js'
 import { readCrawls } from './_crawlers.js'
 import { KV } from './_brand.js'
 
@@ -88,6 +88,9 @@ async function liveNumbers(req) {
           aio = {
             finishedAt: run.finishedAt,
             asked: run.summary.asked,
+            questions: run.summary.questions || run.summary.asked,
+            samples: run.summary.samples || 1,
+            stats: run.summary.stats || null,
             mentionRate: run.summary.mentionRate,
             openMentionRate: run.summary.openMentionRate,
             citeRate: run.summary.citeRate,
@@ -99,9 +102,12 @@ async function liveNumbers(req) {
             // The questions we did not come back on, and why — 「見つからないと
             // 言われた」 and 「話題にすら出ない」 need different work, and the
             // advisor could not tell them apart when this was one flag.
-            missed: (run.results || [])
-              .filter((r) => !r.error && r.cat !== 'ブランド指名' && !isHit(r.verdict))
-              .map((r) => ({ q: r.q, verdict: r.verdict })),
+            // Non-branded means "no name in the question", not "not in the
+            // 指名 category": two 評判 questions carry the name too. With
+            // several answers per question, one line per question.
+            missed: [...new Map((run.results || [])
+              .filter((r) => !r.error && !r.truncated && r.cat !== 'ブランド指名' && !isBranded(r) && !isHit(r.verdict))
+              .map((r) => [r.id + '|' + r.verdict, { q: r.q, verdict: r.verdict }])).values()],
           }
         }
       } catch (_) { /* no usable run yet */ }
@@ -136,9 +142,14 @@ function systemPrompt(live) {
 
   const aio = live.aio
     ? [
-        `最終計測: ${live.aio.finishedAt}（${live.aio.asked}問）`,
+        `最終計測: ${live.aio.finishedAt}（${live.aio.questions}問を${live.aio.samples}回ずつ、判定できた回答 ${live.aio.asked}回）`,
         `全体の出現率: ${(live.aio.mentionRate * 100).toFixed(0)}%`,
-        `非指名質問での出現率: ${(live.aio.openMentionRate * 100).toFixed(0)}%`,
+        // The range goes with the number: AI answers vary run to run, and the
+        // advisor should not call a move inside it a change.
+        `非指名質問での出現率: ${(live.aio.openMentionRate * 100).toFixed(0)}%` +
+          (live.aio.stats && live.aio.stats.openMention
+            ? `（95%の確からしさで ${Math.round(live.aio.stats.openMention.lo * 100)}〜${Math.round(live.aio.stats.openMention.hi * 100)}%。この幅の中の上下は誤差です）`
+            : ''),
         `そのうち依頼先の候補として挙げられた率: ${((live.aio.recommendRate || 0) * 100).toFixed(0)}%`,
         `自社サイトが情報源に使われた率: ${(live.aio.citeRate * 100).toFixed(0)}%`,
         live.aio.verdicts
@@ -241,7 +252,7 @@ function systemPrompt(live) {
     '',
     '1文を短くし、2〜3行ごとに1行空ける。長い前置きは書かない。',
     '数字を出すときは「何の数字か」「いつ測ったものか」を文の中で説明する。',
-    '（例:「9月21日に16問試したうち、名前が出たのは0問でした」）',
+    '（例:「9月21日に28問を3回ずつ試したうち、名前が出たのは0回でした」）',
     '最後に、この話を知らない相手にそのまま渡せるよう、いまの状況と頼みたいことを3〜5行でまとめる。',
     '',
     '【答えの最後に、次に押せる質問を付ける】',

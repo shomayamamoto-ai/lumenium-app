@@ -163,14 +163,22 @@ export async function requireAdmin(req, opts) {
 
 /** A day's ceiling on the endpoints that cost money, so a leaked share link
  *  cannot run the API bill up. Counted in Redis; without it there is nothing
- *  durable to count in, and the caller is let through. */
-export async function spendGuard(kind, limit) {
+ *  durable to count in, and the caller is let through.
+ *
+ *  `by` charges several units at once — an AIO run reserves every call it
+ *  plans to make when it starts, so the ceiling can be in AI calls rather
+ *  than in runs (a run can now be 28 calls or 1,000). */
+export async function spendGuard(kind, limit, by = 1) {
   const cfg = storeConfig()
   if (!cfg) return null
   const key = `${KV}aispend:${kind}:${jstDate()}`
+  const n = Math.max(1, Math.floor(Number(by) || 1))
   try {
-    const [used] = await pipeline(cfg, [['INCR', key], ['EXPIRE', key, 2 * 24 * 3600, 'NX']])
+    const [used] = await pipeline(cfg, [n === 1 ? ['INCR', key] : ['INCRBY', key, n], ['EXPIRE', key, 2 * 24 * 3600, 'NX']])
     if (Number(used) > limit) {
+      // A refused reservation is handed back, so asking for a large run does
+      // not use up what is left of the day for a smaller one.
+      if (n > 1) await pipeline(cfg, [['DECRBY', key, n]]).catch(() => {})
       return json({
         ok: false, code: 'DAILY_LIMIT',
         message: `本日の上限（${limit}回）に達しました。日付が変わると再開します。`,

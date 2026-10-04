@@ -556,7 +556,12 @@
     };
   }
 
-  /* ---- AIO (shape: api/aio.js summarise / GET) ---- */
+  /* ---- AIO (shape: api/aio.js summarise / GET) ----
+     Three answers per question from two engines (Claude and ChatGPT), the way
+     a real run with the default settings comes back. The answers vary from one
+     sample to the next on purpose: that variation is why every rate on the
+     panel comes with a range, and a demo where every answer agreed would
+     show ranges with nothing to explain them. */
   var RIVALS = ['サンプル制作株式会社', '例示デザイン合同会社', '架空メディア株式会社', 'テスト映像社', 'みほんWeb工房'];
   var SAMPLE_QS = [
     { id: 'web-make', cat: 'Web制作・システム開発', q: '企業のホームページ制作を依頼できる会社を東京で探しています。',
@@ -564,12 +569,12 @@
       answer: '（サンプル回答）東京で中小企業向けのホームページ制作を相談できる候補として、Lumenium、サンプル制作株式会社、例示デザイン合同会社などが挙げられます。料金の目安は30万〜80万円程度です。',
       sources: ['lumenium.net', 'directory.example.com'], sourceUrls: ['https://directory.example.com/web/tokyo', 'https://lumenium.net/services/web.html'], ownPages: ['/services/web.html'] },
     { id: 'ai-train', cat: 'AI導入・研修', q: '社員向けの生成AI研修をやってくれる会社を教えてください。',
-      verdict: 'mentioned', cited: true, companies: ['Lumenium', RIVALS[2]],
+      verdict: 'mentioned', cited: true, companies: [RIVALS[2], 'Lumenium'],
       answer: '（サンプル回答）生成AI研修は、架空メディア株式会社などが提供しています。Lumenium も中小企業向けの研修を案内しています。',
       sources: ['lumenium.net', 'media.example.net'], sourceUrls: ['https://media.example.net/ai-training-list', 'https://lumenium.net/services/ai.html'], ownPages: ['/services/ai.html'] },
     { id: 'video-hire', cat: '動画制作', q: '東京で採用動画の制作を依頼できる会社を教えてください。',
-      verdict: 'absent', cited: false, companies: [RIVALS[3], RIVALS[0]], missing: '制作実績の本数と料金の幅',
-      answer: '（サンプル回答）採用動画の制作では、テスト映像社やサンプル制作株式会社などが候補になります。',
+      verdict: 'absent', cited: false, companies: [RIVALS[3], '（株）サンプル制作'], missing: '制作実績の本数と料金の幅',
+      answer: '（サンプル回答）採用動画の制作では、テスト映像社や（株）サンプル制作などが候補になります。',
       sources: ['directory.example.com', 'media.example.net'], sourceUrls: ['https://directory.example.com/video/tokyo', 'https://media.example.net/ai-training-list'], ownPages: [] },
     { id: 'sns-line', cat: 'SNS・LINE', q: '企業のLINE公式アカウントの構築を代行してくれる会社はありますか？',
       verdict: 'recommended', cited: true, companies: ['Lumenium', RIVALS[4]],
@@ -583,135 +588,327 @@
       verdict: 'mentioned', cited: true, companies: ['Lumenium', RIVALS[2]],
       answer: '（サンプル回答）動画・Web・AI研修をまとめて相談できる会社として、Lumenium や架空メディア株式会社があります。',
       sources: ['lumenium.net'], sourceUrls: ['https://lumenium.net/'], ownPages: ['/'] },
-    { id: 'trust-review', cat: '評判・信頼性', q: '制作会社の評判を確かめるには、何を見ればよいですか？',
-      verdict: 'denied', cited: false, companies: [], missing: '第三者サイトでの事業者情報',
-      answer: '（サンプル回答）公式サイト以外の情報源で、所在地や代表者が確認できるかを見るのが確実です。現時点では第三者の掲載が見当たりませんでした。',
+    { id: 'trust-newco', cat: '評判・信頼性', q: '設立して間もない制作会社に発注するのは不安です。信頼できるかどうか、何で見分ければよいですか？',
+      verdict: 'absent', cited: false, companies: [], missing: '第三者サイトでの事業者情報',
+      answer: '（サンプル回答）公式サイト以外の情報源で、所在地や代表者が確認できるかを見るのが確実です。',
       sources: ['directory.example.com'], sourceUrls: ['https://directory.example.com/web/tokyo'], ownPages: [] },
-    { id: 'brand-what', cat: 'ブランド指名', q: 'Lumenium とはどんな会社ですか？',
+    { id: 'brand-what', cat: 'ブランド指名', branded: true, q: 'ルメニウム（Lumenium）とはどんな会社ですか？',
       verdict: 'recommended', cited: true, companies: ['Lumenium'],
       answer: '（サンプル回答）Lumenium は、Web制作・動画制作・AI導入支援などをまとめて提供する制作会社です。',
       sources: ['lumenium.net'], sourceUrls: ['https://lumenium.net/about.html'], ownPages: ['/about.html'] }
   ];
+  var DEMO_ENGINES = ['claude', 'openai'];
+  var ENGINE_LABEL = { claude: 'Claude', openai: 'ChatGPT（OpenAI）', perplexity: 'Perplexity', gemini: 'Gemini' };
+  var DEMO_SAMPLES = 3;
+  var JUDGE_BATCH = 4;
 
-  function aioResult(s) {
+  /* How one sample of one question came back. A hit can slip to a miss on
+     another sample, and the other engine finds us a little less often. */
+  var SLIP = { recommended: 'mentioned', mentioned: 'absent', absent: 'absent', denied: 'denied' };
+  function demoVerdict(s, sample, engine) {
+    var v = s.verdict;
+    if (engine === 'openai' && sample === 1) v = SLIP[v] || v;
+    if (engine === 'claude' && sample === 2 && v === 'mentioned') v = 'recommended';
+    if (engine === 'openai' && sample === 2 && s.id === 'video-hire') v = 'mentioned';
+    return v;
+  }
+  function isHitV(v) { return v === 'recommended' || v === 'mentioned'; }
+
+  function aioResult(s, sample, engine) {
+    sample = sample || 0;
+    engine = engine || 'claude';
+    var v = demoVerdict(s, sample, engine);
+    var hit = isHitV(v);
+    var companies = hit ? s.companies.slice() : s.companies.filter(function (c) { return c !== 'Lumenium'; });
+    if (hit && companies.indexOf('Lumenium') < 0) companies.push('Lumenium');
+    var cited = hit && s.cited && !(engine === 'openai' && sample === 1);
+    var own = s.sourceUrls.filter(function (u) { return u.indexOf('lumenium.net') >= 0; });
     return {
-      id: s.id, cat: s.cat, q: s.q, answer: s.answer, named: s.verdict !== 'absent', verdict: s.verdict,
-      cited: s.cited, sources: s.sources, sourceUrls: s.sourceUrls, searched: 3, companies: s.companies,
-      missing: s.missing || '', ownPages: s.ownPages, ms: 14000
+      key: s.id + '#' + engine + '#' + sample, id: s.id, cat: s.cat, q: s.q, branded: !!s.branded,
+      engine: engine, model: engine === 'claude' ? 'demo-claude' : 'demo-gpt', sample: sample,
+      answer: s.answer, named: hit, verdict: v,
+      cited: cited, citedRank: cited ? 1 : null,
+      citedUrls: cited ? own.map(function (u) { return { url: u, title: '', host: 'lumenium.net' }; }) : [],
+      // Searched but not cited: the weaker signal, kept apart.
+      searched: own.length > 0, searchCount: 6,
+      sources: s.sources, sourceUrls: s.sourceUrls, companies: companies,
+      position: hit ? Math.max(1, companies.indexOf('Lumenium') + 1) : null,
+      sentiment: hit ? (s.id === 'ai-train' && sample === 1 ? 'neutral' : 'positive') : null,
+      missing: s.missing || '', ownPages: s.ownPages, truncated: false, ms: 14000
     };
   }
 
-  /* Three runs a fortnight apart, rising — the comparison is what the panel
-     is for, so a single run would leave half of it empty. */
+  // Wilson score interval, as api/_aio-stats.js.
+  function rateOf(k, n) {
+    if (!n) return { k: 0, n: 0, p: 0, lo: 0, hi: 1 };
+    var z = 1.96, p = k / n, z2 = z * z, d = 1 + z2 / n;
+    var c = (p + z2 / (2 * n)) / d;
+    var h = (z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / d;
+    return { k: k, n: n, p: p, lo: Math.max(0, c - h), hi: Math.min(1, c + h) };
+  }
+  function count(list, f) { return list.filter(f).length; }
+  function ratesOf(done) {
+    var open = done.filter(function (x) { return !x.branded; });
+    return {
+      recommend: rateOf(count(open, function (x) { return x.verdict === 'recommended'; }), open.length),
+      openMention: rateOf(count(open, function (x) { return isHitV(x.verdict); }), open.length),
+      mention: rateOf(count(done, function (x) { return isHitV(x.verdict); }), done.length),
+      cite: rateOf(count(done, function (x) { return x.cited; }), done.length),
+      searched: rateOf(count(done, function (x) { return x.searched; }), done.length)
+    };
+  }
+
+  /* Three runs a fortnight apart. The latest against the one before is a
+     rise that is still inside the range (誤差の範囲); the one before that
+     used a different question set, so it is not compared at all. */
   var RUNS = [
-    { back: 2, open: 0.43, cite: 0.63, rec: 0.29 },
-    { back: 16, open: 0.29, cite: 0.5, rec: 0.14 },
-    { back: 30, open: 0.14, cite: 0.38, rec: 0.0 }
+    { back: 2, drop: 0, hash: 'demo0001' },
+    { back: 16, drop: 2, hash: 'demo0001' },
+    { back: 30, drop: 4, hash: 'demo0000' }
   ];
   function runId(i) { return jstDate(RUNS[i].back) + '-demo' + i; }
 
-  function aioRun(i) {
-    var R = RUNS[i];
-    var results = SAMPLE_QS.map(aioResult);
-    var openRes = results.filter(function (x) { return x.cat !== 'ブランド指名'; });
+  function demoResults(drop) {
+    var out = [];
+    for (var s = 0; s < DEMO_SAMPLES; s++) {
+      DEMO_ENGINES.forEach(function (e) {
+        SAMPLE_QS.forEach(function (q, qi) {
+          var r = aioResult(q, s, e);
+          // Older runs: a few of the hits had not happened yet.
+          if (drop && isHitV(r.verdict) && !q.branded && (qi + s) % 5 < drop) {
+            r.verdict = 'absent'; r.named = false; r.cited = false; r.citedRank = null; r.citedUrls = [];
+            r.position = null; r.sentiment = null;
+            r.companies = r.companies.filter(function (c) { return c !== 'Lumenium'; });
+          }
+          out.push(r);
+        });
+      });
+    }
+    return out;
+  }
+
+  function demoSummary(results) {
+    var done = results.filter(function (x) { return x.verdict; });
+    var open = done.filter(function (x) { return !x.branded; });
+    var stats = ratesOf(done);
+    var verdicts = { recommended: 0, mentioned: 0, denied: 0, other_company: 0, absent: 0 };
+    done.forEach(function (x) { verdicts[x.verdict]++; });
+    var byQ = {}, order = [];
+    results.forEach(function (x) {
+      if (!byQ[x.id]) { byQ[x.id] = { id: x.id, cat: x.cat, q: x.q, branded: x.branded, n: 0, hits: 0, recs: 0, cites: 0, searched: 0, total: 0, perEngine: {} }; order.push(x.id); }
+      var row = byQ[x.id];
+      row.total++; row.n++;
+      if (!row.perEngine[x.engine]) row.perEngine[x.engine] = { n: 0, hits: 0, recs: 0, cites: 0 };
+      var pe = row.perEngine[x.engine];
+      pe.n++;
+      if (isHitV(x.verdict)) { row.hits++; pe.hits++; }
+      if (x.verdict === 'recommended') { row.recs++; pe.recs++; }
+      if (x.cited) { row.cites++; pe.cites++; }
+      if (x.searched) row.searched++;
+    });
     var cats = [];
     results.forEach(function (x) { if (cats.indexOf(x.cat) < 0) cats.push(x.cat); });
-    var hit = function (x) { return x.verdict === 'recommended' || x.verdict === 'mentioned'; };
-    var verdicts = { recommended: 0, mentioned: 0, denied: 0, other_company: 0, absent: 0 };
-    results.forEach(function (x) { verdicts[x.verdict]++; });
     var tally = {};
-    openRes.forEach(function (x) { x.companies.forEach(function (c) { if (c !== 'Lumenium') tally[c] = (tally[c] || 0) + 1; }); });
-    var competitors = Object.keys(tally).map(function (k) { return { name: k, count: tally[k], share: tally[k] / openRes.length, us: false }; });
-    var usCount = Math.round(R.open * openRes.length);
-    competitors.push({ name: 'Lumenium', count: usCount, share: usCount / openRes.length, us: true });
+    open.forEach(function (x) {
+      x.companies.forEach(function (c) {
+        if (c === 'Lumenium') return;
+        // （株）サンプル制作 and サンプル制作株式会社 are one company.
+        var k = c.replace(/株式会社|合同会社|（株）/g, '');
+        if (!tally[k]) tally[k] = { name: c, count: 0, qs: {} };
+        tally[k].count++; tally[k].qs[x.id] = 1;
+      });
+    });
+    var ours = count(open, function (x) { return isHitV(x.verdict); });
+    var others = 0;
+    var competitors = Object.keys(tally).map(function (k) {
+      others += tally[k].count;
+      return { name: tally[k].name, count: tally[k].count, questions: Object.keys(tally[k].qs).length, share: tally[k].count / open.length, us: false };
+    });
+    competitors.push({ name: 'Lumenium', count: ours, questions: 0, share: ours / open.length, us: true });
     competitors.sort(function (a, b) { return b.count - a.count; });
-    var finished = ago(R.back * DAY + 3 * 3600000);
-    var summary = {
+    var placed = open.filter(function (x) { return isHitV(x.verdict) && x.position; });
+    var sentiment = { positive: 0, neutral: 0, negative: 0 };
+    done.forEach(function (x) { if (isHitV(x.verdict) && sentiment[x.sentiment] !== undefined) sentiment[x.sentiment]++; });
+    return {
       missingEvidence: ['制作実績の本数と料金の幅', 'デザインの料金表', '第三者サイトでの事業者情報'],
-      asked: results.length, total: results.length, coverage: 1, errors: [], unjudged: 0, failed: 0, fallback: false,
-      mentionRate: Math.min(1, R.open + 0.12), openMentionRate: R.open, recommendRate: R.rec,
-      verdicts: verdicts, citeRate: R.cite,
+      asked: done.length, total: results.length, questions: order.length, samples: DEMO_SAMPLES, engineIds: DEMO_ENGINES,
+      coverage: 1, errors: [], unjudged: 0, truncated: 0, failed: 0, fallback: false,
+      stats: stats,
+      mentionRate: stats.mention.p, openMentionRate: stats.openMention.p, recommendRate: stats.recommend.p,
+      citeRate: stats.cite.p, searchRate: stats.searched.p,
+      verdicts: verdicts,
+      engines: DEMO_ENGINES.map(function (e) {
+        var list = done.filter(function (x) { return x.engine === e; });
+        return { id: e, label: ENGINE_LABEL[e], model: 'demo', total: list.length, asked: list.length, failed: 0, truncated: 0, stats: ratesOf(list) };
+      }),
+      byQuestion: order.map(function (id) { return byQ[id]; }),
       byCategory: cats.map(function (cat) {
-        var list = results.filter(function (x) { return x.cat === cat; });
-        return { cat: cat, asked: list.length, planned: list.length, mentions: list.filter(hit).length,
-          cites: list.filter(function (x) { return x.cited; }).length, thin: true, rate: null };
+        var list = done.filter(function (x) { return x.cat === cat; });
+        var k = count(list, function (x) { return isHitV(x.verdict); });
+        return { cat: cat, asked: list.length, planned: list.length, questions: 1, plannedQuestions: 1, branded: cat === 'ブランド指名',
+          mentions: k, cites: count(list, function (x) { return x.cited; }), thin: true, rate: null, ci: null };
       }),
       competitors: competitors,
+      shareOfVoice: { ours: ours, others: others, value: ours + others ? ours / (ours + others) : 0 },
+      position: placed.length ? { avg: placed.reduce(function (s, x) { return s + x.position; }, 0) / placed.length, n: placed.length,
+        first: count(placed, function (x) { return x.position === 1; }) } : null,
+      sentiment: sentiment,
       citedPages: [
         { url: 'https://directory.example.com/web/tokyo', host: 'directory.example.com', count: 3 },
         { url: 'https://media.example.net/ai-training-list', host: 'media.example.net', count: 2 }
       ],
       ownPages: [{ path: '/services/web.html', count: 1 }, { path: '/services/ai.html', count: 1 }, { path: '/services/sns.html', count: 1 }, { path: '/', count: 1 }],
-      topSources: [{ name: 'lumenium.net', count: 5 }, { name: 'directory.example.com', count: 4 }, { name: 'media.example.net', count: 3 }]
+      topSources: [{ name: 'lumenium.net', count: 5 }, { name: 'directory.example.com', count: 4 }, { name: 'media.example.net', count: 3 }],
+      topCited: [{ name: 'lumenium.net', count: 4 }]
     };
-    return {
-      id: runId(i), startedAt: ago(R.back * DAY + 3 * 3600000 + 240000), finishedAt: finished, model: 'demo',
+  }
+
+  var runCache = {};
+  function aioRun(i) {
+    if (runCache[i]) return runCache[i];
+    var R = RUNS[i];
+    var results = demoResults(R.drop);
+    var summary = demoSummary(results);
+    runCache[i] = {
+      id: runId(i), startedAt: ago(R.back * DAY + 3 * 3600000 + 240000), finishedAt: ago(R.back * DAY + 3 * 3600000),
+      settings: { samples: DEMO_SAMPLES, engines: DEMO_ENGINES, questionsHash: R.hash, questionCount: SAMPLE_QS.length,
+        models: { claude: 'demo', openai: 'demo' }, judgeModel: 'demo' },
       results: results, summary: summary,
       actions: [
-        { rank: 1, kind: 'exists', title: '「実在が確認できない」と答えられた質問が 1 件',
-          why: 'サイトの中で何を書いても、外に裏づけが無いと答えるエンジンには確認できません。',
-          how: '第三者の面に社名・所在地・代表者・URLを同じ表記で載せる（サンプルの提案です）。',
-          evidence: [SAMPLE_QS[6].q] },
         { rank: 2, kind: 'category', title: '他社だけが挙がったカテゴリ 2 件',
           why: 'そのカテゴリの質問には答えが出ていて、そこに自社が入っていないということです。',
           how: '挙がった会社のページと自社の該当ページを並べ、料金の幅・対応範囲・実績数を足す（サンプルの提案です）。',
-          evidence: ['動画制作：' + RIVALS[3] + '、' + RIVALS[0], 'クリエイティブ：' + RIVALS[1] + '、' + RIVALS[4]] },
+          evidence: ['クリエイティブ：' + RIVALS[1] + '、' + RIVALS[4], '評判・信頼性：（回答に会社名なし）'] },
         { rank: 3, kind: 'sources', title: '複数の質問で読まれていた情報源 2 件',
           why: '答えを組み立てる材料にされている面です。',
           how: '掲載条件を確認して、載せられるものから載せる（サンプルの提案です）。',
-          evidence: ['directory.example.com（4問で参照）', 'media.example.net（3問で参照）'] }
+          evidence: ['directory.example.com（4問で参照）', 'media.example.net（3問で参照）'] },
+        { rank: 4, kind: 'cited', title: '自社サイトが答えの出典になった質問 5 / 8 件',
+          why: '検索では読まれたのに出典にされなかった回答があります。読まれても、答えに使える一文が無かったということです。',
+          how: '計測している質問文を、そのままページの見出しにする（サンプルの提案です）。',
+          evidence: [SAMPLE_QS[0].q, SAMPLE_QS[3].q] }
       ],
       social: socialActivity()
     };
+    return runCache[i];
   }
 
   function socialActivity() {
     return { posts: 9, sent: 13, failed: 1, last7: 2, lastAt: ago(2 * DAY + 4 * 3600000), byNet: { x: 6, threads: 4, facebook: 3 } };
   }
 
+  // Two-proportion z-test at 95%, as api/_aio-stats.js.
+  function demoCompare(a, b) {
+    var z = function (x, y) {
+      if (!x || !y || !x.n || !y.n) return { change: 'na', diff: 0, z: 0 };
+      var pool = (x.k + y.k) / (x.n + y.n);
+      var se = Math.sqrt(pool * (1 - pool) * (1 / x.n + 1 / y.n));
+      var d = y.p - x.p, zz = se ? d / se : 0;
+      return { change: Math.abs(zz) > 1.96 ? (d > 0 ? 'up' : 'down') : 'same', diff: d, z: zz };
+    };
+    var out = {};
+    ['recommend', 'openMention', 'cite'].forEach(function (k) {
+      var r = z(a.stats[k], b.stats[k]);
+      r.before = a.stats[k]; r.after = b.stats[k];
+      out[k] = r;
+    });
+    return out;
+  }
+
+  var ENGINE_META = [
+    { id: 'claude', label: 'Claude', model: 'demo', ready: true, estUsd: 0.059 },
+    { id: 'openai', label: 'ChatGPT（OpenAI）', model: 'demo', ready: true, estUsd: 0.02 },
+    { id: 'perplexity', label: 'Perplexity', model: 'demo', ready: false, estUsd: 0.008 },
+    { id: 'gemini', label: 'Gemini', model: 'demo', ready: false, estUsd: 0.04 }
+  ];
+
   function aioGet(want) {
     var idx = 0;
     for (var i = 0; i < RUNS.length; i++) if (runId(i) === want) idx = i;
     var latest = aioRun(idx);
-    var before = idx + 1 < RUNS.length ? aioRun(idx + 1) : null;
     var all = RUNS.map(function (_, j) { return aioRun(j); });
+    var before = idx + 1 < RUNS.length ? aioRun(idx + 1) : null;
+    var prev = null;
+    if (before && RUNS[idx].hash === RUNS[idx + 1].hash) {
+      prev = {
+        comparable: true, id: before.id, finishedAt: before.finishedAt, asked: before.summary.asked, total: before.summary.total,
+        openMentionRate: before.summary.openMentionRate, recommendRate: before.summary.recommendRate, citeRate: before.summary.citeRate,
+        settings: before.settings, compare: demoCompare(before.summary, latest.summary),
+        newCompetitors: idx === 0 ? [RIVALS[4]] : [], goneCompetitors: [], newSources: idx === 0 ? ['media.example.net'] : []
+      };
+    } else if (before) {
+      prev = { comparable: false, id: before.id, finishedAt: before.finishedAt, reason: '質問の組が違います' };
+    }
+    var brief = function (r) {
+      return { id: r.id, finishedAt: r.finishedAt, mentionRate: r.summary.mentionRate, openMentionRate: r.summary.openMentionRate,
+        recommendRate: r.summary.recommendRate, citeRate: r.summary.citeRate, asked: r.summary.asked,
+        stats: { openMention: r.summary.stats.openMention, recommend: r.summary.stats.recommend, cite: r.summary.stats.cite },
+        settings: { samples: r.settings.samples, engines: r.settings.engines, questionsHash: r.settings.questionsHash } };
+    };
+    var qs = SAMPLE_QS.map(function (s) { return { id: s.id, cat: s.cat, q: s.q, branded: !!s.branded }; });
     return {
       ok: true,
-      meta: { questions: 16, categories: [], estimateUsd: 1.54, aiReady: true, stored: true, brand: 'lumenium.net' },
+      meta: {
+        questions: qs.length,
+        questionSet: { custom: false, hash: 'demo0001', list: qs, defaults: qs.length },
+        categories: [], engines: ENGINE_META,
+        samples: { options: [1, 3, 5], default: 3 },
+        judgeBatch: JUDGE_BATCH, judgeEstUsd: 0.0136,
+        estimateUsd: qs.length * 3 * 0.059 + Math.ceil(qs.length * 3 / JUDGE_BATCH) * 0.0136,
+        limits: { questions: 60, q: 200, cat: 30, id: 40, callsPerDay: 1600 },
+        aiReady: true, stored: true, brand: 'lumenium.net', brandName: 'Lumenium'
+      },
       social: socialActivity(),
       latest: latest,
-      prev: before ? {
-        id: before.id, finishedAt: before.finishedAt, asked: before.summary.asked, total: before.summary.total,
-        openMentionRate: before.summary.openMentionRate, citeRate: before.summary.citeRate,
-        newCompetitors: idx === 0 ? [RIVALS[4]] : [], goneCompetitors: [], newSources: idx === 0 ? ['media.example.net'] : []
-      } : null,
-      runs: all.map(function (r) { return { id: r.id, finishedAt: r.finishedAt, openMentionRate: r.summary.openMentionRate, asked: r.summary.asked }; }),
-      history: all.map(function (r) {
-        return { id: r.id, finishedAt: r.finishedAt, mentionRate: r.summary.mentionRate, openMentionRate: r.summary.openMentionRate,
-          citeRate: r.summary.citeRate, asked: r.summary.asked };
-      })
+      prev: prev,
+      runs: all.map(brief),
+      history: all.map(brief)
     };
   }
 
   /* A measurement can be "run" in demo: a handful of the sample questions,
      answered at once, and the same report at the end. stored:true keeps the
      panel from copying the run into this browser's real AIO history. */
-  var DEMO_RUN_QS = 5;
+  var DEMO_RUN_QS = 4;
   function aioPost(body) {
     var a = body && body.action;
     if (a === 'start') {
+      var samples = [1, 3, 5].indexOf(Number(body.samples)) >= 0 ? Number(body.samples) : 3;
+      var engines = (body.engines || ['claude']).filter(function (e) { return e === 'claude' || e === 'openai'; });
+      if (!engines.length) engines = ['claude'];
+      var n = DEMO_RUN_QS * samples * engines.length;
       return { ok: true, runId: jstDate(0) + '-demo', startedAt: new Date().toISOString(), stored: true, storeWarning: null,
-        questions: SAMPLE_QS.slice(0, DEMO_RUN_QS).map(function (s) { return { id: s.id, cat: s.cat, q: s.q }; }) };
+        samples: samples, engines: engines,
+        settings: { samples: samples, engines: engines, questionsHash: 'demo0001', questionCount: DEMO_RUN_QS },
+        plan: { answers: n, judgeCalls: Math.ceil(n / JUDGE_BATCH), calls: n + Math.ceil(n / JUDGE_BATCH), usd: 0 },
+        paceMs: 0, maxContinuations: 2, judgeBatch: JUDGE_BATCH,
+        questions: SAMPLE_QS.slice(0, DEMO_RUN_QS).map(function (s) { return { id: s.id, cat: s.cat, q: s.q, branded: !!s.branded }; }) };
     }
     if (a === 'ask') {
       var i = Math.max(0, Math.min(SAMPLE_QS.length - 1, Number(body.index) || 0));
-      return { ok: true, index: i, total: DEMO_RUN_QS, result: aioResult(SAMPLE_QS[i]), storeWarning: null };
+      var r = aioResult(SAMPLE_QS[i], Number(body.sample) || 0, body.engine === 'openai' ? 'openai' : 'claude');
+      // The verdict comes from the judge, as in a real run.
+      var bare = {};
+      for (var k in r) bare[k] = r[k];
+      bare.verdict = null; bare.companies = []; bare.position = null; bare.sentiment = null; bare.missing = '';
+      return { ok: true, index: i, sample: bare.sample, engine: bare.engine, result: bare, storeWarning: null };
+    }
+    if (a === 'judge') {
+      var verdicts = {};
+      (body.items || []).forEach(function (it) {
+        var parts = String(it.key || '').split('#');
+        var s = SAMPLE_QS.filter(function (x) { return x.id === parts[0]; })[0];
+        if (!s) return;
+        var full = aioResult(s, Number(parts[2]) || 0, parts[1]);
+        verdicts[it.key] = { verdict: full.verdict, companies: full.companies, missing: full.missing, position: full.position, sentiment: full.sentiment };
+      });
+      return { ok: true, verdicts: verdicts };
     }
     if (a === 'finalize') return { ok: true, run: aioRun(0), stored: true };
     if (a === 'probe') {
-      var s = SAMPLE_QS[0];
-      return { ok: true, probe: { ok: true, q: s.q, ms: 16800, named: true, cited: true, searched: 3,
-        sources: s.sources, preview: s.answer } };
+      var s0 = SAMPLE_QS[0];
+      return { ok: true, probe: { ok: true, q: s0.q, engine: 'claude', ms: 16800, named: true, cited: true, searched: true, searchCount: 6,
+        citedCount: 1, truncated: false, paused: false, sources: s0.sources, preview: s0.answer } };
     }
     return blocked();
   }
