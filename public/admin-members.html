@@ -919,6 +919,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-video.js"></script>
 <script src="/admin-social-plan.js"></script>
 <script src="/admin-inquiries.js"></script>
+<!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
+<script src="/admin-members-tool.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -1001,6 +1003,8 @@ header h1, header button, header a { white-space: nowrap; }
     <button type="button" id="to-portal">← ポータル</button>
 
     <div class="panel" id="list-view">
+      <!-- 項目の切り替えと詳しい内容。中身は /admin-members-tool.js が組み立てます。 -->
+      <div id="members-tool-slot"></div>
       <div class="share-block">
         <div class="share-head">
           <span class="share-label">会員リストの共有リンク</span>
@@ -2599,6 +2603,7 @@ window.lumAdmin = {
       stateEl.className = 'msg';
       stateEl.textContent = '';
       members = r.data.members || [];
+      if (window.lumMembersTool) window.lumMembersTool.loaded(r.data);
       render();
       return;
     }
@@ -2915,6 +2920,8 @@ window.lumAdmin = {
   function render() {
     var q = (searchEl.value || '').toLowerCase();
     var shown = members.filter(function (m) {
+      // The group filter lives in /admin-members-tool.js.
+      if (window.lumMembersTool && !window.lumMembersTool.keep(m)) return false;
       return !q || (m.name || '').toLowerCase().indexOf(q) !== -1 ||
         (m.email || '').toLowerCase().indexOf(q) !== -1 ||
         (m.company || '').toLowerCase().indexOf(q) !== -1;
@@ -2922,7 +2929,10 @@ window.lumAdmin = {
     rowsEl.textContent = '';
     shown.forEach(function (m) {
       var tr = document.createElement('tr');
-      var tdN = document.createElement('td'); tdN.textContent = m.name || '—';
+      var tdN = document.createElement('td');
+      // The name opens the member's detail (/admin-members-tool.js).
+      if (window.lumMembersTool && m.id) tdN.appendChild(window.lumMembersTool.nameCell(m));
+      else tdN.textContent = m.name || '—';
       var tdC = document.createElement('td'); tdC.textContent = m.company || '—';
       var tdE = document.createElement('td'); tdE.className = 'email'; tdE.textContent = m.email;
       var tdD = document.createElement('td'); tdD.textContent = fmtDate(m.created);

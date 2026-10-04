@@ -207,6 +207,90 @@ await t('同意の記録: 日時・ページ・文面の版。壊れた値は「
   assert.equal(all.get(key).version, '2026-10')
 })
 
+/* ---- 管理画面の操作（api/members.js） ---- */
+const ADMIN = { authorization: 'Bearer test-admin', 'content-type': 'application/json' }
+let ipN = 0
+const call = (mod, method, query, body) => mod[method](new Request('https://sample.example/api/members' + query, {
+  method, headers: { ...ADMIN, 'x-forwarded-for': `198.51.100.${++ipN}` }, body: body ? JSON.stringify(body) : undefined,
+}))
+const PERSON = { id: 'c_del', email: 'Hanako@Example.com', first_name: '山田 花子', last_name: '架空商事', created_at: '2026-09-01T00:00:00Z', unsubscribed: false, properties: { company: '架空商事' } }
+
+await t('削除: 連絡先と同意の記録を消し、監査には個人を指す値を残さない', async () => {
+  standardRoutes()
+  let deleted = ''
+  routes.push(
+    ['GET', /^\/contacts\/c_del$/, () => ({ body: PERSON })],
+    ['GET', /^\/contacts\/c_del\/segments/, () => ({ body: { data: [{ id: 'seg_all' }, { id: 'seg_vip' }] } })],
+    ['DELETE', /^\/contacts\/c_del$/, (h) => { deleted = h[0]; return { body: { deleted: true } } }],
+  )
+  const key = await M.consentKey(PERSON.email)
+  redis([['HSET', M.MK.consent, key, JSON.stringify({ at: '2026-09-01T00:00:00Z', version: '2026-10', source: '/register.html', ipHash: 'iphash123' })]])
+  const mod = await import('../api/members.js')
+  const detail = await (await call(mod, 'GET', '?id=c_del')).json()
+  assert.equal(detail.member.company, '架空商事')
+  assert.deepEqual(detail.member.segments, ['seg_vip'], '全員のグループは出さない')
+  assert.equal(detail.consent.version, '2026-10')
+
+  const wrong = await call(mod, 'POST', '', { action: 'delete', id: 'c_del', email: 'someone@example.com', reason: 'request' })
+  assert.equal(wrong.status, 409, '画面の人と違えば消さない')
+  assert.equal(deleted, '')
+
+  const res = await call(mod, 'POST', '', { action: 'delete', id: 'c_del', email: 'hanako@example.com', reason: 'request' })
+  const out = await res.json()
+  assert.equal(out.ok, true)
+  assert.equal(deleted, '/contacts/c_del')
+  assert.match(out.ref, /^A[0-9A-Z]{6,}$/)
+  assert.equal(out.consentRemoved, true)
+  assert.equal(hashes.get(M.MK.consent).has(key), false, '同意の記録も消える')
+  const audit = lists.get(M.MK.audit) || []
+  assert.equal(audit.length, 1)
+  const row = JSON.parse(audit[0])
+  assert.equal(row.action, 'delete')
+  assert.equal(row.reason, 'request')
+  assert.equal(row.hadConsent, true)
+  const text = audit[0].toLowerCase()
+  for (const bad of ['hanako', 'example.com', '山田', '架空商事', 'c_del', key, 'iphash123']) {
+    assert.equal(text.includes(String(bad).toLowerCase()), false, `監査に「${bad}」が入っている`)
+  }
+  const shown = await (await call(mod, 'GET', '?view=audit')).json()
+  assert.equal(shown.items[0].ref, out.ref)
+})
+
+await t('配信停止: unsubscribed だけを送り、戻す操作は無い', async () => {
+  standardRoutes()
+  let patch = null
+  routes.push(['PATCH', /^\/contacts\/c9$/, (_h, b) => { patch = b; return { body: { id: 'c9' } } }])
+  const mod = await import('../api/members.js')
+  const out = await (await call(mod, 'POST', '', { action: 'unsubscribe', id: 'c9' })).json()
+  assert.equal(out.ok, true)
+  assert.deepEqual(patch, { unsubscribed: true })
+  const back = await (await call(mod, 'POST', '', { action: 'resubscribe', id: 'c9' })).json()
+  assert.equal(back.ok, false)
+  const audit = JSON.parse(lists.get(M.MK.audit)[0])
+  assert.equal(audit.action, 'unsubscribe')
+})
+
+await t('名前と会社名の修正・グループの出入り', async () => {
+  standardRoutes()
+  const seen = []
+  routes.push(
+    ['PATCH', /^\/contacts\/c7$/, (_h, b) => { seen.push(['patch', b]); return { body: { id: 'c7' } } }],
+    ['POST', /^\/contacts\/c7\/segments\/seg_vip$/, () => { seen.push(['join']); return { body: { id: 'seg_vip' } } }],
+    ['DELETE', /^\/contacts\/c7\/segments\/seg_vip$/, () => { seen.push(['leave']); return { body: { deleted: true } } }],
+    ['POST', /^\/segments$/, (_h, b) => { seen.push(['make', b.name]); return { body: { id: 'seg_new', name: b.name } } }],
+  )
+  const mod = await import('../api/members.js')
+  assert.equal((await (await call(mod, 'POST', '', { action: 'update', id: 'c7', name: ' 佐藤 ', company: '新会社' })).json()).ok, true)
+  assert.deepEqual(seen[0][1], { first_name: '佐藤', last_name: '新会社', properties: { company: '新会社' } })
+  assert.equal((await call(mod, 'POST', '', { action: 'update', id: 'c7', name: '' })).status, 400)
+  assert.equal((await (await call(mod, 'POST', '', { action: 'segment.join', id: 'c7', segment: 'seg_vip' })).json()).ok, true)
+  assert.equal((await (await call(mod, 'POST', '', { action: 'segment.leave', id: 'c7', segment: 'seg_vip' })).json()).ok, true)
+  const made = await (await call(mod, 'POST', '', { action: 'segment.create', name: 'セミナー' })).json()
+  assert.equal(made.segment.id, 'seg_new')
+  assert.equal((await call(mod, 'POST', '', { action: 'segment.delete', segment: 'seg_all' })).status, 400, '全員のグループは消せない')
+  assert.deepEqual(seen.map((x) => x[0]), ['patch', 'join', 'leave', 'make'])
+})
+
 if (failed) {
   console.error(`\n${failed} 件の確認が通りませんでした。`)
   process.exit(1)

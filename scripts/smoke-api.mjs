@@ -199,6 +199,11 @@ const CALLS = [
   // 管理画面のログイン。ADMIN_KEY だけで通ること（Resend に頼らない）。
   ['admin-ping', 'GET', '', KEY],
   ['members-list', 'GET', '', KEY],
+  // 会員リストの詳しい内容とグループ（api/members.js）。
+  ['members', 'GET', '?id=smoke1', KEY],
+  ['members', 'GET', '?view=audit', KEY],
+  ['members', 'POST', '', JSONH, { action: 'update', id: 'smoke1', name: 'スモーク', company: '' }],
+  ['members', 'POST', '', JSONH, { action: 'segment.create', name: 'スモーク' }],
   // 設定状況の「テスト」。相手のサービスはすべて上の fetch が受け止めます。
   ...['resend', 'github', 'ai', 'store', 'google'].map((t) => ['settings-test', 'POST', '', JSONH, { target: t }]),
   ['members-view', 'GET', '?key=smoke-admin-key', {}],
