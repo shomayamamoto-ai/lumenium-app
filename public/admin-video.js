@@ -37,6 +37,8 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+  /* 入力欄には、消えてしまう placeholder ではなく、常に見える見出しを付けます。 */
+  function fld(label, control) { return '<label class="vid-fld"><span class="soc-lab">' + label + '</span>' + control + '</label>'; }
   function demo() { try { return sessionStorage.getItem('lum_demo') === '1'; } catch (_) { return false; } }
   function say(t, info) {
     var m = el('vid-msg');
@@ -454,12 +456,12 @@
   function editor(host, s) {
     host.innerHTML =
       '<div class="soc-fields" style="margin-top:10px">' +
-        '<input type="text" id="ve-title" maxlength="200" placeholder="タイトル" value="' + esc(s.title) + '">' +
-        '<select id="ve-hook-type" aria-label="フックの型">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>フック: ' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>' +
-        '<input type="text" id="ve-hook" maxlength="300" placeholder="フック（最初の約3秒）" value="' + esc(s.hook) + '">' +
-        '<input type="text" id="ve-cta" maxlength="300" placeholder="CTA（最後にしてほしい行動）" value="' + esc(s.cta) + '">' +
-        '<input type="text" id="ve-tags" placeholder="ハッシュタグ（空白区切り・5個まで）" value="' + esc((s.hashtags || []).join(' ')) + '">' +
-        '<select id="ve-net" aria-label="投稿先">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>' +
+        fld('タイトル', '<input type="text" id="ve-title" maxlength="200" value="' + esc(s.title) + '">') +
+        fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
+        fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
+        fld('CTA（最後にしてほしい行動を1つ）', '<input type="text" id="ve-cta" maxlength="300" value="' + esc(s.cta) + '">') +
+        fld('ハッシュタグ（空白区切り・5個まで）', '<input type="text" id="ve-tags" value="' + esc((s.hashtags || []).join(' ')) + '">') +
+        fld('投稿先', '<select id="ve-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
       '</div>' +
       '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画）</label>' +
       '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
@@ -816,12 +818,12 @@
       '<p class="soc-small" id="vp-caps"></p>' +
       '<details class="soc-ai" open><summary>新しい投稿</summary><div class="soc-ai-body">' +
         '<div class="soc-fields">' +
-          '<select id="vn-net" aria-label="投稿先">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '">' + NET_LABEL[n] + '</option>'; }).join('') + '</select>' +
-          '<select id="vn-script" aria-label="元にする台本"><option value="">台本を使わない</option>' + d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>台本: ' + esc(s.title || '（無題）') + '</option>'; }).join('') + '</select>' +
+          fld('投稿先', '<select id="vn-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '">' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
+          fld('元にする台本（本文とタグを入れます）', '<select id="vn-script"><option value="">台本を使わない</option>' + d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') + '</select>') +
         '</div>' +
-        '<input type="text" id="vn-title" class="vid-in" maxlength="100" placeholder="タイトル（YouTube は必須・100文字まで）" style="margin-top:8px">' +
-        '<textarea id="vn-caption" rows="4" placeholder="本文（キャプション）" style="margin-top:8px"></textarea>' +
-        '<input type="text" id="vn-tags" class="vid-in" placeholder="ハッシュタグ（空白区切り・5個まで）" style="margin-top:8px">' +
+        fld('タイトル（YouTube は必須・100文字まで）', '<input type="text" id="vn-title" class="vid-in" maxlength="100">') +
+        fld('本文（キャプション）', '<textarea id="vn-caption" rows="4"></textarea>') +
+        fld('ハッシュタグ（空白区切り・5個まで）', '<input type="text" id="vn-tags" class="vid-in">') +
         '<div id="vn-fit" class="soc-small" style="margin-top:6px"></div>' +
         '<label class="soc-lab" for="vn-file">動画ファイル</label><input type="file" id="vn-file" accept="video/mp4,video/quicktime,video/webm">' +
         '<div class="vid-row" style="margin-top:8px" id="vn-yt-opts">' +
