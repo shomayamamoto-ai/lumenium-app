@@ -1236,6 +1236,103 @@
     return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } });
   }
 
+
+  /* ---- SNS（動画） (shape: api/video.js, api/video-publish.js) ----
+     架空のパン屋の、架空の数字です。実在の店・アカウント・投稿とは関係
+     ありません。保存・AI・投稿はすべて「デモ版のため…」で止まります。
+     出荷前チェックと無音カットは、選んだファイルをこのブラウザの中だけで
+     調べるので、デモでもそのまま動きます。 */
+  var VIDEO_RULES = null;
+  function videoReady() {
+    return { ai: true, blob: true, instagram: true, youtubeClient: true, youtube: true, tiktokClient: true, tiktok: false, schedule: { ok: true } };
+  }
+  var VIDEO_PROJECT = {
+    id: 'demo-video', name: 'ことり製パン（架空）', description: '町のパン屋のリール運用（デモ用の架空データ）',
+    brand: {
+      persona: '店主。パンを焼いて15年', tone: 'やわらかく、言い切りすぎない',
+      banned_words: ['日本一', '絶対においしい'], notation: { '焼立て': '焼きたて', 'ばけっと': 'バゲット' },
+      notation_exceptions: ['焼立て窯'], style: 'warm natural light, 35mm photo, shallow depth of field'
+    },
+    research: [{ keyword: 'パン屋 朝', platform: 'instagram', at: '' }], created_at: ago(30 * DAY)
+  };
+  function videoPosts() {
+    var raw = [
+      ['朝4時の仕込み、全部見せます', 18, 42000, 2100, 60, 140, 1.2],
+      ['このパン、なんで穴があくの？', 24, 28000, 1900, 85, 210, 2.5],
+      ['売り切れる理由を3つ', 31, 15000, 620, 30, 44, 4],
+      ['新人が初めて焼いたバゲット', 45, 9800, 510, 41, 12, 6],
+      ['閉店後のまかないパン', 22, 7600, 300, 12, 9, 9],
+      ['粉の違いで味はこう変わる', 58, 5200, 260, 22, 31, 11],
+      ['パン屋の1日を60秒で', 60, 4100, 120, 8, 6, 14],
+      ['いちばん人気はこれでした', 15, 3900, 240, 15, 20, 20]
+    ];
+    var hooks = ['statement', 'question', 'number', 'story', 'statement', 'other', 'story', 'statement'];
+    return raw.map(function (r, i) {
+      var p = { id: 'demo-post-' + i, platform: 'instagram', url: '', title: r[0], caption: r[0] + '\n#パン屋 #朝ごはん', author: '架空のパン屋' + (i % 3 + 1),
+        published_at: ago(r[6] * DAY), duration_sec: r[1], views: r[2], likes: r[3], comments: r[4], shares: r[5], source: 'demo', analysis: null };
+      if (i < 4) p.analysis = {
+        hook_text: r[0], hook_type: hooks[i],
+        beats: [{ label: 'hook', start: 0, end: 3, purpose: '手を止めさせる（何が見られるかを一言で）' }, { label: 'context', start: 3, end: 7, purpose: '誰向けかを示す' },
+          { label: 'body', start: 7, end: r[1] - 3, purpose: '工程を順に見せる' }, { label: 'cta', start: r[1] - 3, end: r[1], purpose: '保存をうながす' }],
+        caption: { line_count: 1, avg_chars: r[0].length, max_chars: r[0].length, chars_per_sec: Math.round(r[0].length / r[1] * 100) / 100 },
+        hashtags: ['パン屋', '朝ごはん'], takeaways: ['冒頭で結論を見せる', '工程を短く区切る'], onscreen_note: '画面内テロップは動画ファイルが無いので未測定'
+      };
+      return p;
+    });
+  }
+  function videoScript() {
+    var lines = [
+      [0, 3, 'この穴、どうやってできると思います？', 'この穴、どうやってできる？', 'Close-up of a sliced country loaf showing open crumb'],
+      [3, 8, '答えは、生地に入れる水の量なんです。', '答えは「水の量」', 'Baker pouring water into a large mixing bowl'],
+      [8, 14, 'うちでは粉の重さの8割の水を入れます。', '粉の8割が水', 'Hands folding a wet, glossy dough on a wooden table'],
+      [14, 20, '扱いにくい生地ですが、そのぶん軽く焼けます。', 'だから軽い', 'Loaf coming out of a stone oven, steam rising'],
+      [20, 24, '明日の朝、焼きたてを試しに来てください。', '保存して朝に見返してね', 'Warm bakery counter at sunrise with bread on display']
+    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4] }; });
+    var sc = {
+      id: 'demo-script', title: 'カンパーニュの穴のひみつ', platform: 'instagram', target_duration_sec: 24, hook: lines[0].narration, body: '水の量で食感が変わる', cta: '保存して朝に見返してね',
+      hook_type: 'question', lines: lines, hashtags: ['パン屋', 'カンパーニュ', '朝ごはん'], style: VIDEO_PROJECT.brand.style,
+      rationale: '競合の上位は「問いかけ→答え→工程」の順で、24秒前後に集まっています。答えを早めに出し、工程を2つに絞りました。',
+      originality: { clean: true, attempts: 1, findings: [] }, created_at: ago(2 * DAY)
+    };
+    sc.shots = window.lumVideoCore ? window.lumVideoCore.shotsFromLines(lines, sc.style) : [];
+    return sc;
+  }
+  function videoPubs() {
+    var specs = [
+      ['instagram', 'published', 'question', 24, 9, 9, 18200, 1240, 380, 9.8, 0.52],
+      ['instagram', 'published', 'statement', 18, 7, 7, 11000, 610, 150, 7.1, 0.46],
+      ['instagram', 'published', 'question', 22, 5, 7, 15400, 990, 300, 8.9, 0.55],
+      ['youtube', 'published', 'story', 40, 4, 12, 3200, 140, null, null, null],
+      ['instagram', 'processing', 'number', 30, 0, 0, null],
+      ['tiktok', 'inbox', 'statement', 20, 1, 0, null]
+    ];
+    return specs.map(function (x, i) {
+      var u = { id: 'demo-pub-' + i, platform: x[0], status: x[1], script_id: i === 0 ? 'demo-script' : '', title: ['カンパーニュの穴のひみつ', '朝4時の仕込み', '粉で味はどう変わる？', 'パン屋の1日', '人気ランキング', '新作の試作'][i],
+        caption: '架空のデモ投稿です。', hashtags: ['パン屋'], hook_type: x[2], duration_sec: x[3], published_at: x[4] ? new Date(Date.now() - x[4] * DAY + (x[5] - new Date().getHours()) * 3600000).toISOString() : '',
+        external_id: x[6] != null ? 'demo' + i : '', external_url: '', error: '', snapshots: [] };
+      if (x[6] != null) u.snapshots.push({ captured_at: ago(DAY / 2), views: x[6], likes: x[7], comments: Math.round(x[7] / 30), shares: Math.round(x[7] / 20), saves: x[8], avg_watch_sec: x[9], retention_rate: x[10], reach: Math.round(x[6] * 0.8), source: 'demo' });
+      return u;
+    });
+  }
+  function videoList() {
+    return { ok: true, stored: true, projects: [VIDEO_PROJECT], accounts: [], ready: videoReady(), rules: window.lumVideoCore ? window.lumVideoCore.RULES : VIDEO_RULES };
+  }
+  function videoProject() {
+    var C = window.lumVideoCore;
+    var posts = videoPosts();
+    var scored = C ? C.scorePosts(posts) : posts;
+    return {
+      ok: true, stored: true, project: VIDEO_PROJECT, ready: videoReady(), rules: C ? C.RULES : null, caps: { posts: 300, scripts: 100, pubs: 300, pdca: 50 },
+      posts: scored, band: C ? C.durationBand(scored) : { ok: false, message: '' },
+      scripts: [videoScript()], pubs: videoPubs(),
+      pdca: [{ id: 'demo-pdca', title: '冒頭を問いかけにする', stage: 'check', hypothesis: '問いかけで始めると、最後まで見る人が増えるはず', target: { metric: 'retention_rate', target: 0.05, baseline: 0.46 },
+        publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) }]
+    };
+  }
+  function videoPublishInfo() {
+    return { ok: true, ready: videoReady(), queue: [], caps: { instagram: { ok: true, cap: 25, used: 1 }, tiktok: { ok: true, cap: 25, used: 1 } }, cron: { at: ago(DAY / 3), started: 1, published: 1, failed: 0, waiting: 0 }, jstHour: 9 };
+  }
+
   /* ---- router ---- */
   function reply(body, status) {
     return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
@@ -1298,8 +1395,11 @@
       case '/api/settings': return reply(settings());
       case '/api/social': return reply(q.get('quota') ? socialQuotas() : social());
       case '/api/google-oauth':
+      case '/api/video-oauth':
         notice(MSG);
         return reply(blocked());
+      case '/api/video': return reply(q.get('project') ? videoProject() : videoList());
+      case '/api/video-publish': return reply(videoPublishInfo());
     }
     return reply(blocked());
   }

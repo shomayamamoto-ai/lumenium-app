@@ -10,13 +10,14 @@
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",
     "deploy:logs": "vercel logs --follow",
-    "prebuild": "node scripts/build-stamp.mjs && node scripts/build-arena.mjs && node scripts/build-puzzle.mjs && node scripts/build-territory.mjs && node scripts/build-crawl-assets.mjs && node scripts/build-social-text.mjs && node scripts/smoke-api.mjs && node scripts/test-analytics.mjs && node scripts/test-engines.mjs && node scripts/test-aio.mjs && node scripts/test-social.mjs && node scripts/check-copy-reach.mjs && node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs && node scripts/build-404.mjs",
+    "prebuild": "node scripts/build-stamp.mjs && node scripts/build-arena.mjs && node scripts/build-puzzle.mjs && node scripts/build-territory.mjs && node scripts/build-crawl-assets.mjs && node scripts/build-social-text.mjs && node scripts/build-video-core.mjs && node scripts/smoke-api.mjs && node scripts/test-analytics.mjs && node scripts/test-engines.mjs && node scripts/test-aio.mjs && node scripts/test-social.mjs && node scripts/test-video.mjs && node scripts/check-copy-reach.mjs && node scripts/build-content-schema.mjs && node scripts/build-service-pages.mjs && node scripts/build-content-pages.mjs && node scripts/build-404.mjs",
     "indexnow": "node scripts/indexnow.mjs",
     "check:api": "node scripts/smoke-api.mjs",
     "test:analytics": "node scripts/test-analytics.mjs",
     "test:aio": "node scripts/test-engines.mjs && node scripts/test-aio.mjs",
     "check:copy": "node scripts/check-copy-render.mjs",
     "test:social": "node scripts/test-social.mjs",
+    "test:video": "node scripts/build-video-core.mjs && node scripts/test-video.mjs",
     "audit:local": "node scripts/audit-local.mjs"
   },
   "dependencies": {

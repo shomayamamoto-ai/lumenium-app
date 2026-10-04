@@ -49,6 +49,8 @@ Object.assign(process.env, {
   THREADS_USER_ID: '3', THREADS_TOKEN: 'smoke',
   LI_AUTHOR_URN: 'urn:li:person:smoke', LI_TOKEN: 'smoke',
   LINE_CHANNEL_TOKEN: 'smoke',
+  // SNS（動画）の YouTube と TikTok。
+  YOUTUBE_REFRESH_TOKEN: 'smoke', TIKTOK_CLIENT_KEY: 'smoke', TIKTOK_CLIENT_SECRET: 'smoke', TIKTOK_REFRESH_TOKEN: 'smoke',
   // 予約投稿と毎朝の自動処理。BLOB_READ_WRITE_TOKEN は入れません——入れると
   // @vercel/blob が本物の Vercel に出ていこうとします（ここでは止められない）。
   CRON_SECRET: 'smoke-cron',
@@ -94,6 +96,17 @@ globalThis.fetch = async (input, init = {}) => {
     let req = {}
     try { req = JSON.parse(init.body || '{}') } catch (_) {}
     const fmt = req.output_config && req.output_config.format
+    // SNS（動画）の構成分析と台本づくり。形だけ合った返事を返します。
+    if (fmt && fmt.type === 'json_schema' && fmt.schema.properties.analyses) {
+      const ids = [...String(req.messages[0].content).matchAll(/post_id: (\S+)/g)].map((m) => m[1])
+      const analyses = ids.map((id) => ({ post_id: id, hook_text: 'スモーク', hook_type: 'question', beats: [{ label: 'hook', start: 0, end: 3, purpose: 'つかみ' }], cta: '', takeaways: ['型'] }))
+      return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ analyses }) }], usage: { input_tokens: 1, output_tokens: 1 } })
+    }
+    if (fmt && fmt.type === 'json_schema' && fmt.schema.properties.lines) {
+      const script = { title: 'スモーク', hook: 'これ知ってた？', hook_type: 'question', body: '本文', cta: '保存してね', target_duration_sec: 9, hashtags: ['スモーク'], rationale: '型',
+        lines: [{ start: 0, end: 3, narration: 'これ知ってた？', telop: 'これ知ってた？', visual: 'A cafe' }, { start: 3, end: 9, narration: '保存してね', telop: '保存してね', visual: 'A cup' }] }
+      return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(script) }], usage: { input_tokens: 1, output_tokens: 1 } })
+    }
     if (fmt && fmt.type === 'json_schema') {
       const nets = fmt.schema.properties.drafts.required
       const drafts = Object.fromEntries(nets.map((n) => [n, { text: 'スモークテストの下書きです。', hashtags: ['スモーク'] }]))
@@ -154,6 +167,14 @@ globalThis.fetch = async (input, init = {}) => {
     return ok({ id: 'container_1', post_id: '1_2' })
   }
   if (u.includes('api.linkedin.com')) return ok({ id: 'urn:li:share:1' })
+  if (u.includes('googleapis.com/youtube/v3/videos')) return ok({ items: [{ statistics: { viewCount: '12', likeCount: '1', commentCount: '0' } }] })
+  if (u.includes('open.tiktokapis.com')) {
+    if (u.includes('/oauth/token/')) return ok({ access_token: 'tt', refresh_token: 'smoke', scope: 'video.upload' })
+    if (u.includes('/inbox/video/init/')) return ok({ data: { publish_id: 'p_1', upload_url: 'https://open-upload.tiktokapis.com/upload/?id=1' }, error: { code: 'ok' } })
+    if (u.includes('/status/fetch/')) return ok({ data: { status: 'SEND_TO_USER_INBOX' }, error: { code: 'ok' } })
+    return ok({ data: { videos: [{ id: '1', view_count: 5 }] }, error: { code: 'ok' } })
+  }
+  if (u.includes('open-upload.tiktokapis.com')) return new Response(null, { status: 201 })
   throw new Error(`smoke test tried to reach the network: ${u}`)
 }
 
@@ -230,6 +251,29 @@ const CALLS = [
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],
   // 画像の置き場所が無い状態（＝ 503 で理由を返す）。
   ['social-upload', 'POST', '', { ...KEY, 'content-type': 'image/jpeg' }, '__bytes__'],
+  // SNS（動画）。プロジェクトを決まった id で作り、その中で一通り呼びます。
+  ['video', 'GET', '', KEY],
+  ['video', 'POST', '', JSONH, { action: 'project.save', project: { id: 'smoke-prj', name: 'スモーク', brand: { banned_words: ['最安'], notation: { 'ネイル': 'nail' } } } }],
+  ['video', 'PUT', '', JSONH, { kind: 'posts', project: 'smoke-prj', items: [{ id: 'smoke-post', title: '架空の投稿', caption: '架空のキャプション #a', views: 100, likes: 5, duration_sec: 20, published_at: '2026-10-01T00:00:00Z' }] }],
+  ['video', 'GET', '?project=smoke-prj', KEY],
+  ['video', 'POST', '', JSONH, { action: 'analyze', project: 'smoke-prj', ids: ['smoke-post'] }],
+  ['video', 'POST', '', JSONH, { action: 'script.generate', project: 'smoke-prj', topic: '秋の新メニュー', platform: 'instagram' }],
+  ['video', 'POST', '', JSONH, { action: 'pub.save', project: 'smoke-prj', item: { id: 'smoke-pub', platform: 'instagram', caption: 'スモーク', hashtags: ['a'], video_url: 'https://x.public.blob.vercel-storage.com/video/a.mp4', video_size: 1000, external_id: '1' } }],
+  ['video', 'POST', '', JSONH, { action: 'pub.save', project: 'smoke-prj', item: { id: 'smoke-tt', platform: 'tiktok', caption: 'スモーク', video_url: 'https://x.public.blob.vercel-storage.com/video/a.mp4', video_size: 7 } }],
+  ['video', 'POST', '', JSONH, { action: 'ig.discover', project: 'smoke-prj', username: 'smoke_shop' }],
+  ['video-publish', 'GET', '', KEY],
+  ['video-publish', 'POST', '', JSONH, { action: 'instagram.start', project: 'smoke-prj', pub: 'smoke-pub' }],
+  ['video-publish', 'POST', '', JSONH, { action: 'instagram.status', project: 'smoke-prj', pub: 'smoke-pub' }],
+  ['video-publish', 'POST', '', JSONH, { action: 'metrics', project: 'smoke-prj', pub: 'smoke-pub' }],
+  ['video-publish', 'POST', '', JSONH, { action: 'schedule', project: 'smoke-prj', pub: 'smoke-pub', date: new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10) }],
+  ['video-publish', 'POST', '', JSONH, { action: 'youtube.token' }],
+  ['video-publish', 'POST', '', JSONH, { action: 'tiktok.send', project: 'smoke-prj', pub: 'smoke-tt' }],
+  ['video-publish', 'POST', '', JSONH, { action: 'tiktok.status', project: 'smoke-prj', pub: 'smoke-tt' }],
+  ['video-upload', 'POST', '', JSONH, { type: 'blob.generate-client-token', payload: { pathname: 'video/a.mp4' } }],
+  ['video-oauth', 'GET', '?start=youtube', KEY],
+  ['video-oauth', 'GET', '?start=tiktok', KEY],
+  ['video-oauth', 'GET', '', {}],
+  ['video', 'POST', '', JSONH, { action: 'project.delete', id: 'smoke-prj' }],
   // The committed-state reads behind the two editors.
   ['settings', 'GET', '', KEY],
   ['settings', 'POST', '', JSONH, { name: 'CONTACT_TO_EMAIL', value: 'smoke@example.com' }],

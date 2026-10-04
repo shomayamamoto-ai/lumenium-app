@@ -110,7 +110,13 @@ export async function GET(req) {
   if (err) return page('接続を中止しました', `<p>Google 側で「${escHtml(err.slice(0, 80))}」となりました。管理画面からやり直せます。</p>`, false)
 
   const code = url.searchParams.get('code')
-  const state = url.searchParams.get('state') || ''
+  /* 「YouTube連携」（api/video-oauth.js）も戻り先はここです。Google Cloud に
+     戻り先を増やさずに済むよう、state の頭の「yt~」で見分け、受け取った
+     トークンは YouTube 用として別の名前で保存します（カレンダーの接続は
+     そのまま残ります）。 */
+  const rawState = url.searchParams.get('state') || ''
+  const youtube = rawState.startsWith('yt~')
+  const state = youtube ? rawState.slice(3) : rawState
   if (!code) return page('不正なアクセスです', '<p>このURLは Google からの戻り先です。管理画面の「Googleカレンダーに接続」から始めてください。</p>', false)
 
   if (!(await checkState(state))) {
@@ -132,6 +138,16 @@ export async function GET(req) {
     return page('もう一度お試しください', '<p>Google からリフレッシュトークンが返りませんでした。' +
       '<a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">アカウントの許可一覧</a>' +
       'からこのアプリのアクセス権を削除し、管理画面から接続し直してください。</p>', false)
+  }
+
+  if (youtube) {
+    const yt = await saveSetting('YOUTUBE_REFRESH_TOKEN', data.refresh_token, req)
+    return yt.ok
+      ? page('YouTube と連携しました', '<p>管理画面の「SNS（動画）」から YouTube ショートに直接アップロードできるようになりました。このタブは閉じて構いません。</p>')
+      : page('あと1手だけ残っています',
+        '<p>YouTube の許可は完了しました。保存先（Upstash Redis）が無いため、下の値を Vercel の環境変数に <b>YOUTUBE_REFRESH_TOKEN</b> という名前で登録し、再デプロイしてください。</p>' +
+        `<code>${String(data.refresh_token).replace(/[<>&]/g, '')}</code>` +
+        '<p style="font-size:12px">この値は鍵と同じものです。メールやチャットに貼らないでください。</p>', true)
   }
 
   const saved = await saveSetting('GOOGLE_REFRESH_TOKEN', data.refresh_token, req)

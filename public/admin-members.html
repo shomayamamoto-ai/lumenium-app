@@ -527,6 +527,46 @@
   .soc-h { font-size: 12px; letter-spacing: .1em; color: var(--sub); font-weight: 700; margin-bottom: 10px; }
   .soc-more { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; margin-bottom: 6px; }
   .soc-more summary { font-size: 12px; font-weight: 700; cursor: pointer; }
+  /* ---- SNS（動画） ---- */
+  .vid-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .vid-top select, .vid-row select, .vid-row input, .vid-in, #video-admin textarea, .vid-grid3 input, .soc-fields select {
+    padding: 9px 11px; background: #faf9f6; color: var(--text); border: 1px solid var(--border);
+    border-radius: 9px; font-size: 12.5px; font-family: inherit; max-width: 100%;
+  }
+  .vid-in, #video-admin textarea { width: 100%; }
+  #video-admin textarea { line-height: 1.6; resize: vertical; }
+  .vid-secs { margin-bottom: 14px; }
+  .vid-secs .nq-chip { font-size: 12px; padding: 7px 12px; }
+  .vid-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .vid-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .vid-acts button { font-size: 12.5px; padding: 9px 16px; }
+  .vid-grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .vid-scroll { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .vid-table { font-size: 12px; }
+  .vid-table th, .vid-table td { padding: 7px 9px; vertical-align: top; }
+  .vid-table th { position: sticky; top: 0; background: #fff; white-space: nowrap; }
+  .vid-lines textarea, .vid-lines input { min-width: 120px; font-size: 12px; padding: 6px 8px; }
+  .vid-lines input[type=number] { min-width: 64px; width: 72px; }
+  .vid-tag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #f3f1ec; color: var(--sub); }
+  .vid-tag.ok { background: rgba(16,185,129,0.16); color: #047857; }
+  .vid-tag.ng { background: rgba(248,113,113,0.15); color: #b42318; }
+  .vid-tag.warn { background: rgba(251,191,36,0.2); color: #92400e; }
+  .vid-nets { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .vid-nets .soc-net { cursor: default; grid-template-columns: 1fr auto; }
+  .vid-nets .soc-net .sub { grid-column: 1 / -1; }
+  .vid-nets .linkish { display: block; margin-top: 4px; font-size: 11px; font-weight: 700; }
+  .vid-links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 11px; }
+  .vid-links .linkish { font-size: 11px; font-weight: 700; }
+  .vid-ship { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; align-items: start; margin-top: 10px; }
+  .vid-frame { position: relative; width: 220px; aspect-ratio: 9 / 16; background: #17171c; border-radius: 10px; overflow: hidden; }
+  .vid-frame video, .vid-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .vid-checks { display: grid; gap: 4px; font-size: 12px; max-height: 180px; overflow: auto; }
+  #video-admin del { color: #b42318; }
+  #video-admin ins { color: #047857; text-decoration: none; font-weight: 700; }
+  @media (max-width: 560px) {
+    .vid-ship { grid-template-columns: 1fr; }
+    .vid-frame { width: 180px; }
+  }
   .soc-ai { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; margin-bottom: 10px; }
   .soc-ai summary { font-size: 12.5px; font-weight: 700; cursor: pointer; color: #0f766e; }
   .soc-ai select, .soc-ai textarea, .soc-var textarea, .soc-img-add input, .soc-when input[type=date] {
@@ -754,6 +794,8 @@ header h1, header button, header a { white-space: nowrap; }
 <body>
 <script src="/admin-demo.js"></script>
 <script src="/social-text.js"></script>
+<script src="/video-core.js"></script>
+<script src="/admin-video.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -958,7 +1000,7 @@ header h1, header button, header a { white-space: nowrap; }
     </div>
 
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS投稿</h2>
+      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS（文章）</h2>
       <p class="share-note" style="margin-bottom:14px">
         ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
@@ -1044,6 +1086,9 @@ header h1, header button, header a { white-space: nowrap; }
       <h3 class="soc-h">これまでの投稿</h3>
       <div id="social-log"></div>
     </div>
+
+    <!-- SNS（動画）。中身は /admin-video.js が組み立てます（項目が多いので別ファイル）。 -->
+    <div class="panel" id="video-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">設定状況</h2>
@@ -1555,8 +1600,12 @@ window.lumAdmin = {
       desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
       desc: 'お知らせを出す', accent: '#6d28d9', tint: 'rgba(139,92,246,0.14)' },
-    { id: 'social-admin', icon: '📣', label: 'SNS投稿', init: 'lumSocialInit', needs: 'social',
+    { id: 'social-admin', icon: '📣', label: 'SNS（文章）', init: 'lumSocialInit', needs: 'social',
       desc: 'SNSとLINEにまとめて出す', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
+    /* The store, not the SNS keys: research, scripts and the PDCA log are
+       saved records, and the two browser-only checks work with nothing set. */
+    { id: 'video-admin', icon: '🎬', label: 'SNS（動画）', init: 'lumVideoInit', needs: 'store',
+      desc: 'ショート動画を調べる・作る・出す', accent: '#9a3412', tint: 'rgba(234,88,12,0.13)' },
     { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
       desc: 'サイトの文章を直す', accent: '#be185d', tint: 'rgba(236,72,153,0.13)' },
     { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
@@ -4397,7 +4446,7 @@ window.lumAdmin = {
       }).join('') + '</div>' +
       (mix ? '<p class="share-note" style="margin-bottom:6px">内訳：' + esc(mix) + '</p>' : '') +
       (read ? '<p class="share-note" style="margin-bottom:6px">' + esc(read) + '</p>' : '') +
-      '<p class="share-note">数えているのは「SNS投稿」タブから出した分だけです。手で直接投稿した分は入りません。</p>';
+      '<p class="share-note">数えているのは「SNS（文章）」タブから出した分だけです。手で直接投稿した分は入りません。</p>';
   }
 
   /* 前回との差。数字が動いたのか、動いていないのかを最初に言う。

@@ -35,6 +35,7 @@ export const GROUPS = [
   { id: 'search', label: '検索エンジンへの登録', note: 'Search Console と Bing Webmaster Tools の所有権確認。ここに貼ると、確認用のファイルはその場で有効になります（再デプロイは要りません）。Bing の索引は ChatGPT検索やCopilotが読んでいるので、AIの回答に入る経路としては Google と同じくらい大事です。' },
   { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。下の「Googleカレンダーに接続」を押すと、3つ目は自動で入ります。' },
   { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' },
+  { id: 'video', label: 'SNS（動画）', note: 'ショート動画を YouTube と TikTok に送るための連携。Instagram リールは上の「SNS 投稿」の Instagram のキーと、動画の置き場所（Vercel Blob）を使います。' },
 ]
 
 /** What the admin can set, in the order it is shown. */
@@ -236,7 +237,30 @@ export const SETTINGS = [
     // つなぐと、この名前の環境変数が自動で入ります。
     name: 'BLOB_READ_WRITE_TOKEN', label: '画像の置き場所（Vercel Blob）', kind: 'secret', group: 'social',
     where: 'Vercel › プロジェクト › Storage › Create Database › Blob を作成し、このプロジェクトに Connect（BLOB_READ_WRITE_TOKEN が自動で入ります。そのあと再デプロイ）',
-    why: 'SNS投稿の画面で、手元の画像をそのままアップロードできるようになります。無いときは、公開されている画像のURLを貼って使います。Xに画像を付けられるのは、ここに置いた画像だけです。',
+    why: 'SNS投稿の画面で、手元の画像をそのままアップロードできるようになります。無いときは、公開されている画像のURLを貼って使います。Xに画像を付けられるのは、ここに置いた画像だけです。SNS（動画）では、動画もここに置きます（ブラウザから直接送るので、大きな動画でも送れます）。',
+  },
+
+  // SNS（動画）。どれも Google・TikTok からの戻り（管理キーの付かない
+  // リクエスト）で保存・使用するので、端末保存はできません（device:false）。
+  {
+    name: 'YOUTUBE_REFRESH_TOKEN', label: 'YouTube 連携トークン', kind: 'secret', group: 'video', device: false,
+    where: '「SNS（動画）› 投稿」の「YouTube連携」を押すと自動で入ります（Google のクライアントID・シークレットは商談の自動予約と同じものを使います）',
+    why: 'Google Cloud で「YouTube Data API v3」を有効にしてから連携してください。審査前の Google Cloud プロジェクトから送った動画は、YouTube の決まりで「非公開」になります。公開するには YouTube Studio で切り替えるか、Google の審査（API監査）を受けてください。',
+  },
+  {
+    name: 'TIKTOK_CLIENT_KEY', label: 'TikTok クライアントキー', kind: 'text', group: 'video', device: false,
+    where: 'developers.tiktok.com › Manage apps › 自分のアプリ › Client key（Login Kit と Content Posting API を追加し、Redirect URI に ' + BRAND.url + '/api/video-oauth を登録）',
+    why: '動画を TikTok アプリの受信箱（下書き）に送るために使います。一般公開まで自動で行うには TikTok の審査が必要なので、ここでは下書きに送り、アプリで確かめて公開する作りにしています。',
+  },
+  {
+    name: 'TIKTOK_CLIENT_SECRET', label: 'TikTok クライアントシークレット', kind: 'secret', group: 'video', device: false,
+    where: '同じ画面の Client secret',
+    why: 'キーと対で使います。片方だけでは連携できません。',
+  },
+  {
+    name: 'TIKTOK_REFRESH_TOKEN', label: 'TikTok 連携トークン', kind: 'secret', group: 'video', device: false,
+    where: '「SNS（動画）› 投稿」の「TikTok連携」を押すと自動で入ります',
+    why: '1年で失効します。切れたら連携し直すだけで戻ります。',
   },
 ]
 
