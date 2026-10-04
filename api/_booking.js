@@ -335,6 +335,13 @@ export async function takeCells(cfg, pipeline, cells, owner, untilMs, now = Date
   }
   const got = cells.filter((_, i) => res[i] === 'OK' || res[i] === true)
   if (got.length === cells.length) return true
+  // 取れなかった区切りが、もともと自分のもの（日時の変更で前の枠と重なる
+  // 部分）なら、取れたのと同じです。
+  const missed = cells.filter((n) => !got.includes(n))
+  try {
+    const vals = await pipeline(cfg, missed.map((n) => ['GET', CELL(n)]))
+    if (vals.every((v) => v === owner)) return true
+  } catch (_) { /* 下で返す */ }
   if (got.length) {
     try { await pipeline(cfg, got.map((n) => ['DEL', CELL(n)])) } catch (_) { /* 期限で消えます */ }
   }
@@ -444,16 +451,19 @@ const ics = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\
 
 /** Google が未接続のときに添付する .ics。Google・Outlook・iPhone の
  *  どれでも開けます（Meet のURLだけは入りません）。 */
-export function icsFile({ id, startMs, endMs, summary, description, organizer, attendee }) {
+export function icsFile({ id, startMs, endMs, summary, description, organizer, attendee, method = 'REQUEST', sequence = 0 }) {
+  const cancel = method === 'CANCEL'
   const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n')
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     `PRODID:-//${BRAND.name}//Booking//JA`,
     'CALSCALE:GREGORIAN',
-    'METHOD:REQUEST',
+    `METHOD:${cancel ? 'CANCEL' : 'REQUEST'}`,
     'BEGIN:VEVENT',
     `UID:${id}@${BRAND.host}`,
+    // 同じ UID で数字を上げると、カレンダーは「前の予定の更新・取消」として扱います。
+    `SEQUENCE:${sequence}`,
     `DTSTAMP:${ics(Date.now())}`,
     `DTSTART:${ics(startMs)}`,
     `DTEND:${ics(endMs)}`,
@@ -461,8 +471,47 @@ export function icsFile({ id, startMs, endMs, summary, description, organizer, a
     `DESCRIPTION:${esc(description)}`,
     `ORGANIZER;CN=${esc(BRAND.name)}:mailto:${organizer}`,
     `ATTENDEE;CN=${esc(attendee)};RSVP=TRUE:mailto:${attendee}`,
-    'STATUS:CONFIRMED',
+    cancel ? 'STATUS:CANCELLED' : 'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n')
+}
+
+/* ---- 取り消し・変更のリンク -------------------------------------------
+   メールに入れる「予約の確認・変更・取り消し」のリンク。予約の id と期限に
+   署名を付けたもので、推測では作れません。期限は予約の終わりの時刻です。
+   パスワードの代わりになるので、メール以外には出しません。 */
+
+const enc = new TextEncoder()
+async function hmac(secret, msg) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(msg)))
+  return [...sig].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+}
+
+export async function signManage(id, expMs, secret) {
+  const e = Math.floor(expMs / 1000).toString(36)
+  return `${id}.${e}.${await hmac(secret, `bk|${id}|${e}`)}`
+}
+
+/** { ok, id } か { ok: false, why: 'bad' | 'expired' }。 */
+export async function verifyManage(token, secret, now = Date.now()) {
+  const m = /^(bk_[\w-]{1,60})\.([0-9a-z]{1,10})\.([0-9a-f]{32})$/.exec(String(token || ''))
+  if (!m || !secret) return { ok: false, why: 'bad' }
+  const want = await hmac(secret, `bk|${m[1]}|${m[2]}`)
+  let d = 0
+  for (let i = 0; i < 32; i++) d |= want.charCodeAt(i) ^ m[3].charCodeAt(i)
+  if (d) return { ok: false, why: 'bad' }
+  if (parseInt(m[2], 36) * 1000 < now) return { ok: false, why: 'expired', id: m[1] }
+  return { ok: true, id: m[1] }
+}
+
+/** お客様が自分で取り消し・変更できるか。{ ok } か { ok: false, why }。 */
+export function canChange(rec, rules, now = Date.now()) {
+  const st = recStatus(rec)
+  if (st !== 'confirmed' && st !== 'tentative') return { ok: false, why: 'status' }
+  const { start } = recSpan(rec)
+  if (start <= now) return { ok: false, why: 'past' }
+  if (start - rules.cutoffHours * 3600 * 1000 < now) return { ok: false, why: 'cutoff' }
+  return { ok: true }
 }

@@ -6,6 +6,7 @@
 //   ・決まり → 枠（複数の時間帯・祝日・臨時休業・前後の空き・直前・何日先まで）
 //   ・壊れた決まりの直し方（15分単位・メニューが無い・LINE のID）
 //   ・同時に押された 10:00 と 10:30（区切りの鍵で片方だけ通る）・取消で返す
+//   ・取り消し・変更のリンク（署名・期限・締め切り）と、通しでの予約→変更→取消
 
 import assert from 'node:assert/strict'
 import * as B from '../api/_booking.js'
@@ -50,6 +51,8 @@ function fakeStore() {
     if (op === 'HSET') { const m = kv.get(k) instanceof Map ? kv.get(k) : new Map(); m.set(String(c[2]), String(c[3])); kv.set(k, m); return 1 }
     if (op === 'HGET') { const m = kv.get(k); return m instanceof Map ? (m.get(String(c[2])) ?? null) : null }
     if (op === 'EXPIRE') return 1
+    if (op === 'INCR') { const v = (Number(kv.get(k)) || 0) + 1; kv.set(k, String(v)); return v }
+    if (op === 'TTL') return 60
     throw new Error('fake store: ' + op)
   }
   const pipeline = async (_cfg, cmds) => {
@@ -57,7 +60,7 @@ function fakeStore() {
     for (const c of cmds) { await new Promise((r) => setImmediate(r)); out.push(run(c)) }
     return out
   }
-  return { cfg: { url: 'fake', token: 'fake' }, pipeline, kv }
+  return { cfg: { url: 'fake', token: 'fake' }, pipeline, kv, run }
 }
 
 /* ---- 1. 決まり → 枠 ---- */
@@ -208,6 +211,139 @@ await t('空きの計算: 入った予約（以前の形の記録も）を前後
   assert.ok(free.includes('2026-10-05 15:00'))       // 取り消した枠は空き
   assert.ok(!free.includes('2026-10-06 10:00'))
   assert.ok(free.includes('2026-10-06 11:30'))
+})
+
+/* ---- 3. 取り消し・変更 ---- */
+await t('リンクの署名: 正しい鍵・書き換え・期限切れ・鍵なし', async () => {
+  const exp = Date.now() + 3600e3
+  const tok = await B.signManage('bk_1_abc', exp, 'secret-1')
+  assert.deepEqual(await B.verifyManage(tok, 'secret-1'), { ok: true, id: 'bk_1_abc' })
+  assert.equal((await B.verifyManage(tok, 'secret-2')).why, 'bad')
+  assert.equal((await B.verifyManage(tok.replace('bk_1_abc', 'bk_2_abc'), 'secret-1')).why, 'bad')
+  assert.equal((await B.verifyManage(tok, 'secret-1', exp + 2000)).why, 'expired')
+  assert.equal((await B.verifyManage(tok, '')).why, 'bad')
+  assert.equal((await B.verifyManage('<script>', 'secret-1')).why, 'bad')
+})
+
+await t('締め切り: 開始の cutoffHours 時間前まで・取り消し済み・過去', () => {
+  const rules = B.normalizeRules({ cutoffHours: 24 }).rules
+  const now = jst('2026-10-04 09:00')
+  const rec = (start, status) => ({ id: 'bk_x', start, end: start + 3600e3, status })
+  assert.ok(B.canChange(rec(jst('2026-10-05 10:00'), 'confirmed'), rules, now).ok)
+  assert.equal(B.canChange(rec(jst('2026-10-05 08:00'), 'tentative'), rules, now).why, 'cutoff')
+  assert.equal(B.canChange(rec(jst('2026-10-04 08:00'), 'tentative'), rules, now).why, 'past')
+  assert.equal(B.canChange(rec(jst('2026-10-09 10:00'), 'cancelled'), rules, now).why, 'status')
+})
+
+await t('日時の変更: 前の枠と重なる区切りは自分のものとして取れる・前の分は返す', async () => {
+  const S = fakeStore()
+  const now = jst('2026-10-04 09:00')
+  const old = B.cellsFor(jst('2026-10-05 10:00'), jst('2026-10-05 11:00'), 30)
+  const neu = B.cellsFor(jst('2026-10-05 10:30'), jst('2026-10-05 11:30'), 30)
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, old, 'bk_a', jst('2026-10-05 11:00'), now))
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, neu, 'bk_a', jst('2026-10-05 11:30'), now))
+  assert.ok(!(await B.takeCells(S.cfg, S.pipeline, neu, 'bk_b', jst('2026-10-05 11:30'), now)))
+  await B.releaseCells(S.cfg, S.pipeline, old.filter((n) => !neu.includes(n)), 'bk_a')
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, B.cellsFor(jst('2026-10-05 09:00'), jst('2026-10-05 10:00'), 0), 'bk_c', jst('2026-10-05 10:00'), now))
+})
+
+/* 通し: 本物の関数を、作り物の保存先とメールで動かす。 */
+const S = fakeStore()
+const mails = []
+Object.assign(process.env, {
+  UPSTASH_REDIS_REST_URL: 'https://redis.test.invalid', UPSTASH_REDIS_REST_TOKEN: 't',
+  ADMIN_KEY: 'test-admin-key', SESSION_SECRET: 'test-session-secret', RESEND_API_KEY: 'test',
+})
+for (const n of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN', 'GOOGLE_CALENDAR_ICS_URL', 'KV_REST_API_URL', 'KV_REST_API_TOKEN']) delete process.env[n]
+globalThis.fetch = async (input, init = {}) => {
+  const u = String(input && input.url ? input.url : input)
+  if (u.startsWith('https://redis.test.invalid')) {
+    const out = await S.pipeline(null, JSON.parse(init.body || '[]'))
+    return new Response(JSON.stringify(out.map((result) => ({ result }))), { status: 200 })
+  }
+  if (u.startsWith('https://api.resend.com/')) { mails.push(JSON.parse(init.body)); return new Response('{}', { status: 200 }) }
+  throw new Error('外に出ようとした: ' + u)
+}
+const api = await import('../api/booking.js')
+const manage = await import('../api/booking-manage.js')
+const ADMIN = { Authorization: 'Bearer test-admin-key', 'content-type': 'application/json' }
+const call = (fn, method, path, headers, body) => fn(new Request('https://x.test' + path, { method, headers, body: body == null ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)) }))
+const form = (o) => new URLSearchParams(o).toString()
+const FORM = { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': '10.0.0.9' }
+
+await t('通し: 決まりの保存 → 枠 → 同時の2件は片方だけ → 変更 → 取消 → 同じ枠をまた取れる', async () => {
+  const week = Array.from({ length: 7 }, () => [[540, 1260]])
+  let r = await call(api.PUT, 'PUT', '/api/booking', ADMIN, { rules: { week, leadHours: 0, cutoffHours: 0, horizonDays: 7, wording: '来店', online: false, place: '駅前店',
+    services: [{ id: 'cut', name: 'カット', minutes: 60 }, { id: 'color', name: 'カラー', minutes: 90 }] } })
+  assert.equal(r.status, 200)
+  r = await call(api.GET, 'GET', '/api/booking?service=color&all=1', {})
+  let d = await r.json()
+  assert.equal(d.minutes, 90)
+  assert.equal(d.services.length, 2)
+  assert.equal(d.wording, '来店')
+  assert.equal(d.slots[0].minutes, 90)
+  // 同じ日の、30分ずれた2つの枠。
+  const a = d.slots.find((s, i) => d.slots[i + 1] && d.slots[i + 1].start - s.start === 30 * 60e3)
+  const b = d.slots.find((s) => s.start === a.start + 30 * 60e3)
+  const book = (s, who) => call(api.POST, 'POST', '/api/booking', { 'content-type': 'application/json', 'x-forwarded-for': '10.0.0.' + who.length },
+    { key: s.key, service: 'color', name: who, email: who + '@example.com', message: '' })
+  const res = await Promise.all([book(a, 'aaa'), book(b, 'bbbb')])
+  const codes = res.map((x) => x.status).sort()
+  assert.deepEqual(codes, [200, 409], '片方だけ通るはず: ' + codes)
+  const won = res[0].status === 200 ? a : b
+  // お客様あてのメールに、変更・取り消しのリンクが入っている。
+  const cust = mails.find((m) => m.to[0].endsWith('@example.com') && /\/api\/booking-manage\?t=/.test(m.text))
+  assert.ok(cust, 'お客様あてのメールにリンクが無い')
+  assert.ok(cust.text.includes('場所: 駅前店'))
+  assert.ok(cust.subject.includes('仮予約'))
+  const token = /booking-manage\?t=(\S+)/.exec(cust.text)[1]
+
+  r = await call(manage.GET, 'GET', '/api/booking-manage?t=' + token, {})
+  let html = await r.text()
+  assert.equal(r.status, 200)
+  assert.ok(html.includes('日時を変更する') && html.includes('カラー（90分）'))
+  r = await call(manage.GET, 'GET', '/api/booking-manage?t=' + token.slice(0, -1) + (token.endsWith('0') ? '1' : '0'), {})
+  assert.ok((await r.text()).includes('このリンクは使えません'))
+
+  // 2時間後へ変更。
+  const later = d.slots.find((s) => s.start === won.start + 120 * 60e3)
+  r = await call(manage.POST, 'POST', '/api/booking-manage', FORM, form({ t: token, action: 'move', key: later.key }))
+  html = await r.text()
+  assert.ok(html.includes('変更しました'), html.slice(0, 400))
+  // 前の時間は空き、新しい時間は埋まっている。
+  d = await (await call(api.GET, 'GET', '/api/booking?service=color&all=1', {})).json()
+  assert.ok(d.slots.some((s) => s.key === won.key))
+  assert.ok(!d.slots.some((s) => s.key === later.key))
+  assert.ok(mails.some((m) => m.subject.includes('日時を変更しました') && m.attachments))
+
+  // 取り消し（印なし → 断る、印あり → 取り消し）。
+  r = await call(manage.POST, 'POST', '/api/booking-manage', FORM, form({ t: token, action: 'cancel' }))
+  assert.ok((await r.text()).includes('印を付けてから'))
+  r = await call(manage.POST, 'POST', '/api/booking-manage', FORM, form({ t: token, action: 'cancel', sure: '1' }))
+  assert.ok((await r.text()).includes('取り消しました'))
+  const cancelMail = mails.find((m) => m.subject.includes('取り消し') && m.attachments)
+  assert.ok(Buffer.from(cancelMail.attachments[0].content, 'base64').toString().includes('METHOD:CANCEL'))
+  // 区切りが返っているので、同じ時間をほかの人が取れる。
+  r = await book(later, 'ccccc')
+  assert.equal(r.status, 200)
+  // 取り消した予約のリンクでは、もう何もできない。
+  r = await call(manage.GET, 'GET', '/api/booking-manage?t=' + token, {})
+  assert.ok((await r.text()).includes('取り消し済み'))
+})
+
+await t('通し: 管理画面から 確定・来店済み・メモ・取消（締め切りは管理側には無い）', async () => {
+  const list = await (await call(api.GET, 'GET', '/api/booking?recent=1', ADMIN)).json()
+  const live = list.bookings.find((x) => x.status === 'tentative')
+  assert.ok(live)
+  let r = await call(api.PATCH, 'PATCH', '/api/booking', ADMIN, { id: live.id, action: 'confirmed' })
+  assert.equal((await r.json()).booking.status, 'confirmed')
+  assert.ok(mails.some((m) => m.subject.includes('確定しました')))
+  r = await call(api.PATCH, 'PATCH', '/api/booking', ADMIN, { id: live.id, action: 'memo', memo: 'カラーは前回と同じ' })
+  assert.equal((await r.json()).booking.memo, 'カラーは前回と同じ')
+  r = await call(api.PATCH, 'PATCH', '/api/booking', ADMIN, { id: live.id, action: 'cancel' })
+  assert.equal((await r.json()).booking.status, 'cancelled')
+  r = await call(api.PATCH, 'PATCH', '/api/booking', { 'content-type': 'application/json' }, { id: live.id, action: 'cancel' })
+  assert.equal(r.status, 401)
 })
 
 console.log(`✓ test-booking: ${n} 件`)

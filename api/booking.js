@@ -27,15 +27,18 @@ import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.j
 import { busyFromUrl } from './_ics.js'
 import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
-  cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan,
+  cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS,
   saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, bookingNoun,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
+import { mailBooked, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
+import { cancelBooking, moveBooking, markBooking } from './_booking-ops.js'
 
 const LIMITS = { name: 50, email: 100, message: 500 }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BURST = { max: 4, windowS: 15 * 60 }
+const SLOT_CACHE = `${KV}bk:cache`
 
 const json = (payload, status = 200, extra) => new Response(JSON.stringify(payload), {
   status,
@@ -188,17 +191,10 @@ export async function POST(req) {
   }
 
   const when = label(slot.start, slot.end)
-  const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner, req)
-  const summary = `${rules.wording}: ${svc.name} ${company ? `${company} ` : ''}${name}様 × ${BRAND.name}${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
-  const description = [
-    `メニュー: ${svc.name}（${svc.minutes}分）`,
-    `お名前: ${name}`,
-    company ? `会社名: ${company}` : null,
-    `メール: ${email}`,
-    topics.length ? `ご相談の内容: ${topics.join('、')}` : null,
-    page ? `申し込みページ: ${page}` : null,
-    note ? `\nご相談内容:\n${note}` : null,
-  ].filter(Boolean).join('\n')
+  // 予定の題と中身は、メールと同じ作り方（_booking-mail.js）で作ります。
+  const draft = { id, start: slot.start, end: slot.end, service: { id: svc.id, name: svc.name, minutes: svc.minutes }, wording: rules.wording, name, email, company, topics, note, page }
+  const summary = summaryOf(draft, rules)
+  const description = descriptionOf(draft)
 
   let meet = ''
   let eventId = ''
@@ -227,7 +223,8 @@ export async function POST(req) {
     at: new Date().toISOString(),
   }
   await saveBooking(store, pipeline, rec)
-  await notify(req, rec, owner, { summary, description, startMs: slot.start, endMs: slot.end }, rules)
+  await invalidateSlots(store)
+  await mailBooked(req, rec, rules)
 
   return json({
     ok: true,
@@ -237,76 +234,6 @@ export async function POST(req) {
     // Google が入っていれば、この時点で相手のカレンダーにも招待が届きます。
     invited: mode === 'google',
   })
-}
-
-/** UTF-8 のまま base64 に。btoa は1バイト文字しか受けないので、日本語の
- *  入った .ics をそのまま渡すと例外になります。 */
-function b64(text) {
-  const bytes = new TextEncoder().encode(text)
-  let bin = ''
-  for (const b of bytes) bin += String.fromCharCode(b)
-  return btoa(bin)
-}
-
-/** 知らせる。Google 経由の招待は相手にしか届かないので、こちら側にも必ず
- *  1通送る。仮予約のときは相手にも .ics を送る。 */
-async function notify(req, rec, owner, ev, rules) {
-  const noun = bookingNoun(rules)
-  const apiKey = await setting('RESEND_API_KEY', '', req)
-  if (!apiKey) return
-  const from = BRAND.from
-  const send = (payload) => fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, ...payload }),
-  }).catch(() => {})
-
-  const lines = [
-    `日時: ${rec.when}（JST）`,
-    `メニュー: ${rec.service.name}（${rec.service.minutes}分）`,
-    `お名前: ${rec.name}`,
-    rec.company ? `会社名: ${rec.company}` : null,
-    `メール: ${rec.email}`,
-    (rec.topics || []).length ? `ご相談の内容: ${rec.topics.join('、')}` : null,
-    rec.meet ? `Meet: ${rec.meet}` : null,
-    rec.page ? `申し込みページ: ${rec.page}` : null,
-    rec.mode === 'google' ? 'カレンダーに登録済み・相手にも招待を送信しました。' : '仮予約です（カレンダーへの自動登録は未接続）。折り返し確定のご連絡が要ります。',
-    rec.addUrl ? `\nGoogleカレンダーに追加（押して保存するだけ）:\n${rec.addUrl}` : null,
-    rec.note ? `\nご相談内容:\n${rec.note}` : null,
-  ].filter(Boolean)
-
-  const file = rec.mode === 'google' ? '' : icsFile({
-    id: rec.id, startMs: ev.startMs, endMs: ev.endMs,
-    summary: ev.summary, description: ev.description, organizer: owner, attendee: rec.email,
-  })
-  await send({
-    to: [owner],
-    reply_to: rec.email,
-    subject: `【${noun}】${rec.when} ${rec.company ? `${rec.company} ` : ''}${rec.name}様`,
-    text: lines.join('\n'),
-    // 自分のカレンダーにも入れられるように、相手と同じ .ics を添付します。
-    ...(file ? { attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }] } : {}),
-  })
-
-  if (rec.mode !== 'google') {
-    await send({
-      to: [rec.email],
-      reply_to: owner,
-      subject: `【仮予約を承りました】${rec.when} ${BRAND.name}`,
-      text: [
-        `${rec.name} 様`,
-        '',
-        `${rec.when}（日本時間）で「${rec.service.name}」のお時間を確保しました。`,
-        rules.online ? '担当より、接続用のURLを添えて確定のご連絡を差し上げます。' : '担当より、確定のご連絡を差し上げます。',
-        rules.place ? `場所: ${rules.place}` : null,
-        '添付のファイルを開くと、そのままカレンダーに登録できます。',
-        '',
-        `${BRAND.name}（${BRAND.kana}）`,
-        BRAND.url,
-      ].filter((x) => x !== null).join('\n'),
-      attachments: [{ filename: `${BRAND.slug}-meeting.ics`, content: b64(file) }],
-    })
-  }
 }
 
 /** 管理画面から「予約の決まり」（受付時間・休み・メニュー・呼び方）を保存する。 */
@@ -321,8 +248,54 @@ export async function PUT(req) {
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
   try {
     const { rules, problems } = await saveRules(store, pipeline, body?.rules)
+    await invalidateSlots(store)
     return json({ ok: true, rules, problems, message: problems.length ? '保存しました。読めなかった所は直してあります（下の注意をご覧ください）。' : '保存しました。サイトの予約欄には1分以内に反映されます。' })
   } catch (_) {
     return json({ ok: false, message: '保存先に書き込めませんでした。少しおいてからもう一度お試しください。' }, 502)
   }
+}
+
+/** 空き枠の控え（1分）を捨てる。予約・取り消し・決まりの保存のたびに呼びます。 */
+export async function invalidateSlots(store) {
+  if (!store) return
+  try { await pipeline(store, [['DEL', SLOT_CACHE]]) } catch (_) { /* 1分で消えます */ }
+}
+
+/** 管理画面からの操作: 取り消し・日時の変更・確定・来店済み・無断キャンセル・メモ。 */
+export async function PATCH(req) {
+  const denied = await requireAdmin(req)
+  if (denied) return denied
+  const store = storeConfig()
+  if (!store) return json({ ok: false, message: '保存先（Upstash Redis）が無いため、予約を変えられません。' }, 503)
+  let body
+  try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
+  const rec = await getBooking(store, pipeline, body?.id)
+  if (!rec) return json({ ok: false, message: 'その予約が見つかりませんでした（180日より前の記録は消えています）。' }, 404)
+  const rules = await readRules(store, pipeline)
+  const action = String(body?.action || '')
+  const memo = typeof body?.memo === 'string' ? body.memo : undefined
+  const mailNote = (m) => (m && (m.customer === false || m === false) ? 'お客様へのメールは送れませんでした（メールの設定をご確認ください）。' : '')
+
+  if (action === 'cancel') {
+    if (!occupies(rec) || recStatus(rec) === 'visited') return json({ ok: false, message: 'この予約は取り消せる状態ではありません。' }, 409)
+    const r = await cancelBooking(req, rec, rules, 'owner')
+    await invalidateSlots(store)
+    return json({ ok: true, booking: r.rec, message: ['取り消しました。', r.calendar === 'failed' ? 'Googleカレンダーの予定は消せませんでした。カレンダーから手で消してください。' : '', mailNote(r.mail)].join('') })
+  }
+  if (action === 'move') {
+    const svc = pickService(rules, rec.service?.id) || rules.services[0]
+    const minutes = rec.service?.minutes || svc.minutes
+    const { slots } = await openSlots(req, 500, rules, { ...svc, minutes }, rec.id)
+    const slot = slots.find((s) => new Date(s.start).toISOString() === String(body?.key || ''))
+    if (!slot) return json({ ok: false, message: 'その日時は空いていません。別の日時をお選びください。' }, 409)
+    const r = await moveBooking(req, rec, rules, slot, 'owner')
+    if (r.error) return json({ ok: false, message: r.error === 'slot_taken' ? 'その日時は先に埋まりました。' : 'Googleカレンダーの予定を動かせませんでした。少しおいてからもう一度お試しください。' }, 409)
+    await invalidateSlots(store)
+    return json({ ok: true, booking: r.rec, message: '日時を変更しました。' + mailNote(r.mail) })
+  }
+  if (['confirmed', 'visited', 'noshow', 'memo'].includes(action)) {
+    const r = await markBooking(req, rec, rules, action === 'memo' ? '' : action, memo)
+    return json({ ok: true, booking: r.rec, message: action === 'memo' ? 'メモを保存しました。' : `「${STATUS[action]}」にしました。` + (action === 'confirmed' ? mailNote(r.mail) || 'お客様に確定のメールを送りました。' : '') })
+  }
+  return json({ ok: false, message: '知らない操作です。' }, 400)
 }
