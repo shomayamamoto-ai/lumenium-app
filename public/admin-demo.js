@@ -1448,7 +1448,8 @@
       banned_words: ['日本一', '絶対においしい'], notation: { '焼立て': '焼きたて', 'ばけっと': 'バゲット' },
       notation_exceptions: ['焼立て窯'], style: 'warm natural light, 35mm photo, shallow depth of field'
     },
-    research: [{ keyword: 'パン屋 朝', platform: 'instagram', at: '' }], created_at: ago(30 * DAY)
+    research: [{ keyword: 'パン屋 朝', platform: 'instagram', at: '' }], created_at: ago(30 * DAY),
+    reinvest: { budget: '材料費を2,000円ふやして、2種類のバゲットで対決', time: '撮影を30分長くして、手元の寄りを多めに', format: 'スタッフ対決をお客様投票つきで', note: '問いかけの冒頭は3秒維持率が高かった。次は対決の型で山場を2つ作る。' }
   };
   function videoPosts() {
     var raw = [
@@ -1459,12 +1460,20 @@
       ['閉店後のまかないパン', 22, 7600, 300, 12, 9, 9],
       ['粉の違いで味はこう変わる', 58, 5200, 260, 22, 31, 11],
       ['パン屋の1日を60秒で', 60, 4100, 120, 8, 6, 14],
-      ['いちばん人気はこれでした', 15, 3900, 240, 15, 20, 20]
+      ['いちばん人気はこれでした', 15, 3900, 240, 15, 20, 20],
+      ['先輩と後輩でクロワッサン早作り対決', 42, 36000, 2600, 190, 260, 3],
+      ['姉妹店とあんパン対決、勝ったのは？', 38, 21000, 1500, 120, 150, 8],
+      ['焦げたパンが30秒でこうなる', 20, 12000, 700, 30, 60, 10],
+      ['人気パンTOP3を発表', 34, 8800, 420, 26, 30, 12],
+      ['10分だけでサンドイッチを何個作れる？', 27, 15500, 900, 70, 85, 5],
+      ['次の新作、コメントで投票してください', 19, 6100, 380, 140, 12, 16]
     ];
-    var hooks = ['statement', 'question', 'number', 'story', 'statement', 'other', 'story', 'statement'];
+    var hooks = ['statement', 'question', 'number', 'story', 'statement', 'other', 'story', 'statement', 'callout', 'question', 'result', 'number', 'question', 'callout'];
+    var formats = ['behind', 'test', 'ranking', 'behind', 'behind', 'test', 'behind', 'ranking', 'contest', 'contest', 'before_after', 'ranking', 'challenge', 'vote'];
     return raw.map(function (r, i) {
       var p = { id: 'demo-post-' + i, platform: 'instagram', url: '', title: r[0], caption: r[0] + '\n#パン屋 #朝ごはん', author: '架空のパン屋' + (i % 3 + 1),
-        published_at: ago(r[6] * DAY), duration_sec: r[1], views: r[2], likes: r[3], comments: r[4], shares: r[5], source: 'demo', analysis: null };
+        published_at: ago(r[6] * DAY), duration_sec: r[1], views: r[2], likes: r[3], comments: r[4], shares: r[5], source: 'demo', analysis: null,
+        format: formats[i], format_source: i % 3 === 0 ? 'manual' : 'ai' };
       if (i < 4) p.analysis = {
         hook_text: r[0], hook_type: hooks[i],
         beats: [{ label: 'hook', start: 0, end: 3, purpose: '手を止めさせる（何が見られるかを一言で）' }, { label: 'context', start: 3, end: 7, purpose: '誰向けかを示す' },
@@ -1476,20 +1485,47 @@
     });
   }
   function videoScript() {
+    // ショート。冒頭3秒に約束の「カンパーニュ」が無い・長いカットがある、を見せる例です。
     var lines = [
-      [0, 3, 'この穴、どうやってできると思います？', 'この穴、どうやってできる？', 'Close-up of a sliced country loaf showing open crumb'],
-      [3, 8, '答えは、生地に入れる水の量なんです。', '答えは「水の量」', 'Baker pouring water into a large mixing bowl'],
-      [8, 14, 'うちでは粉の重さの8割の水を入れます。', '粉の8割が水', 'Hands folding a wet, glossy dough on a wooden table'],
-      [14, 20, '扱いにくい生地ですが、そのぶん軽く焼けます。', 'だから軽い', 'Loaf coming out of a stone oven, steam rising'],
-      [20, 24, '明日の朝、焼きたてを試しに来てください。', '保存して朝に見返してね', 'Warm bakery counter at sunrise with bread on display']
-    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4] }; });
+      [0, 3, 'この穴、どうやってできると思います？', 'この穴、どうやってできる？', 'Close-up of a sliced country loaf showing open crumb', ''],
+      [3, 8, '答えは、生地に入れる水の量なんです。', '答えは「水の量」', 'Baker pouring water into a large mixing bowl', 'switch_question'],
+      [8, 14, 'うちでは粉の重さの8割の水を入れます。', '粉の8割が水', 'Hands folding a wet, glossy dough on a wooden table', 'switch_visual'],
+      [14, 18, '扱いにくい生地ですが、そのぶん軽く焼けます。', 'だから軽い', 'Loaf coming out of a stone oven, steam rising', 'peak_reveal'],
+      [18, 21, '気になったら保存して、朝に見返してね。', '保存して朝に見返してね', 'Warm bakery counter at sunrise with bread on display', ''],
+      [21, 24, 'で、この穴の答えは…', 'この穴の答えは…', 'Close-up of the crumb again, slow push-in', '']
+    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4], mark: l[5] }; });
     var sc = {
-      id: 'demo-script', title: 'カンパーニュの穴のひみつ', platform: 'instagram', target_duration_sec: 24, hook: lines[0].narration, body: '水の量で食感が変わる', cta: '保存して朝に見返してね',
+      id: 'demo-script', title: 'カンパーニュの穴のひみつ', platform: 'instagram', length_mode: 'short', target_duration_sec: 24, hook: lines[0].narration, body: '水の量で食感が変わる', cta: '保存して朝に見返してね',
+      thumb_text: '穴のひみつは水', promise: 'カンパーニュの大きな穴ができる理由が分かる', promise_keywords: [], wow: '15年使っている石窯から出す瞬間と、粉の8割の水',
+      format: 'behind', loop: true, end_screen: '',
       hook_type: 'question', lines: lines, hashtags: ['パン屋', 'カンパーニュ', '朝ごはん'], style: VIDEO_PROJECT.brand.style,
-      rationale: '競合の上位は「問いかけ→答え→工程」の順で、24秒前後に集まっています。答えを早めに出し、工程を2つに絞りました。',
+      rationale: '競合の上位は「問いかけ→答え→工程」の順で、24秒前後に集まっています。答えを早めに出し、工程を2つに絞りました。最後の行は1行目の問いに戻るループにしています。',
       originality: { clean: true, attempts: 1, findings: [] }, created_at: ago(2 * DAY)
     };
     sc.shots = window.lumVideoCore ? window.lumVideoCore.shotsFromLines(lines, sc.style) : [];
+    return sc;
+  }
+  function videoLongScript() {
+    // 長尺（YouTube 6分）。山場を約3分ごとに置き、0〜1／1〜3／3〜6分の構成を見せる例です。
+    var L = [
+      [0, 8, '店長と新人、クロワッサンを先に10個焼けるのはどっち？', '店長vs新人 クロワッサン対決', 'Two bakers facing each other across a flour-dusted table', '', ''],
+      [8, 45, 'ルールは1つ。生地は同じ、時間は30分。負けたほうが明日の朝の掃除です。', 'ルール: 同じ生地・30分', 'Wide shot of the bakery kitchen, two work stations', 'switch_visual', ''],
+      [45, 60, '最後に、お客様10人の食べ比べで勝ち負けを発表します。', '最後に食べ比べで発表', 'Customers waiting at the counter with tasting plates', 'switch_question', ''],
+      [60, 150, 'まずは生地を伸ばすところから。店長の手元を見てください。', '店長の手元', 'Overhead shot of hands rolling butter dough', 'switch_visual', ''],
+      [150, 170, 'ここでルール変更。残り10分で、形をハートにしてもらいます。', 'ルール変更: ハート形', 'Surprised faces of both bakers', 'peak_rule', ''],
+      [170, 300, '新人が焦り始めました。オーブンの温度が上がりません。', 'トラブル発生', 'Oven thermometer close-up, baker checking the dial', 'peak_trouble', ''],
+      [300, 340, '焼き上がり。見た目はどちらもきれいです。', '焼き上がり', 'Golden croissants cooling on two racks', 'switch_visual', ''],
+      [340, 360, '食べ比べの結果、勝ったのは…新人でした。次の動画はリベンジ戦。チャンネル登録して待っていてください。', '勝者は新人！', 'Customers raising cards with votes', 'peak_reveal', '']
+    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4], mark: l[5] }; });
+    var sc = {
+      id: 'demo-script-long', title: '店長vs新人 クロワッサン10個対決', platform: 'youtube', length_mode: 'long', target_duration_sec: 360, hook: L[0].narration, body: '', cta: '次の動画でリベンジ戦',
+      thumb_text: '店長vs新人', promise: '店長と新人のクロワッサン対決で、どちらが勝つかが分かる', promise_keywords: ['店長', '新人', 'クロワッサン'], wow: '朝4時の仕込み場で、本物の生地を使った対決',
+      format: 'contest', loop: false, end_screen: '次に見てほしい「リベンジ戦」の動画とチャンネル登録',
+      hook_type: 'question', lines: L, hashtags: ['パン屋', 'クロワッサン'], style: VIDEO_PROJECT.brand.style,
+      rationale: '0〜10秒で対決を見せ、60秒までに「最後に食べ比べで発表」と言っています。約3分ごとにルール変更とトラブルを置きました。',
+      originality: { clean: true, attempts: 1, findings: [] }, created_at: ago(1 * DAY)
+    };
+    sc.shots = window.lumVideoCore ? window.lumVideoCore.shotsFromLines(L, sc.style) : [];
     return sc;
   }
   function videoPubs() {
@@ -1506,6 +1542,13 @@
         caption: '架空のデモ投稿です。', hashtags: ['パン屋'], hook_type: x[2], duration_sec: x[3], published_at: x[4] ? new Date(Date.now() - x[4] * DAY + (x[5] - new Date().getHours()) * 3600000).toISOString() : '',
         external_id: x[6] != null ? 'demo' + i : '', external_url: '', error: '', snapshots: [] };
       if (x[6] != null) u.snapshots.push({ captured_at: ago(DAY / 2), views: x[6], likes: x[7], comments: Math.round(x[7] / 30), shares: Math.round(x[7] / 20), saves: x[8], avg_watch_sec: x[9], retention_rate: x[10], reach: Math.round(x[6] * 0.8), source: 'demo' });
+      // 1本目（台本つき）は、分析画面から手で入れた3秒維持率と維持率の曲線がある例。
+      if (i === 0) {
+        u.snapshots[0].hold_3s = 0.71;
+        u.snapshots[0].retention_curve = [[0, 100], [1, 88], [2, 78], [3, 71], [4, 69], [5, 68], [6, 67], [7, 66], [8, 65], [9, 58], [10, 53], [12, 51], [14, 49], [16, 47], [18, 45], [20, 44], [22, 43], [24, 42]]
+          .map(function (p) { return { t: p[0], r: p[1] / 100 }; });
+      }
+      if (i === 2) u.snapshots[0].hold_3s = 0.79;
       return u;
     });
   }
@@ -1519,7 +1562,7 @@
     return {
       ok: true, stored: true, project: VIDEO_PROJECT, ready: videoReady(), rules: C ? C.RULES : null, caps: { posts: 300, scripts: 100, pubs: 300, pdca: 50 },
       posts: scored, band: C ? C.durationBand(scored) : { ok: false, message: '' },
-      scripts: [videoScript()], pubs: videoPubs(),
+      scripts: [videoScript(), videoLongScript()], pubs: videoPubs(),
       pdca: [{ id: 'demo-pdca', title: '冒頭を問いかけにする', stage: 'check', hypothesis: '問いかけで始めると、最後まで見る人が増えるはず', target: { metric: 'retention_rate', target: 0.05, baseline: 0.46 },
         publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) }]
     };

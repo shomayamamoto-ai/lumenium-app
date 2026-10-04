@@ -280,6 +280,294 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('CSV の読み書き・絵コンテ・長さと縦横比の判定')
 }
 
+/* ---- 長さの種類 ---- */
+{
+  assert.equal(V.lengthMode({}), 'short', '指定の無い台本はショート')
+  assert.equal(V.lengthMode({ length_mode: 'long' }), 'long')
+  assert.equal(V.modeRules({}).SHOT_MAX_SEC, 3.5)
+  assert.equal(V.modeRules({ length_mode: 'long' }).SHOT_MAX_SEC, 10)
+  const L = (end) => ({ lines: [{ start: 0, end }] })
+  assert.equal(V.lengthModeCheck(L(60)).ok, true)
+  assert.equal(V.lengthModeCheck(L(120)).ok, false, 'ショートで90秒超は注意')
+  assert.equal(V.lengthModeCheck({ ...L(120), length_mode: 'long' }).ok, false, '長尺で3分未満は注意')
+  assert.equal(V.lengthModeCheck({ ...L(240), length_mode: 'long' }).ok, true)
+  ok('長さの種類（ショート／長尺）と既定値')
+}
+
+/* ---- パッケージと約束 ---- */
+{
+  assert.deepEqual(V.promiseKeywords('カンパーニュの大きな穴ができる理由が分かる'), ['カンパーニュ', '穴'])
+  assert.deepEqual(V.promiseKeywords('朝4時の仕込みを30秒で全部見せます'), ['朝', '4時', '仕込', '30秒'])
+  assert.deepEqual(V.promiseKeywords('ＳＮＳで集客する3つの方法'), ['sns', '集客', '3つ'], '全角は半角に、「方法」は除く')
+  assert.deepEqual(V.promiseKeywords('なんでも', '穴、 石窯'), ['穴', '石窯'], '手で入れた言葉が優先')
+  const lines = [
+    { start: 0, end: 3, narration: 'この穴、どうやってできると思います？', telop: 'この穴、どうやってできる？' },
+    { start: 3, end: 8, narration: 'カンパーニュは水が多い生地です。', telop: '' },
+  ]
+  const s = { promise: 'カンパーニュの大きな穴ができる理由が分かる', lines }
+  const r = V.promiseCheck(s)
+  assert.equal(r.ok, false)
+  assert.deepEqual(r.missing, ['カンパーニュ'])
+  assert.equal(r.fixLine, 0)
+  assert.match(r.text, /最初の3秒に「カンパーニュ」/)
+  // 長尺は10秒まで見るので、2行目（3〜8秒）のカンパーニュも数えます。
+  assert.equal(V.promiseCheck({ ...s, length_mode: 'long' }).ok, true)
+  // ナレーションは行の長さに比例して数える（0〜10秒の行の、最初の3秒ぶん＝30%）。
+  const o = V.openingText([{ start: 0, end: 10, narration: 'あいうえおかきくけこ', telop: '' }], 3)
+  assert.equal(o.narration, 'あいう')
+  assert.equal(V.promiseCheck({ lines }).status, 'none', '約束が無ければ判定しない')
+  // 禁止ワードはパッケージにも効く
+  assert.equal(V.checkScript({ thumb_text: '日本一の穴', lines: [] }, { banned_words: ['日本一'] }).ok, false)
+  ok('約束を守る（言葉の取り出し・冒頭3秒／10秒・直す行）')
+}
+
+/* ---- 冒頭の設計 ---- */
+{
+  assert.equal(V.classifyHook('この穴、どうやってできると思います？'), 'question')
+  assert.equal(V.classifyHook('パンが売り切れる3つの理由'), 'number')
+  assert.equal(V.classifyHook('実はこれ、捨てていました'), 'negation')
+  assert.equal(V.classifyHook('完成するとこうなります'), 'result')
+  assert.equal(V.classifyHook('髪のパサつきに悩む人へ'), 'callout')
+  assert.equal(V.classifyHook('「もう無理です…」'), 'cold_open')
+  assert.equal(V.classifyHook('パンの作り方。'), 'other')
+  const base = { promise: '穴ができる理由', lines: [{ start: 0, end: 3, narration: 'この穴、なぜできる？', telop: '' }, { start: 3, end: 30, narration: 'おいしい', telop: '' }] }
+  const a = V.hookCheck(base)
+  assert.equal(a.timingOk, true)
+  assert.equal(a.type, 'question')
+  assert.equal(a.strength, 'strong')
+  const slow = V.hookCheck({ ...base, lines: [{ start: 0, end: 4.5, narration: 'こんにちは、店長です', telop: '' }] })
+  assert.equal(slow.timingOk, false, 'ショートは1行目が3秒を超えたら注意')
+  assert.equal(slow.greeting, true)
+  assert.equal(slow.strength, 'weak')
+  // 長尺: 10秒までは1行目が長くてもよい。60秒までに「最後まで見る理由」が要る。
+  const long = { ...base, length_mode: 'long', lines: [{ start: 0, end: 8, narration: 'この穴、なぜできる？', telop: '' }, { start: 8, end: 70, narration: '工程を見せます', telop: '' }] }
+  const b = V.hookCheck(long)
+  assert.equal(b.timingOk, true)
+  assert.equal(b.whyWatch.ok, false)
+  long.lines[1].narration = '最後に、どっちが勝ったか発表します'
+  assert.equal(V.hookCheck(long).whyWatch.ok, true)
+  assert.equal(V.hookCheck(long).whyWatch.index, 1)
+  ok('冒頭の設計（型の推定・ショート3秒・長尺10秒と60秒）')
+}
+
+/* ---- テンポ（同じ画の長さ）とカット割り ---- */
+{
+  const shots = V.shotsFromLines([
+    { start: 0, end: 3, visual: 'A loaf' },
+    { start: 3, end: 10, visual: 'Baker folding dough', narration: 'こねます' },
+    { start: 10, end: 13.5, visual: 'Oven' },
+  ], 'warm light')
+  const c = V.shotLengthCheck(shots, {})
+  assert.equal(c.ok, false)
+  assert.deepEqual(c.over.map((x) => x.index), [1], 'ショートは3.5秒を超えたカットだけ（3.5秒ちょうどは可）')
+  assert.equal(c.longest.sec, 7)
+  assert.equal(V.shotLengthCheck(shots, { length_mode: 'long' }).ok, true, '長尺は10秒まで')
+  const r1 = V.splitLongShots(shots, {})
+  const r2 = V.splitLongShots(shots, {})
+  assert.deepEqual(r1, r2, '同じ入力なら同じ分け方')
+  assert.equal(r1.changed, 1)
+  const parts = r1.shots.filter((x) => x.parent === 1)
+  assert.equal(parts.length, 3, '7秒 ÷ 2.5秒 → 3カット')
+  assert.deepEqual(parts.map((x) => [x.start, x.end]), [[3, 5.3], [5.3, 7.7], [7.7, 10]])
+  assert.deepEqual(parts.map((x) => x.angle), ['元の画', '寄り', '引き'])
+  assert.equal(parts[0].narration, 'こねます')
+  assert.equal(parts[1].narration, '')
+  assert.match(parts[1].visual_prompt, /^Close-up of baker folding dough, warm light\. No text/)
+  assert.deepEqual(r1.shots.map((x) => x.index), [0, 1, 2, 3, 4], '番号は振り直す')
+  assert.equal(V.shotLengthCheck(r1.shots, {}).ok, true, '分けたあとは目安に収まる')
+  // 長尺: 25秒のカット → 5秒ずつ5つ、寄り・引き・手元・別アングルの順
+  const longParts = V.splitShot({ start: 0, end: 25, visual_prompt: 'Shop', camera: 'wide' }, { length_mode: 'long' })
+  assert.deepEqual(longParts.map((x) => x.angle), ['元の画', '寄り', '引き', '手元', '別アングル'])
+  const edl = V.storyboardEdl(r1.shots, { title: 'テスト' })
+  assert.match(edl, /002  AX       V     C        00:00:03:00 00:00:05:09 00:00:03:00 00:00:05:09/)
+  assert.match(edl, /SHOT 2b close-up/)
+  assert.ok(!/[^\x00-\x7e]/.test(edl), 'EDL は英数字だけ')
+  assert.match(edl, /^TITLE: STORYBOARD\r\n/)
+  ok('テンポの確認（ショート3.5秒・長尺10秒）とカット割り（決まった分け方・EDL）')
+}
+
+/* ---- 山場と注意の切り替え ---- */
+{
+  const L = (start, end, mark) => ({ start, end, narration: '', telop: '', mark: mark || '' })
+  // ショート 30秒: 0（フック）→ 8秒の切り替え → 22秒の切り替え → 30秒。8〜22秒の14秒が長い。
+  const s = { lines: [L(0, 3), L(3, 8), L(8, 14, 'switch_visual'), L(14, 22), L(22, 30, 'switch_question')] }
+  const r = V.rhythmCheck(s)
+  assert.equal(r.ok, false)
+  assert.deepEqual(r.gaps.map((g) => g.sec), [8, 14, 8])
+  assert.deepEqual(r.over.map((g) => [g.from, g.to]), [[8, 22]])
+  s.lines[3].mark = 'peak_reveal' // 山場も注意を戻すので、ショートでは切り替えとして数える
+  assert.equal(V.rhythmCheck(s).ok, true)
+  // 同じ時刻の行とカットの印は1つに
+  const ev = V.markEvents({ lines: [L(0, 3, 'switch_sound')], shots: [{ start: 0, end: 3, mark: 'switch_visual' }, { start: 1.5, end: 3, mark: 'peak_twist' }] })
+  assert.deepEqual(ev.map((e) => [e.t, e.kind]), [[0, 'switch'], [1.5, 'peak']])
+  // 長尺 8分: 山場が 2分・4分半 → 4分半〜8分（3分半ちょうど）は可
+  const long = { length_mode: 'long', lines: [L(0, 10), L(10, 120), L(120, 270, 'peak_rule'), L(270, 400, 'peak_trouble'), L(400, 480)] }
+  const lr = V.rhythmCheck(long)
+  assert.deepEqual(lr.gaps.map((g) => g.sec), [120, 150, 210])
+  assert.equal(lr.over.length, 0)
+  assert.deepEqual(lr.acts.map((a) => [a.label, a.ok]), [['つかむ（0〜1分）', true], ['引き込む（1〜3分）', true], ['夢中にさせる（3〜6分）', true], ['後半を保つ（6分〜）', false]])
+  long.lines[3].mark = ''
+  const lr2 = V.rhythmCheck(long)
+  assert.deepEqual(lr2.over.map((g) => [g.from, g.to]), [[120, 480]], '山場が6分空くと注意')
+  const tl = V.timelineData(s)
+  assert.equal(tl.hook.to, 0.1)
+  assert.equal(tl.cta.from, 22 / 30)
+  assert.equal(tl.events.length, 3)
+  ok('切り替え（ショート12秒）・山場（長尺3分半）と 0〜1／1〜3／3〜6分の構成、時間の帯')
+}
+
+/* ---- ループと最後 ---- */
+{
+  const L = (n) => ({ start: 0, end: 3, narration: n, telop: '' })
+  const s = { loop: true, lines: [L('この穴、どうやってできる？'), L('水の量です。'), L('保存して朝に見返してね'), L('で、この穴の答えは…')] }
+  const e = V.endingCheck(s)
+  assert.equal(e.cta.ok, true, 'ループのときは最後から2行目の CTA を認める')
+  assert.deepEqual(e.cta.actions, ['保存'])
+  assert.equal(e.loop.ok, true)
+  assert.deepEqual(e.loop.shared, ['穴'])
+  assert.equal(e.ok, true)
+  const closer = V.endingCheck({ ...s, lines: s.lines.slice(0, 3).concat([L('以上です、ありがとうございました')]) })
+  assert.equal(closer.loop.ok, false, '締めの言葉で終わるとループにならない')
+  assert.equal(closer.loop.closer, true)
+  const early = V.endingCheck({ lines: [L('フォローしてね！この穴、なぜ？'), L('水の量です'), L('保存とフォローお願いします')] })
+  assert.deepEqual(early.cta.early, [0], '途中のお願いは指摘')
+  assert.deepEqual(early.cta.actions, ['フォロー', '保存'])
+  assert.equal(early.cta.ok, false)
+  assert.equal(early.loop.want, false)
+  assert.equal(early.ok, false)
+  const none = V.endingCheck({ lines: [L('この穴、なぜ？'), L('水の量です')] })
+  assert.equal(none.cta.atEnd, false)
+  const long = V.endingCheck({ length_mode: 'long', lines: [L('この穴、なぜ？'), L('チャンネル登録してね')] })
+  assert.equal(long.loop, null)
+  assert.equal(long.endScreen.ok, false)
+  assert.equal(V.endingCheck({ length_mode: 'long', end_screen: '次の動画', lines: [L('この穴、なぜ？'), L('チャンネル登録してね')] }).ok, true)
+  ok('ループ（最後が1行目につながる）・CTA は最後に1回1つ・長尺の終了画面')
+}
+
+/* ---- 企画の型 ---- */
+{
+  assert.equal(V.guessFormat('店長 vs 新人 クロワッサン早作り対決'), 'contest')
+  assert.equal(V.guessFormat('1000円だけで作るランチ'), 'challenge')
+  assert.equal(V.guessFormat('人気パンTOP3'), 'ranking')
+  assert.equal(V.guessFormat('カット前と後 ビフォーアフター'), 'before_after')
+  assert.equal(V.guessFormat('朝4時の仕込み、全部見せます'), 'behind')
+  assert.equal(V.guessFormat('冷凍パンは本当においしい？検証'), 'test')
+  assert.equal(V.guessFormat('次の新作、コメントで投票して'), 'vote')
+  assert.equal(V.guessFormat('おいしいパン'), '')
+  const P = (format, score, er) => ({ format, score, engagement_rate: er })
+  const posts = [
+    P('contest', 0.9), P('contest', 0.85), P('contest', 0.8), P('contest', 0.88), P('contest', 0.92), P('contest', 0.86),
+    P('behind', 0.3), P('behind', 0.35), P('behind', 0.25), P('behind', 0.32),
+    P('vote', 0.99), P('vote', 0.95),
+    P('', 0.5), P('nope', 0.4),
+  ]
+  const f = V.formatPerformance(posts)
+  assert.equal(f.untagged, 2, '未設定と知らない型は数えない')
+  assert.equal(f.tagged, 12)
+  assert.deepEqual(f.groups.map((g) => [g.format, g.n, g.reliability.band]), [['vote', 2, 'insufficient'], ['contest', 6, 'usable'], ['behind', 4, 'weak']])
+  assert.equal(f.clear, false, '一番上が2本だけなら「強い」と言わない')
+  const f2 = V.formatPerformance(posts.filter((p) => p.format !== 'vote'))
+  assert.equal(f2.groups[0].format, 'contest')
+  assert.equal(f2.clear, true, '区間が重ならなければ差があると言う')
+  assert.deepEqual(V.formatPerformance(posts), f, '種を固定しているので毎回同じ')
+  ok('企画の型（言葉からの推定・型ごとの成績と信頼度）')
+}
+
+/* ---- 実物の動画: 画の切り替わり・話し始め ---- */
+{
+  const W = 48, H = 27
+  // 場面ごとに色と模様を変えた絵。noise は圧縮のちらつきの代わり（決まった乱数）。
+  const R = V.rng(7)
+  const frame = (scene) => {
+    const px = new Uint8ClampedArray(W * H * 4)
+    const base = [[200, 40, 40], [40, 160, 60], [30, 60, 200], [230, 220, 90], [120, 120, 120], [250, 250, 250], [10, 10, 10], [180, 90, 200]][scene % 8]
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4
+      const stripe = ((x + scene * 7) % 16) < 8 ? 1 : 0.6
+      const n = (R() - 0.5) * 6
+      px[i] = base[0] * stripe + n; px[i + 1] = base[1] * stripe + n; px[i + 2] = base[2] * stripe + n; px[i + 3] = 255
+    }
+    return px
+  }
+  const sceneAt = (t) => (t < 0.8 ? 0 : t < 1.6 ? 1 : t < 2.4 ? 2 : t < 3.2 ? 3 : t < 10.1 ? 4 : t < 11 ? 5 : 6)
+  const plan = V.scenePlan(12)
+  assert.equal(plan.fps, 6)
+  assert.equal(plan.times.length, 72)
+  const sigs = plan.times.map((t) => V.frameSignature(frame(sceneAt(t)), W, H))
+  const diffs = sigs.map((s, i) => (i ? V.frameDiff(sigs[i - 1], s) : 0))
+  const sum = V.sceneSummary(plan.times, diffs, 12)
+  assert.equal(sum.count, 6, '場面が変わった6か所だけを拾う（ちらつきは拾わない）')
+  assert.ok(Math.abs(sum.longest.start - 3.2) <= 0.15 && Math.abs(sum.longest.end - 10.1) <= 0.15, `一番長い画は 3.2〜10.1秒（${sum.longest.start}〜${sum.longest.end}）`)
+  assert.ok(Math.abs(sum.longest.sec - 6.9) <= 0.2)
+  assert.match(sum.text, /同じ画が6\.\d秒続いています/)
+  assert.equal(sum.over.length, 1, 'ショートの目安3.5秒を超えるのは1か所')
+  assert.deepEqual(V.sceneSummary(plan.times, diffs, 12), sum, '同じ入力なら同じ結果')
+  // ずっと同じ画（ちらつきだけ）なら切り替わりは0
+  const still = plan.times.map(() => V.frameSignature(frame(4), W, H))
+  const sd = still.map((s, i) => (i ? V.frameDiff(still[i - 1], s) : 0))
+  const ss = V.sceneSummary(plan.times, sd, 12)
+  assert.equal(ss.count, 0)
+  assert.equal(ss.longest.sec, 12)
+  assert.equal(V.scenePlan(600).fps, 4, '長い動画は1秒4枚')
+  assert.ok(V.scenePlan(1200).times.length <= 2400, '最大2400枚')
+
+  // 話し始め: 0.8秒の無音のあとに声（の代わりの正弦波）
+  const fs = 48000
+  const sig = new Float32Array(Math.round(fs * 2))
+  for (let i = Math.round(fs * 0.8); i < sig.length; i++) sig[i] = 0.3 * Math.sin(2 * Math.PI * 300 * i / fs)
+  const m = V.frameMeter(fs)
+  m.push(sig)
+  const sp = V.speechStart(m.done())
+  assert.ok(Math.abs(sp.start - 0.8) < 0.02, `話し始め ${sp.start}秒`)
+  assert.equal(sp.warn, true)
+  assert.ok(Math.abs(sp.trim.end - 0.7) < 0.02, '話し始めの0.1秒手前まで切る')
+  const m2 = V.frameMeter(fs)
+  m2.push(sig.slice(Math.round(fs * 0.5)))
+  const sp2 = V.speechStart(m2.done())
+  assert.ok(sp2.start < 0.35 && sp2.warn === false && sp2.trim === null, '0.5秒以内なら注意しない')
+  ok('実物の動画: 画の切り替わり（静止と変化の合成フレーム）と話し始めの無音')
+}
+
+/* ---- 数字から学ぶ（AVD・AVP・3秒維持率・離脱点） ---- */
+{
+  assert.equal(V.avp({ avg_watch_sec: 12 }, 24), 0.5)
+  assert.equal(V.avp({ avg_watch_sec: 12 }, 0), null, '長さが無ければ出さない')
+  assert.equal(V.metricValue({ avg_watch_sec: 12 }, 'avp', 24), 0.5)
+  const curve = [[0, 1], [1, 0.9], [2, 0.8], [3, 0.74], [4, 0.72], [5, 0.71], [6, 0.7], [7, 0.69], [8, 0.62], [9, 0.56], [10, 0.55], [12, 0.53], [14, 0.51], [16, 0.5]].map(([t, r]) => ({ t, r }))
+  assert.equal(V.holdAt(curve, 3), 0.74)
+  assert.equal(V.holdAt(curve, 2.5), 0.77, '間は直線で補間')
+  assert.equal(V.hold3({ retention_curve: curve }), 0.74)
+  assert.equal(V.hold3({ hold_3s: 0.8, retention_curve: curve }), 0.8, '手で入れた値が先')
+  assert.equal(V.hold3({ skip_rate: 0.3 }), 0.7, 'スキップ率から')
+  const drops = V.retentionDrops(curve)
+  assert.deepEqual(drops.map((d) => [d.from, d.to, d.at, d.drop, d.hook]), [[0, 4, 0, 0.28, true], [6, 10, 7, 0.15, false]])
+  assert.deepEqual(V.retentionDrops(curve.map((p) => ({ t: p.t, r: 1 - p.t * 0.01 }))), [], 'なだらかに減るだけなら離脱点なし')
+  const lines = [
+    { start: 0, end: 3, narration: 'この穴、どうやってできる？' }, { start: 3, end: 8, narration: '答えは水の量' },
+    { start: 8, end: 14, narration: '粉の8割が水' }, { start: 14, end: 16, narration: '保存してね' },
+  ]
+  const mapped = V.mapDropsToLines(drops, lines)
+  assert.deepEqual(mapped.map((m) => m.line), [0, 1], '7秒（いちばん急なところ）は2行目')
+  assert.equal(mapped[1].text, '2行目「答えは水の量」（3〜8秒）のあたりで 15% 離脱しています。')
+  const ideas = V.nextHypotheses({ mode: 'short', duration: 16, drops: mapped, hold3: 0.6, avp: 0.55 })
+  assert.deepEqual(ideas.map((x) => x.title), ['冒頭を疑問形にする', '7秒目に切り替えを足す'])
+  assert.equal(ideas[0].target.metric, 'hold_3s')
+  assert.equal(ideas[0].target.baseline, 0.6)
+  assert.equal(ideas[1].stage, 'plan')
+  const q = V.nextHypotheses({ mode: 'short', duration: 16, drops: mapped, hold3: 0.6, hookType: 'question' })
+  assert.equal(q[0].title, '約束の言葉を冒頭3秒に入れる', 'すでに問いかけなら、問いかけにする案は出さない')
+  // 終わり近くの離脱 → 最後を短く
+  const endIdeas = V.nextHypotheses({ mode: 'short', duration: 16, drops: [{ from: 14, to: 16, at: 14, drop: 0.1, pct: 10, hook: false, line: 3 }], hold3: 0.85 })
+  assert.deepEqual(endIdeas.map((x) => x.title), ['最後を短く、CTAは1つに'])
+  // 長尺: 2分半の離脱 → 山場を置く。最初の1分 → 最後まで見る理由
+  const longIdeas = V.nextHypotheses({ mode: 'long', duration: 600, drops: [{ from: 150, at: 150, drop: 0.08, pct: 8, line: -1 }, { from: 20, at: 20, drop: 0.06, pct: 6, line: -1 }] })
+  assert.deepEqual(longIdeas.map((x) => x.title), ['2分30秒ごろに山場を置く', '60秒までに「最後まで見る理由」を言う'])
+  const b = V.benchmarks({ hold_3s: 0.6, avg_watch_sec: 20 }, 24, 'short')
+  assert.deepEqual(b.map((x) => [x.key, x.level]), [['hold_3s', 'ng'], ['avp', 'ok']])
+  assert.match(b[0].text, /目安/)
+  ok('数字から学ぶ（AVP・3秒維持率・離脱点と台本の行・次の仮説）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

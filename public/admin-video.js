@@ -207,7 +207,7 @@
     el('vp-save').addEventListener('click', async function () {
       var body = {
         id: p ? p.id : undefined, name: el('vp-name').value, description: el('vp-desc').value,
-        created_at: p ? p.created_at : undefined, research: p ? p.research : [], imported_from: p ? p.imported_from : '',
+        created_at: p ? p.created_at : undefined, research: p ? p.research : [], imported_from: p ? p.imported_from : '', reinvest: p ? p.reinvest : undefined,
         brand: {
           persona: el('vp-persona').value, tone: el('vp-tone').value, banned_words: lines(el('vp-banned').value),
           notation: parseNotation(el('vp-notation').value), notation_exceptions: lines(el('vp-except').value), style: el('vp-style').value
@@ -291,13 +291,15 @@
         '<button type="button" id="vr-analyze" style="font-size:12px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>未分析の投稿を構成分析（最大8件）</button>' +
         '<button type="button" class="ghost" id="vr-del" style="font-size:12px;padding:8px 12px">選んだ投稿を削除</button></div>' +
       (S.ready.ai ? '' : '<p class="soc-small">構成分析には AI のキーが要ります（「設定状況 › キーの入力」）。</p>') +
-      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th></th><th>順位</th><th>タイトル</th><th>再生</th><th>反応率</th><th>伸び（再生/時）</th><th>長さ</th><th>総合点</th><th>フック</th></tr></thead><tbody>' +
+      formatStatsHtml(d.posts) +
+      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th></th><th>順位</th><th>タイトル</th><th>再生</th><th>反応率</th><th>伸び（再生/時）</th><th>長さ</th><th>総合点</th><th>フック</th><th>企画の型</th></tr></thead><tbody>' +
         (d.posts.length ? d.posts.map(function (p) {
           return '<tr><td><input type="checkbox" class="vr-pick" value="' + esc(p.id) + '" aria-label="選ぶ"></td><td>' + p.rank + '</td>' +
             '<td style="min-width:180px">' + (p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(p.title || '（無題）') + '</a>' : esc(p.title || '（無題）')) + '</td>' +
             '<td>' + int(p.views) + '</td><td>' + pct(p.engagement_rate) + '</td><td>' + int(p.velocity) + '</td><td>' + sec(p.duration_sec) + '</td>' +
-            '<td>' + (p.score == null ? '—' : p.score.toFixed(2)) + '</td><td>' + (p.analysis ? esc(V.HOOK_LABELS[p.analysis.hook_type] || p.analysis.hook_type) : '未分析') + '</td></tr>';
-        }).join('') : '<tr><td colspan="9" class="empty">まだありません。上の「投稿を追加する」から入れてください。</td></tr>') +
+            '<td>' + (p.score == null ? '—' : p.score.toFixed(2)) + '</td><td>' + (p.analysis ? esc(V.HOOK_LABELS[p.analysis.hook_type] || p.analysis.hook_type) : '未分析') + '</td>' +
+            '<td><select class="vr-fmt" data-id="' + esc(p.id) + '" aria-label="企画の型">' + formatOptions(p.format) + '</select>' + (p.format_source ? '<br><span class="soc-small">' + ({ ai: 'AIが推定', manual: '手で設定', guess: '言葉から推定' }[p.format_source] || '') + '</span>' : '') + '</td></tr>';
+        }).join('') : '<tr><td colspan="10" class="empty">まだありません。上の「投稿を追加する」から入れてください。</td></tr>') +
       '</tbody></table></div>' +
       (analysed.length ? '<h3 class="soc-step" style="margin-top:18px">構成分析</h3><p class="soc-small">画面内テロップは動画ファイルが無いので未測定です。下の数字はキャプションの統計です。</p>' +
         analysed.map(function (p) {
@@ -372,6 +374,28 @@
       await reload();
       say(r.data.analyzed + '件を分析しました。' + (r.data.left ? 'あと' + r.data.left + '件あります（もう一度押すと続きを分析します）。' : ''), true);
     });
+    host.querySelectorAll('.vr-fmt').forEach(function (sel) {
+      sel.addEventListener('change', async function () {
+        var p = d.posts.filter(function (x) { return x.id === sel.getAttribute('data-id'); })[0];
+        if (!p) return;
+        var r = await post({ action: 'post.save', item: Object.assign({}, p, { format: sel.value, format_source: sel.value ? 'manual' : '' }) });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('企画の型を保存しました。', true);
+      });
+    });
+    el('vr-guess').addEventListener('click', async function () {
+      var items = d.posts.filter(function (p) { return !p.format; }).map(function (p) {
+        return Object.assign({}, p, { format: V.guessFormat((p.title || '') + ' ' + (p.caption || '')), format_source: 'guess' });
+      }).filter(function (p) { return p.format; });
+      if (!items.length) { say('言葉から型を推せる投稿はありませんでした（AIの構成分析か、手で選んでください）。'); return; }
+      this.disabled = true;
+      var r = await send('/api/video', 'PUT', { kind: 'posts', project: S.pid, items: items });
+      this.disabled = false;
+      if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+      await reload();
+      say(items.length + '件に型を付けました（言葉からの推定です。違うものは表で直してください）。', true);
+    });
     el('vr-del').addEventListener('click', async function () {
       var ids = Array.prototype.map.call(document.querySelectorAll('.vr-pick:checked'), function (c) { return c.value; });
       if (!ids.length) { say('削除する投稿にチェックを入れてください。'); return; }
@@ -381,6 +405,29 @@
       await reload();
     });
   };
+
+  function formatOptions(v) {
+    return '<option value="">（未設定）</option>' + V.FORMAT_KEYS.map(function (k) { return '<option value="' + k + '"' + (v === k ? ' selected' : '') + '>' + V.FORMATS[k].label + '</option>'; }).join('');
+  }
+
+  /** 企画の型ごとの成績（競合）。件数が少ない型は「まだ判断できません」。 */
+  function formatStatsHtml(posts) {
+    var f = V.formatPerformance(posts, 'score');
+    var er = V.formatPerformance(posts, 'engagement_rate');
+    var byEr = {};
+    er.groups.forEach(function (g) { byEr[g.format] = g; });
+    return '<h3 class="soc-step" style="margin-top:14px">企画の型ごとの成績</h3>' +
+      '<p class="soc-small">競合の投稿に付けた型（競争・対決、挑戦、ビフォーアフターなど）ごとに、総合点と反応率の平均を比べます。区間は 95%（ブートストラップ）、件数が3本未満の型は「まだ判断できません」です。型は構成分析（AI）で付くほか、表の「企画の型」で手でも選べます。</p>' +
+      '<div class="vid-row" style="margin-bottom:6px"><button type="button" class="ghost" id="vr-guess" style="font-size:12px;padding:7px 12px">未設定の投稿に、言葉から型を付ける</button><span class="soc-small">型あり ' + f.tagged + '件・未設定 ' + f.untagged + '件</span></div>' +
+      (f.groups.length ? '<div class="tbl vid-scroll" style="max-height:none"><table class="vid-table" id="vr-formats"><thead><tr><th>企画の型</th><th>本数</th><th>総合点の平均（区間）</th><th>反応率の平均</th><th>信頼度</th></tr></thead><tbody>' +
+        f.groups.map(function (g, i) {
+          var e = byEr[g.format];
+          return '<tr><td>' + (i === 0 && f.clear ? '<b>' + esc(g.label) + '</b>' : esc(g.label)) + '</td><td>' + g.n + '</td><td>' + g.mean.toFixed(2) + '（' + g.low.toFixed(2) + '〜' + g.high.toFixed(2) + '）</td>' +
+            '<td>' + (e ? pct(e.mean) : '—') + '</td><td><span class="vid-tag ' + (g.reliability.band === 'insufficient' ? '' : g.reliability.band === 'weak' ? 'warn' : 'ok') + '">' + esc(g.reliability.label) + '（' + g.n + '本）</span></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="soc-small">' + (f.clear ? '一番上の型は、二番目と区間が重ならないので「よく見られている」と言えます。' : '区間が重なっているか件数が少ないため、どの型が強いかはまだ言い切れません。') + '</p>'
+      : '<p class="soc-small">型の付いた投稿がまだありません。</p>');
+  }
 
   /* ---------------- 3. 台本 ---------------- */
 
@@ -394,7 +441,7 @@
   function scriptPicker() {
     var d = S.data;
     return '<div class="vid-row"><label class="soc-lab" for="vs-pick" style="margin:0">台本</label><select id="vs-pick">' +
-      (d.scripts.length ? d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') : '<option value="">（まだありません）</option>') +
+      (d.scripts.length ? d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + (V.lengthMode(s) === 'long' ? '（長尺）' : '') + '</option>'; }).join('') : '<option value="">（まだありません）</option>') +
       '</select></div>';
   }
   function bindPicker(after) {
@@ -412,11 +459,14 @@
         '<label class="soc-lab" for="vs-topic">何についての動画か（テーマ・伝えたいこと）</label>' +
         '<textarea id="vs-topic" rows="3" placeholder="例：秋限定のかぼちゃのパン。1日30個。焼き上がりは11時。"></textarea>' +
         '<div class="vid-row" style="margin-top:6px">' +
+          '<select id="vs-mode" aria-label="長さの種類">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '">' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>' +
+          '<select id="vs-format" aria-label="企画の型"><option value="">企画の型（おまかせ）</option>' + V.FORMAT_KEYS.map(function (k) { return '<option value="' + k + '">' + V.FORMATS[k].label + '</option>'; }).join('') + '</select>' +
           '<select id="vs-net" aria-label="投稿先"><option value="instagram">Instagram リール</option><option value="youtube">YouTube ショート</option><option value="tiktok">TikTok</option></select>' +
-          '<input type="number" id="vs-dur" min="5" max="180" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
+          '<input type="number" id="vs-dur" min="5" max="900" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
           '<button type="button" id="vs-gen" style="font-size:12.5px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>台本を作る</button>' +
         '</div>' +
-        '<p class="soc-small" style="margin-top:6px">長さを空欄にすると、競合の上位の長さ（' + (band.ok ? '中央値 ' + band.median + '秒' : 'まだ判断できないため30秒') + '）を使います。冒頭約3秒をフックにし、テロップ・ナレーション・映す画を秒ごとに分けます。' +
+        '<label class="soc-small" style="display:block;margin-top:6px"><input type="checkbox" id="vs-loop" checked> ショートは最後を最初につなげる（ループ。最後まで見た人がそのまま見返しやすくなります）</label>' +
+        '<p class="soc-small" style="margin-top:6px">長さを空欄にすると、ショートは競合の上位の長さ（' + (band.ok ? '中央値 ' + band.median + '秒' : 'まだ判断できないため30秒') + '）、長尺は5分にします（長尺は YouTube の通常の動画として作ります）。冒頭をフックにし、テロップ・ナレーション・映す画を秒ごとに分けます。' +
         '作ったあと、禁止ワード・表記の統一・競合との言い回しの重なり（10文字以上）・テロップの速さを機械的に確かめます。重なりがあれば最大2回作り直します。' +
         (S.ready.ai ? '' : '<br>AI のキーが未設定です（「設定状況 › キーの入力」）。') + '</p>' +
       '</div></details>' +
@@ -430,7 +480,7 @@
       if (!topic) { say('テーマを入れてください。'); return; }
       this.disabled = true;
       say('AIが台本を書いています（30秒〜1分ほど）…', true);
-      var r = await post({ action: 'script.generate', topic: topic, platform: el('vs-net').value, duration: num(el('vs-dur').value) });
+      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked, format: el('vs-format').value });
       this.disabled = false;
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
       S.scriptId = r.data.script.id;
@@ -443,6 +493,7 @@
       S.scriptId = r.data.item.id;
       await reload();
     });
+    el('vs-mode').addEventListener('change', function () { el('vs-net').disabled = this.value === 'long'; });
     if (el('vs-del')) el('vs-del').addEventListener('click', async function () {
       if (!confirm('この台本を削除します。よろしいですか？')) return;
       await post({ action: 'script.delete', id: S.scriptId });
@@ -450,21 +501,116 @@
       await reload();
     });
     var s = currentScript();
+    S.hookIdeas = null;
     if (s) editor(el('vs-edit'), JSON.parse(JSON.stringify(s)));
   };
 
+  function res(ok, title, body) {
+    return '<div class="soc-res ' + (ok === true ? 'ok' : ok === false ? 'ng' : '') + '"><b>' + title + '</b><span>' + body + '</span></div>';
+  }
+  function mark(ok) { return ok === true ? '◯ ' : ok === false ? '✗ ' : '△ '; }
+
+  function fmtT(t) {
+    t = Math.round(Number(t) || 0);
+    return t >= 60 ? Math.floor(t / 60) + '分' + (t % 60 ? (t % 60) + '秒' : '') : t + '秒';
+  }
+
+  /** 時間の帯（動かない図）。フック・切り替え・山場・CTA と、間が長すぎるところ。 */
+  function timelineHtml(s) {
+    var d = V.timelineData(s);
+    if (!d) return '';
+    var pc = function (x) { return (Math.round(x * 1000) / 10) + '%'; };
+    var bar = '';
+    d.gaps.forEach(function (g) { bar += '<span class="vid-tl-gap" style="left:' + pc(g.from) + ';width:' + pc(g.to - g.from) + '"></span>'; });
+    bar += '<span class="vid-tl-hook" style="left:0;width:' + pc(d.hook.to) + '"></span>';
+    if (d.cta) bar += '<span class="vid-tl-cta" style="left:' + pc(d.cta.from) + ';width:' + pc(d.cta.to - d.cta.from) + '"></span>';
+    d.acts.forEach(function (a) { if (a.from > 0) bar += '<span class="vid-tl-act" style="left:' + pc(a.x) + '"></span>'; });
+    d.events.forEach(function (e) {
+      bar += '<span class="' + (e.kind === 'peak' ? 'vid-tl-pk' : 'vid-tl-sw') + '" style="left:' + pc(e.x) + '" title="' + esc(fmtT(e.t) + ' ' + e.label) + '"></span>';
+    });
+    var mid = d.dur / 2;
+    var desc = 'フック 0〜' + d.hook.sec + '秒、切り替え ' + d.events.filter(function (e) { return e.kind === 'switch'; }).length + 'か所、山場 ' + d.events.filter(function (e) { return e.kind === 'peak'; }).length + 'か所' + (d.cta ? '、CTA 最後の' + d.cta.sec + '秒' : '');
+    return '<div class="vid-tl" role="img" aria-label="時間の帯: ' + esc(desc) + '"><div class="vid-tl-bar">' + bar + '</div>' +
+      '<div class="vid-tl-axis"><span>0秒</span><span>' + fmtT(mid) + '</span><span>' + fmtT(d.dur) + '</span></div>' +
+      (d.acts.length ? '<div class="vid-tl-acts">' + d.acts.map(function (a) { return '<span class="vid-tag ' + (a.ok ? '' : 'warn') + '">' + esc(a.label) + ' 印' + a.marks + '</span>'; }).join(' ') + '</div>' : '') +
+      '<div class="vid-tl-key"><span><i class="k-hook"></i>フック</span><span><i class="k-sw"></i>切り替え</span><span><i class="k-pk"></i>山場</span><span><i class="k-cta"></i>CTA</span><span><i class="k-gap"></i>間が長い</span></div></div>';
+  }
+
+  function markSelect(cls, v) {
+    return '<select class="' + cls + '" data-k="mark" aria-label="印（切り替え・山場）">' + V.MARKS.map(function (m) { return '<option value="' + m + '"' + ((v || '') === m ? ' selected' : '') + '>' + V.MARK_LABELS[m] + '</option>'; }).join('') + '</select>';
+  }
+
+  /** 見続けてもらう工夫（約束・冒頭・テンポ・山場・最後）。どれも目安の判定です。 */
+  function retentionHtml(s) {
+    var h = timelineHtml(s);
+    if (s.format && V.FORMATS[s.format]) h += res(null, '企画の型', esc(V.FORMATS[s.format].label) + '：' + esc(V.FORMATS[s.format].recipe) + '<br><span class="soc-small">小さなお店なら: ' + esc(V.FORMATS[s.format].small) + '</span>');
+    // 順番: 約束 → 冒頭 → 切り替え・山場 → テンポ → 最後（動画の頭から順に）。
+    var rc = V.rhythmCheck(s);
+    var rhythm = '';
+    if (rc.dur) {
+      rhythm = res(rc.ok, rc.mode === 'short' ? '注意の切り替え' : '山場', mark(rc.ok) + (rc.mode === 'short'
+        ? '印（切り替え・山場）の間隔の目安は約' + rc.target + '秒、' + rc.warn + '秒を超えたら注意です。'
+        : '山場の間隔の目安は約' + (rc.target / 60) + '分、' + (rc.warn / 60) + '分を超えたら注意です。') +
+        (rc.over.length ? '<br>' + rc.over.map(function (g) { return fmtT(g.from) + '〜' + fmtT(g.to) + '（' + fmtT(g.sec) + '）'; }).join('、') + ' の間に' + (rc.mode === 'short' ? '切り替え（新しい画・音・問い）' : '山場（ルール変更・トラブル・発表・どんでん返し）') + 'がありません。行の「印」で付けられます。' : '<br>間隔は目安に収まっています。') +
+        (rc.acts.length ? rc.acts.filter(function (a) { return !a.ok; }).map(function (a) { return '<br>' + esc(a.label) + ' に印がありません。'; }).join('') : ''));
+    }
+    var pc = V.promiseCheck(s);
+    var op = pc.opening;
+    h += res(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null, '約束を守る', mark(pc.status === 'ok' ? true : pc.status === 'ng' ? false : null) + esc(pc.text) +
+      (pc.keywords.length ? '<br>確かめる言葉: ' + pc.keywords.map(function (k) { return pc.found.indexOf(k) >= 0 ? '<span class="vid-tag ok">' + esc(k) + '</span>' : '<span class="vid-tag ng">' + esc(k) + '</span>'; }).join(' ') : '') +
+      (op ? '<br><span class="soc-small">最初の' + pc.sec + '秒に出る言葉: ' + esc((op.telop + ' ／ ' + op.narration).trim() || '（なし）') + '</span>' : ''));
+    var hk = V.hookCheck(s);
+    var hs = hk.strength === 'strong' ? true : hk.strength === 'weak' ? false : null;
+    h += res(hs, '冒頭の設計', mark(hs) + '型: <span class="vid-tag">' + esc(V.HOOK_LABELS[hk.type] || hk.type) + '</span>' +
+      (hk.declared && hk.detected !== 'other' && hk.detected !== hk.declared ? '（言葉からは「' + esc(V.HOOK_LABELS[hk.detected]) + '」にも見えます）' : '') +
+      '　強さ: <b>' + hk.label + '</b>' +
+      (hk.mode === 'short' ? '（1行目 ' + hk.sec + '秒・目安 3秒以内）' : '（目安: 0〜10秒で約束、60秒までに最後まで見る理由）') +
+      (hk.whyWatch && hk.whyWatch.ok ? '<br>最後まで見る理由: ' + (hk.whyWatch.index + 1) + '行目' : '') +
+      (hk.notes.length ? '<br>' + hk.notes.map(esc).join('<br>') : '<br>型・長さ・約束がそろっています。') +
+      '<br><button type="button" class="ghost" id="ve-hook-ai" style="font-size:11px;padding:4px 10px;margin-top:4px"' + (S.ready.ai ? '' : ' disabled') + '>別の冒頭をAIに3つ出してもらう</button>' +
+      (S.hookIdeas && S.hookIdeas.length ? '<span class="vid-hooks">' + S.hookIdeas.map(function (x, i) {
+        return '<span class="vid-hook"><span class="vid-tag">' + esc(V.HOOK_LABELS[x.type] || x.type) + '</span> ' + esc(x.narration) + (x.telop ? '（テロップ: ' + esc(x.telop) + '）' : '') +
+          '<br><span class="soc-small">' + esc(x.why) + '</span> <button type="button" class="linkish ve-hook-use" data-i="' + i + '">1行目に使う</button></span>';
+      }).join('') + '</span>' : ''));
+    h += rhythm;
+    var useShots = (s.shots || []).length > 0;
+    var tc = V.shotLengthCheck(useShots ? s.shots : s.lines, s);
+    h += res(tc.ok, 'テンポ（同じ画の長さ）', mark(tc.ok) + (useShots ? '絵コンテ' : '行') + 'の長さ: 平均 ' + tc.avg + '秒・最長 ' + (tc.longest ? tc.longest.sec : 0) + '秒（目安 ' + tc.target[0] + '〜' + tc.target[1] + '秒、' + tc.max + '秒を超えたら注意）。' +
+      (tc.ok ? '' : '<br>' + tc.over.length + (useShots ? 'カット' : '行') + 'が長めです。「絵コンテ」の「カット割りを提案」で、寄り・引き・手元などに分けられます。'));
+    var ec = V.endingCheck(s);
+    var parts = [];
+    parts.push('CTA: ' + (ec.cta.ok ? '最後に1回・' + esc(ec.cta.actions[0] || '') : ec.cta.atEnd ? '要確認' : 'なし'));
+    if (ec.loop) parts.push('ループ: ' + (ec.loop.want ? (ec.loop.ok ? '1行目につながっています' : 'つながっていません') : 'しない設定'));
+    if (ec.endScreen) parts.push('終了画面: ' + (ec.endScreen.ok ? esc(ec.endScreen.note) : '未記入'));
+    h += res(ec.ok, 'ループと最後', mark(ec.ok) + parts.join('　') + (ec.notes.length ? '<br>' + ec.notes.map(esc).join('<br>') : ''));
+    return h;
+  }
+
   function editor(host, s) {
     host.innerHTML =
-      '<div class="soc-fields" style="margin-top:10px">' +
+      '<div class="soc-ai vid-pack" style="margin-top:10px"><div class="soc-ai-body">' +
+      '<b class="vid-pack-h">パッケージ（先に決める）</b>' +
+      '<p class="soc-small">タイトルとサムネ（表紙）は「この動画で何が得られるか」の約束です。見た人は最初の数秒でそれを確かめます。台本より先に決め、冒頭でその約束を見せます。</p>' +
+      '<div class="soc-fields">' +
+        fld('長さの種類', '<select id="ve-mode">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '"' + (V.lengthMode(s) === k ? ' selected' : '') + '>' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>') +
         fld('タイトル', '<input type="text" id="ve-title" maxlength="200" value="' + esc(s.title) + '">') +
+        fld('サムネ（表紙）の文字（10文字前後）', '<input type="text" id="ve-thumb" maxlength="60" value="' + esc(s.thumb_text) + '">') +
+        fld('約束（見た人が得られることを1文で）', '<input type="text" id="ve-promise" maxlength="300" placeholder="例：カンパーニュの大きな穴ができる理由が分かる" value="' + esc(s.promise) + '">') +
+        fld('確かめる言葉（空欄なら約束から自動。読点区切り）', '<input type="text" id="ve-kw" maxlength="200" placeholder="例：穴、カンパーニュ" value="' + esc((s.promise_keywords || []).join('、')) + '">') +
+        fld('企画の型', '<select id="ve-format">' + formatOptions(s.format) + '</select>') +
+        fld('wow要素（うちにしか見せられないもの）', '<input type="text" id="ve-wow" maxlength="300" placeholder="例：15年使っている石窯から出す瞬間" value="' + esc(s.wow) + '">') +
+      '</div></div></div>' +
+      '<div class="soc-fields" style="margin-top:10px">' +
         fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
         fld('CTA（最後にしてほしい行動を1つ）', '<input type="text" id="ve-cta" maxlength="300" value="' + esc(s.cta) + '">') +
         fld('ハッシュタグ（空白区切り・5個まで）', '<input type="text" id="ve-tags" value="' + esc((s.hashtags || []).join(' ')) + '">') +
+        fld('ショート: 最後を最初につなげる（ループ）', '<select id="ve-loop"><option value="">つなげない</option><option value="1"' + (s.loop ? ' selected' : '') + '>つなげる</option></select>') +
+        fld('長尺: 終了画面（最後の5〜20秒）に置くもの', '<input type="text" id="ve-end" maxlength="300" placeholder="例：次に見てほしい「石窯の1日」の動画" value="' + esc(s.end_screen) + '">') +
         fld('投稿先', '<select id="ve-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
       '</div>' +
-      '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画）</label>' +
-      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
+      '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画・印）</label>' +
+      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th>印</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
       '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button></div>' +
       '<div id="ve-checks" style="margin-top:10px"></div>' +
       (s.rationale ? '<p class="soc-small">この構成にした理由（AI）: ' + esc(s.rationale) + '</p>' : '') +
@@ -480,6 +626,7 @@
           '<td><textarea rows="2" class="ve-f" data-k="narration" aria-label="ナレーション">' + esc(l.narration) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="telop" aria-label="テロップ">' + esc(l.telop) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="visual" aria-label="映す画">' + esc(l.visual) + '</textarea></td>' +
+          '<td>' + markSelect('ve-f', l.mark) + '</td>' +
           '<td><button type="button" class="ghost ve-x" style="font-size:11px;padding:4px 8px" aria-label="この行を消す">消す</button></td></tr>';
       }).join('');
     }
@@ -487,7 +634,10 @@
     var result = null;
     function collect() {
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
-      s.platform = el('ve-net').value;
+      s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
+      s.thumb_text = el('ve-thumb').value; s.promise = el('ve-promise').value; s.wow = el('ve-wow').value;
+      s.loop = el('ve-loop').value === '1'; s.end_screen = el('ve-end').value; s.format = el('ve-format').value;
+      s.promise_keywords = el('ve-kw').value.split(/[、,\s]+/).map(function (t) { return t.trim(); }).filter(Boolean);
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
       return s;
     }
@@ -495,6 +645,8 @@
       result = V.checkScript(collect(), project().brand, sources());
       var c = result;
       var h = '';
+      var lm = V.lengthModeCheck(s);
+      if (lm.text) h += '<div class="soc-res' + (lm.ok ? ' ok' : '') + '"><b>長さ</b><span>' + esc(lm.text) + '</span></div>';
       h += c.banned.length
         ? '<div class="soc-res ng"><b>禁止ワード</b><span>' + c.banned.map(function (b) { return '「' + esc(b.word) + '」'; }).join('・') + ' が入っています。直すまで書き出しと投稿はできません。</span></div>'
         : '<div class="soc-res ok"><b>禁止ワード</b><span>入っていません。</span></div>';
@@ -512,12 +664,14 @@
         ? '<div class="soc-res"><b>テロップの速さ</b><span>' + c.speed.map(function (x) { return (x.index + 1) + '行目: 1秒あたり ' + x.cps + '文字'; }).join('、') + '。8文字を超えると読み切れない人が増えます。文字を減らすか、時間を延ばしてください。</span></div>'
         : '<div class="soc-res ok"><b>テロップの速さ</b><span>どの行も1秒あたり8文字以内です。</span></div>';
       if (c.tooManyTags) h += '<div class="soc-res"><b>ハッシュタグ</b><span>5個までにしてください（多いと宣伝くさく見え、読まれにくくなります）。</span></div>';
-      el('ve-checks').innerHTML = h;
+      el('ve-checks').innerHTML = '<h4 class="vid-sub">見続けてもらう工夫（数字はどれも目安です）</h4>' + retentionHtml(s) + '<h4 class="vid-sub">決まりごと</h4>' + h;
       var blocked = c.banned.length > 0;
       document.querySelectorAll('.ve-out').forEach(function (b) { b.disabled = blocked; });
       if (el('ve-norm')) el('ve-norm').addEventListener('click', function () {
         var n = result.script;
         s.title = n.title; s.hook = n.hook; s.cta = n.cta; s.body = n.body; s.lines = n.lines;
+        s.thumb_text = n.thumb_text; s.promise = n.promise; s.wow = n.wow;
+        el('ve-thumb').value = s.thumb_text || ''; el('ve-promise').value = s.promise || ''; el('ve-wow').value = s.wow || '';
         el('ve-title').value = s.title || ''; el('ve-hook').value = s.hook || ''; el('ve-cta').value = s.cta || '';
         rows(); check();
       });
@@ -531,9 +685,36 @@
       }
       check();
     });
-    host.addEventListener('change', function (e) { if (e.target.id === 've-net' || e.target.id === 've-hook-type') check(); });
+    host.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.classList.contains('ve-f') && t.getAttribute('data-k') === 'mark') {
+        s.lines[Number(t.closest('tr').getAttribute('data-i'))].mark = t.value;
+        check();
+        return;
+      }
+      if (e.target.id === 've-format' || e.target.id === 've-loop' || e.target.id === 've-net' || e.target.id === 've-hook-type' || e.target.id === 've-mode') check(); });
     host.addEventListener('click', async function (e) {
       var t = e.target;
+      if (t.id === 've-hook-ai') {
+        t.disabled = true;
+        say('AIが冒頭の別案を考えています…', true);
+        var r = await post({ action: 'hook.suggest', script: collect() });
+        if (!r.data.ok) { t.disabled = false; say(r.data.message || '案を出せませんでした。'); return; }
+        S.hookIdeas = r.data.hooks || [];
+        say('冒頭の案を3つ出しました。使うものを選んでください（選ぶまで台本は変わりません）。', true);
+        check();
+        return;
+      }
+      if (t.classList.contains('ve-hook-use')) {
+        var x = S.hookIdeas[Number(t.getAttribute('data-i'))];
+        if (!x) return;
+        if (!s.lines.length) s.lines.push({ start: 0, end: 3, narration: '', telop: '', visual: '' });
+        s.lines[0].narration = x.narration; s.lines[0].telop = x.telop || s.lines[0].telop;
+        s.hook = x.narration; s.hook_type = x.type;
+        el('ve-hook').value = s.hook; el('ve-hook-type').value = x.type;
+        rows(); check();
+        return;
+      }
       if (t.classList.contains('ve-x')) {
         s.lines.splice(Number(t.closest('tr').getAttribute('data-i')), 1);
         rows(); check();
@@ -576,20 +757,45 @@
     if (!s) { el('vb-body').innerHTML = '<p class="soc-small">先に「台本」で台本を作ってください。</p>'; return; }
     var shots = JSON.parse(JSON.stringify(s.shots || []));
     var style = s.style || (project().brand || {}).style || '';
+    function tempoHtml() {
+      var t = V.shotLengthCheck(shots, s);
+      var long = V.lengthMode(s) === 'long';
+      if (!shots.length) return '';
+      return res(t.ok, 'テンポ（同じ画の長さ）', mark(t.ok) + (t.ok
+        ? 'どのカットも' + t.max + '秒以内です（目安 ' + t.target[0] + '〜' + t.target[1] + '秒、' + (long ? '長尺' : 'ショート') + '）。平均 ' + t.avg + '秒・' + t.count + 'カット。'
+        : t.over.length + 'カットが' + t.max + '秒を超えています（目安 ' + t.target[0] + '〜' + t.target[1] + '秒）: ' + t.over.map(function (x) { return '#' + (x.index + 1) + '（' + x.sec + '秒）'; }).join('、') +
+          '。<br>同じ画が続くと「もう分かった」と感じて離れる人が増えます。「カット割りを提案」で、寄り・引き・手元・別アングル・B-roll に分けられます。'));
+    }
     function draw() {
       el('vb-body').innerHTML =
         '<label class="soc-lab" for="vb-style">画風（英語）</label>' +
         '<div class="vid-row"><input type="text" id="vb-style" class="vid-in" value="' + esc(style) + '" placeholder="warm natural light, 35mm photo">' +
         '<button type="button" class="ghost" id="vb-make" style="font-size:12px;padding:8px 12px">台本から作り直す</button></div>' +
-        '<div class="tbl vid-scroll" style="margin-top:8px"><table class="vid-table vid-lines"><thead><tr><th>#</th><th>時間</th><th>テロップ</th><th>映す画（プロンプト）</th><th>カメラ</th><th>つなぎ</th></tr></thead><tbody>' +
+        '<div id="vb-tl" style="margin-top:8px">' + timelineHtml(Object.assign({}, s, { shots: shots })) + '</div>' +
+        '<div id="vb-tempo" style="margin-top:8px">' + tempoHtml() + '</div>' +
+        '<div class="vid-acts" style="margin-top:4px"><button type="button" class="ghost" id="vb-split"' + (V.shotLengthCheck(shots, s).ok ? ' disabled' : '') + '>カット割りを提案</button>' +
+          '<span class="soc-small">長いカットを、目安の長さごとに別の角度へ分けます（保存するまで台本は変わりません）。</span></div>' +
+        '<div class="tbl vid-scroll" style="margin-top:8px"><table class="vid-table vid-lines"><thead><tr><th>#</th><th>時間</th><th>長さ</th><th>テロップ</th><th>映す画（プロンプト）</th><th>カメラ</th><th>つなぎ</th></tr></thead><tbody>' +
         (shots.length ? shots.map(function (x, i) {
-          return '<tr data-i="' + i + '"><td>' + (i + 1) + '</td><td style="white-space:nowrap">' + sec(x.start) + '〜' + sec(x.end) + '</td><td>' + esc(x.telop) + '</td>' +
+          var len = Math.round(((Number(x.end) || 0) - (Number(x.start) || 0)) * 10) / 10;
+          var over = len > V.modeRules(s).SHOT_MAX_SEC;
+          return '<tr data-i="' + i + '"><td>' + (i + 1) + (x.part ? '<br><span class="soc-small">' + (Number(x.parent) + 1) + x.part + '</span>' : '') + '</td><td style="white-space:nowrap">' + sec(x.start) + '〜' + sec(x.end) + '</td>' +
+            '<td style="white-space:nowrap">' + len + '秒' + (over ? ' <span class="vid-tag warn">長い</span>' : '') + (x.angle ? '<br><span class="vid-tag">' + esc(x.angle) + '</span>' : '') + '</td><td>' + esc(x.telop) + '</td>' +
             '<td><textarea rows="3" class="vb-f" data-k="visual_prompt" aria-label="映す画">' + esc(x.visual_prompt) + '</textarea></td>' +
             '<td><input type="text" class="vb-f" data-k="camera" value="' + esc(x.camera) + '" aria-label="カメラ"></td>' +
-            '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"></td></tr>';
-        }).join('') : '<tr><td colspan="6" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
+            '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"><br>' + markSelect('vb-f', x.mark) + '</td></tr>';
+        }).join('') : '<tr><td colspan="7" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
         '</tbody></table></div>' +
-        '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button></div>';
+        '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button><button type="button" class="ghost" id="vb-edl">絵コンテ（EDL）</button></div>';
+      el('vb-split').addEventListener('click', function () {
+        var r = V.splitLongShots(shots, s);
+        shots = r.shots;
+        draw();
+        say(r.changed + 'カットを分けました。よければ「保存」を押してください。', true);
+      });
+      el('vb-edl').addEventListener('click', function () {
+        download((s.title || 'storyboard') + '_絵コンテ.edl', V.storyboardEdl(shots, { fps: 30, title: s.title }));
+      });
       el('vb-make').addEventListener('click', function () {
         if (shots.length && !confirm('いまの絵コンテを、台本から作り直します。手で直したところは消えます。よろしいですか？')) return;
         style = el('vb-style').value;
@@ -597,11 +803,13 @@
         draw();
       });
       el('vb-style').addEventListener('input', function () { style = this.value; });
-      el('vb-body').addEventListener('input', function (e) {
+      // draw() のたびに呼ばれるので、足し続けないよう代入で置きます。
+      el('vb-body').oninput = function (e) {
         var t = e.target;
         if (!t.classList.contains('vb-f')) return;
         shots[Number(t.closest('tr').getAttribute('data-i'))][t.getAttribute('data-k')] = t.value;
-      });
+        if (t.getAttribute('data-k') === 'mark') el('vb-tl').innerHTML = timelineHtml(Object.assign({}, s, { shots: shots }));
+      };
       el('vb-save').addEventListener('click', async function () {
         var item = Object.assign({}, s, { shots: shots, style: style });
         var r = await post({ action: 'script.save', item: item });
@@ -610,8 +818,8 @@
         say('保存しました。', true);
       });
       el('vb-csv').addEventListener('click', function () {
-        download((s.title || 'storyboard') + '_絵コンテ.csv', V.csv([['#', '開始', '終了', 'ナレーション', 'テロップ', '映す画', 'カメラ', 'つなぎ']].concat(shots.map(function (x, i) {
-          return [i + 1, x.start, x.end, x.narration, x.telop, x.visual_prompt, x.camera, x.transition];
+        download((s.title || 'storyboard') + '_絵コンテ.csv', V.csv([['#', '開始', '終了', 'ナレーション', 'テロップ', '映す画', 'カメラ', '角度', 'つなぎ']].concat(shots.map(function (x, i) {
+          return [i + 1, x.start, x.end, x.narration, x.telop, x.visual_prompt, x.camera, x.angle || '', x.transition];
         }))), 'text/csv;charset=utf-8');
       });
     }
@@ -642,25 +850,93 @@
     return buf;
   }
 
-  function videoMeta(url) {
+  /** 動画のイベントを1回待ちます（来なければ ms で諦めて false）。 */
+  function once(v, ev, ms) {
     return new Promise(function (ok) {
-      var v = document.createElement('video');
-      v.preload = 'metadata'; v.muted = true; v.src = url;
-      v.onloadedmetadata = function () { ok({ width: v.videoWidth, height: v.videoHeight, duration: v.duration }); };
-      v.onerror = function () { ok({ width: 0, height: 0, duration: 0, error: true }); };
+      var done = false;
+      var f = function () { if (done) return; done = true; v.removeEventListener(ev, f); ok(true); };
+      v.addEventListener(ev, f);
+      setTimeout(function () { if (done) return; done = true; v.removeEventListener(ev, f); ok(false); }, ms);
     });
+  }
+  /** 長さが「不明」のファイル（ブラウザで録画した webm など）は、
+   *  いったん末尾へ移ると長さが分かります。 */
+  async function fixDuration(v) {
+    if (isFinite(v.duration) && v.duration > 0) return v.duration;
+    var p = once(v, 'durationchange', 4000);
+    v.currentTime = 1e7;
+    await p;
+    await once(v, 'seeked', 1000);
+    return isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+  }
+
+  async function videoMeta(url) {
+    var v = document.createElement('video');
+    v.preload = 'metadata'; v.muted = true; v.src = url;
+    var ev = await Promise.race([once(v, 'loadedmetadata', 10000), new Promise(function (ok) { v.onerror = function () { ok('error'); }; })]);
+    if (ev !== true) return { width: 0, height: 0, duration: 0, error: true };
+    var d = await fixDuration(v);
+    var out = { width: v.videoWidth, height: v.videoHeight, duration: d };
+    v.removeAttribute('src'); v.load();
+    return out;
+  }
+
+  function seekTo(v, t) {
+    if (Math.abs(v.currentTime - t) < 0.0005) return Promise.resolve(true);
+    var p = once(v, 'seeked', 3000);
+    v.currentTime = t;
+    return p;
+  }
+
+  /** 画の切り替わり。1秒に数枚を横48pxで取り出して比べます（このブラウザの中だけ）。 */
+  async function scanScenes(url, duration, script, progress) {
+    var v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+    if (!(await once(v, 'loadeddata', 10000))) return null;
+    var d = (await fixDuration(v)) || duration;
+    if (!(d > 0) || !v.videoWidth) return null;
+    var plan = V.scenePlan(d);
+    var w = V.SCENE.WIDTH;
+    var h = Math.max(8, Math.round(w * v.videoHeight / v.videoWidth));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d', { willReadFrequently: true });
+    var diffs = [];
+    var prev = null;
+    for (var i = 0; i < plan.times.length; i++) {
+      await seekTo(v, plan.times[i]);
+      g.drawImage(v, 0, 0, w, h);
+      var sig = V.frameSignature(g.getImageData(0, 0, w, h).data, w, h);
+      diffs.push(prev ? V.frameDiff(prev, sig) : 0);
+      prev = sig;
+      if (i % 12 === 0) {
+        progress('画の切り替わりを調べています… ' + Math.round((i / plan.times.length) * 100) + '%（' + i + ' / ' + plan.times.length + '枚）');
+        await new Promise(function (r) { setTimeout(r, 0); });
+      }
+    }
+    v.removeAttribute('src'); v.load();
+    var out = V.sceneSummary(plan.times, diffs, d, script || null);
+    out.fps = plan.fps; out.samples = plan.times.length; out.duration = d;
+    return out;
   }
 
   R.ship = function (host) {
+    var scripts = (S.data && S.data.scripts) || [];
     host.innerHTML = '<h3 class="soc-step">5　出荷前チェック</h3>' +
-      '<p class="soc-small">投稿する前に、長さ・縦横比・大きさ・音量・文字の位置を確かめます。動画はこのブラウザの中だけで調べ、どこにも送りません。</p>' +
+      '<p class="soc-small">投稿する前に、長さ・縦横比・大きさ・音量・文字の位置に加えて、画の切り替わり（同じ画が続く長さ）・話し始めまでの無音・約束が冒頭にあるかを確かめます。動画はこのブラウザの中だけで調べ、どこにも送りません。</p>' +
       fileBox('vk-file', '確かめる動画') +
+      (scripts.length ? '<label class="soc-lab" for="vk-script">照らし合わせる台本（任意）</label><select id="vk-script"><option value="">台本と照らし合わせない</option>' +
+        scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.shipScript ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') + '</select>' : '') +
       '<div class="vid-acts"><button type="button" id="vk-go"' + (S.file ? '' : ' disabled') + '>確かめる</button><span class="soc-small" id="vk-state"></span></div>' +
       '<div id="vk-out"></div>';
     el('vk-file').addEventListener('change', function () { setFile(this.files[0] || null); R.ship(host); });
     el('vk-go').addEventListener('click', runShip);
+    if (el('vk-script')) el('vk-script').addEventListener('change', function () { S.shipScript = this.value; if (S.ship) drawShip(); });
     if (S.ship) drawShip();
   };
+  function shipScript() {
+    return ((S.data && S.data.scripts) || []).filter(function (s) { return s.id === S.shipScript; })[0] || null;
+  }
 
   async function runShip() {
     var st = el('vk-state');
@@ -679,9 +955,16 @@
         var L = V.integratedLoudness(chs, buf.sampleRate);
         out.loud = { lufs: L.lufs, advice: V.loudnessAdvice(L.lufs) };
         if (!meta.duration) out.checks = V.shipChecks({ duration: buf.duration });
+        // 話し始めは最初の30秒だけ見れば分かります。
+        out.speech = V.speechStart(await meterOf(buf, function (p) { st.textContent = '話し始めを探しています… ' + p + '%'; }, 30));
+        out.duration = buf.duration;
       } catch (e) {
         out.audioErr = '音声を取り出せませんでした（音声の無い動画か、このブラウザが読めない形式です）。';
       }
+      try {
+        out.scene = await scanScenes(S.fileUrl, meta.duration, shipScript(), function (t) { st.textContent = t; });
+      } catch (e) { out.scene = null; }
+      if (!out.scene) out.sceneErr = 'このブラウザでは動画の絵を取り出せませんでした。';
       S.ship = out;
       st.textContent = '';
       drawShip();
@@ -697,6 +980,7 @@
     h += '<div class="soc-res ' + (mb <= 1024 ? 'ok' : 'ng') + '"><b>' + (mb <= 1024 ? '◯' : '△') + '</b><span>大きさ ' + mb.toFixed(1) + 'MB' + (mb > 1024 ? '（Instagram の上限 1GB を超えています）' : '') + (mb > 4.5 ? '。4.5MB を超えるので、アップロードはブラウザから置き場所へ直接送ります。' : '') + '</span></div>';
     if (o.loud) h += '<div class="soc-res ' + (o.loud.advice.level === 'ok' ? 'ok' : 'ng') + '"><b>音量</b><span>' + (o.loud.lufs == null || !isFinite(o.loud.lufs) ? '測れませんでした' : o.loud.lufs + ' LUFS（目標 −14）') + '。' + esc(o.loud.advice.text) + '</span></div>';
     if (o.audioErr) h += '<div class="soc-res ng"><b>音量</b><span>' + esc(o.audioErr) + '</span></div>';
+    h += shipRetentionHtml(o);
     h += '<p class="soc-small">左の画面の色の帯は、各SNSのボタンやアカウント名が重なりやすい場所です（上 ' + V.RULES.ship.SAFE_TOP_MARGIN + 'px・下 ' + V.RULES.ship.BOTTOM_UI + 'px、1920px の高さのとき）。テロップと大事なものは、帯の外に置いてください。</p>';
     h += '<p class="soc-small">音量は ITU-R BS.1770 の方式（K特性・400ms区切り・−70 LUFS と −10 LU のゲート）で測っています。</p></div></div>';
     el('vk-out').innerHTML = h;
@@ -706,6 +990,50 @@
     });
     v.addEventListener('seeked', drawSafe);
     v.addEventListener('loadedmetadata', drawSafe);
+    if (el('vk-edl')) el('vk-edl').addEventListener('click', function () {
+      var name = (S.file && S.file.name || 'clip').replace(/\.[^.]+$/, '');
+      var end = (o.scene && o.scene.duration) || o.duration || m.duration;
+      download(name + '_冒頭を切る.edl', V.toEdl([{ start: o.speech.trim.end, end: end }], { fps: 30, clip: name, title: name }));
+    });
+    if (el('vk-play')) el('vk-play').addEventListener('click', function () {
+      // 最初の数秒だけを再生して止めます（音も聞いて確かめられるように、ここだけ音あり）。
+      var secs = Number(this.getAttribute('data-sec')) || 3;
+      v.muted = false; v.controls = true;
+      try { v.currentTime = 0; } catch (_) {}
+      v.play().catch(function () {});
+      setTimeout(function () { v.pause(); }, secs * 1000);
+    });
+  }
+
+  /** 出荷前チェックのうち、見続けてもらうための確認（画の切り替わり・話し始め・約束）。 */
+  function shipRetentionHtml(o) {
+    var h = '<h4 class="vid-sub">見続けてもらうための確認（目安）</h4>';
+    var sc = o.scene;
+    if (sc) {
+      var ok = sc.over.length === 0;
+      h += res(ok, '画の切り替わり', mark(ok) + 'カット ' + sc.count + 'か所・1カット平均 ' + sc.avg + '秒（目安 ' + sc.max + '秒まで）。' +
+        (sc.longest && sc.longest.sec > sc.max ? '<br><b>' + esc(sc.text) + '</b>' : sc.longest ? '<br>一番長い画: ' + esc(sc.text) : '') +
+        (sc.over.length > 1 ? '<br>ほかに長い画: ' + sc.over.filter(function (x) { return x !== sc.longest; }).slice(0, 6).map(function (x) { return x.start + '〜' + x.end + '秒（' + x.sec + '秒）'; }).join('、') : '') +
+        (ok ? '' : '<br>寄り・引き・手元・別アングルを差し込むと、同じ話のままでも画が変わり続けます。') +
+        '<br><span class="soc-small">1秒に' + sc.fps + '枚（計' + sc.samples + '枚）を小さくして比べました。ゆっくり溶けるようにつなぐ場面は拾えないことがあります。</span>');
+    } else if (o.sceneErr) h += res(null, '画の切り替わり', esc(o.sceneErr));
+    if (o.speech) {
+      var sp = o.speech;
+      h += res(sp.start == null ? null : !sp.warn, '話し始め', sp.start == null ? '声が見つかりませんでした（BGMだけの動画なら気にしなくて大丈夫です）。'
+        : mark(!sp.warn) + sp.start + '秒から話し始めています（目安 ' + V.SPEECH.LEAD_WARN_SEC + '秒以内）。' +
+          (sp.warn ? '<br>最初の無音で指が次へ動きやすくなります。切る候補: <b>0〜' + sp.trim.end + '秒</b>（話し始めの ' + V.RULES.silence.HANDLE_SEC + '秒手前まで）。' +
+            '<br><button type="button" class="ghost" id="vk-edl" style="font-size:11px;padding:4px 10px;margin-top:4px">冒頭を切った EDL</button>' : ''));
+    }
+    var s = shipScript();
+    if (s) {
+      var pc = V.promiseCheck(s);
+      var op = pc.opening || V.openingText(s.lines, pc.sec);
+      h += res(null, '約束（台本「' + esc(s.title || '無題') + '」）', '最初の' + pc.sec + '秒で、次の言葉が聞こえる・見えるかを目と耳で確かめてください（動画の中の文字や声は自動では読み取りません）。' +
+        (pc.keywords.length ? '<br>約束の言葉: ' + pc.keywords.map(function (k) { return '<span class="vid-tag">' + esc(k) + '</span>'; }).join(' ') : '') +
+        '<br>台本の冒頭: ' + esc((op.telop + ' ／ ' + op.narration).trim() || '（なし）') +
+        '<br><button type="button" class="ghost" id="vk-play" data-sec="' + pc.sec + '" style="font-size:11px;padding:4px 10px;margin-top:4px">最初の' + pc.sec + '秒を再生する</button>');
+    } else if (((S.data && S.data.scripts) || []).length) h += '<p class="soc-small">上で台本を選ぶと、約束の言葉が冒頭にあるかを確かめる手がかりが出ます。</p>';
+    return h;
   }
 
   /** 安全領域の帯（動かない静止の重ね絵）。 */
@@ -743,31 +1071,37 @@
     if (S.cut) drawCut();
   };
 
+  /** 音声をフレーム音量にします。2秒ずつ処理し、そのたびに画面へ順番を返します
+   *  （長い動画でも固まらないように）。maxSec を渡すと、その秒数までだけ。 */
+  async function meterOf(buf, progress, maxSec) {
+    var n = maxSec ? Math.min(buf.length, Math.round(maxSec * buf.sampleRate)) : buf.length;
+    var chs = [];
+    for (var c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+    var meter = V.frameMeter(buf.sampleRate);
+    var CHUNK = buf.sampleRate * 2;
+    var mono = new Float32Array(CHUNK);
+    for (var i = 0; i < n; i += CHUNK) {
+      var len = Math.min(CHUNK, n - i);
+      for (var k = 0; k < len; k++) {
+        var s = 0;
+        for (var ch = 0; ch < chs.length; ch++) s += chs[ch][i + k];
+        mono[k] = s / chs.length;
+      }
+      meter.push(len === CHUNK ? mono : mono.subarray(0, len));
+      progress(Math.min(100, Math.round(((i + len) / n) * 100)));
+      await new Promise(function (r) { setTimeout(r, 0); });
+    }
+    return meter.done();
+  }
+
   async function runSilence() {
     var st = el('vc-state');
     var btn = el('vc-go');
     btn.disabled = true;
     try {
       var buf = await decodeAudio(S.file, function (t) { st.textContent = t; });
-      var n = buf.length;
-      var chs = [];
-      for (var c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
-      var meter = V.frameMeter(buf.sampleRate);
-      var CHUNK = buf.sampleRate * 2;
-      var mono = new Float32Array(CHUNK);
-      // 2秒ずつ処理し、そのたびに画面へ順番を返します（長い動画でも固まらないように）。
-      for (var i = 0; i < n; i += CHUNK) {
-        var len = Math.min(CHUNK, n - i);
-        for (var k = 0; k < len; k++) {
-          var s = 0;
-          for (var ch = 0; ch < chs.length; ch++) s += chs[ch][i + k];
-          mono[k] = s / chs.length;
-        }
-        meter.push(len === CHUNK ? mono : mono.subarray(0, len));
-        st.textContent = '解析しています… ' + Math.min(100, Math.round(((i + len) / n) * 100)) + '%';
-        await new Promise(function (r) { setTimeout(r, 0); });
-      }
-      S.cut = V.silenceCuts(meter.done(), buf.duration);
+      var meter = await meterOf(buf, function (p) { st.textContent = '解析しています… ' + p + '%'; });
+      S.cut = V.silenceCuts(meter, buf.duration);
       st.textContent = '';
       drawCut();
     } catch (e) {
@@ -785,7 +1119,7 @@
         : '切れる無音はありませんでした。') +
         (c.consonantKept ? '　息の音として残した所: ' + c.consonantKept + 'か所。' : '') + '</span></div>' +
       (c.cuts.length ? '<div class="tbl vid-scroll" style="max-height:260px"><table class="vid-table"><thead><tr><th>#</th><th>切る範囲</th><th>長さ</th></tr></thead><tbody>' +
-        c.cuts.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td>' + V.srtTime(x.start).replace(',', '.') + ' 〜 ' + V.srtTime(x.end).replace(',', '.') + '</td><td>' + sec(x.end - x.start) + '</td></tr>'; }).join('') +
+        c.cuts.map(function (x, i) { return '<tr><td>' + (i + 1) + '</td><td>' + V.srtTime(x.start).replace(',', '.') + ' 〜 ' + V.srtTime(x.end).replace(',', '.') + (x.start === 0 ? '<br><span class="soc-small">冒頭の無音（話し始めまで）</span>' : '') + '</td><td>' + sec(x.end - x.start) + '</td></tr>'; }).join('') +
         '</tbody></table></div>' : '') +
       '<div class="vid-acts"><button type="button" class="ghost" id="vc-csv">候補（CSV）</button><button type="button" class="ghost" id="vc-edl">編集ソフト用（EDL）</button><button type="button" class="ghost" id="vc-keep">残す区間の一覧</button></div>' +
       '<p class="soc-small">EDL は Premiere Pro・DaVinci Resolve・Final Cut（変換が必要）で読み込めます。30fps として書き出しています。</p>';
@@ -1123,7 +1457,7 @@
       var pt = V.jstParts(u.published_at);
       var script = S.data.scripts.filter(function (s) { return s.id === u.script_id; })[0];
       return {
-        id: u.id, value: V.metricValue(snap, metric),
+        id: u.id, value: V.metricValue(snap, metric, u.duration_sec || (script && script.target_duration_sec)),
         hook_type: u.hook_type || (script && script.hook_type) || '',
         duration: V.durationBucket(u.duration_sec || (script && script.target_duration_sec)),
         hour: pt.hour, weekday: pt.weekday
@@ -1139,14 +1473,19 @@
       '<p class="soc-small">数字は、押したときに各SNSから取りに行き、その時点の値として記録します（何度でも取れます。あとから伸びを比べられます）。' +
       'Instagram はリールのインサイト（再生・リーチ・保存・平均視聴時間）、YouTube は再生・高評価・コメント、TikTok は動画IDが分かる場合だけ取れます。</p>' +
       '<div class="vid-acts"><button type="button" id="vm-all"' + (pubs.some(function (u) { return u.external_id; }) ? '' : ' disabled') + '>公開済みの数字をまとめて取る</button><span class="soc-small" id="vm-state"></span></div>' +
-      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th>投稿先</th><th>投稿</th><th>日時</th><th>再生</th><th>いいね</th><th>保存</th><th>平均視聴</th><th>維持率</th><th>取得</th></tr></thead><tbody>' +
+      '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th>投稿先</th><th>投稿</th><th>日時</th><th>再生</th><th>いいね</th><th>保存</th><th>平均視聴（AVD）</th><th>平均視聴率（AVP）</th><th>3秒維持率</th><th>維持率</th><th>取得</th></tr></thead><tbody>' +
       (pubs.length ? pubs.map(function (u) {
         var s = V.latestSnapshot(u) || {};
         return '<tr><td>' + esc(NET_LABEL[u.platform] || u.platform) + '</td><td style="min-width:160px">' + esc(String(u.title || u.caption || '').slice(0, 40)) + '</td><td>' + esc(String(u.published_at || '').slice(0, 10)) + '</td>' +
-          '<td>' + int(s.views) + '</td><td>' + int(s.likes) + '</td><td>' + int(s.saves) + '</td><td>' + sec(s.avg_watch_sec) + '</td><td>' + pct(s.retention_rate) + '</td>' +
+          '<td>' + int(s.views) + '</td><td>' + int(s.likes) + '</td><td>' + int(s.saves) + '</td><td>' + sec(s.avg_watch_sec) + '</td><td>' + pct(V.avp(s, u.duration_sec)) + '</td><td>' + pct(V.hold3(s)) + '</td><td>' + pct(s.retention_rate) + '</td>' +
           '<td>' + (u.external_id ? '<button type="button" class="linkish vm-one" data-id="' + esc(u.id) + '">取る</button>' : '—') + '</td></tr>';
-      }).join('') : '<tr><td colspan="9" class="empty">公開済みの投稿がまだありません。</td></tr>') +
+      }).join('') : '<tr><td colspan="11" class="empty">公開済みの投稿がまだありません。</td></tr>') +
       '</tbody></table></div>' +
+      '<h3 class="soc-step" style="margin-top:18px">数字から学ぶ（1本ずつ）</h3>' +
+      '<p class="soc-small">平均視聴率（AVP）＝平均視聴秒数（AVD）÷動画の長さ。3秒維持率と維持率の曲線は、各SNSの分析画面（Instagram のインサイト、YouTube Studio のアナリティクス）で見た値を手で入れられます。' +
+        '曲線があれば、' + V.RETENTION.WINDOW_SHORT_SEC + '秒（長尺は' + V.RETENTION.WINDOW_LONG_SEC + '秒）の間に ' + (V.RETENTION.MATERIAL_DROP * 100) + 'ポイント以上下がったところを「離脱点」として、台本の行と結びつけます。目安の値はよく言われる経験則で、保証ではありません。</p>' +
+      (pubs.length ? pubs.map(function (u, i) { return learnHtml(u, i === 0); }).join('') : '<p class="soc-small">公開済みの投稿がまだありません。</p>') +
+      reinvestHtml() +
       '<h3 class="soc-step" style="margin-top:18px">伸ばす仕組み（自社の投稿どうしの比較）</h3>' +
       '<p class="soc-small">フックの型・長さ・投稿した時間帯・曜日で、自社の投稿を比べます。たまたまの差を「勝ちパターン」と呼ばないよう、投稿が6本以上、比べる値ごとに3本以上そろうまでは結果を出しません。区間は 95%（ブートストラップ・乱数の種 ' + V.RULES.stats.BOOTSTRAP_SEED + ' で固定）です。</p>' +
       '<div class="vid-row"><label class="soc-lab" for="vm-metric" style="margin:0">比べる数字</label><select id="vm-metric">' +
@@ -1162,6 +1501,7 @@
       }).join('<br>') + '<br>' + (r.clear ? '一番上と二番目の区間が重なっていないので、差があると言えます。' : '区間が重なっているので、差があるとはまだ言えません。') + '</span></div>';
     }).join('');
     el('vm-metric').addEventListener('change', function () { S.metric = this.value; R.metrics(host); });
+    bindLearn(host);
     host.querySelectorAll('.vm-one').forEach(function (b) {
       b.addEventListener('click', async function () { if (await fetchMetrics(b.getAttribute('data-id'))) { await reload(); say('数字を取りました。', true); } });
     });
@@ -1179,6 +1519,111 @@
       say(ok + '件の数字を取りました。' + (ok < list.length ? '取れなかったものは、上に理由が出ています。' : ''), ok === list.length);
     });
   };
+
+  function hookTypeOf(u, script) { return (script && (script.hook_type || V.hookCheck(script).type)) || u.hook_type || ''; }
+  function pubScript(u) { return (S.data.scripts || []).filter(function (s) { return s.id === u.script_id; })[0] || null; }
+
+  /** 1本ぶんの「数字から学ぶ」: 目安との比べ・離脱点と台本の行・次の仮説。 */
+  function learnHtml(u, open) {
+    var snap = V.latestSnapshot(u) || {};
+    var script = pubScript(u);
+    var mode = script ? V.lengthMode(script) : (Number(u.duration_sec) > V.RULES.modes.short.MAX_SEC ? 'long' : 'short');
+    var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
+    var bench = V.benchmarks(snap, dur, mode);
+    var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
+    var ideas = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur), hookType: hookTypeOf(u, script) });
+    var h = '<details class="soc-more vm-learn"' + (open ? ' open' : '') + '><summary>' + esc(String(u.title || u.caption || '').slice(0, 40)) + '　<span class="vid-tag">' + (mode === 'long' ? '長尺' : 'ショート') + '</span></summary><div style="margin-top:6px">';
+    h += bench.length ? bench.map(function (b) { return res(b.level === 'ok' ? true : b.level === 'ng' ? false : null, b.key === 'hold_3s' ? '3秒維持率' : '平均視聴率', esc(b.text)); }).join('')
+      : '<p class="soc-small">平均視聴秒数か3秒維持率が入ると、目安と比べられます。</p>';
+    if ((snap.retention_curve || []).length) {
+      h += res(drops.length ? false : true, '離脱点', drops.length ? drops.map(function (d) { return esc(d.text) + (d.hook ? '（冒頭）' : ''); }).join('<br>') + (script ? '' : '<br><span class="soc-small">台本を紐づけると、どの行かが分かります。</span>')
+        : '維持率の曲線に、目立って下がるところはありません。');
+    }
+    if (ideas.length) {
+      h += '<div class="soc-res"><b>次に試す仮説</b><span>' + ideas.map(function (x, i) {
+        return '<b>' + esc(x.title) + '</b>：' + esc(x.hypothesis) + ' <button type="button" class="linkish vm-pdca" data-id="' + esc(u.id) + '" data-i="' + i + '">PDCAの下書きにする</button>';
+      }).join('<br>') + '</span></div>';
+    }
+    h += '<div class="vid-grid3" style="margin-top:6px">' +
+      '<input type="number" class="vm-h3" min="0" max="100" step="0.1" placeholder="3秒維持率（%）" aria-label="3秒維持率（%）">' +
+      '<input type="number" class="vm-avd" min="0" step="0.1" placeholder="平均視聴秒数" aria-label="平均視聴秒数">' +
+      '<input type="number" class="vm-dur" min="0" step="0.1" placeholder="動画の長さ（秒）" aria-label="動画の長さ（秒）" value="' + esc(u.duration_sec || '') + '">' +
+      '</div><textarea class="vm-curve" rows="2" style="margin-top:6px" placeholder="維持率の曲線（1行に「秒,残っている割合%」。例: 0,100 / 3,72 / 10,55）" aria-label="維持率の曲線"></textarea>' +
+      '<div class="vid-acts" style="margin-top:6px"><button type="button" class="ghost vm-add" data-id="' + esc(u.id) + '" style="font-size:12px;padding:7px 12px">この数字を記録する</button></div>';
+    return h + '</div></details>';
+  }
+
+  function reinvestHtml() {
+    var r = (project() && project().reinvest) || {};
+    return '<h3 class="soc-step" style="margin-top:18px">再投資メモ（任意）</h3>' +
+      '<p class="soc-small">うまくいった回の学びを、次の1本でどこを大きくするかに回すためのメモです。お金をかけることが目的ではありません。「撮影を30分長く」「同じ型をもう1本」のような小さな一歩で十分です。</p>' +
+      '<div class="soc-fields">' +
+        fld('次に増やす予算', '<input type="text" id="vm-rb" maxlength="200" placeholder="例：材料費を2,000円ふやして2種類で対決" value="' + esc(r.budget) + '">') +
+        fld('次に増やす時間', '<input type="text" id="vm-rt" maxlength="200" placeholder="例：撮影を30分長くして手元を多めに" value="' + esc(r.time) + '">') +
+        fld('次に試す企画の型', '<input type="text" id="vm-rf" maxlength="200" placeholder="例：スタッフ対決をお客様投票つきで" value="' + esc(r.format) + '">') +
+      '</div><textarea id="vm-rn" rows="2" maxlength="1000" style="margin-top:6px" placeholder="ひとこと（何が効いたか・次は何を大きくするか）">' + esc(r.note) + '</textarea>' +
+      '<div class="vid-acts"><button type="button" class="ghost" id="vm-rsave" style="font-size:12px;padding:7px 12px">メモを保存</button></div>';
+  }
+
+  /** 曲線の貼り付け（「秒,割合%」）を読みます。 */
+  function parseCurve(text) {
+    return String(text || '').split(/\n|\/|；|;/).map(function (line) {
+      var m = line.replace(/[％%\s]/g, '').split(/[,、\t:]/);
+      var t = parseFloat(m[0]), r = parseFloat(m[1]);
+      return isFinite(t) && isFinite(r) ? { t: t, r: r > 1.5 ? r / 100 : r } : null;
+    }).filter(Boolean);
+  }
+
+  function bindLearn(host) {
+    host.querySelectorAll('.vm-pdca').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        if (!u) return;
+        var snap = V.latestSnapshot(u) || {};
+        var script = pubScript(u);
+        var mode = script ? V.lengthMode(script) : 'short';
+        var dur = u.duration_sec || (script && V.scriptDuration(script)) || 0;
+        var drops = V.mapDropsToLines(V.retentionDrops(snap.retention_curve, { mode: mode }), script ? script.lines : []);
+        var x = V.nextHypotheses({ mode: mode, duration: dur, drops: drops, hold3: V.hold3(snap), avp: V.avp(snap, dur), hookType: hookTypeOf(u, script) })[Number(b.getAttribute('data-i'))];
+        if (!x) return;
+        var r = await post({ action: 'pdca.save', item: Object.assign({}, x, { publication_ids: [] }) });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('PDCA に下書きを作りました（「PDCA」で、試した投稿を紐づけてください）。', true);
+      });
+    });
+    host.querySelectorAll('.vm-add').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var box = b.closest('.vm-learn');
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        if (!u || !box) return;
+        var h3 = num(box.querySelector('.vm-h3').value), avd = num(box.querySelector('.vm-avd').value), dur = num(box.querySelector('.vm-dur').value);
+        var curve = parseCurve(box.querySelector('.vm-curve').value);
+        if (h3 == null && avd == null && !curve.length) { say('3秒維持率・平均視聴秒数・曲線のどれかを入れてください。'); return; }
+        var last = V.latestSnapshot(u) || {};
+        var snap = Object.assign({}, last, { captured_at: new Date().toISOString(), source: 'manual' });
+        if (h3 != null) snap.hold_3s = h3 > 1 ? h3 / 100 : h3;
+        if (avd != null) snap.avg_watch_sec = avd;
+        if (curve.length) snap.retention_curve = curve;
+        var item = Object.assign({}, u, { snapshots: (u.snapshots || []).concat([snap]) });
+        if (dur != null) item.duration_sec = dur;
+        var r = await post({ action: 'pub.save', item: item });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('数字を記録しました。', true);
+      });
+    });
+    el('vm-rsave').addEventListener('click', async function () {
+      var p = project();
+      var body = Object.assign({}, p, { reinvest: { budget: el('vm-rb').value, time: el('vm-rt').value, format: el('vm-rf').value, note: el('vm-rn').value } });
+      var r = await send('/api/video', 'POST', { action: 'project.save', project: body });
+      if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+      var i = S.projects.findIndex(function (x) { return x.id === p.id; });
+      if (i >= 0) S.projects[i] = r.data.project;
+      S.data.project = r.data.project;
+      say('再投資メモを保存しました。', true);
+    });
+  }
 
   /* ---------------- 9. PDCA ---------------- */
 

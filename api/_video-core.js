@@ -29,7 +29,42 @@ export const RULES = {
   post: { DAILY_POST_CAP: { instagram: 25, tiktok: 25, youtube: null }, MAX_GIVEBACK: 0.25, MAX_HASHTAGS: 5 },
   telop: { MAX_CPS: 8 },
   hook: { SEC: 3 },
+  /* 長さの種類ごとの目安。どれも「よく言われる経験則」で、守れば伸びる保証では
+     ありません。画面では必ず「目安」と書きます。
+     ・ショート: 最初の1〜3秒で見続けるかが決まる。同じ画は2〜3秒、
+       約10秒ごとに「切り替え」（新しい画・音・問い）。
+     ・長尺: 最初の1分が一番大事（0〜10秒で約束を見せ、60秒までに
+       「最後まで見る理由」）。同じ画は長くても10秒、約3分ごとに「山場」。 */
+  modes: {
+    short: { MAX_SEC: 90, PROMISE_SEC: 3, HOOK_SEC: 3, SHOT_MAX_SEC: 3.5, SHOT_TARGET: [2, 3], SPLIT_SEC: 2.5, INTERRUPT_TARGET_SEC: 10, INTERRUPT_WARN_SEC: 12 },
+    long: { MIN_SEC: 180, PROMISE_SEC: 10, HOOK_SEC: 10, WHY_WATCH_SEC: 60, SHOT_MAX_SEC: 10, SHOT_TARGET: [4, 8], SPLIT_SEC: 5, PEAK_TARGET_SEC: 180, PEAK_WARN_SEC: 210 },
+  },
 }
+
+/** 長さの種類。保存済みの台本に指定が無ければショートとして扱います。 */
+export const LENGTH_MODES = { short: 'ショート（〜90秒）', long: '長尺（YouTube 3分以上）' }
+export function lengthMode(s) { return s && s.length_mode === 'long' ? 'long' : 'short' }
+export function modeRules(s) { return RULES.modes[lengthMode(s)] }
+
+/** 台本の長さ（最後の行の終わり。行が無ければ目標の長さ）。 */
+export function scriptDuration(s) {
+  let end = 0
+  for (const l of (s && s.lines) || []) end = Math.max(end, Number(l.end) || 0)
+  return end || Number(s && s.target_duration_sec) || 0
+}
+
+/** 長さの種類と、実際の長さが合っているか。 */
+export function lengthModeCheck(s) {
+  const mode = lengthMode(s)
+  const d = scriptDuration(s)
+  const M = RULES.modes[mode]
+  if (!d) return { mode, ok: true, sec: 0, text: '' }
+  if (mode === 'short' && d > M.MAX_SEC) return { mode, ok: false, sec: d, text: `ショートの目安（${M.MAX_SEC}秒まで）より長い ${round1(d)}秒です。削るか、「長尺」に切り替えてください。` }
+  if (mode === 'long' && d < M.MIN_SEC) return { mode, ok: false, sec: d, text: `長尺の目安（${M.MIN_SEC / 60}分以上）より短い ${round1(d)}秒です。ショートとして作るほうが合っています。` }
+  return { mode, ok: true, sec: d, text: `${LENGTH_MODES[mode]}として ${round1(d)}秒です。` }
+}
+
+function round1(v) { return Math.round(Number(v) * 10) / 10 }
 
 /* 投稿先ごとの長さ。秒は各社の公開している上限（2026年時点）。
    Instagram のリールは 5〜90秒が「リール」として扱われ、それより長いと
@@ -42,8 +77,15 @@ export const PLATFORMS = {
   tiktok: { label: 'TikTok', minSec: 3, maxSec: 600, caption: 2200 },
 }
 
-export const HOOK_TYPES = ['question', 'statement', 'number', 'negation', 'story', 'other']
-export const HOOK_LABELS = { question: '問いかけ', statement: '言い切り', number: '数字', negation: '否定・意外性', story: '物語', other: 'その他' }
+/* フックの型。前の6つ（question・statement・number・negation・story・other）は
+   保存済みのデータにあるので残し、伸びやすいと言われる型を足しています。
+   STRONG_HOOKS が「よく効くと言われる型」です（数字の約束・意外な主張など）。 */
+export const HOOK_TYPES = ['question', 'number', 'negation', 'result', 'callout', 'cold_open', 'statement', 'story', 'other']
+export const HOOK_LABELS = {
+  question: '問いかけ', number: '数字の約束', negation: '意外な主張', result: '結果を先に見せる', callout: '呼びかけ',
+  cold_open: '途中から始める', statement: '言い切り', story: '物語', other: 'その他',
+}
+export const STRONG_HOOKS = ['question', 'number', 'negation', 'result', 'callout', 'cold_open']
 export const BEAT_LABELS = ['hook', 'context', 'body', 'cta']
 
 /* ---------------- 文字列 ---------------- */
@@ -179,15 +221,165 @@ export function checkScript(script, brand, sources) {
     if (r.changes.length) notation.push({ where, before: String(v), after: r.text, changes: r.changes })
     return r.text
   }
-  for (const k of ['title', 'hook', 'body', 'cta']) if (s[k]) s[k] = fix(s[k], k)
+  const KEYS = ['title', 'thumb_text', 'promise', 'wow', 'hook', 'body', 'cta']
+  for (const k of KEYS) if (s[k]) s[k] = fix(s[k], k)
   s.lines = (s.lines || []).map((l, i) => ({ ...l, narration: fix(l.narration || '', `行${i + 1}のナレーション`), telop: fix(l.telop || '', `行${i + 1}のテロップ`) }))
-  const texts = [s.title, s.hook, s.body, s.cta].concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop))
+  const texts = KEYS.map((k) => s[k]).concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop))
   const banned = findBanned(texts, b.banned_words)
-  const own = [s.title, s.hook, s.body, s.cta].concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop)).filter(Boolean)
+  const own = KEYS.map((k) => s[k]).concat(s.lines.map((l) => l.narration), s.lines.map((l) => l.telop)).filter(Boolean)
   const orig = originality(own, sources)
   const speed = telopSpeed(s.lines)
   const tags = (s.hashtags || []).length > RULES.post.MAX_HASHTAGS
   return { script: s, ok: banned.length === 0, banned, notation, originality: orig, speed, tooManyTags: tags }
+}
+
+/* ---------------- パッケージ（タイトル・サムネ・約束）と約束を守る ----------------
+   タイトルとサムネ（表紙）は「この動画で何が得られるか」の約束です。見た人は
+   最初の数秒でそれが本当か確かめ、違えば離れます。だから台本より先に約束を
+   決め、冒頭（ショート3秒・長尺10秒）にその言葉を入れます。
+   言葉の取り出しは形態素解析ではなく、漢字・カタカナ・英数字のまとまりを
+   拾う簡単なものです。外れることがあるので、確かめる言葉は手でも直せます。 */
+
+const KW_STOP = ['動画', '今日', '今回', '紹介', '方法', '理由', '全部', '本当', '最後', '簡単', '一番', '自分', '皆さん', '秘密', 'ひみつ', '仕方', '大切', '必見']
+const KW_STOP1 = ['方', '事', '時', '今', '人', '中', '前', '後', '気', '日', '的', '何', '誰', '私', '僕', '皆', '話', '物', '点', '感', '見', '分']
+const PARTICLES = 'のがをはにでともへやかよねな'
+
+/** 比べるための正規化（全角英数→半角、小文字、空白なし）。 */
+export function normText(s) {
+  return String(s == null ? '' : s).normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+}
+
+/** 約束の文から、確かめる言葉（名詞らしいもの）を最大5つ取り出します。
+ *  manual（手で入れた言葉）があれば、そちらを使います。 */
+export function promiseKeywords(promise, manual) {
+  const hand = (Array.isArray(manual) ? manual : String(manual || '').split(/[、,\s]+/)).map((w) => normText(w)).filter(Boolean)
+  if (hand.length) return Array.from(new Set(hand)).slice(0, 8)
+  const t = normText(promise)
+  const out = []
+  const re = /[0-9]+(?:つ|[一-龠々ァ-ヶー%]+)?|[ァ-ヶー]{2,}|[a-z][a-z0-9]+|[一-龠々]+/g
+  let m
+  while ((m = re.exec(t))) {
+    const w = m[0]
+    const next = t[m.index + w.length] || ''
+    if (/^[一-龠々]+$/.test(w)) {
+      if (KW_STOP.indexOf(w) >= 0) continue
+      // 「全部見(せる)」のように、止める語に動詞の頭が付いたものも除きます。
+      if (/[ぁ-ん]/.test(next) && PARTICLES.indexOf(next) < 0 && KW_STOP.indexOf(w.slice(0, -1)) >= 0) continue
+      // 漢字1字は、助詞が続くか文の終わりのときだけ（「見せる」の「見」などを除く）。
+      if (w.length === 1 && (KW_STOP1.indexOf(w) >= 0 || !(next === '' || PARTICLES.indexOf(next) >= 0 || !/[ぁ-ん]/.test(next)))) continue
+    } else if (KW_STOP.indexOf(w) >= 0) continue
+    if (out.indexOf(w) < 0) out.push(w)
+  }
+  return out.slice(0, 5)
+}
+
+/** 冒頭 sec 秒に出る言葉。テロップはその行の間ずっと出ているので丸ごと、
+ *  ナレーションは行の長さに比例して、sec までに話す分だけを数えます。 */
+export function openingText(lines, sec) {
+  const narr = []
+  const telop = []
+  const idx = []
+  ;(lines || []).forEach((l, i) => {
+    const st = Number(l.start) || 0
+    const en = Number(l.end) || 0
+    if (st >= sec) return
+    idx.push(i)
+    if (String(l.telop || '').trim()) telop.push(String(l.telop).trim())
+    const chars = Array.from(String(l.narration || ''))
+    const share = en > st && en > sec ? (sec - st) / (en - st) : 1
+    if (chars.length) narr.push(chars.slice(0, Math.ceil(chars.length * Math.max(0, Math.min(1, share)))).join(''))
+  })
+  return { narration: narr.join(' '), telop: telop.join(' '), lines: idx, sec }
+}
+
+/** 約束を守るか: 約束の言葉が、冒頭（ショート3秒・長尺10秒）のナレーションか
+ *  テロップに出てくるか。出てこない言葉と、直す行を返します。 */
+export function promiseCheck(s) {
+  const M = modeRules(s)
+  const win = M.PROMISE_SEC
+  const promise = String((s && s.promise) || '').trim()
+  if (!promise && !((s && s.promise_keywords) || []).length) return { status: 'none', ok: false, sec: win, keywords: [], found: [], missing: [], text: '約束（見た人が得られること）がまだありません。先に決めると、冒頭で何を見せるかがはっきりします。' }
+  const kws = promiseKeywords(promise, s.promise_keywords)
+  const open = openingText(s.lines, win)
+  if (!kws.length) return { status: 'none', ok: false, sec: win, keywords: [], found: [], missing: [], opening: open, text: '約束から確かめる言葉を取り出せませんでした。「確かめる言葉」に手で入れてください。' }
+  const hay = normText(open.narration + ' ' + open.telop)
+  const found = kws.filter((k) => hay.indexOf(k) >= 0)
+  const missing = kws.filter((k) => hay.indexOf(k) < 0)
+  const fix = (s.lines || []).length ? 0 : null
+  const ok = missing.length === 0
+  return {
+    status: ok ? 'ok' : 'ng', ok, sec: win, keywords: kws, found, missing, opening: open, fixLine: fix,
+    text: ok ? `約束の言葉（${kws.join('・')}）が最初の${win}秒に入っています。`
+      : `最初の${win}秒に「${missing.join('」「')}」が出てきません。${fix != null ? `${fix + 1}行目のテロップかナレーションに入れてください。` : ''}`,
+  }
+}
+
+/* ---------------- 冒頭の設計 ----------------
+   ショート: 1行目（3秒以内）がフック。型がはっきりしているほど手が止まりやすい
+   と言われます。長尺: 0〜10秒で約束を見せ、60秒までに「最後まで見る理由」を言う。
+   型の判定は言葉の手がかりだけで行う目安です（画面で型を選び直せます）。 */
+
+const HOOK_CUES = [
+  ['cold_open', /^[「『]|^…|^\.\.\.|その瞬間|まさか|いきなり|事件|ハプニング/],
+  ['number', /[0-9]+\s*(つ|選|個|秒|分|円|%|割|倍|日|回|位|年|人|品|種類|ステップ)|[一二三四五六七八九十]+(つ|選|個|割|倍|位)/],
+  ['question', /[?？]|なぜ|なんで|どうして|どうやって|知ってた|知っていますか|って何|ってなに/],
+  ['negation', /実は|じつは|やめ(て|た|る)|しないで|間違|まちが|逆に|意外|ダメ|だめ|ng|損し|知らない|捨て|ではなく|じゃなく/],
+  ['result', /完成|結果|仕上がり|できあがり|出来上がり|ビフォー|アフター|before|after|こうなる|こうなりました|こちらが/],
+  ['callout', /[のなるいむたく](人|方)(へ|に|[、。！!]|$)|さん[、へ!！]|必見|あなた|向け|お悩み/],
+]
+const GREETING = /^(こんにちは|こんばんは|おはよう|どうも|はい[、。]|皆さん|みなさん|今日は|本日は|初めまして|はじめまして)/
+const WHY_CUES = /最後|このあと|この後|後半|あとで|結果|発表|ラスト|最終|果たして|どうなる|決着|勝つ/
+
+/** 言葉の手がかりから、フックの型を推します（当てはまらなければ other）。 */
+export function classifyHook(text) {
+  const t = String(text || '').normalize('NFKC').trim().toLowerCase()
+  if (!t) return 'other'
+  for (const [type, re] of HOOK_CUES) if (re.test(t)) return type
+  return 'other'
+}
+
+/** 冒頭の設計の確認。型・長さ・あいさつ・約束、長尺は「最後まで見る理由」も。 */
+export function hookCheck(s) {
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const lines = (s && s.lines) || []
+  const first = lines[0] || null
+  const text = String((s && s.hook) || (first && (first.narration || first.telop)) || '').trim()
+  const detected = classifyHook([text, first && first.telop].filter(Boolean).join(' '))
+  const declared = s && STRONG_HOOKS.indexOf(s.hook_type) >= 0 ? s.hook_type : ''
+  const type = declared || detected
+  const recognised = STRONG_HOOKS.indexOf(type) >= 0
+  const notes = []
+  let timingOk = !!first
+  let sec = 0
+  if (first) {
+    if (mode === 'short') {
+      sec = round1((Number(first.end) || 0) - (Number(first.start) || 0))
+      timingOk = (Number(first.start) || 0) <= 0.05 && sec > 0 && sec <= M.HOOK_SEC
+      if (!timingOk) notes.push(`1行目（フック）が${sec}秒あります。${M.HOOK_SEC}秒以内に収めてください。`)
+    } else {
+      sec = M.HOOK_SEC
+      timingOk = (Number(first.start) || 0) <= 0.05
+    }
+  } else notes.push('行がまだありません。')
+  const greeting = GREETING.test(text.normalize('NFKC'))
+  if (greeting) notes.push('あいさつや自己紹介から始めると、その間に離れる人が増えます。いきなり本題から。')
+  if (!recognised) notes.push(`型がはっきりしません。「${STRONG_HOOKS.map((k) => HOOK_LABELS[k]).join('」「')}」のどれかにすると強くなります。`)
+  const tooLong = mode === 'short' && charLen(normSpace(text)) > M.HOOK_SEC * RULES.telop.MAX_CPS
+  if (tooLong) notes.push(`フックの言葉が長め（${charLen(normSpace(text))}文字）です。${M.HOOK_SEC}秒で言い切れる長さ（${M.HOOK_SEC * RULES.telop.MAX_CPS}文字まで）に。`)
+  const pc = promiseCheck(s)
+  const promiseOk = pc.status === 'ok'
+  if (pc.status === 'ng') notes.push(`約束の言葉（${pc.missing.join('・')}）がまだ冒頭にありません（上の「約束を守る」）。`)
+  let whyWatch = null
+  if (mode === 'long') {
+    const idx = lines.findIndex((l) => (Number(l.start) || 0) < M.WHY_WATCH_SEC && WHY_CUES.test(String(l.narration || '') + String(l.telop || '')))
+    whyWatch = { ok: idx >= 0, index: idx, sec: M.WHY_WATCH_SEC }
+    if (idx < 0) notes.push(`${M.WHY_WATCH_SEC}秒までに「最後まで見ると何が分かるか」を言う行がありません（例：「最後に、どっちが勝ったか発表します」）。`)
+  }
+  const score = [timingOk, recognised, !greeting && !tooLong, promiseOk].filter(Boolean).length + (whyWatch && !whyWatch.ok ? -1 : 0)
+  const strength = score >= 4 ? 'strong' : score >= 3 ? 'ok' : 'weak'
+  return { mode, text, type, detected, declared, recognised, timingOk, sec, greeting, tooLong, promiseOk, whyWatch, strength, notes,
+    label: { strong: '強い', ok: 'ふつう', weak: '弱い' }[strength] }
 }
 
 /* ---------------- 競合の数字 ---------------- */
@@ -359,6 +551,8 @@ export const METRICS = {
   views: { label: '再生数', fmt: 'int' },
   avg_watch_sec: { label: '平均視聴秒数', fmt: 'sec' },
   retention_rate: { label: '視聴維持率', fmt: 'pct' },
+  avp: { label: '平均視聴率（AVP＝平均視聴秒数÷長さ）', fmt: 'pct' },
+  hold_3s: { label: '3秒維持率', fmt: 'pct' },
   engagement_rate: { label: '反応率（いいね・コメント・シェア÷再生）', fmt: 'pct' },
   save_rate: { label: '保存率（保存÷再生）', fmt: 'pct' },
   likes: { label: 'いいね', fmt: 'int' },
@@ -366,8 +560,10 @@ export const METRICS = {
   reach: { label: 'リーチ', fmt: 'int' },
 }
 
-export function metricValue(snap, metric) {
+export function metricValue(snap, metric, durationSec) {
   if (!snap) return null
+  if (metric === 'avp') return avp(snap, durationSec)
+  if (metric === 'hold_3s') return hold3(snap)
   const v = Number(snap.views)
   if (metric === 'engagement_rate') return v > 0 ? ((Number(snap.likes) || 0) + (Number(snap.comments) || 0) + (Number(snap.shares) || 0)) / v : null
   if (metric === 'save_rate') return v > 0 && snap.saves != null ? Number(snap.saves) / v : null
@@ -389,7 +585,7 @@ export function pdcaVerdict(cycle, pubs) {
   const baseline = Number(cycle && cycle.target && cycle.target.baseline)
   const ids = (cycle && cycle.publication_ids) || []
   const vals = (pubs || []).filter((p) => ids.indexOf(p.id) >= 0)
-    .map((p) => metricValue(latestSnapshot(p), metric)).filter((v) => v != null)
+    .map((p) => metricValue(latestSnapshot(p), metric, p.duration_sec)).filter((v) => v != null)
   const rel = reliability(vals.length)
   if (!metric) return { verdict: 'none', label: '目標の指標が未設定です。', reliability: rel, n: vals.length }
   if (vals.length < RULES.stats.BANDS[0][0]) {
@@ -402,6 +598,164 @@ export function pdcaVerdict(cycle, pubs) {
   if (ci.low > baseline) { verdict = 'improved'; label = '基準値より良くなっています。' }
   else if (ci.high < baseline) { verdict = 'worse'; label = '基準値より下がっています。' }
   return { verdict, label, ci, reliability: rel, n: vals.length, baseline }
+}
+
+/* ---------------- 数字から学ぶ（AVD・AVP・3秒維持率・離脱点） ----------------
+   AVD は平均視聴秒数、AVP はそれを動画の長さで割った割合（ループで見返されると
+   100% を超えることがあります）。3秒維持率は、最初の3秒を見続けた人の割合。
+   維持率の曲線があれば、残っている割合が短い間（ショート2秒・長尺10秒）に
+   5ポイント（MATERIAL_DROP）以上下がったところを「離脱点」として台本の行と
+   結びつけ、次に試す仮説の下書きを作ります。目安の値はよく言われる経験則で、
+   どのアカウントにも当てはまる保証はありません。 */
+
+export const RETENTION = { MATERIAL_DROP: 0.05, HOOK_WINDOW_SEC: 3, MIN_VIDEOS_FOR_PATTERN: 6, WINDOW_SHORT_SEC: 2, WINDOW_LONG_SEC: 10 }
+export const BENCH = {
+  short: { HOLD3_MIN: 0.65, HOLD3_GOOD: 0.8, AVP: 0.7 },
+  long: { AVP: 0.4 },
+}
+
+/** 平均視聴率（AVP）。長さか平均視聴秒数が無ければ null。 */
+export function avp(snap, durationSec) {
+  const a = Number(snap && snap.avg_watch_sec)
+  const d = Number(durationSec)
+  if (!(snap && snap.avg_watch_sec != null && isFinite(a)) || !(d > 0)) return null
+  return Math.round((a / d) * 1000) / 1000
+}
+
+/** 維持率の曲線 [{t, r}] の t 秒時点の値（直線で補間。r は 0〜1、最初の点を 1 とみなして割ります）。 */
+export function holdAt(curve, t) {
+  const c = (curve || []).filter((p) => isFinite(p.t) && isFinite(p.r)).slice().sort((a, b) => a.t - b.t)
+  if (c.length < 2 || !(c[0].r > 0) || t > c[c.length - 1].t) return null
+  const base = c[0].r
+  for (let i = 1; i < c.length; i++) {
+    if (c[i].t >= t) {
+      const a = c[i - 1], b = c[i]
+      const r = b.t === a.t ? b.r : a.r + ((b.r - a.r) * (t - a.t)) / (b.t - a.t)
+      return Math.round((r / base) * 1000) / 1000
+    }
+  }
+  return null
+}
+
+/** 3秒維持率。手で入れた値 → スキップ率から → 曲線から、の順に使います。 */
+export function hold3(snap) {
+  if (!snap) return null
+  if (snap.hold_3s != null && isFinite(Number(snap.hold_3s))) return Number(snap.hold_3s)
+  if (snap.skip_rate != null && isFinite(Number(snap.skip_rate))) return Math.round((1 - Number(snap.skip_rate)) * 1000) / 1000
+  return holdAt(snap.retention_curve, RETENTION.HOOK_WINDOW_SEC)
+}
+
+/** 目安との比べ（ショートの3秒維持率 65〜80%、平均視聴率など）。 */
+export function benchmarks(snap, durationSec, mode) {
+  const out = []
+  const B = BENCH[mode === 'long' ? 'long' : 'short']
+  const h = hold3(snap)
+  if (mode !== 'long' && h != null) {
+    out.push({ key: 'hold_3s', value: h, level: h >= B.HOLD3_GOOD ? 'ok' : h >= B.HOLD3_MIN ? 'mid' : 'ng',
+      text: `3秒維持率 ${Math.round(h * 1000) / 10}%（目安: ${B.HOLD3_GOOD * 100}%以上がねらい、${B.HOLD3_MIN * 100}%を下回ると広がりにくいと言われます）` })
+  }
+  const p = avp(snap, durationSec)
+  if (p != null) out.push({ key: 'avp', value: p, level: p >= B.AVP ? 'ok' : 'mid', text: `平均視聴率（AVP）${Math.round(p * 1000) / 10}%・平均 ${snap.avg_watch_sec}秒（目安: ${mode === 'long' ? '長尺は' : 'ショートは'}${B.AVP * 100}%以上）` })
+  return out
+}
+
+/** 維持率の曲線から離脱点を探します。window 秒の間に MATERIAL_DROP 以上下がる
+ *  区間を集めてつなげ、つながった区間ごとに「どこからどこまでで何ポイント」。 */
+export function retentionDrops(curve, opts) {
+  const o = opts || {}
+  const W = o.window || (o.mode === 'long' ? RETENTION.WINDOW_LONG_SEC : RETENTION.WINDOW_SHORT_SEC)
+  const D = o.drop || RETENTION.MATERIAL_DROP
+  const c = (curve || []).filter((p) => isFinite(p.t) && isFinite(p.r)).slice().sort((a, b) => a.t - b.t)
+  if (c.length < 2 || !(c[0].r > 0)) return []
+  const r = c.map((p) => p.r / c[0].r)
+  const marks = []
+  for (let i = 0; i < c.length; i++) {
+    let j = i
+    while (j + 1 < c.length && c[j + 1].t - c[i].t <= W + 1e-9) j++
+    if (j > i && r[i] - r[j] >= D - 1e-9) marks.push([i, j])
+  }
+  const regions = []
+  for (const [i, j] of marks) {
+    const last = regions[regions.length - 1]
+    if (last && i <= last[1]) last[1] = Math.max(last[1], j)
+    else regions.push([i, j])
+  }
+  return regions.map(([i, j]) => {
+    // 区間の端は、実際に下がり始めた点と下がり終えた点に詰めます。
+    while (i < j && r[i + 1] >= r[i]) i++
+    while (j > i && r[j - 1] <= r[j]) j--
+    // いちばん急に下がった1区間の始まり（行に結びつけるのはここ）。
+    let at = c[i].t
+    let steep = -Infinity
+    for (let k = i; k < j; k++) {
+      const sl = (r[k] - r[k + 1]) / Math.max(1e-9, c[k + 1].t - c[k].t)
+      if (sl > steep) { steep = sl; at = c[k].t }
+    }
+    return { from: c[i].t, to: c[j].t, at, drop: Math.round((r[i] - r[j]) * 1000) / 1000, before: Math.round(r[i] * 1000) / 1000, after: Math.round(r[j] * 1000) / 1000, hook: c[i].t < RETENTION.HOOK_WINDOW_SEC }
+  }).filter((x) => x.drop >= D - 1e-9).sort((a, b) => b.drop - a.drop)
+}
+
+/** 離脱点を台本の行に結びつけます（いちばん急に下がった時刻を含む行）。 */
+export function mapDropsToLines(drops, lines) {
+  return (drops || []).map((d) => {
+    const L = lines || []
+    const t = d.at != null ? d.at : d.from
+    let idx = L.findIndex((l) => t >= (Number(l.start) || 0) && t < (Number(l.end) || 0))
+    if (idx < 0 && L.length && t >= (Number(L[L.length - 1].end) || 0)) idx = L.length - 1
+    const l = idx >= 0 ? L[idx] : null
+    const pct = Math.round(d.drop * 1000) / 10
+    return {
+      ...d, line: idx, pct,
+      text: l ? `${idx + 1}行目「${String(l.narration || l.telop || '').slice(0, 24)}」（${l.start}〜${l.end}秒）のあたりで ${pct}% 離脱しています。`
+        : `${d.from}〜${d.to}秒で ${pct}% 離脱しています。`,
+    }
+  })
+}
+
+/** いちばん大きな離脱から、次に試す仮説（PDCA の下書き）を作ります。 */
+export function nextHypotheses(ctx) {
+  const c = ctx || {}
+  const mode = c.mode === 'long' ? 'long' : 'short'
+  const B = BENCH[mode]
+  const dur = Number(c.duration) || 0
+  const drops = c.drops || []
+  const out = []
+  const add = (title, hypothesis, metric, baseline, actions) => {
+    if (out.some((x) => x.title === title)) return
+    out.push({ title, stage: 'plan', hypothesis, target: { metric, baseline: baseline == null ? null : baseline }, next_actions: actions })
+  }
+  const h = c.hold3
+  const hookDrop = drops.find((d) => d.hook)
+  if (mode === 'short' && ((h != null && h < B.HOLD3_MIN) || hookDrop)) {
+    const lost = hookDrop ? hookDrop.pct + '%' : '多くの人'
+    // すでに問いかけで始めているなら、問いかけにする案は出さず、約束を先に見せる案にします。
+    if (c.hookType === 'question') {
+      add('約束の言葉を冒頭3秒に入れる', `最初の3秒で${lost}が離れています。問いかけはできているので、タイトルとサムネで約束した言葉（または結果の画）を最初の3秒に見せれば、3秒維持率が上がるはず。`, 'hold_3s', h,
+        ['約束の言葉を1行目のテロップに入れる', '完成した画を最初の1秒に一瞬見せる'])
+    } else {
+      add('冒頭を疑問形にする', `最初の3秒で${lost}が離れています。1行目を問いかけにし、約束の言葉を最初の3秒に入れれば、3秒維持率が上がるはず。`, 'hold_3s', h,
+        ['1行目を問いかけに書き直す', '約束の言葉を最初のテロップに入れる', 'あいさつを消して本題から始める'])
+    }
+  }
+  for (const d of drops.slice(0, 3)) {
+    if (d.hook && mode === 'short') continue
+    if (dur && d.from >= dur * 0.8) {
+      add('最後を短く、CTAは1つに', `終わり近く（${d.from}秒ごろ）で${d.pct}%離れています。締めを短くしてお願いを1つに絞り、${mode === 'short' ? '最後を1行目につなげれば' : '終了画面へすぐつなげれば'}、最後まで見る人が増えるはず。`, 'avp', c.avp,
+        ['締めのあいさつを消す', 'お願いを1つに絞る'])
+    } else if (mode === 'short') {
+      const t = Math.max(1, Math.ceil(d.at != null ? d.at : d.from))
+      add(`${t}秒目に切り替えを足す`, `${t}秒ごろから${d.pct}%離れています${d.line >= 0 ? `（${d.line + 1}行目）` : ''}。その直前に新しい画・音・問いを入れれば、離れる人が減るはず。`, 'avp', c.avp,
+        [`${t}秒目の直前に寄りか手元の画を入れる`, '同じ画を3秒以内に区切る'])
+    } else if (d.from < RULES.modes.long.WHY_WATCH_SEC) {
+      add('60秒までに「最後まで見る理由」を言う', `最初の1分（${d.from}秒ごろ）で${d.pct}%離れています。冒頭10秒で約束を見せ、60秒までに「最後に何が分かるか」を言えば、残る人が増えるはず。`, 'avp', c.avp,
+        ['冒頭10秒で約束の中身を見せる', '「最後に〜を発表します」を入れる'])
+    } else {
+      const m = Math.floor(d.from / 60)
+      add(`${m}分${Math.round(d.from % 60)}秒ごろに山場を置く`, `${m}分${Math.round(d.from % 60)}秒ごろから${d.pct}%離れています。その少し前にルール変更・トラブル・発表などの山場を置けば、離れる人が減るはず。`, 'avp', c.avp,
+        ['離脱の30秒前に山場を入れる', '同じ画を10秒以内に区切る'])
+    }
+  }
+  return out.slice(0, 3)
 }
 
 /** 自社の投稿を「属性ごと」に比べます（フックの型・長さの帯・時刻・曜日）。
@@ -469,8 +823,309 @@ export function shotsFromLines(lines, style) {
       visual_prompt: prompt,
       camera: i === 0 ? 'close-up, static' : i === all.length - 1 ? 'medium shot, static' : cams[(i - 1) % cams.length],
       transition: i === 0 ? 'cut' : (i % 3 === 0 ? 'whip pan' : 'cut'),
+      mark: MARKS.indexOf(l.mark) >= 0 ? l.mark : '',
     }
   })
+}
+
+/* ---------------- テンポ（同じ画の長さ） ----------------
+   同じ画が長く続くと、見る人は「もう分かった」と感じて離れます。目安は
+   ショートで1カット2〜3秒（3.5秒を超えたら注意）、長尺で10秒まで。
+   長いカットは、寄り・引き・手元・別アングル・B-roll（関係する別の画）に
+   分けて撮ると、同じ話のままでも画が変わり続けます。 */
+
+/* 行・カットに付ける印。「切り替え」は新しい画・音・問いで注意を戻すところ、
+   「山場」はルール変更・トラブル・発表・どんでん返しなど、話が一段動くところ。 */
+export const MARKS = ['', 'switch_visual', 'switch_sound', 'switch_question', 'peak_rule', 'peak_trouble', 'peak_reveal', 'peak_twist']
+export const MARK_LABELS = {
+  '': 'なし', switch_visual: '切り替え（新しい画）', switch_sound: '切り替え（音）', switch_question: '切り替え（問い）',
+  peak_rule: '山場（ルール変更）', peak_trouble: '山場（トラブル）', peak_reveal: '山場（発表）', peak_twist: '山場（どんでん返し）',
+}
+export function isPeak(m) { return String(m || '').indexOf('peak_') === 0 }
+export function isSwitch(m) { return String(m || '').indexOf('switch_') === 0 }
+
+export const ANGLES = [
+  { key: 'close', label: '寄り', camera: 'close-up', lead: 'Close-up of' },
+  { key: 'wide', label: '引き', camera: 'wide shot', lead: 'Wide shot of' },
+  { key: 'hands', label: '手元', camera: 'insert shot of hands', lead: 'Overhead insert shot of hands at work:' },
+  { key: 'angle', label: '別アングル', camera: 'side angle', lead: 'Side angle of' },
+  { key: 'broll', label: 'B-roll', camera: 'B-roll cutaway', lead: 'Cutaway detail related to' },
+]
+
+/** カット（なければ台本の行）の長さを見て、目安を超えるものを返します。 */
+export function shotLengthCheck(items, s) {
+  const M = modeRules(s)
+  const list = (items || []).map((x, i) => ({ index: i, start: Number(x.start) || 0, end: Number(x.end) || 0 }))
+    .map((x) => ({ ...x, sec: round1(x.end - x.start) }))
+  const over = list.filter((x) => x.sec > M.SHOT_MAX_SEC)
+  let longest = null
+  for (const x of list) if (!longest || x.sec > longest.sec) longest = x
+  const avg = list.length ? round1(list.reduce((a, x) => a + x.sec, 0) / list.length) : 0
+  return { max: M.SHOT_MAX_SEC, target: M.SHOT_TARGET, over, longest, avg, count: list.length, ok: over.length === 0 }
+}
+
+function basePrompt(p) {
+  return String(p || '').replace(NO_TEXT, '').trim().replace(/[.。]\s*$/, '')
+}
+
+/** 1つの長いカットを、目安の長さ（SPLIT_SEC）ごとの小さなカットに分けます。
+ *  1つ目は元の画のまま、2つ目からは寄り→引き→手元→別アングル→B-roll の順。
+ *  時刻は0.1秒単位で、最後のカットは元の終わりにぴったり合わせます。 */
+export function splitShot(shot, s) {
+  const M = modeRules(s)
+  const st = Number(shot.start) || 0
+  const en = Number(shot.end) || 0
+  const len = en - st
+  if (!(len > M.SHOT_MAX_SEC)) return [{ ...shot }]
+  const n = Math.ceil(len / M.SPLIT_SEC - 1e-9)
+  const out = []
+  const base = basePrompt(shot.visual_prompt) || String(shot.narration || '').trim()
+  for (let k = 0; k < n; k++) {
+    const a = k === 0 ? null : ANGLES[(k - 1) % ANGLES.length]
+    const ps = round1(st + (len * k) / n)
+    const pe = k === n - 1 ? en : round1(st + (len * (k + 1)) / n)
+    out.push({
+      ...shot,
+      start: ps, end: pe,
+      narration: k === 0 ? shot.narration || '' : '',
+      camera: a ? a.camera : shot.camera,
+      angle: a ? a.label : (shot.angle || '元の画'),
+      part: String.fromCharCode(97 + k),
+      visual_prompt: a ? `${a.lead} ${base.charAt(0).toLowerCase()}${base.slice(1)}. ${NO_TEXT}` : shot.visual_prompt,
+      transition: 'cut',
+      mark: k === 0 ? shot.mark || '' : '',
+    })
+  }
+  return out
+}
+
+/** 絵コンテ全体で、目安を超えるカットだけを分けます。番号は振り直します。 */
+export function splitLongShots(shots, s) {
+  const out = []
+  let changed = 0
+  ;(shots || []).forEach((x, i) => {
+    const parts = splitShot({ ...x, parent: x.parent != null ? x.parent : i }, s)
+    if (parts.length > 1) changed++
+    for (const p of parts) out.push(p)
+  })
+  return { shots: out.map((x, i) => ({ ...x, index: i })), changed }
+}
+
+/** 絵コンテの EDL（CMX3600）。素材はまだ無いので、録画側と同じ時刻を置き、
+ *  カメラと画の指示をコメントに入れます（編集ソフトで並べる下書き用）。 */
+export function storyboardEdl(shots, opts) {
+  const o = opts || {}
+  const fps = Math.round(Number(o.fps) || 30)
+  const title = String(o.title || '').replace(/[^\x20-\x7e]/g, '').trim() || 'STORYBOARD'
+  const out = [`TITLE: ${title.slice(0, 60)}`, 'FCM: NON-DROP FRAME', '']
+  ;(shots || []).forEach((x, i) => {
+    const a = timecode(x.start, fps)
+    const b = timecode(x.end, fps)
+    out.push(`${pad(i + 1, 3)}  AX       V     C        ${a} ${b} ${a} ${b}`)
+    // EDL は英数字だけにします（日本語を読めない編集ソフトがあるため）。
+    out.push(`* FROM CLIP NAME: SHOT ${(x.parent != null ? x.parent + 1 : i + 1)}${x.part || ''} ${String(x.camera || '').replace(/[^\x20-\x7e]/g, '')}`)
+    out.push(`* COMMENT: ${basePrompt(x.visual_prompt).replace(/[^\x20-\x7e]/g, '').slice(0, 120)}`)
+    out.push('')
+  })
+  return out.join('\r\n')
+}
+
+/* ---------------- 山場と注意の切り替え ----------------
+   ショートは約10秒ごとに「切り替え」（新しい画・音・問い）が無いと、指が
+   次へ動きやすいと言われます（12秒を超える間は注意）。長尺は約3分ごとに
+   「山場」（ルール変更・トラブル・発表・どんでん返し）。3分半を超える間は注意。
+   長尺はさらに 0〜1分（つかむ）・1〜3分（引き込む）・3〜6分（夢中にさせる）・
+   6分〜（後半を保つ）に分けて、それぞれに印があるかを見ます。 */
+
+const ACTS = [[0, 60, 'つかむ（0〜1分）'], [60, 180, '引き込む（1〜3分）'], [180, 360, '夢中にさせる（3〜6分）'], [360, Infinity, '後半を保つ（6分〜）']]
+
+/** 行とカットに付けた印を、時刻順に集めます（同じ時刻・同じ種類は1つに）。 */
+export function markEvents(s) {
+  const seen = {}
+  const out = []
+  const add = (x, from, i) => {
+    if (!x || !x.mark || MARKS.indexOf(x.mark) < 0) return
+    const t = round1(Number(x.start) || 0)
+    const kind = isPeak(x.mark) ? 'peak' : 'switch'
+    const key = kind + '@' + t
+    if (seen[key]) return
+    seen[key] = 1
+    out.push({ t, kind, mark: x.mark, label: MARK_LABELS[x.mark], from, index: i })
+  }
+  ;((s && s.lines) || []).forEach((l, i) => add(l, 'line', i))
+  ;((s && s.shots) || []).forEach((x, i) => add(x, 'shot', i))
+  return out.sort((a, b) => a.t - b.t || (a.kind === 'peak' ? -1 : 1))
+}
+
+function gapsOf(points, dur, warn) {
+  const ts = Array.from(new Set([0].concat(points).filter((t) => t >= 0 && t < dur))).sort((a, b) => a - b).concat([dur])
+  const gaps = []
+  for (let i = 1; i < ts.length; i++) {
+    const sec = round1(ts[i] - ts[i - 1])
+    gaps.push({ from: ts[i - 1], to: ts[i], sec, over: sec > warn })
+  }
+  return gaps
+}
+
+/** 印どうしの間隔の確認。ショートは切り替え（山場も含む）、長尺は山場の間隔。 */
+export function rhythmCheck(s) {
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const dur = scriptDuration(s)
+  const events = markEvents(s)
+  if (!dur) return { mode, ok: true, events, gaps: [], over: [], acts: [], dur: 0 }
+  if (mode === 'short') {
+    const gaps = gapsOf(events.map((e) => e.t), dur, M.INTERRUPT_WARN_SEC)
+    const over = gaps.filter((g) => g.over)
+    return { mode, ok: over.length === 0, events, gaps, over, acts: [], dur, warn: M.INTERRUPT_WARN_SEC, target: M.INTERRUPT_TARGET_SEC }
+  }
+  const peaks = events.filter((e) => e.kind === 'peak')
+  const gaps = gapsOf(peaks.map((e) => e.t), dur, M.PEAK_WARN_SEC)
+  const over = gaps.filter((g) => g.over)
+  const acts = ACTS.filter((a) => a[0] < dur).map(([from, to, label]) => {
+    const end = Math.min(to, dur)
+    const inside = events.filter((e) => e.t >= from && e.t < end)
+    return { from, to: end, label, marks: inside.length, peaks: inside.filter((e) => e.kind === 'peak').length, ok: from === 0 || inside.length > 0 }
+  })
+  return { mode, ok: over.length === 0 && acts.every((a) => a.ok), events, gaps, over, acts, dur, warn: M.PEAK_WARN_SEC, target: M.PEAK_TARGET_SEC }
+}
+
+/** 時間の帯（画面の静止した図）に描くもの。位置は 0〜1 の割合です。 */
+export function timelineData(s) {
+  const dur = scriptDuration(s)
+  const lines = (s && s.lines) || []
+  if (!dur || !lines.length) return null
+  const mode = lengthMode(s)
+  const M = RULES.modes[mode]
+  const r = rhythmCheck(s)
+  const first = lines[0]
+  const last = lines[lines.length - 1]
+  const hookEnd = mode === 'short' ? Math.min(Number(first.end) || 0, dur) : Math.min(M.HOOK_SEC, dur)
+  const at = (t) => Math.max(0, Math.min(1, t / dur))
+  return {
+    dur, mode,
+    hook: { from: 0, to: at(hookEnd), sec: round1(hookEnd) },
+    cta: lines.length > 1 ? { from: at(Number(last.start) || 0), to: 1, sec: round1(dur - (Number(last.start) || 0)) } : null,
+    events: r.events.map((e) => ({ ...e, x: at(e.t) })),
+    gaps: r.over.map((g) => ({ from: at(g.from), to: at(g.to), sec: g.sec })),
+    acts: r.acts.map((a) => ({ ...a, x: at(a.from) })),
+    promiseEnd: at(M.PROMISE_SEC),
+  }
+}
+
+/* ---------------- ループと最後 ----------------
+   ショートは最後まで見た人がそのまま最初に戻る（ループする）と、見た時間が
+   延びます。最後の行を1行目につながる言葉で終え、「以上です」「またね」の
+   ような締めは置きません。CTA（してほしい行動）は最後に1回、1つだけ。
+   長尺は YouTube の終了画面（最後の5〜20秒）に次の動画を置くメモを残します。 */
+
+const CTA_CUES = ['フォロー', '保存', 'コメント', 'プロフィール', 'リンク', '予約', 'いいね', 'シェア', 'DM', 'チャンネル登録', '来てください', '来てね', 'お問い合わせ', '電話', 'LINE', 'クーポン', 'ご来店', '見に来て', '試しに来て']
+const CLOSERS = /(以上です|以上でした|ありがとうございました|またね|バイバイ|ではまた|お楽しみに|おわり|終わりです)[。！!]*$/
+const CONNECT_END = /(と|から|は|って|けど|、|…|\.\.\.|→|それは|なぜなら|実は|その答えは|答えは)[。]?$/
+const BACK_CUES = /最初|もう一度|1回目|はじめから|冒頭/
+
+function lineText(l) { return l ? String(l.narration || '').trim() || String(l.telop || '').trim() : '' }
+
+/** 最後の確認: CTA は最後に1回・1つ、ショートのループ、長尺の終了画面。 */
+export function endingCheck(s) {
+  const mode = lengthMode(s)
+  const lines = (s && s.lines) || []
+  const n = lines.length
+  const ctaLines = []
+  const actionsAt = {}
+  lines.forEach((l, i) => {
+    const t = String(l.narration || '') + ' ' + String(l.telop || '')
+    const hit = CTA_CUES.filter((c) => t.indexOf(c) >= 0)
+    if (hit.length) { ctaLines.push(i); actionsAt[i] = hit }
+  })
+  // ループにする台本は、最後の行が「つなぎ」なので CTA は最後から2行目まで認めます。
+  const endZone = s && s.loop && mode === 'short' ? 2 : 1
+  const early = ctaLines.filter((i) => i < n - endZone)
+  const atEnd = ctaLines.filter((i) => i >= n - endZone)
+  const actions = Array.from(new Set(atEnd.flatMap((i) => actionsAt[i])))
+  const cta = {
+    lines: ctaLines, early, atEnd: atEnd.length > 0, actions,
+    ok: n > 0 && atEnd.length > 0 && early.length === 0 && actions.length <= 1,
+  }
+  const notes = []
+  if (!n) notes.push('行がまだありません。')
+  else if (!atEnd.length) notes.push('最後にしてほしい行動（保存・フォロー・予約など）がありません。最後に1つだけ入れてください。')
+  if (early.length) notes.push(`${early.map((i) => i + 1).join('・')}行目にも行動のお願いがあります。途中のお願いは離れるきっかけになるので、最後の1回にまとめてください。`)
+  if (actions.length > 1) notes.push(`最後のお願いが${actions.length}つ（${actions.join('・')}）あります。1つに絞ると動いてもらいやすくなります。`)
+  let loop = null
+  let endScreen = null
+  if (mode === 'short') {
+    const first = lineText(lines[0])
+    const last = lineText(lines[n - 1])
+    const shared = n > 1 ? promiseKeywords(first).filter((k) => normText(last).indexOf(k) >= 0) : []
+    const closer = CLOSERS.test(last)
+    const connects = n > 1 && (CONNECT_END.test(last) || BACK_CUES.test(last) || shared.length > 0)
+    loop = { want: !!(s && s.loop), ok: connects && !closer, connects, closer, shared }
+    if (loop.want && closer) notes.push('最後の行が締めの言葉で終わっています。ループにするなら、1行目につながる言葉で終えてください。')
+    else if (loop.want && !connects) notes.push('最後の行が1行目につながっていません（例: 1行目の言葉をくり返す、「答えは…」で言いかけて1行目へ戻る）。')
+  } else {
+    const note = String((s && s.end_screen) || '').trim()
+    endScreen = { ok: !!note, note }
+    if (!note) notes.push('終了画面（最後の5〜20秒）に何を置くかのメモがありません（例: 次に見てほしい動画、チャンネル登録）。')
+  }
+  const ok = cta.ok && (!loop || !loop.want || loop.ok) && (!endScreen || endScreen.ok)
+  return { mode, ok, cta, loop, endScreen, notes }
+}
+
+/* ---------------- 企画の型 ----------------
+   大きなチャンネルの「プレゼント企画を競争にする」「とんでもない規模」を、
+   小さなお店の規模に置きかえた型です。どれも、見る人に「結果が気になる」
+   理由を作ります。競合の投稿にも型を付け、どの型がよく見られているかを
+   件数の正直な目安（信頼度）と一緒に出します。 */
+
+export const FORMATS = {
+  contest: { label: '競争・対決', small: '店長と新人の対決、スタッフ同士の早作り勝負など', recipe: '2人（2チーム）が同じお題で競い、最後に勝ち負けを発表する。途中でルール変更を1回入れる。' },
+  challenge: { label: '挑戦（制限付き）', small: '「10分で」「1000円で」「片手で」など制限を付けて作る', recipe: '最初に制限（時間・予算・道具）を宣言し、できるかどうかで最後まで引っぱる。' },
+  before_after: { label: 'ビフォーアフター', small: '施術・修理・掃除・盛り付けの前と後', recipe: '最初に「後」を一瞬見せ、「前」から工程を短く区切って見せ、最後に並べて比べる。' },
+  ranking: { label: 'ランキング', small: '人気メニューTOP3、よく聞かれる質問ベスト3など', recipe: '下の順位から発表し、1位は最後。各順位に理由を1つずつ。' },
+  behind: { label: '裏側・工程', small: '仕込み・準備・職人の手元など、ふだん見られないところ', recipe: 'ふだん見られない工程を、手元の寄りで短く区切って見せる。' },
+  test: { label: '検証', small: '「本当に〜？」を自分たちで試してみる', recipe: '最初に疑問を出し、試した結果を最後に見せる。' },
+  vote: { label: 'お客様参加（投票）', small: '次の新作をコメントで投票、お客様の感想など', recipe: '選択肢を2〜3つ見せ、コメントで選んでもらう。結果は次の動画で発表する。' },
+}
+export const FORMAT_KEYS = Object.keys(FORMATS)
+
+const FORMAT_CUES = [
+  ['contest', /対決|vs|勝負|バトル|どっちが|早作り|競争/],
+  ['vote', /投票|どれがいい|どっちがいい|選んで|コメントで教えて|リクエスト/],
+  ['ranking', /ランキング|top\s*[0-9]|ベスト\s*[0-9]|[0-9]位|第[0-9一二三]位/],
+  ['before_after', /ビフォー|アフター|before|after|変身|前後/],
+  ['challenge', /縛り|以内で|だけで|制限|チャレンジ|挑戦|[0-9]+分で|[0-9]+円で/],
+  ['test', /検証|本当に|試してみた|やってみた|実験|比べてみた/],
+  ['behind', /裏側|仕込み|工程|できるまで|舞台裏|作り方|の1日|の一日|朝[0-9]+時/],
+]
+
+/** タイトル・キャプションの言葉から型を推します（当てはまらなければ ''）。 */
+export function guessFormat(text) {
+  const t = String(text || '').normalize('NFKC').toLowerCase()
+  for (const [k, re] of FORMAT_CUES) if (re.test(t)) return k
+  return ''
+}
+
+/** 型ごとの成績（競合の投稿）。metric は score（総合点）・engagement_rate・velocity・views。
+ *  件数が少ない型は「まだ判断できません」と出し、たまたまの差を言い切りません。 */
+export function formatPerformance(posts, metric) {
+  const m = metric || 'score'
+  const groups = {}
+  let untagged = 0
+  for (const p of posts || []) {
+    if (FORMAT_KEYS.indexOf(p.format) < 0) { untagged++; continue }
+    const v = Number(p[m])
+    if (p[m] == null || !isFinite(v)) continue
+    ;(groups[p.format] = groups[p.format] || []).push(v)
+  }
+  const list = Object.keys(groups).map((k) => {
+    const ci = bootstrapCI(groups[k], { seed: RULES.stats.BOOTSTRAP_SEED + FORMAT_KEYS.indexOf(k) })
+    return { format: k, label: FORMATS[k].label, n: groups[k].length, mean: ci.mean, low: ci.low, high: ci.high, reliability: reliability(groups[k].length) }
+  }).sort((a, b) => b.mean - a.mean || b.n - a.n)
+  const top = list[0]
+  const second = list[1]
+  const clear = !!(top && second && top.reliability.band !== 'insufficient' && second.reliability.band !== 'insufficient' && top.low > second.high)
+  return { metric: m, groups: list, untagged, tagged: (posts || []).length - untagged, clear }
 }
 
 /* ---------------- 書き出し ---------------- */
@@ -743,6 +1398,122 @@ export function silenceCuts(meter, durationSec, opts) {
 }
 
 function round3(v) { return Math.round(v * 1000) / 1000 }
+
+/* ---------------- 実物の動画で確かめる（画の切り替わり・話し始め） ----------------
+   ブラウザで動画を1秒に数枚ずつ小さく（横48px）取り出し、明るさの分布
+   （16段のヒストグラム）と 8×8 のマスの明るさを比べます。差が「この動画
+   ふだんの差」より大きく跳ねたところを切り替わり（カット）とみなします。
+   しきい値は動画ごとに決めます（中央値＋4×ばらつき。ただし最低 0.15）。
+   ゆっくり溶けるようにつなぐ場面は拾えないことがあります。 */
+
+export const SCENE = { FPS_SHORT: 6, FPS_LONG: 4, MAX_SAMPLES: 2400, WIDTH: 48, BINS: 16, GRID: 8, MIN_THRESHOLD: 0.15, K: 4, MIN_SHOT_SEC: 0.3 }
+export const SPEECH = { LEAD_WARN_SEC: 0.5, MIN_VOICED_SEC: 0.05 }
+
+/** 1枚の絵（RGBA の並び）の特徴: 明るさの分布と、マスごとの明るさ（0〜1）。 */
+export function frameSignature(rgba, w, h) {
+  const B = SCENE.BINS
+  const G = SCENE.GRID
+  const hist = new Float64Array(B)
+  const grid = new Float64Array(G * G)
+  const cnt = new Float64Array(G * G)
+  const n = w * h
+  for (let y = 0; y < h; y++) {
+    const gy = Math.min(G - 1, Math.floor((y * G) / h))
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      const l = (0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]) / 255
+      hist[Math.min(B - 1, Math.floor(l * B))]++
+      const g = gy * G + Math.min(G - 1, Math.floor((x * G) / w))
+      grid[g] += l
+      cnt[g]++
+    }
+  }
+  for (let b = 0; b < B; b++) hist[b] /= n || 1
+  for (let g = 0; g < G * G; g++) grid[g] = cnt[g] ? grid[g] / cnt[g] : 0
+  return { hist, grid }
+}
+
+/** 2枚の差（0〜1）。分布の差（全体の色や明るさが変わったか）と、
+ *  マスの差（置き場所が変わったか）を半分ずつ。 */
+export function frameDiff(a, b) {
+  if (!a || !b) return 0
+  let dh = 0
+  for (let i = 0; i < a.hist.length; i++) dh += Math.abs(a.hist[i] - b.hist[i])
+  let dg = 0
+  for (let i = 0; i < a.grid.length; i++) dg += Math.abs(a.grid[i] - b.grid[i])
+  return 0.5 * (dh / 2) + 0.5 * (dg / a.grid.length)
+}
+
+/** 何枚ずつ取り出すか（短い動画は1秒6枚、長い動画は4枚。最大2400枚）。 */
+export function scenePlan(duration) {
+  const d = Number(duration) || 0
+  if (!(d > 0)) return { fps: 0, times: [] }
+  let fps = d <= 120 ? SCENE.FPS_SHORT : SCENE.FPS_LONG
+  if (d * fps > SCENE.MAX_SAMPLES) fps = SCENE.MAX_SAMPLES / d
+  const n = Math.max(2, Math.floor(d * fps))
+  const times = []
+  for (let i = 0; i < n; i++) times.push(Math.round(Math.min(d - 0.05, i / fps) * 1000) / 1000)
+  return { fps: Math.round(fps * 100) / 100, times }
+}
+
+/** 隣どうしの差の並びから、切り替わりの時刻を決めます。diffs[i] は
+ *  times[i-1] と times[i] の差（diffs[0] は使いません）。 */
+export function sceneCuts(times, diffs) {
+  const d = (diffs || []).slice(1).filter((x) => isFinite(x))
+  if (!d.length) return { cuts: [], threshold: SCENE.MIN_THRESHOLD }
+  const sorted = d.slice().sort((a, b) => a - b)
+  const med = quantile(sorted, 0.5)
+  const mad = quantile(d.map((x) => Math.abs(x - med)).sort((a, b) => a - b), 0.5)
+  const threshold = Math.max(SCENE.MIN_THRESHOLD, med + SCENE.K * 1.4826 * mad)
+  const cuts = []
+  for (let i = 1; i < diffs.length; i++) {
+    if (!(diffs[i] > threshold)) continue
+    // 切り替わりは前の1枚と今の1枚のあいだ。真ん中の時刻にします。
+    const t = round3((times[i - 1] + times[i]) / 2)
+    const prev = cuts[cuts.length - 1]
+    if (prev && t - prev.t < SCENE.MIN_SHOT_SEC) { if (diffs[i] > prev.diff) { prev.t = t; prev.diff = diffs[i] } continue }
+    cuts.push({ t, diff: Math.round(diffs[i] * 1000) / 1000 })
+  }
+  return { cuts, threshold: Math.round(threshold * 1000) / 1000 }
+}
+
+/** 切り替わりのまとめ: カット数・平均の長さ・一番長く同じ画が続くところ。 */
+export function sceneSummary(times, diffs, duration, s) {
+  const dur = Number(duration) || (times && times.length ? times[times.length - 1] : 0)
+  const M = s ? modeRules(s) : dur > RULES.modes.short.MAX_SEC ? RULES.modes.long : RULES.modes.short
+  const { cuts, threshold } = sceneCuts(times, diffs)
+  const edges = [0].concat(cuts.map((c) => c.t)).concat([dur])
+  const shots = []
+  for (let i = 1; i < edges.length; i++) shots.push({ start: round1(edges[i - 1]), end: round1(edges[i]), sec: round1(edges[i] - edges[i - 1]) })
+  let longest = null
+  for (const x of shots) if (!longest || x.sec > longest.sec) longest = x
+  const over = shots.filter((x) => x.sec > M.SHOT_MAX_SEC)
+  return {
+    cuts: cuts.map((c) => c.t), threshold, shots, count: cuts.length,
+    avg: shots.length ? round1(dur / shots.length) : 0, longest, over, max: M.SHOT_MAX_SEC,
+    text: longest ? `${longest.start}〜${longest.end}秒、同じ画が${longest.sec}秒続いています。` : '',
+  }
+}
+
+/** 話し始め: 音量が NOISE_FLOOR_DB 以上の状態が MIN_VOICED_SEC 続いた最初の時刻。
+ *  0.5秒より遅ければ注意し、話し始めの 0.1秒手前までを切る候補にします。 */
+export function speechStart(meter, opts) {
+  const R = { ...RULES.silence, ...SPEECH, ...(opts || {}) }
+  const { full, frameSec } = meter
+  const need = Math.max(1, Math.round(R.MIN_VOICED_SEC / frameSec))
+  let run = 0
+  for (let i = 0; i < full.length; i++) {
+    if (full[i] >= R.NOISE_FLOOR_DB) {
+      run++
+      if (run >= need) {
+        const t = round3((i - need + 1) * frameSec)
+        const warn = t > R.LEAD_WARN_SEC
+        return { start: t, warn, trim: warn ? { start: 0, end: round3(Math.max(0, t - R.HANDLE_SEC)) } : null }
+      }
+    } else run = 0
+  }
+  return { start: null, warn: true, trim: null }
+}
 
 /* ---------------- 出荷前チェック（形） ---------------- */
 

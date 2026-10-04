@@ -19,7 +19,7 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { HOOK_TYPES, RULES, PLATFORMS } from './_video-core.js'
+import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS } from './_video-core.js'
 
 export const VK = {
   projects: `${KV}video:projects`,
@@ -88,6 +88,11 @@ export function cleanProject(p) {
     },
     research: list(p && p.research, 20, (r) => ({ keyword: str(r && r.keyword, 100), platform: str(r && r.platform, 20), at: iso(r && r.at) })),
     imported_from: str(p && p.imported_from, 20),
+    // 再投資メモ: 次の動画で何を大きくするか（予算・時間・企画の型・ひとこと）。任意。
+    reinvest: {
+      budget: str(p && p.reinvest && p.reinvest.budget, 200), time: str(p && p.reinvest && p.reinvest.time, 200),
+      format: str(p && p.reinvest && p.reinvest.format, 200), note: str(p && p.reinvest && p.reinvest.note, 1000),
+    },
     created_at: iso(p && p.created_at) || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -126,6 +131,9 @@ export function cleanPost(p) {
     views: num(p && p.views, 0, 1e12), likes: num(p && p.likes, 0, 1e12), comments: num(p && p.comments, 0, 1e12), shares: num(p && p.shares, 0, 1e12),
     source: str(p && p.source, 20) || 'manual',
     analysis: cleanAnalysis(p && p.analysis),
+    // 企画の型（競争・対決など）と、誰が付けたか（ai / manual / guess）
+    format: FORMAT_KEYS.indexOf(p && p.format) >= 0 ? p.format : '',
+    format_source: ['ai', 'manual', 'guess'].indexOf(p && p.format_source) >= 0 ? p.format_source : '',
     added_at: iso(p && p.added_at) || new Date().toISOString(),
   }
 }
@@ -134,6 +142,8 @@ function cleanLine(l) {
   return {
     start: num(l && l.start, 0, 3600) || 0, end: num(l && l.end, 0, 3600) || 0,
     narration: str(l && l.narration, 300), telop: str(l && l.telop, 120), visual: str(l && l.visual, 300),
+    // 切り替え（新しい画・音・問い）か山場（ルール変更・トラブル・発表・どんでん返し）
+    mark: MARKS.indexOf(l && l.mark) >= 0 ? l.mark : '',
   }
 }
 
@@ -141,17 +151,28 @@ export function cleanScript(s) {
   return {
     id: idOk(s && s.id) ? s.id : newId('scr'),
     title: str(s && s.title, 200), platform: NET(s && s.platform),
-    target_duration_sec: num(s && s.target_duration_sec, 1, 600),
+    // 長さの種類。前からある台本（指定なし）はショートです。
+    length_mode: s && s.length_mode === 'long' ? 'long' : 'short',
+    target_duration_sec: num(s && s.target_duration_sec, 1, 3600),
+    // パッケージ（先に決める約束）。タイトルは title をそのまま使います。
+    thumb_text: str(s && s.thumb_text, 60), promise: str(s && s.promise, 300),
+    promise_keywords: words(s && s.promise_keywords, 8, 30), wow: str(s && s.wow, 300),
+    // 最後: ショートはループにするか、長尺は終了画面のメモ
+    loop: !!(s && s.loop), end_screen: str(s && s.end_screen, 300),
+    format: FORMAT_KEYS.indexOf(s && s.format) >= 0 ? s.format : '',
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
-    lines: list(s && s.lines, 60, cleanLine),
+    lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),
     rationale: str(s && s.rationale, 1500),
     hook_type: HOOK_TYPES.indexOf(s && s.hook_type) >= 0 ? s.hook_type : '',
     style: str(s && s.style, 300),
-    shots: list(s && s.shots, 60, (x, i) => ({
+    shots: list(s && s.shots, 300, (x, i) => ({
       index: i, start: num(x && x.start, 0, 3600) || 0, end: num(x && x.end, 0, 3600) || 0,
       narration: str(x && x.narration, 300), telop: str(x && x.telop, 120), visual_prompt: str(x && x.visual_prompt, 600),
       camera: str(x && x.camera, 80), transition: str(x && x.transition, 40),
+      // カット割りで分けたとき: 元の行の番号・a/b/c・寄り/引きなど
+      parent: num(x && x.parent, 0, 1000), part: str(x && x.part, 4), angle: str(x && x.angle, 20),
+      mark: MARKS.indexOf(x && x.mark) >= 0 ? x.mark : '',
     })),
     originality: s && s.originality && typeof s.originality === 'object' ? {
       clean: !!s.originality.clean, attempts: num(s.originality.attempts, 0, 10),
@@ -167,6 +188,9 @@ export const PUB_STATUS = ['draft', 'uploading', 'scheduled', 'processing', 'pub
 function cleanSnapshot(m) {
   const o = { captured_at: iso(m && m.captured_at) || new Date().toISOString(), source: str(m && m.source, 20) }
   for (const k of ['views', 'likes', 'comments', 'shares', 'saves', 'reach', 'avg_watch_sec', 'retention_rate', 'skip_rate']) o[k] = num(m && m[k], 0, 1e12)
+  // 3秒維持率（0〜1）と、維持率の曲線（秒と残っている割合）。手で入れるか取り込んだときだけ。
+  o.hold_3s = num(m && m.hold_3s, 0, 1)
+  o.retention_curve = list(m && m.retention_curve, 200, (p) => ({ t: num(p && p.t, 0, 36000) || 0, r: num(p && p.r, 0, 10) || 0 }))
   return o
 }
 
