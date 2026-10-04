@@ -1128,7 +1128,7 @@
   var GROUPS = [
     { id: 'site', label: 'サイトの機能', note: '問い合わせ・AI・保存まわり。ここが埋まると管理ポータルの7つが動きます。' },
     { id: 'search', label: '検索エンジンへの登録', note: 'Search Console と Bing Webmaster Tools の所有権確認。' },
-    { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。' },
+    { id: 'booking', label: '予約管理（Googleカレンダー）', note: 'サイトの予約欄の空きを Google カレンダーから取り、入った予約を予定として登録するためのキー。接続のボタンは「予約管理」のタブにあります。' },
     { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' }
   ];
   // [name, label, kind, group, device, net, sample hint (text kinds) or null = unset]

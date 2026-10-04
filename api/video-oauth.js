@@ -35,7 +35,7 @@ export async function GET(req) {
     if (denied) return denied
     if (start === 'youtube') {
       const [id, secret] = await Promise.all([setting('GOOGLE_CLIENT_ID', '', req), setting('GOOGLE_CLIENT_SECRET', '', req)])
-      if (!id || !secret) return json({ ok: false, message: 'Google のクライアントIDとシークレットが未設定です（「設定状況 › キーの入力」の「商談の自動予約」と同じ欄です）。Google Cloud で YouTube Data API v3 を有効にしてください。' }, 400)
+      if (!id || !secret) return json({ ok: false, message: 'Google のクライアントIDとシークレットが未設定です（「設定状況 › キーの入力」の「予約管理（Googleカレンダー）」と同じ欄です）。Google Cloud で YouTube Data API v3 を有効にしてください。' }, 400)
       return json({ ok: true, url: youtubeConsentUrl({ clientId: id, redirectUri: `${url.origin}/api/google-oauth`, state: 'yt~' + (await makeState()) }), willSave: await storeReady(req) })
     }
     if (start === 'tiktok') {

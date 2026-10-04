@@ -29,7 +29,7 @@ import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
   cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS,
   saveBooking, recentBookings, icsFile,
-  readRules, saveRules, pickService, activeServices, bookingNoun,
+  readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 import { mailBooked, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
@@ -113,7 +113,16 @@ export async function GET(req) {
       storedHere: !!(await storeFor(req)),
       calendarId: c.calendarId,
       rules: await readRules(store, pipeline),
-      bookings: await recentBookings(store, pipeline, 20),
+      // 予約管理の画面は、一覧・週の表・数字をこの記録から作ります（直近300件）。
+      bookings: await recentBookings(store, pipeline, url.searchParams.get('recent') === 'all' ? 300 : 20),
+      holidayLast: HOLIDAY_LAST,
+      holidays: HOLIDAYS,
+      // メール・リンク・毎朝の仕事・LINE が動く状態か。値そのものは返しません。
+      mail: { resend: !!(await setting('RESEND_API_KEY', '', req)), sandbox: sandboxFrom(), from: BRAND.from.replace(/^.*</, '').replace(/>.*$/, '') },
+      links: !!(await manageSecret(req)),
+      cron: { secret: !!(process.env.CRON_SECRET || '').trim(), last: await cronLast(store) },
+      line: { token: !!(await setting('LINE_CHANNEL_TOKEN', '', req)) },
+      now: Date.now(),
     })
   }
 
@@ -253,6 +262,11 @@ export async function PUT(req) {
   } catch (_) {
     return json({ ok: false, message: '保存先に書き込めませんでした。少しおいてからもう一度お試しください。' }, 502)
   }
+}
+
+async function cronLast(store) {
+  if (!store) return null
+  try { const [raw] = await pipeline(store, [['GET', `${KV}bk:cron:last`]]); return raw ? JSON.parse(raw) : null } catch (_) { return null }
 }
 
 /** 空き枠の控え（1分）を捨てる。予約・取り消し・決まりの保存のたびに呼びます。 */
