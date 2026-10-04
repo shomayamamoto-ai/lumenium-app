@@ -5,6 +5,7 @@
 // 確かめること。
 //   ・決まり → 枠（複数の時間帯・祝日・臨時休業・前後の空き・直前・何日先まで）
 //   ・壊れた決まりの直し方（15分単位・メニューが無い・LINE のID）
+//   ・同時に押された 10:00 と 10:30（区切りの鍵で片方だけ通る）・取消で返す
 
 import assert from 'node:assert/strict'
 import * as B from '../api/_booking.js'
@@ -20,6 +21,44 @@ const MIN = 60e3
 const jst = (s) => Date.parse(s.replace(' ', 'T') + ':00Z') - JST
 const hhmm = (ms) => new Date(ms + JST).toISOString().slice(11, 16)
 const ymd = (ms) => new Date(ms + JST).toISOString().slice(0, 10)
+
+/* 作り物の保存先（Upstash の pipeline と同じ返し方）。命令を1つずつ、間に
+   await を挟んで実行するので、Promise.all で投げた2つの pipeline は命令単位で
+   交互に進みます（本物の同時アクセスと同じ混ざり方）。 */
+function fakeStore() {
+  const kv = new Map()
+  const z = new Map()
+  const lists = new Map()
+  const run = (c) => {
+    const op = String(c[0]).toUpperCase()
+    const k = c[1]
+    if (op === 'GET') return kv.has(k) ? kv.get(k) : null
+    if (op === 'SET') {
+      if (c.includes('NX') && kv.has(k)) return null
+      kv.set(k, String(c[2])); return 'OK'
+    }
+    if (op === 'DEL') { const had = kv.delete(k) || z.delete(k) || lists.delete(k); return had ? 1 : 0 }
+    if (op === 'ZADD') { const m = z.get(k) || new Map(); m.set(String(c[3]), Number(c[2])); z.set(k, m); return 1 }
+    if (op === 'ZREM') { const m = z.get(k); return m && m.delete(String(c[2])) ? 1 : 0 }
+    if (op === 'ZRANGEBYSCORE') {
+      const m = z.get(k) || new Map()
+      return [...m].filter(([, v]) => v >= Number(c[2]) && v <= Number(c[3])).sort((a, b) => a[1] - b[1]).map(([id]) => id)
+    }
+    if (op === 'LPUSH') { const l = lists.get(k) || []; l.unshift(String(c[2])); lists.set(k, l); return l.length }
+    if (op === 'LTRIM') { const l = lists.get(k) || []; lists.set(k, l.slice(c[2], c[3] + 1)); return 'OK' }
+    if (op === 'LRANGE') { const l = lists.get(k) || []; return l.slice(c[2], c[3] === -1 ? undefined : c[3] + 1) }
+    if (op === 'HSET') { const m = kv.get(k) instanceof Map ? kv.get(k) : new Map(); m.set(String(c[2]), String(c[3])); kv.set(k, m); return 1 }
+    if (op === 'HGET') { const m = kv.get(k); return m instanceof Map ? (m.get(String(c[2])) ?? null) : null }
+    if (op === 'EXPIRE') return 1
+    throw new Error('fake store: ' + op)
+  }
+  const pipeline = async (_cfg, cmds) => {
+    const out = []
+    for (const c of cmds) { await new Promise((r) => setImmediate(r)); out.push(run(c)) }
+    return out
+  }
+  return { cfg: { url: 'fake', token: 'fake' }, pipeline, kv }
+}
 
 /* ---- 1. 決まり → 枠 ---- */
 await t('既定の決まりは以前と同じ（平日10〜18時・60分・30分刻み・20時間後から）', () => {
@@ -102,6 +141,73 @@ await t('メニューの選び方: 止めてあるもの・知らない id は�
   assert.equal(B.pickService(rules, 'color').id, 'cut')
   assert.equal(B.pickService(rules, 'nope').id, 'cut')
   assert.equal(B.activeServices(rules).length, 1)
+})
+
+/* ---- 2. 重ならないための鍵 ---- */
+await t('区切り: 開始〜終わり＋後ろの空き（15分単位）', () => {
+  const a = B.cellsFor(jst('2026-10-05 10:00'), jst('2026-10-05 11:00'), 30)
+  assert.equal(a.length, 6)                          // 10:00〜11:30
+  const b = B.cellsFor(jst('2026-10-05 11:30'), jst('2026-10-05 12:30'), 30)
+  assert.ok(!a.some((x) => b.includes(x)))           // 30分あいていれば重ならない
+  const c = B.cellsFor(jst('2026-10-05 11:15'), jst('2026-10-05 12:15'), 30)
+  assert.ok(a.some((x) => c.includes(x)))
+})
+
+await t('同時に押された 10:00 と 10:30（60分）: 両方は通らない', async () => {
+  for (let round = 0; round < 20; round++) {
+    const S = fakeStore()
+    const A = B.cellsFor(jst('2026-10-05 10:00'), jst('2026-10-05 11:00'), 30)
+    const C = B.cellsFor(jst('2026-10-05 10:30'), jst('2026-10-05 11:30'), 30)
+    const until = jst('2026-10-05 12:00'), now = jst('2026-10-04 09:00')
+    const [ra, rc] = await Promise.all(round % 2
+      ? [B.takeCells(S.cfg, S.pipeline, A, 'bk_a', until, now), B.takeCells(S.cfg, S.pipeline, C, 'bk_c', until, now)]
+      : [B.takeCells(S.cfg, S.pipeline, C, 'bk_c', until, now), B.takeCells(S.cfg, S.pipeline, A, 'bk_a', until, now)].reverse())
+    assert.ok(!(ra && rc), '両方通ってしまった')
+    // 負けた側の区切りは残らない（勝った側の分だけ）。
+    const owners = new Set([...S.kv].filter(([k]) => k.includes('bk:cell:')).map(([, v]) => v))
+    assert.ok(owners.size <= 1)
+    if (ra) assert.deepEqual([...owners], ['bk_a'])
+    if (rc) assert.deepEqual([...owners], ['bk_c'])
+  }
+})
+
+await t('昔の「開始時刻の鍵」では両方通ってしまう例（このテストが守っているもの）', async () => {
+  const S = fakeStore()
+  const old = (key) => S.pipeline(S.cfg, [['SET', 'lock:' + key, '1', 'NX']]).then(([r]) => r === 'OK')
+  const [a, c] = await Promise.all([old('10:00'), old('10:30')])
+  assert.ok(a && c)
+})
+
+await t('取消で区切りを返す（他人の区切りは消さない）→ 同じ時間をもう一度取れる', async () => {
+  const S = fakeStore()
+  const now = jst('2026-10-04 09:00')
+  const A = B.cellsFor(jst('2026-10-05 10:00'), jst('2026-10-05 11:00'), 30)
+  const D = B.cellsFor(jst('2026-10-05 12:00'), jst('2026-10-05 13:00'), 30)
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, A, 'bk_a', jst('2026-10-05 11:00'), now))
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, D, 'bk_d', jst('2026-10-05 13:00'), now))
+  assert.ok(!(await B.takeCells(S.cfg, S.pipeline, A, 'bk_x', jst('2026-10-05 11:00'), now)))
+  assert.equal(await B.releaseCells(S.cfg, S.pipeline, A.concat(D), 'bk_a'), A.length)
+  assert.ok(await B.takeCells(S.cfg, S.pipeline, A, 'bk_x', jst('2026-10-05 11:00'), now))
+  assert.ok(!(await B.takeCells(S.cfg, S.pipeline, D, 'bk_y', jst('2026-10-05 13:00'), now)))
+  // 記録の区切りの範囲から、同じ区切りを作り直せる。
+  assert.deepEqual(B.recCells({ cells: [A[0], A[A.length - 1]] }), A)
+})
+
+await t('空きの計算: 入った予約（以前の形の記録も）を前後の空きごと除く', async () => {
+  const S = fakeStore()
+  const { rules } = B.normalizeRules({ leadHours: 0 })
+  await B.saveBooking(S.cfg, S.pipeline, { id: 'bk_1', start: jst('2026-10-05 12:00'), end: jst('2026-10-05 13:00'), status: 'confirmed' })
+  await B.saveBooking(S.cfg, S.pipeline, { id: 'bk_2', start: jst('2026-10-05 15:00'), end: jst('2026-10-05 16:00'), status: 'cancelled' })
+  // 以前の記録: start/end/status が無く、鍵と方式だけ。
+  await S.pipeline(S.cfg, [['SET', 'lum:bk:rec:bk_old', JSON.stringify({ id: 'bk_old', key: new Date(jst('2026-10-06 10:00')).toISOString(), mode: 'local' })], ['LPUSH', 'lum:bk:index', 'bk_old']])
+  const all = B.candidates(jst('2026-10-04 09:00'), rules, 60)
+  const taken = await B.takenSpans(S.cfg, S.pipeline, all[0].start, all[all.length - 1].end)
+  assert.equal(taken.length, 2)
+  const free = B.removeBusy(all, taken, rules.bufferMin).map((x) => ymd(x.start) + ' ' + hhmm(x.start))
+  assert.ok(!free.includes('2026-10-05 12:00'))
+  assert.ok(free.includes('2026-10-05 15:00'))       // 取り消した枠は空き
+  assert.ok(!free.includes('2026-10-06 10:00'))
+  assert.ok(free.includes('2026-10-06 11:30'))
 })
 
 console.log(`✓ test-booking: ${n} 件`)

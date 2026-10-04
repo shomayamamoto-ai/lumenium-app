@@ -295,38 +295,135 @@ export async function saveRules(cfg, pipeline, input) {
 /* ---- 記録 ------------------------------------------------------------ */
 
 const TTL = 180 * 24 * 3600
-const LOCK = (key) => `${KV}bk:lock:${key}`
 const REC = (id) => `${KV}bk:rec:${id}`
 const INDEX = `${KV}bk:index`
+// 開始時刻で並べた予約の id（空きの計算と前日のリマインドが使う）。
+const BY_START = `${KV}bk:z`
 
-/** 同じ枠を二人が同時に押したときに、後から押した方を弾く。
- *  Google に繋がっていればカレンダー側でも二重には入りませんが、そこまで
- *  行く前に止めたほうが、相手に見えるのは「埋まりました」の一言で済みます。 */
-export async function takeSlot(cfg, pipeline, key) {
-  if (!cfg) return true
+/* ---- 重ならないための鍵 -------------------------------------------------
+   以前は「開始時刻」ごとに鍵を1つ取っていました。これだと 10:00 と 10:30 は
+   別の鍵なので、60分の枠を二人が同時に押すと、両方とも通って重なります。
+
+   いまは時間を15分の区切り（セル）に分け、予約が使う区切りを全部取ります。
+   使うのは「開始 〜 終わり＋前後の空き」。両方の予約が自分の後ろにだけ空きを
+   持てば、間が空き時間より短い2件は必ずどこかの区切りを取り合います。
+
+   取り方は「全部取れたら成功、1つでも取れなければ、自分が取った分を返して
+   失敗」。同時に押した2人が別々の区切りを取って両方とも失敗することは
+   ありますが（その場合はもう一度押せば取れます）、両方とも通ることは
+   ありません。区切りの値は予約の id なので、返すときに他人の分は消しません。 */
+export const CELL_MIN = 15
+const CELL = (n) => `${KV}bk:cell:${n}`
+
+export function cellsFor(startMs, endMs, bufferMin = 0) {
+  const c = CELL_MIN * MIN
+  const out = []
+  for (let i = Math.floor(startMs / c); i < Math.ceil((endMs + bufferMin * MIN) / c); i++) out.push(i)
+  return out
+}
+
+/** 区切りを全部取る。取れたら true。保存先が無い・落ちているときも true
+ *  （保存先が落ちているだけで予約を断るのは、損のほうが大きい）。 */
+export async function takeCells(cfg, pipeline, cells, owner, untilMs, now = Date.now()) {
+  if (!cfg || !cells.length) return true
+  const ttl = Math.max(3600, Math.ceil((untilMs - now) / 1000) + 2 * 86400)
+  let res
   try {
-    const [res] = await pipeline(cfg, [['SET', LOCK(key), '1', 'NX', 'EX', 60 * 60 * 24 * 30]])
-    return res === 'OK' || res === true
+    res = await pipeline(cfg, cells.map((n) => ['SET', CELL(n), owner, 'NX', 'EX', ttl]))
   } catch (_) {
-    // 保存先が落ちているだけで予約を断るのは、損のほうが大きい。
     return true
+  }
+  const got = cells.filter((_, i) => res[i] === 'OK' || res[i] === true)
+  if (got.length === cells.length) return true
+  if (got.length) {
+    try { await pipeline(cfg, got.map((n) => ['DEL', CELL(n)])) } catch (_) { /* 期限で消えます */ }
+  }
+  return false
+}
+
+/** 取消・日時の変更で区切りを返す。自分（owner）の分だけを消します。 */
+export async function releaseCells(cfg, pipeline, cells, owner) {
+  if (!cfg || !cells.length) return 0
+  try {
+    const vals = await pipeline(cfg, cells.map((n) => ['GET', CELL(n)]))
+    const mine = cells.filter((_, i) => vals[i] === owner)
+    if (mine.length) await pipeline(cfg, mine.map((n) => ['DEL', CELL(n)]))
+    return mine.length
+  } catch (_) {
+    return 0
   }
 }
 
-export async function releaseSlot(cfg, pipeline, key) {
-  if (!cfg) return
-  try { await pipeline(cfg, [['DEL', LOCK(key)]]) } catch (_) { /* 放っておく */ }
+/** その予約が取った区切り。記録に無ければ（以前の記録）今の決まりから作り直します。 */
+export function recCells(rec, bufferMin = 0) {
+  if (Array.isArray(rec.cells) && rec.cells.length === 2) {
+    const out = []
+    for (let i = rec.cells[0]; i <= rec.cells[1] && out.length < 200; i++) out.push(i)
+    return out
+  }
+  const { start, end } = recSpan(rec)
+  return cellsFor(start, end, bufferMin)
 }
 
-export async function saveBooking(cfg, pipeline, rec) {
+/* ---- 予約の記録 ---- */
+
+/** 以前の記録には start/end/status がありません。鍵（開始のISO）と方式から補います。 */
+export function recSpan(rec) {
+  const start = Number(rec.start) || Date.parse(rec.key)
+  const end = Number(rec.end) || start + ((rec.service && rec.service.minutes) || 60) * MIN
+  return { start, end }
+}
+export const STATUS = {
+  confirmed: '確定', tentative: '仮予約', cancelled: 'キャンセル', visited: '来店済み', noshow: '無断キャンセル',
+}
+export const recStatus = (rec) => rec.status || (rec.mode === 'google' ? 'confirmed' : 'tentative')
+/** 枠を使っている（＝他の人が取れない）予約か。 */
+export const occupies = (rec) => ['confirmed', 'tentative', 'visited'].includes(recStatus(rec))
+
+export async function saveBooking(cfg, pipeline, rec, isNew = true) {
   if (!cfg) return
   try {
-    await pipeline(cfg, [
-      ['SET', REC(rec.id), JSON.stringify(rec), 'EX', TTL],
-      ['LPUSH', INDEX, rec.id],
-      ['LTRIM', INDEX, 0, 499],
-    ])
+    const cmds = [['SET', REC(rec.id), JSON.stringify(rec), 'EX', TTL], ['ZADD', BY_START, recSpan(rec).start, rec.id]]
+    if (isNew) cmds.push(['LPUSH', INDEX, rec.id], ['LTRIM', INDEX, 0, 499])
+    await pipeline(cfg, cmds)
   } catch (_) { /* 予約そのものは成立している */ }
+}
+
+export async function getBooking(cfg, pipeline, id) {
+  if (!cfg || !/^bk_[\w-]+$/.test(String(id || ''))) return null
+  try {
+    const [raw] = await pipeline(cfg, [['GET', REC(id)]])
+    return raw ? JSON.parse(raw) : null
+  } catch (_) {
+    return null
+  }
+}
+
+/** 開始時刻が from〜to の予約。以前の記録（並びに入っていないもの）も、
+ *  新しい順の一覧の先頭から拾います。 */
+export async function bookingsBetween(cfg, pipeline, fromMs, toMs) {
+  if (!cfg) return []
+  try {
+    const [zids, lids] = await pipeline(cfg, [
+      ['ZRANGEBYSCORE', BY_START, Math.floor(fromMs), Math.ceil(toMs)],
+      ['LRANGE', INDEX, 0, 49],
+    ])
+    const ids = [...new Set([...(Array.isArray(zids) ? zids : []), ...(Array.isArray(lids) ? lids : [])])]
+    if (!ids.length) return []
+    const rows = await pipeline(cfg, ids.map((id) => ['GET', REC(id)]))
+    return rows.map((r) => { try { return JSON.parse(r) } catch (_) { return null } })
+      .filter(Boolean)
+      .filter((r) => { const s = recSpan(r).start; return s >= fromMs && s <= toMs })
+      .sort((a, b) => recSpan(a).start - recSpan(b).start)
+  } catch (_) {
+    return []
+  }
+}
+
+/** 空きの計算に使う「もう埋まっている時間」。 */
+export async function takenSpans(cfg, pipeline, fromMs, toMs) {
+  const list = await bookingsBetween(cfg, pipeline, fromMs - DAY, toMs)
+  return list.filter(occupies).map(recSpan)
 }
 
 export async function recentBookings(cfg, pipeline, n = 20) {

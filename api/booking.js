@@ -27,7 +27,8 @@ import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.j
 import { busyFromUrl } from './_ics.js'
 import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
-  takeSlot, releaseSlot, saveBooking, recentBookings, icsFile,
+  cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan,
+  saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, bookingNoun,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
@@ -41,24 +42,33 @@ const json = (payload, status = 200, extra) => new Response(JSON.stringify(paylo
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...(extra || {}) },
 })
 
-/** いま提示できる枠と、どの仕組みで動いているか。 */
-async function openSlots(req, wanted, rules, svc) {
+/** いま提示できる枠と、どの仕組みで動いているか。
+ *  ignoreId は日時の変更のときの自分の予約（自分の今の枠は空きとして見る）。 */
+export async function openSlots(req, wanted, rules, svc, ignoreId = '') {
   const c = await creds(req)
   const store = storeConfig()
   const all = candidates(Date.now(), rules, svc.minutes)
   const buf = rules.bufferMin
   if (!all.length) return { mode: 'off', slots: [], reason: 'NO_SLOTS' }
+  const from = all[0].start
+  const to = all[all.length - 1].end
+  // 既に入った予約は、どの方式でも前後の空きごと除きます。Google に入って
+  // いる分は向こうの空きにも出ますが、作った直後の行き違いをここで防ぎます。
+  const taken = async () => (store
+    ? (await bookingsBetween(store, pipeline, from - 86400000, to)).filter((r) => occupies(r) && r.id !== ignoreId).map(recSpan)
+    : [])
 
   if (connected(c)) {
     try {
-      const busy = await gcalBusy(c, all[0].start, all[all.length - 1].end)
-      const free = removeBusy(all, busy, buf)
+      const [busy, mine] = await Promise.all([gcalBusy(c, from, to), taken()])
+      const free = removeBusy(all, busy.concat(mine), buf)
       return { mode: 'google', slots: free.slice(0, wanted), total: free.length }
     } catch (e) {
       // 接続が切れている・Googleが落ちている。枠を出さないのではなく、
       // 保存先があれば仮予約として受ける。理由は管理画面に出ます。
       if (!store) return { mode: 'off', slots: [], reason: String(e.message || e).slice(0, 120) }
-      return { mode: 'local', slots: all.slice(0, wanted), total: all.length, warn: String(e.message || e).slice(0, 120) }
+      const free = removeBusy(all, await taken(), buf)
+      return { mode: 'local', slots: free.slice(0, wanted), total: free.length, warn: String(e.message || e).slice(0, 120) }
     }
   }
 
@@ -67,35 +77,14 @@ async function openSlots(req, wanted, rules, svc) {
   const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
   let icsBusy = null
   if (icsUrl) {
-    icsBusy = await busyFromUrl(icsUrl, all[0].start, all[all.length - 1].end)
+    icsBusy = await busyFromUrl(icsUrl, from, to)
   }
 
   if (!store && !icsBusy) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
 
-  if (icsBusy) {
-    // 既に入った商談も、カレンダーの予定と同じく前後に余白をとって除きます
-    // （簡易接続ではカレンダーに書き込めないので、ここで見るしかありません）。
-    const taken = store ? await takenSpans(store, all) : []
-    const open = removeBusy(all, icsBusy.concat(taken), buf)
-    return { mode: 'ics', slots: open.slice(0, wanted), total: open.length }
-  }
-
-  // 仮予約モード: 既に取られた枠を、前後の余白ごと除く。
-  const taken = await takenSpans(store, all)
-  const free = removeBusy(all, taken, buf)
-  return { mode: 'local', slots: free.slice(0, wanted), total: free.length }
-}
-
-/** 既に押さえられている商談の時間帯。保存先が答えなければ、空として
- *  扱います（二重予約は確定時にもう一度見ます）。 */
-async function takenSpans(store, slots) {
-  if (!store || !slots.length) return []
-  try {
-    const out = await pipeline(store, slots.map((s) => ['GET', `${KV}bk:lock:${new Date(s.start).toISOString()}`]))
-    return slots.filter((_, i) => out[i]).map((s) => ({ start: s.start, end: s.end }))
-  } catch (_) {
-    return []
-  }
+  // 簡易接続ではカレンダーに書き込めないので、入った予約はここで見るしかありません。
+  const open = removeBusy(all, (icsBusy || []).concat(await taken()), buf)
+  return { mode: icsBusy ? 'ics' : 'local', slots: open.slice(0, wanted), total: open.length }
 }
 
 export async function GET(req) {
@@ -190,11 +179,14 @@ export async function POST(req) {
   if (!slot) return json({ error: 'slot_taken', message: 'その枠は埋まりました。別の日時をお選びください。' }, 409)
 
   const store = storeConfig()
-  if (!(await takeSlot(store, pipeline, key))) {
+  const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
+  // 予約が使う15分の区切りを全部取る（前後の空きを含む）。10:00 と 10:30 の
+  // ように開始がずれた2件も、ここでどちらか一方だけが通ります。
+  const cells = cellsFor(slot.start, slot.end, rules.bufferMin)
+  if (!(await takeCells(store, pipeline, cells, id, slot.end))) {
     return json({ error: 'slot_taken', message: 'その枠は埋まりました。別の日時をお選びください。' }, 409)
   }
 
-  const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
   const when = label(slot.start, slot.end)
   const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner, req)
   const summary = `${rules.wording}: ${svc.name} ${company ? `${company} ` : ''}${name}様 × ${BRAND.name}${topics.length ? `（${topics[0]}${topics.length > 1 ? 'ほか' : ''}）` : ''}`
@@ -220,7 +212,7 @@ export async function POST(req) {
       meet = ev.meet
       eventId = ev.id
     } catch (e) {
-      await releaseSlot(store, pipeline, key)
+      await releaseCells(store, pipeline, cells, id)
       return json({ error: 'calendar_failed', message: '予定の作成に失敗しました。お手数ですがもう一度お試しください。' }, 502)
     }
   }
@@ -228,6 +220,7 @@ export async function POST(req) {
   const rec = {
     id, key, when, start: slot.start, end: slot.end,
     service: { id: svc.id, name: svc.name, minutes: svc.minutes }, wording: rules.wording,
+    status: mode === 'google' ? 'confirmed' : 'tentative', cells: [cells[0], cells[cells.length - 1]],
     name, email, company, topics, note, page, mode, meet, eventId,
     // 簡易接続・未接続のときに、管理画面とメールから1回でカレンダーに入れる
     addUrl: mode === 'google' ? '' : gcalAddUrl({ startMs: slot.start, endMs: slot.end, summary, description }),
