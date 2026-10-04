@@ -6386,7 +6386,7 @@ window.lumAdmin = {
     el('health-list').innerHTML = rows.map(function (c) {
       return '<div style="display:flex;gap:11px;padding:12px 13px;background:#f3f1ec;border:1px solid var(--border);border-radius:11px;margin-bottom:8px">' +
         '<span style="flex:none;font-size:15px;line-height:1.4">' + MARK[c.state][0] + '</span>' +
-        '<div style="min-width:0">' +
+        '<div style="flex:1;min-width:0">' +
           '<div style="font-size:13.5px;font-weight:700">' + esc(c.label) +
             (c.env ? ' ' + c.env.split(',').map(function (e) {
               var name = e.trim();
