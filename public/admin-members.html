@@ -599,7 +599,7 @@ header h1 { font-family: 'Zen Old Mincho', 'Hiragino Mincho ProN', serif; font-s
 header .tag { background: none; color: var(--sub); border: 1px solid var(--border); letter-spacing: .14em; }
 .shell-nav { box-shadow: none; background: #fff; }
 .shell-tab { font-weight: 600; }
-.shell-tab:hover { background: #f3f1ec; }
+.shell-tab:hover:not([aria-current="true"]) { background: #f3f1ec; }
 .panel, .pomo { box-shadow: none; }
 button { letter-spacing: .02em; }
 button:hover:not(:disabled) { filter: brightness(1.08); }
@@ -696,6 +696,7 @@ header h1, header button, header a { white-space: nowrap; }
 </style>
 </head>
 <body>
+<script src="/admin-demo.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
