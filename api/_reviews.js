@@ -285,7 +285,7 @@ async function recount(cfg, prefs, req) {
 export async function setReply(req, id, text) {
   const cfg = storeConfig()
   if (!cfg) return { ok: false, message: STATES.no_store }
-  if (!/^[\w-]{4,200}$/.test(String(id || ''))) return { ok: false, message: '口コミの指定が正しくありません。' }
+  if (!/^[\w-]{1,200}$/.test(String(id || ''))) return { ok: false, message: '口コミの指定が正しくありません。' }
   const del = text === null
   const body = del ? '' : String(text || '').trim()
   if (!del && !body) return { ok: false, message: '返信が空です。' }
