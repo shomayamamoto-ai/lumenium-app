@@ -347,6 +347,17 @@ await t('通し: 管理画面から 確定・来店済み・メモ・取消（�
   assert.equal(r.status, 401)
 })
 
+await t('通し: 空き枠の控え（1分）は、予約・取り消しのたびに捨てられる', async () => {
+  const get = async () => (await call(api.GET, 'GET', '/api/booking?service=cut&all=1', {})).json()
+  const d1 = await get()
+  const s = d1.slots[3]
+  // 予約の記録だけを直接入れる（控えは捨てない）→ 1分の間は控えのまま。
+  await B.saveBooking(S.cfg, S.pipeline, { id: 'bk_cache_1', start: s.start, end: s.end, status: 'confirmed' })
+  assert.ok((await get()).slots.some((x) => x.key === s.key))
+  await api.invalidateSlots({ url: 'https://redis.test.invalid', token: 't' })
+  assert.ok(!(await get()).slots.some((x) => x.key === s.key))
+})
+
 /* ---- 4. 毎朝の仕事・数字 ---- */
 await t('明日（日本時間）の予約だけを選ぶ（UTC の日付の境目に転ばない）', () => {
   // 日本時間 10/4 23:30 = UTC 10/4 14:30。明日は 10/5。

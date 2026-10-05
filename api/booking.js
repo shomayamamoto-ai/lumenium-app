@@ -126,10 +126,11 @@ export async function GET(req) {
     })
   }
 
-  const rules = await readRules(storeConfig(), pipeline)
+  const store = storeConfig()
+  const rules = await readRules(store, pipeline)
   const svc = pickService(rules, url.searchParams.get('service') || '')
   const wanted = url.searchParams.get('all') ? SHOW.max : SHOW.first
-  const { mode, slots, total, warn, reason } = await openSlots(req, wanted, rules, svc)
+  const { mode, slots, total, warn, reason } = await cachedSlots(req, store, rules, svc)
   return json({
     ok: true,
     enabled: mode !== 'off',
@@ -146,7 +147,7 @@ export async function GET(req) {
     wording: rules.wording,
     online: rules.online,
     total: total || 0,
-    slots: slots.map(toWire),
+    slots: slots.slice(0, wanted).map(toWire),
   })
 }
 
@@ -262,6 +263,37 @@ export async function PUT(req) {
   } catch (_) {
     return json({ ok: false, message: '保存先に書き込めませんでした。少しおいてからもう一度お試しください。' }, 502)
   }
+}
+
+/* 空き枠の控え。ページを開くたびに Google や iCal に聞きに行くと、遅いうえに
+   向こうの回数制限にも当たるので、メニューごとに1分だけ覚えておきます。
+   予約・取り消し・日時の変更・決まりの保存のたびに捨てるので、埋まった枠が
+   1分間出続けることはありません（確定のときはいつも作り直して確かめます）。 */
+const FRESH_MS = 60 * 1000
+async function cachedSlots(req, store, rules, svc) {
+  const field = `svc:${svc.id}`
+  if (store) {
+    try {
+      const [raw] = await pipeline(store, [['HGET', SLOT_CACHE, field]])
+      const hit = raw ? JSON.parse(raw) : null
+      if (hit && Date.now() - hit.at < FRESH_MS && Array.isArray(hit.slots)) {
+        // 控えた後に「何時間後から」の線を越えた枠は落とします。
+        const earliest = Date.now() + rules.leadHours * 3600 * 1000
+        const slots = hit.slots.filter((s) => s.start >= earliest)
+        return { ...hit, slots, total: Math.max(0, (hit.total || 0) - (hit.slots.length - slots.length)) }
+      }
+    } catch (_) { /* 控えが読めなければ作り直す */ }
+  }
+  const out = await openSlots(req, SHOW.max, rules, svc)
+  if (store) {
+    try {
+      await pipeline(store, [
+        ['HSET', SLOT_CACHE, field, JSON.stringify({ ...out, at: Date.now() })],
+        ['EXPIRE', SLOT_CACHE, 120],
+      ])
+    } catch (_) { /* 控えなくても動く */ }
+  }
+  return out
 }
 
 async function cronLast(store) {
