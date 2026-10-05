@@ -323,4 +323,106 @@ await t('窓口: 保存先が無いと 503（相談そのものはできると�
   }
 })
 
+/* ---------------- 相談の流れ（AIの返事は作り物の SSE） ---------------- */
+
+function sseOf(events) {
+  return new Response(events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(''), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+}
+function turn(blocks, stop) {
+  const ev = [{ type: 'message_start', message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'm', content: [], stop_reason: null, usage: { input_tokens: 1000, output_tokens: 0, cache_read_input_tokens: 5000 } } }]
+  blocks.forEach((b, i) => {
+    if (b.text != null) {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'text', text: '' } })
+      ev.push({ type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: b.text } })
+    } else {
+      ev.push({ type: 'content_block_start', index: i, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } })
+      ev.push({ type: 'content_block_delta', index: i, delta: { type: 'input_json_delta', partial_json: JSON.stringify(b.input) } })
+    }
+    ev.push({ type: 'content_block_stop', index: i })
+  })
+  ev.push({ type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 500 } }, { type: 'message_stop' })
+  return sseOf(ev)
+}
+
+await t('相談: ボタンは確かめてから流す・おかしなボタンはエラーで返す・会話を保存・額を返す・個人の情報を送らない', async () => {
+  const R = fakeRedis()
+  const { putRecord } = await import('../api/_inquiries.js')
+  const realFetch = globalThis.fetch
+  process.env.ADMIN_KEY = 'test-admin-key-0123456789'
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-test'
+  process.env.UPSTASH_REDIS_REST_URL = 'https://redis.test.invalid'
+  process.env.UPSTASH_REDIS_REST_TOKEN = 't'
+  const bodies = []
+  let call = 0
+  globalThis.fetch = async (u, init = {}) => {
+    const url = String(u && u.url ? u.url : u)
+    if (url.startsWith('https://redis.test.invalid')) return new Response(JSON.stringify((await R.pipeline(null, JSON.parse(init.body))).map((result) => ({ result }))))
+    if (url.includes('api.anthropic.com')) {
+      bodies.push({ body: JSON.parse(init.body), headers: init.headers })
+      call++
+      if (call === 1) {
+        return turn([
+          { text: '入力欄に入れられるようにしました。' },
+          { id: 'tu_1', name: 'draft_news', input: { title: '秋の相談会', body: '10月に開きます。', why: '止まっているため' } },
+          { id: 'tu_2', name: 'prefill_copy', input: { path: 'text.no.such', text: 'x', why: 'y' } },
+        ], 'tool_use')
+      }
+      return turn([{ text: '\n\nまとめです。\nSOURCES:: お知らせ：公開中のもの\nNEXT:: 続きを書いて || なぜ？' }], 'end_turn')
+    }
+    if (url.includes('/news.json')) return new Response(JSON.stringify([{ date: '2026-08-01', title: '夏季休業' }]))
+    throw new Error('offline: ' + url)
+  }
+  // 問い合わせを1件（名前・メール・電話・本文つき）。AIに渡るのはジャンルの件数だけのはず。
+  await putRecord({ url: 'https://redis.test.invalid', token: 't' }, { id: 'q1', receivedAt: new Date().toISOString(), name: '山田太郎', email: 'taro@yamada.example.jp', message: '電話ください 090-1234-5678', topics: ['動画制作'], status: 'new' })
+  try {
+    const { POST } = await import('../api/advisor.js')
+    const res = await POST(new Request('https://x.example/api/advisor', {
+      method: 'POST', headers: { authorization: 'Bearer test-admin-key-0123456789', 'content-type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: 'お知らせは何を書く？' }], mode: 'quick' }),
+    }))
+    assert.equal(res.status, 200)
+    const events = (await res.text()).split('\n\n').filter((l) => l.startsWith('data: ')).map((l) => JSON.parse(l.slice(6)))
+    const actions = events.filter((e) => e.action)
+    assert.equal(actions.length, 1, 'おかしなボタンは流さない')
+    assert.equal(actions[0].action.kind, 'news')
+    assert.match(actions[0].action.does, /まだ公開しません/)
+    assert.ok(events[0].meta && events[0].meta.mode === 'quick')
+    const saved = events.find((e) => e.saved)
+    assert.ok(saved && /^c/.test(saved.saved.id), '会話を保存した')
+    const done = events.find((e) => e.done)
+    assert.ok(done.yen > 0)
+    // 2回目の問い合わせ: ボタンの結果（1つは成功・1つはエラー）を返している
+    assert.equal(bodies.length, 2)
+    const results = bodies[1].body.messages.at(-1).content
+    assert.equal(results.length, 2)
+    assert.ok(!results[0].is_error && results[1].is_error)
+    assert.match(results[1].content, /項目にありません/)
+    // 送った中身: 安いモデル・断られたときの代わり・キャッシュ・道具
+    const b = bodies[0].body
+    assert.equal(b.model, P.ADVISOR_MODELS.quick)
+    assert.equal(b.fallbacks, 'default')
+    assert.equal(b.output_config.effort, 'low')
+    assert.ok(b.system.every((s) => s.cache_control))
+    assert.deepEqual(b.tools.map((x) => x.name), ['web_search', 'draft_news', 'prefill_copy', 'draft_sns', 'draft_experiment', 'draft_video_pdca', 'add_todo'])
+    const h = bodies[0].headers
+    const beta = typeof h.get === 'function' ? h.get('anthropic-beta') : (h['anthropic-beta'] || '')
+    assert.match(String(beta), /server-side-fallback-2026-07-01/)
+    assert.match(b.system[1].text, /ジャンル別: 動画制作 1/, '問い合わせは件数として渡る')
+    const sent = JSON.stringify(bodies.map((x) => x.body))
+    for (const bad of ['山田', 'taro@', '090-1234-5678', '電話ください']) assert.ok(!sent.includes(bad), '送ってしまった: ' + bad)
+    // 保存した会話にボタンと使った数字が残る
+    const conv = await ST.readConv(R.cfg, R.pipeline, saved.saved.id)
+    assert.equal(conv.messages.length, 2)
+    assert.equal(conv.messages[1].actions[0].kind, 'news')
+    assert.deepEqual(conv.messages[1].sources, ['お知らせ：公開中のもの'])
+    // 使った額は「安いほう」の記録に入る
+    const m = await P.advisorMonth()
+    assert.equal(m.quick.usage.calls, 2)
+  } finally {
+    globalThis.fetch = realFetch
+    delete process.env.UPSTASH_REDIS_REST_URL
+    delete process.env.UPSTASH_REDIS_REST_TOKEN
+  }
+})
+
 console.log(`✓ test-advisor: ${n} 件`)
