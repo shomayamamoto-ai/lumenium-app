@@ -9984,6 +9984,8 @@ body { word-break: auto-phrase; }
 }
 html[data-theme="dark"] .booking-error { color: #fca5a5; }
 
+.booking-svcs .booking-slot { flex-direction: column; gap: 2px; }
+.booking-svcs .booking-slot.is-on { border-color: var(--accent, #3d3fbf); }
 .booking-slots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
@@ -11196,6 +11198,8 @@ body { color: var(--lp-ink); }
 .qb-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 150px; padding: 14px 18px; border-radius: 10px; border: 1px solid var(--lp-line); background: var(--lp-paper); color: var(--lp-ink); font-family: var(--lp-sans); cursor: pointer; transition: border-color .2s, background-color .2s; }
 .qb-slot:hover { border-color: var(--lp-ink); }
 .qb-slot.is-on { border-color: var(--lp-accent); background: #eef0ff; }
+.qb-svcs { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 18px; }
+.qb-svc .qb-time { font-size: 15px; }
 .qb-day { font-size: 13px; color: var(--lp-ink-2); }
 .qb-time { font-size: 17px; font-weight: 700; }
 .qb-more { align-self: center; padding: 12px 6px; background: none; border: 0; color: var(--lp-accent); font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: underline; font-family: var(--lp-sans); }

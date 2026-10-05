@@ -234,6 +234,11 @@ const CALLS = [
   // 返さないこと。
   ['booking', 'GET', '', {}],
   ['booking', 'GET', '?recent=1', KEY],
+  ['booking', 'GET', '?service=default&all=1', {}],
+  ['booking', 'PUT', '', JSONH, { rules: { wording: '来店', services: [{ id: 'cut', name: 'カット', minutes: 60 }] } }],
+  ['booking', 'PATCH', '', JSONH, { id: 'bk_1_smoke', action: 'cancel' }],
+  ['booking-manage', 'GET', '?t=bk_1_smoke.zzzz.00000000000000000000000000000000', {}],
+  ['booking-manage', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=bad&action=cancel&sure=1'],
   ['booking', 'POST', '', { 'content-type': 'application/json' },
     { key: '2099-01-01T01:00:00.000Z', name: 'スモーク', email: 'smoke@example.com', message: 'テスト' }],
   ['google-oauth', 'GET', '?start=1', KEY],
@@ -275,6 +280,8 @@ const CALLS = [
   ['social-approve', 'POST', '', { 'content-type': 'application/x-www-form-urlencoded' }, 't=0000&decision=approve'],
   ['social-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
   ['social-cron', 'GET', '', {}],
+  ['booking-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
+  ['booking-cron', 'GET', '', {}],
   ['social-write', 'POST', '', JSONH, { topic: '秋の新メニュー', nets: ['x', 'instagram', 'line'], link: 'https://lumenium.net/' }],
   // 画像の置き場所が無い状態（＝ 503 で理由を返す）。
   ['social-upload', 'POST', '', { ...KEY, 'content-type': 'image/jpeg' }, '__bytes__'],

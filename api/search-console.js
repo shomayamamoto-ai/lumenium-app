@@ -253,7 +253,7 @@ export async function GET(req) {
   if (!connected(c)) {
     return json({
       ok: true, connected: false,
-      message: 'Googleと接続していません。設定状況の「商談の自動予約」からGoogleカレンダーに接続すると、検索の数字も一緒に読めるようになります（読み取りのみ）。',
+      message: 'Googleと接続していません。「予約管理 › つながり・お知らせ」からGoogleカレンダーに接続すると、検索の数字も一緒に読めるようになります（読み取りのみ）。',
     })
   }
 

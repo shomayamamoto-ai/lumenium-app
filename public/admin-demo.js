@@ -1129,7 +1129,7 @@
   var GROUPS = [
     { id: 'site', label: 'サイトの機能', note: '問い合わせ・AI・保存まわり。ここが埋まると管理ポータルの7つが動きます。' },
     { id: 'search', label: '検索エンジンへの登録', note: 'Search Console と Bing Webmaster Tools の所有権確認。' },
-    { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。' },
+    { id: 'booking', label: '予約管理（Googleカレンダー）', note: 'サイトの予約欄の空きを Google カレンダーから取り、入った予約を予定として登録するためのキー。接続のボタンは「予約管理」のタブにあります。' },
     { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' }
   ];
   // [name, label, kind, group, device, net, sample hint (text kinds) or null = unset]
@@ -2075,6 +2075,126 @@
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
       if (body.csv != null) return new Response(body.csv, { status: 200, headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
       return new Response(JSON.stringify(body), { status: body.missing ? 404 : 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
+
+/* ---- デモ：予約管理（shape: api/booking.js GET ?recent=all / 訪問者の GET） ----
+   架空の美容室「サンプル美容室」の1週間ぶんの予約。来店済み・仮予約・取り消し
+   1件・無断キャンセル1件を含みます。上の作りと同じくデモのときだけ動き、
+   /api/booking だけを受けます（決まりの保存・予約の変更・予約そのものは断ります）。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var JST = 9 * 3600000, DAY = 86400000, MIN = 60000;
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function dayStart(ms) { var d = new Date(ms + JST); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - JST; }
+  function label(s, e) {
+    var a = new Date(s + JST), b = new Date(e + JST);
+    return (a.getUTCMonth() + 1) + '月' + a.getUTCDate() + '日(' + WD[a.getUTCDay()] + ') ' +
+      pad(a.getUTCHours()) + ':' + pad(a.getUTCMinutes()) + '〜' + pad(b.getUTCHours()) + ':' + pad(b.getUTCMinutes());
+  }
+  var SERVICES = [
+    { id: 'cut', name: 'カット', minutes: 60, desc: 'シャンプー・ブロー込み（サンプル）', price: '4,400円', active: true },
+    { id: 'color', name: 'カット＋カラー', minutes: 120, desc: '（サンプル）', price: '9,900円', active: true },
+    { id: 'spa', name: 'ヘッドスパ', minutes: 45, desc: '（サンプル）', price: '3,300円', active: true }
+  ];
+  var t0 = dayStart(Date.now());
+  var RULES = {
+    wording: '来店',
+    // 月曜定休。水曜は昼休みあり（時間帯を2つ持てる例）。
+    week: [[[600, 1080]], [], [[600, 1140]], [[600, 720], [780, 1140]], [[600, 1140]], [[600, 1140]], [[600, 1080]]],
+    holidays: false, closed: [new Date(t0 + 10 * DAY + JST).toISOString().slice(0, 10)],
+    leadHours: 3, horizonDays: 14, bufferMin: 15, stepMin: 30, cutoffHours: 24,
+    online: false, place: '〇〇駅 東口から徒歩3分（サンプル）', remind: true, lineUserId: '',
+    services: SERVICES
+  };
+  function svc(id) { return SERVICES.filter(function (s) { return s.id === id; })[0]; }
+  /* 営業日だけを数えて n 日後（負なら前）の 0:00。定休日に予約が並ばないように。 */
+  function openDay(n) {
+    var d = t0, step = n < 0 ? -1 : 1, left = Math.abs(n);
+    var open = function (ms) { return RULES.week[new Date(ms + JST).getUTCDay()].length > 0; };
+    if (!n) { while (!open(d)) d += DAY; return d; }
+    while (left) { d += step * DAY; if (open(d)) left--; }
+    return d;
+  }
+  // [営業日で何日後, 開始(分), メニュー, 名前, 状態, メモ]
+  var ROWS = [
+    [-6, 600, 'cut', '青木 みどり', 'visited', ''], [-6, 780, 'color', '石川 ゆい', 'visited', '前回と同じ明るさで'],
+    [-5, 660, 'spa', '上田 かおり', 'visited', ''], [-4, 840, 'cut', '江藤 さとみ', 'noshow', 'お電話つながらず'],
+    [-3, 600, 'color', '大野 まき', 'visited', ''], [-2, 900, 'cut', '加藤 りな', 'visited', ''],
+    [-1, 720, 'spa', '木村 あや', 'visited', ''],
+    [0, 630, 'cut', '工藤 えみ', 'confirmed', ''], [0, 900, 'color', '小林 なつき', 'confirmed', '初めてのご来店'],
+    [1, 600, 'cut', '佐藤 ちひろ', 'confirmed', ''], [1, 840, 'spa', '清水 あおい', 'tentative', ''],
+    [2, 690, 'color', '鈴木 ひかり', 'cancelled', ''], [3, 780, 'cut', '関 ともこ', 'tentative', ''],
+    [4, 600, 'color', '高橋 みく', 'confirmed', ''], [5, 960, 'cut', '田中 ゆか', 'confirmed', '']
+  ];
+  var ROMA = ['aoki', 'ishikawa', 'ueda', 'eto', 'ono', 'kato', 'kimura', 'kudo', 'kobayashi', 'sato', 'shimizu', 'suzuki', 'seki', 'takahashi', 'tanaka'];
+  function bookings() {
+    return ROWS.map(function (r, i) {
+      var s = svc(r[2]);
+      var start = openDay(r[0]) + r[1] * MIN;
+      var end = start + s.minutes * MIN;
+      var hist = r[4] === 'cancelled' ? [{ at: new Date(start - 3 * DAY).toISOString(), what: 'cancel', by: 'customer' }]
+        : r[4] === 'visited' || r[4] === 'noshow' ? [{ at: new Date(end + 2 * 3600000).toISOString(), what: r[4], by: 'owner' }] : [];
+      return {
+        id: 'bk_demo_' + i, key: new Date(start).toISOString(), start: start, end: end, when: label(start, end),
+        service: { id: s.id, name: s.name, minutes: s.minutes }, wording: '来店', status: r[4],
+        name: r[3] + '（サンプル）', email: ROMA[i] + '@example.com', company: '', topics: [], note: i === 8 ? '肩より少し上くらいにしたいです（サンプル）' : '',
+        page: '/', mode: 'ics', meet: '', eventId: '', addUrl: '', memo: r[5],
+        reminded: r[0] <= 1 && r[4] !== 'cancelled' ? new Date(start - DAY).toISOString() : false,
+        at: new Date(start - (3 + i % 4) * DAY).toISOString(), history: hist
+      };
+    });
+  }
+  function admin() {
+    return {
+      ok: true, connected: false, ics: true, stored: true, storedHere: true, calendarId: 'primary',
+      rules: RULES, bookings: bookings(), holidayLast: '2027-12-31', holidays: {},
+      mail: { resend: true, sandbox: false, from: 'info@example.com' }, links: true,
+      cron: { secret: true, last: { at: new Date(t0 + 9 * 3600000 - (Date.now() < t0 + 9 * 3600000 ? DAY : 0)).toISOString(), reminders: { due: 2, sent: 2, failed: 0 } } },
+      line: { token: true }, now: Date.now()
+    };
+  }
+  /* 訪問者の GET と同じ形の空き枠。入っている予約の時間（前後15分）は除きます。 */
+  function slots(q) {
+    var s = svc(q.get('service')) || SERVICES[0];
+    var taken = bookings().filter(function (b) { return b.status !== 'cancelled'; });
+    var out = [], earliest = Date.now() + RULES.leadHours * 3600000;
+    for (var d = 0; d <= 7 && out.length < 24; d++) {
+      var base = t0 + d * DAY, dow = new Date(base + JST).getUTCDay();
+      RULES.week[dow].forEach(function (r) {
+        for (var m = r[0]; m + s.minutes <= r[1]; m += RULES.stepMin) {
+          var st = base + m * MIN, en = st + s.minutes * MIN;
+          if (st < earliest) continue;
+          if (taken.some(function (b) { return b.start - 15 * MIN < en && b.end + 15 * MIN > st; })) continue;
+          var a = new Date(st + JST);
+          out.push({ key: new Date(st).toISOString(), start: st, end: en, minutes: s.minutes,
+            day: (a.getUTCMonth() + 1) + '/' + a.getUTCDate() + '(' + WD[a.getUTCDay()] + ')',
+            time: label(st, en).split(' ')[1], label: label(st, en) });
+        }
+      });
+    }
+    var all = q.get('all');
+    return { ok: true, enabled: true, mode: 'ics', reason: null, warn: null, tz: 'Asia/Tokyo', minutes: s.minutes, service: s.id,
+      services: SERVICES.map(function (x) { return { id: x.id, name: x.name, minutes: x.minutes, desc: x.desc, price: x.price }; }),
+      wording: '来店', online: false, total: out.length, slots: all ? out : out.slice(0, 6) };
+  }
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/booking') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    var body = method !== 'GET' ? { ok: false, demo: true, message: MSG }
+      : u.searchParams.get('recent') ? admin() : slots(u.searchParams);
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
   };
 })();

@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { funnel, whenSeen } from '../lib/analytics'
+import { bookingCopy } from './bookingCopy'
 
 /**
  * 空き日時をその場で予約する。
  *
  * アクセス解析で、お問い合わせの場所まで来た人の半分以上が、文章を書く前に
- * 帰っていました。「何をどう書くか」を考えるより先に、「この時間に30分
- * 話す」を選ぶほうが軽い。直近の空き（予定の前後30分をあけたもの）を日を
+ * 帰っていました。「何をどう書くか」を考えるより先に、「この時間に
+ * 話す」を選ぶほうが軽い。直近の空き（予定の前後をあけたもの）を日を
  * 分けて3つ並べ、押したらお名前とメールアドレスだけで確定します。
+ * 長さ・呼び方・メニューは管理画面の「予約管理」で決めたもので、ここに
+ * 「30分」のような数字は書きません（サーバーが返す minutes を使います）。
+ * メニューが2つ以上あるときだけ、先にメニューを選んでもらいます。
  *
  * 予約の仕組みが動いていないとき（枠が取れないとき）は、何も出しません。
  */
@@ -21,18 +25,31 @@ export default function QuickBook() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [info, setInfo] = useState(null)       // minutes / wording / services / service
   const boxRef = useRef(null)
 
-  const load = async (wantAll) => {
+  const load = async (wantAll, service) => {
     try {
-      const res = await fetch('/api/booking' + (wantAll ? '?all=1' : ''))
+      const q = new URLSearchParams()
+      if (wantAll) q.set('all', '1')
+      if (service) q.set('service', service)
+      const res = await fetch('/api/booking' + (q.toString() ? '?' + q.toString() : ''))
       const data = await res.json()
-      if (!data.ok || !data.enabled || !data.slots.length) { if (!wantAll) setState('off'); return }
+      if (!data.ok || !data.enabled) { if (!wantAll && !service) setState('off'); return }
+      // メニューを選び直して空きが無いときは、箱ごと消さずに「空きがありません」と出す。
+      if (!data.slots.length && !service) { if (!wantAll) setState('off'); return }
+      setInfo({ minutes: data.minutes, wording: data.wording, online: data.online, mode: data.mode, services: data.services || [], service: data.service })
       setSlots(data.slots)
       setState('open')
     } catch (_) {
-      if (!wantAll) setState('off')
+      if (!wantAll && !service) setState('off')
     }
+  }
+  const chooseService = (id) => {
+    setPicked(null)
+    setAll(false)
+    setInfo((x) => ({ ...x, service: id }))
+    load(false, id)
   }
   useEffect(() => { load(false) }, [])
   // 「日程候補を見た」は、候補が実際に画面に入ったときに1回だけ。読み込めた
@@ -69,8 +86,8 @@ export default function QuickBook() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          key: picked.key, name: name.trim(), email: email.trim(),
-          message: 'トップページの「空き日時」からオンライン相談を予約しました。',
+          key: picked.key, service: info && info.service, name: name.trim(), email: email.trim(),
+          message: 'トップページの「空き日時」から予約しました。',
           company: '', topics: [], website: '',
           page: typeof window !== 'undefined' ? window.location.pathname + window.location.hash : '',
         }),
@@ -79,7 +96,7 @@ export default function QuickBook() {
       if (res.status === 409) {
         setError(data.message || 'その枠は埋まりました。別の日時をお選びください。')
         setPicked(null)
-        await load(all)
+        await load(all, info && info.service)
         return
       }
       if (!res.ok || !data.ok) throw new Error(data.message || `status ${res.status}`)
@@ -97,6 +114,7 @@ export default function QuickBook() {
   }
 
   if (state === 'loading' || state === 'off') return null
+  const copy = bookingCopy(info)
 
   return (
     <section className="qb" aria-labelledby="qb-h" ref={boxRef}>
@@ -106,18 +124,34 @@ export default function QuickBook() {
             <p className="qb-h" id="qb-h">ご予約ありがとうございます</p>
             <p className="qb-when">{result.when}（日本時間）</p>
             <p className="qb-note">
-              {result.invited
-                ? 'カレンダーへの登録と招待メールの送信まで完了しました。当日はメールのURLからご参加ください。'
-                : 'お席を確保しました。オンライン会議のURLを添えて、確定のご連絡をお送りします。'}
+              {result.invited ? copy.doneInvited : copy.doneHeld}
             </p>
           </div>
         ) : (
           <>
             <div className="qb-head">
-              <h2 className="qb-h" id="qb-h">無料のオンライン相談を、いま予約する</h2>
-              <p className="qb-lead">文章を書かなくても大丈夫です。日時を選んで、お名前とメールアドレスを入れるだけ。お時間は最大1時間、費用はかかりません。</p>
+              <h2 className="qb-h" id="qb-h">{copy.heading}</h2>
+              <p className="qb-lead">文章を書かなくても大丈夫です。日時を選んで、お名前とメールアドレスを入れるだけ。{copy.length}</p>
             </div>
+            {copy.services.length > 1 ? (
+              <div className="qb-svcs" role="group" aria-label="メニュー">
+                {copy.services.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={`qb-slot qb-svc ${info.service === s.id ? 'is-on' : ''}`}
+                    aria-pressed={info.service === s.id}
+                    onClick={() => chooseService(s.id)}
+                  >
+                    <span className="qb-time">{s.name}</span>
+                    <span className="qb-day">{s.minutes}分{s.price ? `・${s.price}` : ''}</span>
+                    {s.desc ? <span className="qb-day">{s.desc}</span> : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="qb-slots">
+              {!shown.length ? <p className="qb-alt" style={{ margin: 0 }}>このメニューは、いま予約できる空きがありません。</p> : null}
               {shown.map((s) => (
                 <button
                   key={s.key}
@@ -131,13 +165,13 @@ export default function QuickBook() {
                 </button>
               ))}
               {!all && slots.length > shown.length ? (
-                <button type="button" className="qb-more" onClick={() => { setAll(true); load(true) }}>ほかの日時を見る</button>
+                <button type="button" className="qb-more" onClick={() => { setAll(true); load(true, info && info.service) }}>ほかの日時を見る</button>
               ) : null}
             </div>
             {error ? <p className="qb-error" role="alert">{error}</p> : null}
             {picked ? (
               <form className="qb-form" onSubmit={submit} noValidate>
-                <p className="qb-picked">{picked.day} {picked.time} で予約します</p>
+                <p className="qb-picked">{picked.day} {picked.time}（{picked.minutes || copy.minutes}分）で予約します</p>
                 <label>
                   お名前
                   <input id="qb-name" type="text" autoComplete="name" maxLength={50} value={name} onChange={(e) => setName(e.target.value)} placeholder="山田 太郎" />

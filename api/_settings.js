@@ -33,7 +33,7 @@ const K = (name) => `${KV}cfg:${name}`
 export const GROUPS = [
   { id: 'site', label: 'サイトの機能', note: '問い合わせ・AI・保存まわり。ここが埋まると管理ポータルの7つが動きます。' },
   { id: 'search', label: '検索エンジンへの登録', note: 'Search Console と Bing Webmaster Tools の所有権確認。ここに貼ると、確認用のファイルはその場で有効になります（再デプロイは要りません）。Bing の索引は ChatGPT検索やCopilotが読んでいるので、AIの回答に入る経路としては Google と同じくらい大事です。' },
-  { id: 'booking', label: '商談の自動予約（Googleカレンダー）', note: 'フォーム送信の直後に空き日時を出し、1クリックで Google Meet 付きの予定を入れるための設定。下の「Googleカレンダーに接続」を押すと、3つ目は自動で入ります。' },
+  { id: 'booking', label: '予約管理（Googleカレンダー）', note: 'サイトの予約欄の空きを Google カレンダーから取り、入った予約を予定として登録するためのキー。接続のボタン、予約の一覧、受付時間は「予約管理」のタブにあります（「Googleカレンダーに接続」を押すと、3つ目は自動で入ります）。' },
   { id: 'social', label: 'SNS 投稿', note: '管理ポータルから直接投稿するための資格情報。使う SNS の分だけ入れれば足ります。' },
   { id: 'video', label: 'SNS（動画）', note: 'ショート動画を YouTube と TikTok に送るための連携。Instagram リールは上の「SNS 投稿」の Instagram のキーと、動画の置き場所（Vercel Blob）を使います。' },
 ]
@@ -291,7 +291,7 @@ export const SETTINGS = [
   // リクエスト）で保存・使用するので、端末保存はできません（device:false）。
   {
     name: 'YOUTUBE_REFRESH_TOKEN', label: 'YouTube 連携トークン', kind: 'secret', group: 'video', device: false,
-    where: '「SNS（動画）› 投稿」の「YouTube連携」を押すと自動で入ります（Google のクライアントID・シークレットは商談の自動予約と同じものを使います）',
+    where: '「SNS（動画）› 投稿」の「YouTube連携」を押すと自動で入ります（Google のクライアントID・シークレットは予約管理（Googleカレンダー）と同じものを使います）',
     why: 'Google Cloud で「YouTube Data API v3」を有効にしてから連携してください。審査前の Google Cloud プロジェクトから送った動画は、YouTube の決まりで「非公開」になります。公開するには YouTube Studio で切り替えるか、Google の審査（API監査）を受けてください。',
   },
   {

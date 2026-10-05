@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { funnel, whenSeen } from '../lib/analytics'
+import { bookingCopy } from './bookingCopy'
 
 // フォームを送った直後に出る日程ピッカー。
 //
@@ -12,6 +13,9 @@ import { funnel, whenSeen } from '../lib/analytics'
 // （Google未接続かつ保存先も無いとき）は、この欄は出ません。送信後の画面が
 // 今までと同じに見えるのが正しい振る舞いで、「日程を選べます」と出しておいて
 // 押したら失敗する、が一番悪い。
+//
+// 長さ・呼び方・メニューは「予約管理」で決めたもの（bookingCopy.js）。
+// メニューが2つ以上あるときだけ、先にメニューを選んでもらいます。
 
 export default function BookingPicker({ contact }) {
   const [state, setState] = useState('loading') // loading | open | done | off
@@ -21,13 +25,18 @@ export default function BookingPicker({ contact }) {
   const [busyKey, setBusyKey] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState(null)
   const boxRef = useRef(null)
 
-  const load = async (all = false) => {
+  const load = async (all = false, service = '') => {
     try {
-      const res = await fetch('/api/booking' + (all ? '?all=1' : ''))
+      const q = new URLSearchParams()
+      if (all) q.set('all', '1')
+      if (service) q.set('service', service)
+      const res = await fetch('/api/booking' + (q.toString() ? '?' + q.toString() : ''))
       const data = await res.json()
-      if (!data.ok || !data.enabled || !data.slots.length) { setState('off'); return }
+      if (!data.ok || !data.enabled || (!data.slots.length && !service)) { setState('off'); return }
+      setInfo({ minutes: data.minutes, wording: data.wording, online: data.online, mode: data.mode, services: data.services || [], service: data.service })
       setSlots(data.slots)
       setTotal(data.total || data.slots.length)
       setState('open')
@@ -49,6 +58,7 @@ export default function BookingPicker({ contact }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           key: slot.key,
+          service: info && info.service,
           name: contact.name,
           email: contact.email,
           message: contact.message,
@@ -64,7 +74,7 @@ export default function BookingPicker({ contact }) {
       if (res.status === 409) {
         // 先に取られた。押した人に選び直してもらうには、新しい一覧が要る。
         setError(data.message || 'その枠は埋まりました。別の日時をお選びください。')
-        await load(expanded)
+        await load(expanded, info && info.service)
         return
       }
       if (!res.ok || !data.ok) throw new Error(data.message || `status ${res.status}`)
@@ -79,11 +89,12 @@ export default function BookingPicker({ contact }) {
   }
 
   if (state === 'loading' || state === 'off') return null
+  const copy = bookingCopy(info)
 
   if (state === 'done') {
     return (
       <div className="booking booking--done" role="status">
-        <p className="booking-title">✓ 商談のお時間が確定しました</p>
+        <p className="booking-title">{copy.doneTitle(result.invited)}</p>
         <p className="booking-when">{result.when}<span>（日本時間）</span></p>
         {result.meet ? (
           <p className="booking-meet">
@@ -91,9 +102,7 @@ export default function BookingPicker({ contact }) {
           </p>
         ) : null}
         <p className="booking-note">
-          {result.invited
-            ? 'カレンダーへの登録と招待メールの送信まで完了しています。当日はこのURLからご参加ください。'
-            : 'お席を確保しました。接続用のURLを添えて、確定のご連絡を差し上げます。'}
+          {result.invited ? copy.doneInvited : copy.doneHeld}
         </p>
       </div>
     )
@@ -101,12 +110,27 @@ export default function BookingPicker({ contact }) {
 
   return (
     <div className="booking" ref={boxRef}>
-      <p className="booking-title">このまま商談のお時間も決められます</p>
-      <p className="booking-lead">
-        ご都合のよい枠を選ぶと、その場で確定します。オンライン（Google Meet）で30〜60分、費用はかかりません。
-      </p>
+      <p className="booking-title">{copy.pickerTitle}</p>
+      <p className="booking-lead">{copy.pickerLead}</p>
+      {copy.services.length > 1 ? (
+        <div className="booking-slots booking-svcs" role="group" aria-label="メニュー">
+          {copy.services.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`booking-slot ${info.service === s.id ? 'is-on' : ''}`}
+              aria-pressed={info.service === s.id}
+              onClick={() => { setExpanded(false); setInfo((x) => ({ ...x, service: s.id })); load(false, s.id) }}
+            >
+              <span className="booking-day">{s.name}</span>
+              <span className="booking-time">{s.minutes}分{s.price ? `・${s.price}` : ''}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       {error ? <p className="booking-error" role="alert">{error}</p> : null}
       <div className="booking-slots">
+        {!slots.length ? <p className="booking-skip">このメニューは、いま予約できる空きがありません。</p> : null}
         {slots.map((s) => (
           <button
             key={s.key}
@@ -126,7 +150,7 @@ export default function BookingPicker({ contact }) {
         <button
           type="button"
           className="booking-more"
-          onClick={() => { setExpanded(true); load(true) }}
+          onClick={() => { setExpanded(true); load(true, info && info.service) }}
         >
           全ての候補日程を見る（残り {total - slots.length} 件）
         </button>

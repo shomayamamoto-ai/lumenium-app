@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
 // 毎朝の自動処理（Vercel Cron）。予約投稿のうち、日付が来たものを送ります。
+// 予約管理の前日のお知らせ（booking-cron.js）もここから動かします。
 // ついでに、期限が近い Threads のトークンを延長し、1日後・7日後の投稿の反応を取ります。
 //
 // Vercel は CRON_SECRET が環境変数にあると、それを
@@ -16,6 +17,7 @@ import { listScheduled, claim, CRON_LAST, planRepeats } from './_social-queue.js
 import { sendPost, threadsTokenInfo, refreshThreadsToken, socialStatus, refreshDue, repeatBuilder } from './_social.js'
 import { readPrefs, readTemplates } from './_social-store.js'
 import { runVideoCron } from './video-publish.js'
+import { runBookingCron } from './booking-cron.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
 const BUDGET_MS = 21000
@@ -97,6 +99,14 @@ export async function GET(req) {
     metrics = { ok: false, message: String((e && e.message) || e).slice(0, 160) }
   }
 
+  // 予約の前日のお知らせと、オーナーへの今日の予約一覧（booking-cron.js）。
+  // 数件のメールだけなので、動画より先に回します。
+  let booking = null
+  if (BUDGET_MS - (Date.now() - started) > 4000) {
+    try { booking = await runBookingCron(req) }
+    catch (e) { booking = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
+  }
+
   // SNS（動画）の Instagram リールの予約と「準備中」。残り時間の中でだけ動きます。
   let video = null
   if (BUDGET_MS - (Date.now() - started) > 6000) {
@@ -104,7 +114,7 @@ export async function GET(req) {
     catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, video }
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, booking, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }

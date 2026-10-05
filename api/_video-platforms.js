@@ -195,7 +195,7 @@ export async function igInsights(req, mediaId) {
 /** ブラウザが YouTube に直接アップロードするための、1時間だけ使える鍵。 */
 export async function ytAccess(req) {
   const c = await ytCreds(req)
-  if (!c.clientId || !c.clientSecret) return { ok: false, code: 'NO_GOOGLE', message: 'Google のクライアントID・シークレットが未設定です（「設定状況 › キーの入力」の商談の自動予約の欄と同じものを使います）。' }
+  if (!c.clientId || !c.clientSecret) return { ok: false, code: 'NO_GOOGLE', message: 'Google のクライアントID・シークレットが未設定です（「設定状況 › キーの入力」の予約管理（Googleカレンダー）の欄と同じものを使います）。' }
   if (!c.refreshToken) return { ok: false, code: 'NO_YT', message: 'YouTube と連携していません。「YouTube連携」を押して許可してください。' }
   try {
     const token = await accessToken({ clientId: c.clientId, clientSecret: c.clientSecret, refreshToken: c.refreshToken })
