@@ -13,6 +13,10 @@ export const config = { runtime: 'edge' }
 //
 // GET /api/deploy-status?sha=<コミット>
 //   → { ok, state: 'building' | 'live' | 'failed' | 'none' | 'unknown', url, message }
+// GET /api/deploy-status?latest=1
+//   → 同じ形で、リポジトリの既定のブランチの最新のコミットについて。
+//     管理ポータルの「今日やること」が、保存した直後でなくても
+//     ビルドの失敗に気づけるようにするためです。
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { setting } from './_settings.js'
@@ -51,8 +55,10 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
-  const sha = String(new URL(req.url).searchParams.get('sha') || '')
-  if (!/^[0-9a-f]{7,40}$/i.test(sha)) return json({ ok: false, message: 'コミットの指定が正しくありません。' }, 400)
+  const q = new URL(req.url).searchParams
+  // HEAD は GitHub 側で既定のブランチの最新に読み替えられます。
+  const sha = q.get('latest') === '1' ? 'HEAD' : String(q.get('sha') || '')
+  if (sha !== 'HEAD' && !/^[0-9a-f]{7,40}$/i.test(sha)) return json({ ok: false, message: 'コミットの指定が正しくありません。' }, 400)
 
   const token = await setting('GITHUB_TOKEN', '', req)
   if (!token) return json({ ok: false, code: 'GITHUB_NOT_CONFIGURED', message: 'GITHUB_TOKEN が未設定です。' }, 503)

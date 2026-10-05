@@ -720,6 +720,19 @@
     });
   }
 
+  /* ポータルの「今日やること」から開く入口。id があればその1件、空なら受信箱。
+     まだタブを開いていなければ、開いたときの初期化が S.open を読みます。 */
+  window.lumInqOpen = function (id) {
+    S.open = String(id || '');
+    S.sec = 'inbox';
+    try { sessionStorage.setItem('lum_inq_sec', 'inbox'); } catch (_) {}
+    // 1件を開いた形を、通知メールのリンクと同じにしておきます（再読み込みしても同じ1件）。
+    try { history.replaceState(history.state, '', location.pathname + location.search + (S.open ? '#inq=' + S.open : '')); } catch (_) {}
+    var was = S.started;
+    if (window.lumShowTab && window.lumShowTab(TAB) === false) return;
+    if (was) go('inbox');
+  };
+
   /* ---------------- 開始 ---------------- */
 
   window.lumInquiriesInit = async function () {

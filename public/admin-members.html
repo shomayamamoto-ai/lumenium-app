@@ -983,6 +983,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-inquiries.js"></script>
 <!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
 <script src="/admin-members-tool.js"></script>
+<!-- ポータルの「今日やること」と「はじめての設定」。 -->
+<script src="/admin-portal.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -2031,6 +2033,7 @@ window.lumAdmin = {
     window.addEventListener('resize', layoutPortal);
     loadPortalHealth();
     layoutPortal();
+    if (window.lumPortalInit) window.lumPortalInit();
   }
 
   function visibleNodes() {
