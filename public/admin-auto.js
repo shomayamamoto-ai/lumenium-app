@@ -107,8 +107,7 @@
     style();
     var host = el('auto-admin');
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">自動改善</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">ほかのツールが測った数字を毎朝まとめて、次にすることを提案します。サイトの文章は、元の文章と新しい案を半分ずつの人に見せて比べ、はっきり良い方だけを残せます。' +
+      '<p class="share-note ui-intro">ほかのツールが測った数字を毎朝まとめて、次にすることを提案します。サイトの文章は、元の文章と新しい案を半分ずつの人に見せて比べ、はっきり良い方だけを残せます。' +
       '自動でしてよいことは「設定」で決めます（最初は、提案と下書きを作るだけです）。料金・法的なページ・連絡先は、自動では決して変えません。</p>' +
       '<div id="au-head"></div>' +
       '<div class="nq-row vid-secs" role="tablist" aria-label="自動改善の項目">' + SECTIONS.map(function (s) {

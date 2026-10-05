@@ -265,7 +265,7 @@
 
   .panel {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; padding: 24px;
+    border-radius: 12px; padding: 24px;
   }
   /* key form */
   #key-form { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -276,12 +276,13 @@
     border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
   }
   #admin-key:focus { outline: none; border-color: rgba(129,140,248,0.65); box-shadow: 0 0 0 3px rgba(99,102,241,0.18); }
+  /* ボタンの既定は「押すところ」（藍の塗り）。補助の操作は class="ghost"（白地に線）。 */
   button {
-    padding: 12px 22px; border: none; border-radius: 10px;
+    min-height: 36px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px;
     background: var(--grad); color: #fff;
-    font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 700; line-height: 1.3; cursor: pointer; font-family: inherit;
   }
-  button.ghost { background: #faf9f6; border: 1px solid var(--border); color: var(--sub); }
+  button.ghost { background: #fff; border: 1px solid #b9b4a8; color: var(--text); }
   button:disabled { opacity: 0.55; cursor: default; }
   .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #b42318; display: none; }
   .msg.show { display: block; }
@@ -298,9 +299,8 @@
   .tbl { width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  th { font-size: 11px; letter-spacing: 0.1em; color: var(--sub); font-weight: 700; }
+  th { font-size: 12px; letter-spacing: 0; color: var(--sub); font-weight: 700; background: #faf9f6; white-space: nowrap; }
   td.email { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
-  tr:hover td { background: rgba(99,102,241,0.05); }
   .unsub { color: #b42318; font-size: 11px; }
   .empty { padding: 28px; text-align: center; color: var(--sub); font-size: 13px; }
   .share {
@@ -442,7 +442,7 @@
   .soc-net .tres { grid-column: 1 / -1; font-size: 11px; line-height: 1.6; }
   .soc-small { font-size: 11px; color: var(--sub); line-height: 1.7; }
   .soc-lab { display: block; font-size: 11.5px; font-weight: 700; color: var(--sub); margin: 10px 0 5px; }
-  .soc-h { font-size: 12px; letter-spacing: .1em; color: var(--sub); font-weight: 700; margin-bottom: 10px; }
+  .soc-h { font-size: 14px; letter-spacing: 0; color: var(--text); font-weight: 700; margin-bottom: 10px; }
   .soc-more { background: #f3f1ec; border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; margin-bottom: 6px; }
   .soc-more summary { font-size: 12px; font-weight: 700; cursor: pointer; }
   /* ---- SNS（動画） ---- */
@@ -765,9 +765,9 @@ details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .nq-label { font-size: 12px; font-weight: 700; color: var(--sub); margin: 0 0 8px; }
 .nq-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
 .nq-row:last-child { margin-bottom: 0; }
-.nq-chip { padding: 8px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #fff; color: var(--text); border: 1px solid var(--border); }
-.nq-chip:hover { border-color: var(--text); filter: none; }
-.nq-chip[aria-pressed="true"] { background: #3d3fbf; border-color: #3d3fbf; color: #fff; }
+.nq-chip { min-height: 32px; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #fff; color: var(--sub); border: 1px solid var(--border); }
+.nq-chip:hover:not(:disabled) { border-color: #b9b4a8; color: var(--text); filter: none; }
+.nq-chip[aria-pressed="true"], .nq-chip[aria-pressed="true"]:hover:not(:disabled) { background: #eeeefb; border-color: #c9c9f1; color: #3d3fbf; }
 #news-date { padding: 7px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 12.5px; }
 
 /* =========================================================================
@@ -778,8 +778,8 @@ details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
    ========================================================================= */
 body { font-family: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif; letter-spacing: .01em; }
 .panel, .pomo { box-shadow: none; }
-button { letter-spacing: .02em; }
-button:hover:not(:disabled) { filter: brightness(1.08); }
+button { letter-spacing: 0; }
+button:hover:not(:disabled) { filter: brightness(0.94); }
 input, select, textarea { color: var(--text); }
 
 .portal-body { grid-template-columns: minmax(0, 1fr) 260px; }
@@ -990,7 +990,7 @@ input, select, textarea { color: var(--text); }
           <div class="pomo-sound">
             <span>音量</span>
             <input type="range" id="pomo-vol" min="0" max="100" step="5" value="85" aria-label="アラームの音量">
-            <button type="button" class="ghost" id="pomo-test">♪ 試聴</button>
+            <button type="button" class="ghost" id="pomo-test">試聴</button>
           </div>
           <label class="pomo-opt" for="pomo-ring">鳴らす長さ
             <select id="pomo-ring">
@@ -1070,8 +1070,7 @@ input, select, textarea { color: var(--text); }
     </div>
 
     <div class="panel" id="news-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">お知らせ投稿</h2>
-      <p class="share-note" style="margin-bottom:14px">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。反映できたか（失敗していないか）は、保存のあと一覧の上に表示します。</p>
+      <p class="share-note ui-intro">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。反映できたか（失敗していないか）は、保存のあと一覧の上に表示します。</p>
       <form id="news-form">
         <!-- よく使うお知らせは、押すだけで下の欄が埋まります。（ ）の中だけ
              書き換えれば投稿できます。日付とリンクも選ぶだけです。 -->
@@ -1118,8 +1117,7 @@ input, select, textarea { color: var(--text); }
     </div>
 
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">サイトの文章編集</h2>
-      <p class="share-note" style="margin-bottom:14px">サイト内のすべての文章をここから書き換えられます。打つと<strong>すぐ下の「見え方」</strong>に、サイトでの出方が出ます（記号を覚える必要はありません。太字は選んでボタンを押すだけです）。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
+      <p class="share-note ui-intro">サイト内のすべての文章をここから書き換えられます。打つと<strong>すぐ下の「見え方」</strong>に、サイトでの出方が出ます（記号を覚える必要はありません。太字は選んでボタンを押すだけです）。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
       <div class="toolbar" style="margin-bottom:10px">
         <select id="copy-group" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
         <input type="search" id="copy-search" placeholder="サイト全体から文章を検索（例：ワンストップ）">
@@ -1134,9 +1132,8 @@ input, select, textarea { color: var(--text); }
     </div>
 
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SNS（文章）</h2>
       <div id="social-plan-root"></div><!-- 「投稿する／運用プラン」の切り替え。中身は /admin-social-plan.js -->
-      <p class="share-note" style="margin-bottom:14px">
+      <p class="share-note ui-intro">
         ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント・Googleビジネスプロフィール・Bluesky に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
       </p>
@@ -1285,8 +1282,7 @@ input, select, textarea { color: var(--text); }
     <div class="panel" id="auto-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">設定状況</h2>
-      <p class="share-note" style="margin-bottom:14px">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
+      <p class="share-note ui-intro">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button class="ghost" id="health-reload" type="button">再確認</button>
         <span id="health-updated"></span>
@@ -1329,8 +1325,7 @@ input, select, textarea { color: var(--text); }
     </div>
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">SEO / AIO 分析</h2>
-      <p class="share-note" style="margin-bottom:14px">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答に自社の名前が出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
+      <p class="share-note ui-intro">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答に自社の名前が出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
         <button class="ghost" id="seo-probe" type="button">1問だけ試す（1回分の料金）</button>
@@ -1443,12 +1438,9 @@ input, select, textarea { color: var(--text); }
     <!-- 担当者と権限（オーナーだけ）と操作の記録（管理者以上）。中身は /admin-staff.js が組み立てます。 -->
     <div class="panel" id="staff-admin" style="display:none; margin-top:20px"></div>
     <div class="panel" id="audit-admin" style="display:none; margin-top:20px"></div>
-    </div>
-    </div>
 
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
-      <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">アクセス解析</h2>
-      <p class="share-note" style="margin-bottom:14px">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
+      <p class="share-note ui-intro">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
       <div class="toolbar" style="margin-bottom:12px">
         <select id="stats-range" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
           <option value="7">過去7日</option>
@@ -1601,6 +1593,8 @@ input, select, textarea { color: var(--text); }
         </div>
       </div>
     </div>
+    </div><!-- /shell-main -->
+    </div><!-- /shell -->
   </div>
 
 <script>
@@ -1925,6 +1919,7 @@ window.lumAdmin = {
   function takeIntro(id) {
     var panel = document.getElementById(id === PORTAL ? 'portal' : id);
     if (!panel) return;
+    compactNotes(panel);
     var intro = panel.querySelectorAll('.ui-intro');
     if (!intro.length) return;
     var html = '';
@@ -1934,6 +1929,33 @@ window.lumAdmin = {
     });
     HELP[id] = html;
     if (currentTab === id) paintHead(id);
+  }
+  /* 長いお知らせ（各画面の注意書き）は1行にたたみ、「詳しく」で開きます。
+     中にボタンや入力欄のあるもの（その場で操作するもの）はたたみません。 */
+  var NOTE_SEL = '.inq-note, .qt-note, .rev-note, .stf-note, .bk-warn';
+  function compactNotes(panel) {
+    Array.prototype.forEach.call(panel.querySelectorAll(NOTE_SEL), function (n) {
+      if (n.getAttribute('data-clamp') || n.querySelector('button, input, select, textarea, a.btn, details, ul, ol')) return;
+      n.setAttribute('data-clamp', '1');
+      if ((n.textContent || '').trim().length < 60) return;
+      var t = document.createElement('span');
+      t.className = 'ui-clamp-text';
+      while (n.firstChild) t.appendChild(n.firstChild);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ui-more';
+      b.textContent = '詳しく';
+      b.setAttribute('aria-expanded', 'false');
+      b.addEventListener('click', function () {
+        var open = !n.classList.contains('is-open');
+        n.classList.toggle('is-open', open);
+        b.textContent = open ? '閉じる' : '詳しく';
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      n.appendChild(t);
+      n.appendChild(b);
+      n.classList.add('ui-clamped');
+    });
   }
   function watchIntro(id) {
     var panel = document.getElementById(id === PORTAL ? 'portal' : id);
@@ -2613,10 +2635,10 @@ window.lumAdmin = {
     note(msg);
     if (document.getElementById('pomo-notify').checked &&
         window.Notification && Notification.permission === 'granted') {
-      try { new Notification('⏱ ' + pomo.mins + '分が終わりました', { body: window.lumSite.name + ' 管理', tag: 'lum-pomo' }); } catch (_) {}
+      try { new Notification(pomo.mins + '分が終わりました', { body: window.lumSite.name + ' 管理', tag: 'lum-pomo' }); } catch (_) {}
     }
     if (!titleWas) titleWas = document.title;
-    document.title = '⏰ 時間です | ' + window.lumSite.name + ' 管理';
+    document.title = '【時間です】 | ' + window.lumSite.name + ' 管理';
     pomoSave();
   }
 
@@ -2692,7 +2714,7 @@ window.lumAdmin = {
     pill.classList.toggle('on', live && away);
     pill.classList.toggle('rang', pomo.rang);
     document.getElementById('pomo-pill-left').textContent =
-      ALARM.until > 0 ? '🔔 止める' : pomo.rang ? '完了' : txt;
+      ALARM.until > 0 ? 'アラームを止める' : pomo.rang ? '完了' : txt;
   }
 
   function buildPomo() {
@@ -3658,7 +3680,7 @@ window.lumAdmin = {
         '<span style="font-size:11px;color:var(--sub)">　← 押すと開きます</span>'
       : esc(v);
     return shown + (bad
-      ? '<div style="font-size:11.5px;color:#b45309;margin-top:6px;line-height:1.7">⚠ ' + esc(bad) + '</div>'
+      ? '<div style="font-size:11.5px;color:#8a4b06;margin-top:6px;line-height:1.7">注意：' + esc(bad) + '</div>'
       : '');
   }
 
@@ -4028,7 +4050,7 @@ window.lumAdmin = {
     var empty = !d.totals || !d.totals.allTime;
     if (d.storeFrom === 'device') {
       host.innerHTML = '<p class="share-note" style="color:#b45309;line-height:1.85">' +
-        '⚠ 保存先は<strong>この端末に保存した値</strong>で読んでいます。閲覧数の記録は訪問者のリクエストで行うため、' +
+        '注意：保存先は<strong>この端末に保存した値</strong>で読んでいます。閲覧数の記録は訪問者のリクエストで行うため、' +
         'このままでは数字は増えません。Vercel › Settings › Environment Variables に ' +
         '<code>UPSTASH_REDIS_REST_URL</code> と <code>UPSTASH_REDIS_REST_TOKEN</code> を設定して再デプロイすると、そこから先の訪問が数えられます。</p>';
     } else if (empty) {
@@ -4085,10 +4107,10 @@ window.lumAdmin = {
       ['累計の閲覧', n(d.totals.allTime), ''],
     ];
     el('stats-cards').innerHTML = items.map(function (i) {
-      return '<div style="background:#f3f1ec;border:1px solid var(--border);border-radius:11px;padding:12px 14px">' +
-        '<div style="font-size:10.5px;letter-spacing:.14em;color:var(--sub)">' + esc(i[0]) + '</div>' +
-        '<div style="font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums">' + i[1] + '</div>' +
-        (i[2] ? '<div style="font-size:11px;color:var(--sub);margin-top:4px;line-height:1.55">' + esc(i[2]) + '</div>' : '') +
+      return '<div class="ui-stat">' +
+        '<span class="ui-stat-label">' + esc(i[0]) + '</span>' +
+        '<span class="ui-stat-value">' + i[1] + '</span>' +
+        (i[2] ? '<span class="ui-stat-note">' + esc(i[2]) + '</span>' : '') +
         '</div>';
     }).join('');
 
@@ -5200,7 +5222,7 @@ window.lumAdmin = {
     if (!host) return;
     if (s.fallback || !s.verdicts) {
       host.innerHTML = '<p style="font-size:12px;color:#b45309;line-height:1.7">' +
-        '⚠ 回答の読み取りができなかったため、この回の数値は「本文に社名が含まれるか」だけで出しています。' +
+        '注意：回答の読み取りができなかったため、この回の数値は「本文に社名が含まれるか」だけで出しています。' +
         '「見つかりませんでした」という回答も社名を含むため、実際より高く出ます。もう一度計測し直すと正しい判定になります。</p>';
       return;
     }
@@ -5224,7 +5246,7 @@ window.lumAdmin = {
       (s.failed ? ' ／ 取得できず <b>' + s.failed + '</b>' : '') +
       '<br>この回で数えられた回答は <b>' + s.asked + '</b> / ' + total + ' ' + unit + 'です。' +
       '</p>' +
-      (thin ? '<p style="font-size:11.5px;color:#b45309;line-height:1.7">⚠ ' + s.asked +
+      (thin ? '<p style="font-size:11.5px;color:#b45309;line-height:1.7">注意：' + s.asked +
         unit + 'しか判定できていません（' + missing + unit + 'は分母から除外）。割合は参考程度に見てください。</p>' : '') +
       /* なぜ取れなかったのか。ここが無いと、画面に残るのは英語の一文だけ
          になり、直し方が決まりません。種類・件数・かかった時間・素のメッセ
@@ -5256,7 +5278,10 @@ window.lumAdmin = {
       '（新しいサイトでは「見つかりませんでした」という回答こそ社名を含むためです）。</p>';
   }
 
-  var MARK = { recommended: '🟢', mentioned: '🟡', denied: '🔴', other_company: '🟠', absent: '⚪️' };
+  /* 回答ごとの印。絵文字の丸ではなく、色の付いた点（読み上げでは言葉）です。 */
+  function dot(c, t) { return '<span class="ui-dot ' + c + '" role="img" aria-label="' + t + '" title="' + t + '"></span>'; }
+  var MARK = { recommended: dot('ok', '候補に挙がった'), mentioned: dot('warn', '名前が出た'), denied: dot('ng', '否定された'), other_company: dot('other', '別の会社の話'), absent: dot('none', '出ていない') };
+  var MARK_ERR = dot('err', '失敗'), MARK_CUT = dot('none', '途中で切れた');
   var SENTIMENT_LABEL = { positive: '好意的', neutral: '中立', negative: '否定的' };
 
   /* 自社の名前かどうか。社名はサイトごとに違うので、計測側が知っている
@@ -5271,7 +5296,7 @@ window.lumAdmin = {
      検索で読んだだけのURL（検索で読まれた）を分けて出します。 */
   function answerBlock(r) {
     var head = (r.engine ? engineName(r.engine) + ' ' : '') + ((r.sample || 0) + 1) + '回目';
-    var mark = r.error ? '⚠️' : r.truncated ? '✂️' : (r.verdict ? MARK[r.verdict] : (r.named ? '🟡' : '⚪️'));
+    var mark = r.error ? MARK_ERR : r.truncated ? MARK_CUT : (r.verdict ? MARK[r.verdict] : (r.named ? MARK.mentioned : MARK.absent));
     var note = r.error ? '失敗: ' + esc(r.error)
       : r.truncated ? '途中で切れた回答（率には入れていません）'
       : r.verdict
@@ -5318,10 +5343,10 @@ window.lumAdmin = {
       var mark, tally = '';
       if (row.legacy) {
         var r0 = mine[0] || {};
-        mark = r0.error ? '⚠️' : (r0.verdict ? MARK[r0.verdict] : (r0.named ? '🟡' : '⚪️'));
+        mark = r0.error ? MARK_ERR : (r0.verdict ? MARK[r0.verdict] : (r0.named ? MARK.mentioned : MARK.absent));
       } else {
-        mark = !row.n ? '⚠️' : row.recs ? '🟢' : row.hits ? '🟡'
-          : mine.some(function (r) { return r.verdict === 'denied'; }) ? '🔴' : '⚪️';
+        mark = !row.n ? MARK_ERR : row.recs ? MARK.recommended : row.hits ? MARK.mentioned
+          : mine.some(function (r) { return r.verdict === 'denied'; }) ? MARK.denied : MARK.absent;
         tally = '<span style="font-size:11.5px;color:var(--sub);white-space:nowrap">　名前 ' + row.hits + '/' + row.n + '回' +
           (row.recs ? '・候補 ' + row.recs + '回' : '') + (row.cites ? '・出典 ' + row.cites + '回' : '') + '</span>';
       }
@@ -5341,7 +5366,9 @@ window.lumAdmin = {
     var list = run.actions || [];
     var host = el('seo-actions');
     if (!list.length) { host.innerHTML = ''; return; }
-    var ICON = { coverage: '⚠️', exists: '🧾', category: '🥊', sources: '📚', cited: '🔗', publish: '📣' };
+    var IC = { coverage: 'alert', exists: 'file', category: 'chart', sources: 'list', cited: 'link', publish: 'megaphone' };
+    var ICON = {};
+    Object.keys(IC).forEach(function (k) { ICON[k] = window.lumIcon ? window.lumIcon(IC[k], 'sm') : ''; });
     host.innerHTML =
       '<h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">' +
       'この計測から分かる、次の一手</h3>' +
@@ -6357,7 +6384,11 @@ window.lumAdmin = {
     m.classList.toggle('info', !!info);
   }
 
-  var MARK = { ok: ['✅', '#047857'], warn: ['⚠️', '#b45309'], error: ['⛔️', '#b42318'] };
+  /* 状態の印は線のアイコン（絵文字は使いません）。 */
+  var MARK = {
+    ok: ['<span class="ui-mark ok" role="img" aria-label="正常">' + (window.lumIcon ? window.lumIcon('check') : '') + '</span>', '#047857'],
+    warn: ['<span class="ui-mark warn" role="img" aria-label="注意">' + (window.lumIcon ? window.lumIcon('alert') : '') + '</span>', '#b45309'],
+    error: ['<span class="ui-mark ng" role="img" aria-label="要対応">' + (window.lumIcon ? window.lumIcon('alert') : '') + '</span>', '#b42318'] };
 
   /* 「直したはずなのに画面が変わらない」ときに、まずここを見ます。
      直っていないのか、まだデプロイされていないのか、環境変数がこの
@@ -7287,7 +7318,7 @@ window.lumAdmin = {
       if (m.w) bits.push(m.w + '×' + m.h);
       if (img.size) bits.push((img.size / 1048576).toFixed(1) + 'MB');
       if (img.uploaded) bits.push('アップロード済み（JPEG）');
-      if (m.failed) bits.push('⚠ 開けませんでした');
+      if (m.failed) bits.push('開けませんでした');
       meta.textContent = (i + 1) + '枚目 ' + (bits.length ? '・' + bits.join('・') + '　' : '') + img.url;
       /* 代替テキスト：目の不自由な方の読み上げに使われる、画像の説明。
          X・Instagram・Threads・Bluesky には一緒に送ります。 */
@@ -7640,7 +7671,7 @@ window.lumAdmin = {
       var rw = TX.review(k.c.text, id, style).filter(function (x) { return x.level === 'warn'; }).length;
       b.innerHTML = esc(n.label) + '<span class="st' + (k.errors.length ? ' over' : '') + '">' +
         (k.errors.length ? '要確認' : k.count + '/' + k.limit) + '</span>' +
-        (rw ? '<span class="st" style="color:#92400e" title="投稿前チェックで ' + rw + ' 件">⚠' + rw + '</span>' : '');
+        (rw ? '<span class="st" style="color:#92400e" title="投稿前チェックで ' + rw + ' 件">要確認' + rw + '</span>' : '');
       b.addEventListener('click', function () { S.tab = id; renderTabs(); renderVariant(); save(); });
       host.appendChild(b);
     });
@@ -7861,7 +7892,7 @@ window.lumAdmin = {
     cnt.classList.toggle('over', k.count > k.limit);
     el('soc-v-issues').innerHTML =
       k.errors.map(function (e) { return '<div class="soc-issue err">✗ ' + esc(e) + '</div>'; }).join('') +
-      k.warnings.map(function (w) { return '<div class="soc-issue warn">⚠ ' + esc(w) + '</div>'; }).join('');
+      k.warnings.map(function (w) { return '<div class="soc-issue warn">注意：' + esc(w) + '</div>'; }).join('');
     var fix = el('soc-v-fix');
     fix.innerHTML = '';
     if (id === 'instagram' && (k.c.link || TX.findUrls(k.c.body).length)) {
@@ -8121,7 +8152,7 @@ window.lumAdmin = {
     var tip = own
       ? '自社サイトへのリンクには、SNSごとに ?ref=（x・instagram など）' + (camp ? 'と utm_campaign=' + esc(TX.cleanCampaign(camp)) : '') + ' を自動で付けます。アクセス解析で、どの投稿から来た人かが分かります。'
       : (camp ? 'キャンペーン名は、自社サイト（' + esc(brand.host) + '）へのリンクにだけ付きます。' : '');
-    host.innerHTML = (bad.length ? '<div style="font-size:11.5px;color:#b42318;line-height:1.75">⚠ ' + bad.map(esc).join('<br>⚠ ') + '</div>' : '') +
+    host.innerHTML = (bad.length ? '<div style="font-size:11.5px;color:#b42318;line-height:1.75">' + bad.map(esc).join('<br>') + '</div>' : '') +
       (tip ? '<div class="soc-small">' + tip + '</div>' : '');
     return !bad.length;
   }

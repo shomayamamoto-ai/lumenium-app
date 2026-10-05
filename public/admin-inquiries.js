@@ -164,8 +164,7 @@
   function shell() {
     var host = el(TAB);
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">問い合わせ管理</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">フォームから届いた問い合わせの一覧です。返信したら「返信した」を押すと、約束（' +
+      '<p class="share-note ui-intro">フォームから届いた問い合わせの一覧です。返信したら「返信した」を押すと、約束（' +
       '<span id="inq-promise">48</span>時間以内に返信）を守れているかが分かります。返信はふだんのメールソフトで行います。</p>' +
       '<div class="nq-row" role="tablist" aria-label="問い合わせ管理の項目">' + SECTIONS.map(function (s) {
         return '<button type="button" class="nq-chip" data-isec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';

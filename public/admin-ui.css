@@ -98,10 +98,10 @@ body {
 /* ---- ページの見出し（1画面に1つ） ----
    題名・一行の説明・右に主な操作。長い説明は「？」の中へ。 */
 .ui-page-header {
-  display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--ui-s3) var(--ui-s4);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--ui-s3) var(--ui-s4);
   margin: 0 0 var(--ui-s4);
 }
-.ui-page-header .ui-ph-text { flex: 1 1 320px; min-width: 0; }
+.ui-page-header .ui-ph-text { min-width: 0; }
 .ui-page-header h1 {
   display: flex; align-items: center; gap: var(--ui-s2);
   font-size: var(--ui-fs-20); line-height: var(--ui-lh-tight); font-weight: 700; letter-spacing: 0;
@@ -109,7 +109,8 @@ body {
 }
 .ui-page-header .ui-ph-desc { margin-top: var(--ui-s1); font-size: var(--ui-fs-13); color: var(--ui-text-2); line-height: var(--ui-lh); }
 .ui-page-header .ui-ph-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-s2); }
-.ui-page-header .ui-help-panel { flex-basis: 100%; }
+.ui-page-header .ui-help-panel { grid-column: 1 / -1; }
+.ui-page-header .ui-ph-actions:empty { display: none; }
 
 /* ---- カード ---- */
 .ui-card {
@@ -500,4 +501,120 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 }
 @media (min-width: 1024px) {
   .ui-scrim { display: none !important; }
+}
+
+/* =========================================================================
+   いまある画面の部品を、上の決まりに寄せる層。
+   各画面の JS は自分の <style> を後から足すので、ここでは #shell を頭に
+   付けて（強さを上げて）同じ見た目にそろえます。マークアップは変えません。
+   ========================================================================= */
+
+/* ---- 白いカード（各画面の外枠） ---- */
+#shell .panel { border-radius: var(--ui-r-lg); border-color: var(--ui-border); padding: var(--ui-s5); }
+#shell .share-note { font-size: var(--ui-fs-12); color: var(--ui-text-2); line-height: var(--ui-lh); }
+
+/* ---- 画面の中の切り替え（受信箱・集計・返信の文例・設定 など）は区切りのある切り替えに ---- */
+#shell .nq-row[role="tablist"], #shell .spl-tabs {
+  display: flex; flex-wrap: wrap; gap: 2px;
+  width: fit-content; max-width: 100%;
+  padding: 3px; margin: 0 0 var(--ui-s4);
+  background: var(--ui-surface-3); border: 1px solid var(--ui-border); border-radius: var(--ui-r);
+  overflow: visible;
+}
+#shell .nq-row[role="tablist"] .nq-chip, #shell .spl-tabs button {
+  min-height: 32px; padding: 4px 12px;
+  background: transparent; color: var(--ui-text-2);
+  border: 1px solid transparent; border-radius: var(--ui-r-sm);
+  font-size: var(--ui-fs-13); font-weight: 600;
+}
+#shell .nq-row[role="tablist"] .nq-chip:hover:not(:disabled), #shell .spl-tabs button:hover:not(:disabled) { color: var(--ui-text); background: transparent; filter: none; border-color: transparent; }
+#shell .nq-row[role="tablist"] .nq-chip[aria-pressed="true"], #shell .spl-tabs button[aria-pressed="true"],
+#shell .nq-row[role="tablist"] .nq-chip[aria-pressed="true"]:hover:not(:disabled), #shell .spl-tabs button[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--ui-surface); color: var(--ui-text); border-color: var(--ui-border); font-weight: 700;
+}
+#shell .soc-tab { border-radius: var(--ui-r-pill); }
+#shell .soc-tab.on { background: var(--ui-accent-weak); border-color: var(--ui-accent-line); color: var(--ui-accent); }
+
+/* ---- 数字のカード ---- */
+#shell :is(.inq-card, .qt-card, .rev-card) {
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r-lg); background: var(--ui-surface);
+  padding: var(--ui-s3) var(--ui-s4);
+}
+#shell :is(.inq-card, .qt-card, .rev-card) .k { font-size: var(--ui-fs-12); font-weight: 700; color: var(--ui-text-2); letter-spacing: 0; }
+#shell :is(.inq-card, .qt-card, .rev-card) .v { font-size: var(--ui-fs-24); font-weight: 700; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
+#shell :is(.inq-card, .qt-card, .rev-card) .n { font-size: var(--ui-fs-12); color: var(--ui-text-3); line-height: 1.5; margin-top: 2px; }
+#shell :is(.inq-card.warn, .rev-card.warn) { border-color: var(--ui-warn-line); background: var(--ui-surface); box-shadow: inset 0 3px 0 var(--ui-warn-line); }
+#shell :is(.inq-card.warn, .rev-card.warn) .v { color: var(--ui-warn); }
+#shell .inq-card.late { border-color: var(--ui-ng-line); background: var(--ui-surface); box-shadow: inset 0 3px 0 var(--ui-ng); }
+#shell .inq-card.late .v { color: var(--ui-ng); }
+#shell .bk-sum > div { background: var(--ui-surface); border-radius: var(--ui-r-lg); padding: var(--ui-s3) var(--ui-s4); }
+#shell .bk-sum b { font-size: var(--ui-fs-24); font-weight: 700; font-variant-numeric: tabular-nums; }
+#shell .bk-sum span { font-size: var(--ui-fs-12); color: var(--ui-text-2); }
+
+/* ---- お知らせの枠（左の太線はやめ、意味の色の薄い面に） ---- */
+#shell :is(.inq-note, .qt-note, .rev-note, .stf-note, .bk-warn) {
+  border: 1px solid var(--ui-warn-line); border-left-width: 1px; border-radius: var(--ui-r);
+  background: var(--ui-warn-bg); color: var(--ui-text);
+  padding: 9px var(--ui-s3); font-size: var(--ui-fs-13); line-height: var(--ui-lh);
+}
+#shell :is(.inq-note, .qt-note, .rev-note).red { border-color: var(--ui-ng-line); background: var(--ui-ng-bg); }
+#shell :is(.inq-note, .qt-note, .rev-note).gray { border-color: var(--ui-border); background: var(--ui-surface-2); }
+#shell :is(.qt-note, .rev-note).blue { border-color: var(--ui-info-line); background: var(--ui-info-bg); }
+
+/* 長いお知らせは1行にたたみ、「詳しく」で開きます（/admin-members.html の compactNotes）。 */
+#shell .ui-clamped { display: flex; align-items: flex-start; gap: var(--ui-s2); }
+#shell .ui-clamped > .ui-clamp-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#shell .ui-clamped.is-open > .ui-clamp-text { white-space: normal; overflow: visible; }
+#shell .ui-clamped > .ui-clamp-text br { display: none; }
+#shell .ui-clamped.is-open > .ui-clamp-text br { display: inline; }
+#shell .ui-clamped > .ui-more {
+  flex: none; min-height: 0; padding: 0 2px; border: 0; background: none; color: var(--ui-accent);
+  font-size: var(--ui-fs-12); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; line-height: inherit;
+}
+#shell .ui-clamped > .ui-more:hover { filter: none; color: var(--ui-accent-hover); }
+
+/* ---- 灰色の小箱（設定・補足のまとまり） ---- */
+#shell :is(.nq, .soc-box, .soc-more, .soc-ai, .soc-var, .bk-conn, .soc-crop, details.utm) {
+  background: var(--ui-surface-2); border-color: var(--ui-border); border-radius: var(--ui-r-lg);
+}
+#shell .soc-more > summary, #shell .soc-ai > summary, #shell details.utm > summary { font-size: var(--ui-fs-13); }
+
+/* ---- 表 ---- */
+#shell :is(.tbl, .vid-scroll, .soc-scroll) { max-width: 100%; overflow-x: auto; }
+#shell :is(.tbl, .vid-scroll, .soc-scroll) th { position: sticky; top: 0; z-index: 1; background: var(--ui-surface-2); }
+#shell :is(.vid-table, .soc-tbl) th { font-size: var(--ui-fs-12); letter-spacing: 0; }
+
+/* ---- 入力欄 ---- */
+#shell :is(input[type=text], input[type=search], input[type=email], input[type=url], input[type=number], input[type=date], input[type=time], input[type=password], input[type=tel], input:not([type]), select, textarea):focus-visible {
+  outline: 2px solid var(--ui-focus); outline-offset: 0; border-color: var(--ui-accent);
+}
+#shell #search, #shell #copy-search { background: var(--ui-surface); border-color: var(--ui-border-strong); border-radius: var(--ui-r); min-height: 40px; }
+
+/* ---- 小見出し（字間を広げた灰色の見出しは、普通の太字に） ---- */
+#shell h3[style*="letter-spacing:.1em"], #shell h3[style*="letter-spacing: .1em"], #shell h3[style*="letter-spacing:.14em"] {
+  letter-spacing: 0 !important; font-size: var(--ui-fs-14) !important; color: var(--ui-text) !important;
+}
+#shell .lp-sub, #shell .set-group h4 { color: var(--ui-text); }
+
+/* ---- 状態の印（設定状況など。絵文字の代わり） ---- */
+.ui-mark { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; vertical-align: -4px; }
+.ui-mark .ui-icon { width: 14px; height: 14px; stroke-width: 2; }
+.ui-mark.ok { background: var(--ui-ok-bg); color: var(--ui-ok); }
+.ui-mark.warn { background: var(--ui-warn-bg); color: var(--ui-warn); }
+.ui-mark.ng { background: var(--ui-ng-bg); color: var(--ui-ng); }
+.ui-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: 0; border: 1px solid transparent; }
+.ui-dot.ok { background: var(--ui-ok); }
+.ui-dot.warn { background: #d99a1e; }
+.ui-dot.ng { background: var(--ui-ng); }
+.ui-dot.other { background: #c2410c; }
+.ui-dot.none { background: var(--ui-surface); border-color: var(--ui-border-strong); }
+.ui-dot.err { background: var(--ui-surface); border: 2px solid var(--ui-ng); }
+
+/* ---- 狭い画面 ---- */
+@media (max-width: 1023px) {
+  #shell .panel { padding: var(--ui-s4); }
+}
+@media (max-width: 1023px), (pointer: coarse) {
+  #shell button:not(.linkish):not(.bk-ev):not(.ui-more):not(.d):not(.env-copy), #shell select { min-height: var(--ui-touch); }
+  #shell .nq-row[role="tablist"] .nq-chip, #shell .spl-tabs button { min-height: 40px; }
 }
