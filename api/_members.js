@@ -465,17 +465,21 @@ export function bodyHtml(text) {
   return blocks.map((b) => {
     const lines = b.split('\n').filter((l) => l.trim() !== '')
     if (!lines.length) return ''
-    if (lines.every((l) => /^\s*(・|- )/.test(l))) {
-      return '<ul style="margin:0 0 14px;padding-left:20px">' +
-        lines.map((l) => `<li style="margin:2px 0">${inline(l.replace(/^\s*(・|- )/, ''))}</li>`).join('') + '</ul>'
-    }
-    // 見出しの行はそのまま見出しに、続く行は1つの段落にまとめます。
+    // 見出しの行は見出しに、続く箇条書きの行は1つの箇条書きに、ほかの行は
+    // 1つの段落にまとめます（見出しのすぐ下に箇条書き、という書き方が多いため）。
     let html = ''
     let para = []
-    const flush = () => { if (para.length) html += `<p style="margin:0 0 14px">${para.join('<br>')}</p>`; para = [] }
+    let list = []
+    const flush = () => {
+      if (para.length) html += `<p style="margin:0 0 14px">${para.join('<br>')}</p>`
+      if (list.length) html += `<ul style="margin:0 0 14px;padding-left:20px">${list.map((x) => `<li style="margin:2px 0">${x}</li>`).join('')}</ul>`
+      para = []
+      list = []
+    }
     for (const l of lines) {
       if (/^■\s*/.test(l)) { flush(); html += `<h2 style="font-size:16px;margin:18px 0 6px">${inline(l.replace(/^■\s*/, ''))}</h2>` }
-      else para.push(inline(l))
+      else if (/^\s*(・|- )/.test(l)) { if (para.length) flush(); list.push(inline(l.replace(/^\s*(・|- )/, ''))) }
+      else { if (list.length) flush(); para.push(inline(l)) }
     }
     flush()
     return html

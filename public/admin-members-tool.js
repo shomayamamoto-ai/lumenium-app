@@ -525,8 +525,9 @@
     b.disabled = true;
     var r = await T.post({ action: 'mail.test', subject: f.subject, body: f.body });
     b.disabled = false;
+    if (r.data && r.data.demo) return say(r.data.message, true);
     if (!r.data || !r.data.ok) return say((r.data && r.data.message) || 'テストのメールを送れませんでした。');
-    say(r.data.demo ? r.data.message : r.data.to + ' あてにテストのメールを送りました。件名の頭に【テスト】が付きます。届くまで数分かかることがあります。', true);
+    say(r.data.to + ' あてにテストのメールを送りました。件名の頭に【テスト】が付きます。届くまで数分かかることがあります。', true);
   }
 
   function askSend() {

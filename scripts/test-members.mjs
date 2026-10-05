@@ -308,6 +308,8 @@ await t('本文の下に、送信者・住所・問い合わせ先・配信停�
   assert.ok(out.html.includes('<h2'), '見出し')
   assert.ok(out.html.includes('<strong>ありがとう</strong>'), '太字')
   assert.ok(out.html.includes('<li style="margin:2px 0">28日から休み</li>'), '箇条書き')
+  const mixed = M.bodyHtml('■ 営業日\n・28日から休み\n・5日から営業\nよろしくお願いします')
+  assert.match(mixed, /<\/h2><ul[^>]*><li[^>]*>28日から休み<\/li><li[^>]*>5日から営業<\/li><\/ul><p[^>]*>よろしくお願いします<\/p>$/, '見出しのすぐ下の箇条書き')
   assert.ok(out.html.includes('<a href="https://example.com/a?b=1"'), 'URL はリンク')
   assert.equal(out.html.includes('<script>'), false, 'HTML は文字として出す')
   assert.ok(M.compose({ subject: 's', body: 'b', footer: { unsubscribe: 'u' } }).text.includes('住所: （未設定）'))
