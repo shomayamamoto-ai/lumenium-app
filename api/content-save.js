@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin } from './_admin-auth.js'
 import { setting } from './_settings.js'
-import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } from './_github.js'
+import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit, fileHistory, fileAt } from './_github.js'
 import { migrateOverrides, migratePath } from '../src/lib/content-ids.js'
 
 // Admin copy editing: commits public/content.json to the GitHub repo via the
@@ -19,6 +19,9 @@ import { migrateOverrides, migratePath } from '../src/lib/content-ids.js'
 
 const FILE_PATH = 'public/content.json'
 const MAX_KEYS = 2000
+// Top-level keys that hold structured sections rather than one string each
+// (src/lib/content-extra.js). They can never be a string path.
+const SECTIONS = ['added', 'hidden', 'seo']
 const MAX_LEN = 4000
 // A segment is a key, an index, or "@id" (an item of a list, by its id —
 // see src/lib/content-ids.js).
@@ -40,6 +43,8 @@ export async function GET(req) {
   const token = await setting('GITHUB_TOKEN', '', req)
   if (!token) return json(NO_TOKEN, 503)
   const repo = repoName()
+
+  if (new URL(req.url).searchParams.get('history')) return history(token, repo)
 
   const cur = await ghFile(token, repo, FILE_PATH)
   // No file yet simply means nothing has been overridden.
@@ -79,6 +84,8 @@ export async function POST(req) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '不正なリクエストです。' }, 400)
   }
 
+  if (payload?.revert) return revert(token, repo, String(payload.revert))
+
   const changes = payload?.changes
   if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '変更内容がありません。' }, 400)
@@ -108,6 +115,9 @@ export async function POST(req) {
   for (const [raw, value] of Object.entries(changes)) {
     if (!PATH_RE.test(raw)) {
       return json({ ok: false, code: 'BAD_REQUEST', message: `不正な項目名です: ${raw}` }, 400)
+    }
+    if (SECTIONS.includes(raw)) {
+      return json({ ok: false, code: 'BAD_REQUEST', message: `${raw} はこの形では保存できません。` }, 400)
     }
     // An editor page opened before the switch to ids still sends index paths.
     const path = migratePath(raw) || raw
@@ -163,6 +173,96 @@ export async function POST(req) {
     commit: { sha: (saved.commit && saved.commit.sha) || null },
     message: `${changed} 件を保存しました。サイトへの反映（約1〜2分）を下に表示します。`,
   })
+}
+
+/* ---- 保存の履歴（最近20回）と、何が変わったか ----
+   一覧の1行ごとに、その保存で変わった項目の住所を返します（画面が「お客様の声
+   2件目・本文」のような言葉に直します）。各回の中身を GitHub から読み、
+   1つ前の回と比べます。読めなかった回は「変更点を読めませんでした」と出します。 */
+async function history(token, repo) {
+  const list = await fileHistory(token, repo, FILE_PATH, 21)
+  if (!list) return json({ ok: false, code: 'GITHUB_ERROR', message: '保存の履歴を読み込めませんでした。時間をおいてもう一度お試しください。' }, 502)
+  const texts = await Promise.all(list.map((c) => fileAt(token, repo, FILE_PATH, c.sha)))
+  const parse = (t) => {
+    if (!t || !t.ok) return null
+    try { const o = JSON.parse(t.text); return o && typeof o === 'object' && !Array.isArray(o) ? o : null } catch (_) { return null }
+  }
+  const versions = texts.map(parse)
+  const out = list.slice(0, 20).map((c, i) => {
+    const next = versions[i]
+    // The oldest commit in the window has no "before" here unless a 21st was fetched.
+    const prev = i + 1 < list.length ? versions[i + 1] : (list.length < 21 ? {} : undefined)
+    return { ...c, changes: next && prev !== undefined && prev !== null ? diffContent(prev, next) : null }
+  })
+  return json({ ok: true, history: out })
+}
+
+/** Which fields differ between two versions of content.json: string paths
+ *  (old index paths read as ids), and the added / hidden / seo sections as
+ *  "added.faq:<id>", "hidden.cases:<id>", "seo:<path>", "articles:<slug>". */
+export function diffContent(prev, next) {
+  const a = migrateOverrides(prev).out
+  const b = migrateOverrides(next).out
+  const out = []
+  const strings = (o) => Object.keys(o).filter((k) => typeof o[k] === 'string')
+  for (const k of new Set([...strings(a), ...strings(b)])) if (a[k] !== b[k]) out.push(k)
+  const sec = (o, k) => (o && o[k] && typeof o[k] === 'object' ? o[k] : {})
+  for (const list of new Set([...Object.keys(sec(a, 'added')), ...Object.keys(sec(b, 'added'))])) {
+    const key = list === 'articles' ? 'slug' : 'id'
+    const byId = (arr) => Object.fromEntries((Array.isArray(arr) ? arr : []).map((x) => [x && x[key], JSON.stringify(x)]))
+    const x = byId(sec(a, 'added')[list]), y = byId(sec(b, 'added')[list])
+    for (const id of new Set([...Object.keys(x), ...Object.keys(y)])) {
+      if (x[id] !== y[id]) out.push(list === 'articles' ? `articles:${id}` : `added.${list}:${id}`)
+    }
+  }
+  for (const list of new Set([...Object.keys(sec(a, 'hidden')), ...Object.keys(sec(b, 'hidden'))])) {
+    const x = new Set(sec(a, 'hidden')[list] || []), y = new Set(sec(b, 'hidden')[list] || [])
+    for (const id of new Set([...x, ...y])) if (x.has(id) !== y.has(id)) out.push(`hidden.${list}:${id}`)
+  }
+  const sa = sec(a, 'seo'), sb = sec(b, 'seo')
+  for (const p of new Set([...Object.keys(sa), ...Object.keys(sb)])) {
+    if (JSON.stringify(sa[p]) !== JSON.stringify(sb[p])) out.push(`seo:${p}`)
+  }
+  return out
+}
+
+/** 「この時点に戻す」：その時点のファイルを、そのまま新しいコミットで書き戻します。 */
+async function revert(token, repo, sha) {
+  if (!/^[0-9a-f]{7,40}$/.test(sha)) return json({ ok: false, code: 'BAD_REQUEST', message: '戻す時点の指定が正しくありません。' }, 400)
+  const old = await fileAt(token, repo, FILE_PATH, sha)
+  if (!old.ok) return json({ ok: false, code: 'GITHUB_ERROR', message: `その時点の文章を読み込めませんでした。${ghDetail(old.status)}` }, 502)
+  const back = revertContent(old.text)
+  if (!back) return json({ ok: false, code: 'BAD_REQUEST', message: 'その時点のファイルが壊れているため、戻せません。' }, 400)
+  const cur = await ghFile(token, repo, FILE_PATH)
+  const curSha = cur.ok ? (await cur.json()).sha : undefined
+  const put = await ghFile(token, repo, FILE_PATH, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: `content: ${sha.slice(0, 7)} の時点に戻す`,
+      content: b64encodeUtf8(JSON.stringify(back, null, 2) + '\n'),
+      ...(curSha ? { sha: curSha } : {}),
+    }),
+  })
+  if (!put.ok) return json({ ok: false, code: 'GITHUB_ERROR', message: `戻せませんでした（GitHub応答: ${put.status}）。時間をおいて再度お試しください。` }, 502)
+  const saved = await put.json().catch(() => ({}))
+  return json({
+    ok: true, overrides: migrateOverrides(back).out, stored: back,
+    commit: { sha: (saved.commit && saved.commit.sha) || null },
+    message: `${sha.slice(0, 7)} の時点の文章に戻しました。サイトへの反映（約1〜2分）を下に表示します。`,
+  })
+}
+
+/** 書き戻す中身。オブジェクトでないもの・文字でも節でもない値は戻しません。 */
+export function revertContent(text) {
+  let o
+  try { o = JSON.parse(String(text || '')) } catch (_) { return null }
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return null
+  const out = {}
+  for (const k of Object.keys(o).sort()) {
+    const v = o[k]
+    if (typeof v === 'string' || (SECTIONS.includes(k) && v && typeof v === 'object')) out[k] = v
+  }
+  return out
 }
 
 function json(body, status = 200) {

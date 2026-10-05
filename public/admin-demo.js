@@ -2401,3 +2401,76 @@
     });
   };
 })();
+
+/* ---- デモ：文章編集の保存の履歴・足した項目・SEO・ブログ記事（shape: api/content-save.js） ----
+   デモのときだけ動きます。見せるのは架空の変更で、保存・「この時点に戻す」は
+   断ります。/content.json も同じ見本を返し、「反映済み」と出るようにします。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var DAY = 86400000;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  function ago(ms) { return new Date(Date.now() - ms).toISOString(); }
+  function day(back) { return new Date(Date.now() + 9 * 3600000 - back * DAY).toISOString().slice(0, 10); }
+
+  var STORED = {
+    'site.TESTIMONIALS.@voice-ywb0go.detail': 'SNS運用・動画制作をご依頼（デモで書き換えた例）',
+    added: {
+      faq: [{ id: 'faq-a-demo1', group: 'faqg-qzh10v', q: '土日の打ち合わせはできますか?（サンプル）',
+        a: 'はい、事前にご相談いただければ土日も対応します。これはデモで足した質問の見本です。' }],
+      testimonials: [{ id: 'voice-a-demo1', text: '相談から公開まで2週間。思っていたより早く、説明も分かりやすかったです。（サンプル）',
+        name: '工務店 代表（サンプル）', detail: 'ホームページ制作をご依頼' }],
+      cases: [{ id: 'case-a-demo1', tag: 'Web・システム', title: '地域の工務店のホームページ（サンプル）',
+        desc: '施工事例を自分たちで足せる作りにしました。これはデモで足した実績の見本です。' }],
+      articles: [
+        { slug: 'demo-first-steps', title: '初めてホームページを作るときに決めておく3つのこと（サンプル）', date: day(2), category: 'Web制作',
+          description: 'ホームページ制作を頼む前に、社内で決めておくと話が早い3つのことをまとめました（デモの記事です）。',
+          body: '## はじめに\n\nこれはデモで書いた記事の見本です。\n\n## 1. 誰に見てほしいか\n\n- 新しいお客様\n- 採用の応募者\n\n**いちばん見てほしい人**を1つに決めると、ページの順番が決まります。' },
+        { slug: 'demo-draft-ai', title: '社内でAIを使い始める前の決まりごと（下書き・サンプル）', date: day(-3), category: 'AI活用', draft: true,
+          description: 'AIを社内で使い始めるときに、最初に決めておく使い方の線引きをまとめます（デモの下書きです）。',
+          body: '## まだ書きかけです\n\nこの記事は下書きなので、サイトには出ていません（デモの見本です）。' }
+      ]
+    },
+    hidden: { testimonials: ['voice-xrypra'] },
+    seo: { '/pricing.html': { title: '料金の目安（動画・AI研修・Web制作）| Lumenium（サンプル）',
+      description: 'デモで書き換えた説明文の見本です。動画制作5万円〜、AI研修10万円〜、Web制作30万円〜。最低発注額はなく、お見積りは無料です。' } }
+  };
+  function overrides() {
+    var o = {};
+    for (var k in STORED) o[k] = STORED[k];
+    return o;
+  }
+  var HISTORY = [
+    { message: 'content: 2 件の文章を更新', changes: ['added.faq:faq-a-demo1', 'seo:/pricing.html'] },
+    { message: 'content: 1 件の文章を更新', changes: ['articles:demo-first-steps'] },
+    { message: 'content: 3 件の文章を更新', changes: ['added.testimonials:voice-a-demo1', 'hidden.testimonials:voice-xrypra', 'site.TESTIMONIALS.@voice-ywb0go.detail'] },
+    { message: 'content: 1 件の文章を更新', changes: ['added.cases:case-a-demo1'] },
+    { message: 'content: 1 件の文章を更新', changes: ['text.lp.title'] },
+    { message: 'content: abc1234 の時点に戻す', changes: ['text.lp.title'] }
+  ].map(function (h, i) {
+    return { sha: ('c' + i + 'a0000000000000000000000000000000000000').slice(0, 40), at: ago((i * 4 + 1) * DAY + i * 3600000), message: h.message, changes: h.changes };
+  });
+  function reply(body) {
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    var p = u ? u.pathname.replace(/\/+$/, '') : '';
+    if (u && u.origin === location.origin && p === '/content.json') return reply(overrides());
+    if (p !== '/api/content-save') return inner(input, init);
+    var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    if (method === 'GET') {
+      if (u.searchParams.get('history')) return reply({ ok: true, history: HISTORY });
+      return reply({ ok: true, overrides: overrides(), stored: overrides(), commit: { sha: 'demo000', at: ago(DAY + 3600000), message: 'content' } });
+    }
+    return reply({ ok: false, demo: true, message: MSG });
+  };
+})();

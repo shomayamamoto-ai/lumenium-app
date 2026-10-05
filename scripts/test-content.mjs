@@ -288,4 +288,44 @@ await t('content-save: 次に保存するとき、古い書き方の上書きを
   assert.match(repo.puts[0].message, /1 件の住所を id に移行/)
 })
 
+/* ==== 文章編集：保存の履歴と「この時点に戻す」 ==== */
+await t('history: 変わった項目の一覧（古い書き方も id で比べる・節は id ごと）', async () => {
+  const { diffContent } = await import('../api/content-save.js')
+  const v = LEGACY_ORDER['site.TESTIMONIALS'][0]
+  const prev = { 'site.TESTIMONIALS.0.text': '同じ', 'text.lp.title': '前', added: { faq: [{ id: 'faq-a-1', q: 'x' }] } }
+  const next = { [`site.TESTIMONIALS.@${v}.text`]: '同じ', 'text.lp.title': '後', added: { faq: [{ id: 'faq-a-1', q: 'y' }] },
+    hidden: { cases: ['case-1'] }, seo: { '/faq.html': { title: 't', description: '' } } }
+  assert.deepEqual(diffContent(prev, next).sort(), ['added.faq:faq-a-1', 'hidden.cases:case-1', 'seo:/faq.html', 'text.lp.title'].sort())
+  assert.deepEqual(diffContent(next, next), [])
+})
+
+await t('revert: 書き戻す中身を作る（壊れたファイル・文字以外の値は戻さない）', async () => {
+  const { revertContent } = await import('../api/content-save.js')
+  assert.equal(revertContent('[1]'), null)
+  assert.equal(revertContent('{'), null)
+  assert.deepEqual(revertContent('{"b":"x","a":"y","n":3,"added":{"faq":[]},"bogus":{"x":1}}'), { a: 'y', added: { faq: [] }, b: 'x' })
+})
+
+await t('revert: 「この時点に戻す」は新しいコミットとして書き戻し、履歴は20回分を変更点つきで返す', async () => {
+  const repo = fakeRepo({ 'text.lp.title': 'いま' })
+  repo.old = { aaaaaaa: { 'text.lp.title': '前' }, bbbbbbb: {} }
+  repo.history = [
+    { sha: 'aaaaaaa', commit: { message: 'content: 1 件の文章を更新', committer: { date: '2026-10-02T00:00:00Z' } } },
+    { sha: 'bbbbbbb', commit: { message: 'content: 最初', committer: { date: '2026-10-01T00:00:00Z' } } },
+  ]
+  on([repo.handler])
+  const { GET, POST } = await import('../api/content-save.js')
+  const h = await (await GET(req('content-save?history=1'))).json()
+  assert.equal(h.history.length, 2)
+  assert.deepEqual(h.history[0].changes, ['text.lp.title'])
+  assert.deepEqual(h.history[1].changes, [], '最初の回は空のファイルと比べる')
+  const r = await POST(req('content-save', 'POST', { revert: 'aaaaaaa' }))
+  assert.equal(r.status, 200)
+  assert.deepEqual(repo.content, { 'text.lp.title': '前' })
+  assert.match(repo.puts[0].message, /aaaaaaa の時点に戻す/)
+  assert.equal((await POST(req('content-save', 'POST', { revert: 'nothex!' }))).status, 400)
+  // 節の名前は文字の上書きとしては保存できない
+  assert.equal((await POST(req('content-save', 'POST', { changes: { added: 'x' } }))).status, 400)
+})
+
 console.log(`test-content: ${passed} passed`)

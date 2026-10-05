@@ -985,6 +985,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-members-tool.js"></script>
 <!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
 <script src="/admin-news.js"></script>
+<!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
+<script src="/admin-copy.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -3320,6 +3322,13 @@ window.lumAdmin = {
     if (!out.length) out.push(LEAF[parts[parts.length - 1]] || parts[parts.length - 1]);
     return out.join(' · ');
   }
+  // 保存の履歴（admin-copy.js）が「どこが変わったか」を言葉にするのに使います。
+  window.lumCopyLabel = function (path) {
+    var g = schema && schema.groups.filter(function (x) {
+      return x.fields.some(function (f) { return f.path === path; });
+    })[0];
+    return (g ? g.label + ' · ' : '') + humanLabel(path);
+  };
 
   function say(text, isInfo) {
     msgEl.textContent = text || '';
@@ -3796,7 +3805,10 @@ window.lumAdmin = {
     if (loaded) return;
     loaded = true;
     loadAll();
+    if (window.lumCopyMore) window.lumCopyMore();
   };
+  // 「この時点に戻す」のあと、文章の一覧を読み直します（admin-copy.js）。
+  window.lumCopyReload = function () { return loadAll(); };
 })();
 </script>
 
