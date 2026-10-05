@@ -2,6 +2,7 @@
    いちばん上に切り替えのボタンを足し、もとの「文章を直す」画面の横に
    次の画面を並べます:
      項目を足す・隠す  よくある質問・お客様の声・実績を足す／元からある項目を隠す
+     検索結果の見え方  ページごとのタイトルと説明文（数え表示と検索結果の見本つき）
      保存の履歴      最近20回の保存と、それぞれで変わった項目。「この時点に戻す」
 
    保存はどれも /api/content-save に送り、サイトへの反映は同じ欄
@@ -19,6 +20,7 @@
   var VIEWS = [
     { id: 'text', label: '文章を直す' },
     { id: 'items', label: '項目を足す・隠す' },
+    { id: 'seo', label: '検索結果の見え方' },
     { id: 'history', label: '保存の履歴' }
   ];
 
@@ -54,6 +56,10 @@
     '.cp-h{font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:12px 0 6px}' +
     '.cp-in{display:block;width:100%;margin-top:5px;padding:10px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;font-weight:400}' +
     'textarea.cp-in{resize:vertical}' +
+    '.cp-serp{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:Arial,"Hiragino Sans","Noto Sans JP",sans-serif;max-width:600px}' +
+    '.cp-serp .u{font-size:12px;color:#4d5156;overflow-wrap:anywhere}' +
+    '.cp-serp .h{font-size:18px;line-height:1.35;color:#1a0dab;margin:3px 0;overflow-wrap:anywhere}' +
+    '.cp-serp .d{font-size:13px;line-height:1.6;color:#4d5156;overflow-wrap:anywhere}' +
     '#copy-admin .nq label.nq-label{display:block;margin-bottom:10px}';
 
   /* ---- 画面の切り替え ---- */
@@ -110,6 +116,7 @@
     });
     if (id === 'history') renderHistory();
     if (id === 'items') renderItems();
+    if (id === 'seo') renderSeo();
   }
 
   /* ---- 読み込みと保存（項目の追加・SEO・記事が使う） ---- */
@@ -427,6 +434,96 @@
       row.appendChild(tg);
       li.appendChild(row);
       ub.appendChild(li);
+    });
+  }
+
+  /* ---- 検索結果の見え方（ページごとのタイトルと説明文） ----
+     元の文は /seo-pages.json（ビルドが作る一覧）、変えた文は content.json の
+     "seo"。目安の長さは src/lib/content-extra.js の SEO_GUIDE と同じです。
+     目安を外れても保存はできます（検索結果で途中が切れやすい、というだけ）。 */
+  var GUIDE = { title: [15, 62], description: [60, 160] };
+  var LIMIT = { title: 80, description: 200 };
+  var seoPages = null, seoPath = '';
+
+  function guideNote(kind, n) {
+    var g = GUIDE[kind];
+    if (!n) return { text: '空欄なら元の文を使います', bad: false };
+    if (n < g[0]) return { text: n + ' 文字（目安 ' + g[0] + '〜' + g[1] + '）短めです', bad: true };
+    if (n > g[1]) return { text: n + ' 文字（目安 ' + g[0] + '〜' + g[1] + '）長めです。検索結果では途中で切れます', bad: true };
+    return { text: n + ' 文字（目安 ' + g[0] + '〜' + g[1] + '）ちょうどよい長さです', bad: false };
+  }
+  function cut(t, n) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+  async function renderSeo() {
+    var box = $('cp-v-seo');
+    box.innerHTML = '<p class="cp-s">読み込み中…</p>';
+    if (!C.stored) await loadData();
+    if (!seoPages) {
+      try { seoPages = (await (await fetch('/seo-pages.json', { cache: 'no-store' })).json()).pages || {}; } catch (_) { seoPages = {}; }
+    }
+    var paths = Object.keys(seoPages);
+    if (!paths.length) { box.innerHTML = '<p class="msg show">ページの一覧（seo-pages.json）を読み込めませんでした。</p>'; return; }
+    if (!seoPath || !seoPages[seoPath]) seoPath = seoPages['/pricing.html'] ? '/pricing.html' : paths[0];
+    var seo = section('seo');
+    box.innerHTML =
+      '<p class="share-note" style="margin-bottom:10px">Google などの検索結果に出る、ページの<strong>タイトル</strong>と<strong>説明文</strong>です。空欄のままなら元の文が使われます。目安はタイトル15〜62文字、説明文60〜160文字です（超えても保存できますが、検索結果では途中で切れます）。</p>' +
+      '<label class="nq-label" for="cp-seo-page" style="display:block">ページ</label>' +
+      '<select id="cp-seo-page" class="cp-in" style="margin-bottom:12px"></select>' +
+      '<label class="nq-label" for="cp-seo-title" style="display:block">タイトル</label>' +
+      '<input type="text" id="cp-seo-title" class="cp-in" maxlength="' + LIMIT.title + '">' +
+      '<p class="cp-s" id="cp-seo-tn" style="margin:4px 0 12px"></p>' +
+      '<label class="nq-label" for="cp-seo-desc" style="display:block">説明文</label>' +
+      '<textarea id="cp-seo-desc" class="cp-in" rows="3" maxlength="' + LIMIT.description + '"></textarea>' +
+      '<p class="cp-s" id="cp-seo-dn" style="margin:4px 0 12px"></p>' +
+      '<p class="nq-label">検索結果での見え方（見本）</p>' +
+      '<div class="cp-serp" id="cp-serp"></div>' +
+      '<div class="cp-row" style="margin-top:12px"><button type="button" id="cp-seo-save">保存</button>' +
+      '<button type="button" class="ghost" id="cp-seo-reset">元の文に戻す</button></div>' +
+      '<p class="msg" id="cp-seo-msg"></p>';
+    var sel = $('cp-seo-page');
+    paths.forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = p;
+      o.textContent = (seo[p] ? '● ' : '') + (seoPages[p].label || p) + '（' + p + '）';
+      sel.appendChild(o);
+    });
+    sel.value = seoPath;
+    var ti = $('cp-seo-title'), de = $('cp-seo-desc');
+    var cur = seo[seoPath] || {};
+    var def = seoPages[seoPath];
+    ti.value = cur.title || '';
+    de.value = cur.description || '';
+    ti.placeholder = def.title;
+    de.placeholder = def.description;
+    $('cp-seo-reset').disabled = !seo[seoPath];
+    function upd() {
+      var t = ti.value.trim(), d = de.value.trim();
+      var tn = guideNote('title', t.length), dn = guideNote('description', d.length);
+      $('cp-seo-tn').textContent = tn.text;
+      $('cp-seo-tn').style.color = tn.bad ? '#b45309' : '';
+      $('cp-seo-dn').textContent = dn.text;
+      $('cp-seo-dn').style.color = dn.bad ? '#b45309' : '';
+      var host = location.host || 'example.com';
+      $('cp-serp').innerHTML =
+        '<div class="u">' + esc(host + ' › ' + seoPath.replace(/^\//, '')) + '</div>' +
+        '<div class="h">' + esc(cut(t || def.title, 62)) + '</div>' +
+        '<div class="d">' + esc(cut(d || def.description, 160)) + '</div>';
+    }
+    ti.addEventListener('input', upd);
+    de.addEventListener('input', upd);
+    upd();
+    sel.addEventListener('change', function () { seoPath = sel.value; renderSeo(); });
+    $('cp-seo-save').addEventListener('click', async function () {
+      var t = ti.value.trim(), d = de.value.trim();
+      var ops = { seo: {} };
+      ops.seo[seoPath] = t || d ? { title: t, description: d } : null;
+      if (await saveOps(ops, this, 'cp-seo-msg', '保存しました。')) { var m = $('cp-seo-msg').textContent; await renderSeo(); say('cp-seo-msg', m, true); }
+    });
+    $('cp-seo-reset').addEventListener('click', async function () {
+      if (!confirm('このページのタイトルと説明文を、元の文に戻しますか？')) return;
+      var ops = { seo: {} };
+      ops.seo[seoPath] = null;
+      if (await saveOps(ops, this, 'cp-seo-msg', '元の文に戻しました。')) { var m = $('cp-seo-msg').textContent; await renderSeo(); say('cp-seo-msg', m, true); }
     });
   }
 

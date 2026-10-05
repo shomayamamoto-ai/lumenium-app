@@ -25,6 +25,7 @@ import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
 import { applyOverrides } from '../src/lib/content-registry.js'
 import { ORG_NODE } from '../src/data/org.js'
 import { DATE, TODAY, stamp, lastmodOf, saveLastmod } from './_lastmod.mjs'
+import { seoPage, saveSeoPages } from './_seo.mjs'
 try {
   const n = applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8')))
   if (n) console.log(`content overrides applied: ${n}`)
@@ -291,6 +292,9 @@ const urls = []
  *  for the sitemap with that same date — the two used to disagree with each
  *  other as well as with the page. */
 function publish(path, html, opts) {
+  // 1本ずつの記事とお知らせは、それぞれの題名がそのまま検索結果の題名です。
+  // それ以外のページは、文章編集で変えた「検索結果の見え方」を当てます（_seo.mjs）。
+  if (!/^\/(blog\/(?!index\.html)|news\/)/.test(path)) html = seoPage(path, html)
   const { html: out, date } = stamp(path, html, opts)
   writeFileSync('public' + path, out)
   urls.push({ loc: SITE + path, lastmod: date })
@@ -1337,5 +1341,6 @@ ${core.map((u) => `  <url>
 }
 
 saveLastmod()
+saveSeoPages((p) => !p.startsWith('/services/'))
 
 console.log(`content pages written: ${urls.length} URLs (blog ${articles.length} + index + news + faq + about + ${TOPIC_PAGES.length} topic)`)

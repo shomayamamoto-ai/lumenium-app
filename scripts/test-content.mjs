@@ -390,4 +390,43 @@ await t('content-save: ops は id ごとに重ねる（別の画面で足した�
   assert.equal(r.status, 400)
 })
 
+/* ==== 文章編集：検索結果の見え方（SEO） ==== */
+await t('seo: 長さの決まり（上限で断る・目安は知らせるだけ）', () => {
+  assert.equal(extra.checkSeo('/pricing.html', { title: '料金の目安', description: '' }), '')
+  assert.match(extra.checkSeo('/pricing.html', { title: '', description: '' }), /どちらか/)
+  assert.match(extra.checkSeo('/pricing.html', { title: 'あ'.repeat(81), description: '' }), /80文字/)
+  assert.match(extra.checkSeo('/pricing.html', { title: '', description: 'あ'.repeat(201) }), /200文字/)
+  assert.match(extra.checkSeo('../etc.html', { title: 'x' }), /ページ/)
+  assert.match(extra.checkSeo('/a.html', { title: '<script>' }), /< と >/)
+  assert.equal(extra.seoHint('title', 'あ'.repeat(14)).startsWith('短め'), true)
+  assert.equal(extra.seoHint('title', 'あ'.repeat(15)), '')
+  assert.equal(extra.seoHint('title', 'あ'.repeat(62)), '')
+  assert.equal(extra.seoHint('title', 'あ'.repeat(63)).startsWith('長め'), true)
+  assert.equal(extra.seoHint('description', 'あ'.repeat(59)).startsWith('短め'), true)
+  assert.equal(extra.seoHint('description', 'あ'.repeat(160)), '')
+  assert.equal(extra.seoHint('description', 'あ'.repeat(161)).startsWith('長め'), true)
+})
+
+await t('seo: ビルドでタイトル・説明・OGP を差し替える（空の欄は元のまま・壊れた指定は無視）', async () => {
+  const { applySeo } = await import('./_seo.mjs')
+  const html = '<title>元 | 社名</title>\n<meta name="description" content="元の説明">\n<meta property="og:title" content="元 | 社名">\n<meta property="og:description" content="元の説明">'
+  const a = applySeo('/pricing.html', html, { title: '新しい "題名" & 料金', description: '' })
+  assert.match(a, /<title>新しい &quot;題名&quot; &amp; 料金<\/title>/)
+  assert.match(a, /og:title" content="新しい &quot;題名&quot; &amp; 料金"/)
+  assert.match(a, /name="description" content="元の説明"/)
+  assert.equal(applySeo('/pricing.html', html, { title: 'x'.repeat(81) }), html)
+  assert.equal(applySeo('/pricing.html', html, undefined), html)
+})
+
+await t('content-save: SEO は path ごとに保存・null で元に戻す', async () => {
+  const repo = fakeRepo({ seo: { '/faq.html': { title: 'FAQ の題名です', description: '' } } })
+  on([repo.handler])
+  const { POST } = await import('../api/content-save.js')
+  let r = await POST(req('content-save', 'POST', { ops: { seo: { '/pricing.html': { title: '料金の目安とお見積り', description: '' } } } }))
+  assert.equal(r.status, 200)
+  assert.deepEqual(Object.keys(repo.content.seo).sort(), ['/faq.html', '/pricing.html'])
+  r = await POST(req('content-save', 'POST', { ops: { seo: { '/faq.html': null, '/pricing.html': null } } }))
+  assert.equal(repo.content.seo, undefined)
+})
+
 console.log(`test-content: ${passed} passed`)

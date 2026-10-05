@@ -10,6 +10,8 @@ import { PROFILES } from '../src/data/site.js'
 import { applyOverrides } from '../src/lib/content-registry.js'
 import { ORG_NODE } from '../src/data/org.js'
 import { DATE, stamp, saveLastmod } from './_lastmod.mjs'
+// 文章編集で変えた「検索結果の見え方」（タイトル・説明文）を当てる。
+import { seoPage, saveSeoPages } from './_seo.mjs'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
@@ -521,9 +523,10 @@ for (const base of SERVICES) {
     tags: c.tags || [],
   }
   const path = `/services/${s.id}.html`
-  writeFileSync('public' + path, stamp(path, framePage(page(s), path)).html)
+  writeFileSync('public' + path, stamp(path, seoPage(path, framePage(page(s), path))).html)
   console.log(`public/services/${s.id}.html written`)
 }
-writeFileSync('public/services/index.html', stamp('/services/index.html', framePage(hub(), '/services/index.html')).html)
+writeFileSync('public/services/index.html', stamp('/services/index.html', seoPage('/services/index.html', framePage(hub(), '/services/index.html'))).html)
 console.log('public/services/index.html written')
 saveLastmod()
+saveSeoPages((p) => p.startsWith('/services/'))
