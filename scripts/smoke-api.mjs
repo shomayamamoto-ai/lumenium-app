@@ -542,6 +542,34 @@ for (const [name, method, query, headers, body] of CALLS) {
   delete process.env.GBP_LOCATION
 }
 
+// 担当者のログイン: オーナーが足す → 本人のキーで入る（12時間の札が返る）→
+// 札で一覧を読める → 権限の無い書き込みは 403 と平易な一言。
+{
+  const at = (path, method, token, body, ip) => new Request(`https://lumenium.net/api/${path}`, {
+    method, headers: { Authorization: 'Bearer ' + token, 'x-forwarded-for': ip, ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  try {
+    const staff = await import(new URL('../api/staff.js', import.meta.url))
+    const ping = await import(new URL('../api/admin-ping.js', import.meta.url))
+    const settings = await import(new URL('../api/settings.js', import.meta.url))
+    const inq = await import(new URL('../api/inquiries.js', import.meta.url))
+    const made = await (await staff.POST(at('staff', 'POST', 'smoke-admin-key', { action: 'create', name: 'スモーク担当', role: 'staff' }, '203.0.113.210'))).json()
+    if (!made.key) throw new Error('担当者を作れません: ' + made.message)
+    const login = await (await ping.GET(at('admin-ping', 'GET', made.key, null, '203.0.113.211'))).json()
+    if (!login.session || login.who.role !== 'staff') throw new Error('担当者のキーで入れません: ' + login.message)
+    const list = await inq.GET(at('inquiries', 'GET', login.session, null, '203.0.113.212'))
+    if (list.status >= 400 && list.status !== 503) throw new Error('担当者の札で問い合わせを読めません: ' + list.status)
+    const forbidden = await settings.POST(at('settings', 'POST', login.session, { name: 'CONTACT_TO_EMAIL', value: 'x@example.com' }, '203.0.113.213'))
+    const d = await forbidden.json()
+    if (forbidden.status !== 403 || d.message !== 'この操作はオーナーだけが使えます。') throw new Error(`権限の無い書き込みが ${forbidden.status} — ${d.message}`)
+    console.log('  担当者のログイン → 札 → 読める → 設定の保存は 403')
+  } catch (e) {
+    console.error(`✗ 担当者のログイン — ${e && e.message}`)
+    failed++
+  }
+}
+
 if (failed) {
   console.error(`\n${failed} 件のエンドポイントが認証後に失敗します。デプロイすると 500 になります。`)
   process.exit(1)
