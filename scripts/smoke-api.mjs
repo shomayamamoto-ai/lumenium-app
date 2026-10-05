@@ -107,6 +107,10 @@ globalThis.fetch = async (input, init = {}) => {
         lines: [{ start: 0, end: 3, narration: 'これ知ってた？', telop: 'これ知ってた？', visual: 'A cafe' }, { start: 3, end: 9, narration: '保存してね', telop: '保存してね', visual: 'A cup' }] }
       return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(script) }], usage: { input_tokens: 1, output_tokens: 1 } })
     }
+    // 口コミへの返信の下書き（api/reviews.js）。
+    if (fmt && fmt.type === 'json_schema' && fmt.schema.properties.reply) {
+      return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ reply: 'スモークの返信です。' }) }], usage: { input_tokens: 1, output_tokens: 1 } })
+    }
     if (fmt && fmt.type === 'json_schema') {
       const nets = fmt.schema.properties.drafts.required
       const drafts = Object.fromEntries(nets.map((n) => [n, { text: 'スモークテストの下書きです。', hashtags: ['スモーク'] }]))
@@ -181,6 +185,12 @@ globalThis.fetch = async (input, init = {}) => {
     return ok({ data: { videos: [{ id: '1', view_count: 5 }] }, error: { code: 'ok' } })
   }
   if (u.includes('open-upload.tiktokapis.com')) return new Response(null, { status: 201 })
+  // 口コミ管理（Business Profile API v4 の reviews と、店舗の情報）。
+  if (u.includes('mybusiness.googleapis.com/v4/') && u.includes('/reviews')) {
+    if (u.endsWith('/reply')) return ok(init.method === 'DELETE' ? {} : { comment: 'スモーク', updateTime: '2026-10-01T00:00:00Z' })
+    return ok({ reviews: [{ name: 'accounts/1/locations/2/reviews/rsmoke', reviewId: 'rsmoke', starRating: 'FOUR', comment: 'スモーク', reviewer: { displayName: 'ス' }, createTime: '2026-09-01T00:00:00Z', updateTime: '2026-09-01T00:00:00Z' }], averageRating: 4, totalReviewCount: 1 })
+  }
+  if (u.includes('mybusinessbusinessinformation.googleapis.com/v1/locations/')) return ok({ title: 'スモーク', metadata: { placeId: 'ChIJsmoke12345' } })
   throw new Error(`smoke test tried to reach the network: ${u}`)
 }
 
@@ -396,6 +406,16 @@ const CALLS = [
   ['auto', 'POST', '', JSONH, { action: 'resume' }],
   ['auto', 'POST', '', JSONH, { action: 'run' }],
   ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/', e: 'exp_view', x: 'xsmoke1:B' }],
+  // 口コミ管理。ここでは Googleビジネスプロフィールを連携していない状態（つながっている
+  // 状態は下でまとめて通します）。
+  ['reviews', 'GET', '', KEY],
+  ['reviews', 'GET', '?view=badge', KEY],
+  ['reviews', 'GET', '?optout=bad', {}],
+  ['reviews', 'POST', '', JSONH, { action: 'prefs', prefs: { shopName: 'スモーク', tone: 'warm', requests: 'manual' } }],
+  ['reviews', 'POST', '', JSONH, { action: 'sync' }],
+  ['reviews', 'POST', '', JSONH, { action: 'draft', id: 'none' }],
+  ['reviews', 'POST', '', JSONH, { action: 'request-send', id: 'bk_none' }],
+  ['reviews', 'POST', '', JSONH, { action: 'locations' }],
 ]
 
 let failed = 0
@@ -482,6 +502,33 @@ for (const [name, method, query, headers, body] of CALLS) {
     if (saved[n] === undefined) delete process.env[n]
     else process.env[n] = saved[n]
   }
+}
+
+// 口コミ管理を「連携済み」で：同期 → 返信 → 下書き → 返信を消す → 毎朝の自動処理。
+{
+  Object.assign(process.env, { GBP_REFRESH_TOKEN: 'smoke', GBP_LOCATION: 'accounts/1/locations/2' })
+  const mod = await import(new URL('../api/reviews.js', import.meta.url))
+  const steps = [
+    { action: 'sync', full: true }, { action: 'reply', id: 'rsmoke', text: 'ありがとうございます。' },
+    { action: 'draft', id: 'rsmoke' }, { action: 'reply-delete', id: 'rsmoke' },
+  ]
+  for (const body of steps) {
+    const label = `POST /api/reviews ${body.action}（連携済み）`
+    try {
+      const res = await mod.POST(new Request('https://lumenium.net/api/reviews', { method: 'POST', headers: { ...JSONH, 'x-forwarded-for': '203.0.113.201' }, body: JSON.stringify(body) }))
+      const d = await res.json()
+      if (res.status !== 200) { console.error(`✗ ${label} — ${res.status}: ${String(d.message).slice(0, 160)}`); failed++ }
+      else console.log(`  ${label} → ${res.status}`)
+    } catch (e) { console.error(`✗ ${label} — threw ${e && e.message}`); failed++ }
+  }
+  try {
+    const { runReviewsCron } = await import(new URL('../api/_reviews.js', import.meta.url))
+    const r = await runReviewsCron(undefined, 4000)
+    if (!r || r.ok === false) { console.error('✗ 口コミの毎朝の同期 — ' + JSON.stringify(r).slice(0, 160)); failed++ }
+    else console.log('  口コミの毎朝の同期 → ok')
+  } catch (e) { console.error(`✗ 口コミの毎朝の同期 — threw ${e && e.message}`); failed++ }
+  delete process.env.GBP_REFRESH_TOKEN
+  delete process.env.GBP_LOCATION
 }
 
 if (failed) {
