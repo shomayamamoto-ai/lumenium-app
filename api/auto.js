@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' }
 //     exp.start { key, b }             手で実験を始める
 //     exp.stop { id } / exp.adopt { id } / exp.revert { id }
 //     log.undo { id }                  記録から元に戻す
+//     drafts                           下書きだけ作る（AI。1日の回数と月の目安の内で）
 //     run                              毎朝の処理をいま1回（観測と提案。AIは1日の回数の内で）
 //
 // Admin key only, by the header only.
@@ -26,7 +27,7 @@ import { monthUsage } from './_ai-pricing.js'
 import { MODEL, USAGE_KIND } from './_auto-ai.js'
 import {
   adoptProposal, dismissProposal, startExperiment, stopExperiment, adoptExperiment, revertExperiment, undoLog, runDaily,
-  readOverrides, currentTexts,
+  readOverrides, currentTexts, makeDrafts,
 } from './_auto-run.js'
 
 const NO_STORE = { ok: false, code: 'NO_STORE', message: '自動改善には保存先（Upstash Redis）が必要です。設定状況の画面で接続してください。' }
@@ -131,6 +132,7 @@ export async function POST(req) {
       r = await undoLog(ctx, id, list.find((e) => e.id === id))
       break
     }
+    case 'drafts': r = await makeDrafts(ctx); break
     case 'run': {
       const { spendGuard } = await import('./_admin-auth.js')
       const capped = await spendGuard('auto-run', 6)

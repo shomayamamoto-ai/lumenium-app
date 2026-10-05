@@ -22,7 +22,7 @@ import { SECTION } from '../src/data/text.js'
 import { bookingCopy } from '../src/components/bookingCopy.js'
 import {
   EXP_KEYS, GOAL_LABELS, keyBlocked, textProblem, newExpId, evaluate, decideRunning, decideWatch,
-  canAutoStart, allowed, rulesFor, mergeProposals, MIN,
+  canAutoStart, allowed, rulesFor, mergeProposals, MIN, SWITCH_LABELS,
 } from './_auto-core.js'
 import {
   AK, readSettings, readProps, writeProps, saveProp, readExps, saveExp, publishLive, readCounts, addLog, markLog,
@@ -403,6 +403,58 @@ export async function runDaily(ctx, { budgetMs = 15000, date, readers, ai } = {}
     out.steps.push({ step: 'proposals', ok: false, message: '時間が足りないため、提案は明日にします。' })
   }
   return finish(cfg, pipeline, out)
+}
+
+/** 下書きだけを作ります（管理画面を開いたとき・毎朝の時間が足りなかったとき）。 */
+export async function makeDrafts(ctx) {
+  const { cfg, pipeline, req } = ctx
+  const settings = await readSettings(cfg, pipeline)
+  if (!allowed(settings, 'drafts')) return { ok: false, message: '「提案と下書きを作る」が切れているか、すべて止めています。' }
+  const before = await readProps(cfg, pipeline)
+  if (!Object.values(before).some(needsDraft)) return { ok: true, count: 0, message: '下書きが要る提案はありません。' }
+  const key = await setting('ANTHROPIC_API_KEY', '', req)
+  const { spendGuard } = await import('./_admin-auth.js')
+  const w = await writeDrafts(Object.values(before), { key, monthlyYen: settings.monthlyYen, guard: () => spendGuard('auto', DAILY_CALLS) })
+  const merged = { ...before }
+  for (const [id, d] of Object.entries(w.drafts || {})) if (merged[id]) merged[id] = { ...merged[id], draft: d }
+  await writeProps(cfg, pipeline, merged, before)
+  return { ok: w.ok, count: Object.keys(w.drafts || {}).length, message: w.reason || `${Object.keys(w.drafts || {}).length}件の下書きを作りました。` }
+}
+
+/* ---------------- 週次メールの一節 ---------------- */
+
+export async function weeklyAuto(cfg, pipeline, now = Date.now()) {
+  const [settings, props, exps, log] = await Promise.all([
+    readSettings(cfg, pipeline), readProps(cfg, pipeline), readExps(cfg, pipeline), import('./_auto-store.js').then((s) => s.readLog(cfg, pipeline, 100)),
+  ])
+  const since = now - 7 * 86400000
+  const running = []
+  for (const e of exps) {
+    if (e.phase === 'running') running.push({ label: e.label, text: evaluate(e, await readCounts(cfg, pipeline, e.id), now).text })
+    else if (e.phase === 'watch') running.push({ label: e.label, text: `採用後の見張り中（${Math.max(0, Math.floor((now - Date.parse(e.adoptedAt)) / 86400000))}日目／${MIN.watchDays}日）` })
+  }
+  return {
+    paused: settings.paused,
+    on: Object.keys(SWITCH_LABELS).filter((k) => allowed(settings, k)).map((k) => SWITCH_LABELS[k]),
+    running,
+    done: log.filter((e) => Date.parse(e.at) >= since && !['kill', 'resume'].includes(e.kind)).slice(0, 6).map((e) => ({ title: e.title, by: e.by })),
+    open: Object.values(props).filter((p) => p.status === 'open').map((p) => p.title),
+  }
+}
+
+export function weeklyAutoLines(w) {
+  const lines = ['■ 今週の自動改善']
+  if (!w) return lines.concat(['まだ動いていません。'])
+  lines.push(w.paused ? '・いまは「すべて止める」中です（観測だけしています）。' : `・自動でしてよいこと: ${w.on.length ? w.on.join('、') : 'なし'}`)
+  if (w.running.length) w.running.forEach((r) => lines.push(`・実験「${r.label}」: ${r.text}`))
+  else lines.push('・動いている実験はありません。')
+  if (w.done.length) {
+    lines.push('・この1週間にしたこと:')
+    w.done.forEach((d) => lines.push(`　- ${d.title}（${d.by === 'auto' ? '自動' : '手動'}）`))
+  }
+  lines.push(w.open.length ? `・まだ見ていない提案: ${w.open.length}件（例: ${w.open[0]}）` : '・まだ見ていない提案はありません。')
+  lines.push('　自動でしたことは、管理画面の「自動改善」からいつでも元に戻せます。')
+  return lines
 }
 
 async function finish(cfg, pipeline, out) {

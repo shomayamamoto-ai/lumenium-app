@@ -383,6 +383,9 @@ const CALLS = [
   ['auth', 'POST', '', { 'content-type': 'application/json' }, { code: 'SMOKE' }],
   // 自動改善。読む・設定・止める・提案の操作・実験の開始と停止・いま1回。
   ['exp', 'GET', '', {}],
+  ['auto-cron', 'GET', '', { authorization: 'Bearer smoke-cron' }],
+  ['auto-cron', 'GET', '', {}],
+  ['auto', 'POST', '', JSONH, { action: 'drafts' }],
   ['auto', 'GET', '', KEY],
   ['auto', 'GET', '?view=snapshots&days=7', KEY],
   ['auto', 'POST', '', JSONH, { action: 'settings.save', settings: { autoStart: false, monthlyYen: 300 } }],

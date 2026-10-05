@@ -532,6 +532,18 @@ await t('元に戻す（記録から）・すべて止める・触らない項�
   assert.equal(Object.keys(await STORE.readProps(R.cfg, R.pipeline)).length, 0)
 })
 
+await t('週次メールの一節', async () => {
+  const R = fakeRedis()
+  await RUN.startExperiment({ cfg: R.cfg, pipeline: R.pipeline, now: Date.now() - 2 * C.DAY }, { key: 'text.lp.ctaPrimary', a: '無料で相談する', b: 'まずは無料で相談', by: 'auto' })
+  const w = await RUN.weeklyAuto(R.cfg, R.pipeline)
+  const lines = RUN.weeklyAutoLines(w)
+  assert.equal(lines[0], '■ 今週の自動改善')
+  assert.ok(lines.some((l) => /実験「トップのボタン/.test(l) && /まだ判断できません/.test(l)))
+  assert.ok(lines.some((l) => /提案と下書きを作る/.test(l)))
+  assert.ok(lines.some((l) => /（自動）/.test(l)))
+  assert.ok(RUN.weeklyAutoLines({ ...w, paused: true }).some((l) => /すべて止める/.test(l)))
+})
+
 globalThis.fetch = realFetch
 
 console.log(`✓ test-auto: ${n} 件`)
