@@ -2832,3 +2832,114 @@
     return reply({ ok: false, demo: true, message: MSG + '（実際の画面では、ここで' + would + '）' });
   };
 })();
+
+/* ---- デモ：担当者と権限・操作の記録（shape: api/staff.js・api/audit.js・api/admin-ping.js） ----
+   架空の4人（オーナーのほか、担当者2人・閲覧のみ1人）と、その操作の記録。
+   ログイン中の人は、デモの帯の「この役割で見る」で選んだ役割になります
+   （/admin-staff.js）。足す・止める・キーを作り直すなどの保存は、ほかと
+   同じく「デモ版のため…」で断ります。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var H = 3600000, DAY = 86400000;
+  function ago(ms) { return new Date(Date.now() - ms).toISOString(); }
+  function reply(body, status) {
+    return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  var LABEL = { owner: 'オーナー', manager: '管理者', staff: '担当者', viewer: '閲覧のみ' };
+  var STAFF = [
+    { id: 'demo-sato', name: '佐藤 花子', email: 'sato@example.com', role: 'staff', active: true, createdAt: ago(60 * DAY), lastLoginAt: ago(2 * H), keyIssuedAt: ago(60 * DAY) },
+    { id: 'demo-suzuki', name: '鈴木 一郎', email: '', role: 'staff', active: true, createdAt: ago(41 * DAY), lastLoginAt: ago(26 * H), keyIssuedAt: ago(12 * DAY) },
+    { id: 'demo-tanaka', name: '田中 美咲', email: 'tanaka@example.com', role: 'viewer', active: true, createdAt: ago(20 * DAY), lastLoginAt: ago(5 * DAY), keyIssuedAt: ago(20 * DAY) }
+  ].map(function (s) { s.roleLabel = LABEL[s.role]; return s; });
+  var WHO = {
+    owner: { id: 'owner', name: 'オーナー', role: 'owner' },
+    manager: { id: 'demo-kato', name: '加藤 健（見本）', role: 'manager' },
+    staff: { id: 'demo-sato', name: '佐藤 花子', role: 'staff' },
+    viewer: { id: 'demo-tanaka', name: '田中 美咲', role: 'viewer' }
+  };
+  function current() {
+    var r = 'owner';
+    try { r = sessionStorage.getItem('lum_demo_role') || 'owner'; } catch (_) {}
+    var w = WHO[r] || WHO.owner;
+    return { id: w.id, name: w.name, role: w.role, roleLabel: LABEL[w.role] };
+  }
+
+  var P = { owner: WHO.owner, sato: STAFF[0], suzuki: STAFF[1], tanaka: STAFF[2] };
+  // [何時間前, だれ, 画面, 窓口, やり方, 操作, 対象, 結果]
+  var ROWS = [
+    [0.4, 'sato', 'inquiries', 'inquiries', 'PATCH', '', 'q8k2m', 'ok'],
+    [0.9, 'sato', 'sns', 'social', 'POST', 'approval-create', '', 'ok'],
+    [1.2, 'sato', 'sns', 'social', 'POST', 'post', '', 'denied'],
+    [2.0, 'sato', 'login', 'admin-ping', 'GET', '', '', 'login'],
+    [3.5, 'owner', 'sns', 'social', 'POST', 'approval-send', 'a19f', 'ok'],
+    [5, 'suzuki', 'booking', 'booking', 'PATCH', 'confirmed', '', 'ok'],
+    [6, 'suzuki', 'reviews', 'reviews', 'POST', 'reply', 'r_20261003', 'ok'],
+    [9, 'owner', 'copy', 'content-save', 'POST', '', '', 'ok'],
+    [26, 'suzuki', 'login', 'admin-ping', 'GET', '', '', 'login'],
+    [27, 'suzuki', 'news', 'news-post', 'POST', 'draft-save', '', 'ok'],
+    [27.5, 'suzuki', 'news', 'news-post', 'POST', 'add', '', 'denied'],
+    [30, 'owner', 'news', 'news-post', 'POST', 'add', '', 'ok'],
+    [50, 'owner', 'staff', 'staff', 'POST', 'reset', 'demo-suzuki', 'ok'],
+    [72, 'sato', 'inquiries', 'inquiries', 'PATCH', '', '3件', 'ok'],
+    [96, 'owner', 'settings', 'settings', 'POST', '', 'ANTHROPIC_API_KEY', 'ok'],
+    [120, 'tanaka', 'login', 'admin-ping', 'GET', '', '', 'login'],
+    [120.2, 'tanaka', 'inquiries', 'inquiries', 'PATCH', '', 'p2x7c', 'denied'],
+    [121, 'tanaka', 'login', 'admin-ping', 'GET', '', '', 'failed'],
+    [150, 'owner', 'members', 'members', 'POST', 'segment.create', '', 'ok'],
+    [200, 'owner', 'share', 'share-links', 'POST', 'create', '', 'ok'],
+    [480, 'owner', 'staff', 'staff', 'POST', 'create', 'demo-tanaka', 'ok']
+  ];
+  var IPS = { owner: '3f9a1c0be274', sato: '81d0c4a9e6f2', suzuki: 'c27e5b19a0d4', tanaka: '5a04e8f3b1c9' };
+  var ITEMS = ROWS.map(function (r) {
+    var p = P[r[1]];
+    return { at: ago(r[0] * H), by: p.id, name: p.name, role: p.role, area: r[2], ep: r[3], m: r[4], act: r[5], target: r[6], ip: IPS[r[1]], result: r[7] };
+  });
+
+  function jst(iso) { return new Date(Date.parse(iso) + 9 * H).toISOString().slice(0, 10); }
+  function filtered(q) {
+    var by = q.get('by'), area = q.get('area'), from = q.get('from'), to = q.get('to');
+    return ITEMS.filter(function (e) {
+      return (!by || e.by === by) && (!area || e.area === area) && (!from || jst(e.at) >= from) && (!to || jst(e.at) <= to);
+    });
+  }
+  function cell(v) {
+    var s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csv(list) {
+    var head = ['日時（日本時間）', '名前', '役割', '画面', '窓口', 'やり方', '操作', '対象', '接続元（ハッシュ）', '結果'];
+    var RES = { ok: '通した', denied: '断った', failed: 'ログイン失敗', login: 'ログイン' };
+    var rows = list.map(function (e) {
+      return [new Date(Date.parse(e.at) + 9 * H).toISOString().slice(0, 19).replace('T', ' '), e.name, LABEL[e.role], e.area, e.ep, e.m, e.act, e.target, e.ip, RES[e.result]];
+    });
+    return '﻿' + [head].concat(rows).map(function (r) { return r.map(cell).join(','); }).join('\r\n') + '\r\n';
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    var p = u ? u.pathname.replace(/\/+$/, '') : '';
+    if (p !== '/api/admin-ping' && p !== '/api/staff' && p !== '/api/audit') return inner(input, init);
+    var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      if (p === '/api/admin-ping') return reply({ ok: true, who: current(), staff: true });
+      if (method !== 'GET') return reply({ ok: false, demo: true, message: MSG + '（実際の画面では、ここで担当者が足され、キーが1回だけ表示されます）' });
+      if (p === '/api/staff') return reply({ ok: true, ready: true, demo: true, staff: STAFF, message: '' });
+      var hit = filtered(u.searchParams);
+      if (u.searchParams.get('format') === 'csv') {
+        return new Response(csv(hit), { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+      }
+      var people = [WHO.owner, STAFF[0], STAFF[1], STAFF[2]].map(function (s) { return { id: s.id, name: s.name, role: s.role }; });
+      return reply({ ok: true, stored: true, items: hit, total: hit.length, shown: hit.length, people: people, keepDays: 180, max: 5000 });
+    });
+  };
+})();

@@ -569,6 +569,8 @@
   }
 
   async function readOne(src) {
+    // この役割では断られると分かっているもの（キーの設定など）は取りに行きません。
+    if (window.lumStaff && !src[2] && !window.lumStaff.canRead(src[1])) return { state: 'off', data: null };
     try {
       if (src[2]) {
         var res = await fetch(src[1], { cache: 'no-store' });
@@ -675,6 +677,8 @@
   function paintSetup() {
     var host = el('lp-setup');
     if (!host || !P.data) return;
+    // キーの入力はオーナーだけなので、ほかの役割には手順を出しません（/admin-staff.js）。
+    if (window.lumStaff && !window.lumStaff.isOwner()) { host.hidden = true; return; }
     var r = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
     var full = r.pct === 100;
     // 読めなかったときは、確かめようのない12行を並べず、たたんでおきます。
