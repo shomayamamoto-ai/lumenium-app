@@ -1974,6 +1974,9 @@ window.lumAdmin = {
   var portalBuilt = false;
 
   function chipFor(tab, health) {
+    // 取りに行く前は「確認中」。取りに行って失敗したら、そう言います
+    // （「確認中」のまま止まると、ずっと待たされているように見えるため）。
+    if (health === false) return { cls: 'idle', text: '状態を取得できません' };
     if (!health) return { cls: 'idle', text: '確認中' };
     var needs = tab.needs ? [].concat(tab.needs) : [];
     if (!needs.length) {
@@ -2603,7 +2606,7 @@ window.lumAdmin = {
     }
     TABS.forEach(function (t) {
       var chip = document.querySelector('#pnode-' + t.id + ' .pn-chip');
-      var c = chipFor(t, health);
+      var c = chipFor(t, health || false);
       chip.className = 'pn-chip ' + c.cls;
       chip.textContent = c.text;
     });
