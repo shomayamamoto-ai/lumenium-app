@@ -983,6 +983,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-inquiries.js"></script>
 <!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
 <script src="/admin-members-tool.js"></script>
+<!-- 自動改善（観測・提案・文章の実験・自動適用）。 -->
+<script src="/admin-auto.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -1330,6 +1332,9 @@ header h1, header button, header a { white-space: nowrap; }
 
     <!-- 予約管理。中身は /admin-booking.js が組み立てます（項目が多いので別ファイル）。 -->
     <div class="panel" id="booking-admin" style="display:none; margin-top:20px"></div>
+
+    <!-- 自動改善。中身は /admin-auto.js が組み立てます。 -->
+    <div class="panel" id="auto-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
       <h2 style="font-size:15px; font-weight:700; margin-bottom:4px">設定状況</h2>
@@ -1874,7 +1879,11 @@ window.lumAdmin = {
     { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: 'ai',
       desc: 'AI検索での見え方', accent: '#b45309', tint: 'rgba(245,158,11,0.14)' },
     { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
-      desc: '次の一手を相談する', accent: '#b45309', tint: 'rgba(249,115,22,0.14)' }
+      desc: '次の一手を相談する', accent: '#b45309', tint: 'rgba(249,115,22,0.14)' },
+    /* The store: snapshots, proposals, experiments and the log all live
+       there. Everything it does is in /admin-auto.js. */
+    { id: 'auto-admin', icon: '🔁', label: '自動改善', init: 'lumAutoInit', needs: 'store',
+      desc: '数字から提案・文章を比べる', accent: '#0f766e', tint: 'rgba(13,148,136,0.13)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ポータル', icon: '🧭' }].concat(TABS);
