@@ -79,6 +79,18 @@ for (const g of schema.groups) {
     byMarker[mk] = f.path
   }
 }
+// Items added in the admin (content.json "added") must reach the pages too:
+// one of each, with its own marker. The FAQ one goes into the first group.
+{
+  const firstGroup = schema.groups.flatMap((g) => g.fields).map((f) => /^faq\.@([^.]+)\.label$/.exec(f.path)).find(Boolean)
+  marked.added = {
+    faq: [{ id: 'faq-a-check', group: firstGroup ? firstGroup[1] : 'none', q: '確認用の質問です? MK9001', a: '確認用の回答です。表示されるかを見ます。 MK9002' }],
+    testimonials: [{ id: 'voice-a-check', text: '確認用のお声です。 MK9003', name: '確認用 MK9004', detail: '' }],
+    cases: [{ id: 'case-a-check', tag: '確認', title: '確認用の事例 MK9005', desc: '確認用の説明です。表示を確かめます。 MK9006' }],
+  }
+  const at = { MK9001: 'added.faq.q', MK9002: 'added.faq.a', MK9003: 'added.testimonials.text', MK9004: 'added.testimonials.name', MK9005: 'added.cases.title', MK9006: 'added.cases.desc' }
+  for (const [mk, p] of Object.entries(at)) { byMarker[mk] = p; n++ }
+}
 writeFileSync(OVERRIDES, JSON.stringify(marked, null, 2) + '\n')
 console.log(`${n} 件に印を付けてビルドします…`)
 execSync('npm run build', { cwd: ROOT, stdio: 'inherit' })

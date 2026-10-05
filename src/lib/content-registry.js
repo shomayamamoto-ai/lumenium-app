@@ -11,6 +11,7 @@ import { articles } from '../data/articles.js'
 import { SERVICES } from '../data/services.js'
 import { SECTION } from '../data/text.js'
 import { itemId, idArray, migratePath, ID_SEG } from './content-ids.js'
+import { applyExtra } from './content-extra.js'
 
 // Arrays whose items all carry an `id` (or a `key`) are addressed by it —
 // "site.TESTIMONIALS.@voice-p8q48v.text" — so an override stays on its item
@@ -103,6 +104,8 @@ function step(node, seg) {
  * Apply a { path: string } override map onto the live registry objects.
  * Only replaces leaves that already exist and are already strings, so a stale
  * or hand-edited content.json can never introduce new shapes or wrong types.
+ * The `added` / `hidden` sections are the one way to change a list's length,
+ * and they are checked item by item (src/lib/content-extra.js).
  * Returns the number of values actually applied.
  */
 export function applyOverrides(overrides, root = REGISTRY) {
@@ -128,5 +131,8 @@ export function applyOverrides(overrides, root = REGISTRY) {
     node[leaf] = value
     applied++
   }
-  return applied
+  // Items added in the admin (FAQ, お客様の声, 実績, blog posts) go after the
+  // built-in ones, and hidden ones come out — here, so the app, the prerender
+  // and every static page generator get the same lists from one call.
+  return applied + applyExtra(overrides, root)
 }

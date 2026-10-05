@@ -328,4 +328,66 @@ await t('revert: 「この時点に戻す」は新しいコミットとして書
   assert.equal((await POST(req('content-save', 'POST', { changes: { added: 'x' } }))).status, 400)
 })
 
+/* ==== 文章編集：項目を足す・隠す ==== */
+const extra = await import('../src/lib/content-extra.js')
+const faqMod = await import('../src/data/faq.js')
+
+await t('added/hidden: 足した項目は後ろに付き、隠した項目は外れる（2回当てても同じ）', () => {
+  const root = { site: { TESTIMONIALS: clone(site.TESTIMONIALS), CASE_STUDIES: clone(site.CASE_STUDIES) }, faq: clone(faqMod.FAQ_GROUPS) }
+  const g = root.faq[1].id
+  const hideQ = root.faq[0].items[0].id
+  const data = {
+    added: {
+      faq: [{ id: 'faq-a-1', group: g, q: '土日も対応できますか?', a: 'はい、事前にご相談いただければ対応します。' }],
+      testimonials: [{ id: 'voice-a-1', text: '早くて分かりやすかったです。', name: '工務店 代表', detail: '' }],
+      cases: [{ id: 'case-a-1', tag: 'Web', title: '工務店のサイト', desc: '施工事例を自分で足せる作りにしました。' },
+        { id: 'case-a-2', tag: 'Web', title: '短', desc: '短すぎる題名は飛ばす' }],
+    },
+    hidden: { testimonials: [root.site.TESTIMONIALS[4].id], faq: [hideQ] },
+  }
+  const before = root.site.TESTIMONIALS.length
+  extra.applyExtra(data, root)
+  extra.applyExtra(data, root)
+  assert.equal(root.site.TESTIMONIALS.length, before, '1件足して1件隠したので同じ数')
+  assert.equal(root.site.TESTIMONIALS.at(-1).id, 'voice-a-1')
+  assert.equal(root.site.TESTIMONIALS.at(-1).initial, '工')
+  assert.equal(root.site.CASE_STUDIES.filter((c) => c.id.startsWith('case-a-')).length, 1, '決まりに合わない項目は出さない')
+  assert.equal(root.faq[1].items.at(-1).id, 'faq-a-1')
+  assert.ok(!root.faq[0].items.some((x) => x.id === hideQ))
+})
+
+await t('added/hidden: applyOverrides 経由でも同じ（表示もビルドも同じ関数）', () => {
+  const root = { site: { TESTIMONIALS: clone(site.TESTIMONIALS) } }
+  const target = root.site.TESTIMONIALS[0].id
+  registry.applyOverrides({ [`site.TESTIMONIALS.@${target}.name`]: '上書き', hidden: { testimonials: [target] },
+    added: { testimonials: [{ id: 'voice-a-9', text: '足した声です。ありがとう。', name: '店主', detail: '' }] } }, root)
+  assert.ok(!root.site.TESTIMONIALS.some((x) => x.id === target))
+  assert.equal(root.site.TESTIMONIALS.at(-1).id, 'voice-a-9')
+})
+
+await t('added: 文字数の決まり（短すぎ・長すぎ・グループなし）', () => {
+  assert.match(extra.checkItem('faq', { id: 'faq-a-1', group: 'g-1', q: '短', a: '十分な長さの回答です。はい。' }), /質問は4文字以上/)
+  assert.match(extra.checkItem('faq', { id: 'faq-a-1', group: '', q: '十分な質問?', a: '十分な長さの回答です。はい。' }), /グループ/)
+  assert.match(extra.checkItem('testimonials', { id: 'voice-a-1', text: 'あ'.repeat(201), name: '店主' }), /200文字まで/)
+  assert.match(extra.checkItem('cases', { id: 'BAD', tag: 'x', title: '題名です', desc: '説明は十分に長いです。' }), /id/)
+  assert.equal(extra.checkItem('cases', { id: 'case-a-1', tag: 'x', title: '題名です', desc: '説明は十分に長いです。' }), '')
+})
+
+await t('content-save: ops は id ごとに重ねる（別の画面で足した項目を消さない）', async () => {
+  const repo = fakeRepo({ 'text.lp.title': '見出し', added: { faq: [{ id: 'faq-a-other', group: 'g-1', q: '別の人の質問?', a: '別の人が足した回答です。' }] } })
+  on([repo.handler])
+  const { POST } = await import('../api/content-save.js')
+  let r = await POST(req('content-save', 'POST', { ops: { added: { faq: { 'faq-a-mine': { group: 'g-1', q: '私の質問ですか?', a: '私が足した回答です。はい。' } } }, hidden: { cases: { 'case-x1': true } } } }))
+  assert.equal(r.status, 200, JSON.stringify(await r.clone().json()))
+  assert.deepEqual(repo.content.added.faq.map((x) => x.id), ['faq-a-other', 'faq-a-mine'])
+  assert.deepEqual(repo.content.hidden, { cases: ['case-x1'] })
+  assert.equal(repo.content['text.lp.title'], '見出し')
+  r = await POST(req('content-save', 'POST', { ops: { added: { faq: { 'faq-a-mine': null } }, hidden: { cases: { 'case-x1': false } } } }))
+  assert.equal(r.status, 200)
+  assert.deepEqual(repo.content.added.faq.map((x) => x.id), ['faq-a-other'])
+  assert.equal(repo.content.hidden, undefined, '空になった節は残さない')
+  r = await POST(req('content-save', 'POST', { ops: { added: { faq: { 'faq-a-bad': { group: 'g-1', q: '?', a: 'x' } } } } }))
+  assert.equal(r.status, 400)
+})
+
 console.log(`test-content: ${passed} passed`)

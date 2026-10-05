@@ -4,6 +4,7 @@ import { requireAdmin } from './_admin-auth.js'
 import { setting } from './_settings.js'
 import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit, fileHistory, fileAt } from './_github.js'
 import { migrateOverrides, migratePath } from '../src/lib/content-ids.js'
+import { applyOps } from '../src/lib/content-extra.js'
 
 // Admin copy editing: commits public/content.json to the GitHub repo via the
 // Contents API, exactly like news-post.js. Vercel's GitHub integration then
@@ -22,6 +23,9 @@ const MAX_KEYS = 2000
 // Top-level keys that hold structured sections rather than one string each
 // (src/lib/content-extra.js). They can never be a string path.
 const SECTIONS = ['added', 'hidden', 'seo']
+// Blog posts written in the admin live at /blog/<slug>.html; the built-in ones
+// at /blog/post-<n>.html, which validArticleSlug already rules out.
+const BUILTIN_SLUGS = []
 const MAX_LEN = 4000
 // A segment is a key, an index, or "@id" (an item of a list, by its id —
 // see src/lib/content-ids.js).
@@ -86,8 +90,13 @@ export async function POST(req) {
 
   if (payload?.revert) return revert(token, repo, String(payload.revert))
 
-  const changes = payload?.changes
-  if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
+  // `changes`: one string per path. `ops`: the structured sections — items
+  // added to or hidden from a list, page titles for search, blog posts
+  // (src/lib/content-extra.js applyOps). Either may come alone.
+  const changes = payload?.changes ?? {}
+  const ops = payload?.ops
+  if (typeof changes !== 'object' || Array.isArray(changes) || changes === null ||
+      (!Object.keys(changes).length && !(ops && typeof ops === 'object'))) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '変更内容がありません。' }, 400)
   }
 
@@ -138,6 +147,16 @@ export async function POST(req) {
   if (Object.keys(merged).length > MAX_KEYS) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '項目数が上限を超えました。' }, 400)
   }
+  if (ops && typeof ops === 'object') {
+    const r = applyOps(merged, ops, { builtinSlugs: BUILTIN_SLUGS })
+    if (r.error) return json({ ok: false, code: 'BAD_REQUEST', message: r.error }, 400)
+    for (const k of SECTIONS) {
+      if (r[k] && Object.keys(r[k]).length) merged[k] = r[k]
+      else delete merged[k]
+    }
+    changed += r.changed
+  }
+
   // Nothing new from the admin: leave the file alone, even if it still has
   // old keys — they read correctly, and a commit means a whole rebuild.
   if (!changed) {
