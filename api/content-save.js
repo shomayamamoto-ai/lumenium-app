@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' }
 import { requireAdmin } from './_admin-auth.js'
 import { setting } from './_settings.js'
 import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } from './_github.js'
+import { migrateOverrides, migratePath } from '../src/lib/content-ids.js'
 
 // Admin copy editing: commits public/content.json to the GitHub repo via the
 // Contents API, exactly like news-post.js. Vercel's GitHub integration then
@@ -19,7 +20,10 @@ import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit } 
 const FILE_PATH = 'public/content.json'
 const MAX_KEYS = 2000
 const MAX_LEN = 4000
-const PATH_RE = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/
+// A segment is a key, an index, or "@id" (an item of a list, by its id —
+// see src/lib/content-ids.js).
+const SEG = '(?:[A-Za-z0-9_]+|@[A-Za-z0-9_-]+)'
+const PATH_RE = new RegExp(`^${SEG}(\\.${SEG})*$`)
 
 const NO_TOKEN = {
   ok: false, code: 'GITHUB_NOT_CONFIGURED',
@@ -53,7 +57,11 @@ export async function GET(req) {
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) overrides = parsed
   } catch (_) { overrides = {} }
 
-  return json({ ok: true, overrides, commit: await lastCommit(token, repo, FILE_PATH) })
+  // Older index-keyed overrides are shown as the items they meant; the file
+  // itself is rewritten that way on the next save. `stored` is the file as it
+  // is, for comparing with the deployed copy.
+  const { out } = migrateOverrides(overrides)
+  return json({ ok: true, overrides: out, stored: overrides, commit: await lastCommit(token, repo, FILE_PATH) })
 }
 
 export async function POST(req) {
@@ -92,12 +100,17 @@ export async function POST(req) {
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) merged = parsed
     } catch { merged = {} }
   }
+  // 古い「何番目」の書き方を、この保存のついでに id の書き方へ。
+  const migrated = migrateOverrides(merged)
+  merged = migrated.out
 
   let changed = 0
-  for (const [path, value] of Object.entries(changes)) {
-    if (!PATH_RE.test(path)) {
-      return json({ ok: false, code: 'BAD_REQUEST', message: `不正な項目名です: ${path}` }, 400)
+  for (const [raw, value] of Object.entries(changes)) {
+    if (!PATH_RE.test(raw)) {
+      return json({ ok: false, code: 'BAD_REQUEST', message: `不正な項目名です: ${raw}` }, 400)
     }
+    // An editor page opened before the switch to ids still sends index paths.
+    const path = migratePath(raw) || raw
     // null means "restore the built-in wording" — drop the override entirely.
     if (value === null) {
       if (path in merged) { delete merged[path]; changed++ }
@@ -115,6 +128,8 @@ export async function POST(req) {
   if (Object.keys(merged).length > MAX_KEYS) {
     return json({ ok: false, code: 'BAD_REQUEST', message: '項目数が上限を超えました。' }, 400)
   }
+  // Nothing new from the admin: leave the file alone, even if it still has
+  // old keys — they read correctly, and a commit means a whole rebuild.
   if (!changed) {
     return json({ ok: true, overrides: merged, changed: 0, message: '変更はありませんでした。' })
   }
@@ -126,7 +141,7 @@ export async function POST(req) {
   const put = await ghFile(token, repo, FILE_PATH, {
     method: 'PUT',
     body: JSON.stringify({
-      message: `content: ${changed} 件の文章を更新`,
+      message: `content: ${changed} 件の文章を更新` + (migrated.moved ? `（${migrated.moved} 件の住所を id に移行）` : ''),
       content: b64encodeUtf8(JSON.stringify(sorted, null, 2) + '\n'),
       ...(sha ? { sha } : {}),
     }),

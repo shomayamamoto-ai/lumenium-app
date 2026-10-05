@@ -222,4 +222,70 @@ await t('news-cron: フックが無ければ「公開済み」にするコミッ
   assert.equal(repo.puts.length, 1, '2回目は何もしない')
 })
 
+/* ==== 文章編集：id の住所 ==== */
+const registry = await import('../src/lib/content-registry.js')
+const ids = await import('../src/lib/content-ids.js')
+const { LEGACY_ORDER } = await import('../src/lib/content-legacy-order.js')
+const site = await import('../src/data/site.js')
+const clone = (x) => JSON.parse(JSON.stringify(x))
+
+await t('id: 項目に id がある配列は @id の住所、文字だけの配列は番号のまま', () => {
+  const paths = registry.collectPaths().map((p) => p.path)
+  assert.ok(paths.some((p) => /^site\.TESTIMONIALS\.@voice-[a-z0-9]+\.text$/.test(p)))
+  assert.ok(paths.some((p) => /^faq\.@faqg-[a-z0-9]+\.items\.@faq-[a-z0-9]+\.a$/.test(p)))
+  assert.ok(paths.includes('site.ACHIEVEMENTS.0'))
+  assert.ok(!paths.some((p) => /^site\.TESTIMONIALS\.\d/.test(p)), '番号の住所が残っていない')
+  // id は重複しない
+  for (const [k, list] of Object.entries(LEGACY_ORDER)) assert.equal(new Set(list).size, list.length, k)
+})
+
+await t('id: 並べ替えても、上書きは同じ項目（同じお客様の声）に付いたまま', () => {
+  const list = clone(site.TESTIMONIALS)
+  const target = list[1]
+  const root = { site: { TESTIMONIALS: list.slice().reverse() } }
+  const n = registry.applyOverrides({ [`site.TESTIMONIALS.@${target.id}.text`]: '並べ替えても残る' }, root)
+  assert.equal(n, 1)
+  const hit = root.site.TESTIMONIALS.find((x) => x.id === target.id)
+  assert.equal(hit.text, '並べ替えても残る')
+  assert.equal(root.site.TESTIMONIALS[1].text, list[3].text, 'いま2番目の項目は変わらない')
+})
+
+await t('id: 古い「何番目」の上書きは、切り替えた時点の並びで読み替える（あとで並べ替えても）', () => {
+  const list = clone(site.TESTIMONIALS)
+  const meant = LEGACY_ORDER['site.TESTIMONIALS'][1]
+  const root = { site: { TESTIMONIALS: list.slice().reverse() } }
+  registry.applyOverrides({ 'site.TESTIMONIALS.1.text': '古い書き方' }, root)
+  assert.equal(root.site.TESTIMONIALS.find((x) => x.id === meant).text, '古い書き方')
+  assert.equal(root.site.TESTIMONIALS.filter((x) => x.text === '古い書き方').length, 1)
+  // 入れ子（FAQ のグループの中の質問）も
+  const g = LEGACY_ORDER.faq[0]
+  const q = LEGACY_ORDER[`faq.@${g}.items`][2]
+  assert.equal(ids.migratePath('faq.0.items.2.a'), `faq.@${g}.items.@${q}.a`)
+  assert.equal(ids.migratePath('site.ACHIEVEMENTS.3'), 'site.ACHIEVEMENTS.3', '文字だけの配列はそのまま')
+  assert.equal(ids.migratePath('site.TESTIMONIALS.99.text'), null, '無かった番号は読み替えない')
+})
+
+await t('id: 新旧両方の書き方があれば新しい方を残し、古い方は数える', () => {
+  const id = LEGACY_ORDER['site.CASE_STUDIES'][0]
+  const { out, moved } = ids.migrateOverrides({
+    'site.CASE_STUDIES.0.title': '古い', [`site.CASE_STUDIES.@${id}.title`]: '新しい', 'text.lp.title': 'そのまま',
+  })
+  assert.deepEqual(out, { [`site.CASE_STUDIES.@${id}.title`]: '新しい', 'text.lp.title': 'そのまま' })
+  assert.equal(moved, 1)
+})
+
+await t('content-save: 次に保存するとき、古い書き方の上書きを id の書き方で書き直す', async () => {
+  const id = LEGACY_ORDER['site.TESTIMONIALS'][0]
+  const repo = fakeRepo({ 'site.TESTIMONIALS.0.name': '古い住所の名前' })
+  on([repo.handler])
+  const { GET, POST } = await import('../api/content-save.js')
+  const g = await (await GET(req('content-save'))).json()
+  assert.equal(g.overrides[`site.TESTIMONIALS.@${id}.name`], '古い住所の名前', '読むときに読み替える')
+  assert.equal(g.stored['site.TESTIMONIALS.0.name'], '古い住所の名前')
+  const r = await POST(req('content-save', 'POST', { changes: { 'text.lp.title': '新しい見出し' } }))
+  assert.equal(r.status, 200)
+  assert.deepEqual(Object.keys(repo.content).sort(), [`site.TESTIMONIALS.@${id}.name`, 'text.lp.title'].sort())
+  assert.match(repo.puts[0].message, /1 件の住所を id に移行/)
+})
+
 console.log(`test-content: ${passed} passed`)
