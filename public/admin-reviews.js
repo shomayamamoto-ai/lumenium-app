@@ -567,11 +567,11 @@
   function candidatesTable(q) {
     var list = q.candidates || [];
     if (!list.length) return '<p class="soc-small">「予約管理」で「来店済み」にした予約が、ここに並びます。</p>';
-    return '<table class="rev-tbl"><thead><tr><th>お名前</th><th>来店</th><th>状態</th><th></th></tr></thead><tbody>' + list.map(function (c) {
-      return '<tr><td>' + esc(c.name) + ' 様<div class="soc-small">' + esc(c.email) + (c.service ? '・' + esc(c.service) : '') + '</div></td>' +
-        '<td style="white-space:nowrap">' + day(c.visitedAt) + '</td>' +
-        '<td>' + (c.ok ? '<span class="rev-tag ok">送れます</span>' : '<span class="soc-small">' + esc(c.message) + '</span>') + '</td>' +
-        '<td>' + (c.ok && q.mode !== 'off' ? '<button type="button" class="ghost" data-send="' + esc(c.id) + '" style="font-size:12px;padding:6px 10px">送る</button>' : '') + '</td></tr>';
+    // 2列だけにして、スマホの幅でもはみ出さないようにしています。
+    return '<table class="rev-tbl"><thead><tr><th>お名前・来店日</th><th>状態</th></tr></thead><tbody>' + list.map(function (c) {
+      return '<tr><td style="overflow-wrap:anywhere">' + esc(c.name) + ' 様<div class="soc-small">' + day(c.visitedAt) + ' 来店' + (c.service ? '・' + esc(c.service) : '') + '<br>' + esc(c.email) + '</div></td>' +
+        '<td style="width:42%;overflow-wrap:anywhere">' + (c.ok ? '<span class="rev-tag ok">送れます</span>' : '<span class="soc-small">' + esc(c.message) + '</span>') +
+        (c.ok && q.mode !== 'off' ? '<div style="margin-top:4px"><button type="button" class="ghost" data-send="' + esc(c.id) + '" style="font-size:12px;padding:6px 12px">送る</button></div>' : '') + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
   function printQr(link) {
