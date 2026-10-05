@@ -82,7 +82,7 @@ export async function POST(req) {
       if (action === 'invoice' && (q.kind === 'invoice' || q.status !== 'won')) {
         return reply({ ok: false, message: '請求書にできるのは「受注」の見積書だけです。' })
       }
-      const draft = action === 'invoice' ? invoiceFromQuote(q, today, s) : duplicateQuote(q, today, s.validDays)
+      const draft = action === 'invoice' ? invoiceFromQuote(q, today) : duplicateQuote(q, today, s.validDays)
       const r = await saveQuote(cfg, Object.assign(draft, { id: '' }))
       return reply(Object.assign(r, r.ok ? { message: action === 'invoice' ? `請求書 ${r.quote.number} の下書きを作りました。` : `複製して ${r.quote.number} を作りました。` } : {}))
     }

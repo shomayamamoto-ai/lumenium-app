@@ -2803,6 +2803,7 @@
   // 受注した Q-2026-0005 から作った請求書（送付済み）。
   var INV = JSON.parse(JSON.stringify(QUOTES.filter(function (q) { return q.id === 'qtdemo5'; })[0]));
   INV.id = 'qtdemoinv3'; INV.kind = 'invoice'; INV.number = 'INV-2026-0003'; INV.date = ymd(11); INV.validUntil = ''; INV.delivery = ''; INV.payTerms = '';
+  INV.delivery = (function (d) { return Number(d.slice(0, 4)) + '年' + Number(d.slice(5, 7)) + '月' + Number(d.slice(8, 10)) + '日（展示会の当日）'; })(ymd(12)); INV.notes = '';
   INV.status = 'sent'; INV.fromQuote = 'qtdemo5'; INV.sentAt = iso(11, 2); INV.openedAt = iso(10, 4); INV.lastViewedAt = iso(10, 4); INV.views = 1;
   INV.decidedAt = ''; INV.memo = '';
   INV.dueDate = new Date(Date.UTC(Number(INV.date.slice(0, 4)), Number(INV.date.slice(5, 7)) + 1, 0)).toISOString().slice(0, 10);

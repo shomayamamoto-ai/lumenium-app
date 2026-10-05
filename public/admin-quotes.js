@@ -101,7 +101,7 @@
     '#quotes-admin input.qt-in,#quotes-admin select.qt-in,#quotes-admin textarea.qt-in{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:13px;line-height:1.5;color:var(--text)}' +
     '#quotes-admin textarea.qt-in{resize:vertical}' +
     '.qt-items{display:flex;flex-direction:column;gap:6px}' +
-    '.qt-row{display:grid;grid-template-columns:minmax(0,1fr) 70px 58px 112px 104px 96px 34px;gap:6px;align-items:center}' +
+    '.qt-row{display:grid;grid-template-columns:minmax(0,1fr) 70px 58px 108px 112px 96px 34px;gap:6px;align-items:center}' +
     '.qt-row.head{font-size:11px;font-weight:700;color:var(--sub)}.qt-row.head span{padding-left:2px}' +
     '.qt-row .lb{display:none}.qt-row .amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}' +
     '.qt-row.disc .amt{color:#7a2a20}.qt-row .c{min-width:0;display:block}' +
@@ -120,7 +120,7 @@
     '@media (max-width:640px){.qt-top{grid-template-columns:1fr 1fr}.qt-card .v{font-size:17px}' +
     '.qt-row{grid-template-columns:1fr 1fr 1fr;border:1px solid var(--border);border-radius:10px;padding:8px;background:#fff;gap:6px 8px}' +
     '.qt-row.head{display:none}.qt-row .lb{display:block;font-size:10.5px;font-weight:700;color:var(--sub);margin-bottom:2px}' +
-    '.qt-row .c.nm{grid-column:1 / -1}.qt-row .amt{grid-column:1 / 3;text-align:left;align-self:center}.qt-row .del{justify-self:end}' +
+    '.qt-row .c.nm{grid-column:1 / -1}.qt-row .amt{align-self:end;padding-bottom:9px}.qt-row .del{justify-self:end;align-self:end}' +
     '.qt-row.disc .c.nm{grid-column:1 / -1}.qt-tot{max-width:none}.qt-tbl{font-size:12px}}';
 
   function addCss() {
@@ -333,8 +333,8 @@
   }
 
   function rateOpts(v, discount) {
-    var o = [['10', '10%'], ['8', '8%（軽減）'], ['0', '非課税']];
-    if (discount) o.unshift(['all', '全体（按分）']);
+    var o = [['10', '10%'], ['8', '8%軽減'], ['0', '非課税']];
+    if (discount) o.unshift(['all', '全体で按分']);
     return o.map(function (x) { return '<option value="' + x[0] + '"' + (String(v) === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('');
   }
   function itemRow(it, i) {
@@ -402,7 +402,8 @@
         field('qt-number', inv ? '請求番号' : '見積番号', inp('qt-number', q.number, ' placeholder="空なら保存のときに自動で振ります"')) +
         field('qt-date', inv ? '請求日' : '発行日', inp('qt-date', q.date, ' type="date"')) +
         (inv
-          ? field('qt-dueDate', 'お支払期限', inp('qt-dueDate', q.dueDate, ' type="date"'))
+          ? field('qt-dueDate', 'お支払期限', inp('qt-dueDate', q.dueDate, ' type="date"')) +
+            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分"'), '適格請求書（インボイス）には、取引の年月日が必要です。')
           : field('qt-validUntil', '有効期限', inp('qt-validUntil', q.validUntil, ' type="date"'), 'この日を過ぎて返事がないと「期限切れ」になります。') +
             field('qt-delivery', '納期', inp('qt-delivery', q.delivery)) +
             field('qt-payTerms', 'お支払条件', inp('qt-payTerms', q.payTerms))) +
@@ -554,8 +555,8 @@
       if (c) c.textContent = yen(a);
     });
     var incl = t.taxMode === 'incl';
-    var rows = '<tr><th>小計（税抜）</th><td>' + yen(t.subtotal) + '</td></tr>';
-    if (t.discount) rows += '<tr><th>うち値引き</th><td>' + yen(-t.discount) + '</td></tr>';
+    var rows = t.discount ? '<tr><th>値引き前の合計' + (incl ? '（税込）' : '（税抜）') + '</th><td>' + yen(t.itemsTotal) + '</td></tr><tr><th>値引き</th><td>' + yen(-t.discount) + '</td></tr>' : '';
+    rows += '<tr><th>小計（税抜）</th><td>' + yen(t.subtotal) + '</td></tr>';
     t.groups.forEach(function (g) {
       if (!g.rate) { rows += '<tr><th>非課税</th><td>' + yen(g.amount) + '</td></tr>'; return; }
       rows += '<tr><th>' + g.rate + '% 対象' + (incl ? '（税込）' : '') + '</th><td>' + yen(incl ? g.incl : g.excl) + '</td></tr>' +
@@ -639,12 +640,13 @@
   function printDoc() {
     readForm();
     var q = numeric(S.cur);
-    var w = window.open('', '_blank');
-    if (!w) { say('新しい窓を開けませんでした。ブラウザがポップアップを止めていないか確かめてください。'); return; }
     var note = !q.id ? 'まだ保存していません。番号は保存したときに振られます。' : true;
-    w.document.open();
-    w.document.write(core().docPage(q, S.data.settings, { toolbar: note, draft: true }));
-    w.document.close();
+    /* 中身はこの画面で作り、ブラウザの中だけの一時的なアドレス（blob:）で開きます。
+       サーバーには何も送らないので、デモでも、保存する前でも確かめられます。 */
+    var url = URL.createObjectURL(new Blob([core().docPage(q, S.data.settings, { toolbar: note, draft: true })], { type: 'text/html;charset=utf-8' }));
+    var w = window.open(url, '_blank');
+    setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+    if (!w) say('新しい窓を開けませんでした。ブラウザがポップアップを止めていないか確かめてください。');
   }
 
   /* ---------------- メール・リンク ---------------- */

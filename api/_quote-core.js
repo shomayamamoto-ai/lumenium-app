@@ -255,7 +255,8 @@ export function computeTotals(q, rounding) {
     total += incl
   })
   const discount = RATES.reduce((a, r) => a + disc[r], 0)
-  return { amounts, groups, subtotal, tax, total, discount, errors, taxMode, rounding: mode }
+  const itemsTotal = RATES.reduce((a, r) => a + sums[r], 0)
+  return { amounts, groups, itemsTotal, subtotal, tax, total, discount, errors, taxMode, rounding: mode }
 }
 
 /* -------------------------------------------------------------- 番号 -- */
@@ -399,12 +400,13 @@ export function duplicateQuote(q, today, validDays) {
 }
 
 /** 受注した見積書から、請求書の下書き。 */
-export function invoiceFromQuote(q, today, settings) {
+export function invoiceFromQuote(q, today) {
   const r = duplicateQuote(q, today, 0)
   return Object.assign(r, {
     kind: 'invoice', validUntil: '', delivery: '', dueDate: endOfNextMonth(today),
     subject: q.subject, fromQuote: q.id, payTerms: '',
-    notes: q.notes,
+    // 見積書の備考（「内容が変わったら…」など）は請求書には合わないので持ち越しません。
+    notes: '',
   })
 }
 
@@ -674,6 +676,10 @@ export function renderDoc(q, issuer, opts) {
   }).join('')
   const incl = t.taxMode === 'incl'
   const sumRows = []
+  if (t.discount) {
+    sumRows.push('<tr><th>値引き前の合計' + (incl ? '（税込）' : '（税抜）') + '</th><td class="num">' + yen(t.itemsTotal) + '</td></tr>')
+    sumRows.push('<tr><th>値引き</th><td class="num">' + yen(-t.discount) + '</td></tr>')
+  }
   sumRows.push('<tr><th>小計（税抜）</th><td class="num">' + yen(t.subtotal) + '</td></tr>')
   t.groups.forEach((g) => {
     if (!g.rate) { sumRows.push('<tr><th>非課税 対象</th><td class="num">' + yen(g.amount) + '</td></tr>'); return }
@@ -685,6 +691,7 @@ export function renderDoc(q, issuer, opts) {
   const kv = []
   if (q.subject) kv.push(['件名', q.subject])
   if (inv) {
+    if (q.delivery) kv.push(['お取引日', q.delivery])
     if (q.dueDate) kv.push(['お支払期限', jpDate(q.dueDate)])
   } else {
     if (q.validUntil) kv.push(['有効期限', jpDate(q.validUntil)])
@@ -694,6 +701,7 @@ export function renderDoc(q, issuer, opts) {
   const reg = checkRegNo(s.regNo)
   const warn = []
   if (o.draft && inv && (!reg.value || reg.state === 'format')) warn.push('請求書を適格請求書（インボイス）として出すには、設定に登録番号が必要です。')
+  if (o.draft && inv && !q.delivery) warn.push('適格請求書には、取引の年月日（納品日・作業の月など）が必要です。「お取引日」に入れてください。')
   if (o.draft && t.errors.length) warn.push(t.errors.join(' '))
   if (o.draft) warn.unshift('この画面は確認用です（「下書き」の印はお客様に送るものには出ません）。')
   const to = [q.toCompany, q.toPerson].filter(Boolean)
