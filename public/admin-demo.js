@@ -466,9 +466,12 @@
       ok: true,
       generatedAt: new Date().toISOString(),
       today: jstDate(0),
-      worst: 'ok',
+      // ポータルの「はじめての設定」が、済んだもの・まだのものの両方を
+      // 見せられるように、管理キーだけ「短め」にしてあります。
+      worst: 'warn',
       checks: [
-        c('admin', '管理キー', 'ADMIN_KEY', 'この画面が開けているので設定済みです。'),
+        { id: 'admin', label: '管理キー', env: 'ADMIN_KEY', state: 'warn',
+          note: '設定済みですが短めです。24文字以上のランダムな文字列に変えると、総当たりで当てられる心配がなくなります（パスワード管理アプリの自動生成がおすすめです）。' },
         c('resend', '問い合わせメール送信', 'RESEND_API_KEY', '問い合わせフォームと会員登録が動作します。'),
         c('contactTo', '問い合わせの宛先', 'CONTACT_TO_EMAIL', '指定のアドレスに届きます。'),
         c('store', 'アクセス解析・AIOの保存先', 'KV_REST_API_URL, KV_REST_API_TOKEN', 'ページビュー・導線・AIO計測が記録され、失効できる共有リンクも発行できます。'),
@@ -1683,6 +1686,9 @@
     switch (p) {
       case '/api/admin-ping': return reply({ ok: true });
       case '/api/deploy-status':
+        // ポータルの「今日やること」が読む最新のコミットは、いつも「反映済み」。
+        // 保存したあとの見守りの回数には数えません。
+        if (q.get('latest')) return reply({ ok: true, state: 'live', url: null, message: 'サイトに反映済みです。' });
         // 1回目は「反映中」、2回目からは「反映済み」。
         return reply(demoDeploy++ < 1
           ? { ok: true, state: 'building', url: null, message: '反映中です。' }
