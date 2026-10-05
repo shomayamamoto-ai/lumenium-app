@@ -381,6 +381,18 @@ const CALLS = [
     { name: 'スモーク', email: 'smoke@example.com', code: 'SMOKE', consent: true }],
   ['register', 'GET', '', {}],
   ['auth', 'POST', '', { 'content-type': 'application/json' }, { code: 'SMOKE' }],
+  // 自動改善。読む・設定・止める・提案の操作・実験の開始と停止・いま1回。
+  ['exp', 'GET', '', {}],
+  ['auto', 'GET', '', KEY],
+  ['auto', 'GET', '?view=snapshots&days=7', KEY],
+  ['auto', 'POST', '', JSONH, { action: 'settings.save', settings: { autoStart: false, monthlyYen: 300 } }],
+  ['auto', 'POST', '', JSONH, { action: 'exp.start', key: 'text.lp.ctaPrimary', b: 'まずは無料で相談' }],
+  ['auto', 'POST', '', JSONH, { action: 'proposal.dismiss', id: 'none' }],
+  ['auto', 'POST', '', JSONH, { action: 'exp.stop', id: 'none' }],
+  ['auto', 'POST', '', JSONH, { action: 'kill' }],
+  ['auto', 'POST', '', JSONH, { action: 'resume' }],
+  ['auto', 'POST', '', JSONH, { action: 'run' }],
+  ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/', e: 'exp_view', x: 'xsmoke1:B' }],
 ]
 
 let failed = 0

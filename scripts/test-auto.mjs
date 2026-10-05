@@ -416,4 +416,122 @@ await t('すべて止める: どの自動の動きも止まる', () => {
   assert.ok(!('evil' in s))
 })
 
+/* ---------------- 自動適用（通し） ---------------- */
+
+// GitHub の文章ファイルの作り物。PUT されたものを覚えます。
+const GH = { content: { 'text.lp.title': '保存済みの見出し', 'faq.0.q': 'ほかの人の編集' }, sha: 's1', puts: [] }
+process.env.GITHUB_TOKEN = 'test-token'
+const realFetch = globalThis.fetch
+globalThis.fetch = async (input, init = {}) => {
+  const u = String(input && input.url ? input.url : input)
+  if (u.includes('api.github.com') && u.includes('contents/public/content.json')) {
+    if ((init.method || 'GET') === 'PUT') {
+      const b = JSON.parse(init.body)
+      GH.puts.push({ message: b.message, sha: b.sha })
+      GH.content = JSON.parse(Buffer.from(b.content, 'base64').toString('utf8'))
+      GH.sha = 's' + (GH.puts.length + 1)
+      return new Response(JSON.stringify({ commit: { sha: 'c' + GH.puts.length } }), { status: 200 })
+    }
+    return new Response(JSON.stringify({ sha: GH.sha, content: Buffer.from(JSON.stringify(GH.content)).toString('base64') }), { status: 200 })
+  }
+  throw new Error('外へは出ません: ' + u)
+}
+const RUN = await import('../api/_auto-run.js')
+
+const READERS = (over = {}) => ({
+  analytics: async () => SIG.analyticsPart(REPORT(200, 20), REPORT(200, 50)),
+  inquiries: async () => SIG.inquiriesPart({ median30: 60, replied30: 8, late: 0, promised: 48 }, { autoReply: { on: false } }),
+  ...over,
+})
+const noAi = async (list) => ({ ok: true, drafts: Object.fromEntries(list.filter(AI.needsDraft).filter((p) => p.kind === 'experiment').map((p) => [p.id, { kind: 'copy', text: 'まずはお気軽にご相談を。', by: 'ai' }])) })
+
+await t('最初の設定: 毎朝は観測と提案だけ（実験も採用もしない）', async () => {
+  const R = fakeRedis()
+  const ctx = { cfg: R.cfg, pipeline: R.pipeline, req: new Request('https://x.test/'), now: Date.parse('2026-10-05T00:00:00Z') }
+  const out = await RUN.runDaily(ctx, { date: '2026-10-05', readers: READERS(), ai: noAi })
+  assert.ok(R.kv.has(SIG.snapKey('2026-10-05')))
+  const props = await STORE.readProps(R.cfg, R.pipeline)
+  assert.ok(props['form-copy'] && props['form-copy'].draft) // 下書きまでは作る
+  assert.equal((await STORE.readExps(R.cfg, R.pipeline)).length, 0)
+  assert.equal(GH.puts.length, 0)
+  assert.ok(!out.steps.some((s) => s.step === 'auto_start'))
+  // 「提案と下書きを作る」を切れば、AI は呼ばれない。
+  await STORE.saveSettings(R.cfg, R.pipeline, { ...C.DEFAULT_SETTINGS, drafts: false })
+  let called = false
+  await RUN.runDaily(ctx, { date: '2026-10-05', readers: READERS(), ai: async () => { called = true; return { ok: true, drafts: {} } } })
+  assert.equal(called, false)
+})
+
+await t('自動で始める → 勝ったら採用（content.json に1項目だけ）→ 下がったら戻す', async () => {
+  const R = fakeRedis()
+  const t0 = Date.parse('2026-10-05T00:00:00Z')
+  const ctx = (d) => ({ cfg: R.cfg, pipeline: R.pipeline, req: new Request('https://x.test/'), now: t0 + d * C.DAY })
+  await STORE.saveSettings(R.cfg, R.pipeline, { ...C.DEFAULT_SETTINGS, autoStart: true, autoAdopt: true, autoRevert: true })
+  await RUN.runDaily(ctx(0), { date: '2026-10-05', readers: READERS(), ai: noAi })
+  let [exp] = await STORE.readExps(R.cfg, R.pipeline)
+  assert.equal(exp.phase, 'running')
+  assert.equal(exp.key, 'text.contact.desc')
+  assert.equal(exp.by, 'auto')
+  const live = JSON.parse(R.kv.get(STORE.AK.live))
+  assert.equal(live.exps[0].b, 'まずはお気軽にご相談を。')
+  // 数を入れる（B がはっきり良い）。
+  const add = (v, kind, n) => { const k = STORE.AK.count(exp.id, v, kind); const s = R.hll.get(k) || new Set(); for (let i = 0; i < n; i++) s.add(v + kind + i); R.hll.set(k, s) }
+  add('A', 'x', 400); add('A', 'c', 10); add('B', 'x', 400); add('B', 'c', 32)
+  await RUN.runDaily(ctx(8), { date: '2026-10-13', readers: READERS(), ai: noAi })
+  ;[exp] = await STORE.readExps(R.cfg, R.pipeline)
+  assert.equal(exp.phase, 'watch')
+  assert.equal(GH.puts.length, 1)
+  assert.match(GH.puts[0].message, /^auto: 実験の勝ち案を採用（問い合わせ欄の説明文）/)
+  assert.equal(GH.content['text.contact.desc'], 'まずはお気軽にご相談を。')
+  assert.equal(GH.content['faq.0.q'], 'ほかの人の編集') // ほかの項目はそのまま
+  assert.equal(exp.prevOverride, null)
+  let log = await STORE.readLog(R.cfg, R.pipeline)
+  assert.equal(log[0].kind, 'adopt')
+  assert.equal(log[0].by, 'auto')
+  assert.ok(log[0].before && log[0].after && log[0].undo)
+  // 見張り: 採用後の率が A の幅の下より下 → 自動で戻す（上書きを消す＝元の文章）。
+  add('W', 'x', 300); add('W', 'c', 3)
+  await RUN.runDaily(ctx(12), { date: '2026-10-17', readers: READERS(), ai: noAi })
+  ;[exp] = await STORE.readExps(R.cfg, R.pipeline)
+  assert.equal(exp.phase, 'reverted')
+  assert.equal(GH.puts.length, 2)
+  assert.match(GH.puts[1].message, /元に戻す/)
+  assert.ok(!('text.contact.desc' in GH.content))
+  log = await STORE.readLog(R.cfg, R.pipeline)
+  assert.equal(log[0].kind, 'revert')
+  assert.match(log[0].evidence[0], /下回りました/)
+})
+
+await t('元に戻す（記録から）・すべて止める・触らない項目は書かない', async () => {
+  const R = fakeRedis()
+  const ctx = { cfg: R.cfg, pipeline: R.pipeline, req: new Request('https://x.test/'), now: Date.parse('2026-10-05T00:00:00Z') }
+  const s = await RUN.startExperiment(ctx, { key: 'text.lp.ctaPrimary', a: '無料で相談する', b: 'まずは無料で相談', by: 'owner' })
+  assert.ok(s.ok)
+  // 同じページで2つ目は断る。
+  assert.equal((await RUN.startExperiment(ctx, { key: 'text.lp.title', a: '見出しです', b: '見出しだよ', by: 'owner' })).ok, false)
+  // 料金・一覧に無い項目は断る。
+  assert.equal((await RUN.startExperiment(ctx, { key: 'site.PRICE_OPTIONS.0.label', a: 'a', b: 'b' })).ok, false)
+  assert.equal((await RUN.writeCopy(ctx.req, { 'site.PRICE_OPTIONS.0.label': '0円' }, 'x')).ok, false)
+  assert.equal((await RUN.writeCopy(ctx.req, { 'booking.heading': 'x' }, 'x')).ok, false) // content.json の項目ではない
+  // 記録の「元に戻す」で実験が止まる。
+  const [entry] = await STORE.readLog(R.cfg, R.pipeline)
+  assert.equal(entry.kind, 'exp_start')
+  assert.ok((await RUN.undoLog(ctx, entry.id, entry)).ok)
+  const [exp] = await STORE.readExps(R.cfg, R.pipeline)
+  assert.equal(exp.phase, 'stopped')
+  const again = (await STORE.readLog(R.cfg, R.pipeline)).find((e) => e.id === entry.id)
+  assert.ok(again.undone)
+  assert.equal((await RUN.undoLog(ctx, again.id, again)).ok, false) // 二度は戻さない
+  // すべて止める: 毎朝は観測だけ。
+  await STORE.saveSettings(R.cfg, R.pipeline, { ...C.DEFAULT_SETTINGS, paused: true, autoStart: true })
+  let called = false
+  const out = await RUN.runDaily(ctx, { date: '2026-10-05', readers: READERS(), ai: async () => { called = true; return { drafts: {} } } })
+  assert.equal(out.paused, true)
+  assert.deepEqual(out.steps.map((x) => x.step), ['snapshot', 'paused'])
+  assert.equal(called, false)
+  assert.equal(Object.keys(await STORE.readProps(R.cfg, R.pipeline)).length, 0)
+})
+
+globalThis.fetch = realFetch
+
 console.log(`✓ test-auto: ${n} 件`)
