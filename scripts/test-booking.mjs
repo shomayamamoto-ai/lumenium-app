@@ -10,7 +10,22 @@
 //   ・前日のお知らせを送る相手（日本時間の明日）・今日の一覧・無断キャンセル率
 
 import assert from 'node:assert/strict'
-import * as B from '../api/_booking.js'
+
+/* 時計を止めます。予約の枠は「いま」から何時間先かで変わるので、本物の
+   時計のままだと、夕方に走らせたときだけ「2時間後の枠が営業時間外」に
+   なって落ちていました（ビルドの途中で走るテストが時刻しだいで落ちると、
+   サイトの更新が止まります）。火曜の朝9時（日本時間）に固定し、そこから
+   実際に経った分だけ進めます。 */
+const REAL = Date
+const FIXED = REAL.UTC(2026, 9, 6, 0, 0, 0) // 2026-10-06 09:00 JST（火）
+const START = REAL.now()
+class FixedDate extends REAL {
+  constructor(...a) { super(...(a.length ? a : [FIXED + (REAL.now() - START)])) }
+  static now() { return FIXED + (REAL.now() - START) }
+}
+globalThis.Date = FixedDate
+
+const B = await import('../api/_booking.js')
 
 let n = 0
 async function t(name, fn) {
