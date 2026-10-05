@@ -1444,42 +1444,7 @@
     return { ok: true, text: WAYS[w][1] + '（デモ用の書き直し例）', way: w, label: WAYS[w][0] };
   }
 
-  /* ---- advisor: the same SSE framing as api/advisor.js —
-     `data: {"t": "..."}` blocks separated by a blank line, and a closing
-     NEXT:: line the panel turns into buttons. ---- */
-  var ADVICE = [
-    [/今週|順番|3つ/, '（デモ用の回答例です）\n\n今週やることを、効く順に3つ挙げます。\n\n1. 料金の幅をサービスページの冒頭に書く\n「動画制作」と「クリエイティブ」のページに金額がなく、AIの回答で他社だけが挙がっています。幅でよいので、最初の3行に入れてください。\n\n2. 第三者の事業者ディレクトリに1件載せる\n「実在が確認できない」と答えられた質問があります。社名・所在地・URLを同じ表記で載せるのが最短です。\n\n3. 問い合わせ画面の離脱を見る\n問い合わせ画面まで来た人のうち、入力を始めたのは約半分です。項目を減らす余地があります。'],
-    [/お知らせ|文案|SNS|メール|一段落/, '（デモ用の回答例です）\n\nそのまま使える文案です。\n\n「ホームページの制作から、公開後の更新・SNS運用まで、1社でまとめてお受けしています。まずは30分の無料相談で、いまのサイトの困りごとをお聞かせください。」\n\n短くしたい場合は、2文目だけでも使えます。'],
-    [/./, '（デモ用の回答例です）\n\nいちばんの問題は、問い合わせ画面まで来た人の半分が入力を始めずに離れていることです。\n\nアクセス解析では、サービスを見た人の約4人に1人が問い合わせ画面に進んでいます。ここまでは順調です。ただ、入力を始めた人はその半分ほどです。\n\nまず、必須項目を「お名前・メール・ご相談内容」の3つに絞ってみてください。次に、送信ボタンの近くに「返信は1営業日以内」と書くと、送る前の不安が減ります。']
-  ];
-  var NEXT = '\nNEXT::今週やることを3つ、順番に||お金をかけずにできることは？||どのページから直すべき？';
-
-  function advisor(body, signal) {
-    var msgs = (body && body.messages) || [];
-    var last = msgs.length ? String(msgs[msgs.length - 1].content || '') : '';
-    var text = ADVICE[ADVICE.length - 1][1];
-    for (var i = 0; i < ADVICE.length; i++) if (ADVICE[i][0].test(last)) { text = ADVICE[i][1]; break; }
-    text += NEXT;
-    var enc = new TextEncoder();
-    var pos = 0, timer = 0;
-    var stream = new ReadableStream({
-      start: function (ctl) {
-        var stop = function () { clearTimeout(timer); try { ctl.error(new DOMException('Aborted', 'AbortError')); } catch (_) {} };
-        if (signal) {
-          if (signal.aborted) { stop(); return; }
-          signal.addEventListener('abort', stop);
-        }
-        (function tick() {
-          if (pos >= text.length) { ctl.close(); return; }
-          var piece = text.slice(pos, pos + 8);
-          pos += 8;
-          ctl.enqueue(enc.encode('data: ' + JSON.stringify({ t: piece }) + '\n\n'));
-          timer = setTimeout(tick, 28);
-        })();
-      }
-    });
-    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } });
-  }
+  /* ---- advisor: the AIアドバイザー block at the end of this file. ---- */
 
 
   /* ---- SNS（動画） (shape: api/video.js, api/video-publish.js) ----
@@ -1655,8 +1620,6 @@
     var p = u.pathname.replace(/\/+$/, '');
     var q = u.searchParams;
     var read = method === 'GET' || method === 'HEAD';
-
-    if (p === '/api/advisor') return method === 'POST' ? advisor(body, signal) : reply(blocked());
 
     // Read-like POSTs: they change nothing on the server, and an answer makes
     // the demo look like the real thing.
@@ -2594,5 +2557,165 @@
       return reply({ ok: true, overrides: overrides(), stored: overrides(), commit: { sha: 'demo000', at: ago(DAY + 3600000), message: 'content' } });
     }
     return reply({ ok: false, demo: true, message: MSG });
+  };
+})();
+
+/* ---- デモ：AIアドバイザー（shape: api/advisor.js の SSE と api/advisor-store.js） ----
+   相談は、質問の言葉で選んだ用意済みの答えを少しずつ流します（AIは呼びません）。
+   答えの途中に「実行」ボタン（action）も流し、押したときの入力欄への
+   書き込みは本物と同じように動きます。保存（会話・ToDo・自動改善の提案）は
+   すべて「デモ版のため…」で断ります。数字は架空です。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var DAY = 86400000;
+  function ago(ms) { return new Date(Date.now() - ms).toISOString(); }
+
+  /* 押したときに起きること（api/_advisor-core.js の ACTIONS と同じ文）。 */
+  var DOES = {
+    news: ['お知らせの入力欄に入れる', 'news-admin', '「お知らせ投稿」を開いて、題名と本文を入力欄に入れます。まだ公開しません。中身を確かめて「投稿する」を押すまで、サイトは変わりません。'],
+    copy: ['文章編集で開く', 'copy-admin', '「文章編集」でこの項目を開き、案を入力欄に入れます。まだ保存しません。「変更を保存」を押すまで、サイトは変わりません。'],
+    sns: ['SNSの入力欄に入れる', 'social-admin', '「SNS（文章）」を開いて、投稿の入力欄に本文を入れます。まだ投稿しません。出す先を選んで送るまで、どこにも出ません。'],
+    experiment: ['自動改善の提案に入れる', 'auto-admin', '「自動改善」の提案の一覧に、この案を1件足します。実験はまだ始まりません。提案の画面で「実験する」を押したときに始まります。'],
+    pdca: ['動画のPDCAに入れる', 'video-admin', '「SNS（動画）」の PDCA を開いて、仮説の入力欄に入れます。まだ保存しません。「保存」を押すまで残りません。'],
+    todo: ['ToDoに入れる', 'advisor-admin', 'このアドバイザーの ToDo に1件足します（ポータルの「今日やること」にも出ます）。ほかには何もしません。']
+  };
+  function act(kind, input) { var d = DOES[kind]; return { kind: kind, input: input, button: d[0], where: d[1], does: d[2] }; }
+
+  var SOURCES = [
+    ['analytics', 'アクセス解析：過去30日', true], ['seo', 'SEO点検：最後の点検', true], ['aio', 'AIでの見え方：最後の計測', true],
+    ['crawl', 'クローラーの来訪：過去30日', true], ['sns', 'SNS（文章）：過去90日', true], ['inquiries', '問い合わせ：過去30日の件数', true],
+    ['booking', '予約：件数と率', true], ['members', '会員：人数', true], ['news', 'お知らせ：公開中のもの', true],
+    ['auto', '自動改善：提案と実験', false, 'まだの提案も実験もありません']
+  ].map(function (s) { return { id: s[0], label: s[1], ok: s[2], note: s[3] || '' }; });
+
+  /* 用意済みの答え。parts は順に流します（文字列は本文、オブジェクトはボタン）。 */
+  var ANSWERS = [
+    [/お知らせ|文案|書いて/, [
+      '（デモ用の回答例です）\n\nお知らせは、最後の更新から41日たっています（お知らせ：公開中のもの）。AIの答えでは「料金が分からない」と言われた質問が3つありました（AIでの見え方：最後の計測）。\n\nそこで、料金の目安を書いたお知らせを1本出すのがよいと考えます。下のボタンで入力欄に入れられるようにしました。',
+      act('news', { title: '料金の目安を公開しました', body: 'ホームページ制作・動画制作・AI研修の料金の目安を、料金のページにまとめました。内容によって変わりますので、お見積りはお気軽にご相談ください。', why: 'AIの答えで「料金が分からない」と言われているため' }),
+      '\n\n同じ内容を、SNSでも短く知らせると届く人が増えます。',
+      act('sns', { text: '料金の目安を公開しました。ホームページ制作・動画制作・AI研修、それぞれの目安を1ページにまとめています。まずはお気軽にご相談ください。', why: 'お知らせと同じ日に出すと、サイトへの訪問につながりやすいため' }),
+      '\n\nまとめです。お知らせが41日止まっていて、AIの答えでは料金が分からないと言われています。料金の目安を書いたお知らせとSNSの投稿を、今週中に1本ずつ出してください。\nSOURCES:: お知らせ：公開中のもの || AIでの見え方：最後の計測\nNEXT:: SNSの続きを書いて || 料金ページの説明文を見直して || 来週やることは？'
+    ]],
+    [/SNS|動画|投稿/, [
+      '（デモ用の回答例です）\n\nこの90日のSNSの投稿は4本で、柱ごとの差を言えるほどの数ではありません（SNS（文章）：過去90日）。いまは「どれが効くか」を決めるより、同じ型で本数を増やす時期です。\n\n動画は、冒頭3秒で止まる人が多いかを確かめる仮説を1つ立てるのがよいと考えます。',
+      act('pdca', { title: '冒頭3秒を問いかけにする', hypothesis: '最初の一言を「〇〇で困っていませんか？」にすると、3秒で離れる人が減ると考えます。', metric: 'hold_3s', next_actions: ['次の3本を問いかけで始める', '3秒維持率を前の3本と比べる'], why: '投稿が少ないうちは、1つずつ確かめるのが近道のため' }),
+      '\n\nまとめです。投稿がまだ4本で、どの柱が効くかは判断できません。今週はあと2本出し、動画は冒頭の一言を変えて3本試してください。\nSOURCES:: SNS（文章）：過去90日\nNEXT:: 今週の2本の文案を書いて || どの柱を増やすべき？ || 数字はいつ見ればいい？'
+    ]],
+    [/./, [
+      '（デモ用の回答例です）\n\nいちばんの問題は、サービスのページを見た人のうち、問い合わせ画面まで進む人が少ないことです。\n\nこの30日、サービスを見た人は412人、問い合わせ画面まで来た人は38人でした（アクセス解析：過去30日）。10人のうち9人が、ここで先に進んでいません。集客を増やすより先に、ここを直すほうが効きます。\n\n1つ目は、トップの説明文を、誰の何を手伝うのかが一読で分かる文にすることです。',
+      act('copy', { path: 'text.lp.lead', text: 'ホームページや業務システムを作りたい、社内でAIを使えるようにしたい。そんな小さな会社のご相談を、最初の打ち合わせから公開後の運用まで、1社でお受けしています。', why: '最初の数行で「自分に関係がある」と分かると、先を読んでもらいやすくなるため' }),
+      '\n\n2つ目は、相談ボタンの言葉を、別の言い方と比べることです。勘で決めず、半分ずつの人に見せて確かめます。',
+      act('experiment', { key: 'text.lp.ctaPrimary', b: 'まずは相談してみる', why: '最初に押すボタンの言葉は、押す前の気持ちのハードルに直接効くため', label: 'トップのボタン（無料で相談する）' }),
+      '\n\n3つ目は、Googleビジネスプロフィールに写真と営業時間を入れることです。これは管理画面の外の作業なので、ToDoに入れておけます。',
+      act('todo', { title: 'Googleビジネスプロフィールに写真と営業時間を入れる', detail: 'business.google.com を開き、外観・作業風景の写真を3枚以上と、営業時間を入れます。', tab: '', why: '地図や検索で名前が出たときに、実在が伝わるため' }),
+      '\n\nまとめです。サービスを見た人の9割が問い合わせ画面まで進んでいません。トップの説明文を直し、相談ボタンの言葉を比べ、Googleビジネスプロフィールを整えてください。\nSOURCES:: アクセス解析：過去30日\nNEXT:: なぜ説明文が先なの？ || 問い合わせ画面も見て || 来週やることは？'
+    ]]
+  ];
+
+  function sse(body, signal) {
+    var msgs = (body && body.messages) || [];
+    var last = msgs.length ? String(msgs[msgs.length - 1].content || '') : '';
+    var parts = ANSWERS[ANSWERS.length - 1][1];
+    for (var i = 0; i < ANSWERS.length; i++) if (ANSWERS[i][0].test(last)) { parts = ANSWERS[i][1]; break; }
+    var events = [{ meta: { mode: body && body.mode === 'quick' ? 'quick' : 'deep', sources: SOURCES } }];
+    parts.forEach(function (p) {
+      if (typeof p === 'string') { for (var k = 0; k < p.length; k += 10) events.push({ t: p.slice(k, k + 10) }); }
+      else events.push({ action: p });
+    });
+    events.push({ demo: true }, { done: true, yen: body && body.mode === 'quick' ? 3.1 : 7.4 });
+    var enc = new TextEncoder();
+    var pos = 0, timer = 0;
+    var stream = new ReadableStream({
+      start: function (ctl) {
+        var stop = function () { clearTimeout(timer); try { ctl.error(new DOMException('Aborted', 'AbortError')); } catch (_) {} };
+        if (signal) {
+          if (signal.aborted) { stop(); return; }
+          signal.addEventListener('abort', stop);
+        }
+        (function tick() {
+          if (pos >= events.length) { ctl.close(); return; }
+          ctl.enqueue(enc.encode('data: ' + JSON.stringify(events[pos++]) + '\n\n'));
+          timer = setTimeout(tick, 18);
+        })();
+      }
+    });
+    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } });
+  }
+
+  var CONVS = [
+    { id: 'cdemo0001', title: '問い合わせを増やすには、何から？', updatedAt: ago(DAY + 3 * 3600000), count: 4 },
+    { id: 'cdemo0002', title: 'お知らせの文案を書いて', updatedAt: ago(3 * DAY), count: 2 },
+    { id: 'cdemo0003', title: 'AIの答えに名前が出ないのはなぜ？', updatedAt: ago(8 * DAY), count: 6 }
+  ];
+  function conv(id) {
+    var meta = CONVS.filter(function (c) { return c.id === id; })[0] || CONVS[0];
+    return {
+      id: meta.id, title: meta.title, updatedAt: meta.updatedAt, createdAt: meta.updatedAt,
+      messages: [
+        { role: 'user', content: meta.title },
+        { role: 'assistant', content: '（デモ用の保存した相談です）\n\nサービスを見た412人のうち、問い合わせ画面まで来たのは38人でした（アクセス解析：過去30日）。まず、トップの説明文を直すのが近道です。\n\nまとめです。説明文を直し、相談ボタンの言葉を比べてください。\nSOURCES:: アクセス解析：過去30日\nNEXT:: なぜ説明文が先なの？ || 来週やることは？',
+          sources: ['アクセス解析：過去30日'],
+          actions: [act('todo', { title: 'トップの説明文を見直す', detail: '「誰の何を手伝うか」を最初の1文に入れる', tab: 'copy-admin', why: '最初の数行で離れる人が多いため' })] }
+      ]
+    };
+  }
+  var TODOS = [
+    { id: 'tdemo0001', title: 'Googleビジネスプロフィールに写真を足す', detail: '外観・作業風景の写真を3枚以上。', tab: '', at: ago(2 * DAY), done: false },
+    { id: 'tdemo0002', title: '地域の事業者一覧サイトに掲載を頼む', detail: '社名・所在地・URLを、サイトと同じ書き方で。', tab: 'seo-admin', at: ago(5 * DAY), done: false },
+    { id: 'tdemo0003', title: '料金の目安をお知らせで出す', detail: '', tab: 'news-admin', at: ago(9 * DAY), done: true, doneAt: ago(6 * DAY) }
+  ];
+  function state() {
+    var month = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 7);
+    return {
+      ok: true, stored: true, conversations: CONVS, convMax: 20, todos: TODOS,
+      usage: { month: month, yen: 412, calls: 37, recorded: true, cap: 3000 },
+      estimate: { deep: { lo: 6, hi: 24 }, quick: { lo: 2, hi: 9 } },
+      starters: [
+        { q: '「問い合わせ画面」の手前で人が減る理由は？', why: '「サービスを見た」→「問い合わせ画面」で 412人→38人（アクセス解析：過去30日）' },
+        { q: 'SEO点検の「必ず直す」2件、どれから？', why: 'SEO点検：最後の点検（9/28）' },
+        { q: 'AIの答えに名前が出ないのはなぜ？', why: '名前が出たのは 3/84回（AIでの見え方：最後の計測）' },
+        { q: 'お知らせが41日止まっています。何を書く？', why: 'お知らせ：公開中のもの' },
+        { q: '今週のSNS、あと2本は何を出す？', why: 'SNS（文章）：過去90日' },
+        { q: '今週やることを3つ、順番に', why: 'いまの数字をまとめて優先順位をつけます' }
+      ],
+      sources: SOURCES
+    };
+  }
+  function reply(body, status) {
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    var p = u ? u.pathname.replace(/\/+$/, '') : '';
+    if (p !== '/api/advisor' && p !== '/api/advisor-store') return inner(input, init);
+    var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    var body = null;
+    try { body = init && typeof init.body === 'string' ? JSON.parse(init.body) : null; } catch (_) {}
+    if (p === '/api/advisor') {
+      if (method !== 'POST') return reply({ ok: false, demo: true, message: MSG });
+      return new Promise(function (ok) { setTimeout(ok, 300); }).then(function () { return sse(body, init && init.signal); });
+    }
+    if (method === 'GET') {
+      var view = u.searchParams.get('view') || 'state';
+      if (view === 'todos') return reply({ ok: true, todos: TODOS });
+      if (view === 'conv') return reply({ ok: true, conv: conv(u.searchParams.get('id')) });
+      return reply(state());
+    }
+    // 会話を消す・ToDo・自動改善の提案は、どれも保存なので断ります。
+    var would = { 'todo.add': 'ToDo に入ります', 'todo.done': '済んだ印が付きます', 'todo.undo': '印が外れます', 'todo.delete': 'ToDo が消えます',
+      'proposal.add': '「自動改善」の提案に入ります', 'conv.delete': '会話が消えます' }[body && body.action] || '保存されます';
+    return reply({ ok: false, demo: true, message: MSG + '（実際の画面では、ここで' + would + '）' });
   };
 })();
