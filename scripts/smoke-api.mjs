@@ -416,6 +416,16 @@ const CALLS = [
   ['reviews', 'POST', '', JSONH, { action: 'draft', id: 'none' }],
   ['reviews', 'POST', '', JSONH, { action: 'request-send', id: 'bk_none' }],
   ['reviews', 'POST', '', JSONH, { action: 'locations' }],
+  // 見積書。作る・問い合わせから・送る（ない id）・リンク・設定と、お客様が開くページ（正しくないリンク）。
+  ['quotes', 'GET', '', KEY],
+  ['quotes', 'GET', '?view=inquiries', KEY],
+  ['quotes', 'GET', '?id=qtnone1', KEY],
+  ['quotes', 'POST', '', JSONH, { action: 'save', quote: { subject: 'スモーク', items: [{ name: 'スモーク', qty: 1, price: 1000, rate: 10 }] } }],
+  ['quotes', 'POST', '', JSONH, { action: 'from-inquiry', inquiryId: 'qsmoke' }],
+  ['quotes', 'POST', '', JSONH, { action: 'send', id: 'qtnone1', to: 'smoke@example.com' }],
+  ['quotes', 'POST', '', JSONH, { action: 'link', id: 'qtnone1' }],
+  ['quotes', 'POST', '', JSONH, { action: 'settings', settings: { company: 'スモーク', regNo: 'T7000012050002' } }],
+  ['quote-view', 'GET', '?t=bad', {}],
 ]
 
 let failed = 0
