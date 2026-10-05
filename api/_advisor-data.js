@@ -67,7 +67,11 @@ export async function loadGrounding(cfg, req, now = Date.now()) {
     cfg ? safely(() => latestSnapshot(cfg, req, now), 9000) : null,
     cfg ? safely(async () => (await import('./_crawlers.js')).readCrawls(cfg, 30), 4000) : null,
     cfg ? safely(() => aioDetail(cfg), 3000) : null,
-    safely(async () => (await import('./_social.js')).socialActivity(30, req), 4000),
+    safely(async () => {
+      const m = await import('./_social.js')
+      const [activity, nets] = await Promise.all([m.socialActivity(30, req), m.socialStatus(req).catch(() => [])])
+      return { ...activity, ready: (nets || []).filter((x) => x.ready).map((x) => x.label) }
+    }, 4000),
     cfg ? safely(async () => {
       const m = await import('./_inquiries.js')
       return inquiryCounts(await m.allSummaries(cfg), 30, now)

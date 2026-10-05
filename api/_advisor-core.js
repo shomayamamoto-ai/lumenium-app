@@ -407,7 +407,8 @@ function snsLines(s, activity) {
   if (s.posts < 6) out.push('［投稿が少なく、どの柱が効くかはまだ判断できません］')
   for (const p of (s.pillars || []).slice(0, 4)) out.push(`柱「${one(p.name, 30)}」 ${p.posts}本・サイトへの訪問 ${p.visits}・問い合わせ ${p.inquiries}${p.label ? '［' + p.label + '］' : ''}`)
   if (s.cadence && s.cadence.weekLeft) out.push(`今週の目標まで あと${s.cadence.weekLeft}本`)
-  if (activity) out.push(`直近30日に管理画面から出した数: ${activity.posts || 0}回（失敗 ${activity.failed || 0}）`)
+  if (activity) out.push(`直近30日に管理画面から出した数: ${activity.posts || 0}回（失敗 ${activity.failed || 0}）。手で投稿した分は入っていません`)
+  if (activity && Array.isArray(activity.ready)) out.push('管理画面から投稿できる先: ' + (activity.ready.length ? activity.ready.join('・') : 'なし（どのSNSも鍵が未入力）'))
   return out
 }
 
