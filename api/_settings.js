@@ -67,6 +67,18 @@ export const SETTINGS = [
     why: 'これが無いと、お問い合わせフォームも会員登録も送信できません。',
   },
   {
+    // device:false — the registration form (a visitor's request) adds new
+    // members to this group too.
+    name: 'RESEND_SEGMENT_ID', label: '会員のグループ（任意）', kind: 'text', group: 'site', device: false,
+    where: 'resend.com › Audience › Segments で会員を入れているセグメントの ID',
+    why: `空のままで構いません。そのときは「${BRAND.name} Members」という名前のグループ（セグメント）を探し、無ければ作ります。以前のオーディエンスの ID（RESEND_AUDIENCE_ID）が環境変数にあれば、それを使います。`,
+  },
+  {
+    name: 'MAIL_SENDER_ADDRESS', label: 'お知らせメールに書く住所', kind: 'text', group: 'site',
+    where: '事業所の住所（例: 東京都千代田区〇〇1-2-3 〇〇ビル4階）',
+    why: '会員へのお知らせメールには、特定電子メール法で送信者の住所を書くことが決まっています。これが空のあいだは、お知らせメールを送れません（テスト送信はできます）。',
+  },
+  {
     name: 'CONTACT_TO_EMAIL', label: '問い合わせの宛先', kind: 'text', group: 'site', device: false,
     where: '受け取りたいメールアドレス',
     why: `未設定のときは ${BRAND.owner} に届きます。`,

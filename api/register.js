@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { issueSession } from './_session.js'
 import { setting } from './_settings.js'
-import { addContact } from './_resend-audience.js'
+import { addMember, unsubscribeUrl } from './_members.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { BRAND, KV } from './_brand.js'
@@ -121,9 +121,9 @@ export async function POST(req) {
   const apiKey = await setting('RESEND_API_KEY')
   const mailedRecently = await seenBefore(`${KV}reg:mail:${await digest('member', email.toLowerCase())}`, 24 * 3600)
   if (apiKey) {
-    // Persist the lead into the Resend audience (member list page reads this).
-    await addContact(apiKey, { name, email, company }).catch((err) =>
-      console.error('[api/register] addContact failed', err)
+    // Persist the member as a Resend contact in the members segment (api/_members.js).
+    await addMember(apiKey, { name, email, company }).catch((err) =>
+      console.error('[api/register] addMember failed', err)
     )
     const from = BRAND.from
     const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner)
@@ -137,9 +137,14 @@ export async function POST(req) {
     // consent box). NOTE: with the resend.dev sandbox sender this only
     // delivers to the Resend account owner — 設定状況 warns about that.
     if (!mailedRecently) {
+      // 今後のお知らせを受け取ることへの同意を含むメールなので、止め方を
+      // 最初から書いておきます（api/unsubscribe.js）。メールソフトの
+      // 「配信停止」ボタン用の見出しも付けます。
+      const stop = await unsubscribeUrl(email)
       const wRes = await send({
         from,
         to: [email],
+        headers: { 'List-Unsubscribe': `<${stop}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
         subject: `【${BRAND.name}】会員登録が完了しました`,
         text:
           `${name} 様\n\n${BRAND.name} 会員登録ありがとうございます。\n` +
@@ -147,6 +152,7 @@ export async function POST(req) {
           `会員コード: ${memberCode}\n\n` +
           `ログインページ: ${BRAND.url}/login.html\n\n` +
           `※このメールに心当たりがない場合は破棄してください。\n\n` +
+          `今後のお知らせメールが不要な場合は、こちらから止められます:\n${stop}\n\n` +
           `${BRAND.name}\n${BRAND.url}`,
       })
       mailed = !!(wRes && wRes.ok)

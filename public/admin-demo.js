@@ -441,7 +441,8 @@
     };
   }
 
-  /* ---- members (shape: api/members-list.js) ---- */
+  /* ---- sample people (the booking sample uses these; the member list has
+     its own 40 at the end of this file) ---- */
   var PEOPLE = [
     ['山田 花子', 'サンプル株式会社'], ['佐藤 健', '架空商事株式会社'], ['鈴木 一郎', 'テスト工業株式会社'],
     ['高橋 美咲', '例示デザイン合同会社'], ['田中 翔太', 'サンプル食品株式会社'], ['伊藤 さくら', ''],
@@ -457,24 +458,6 @@
     'kei.matsumoto', 'chihiro.inoue', 'ren.kimura', 'mai.hayashi', 'yosuke.shimizu', 'aoi.yamazaki',
     'kazuya.mori', 'saki.ikeda', 'ryo.hashimoto', 'yui.abe', 'makoto.ishikawa', 'haruka.maeda'];
   var DOMAINS = ['example.com', 'example.net', 'example.org'];
-
-  function members() {
-    var r = prng(hash('members'));
-    var back = 0;
-    var list = PEOPLE.map(function (p, i) {
-      back += 1 + Math.floor(r() * 9);
-      var t = Date.now() - back * DAY - Math.floor(r() * 10) * 3600000;
-      return {
-        id: 'demo-' + (i + 1),
-        name: p[0],
-        company: p[1],
-        email: ROMA[i] + '@' + DOMAINS[i % 3],
-        created: new Date(t).toISOString(),
-        unsubscribed: i === 7 || i === 18
-      };
-    });
-    return { ok: true, count: list.length, members: list };
-  }
 
   /* ---- health (shape: api/health.js; ids are what the portal's `needs` read) ---- */
   function health() {
@@ -1704,7 +1687,7 @@
         return reply(demoDeploy++ < 1
           ? { ok: true, state: 'building', url: null, message: '反映中です。' }
           : { ok: true, state: 'live', url: null, message: 'サイトに反映済みです。' });
-      case '/api/members-list': return reply(members());
+      // /api/members-list and /api/members: the 会員リスト block at the end of this file.
       case '/api/health': return reply(health());
       case '/api/news-post': return reply({ ok: true, items: newsItems(), commit: commit(3, 'お知らせを更新') });
       case '/api/share-links': return reply(shares());
@@ -2195,6 +2178,153 @@
       : u.searchParams.get('recent') ? admin() : slots(u.searchParams);
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
+
+/* ---- デモ：会員リスト（shape: api/members-list.js・api/members.js） ----
+   架空の会員40人（うち配信停止4人）、グループ2つ、送ったお知らせメール
+   1通（数字つき）と予約1通。名前・会社はすべて架空で、アドレスは
+   example.com / example.jp（実在しない決まりのドメイン）です。
+   上の作りと同じくデモのときだけ動き、/api/members-list と /api/members
+   だけを受けます。人数・見本は本物と同じ形で返し、保存・削除・送信は
+   すべて断ります。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var DAY = 86400000;
+  var now = Date.now();
+  var NAMES = ['山田 花子', '佐藤 健', '鈴木 一郎', '高橋 美咲', '田中 翔太', '伊藤 さくら', '渡辺 大輔', '中村 由美', '小林 拓也', '加藤 真理',
+    '吉田 直樹', '山本 彩', '松本 圭', '井上 千尋', '木村 蓮', '林 舞', '清水 陽介', '山崎 葵', '森 和也', '池田 紗希',
+    '橋本 亮', '阿部 結衣', '石川 誠', '前田 遥', '藤田 健太', '岡田 美穂', '後藤 悠', '長谷川 茜', '村上 隼', '近藤 早紀',
+    '坂本 光', '遠藤 奈々', '青木 大樹', '西村 恵', '福田 剛', '太田 理沙', '三浦 翼', '藤井 結', '岡本 陸', '松田 咲'];
+  var COMPANIES = ['サンプル株式会社', '架空商事株式会社', '', 'テスト工業株式会社', '例示デザイン合同会社', '', 'みほん不動産株式会社', 'サンプル歯科クリニック'];
+  var SOURCES = ['/register.html', '/register.html', '/register.html', '/game.html', '/pricing.html'];
+  var SEGS = [{ id: 'demo-seg-vip', name: '常連さん', created: new Date(now - 200 * DAY).toISOString() },
+    { id: 'demo-seg-seminar', name: 'セミナー参加者', created: new Date(now - 90 * DAY).toISOString() }];
+
+  var MEMBERS = NAMES.map(function (n, i) {
+    // 古い人ほど間があき、ここ数か月で増えている形。
+    var back = Math.round(Math.pow((40 - i) / 40, 1.6) * 420) + (i % 3);
+    var segs = [];
+    if (i % 5 === 0) segs.push('demo-seg-vip');
+    if (i % 7 === 3) segs.push('demo-seg-seminar');
+    return {
+      id: 'demo-m' + (i + 1), name: n, company: COMPANIES[i % COMPANIES.length],
+      email: 'member' + (i + 1) + '@' + (i % 2 ? 'example.jp' : 'example.com'),
+      created: new Date(now - back * DAY - (i * 37 % 24) * 3600000).toISOString(),
+      unsubscribed: i === 4 || i === 13 || i === 22 || i === 31, segments: segs,
+      // 最初の5人は、同意の記録を始める前の登録という設定。
+      consent: i < 5 ? null : { at: new Date(now - back * DAY).toISOString(), version: '2026-10', source: SOURCES[i % SOURCES.length], hasIp: true }
+    };
+  }).sort(function (a, b) { return b.created.localeCompare(a.created); });
+  SEGS.forEach(function (s) { s.count = MEMBERS.filter(function (m) { return m.segments.indexOf(s.id) !== -1; }).length; });
+
+  function pub(m) { return { id: m.id, name: m.name, company: m.company, email: m.email, created: m.created, unsubscribed: m.unsubscribed, segments: m.segments }; }
+  function count(seg) {
+    var list = MEMBERS.filter(function (m) { return !seg || m.segments.indexOf(seg) !== -1; });
+    return { ok: true, count: list.filter(function (m) { return !m.unsubscribed; }).length, stopped: list.filter(function (m) { return m.unsubscribed; }).length };
+  }
+
+  /* 見本。api/_members.js の compose と同じ形（簡略版）。 */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var ADDRESS = '東京都千代田区サンプル1-2-3（デモ用の架空の住所）';
+  function preview(b) {
+    var body = String(b.body || '');
+    var inline = function (s) { return esc(s).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/https?:\/\/[^\s<>"']+/g, function (u) { return '<a href="' + u + '" style="color:#3d3fbf">' + u + '</a>'; }); };
+    var html = body.replace(/\r\n?/g, '\n').split(/\n{2,}/).map(function (blk) {
+      var lines = blk.split('\n').filter(function (l) { return l.trim(); });
+      if (!lines.length) return '';
+      return lines.map(function (l) {
+        if (/^■\s*/.test(l)) return '<h2 style="font-size:16px;margin:18px 0 6px">' + inline(l.replace(/^■\s*/, '')) + '</h2>';
+        if (/^\s*(・|- )/.test(l)) return '<ul style="margin:0;padding-left:20px"><li>' + inline(l.replace(/^\s*(・|- )/, '')) + '</li></ul>';
+        return '<p style="margin:0 0 8px">' + inline(l) + '</p>';
+      }).join('');
+    }).join('');
+    var foot = ['送信者: Lumenium', '住所: ' + ADDRESS, 'お問い合わせ: https://example.com/contact.html',
+      'このメールは、会員登録の際にお知らせメールの受け取りに同意いただいた方にお送りしています。'];
+    return {
+      ok: true, subject: String(b.subject || '').trim(),
+      text: body.trim() + '\n\n――――――――――――――――\n' + foot.join('\n') + '\n配信の停止: #preview-unsubscribe\n',
+      html: '<!doctype html><html lang="ja"><body style="margin:0"><div style="max-width:600px;margin:0 auto;padding:24px 18px;font-family:sans-serif;font-size:15px;line-height:1.8;color:#222">' + html +
+        '<hr style="border:0;border-top:1px solid #ddd;margin:24px 0 12px"><p style="font-size:12px;color:#666;line-height:1.8;margin:0">' + foot.map(esc).join('<br>') +
+        '<br>今後このメールが不要な方は <a href="#preview-unsubscribe" style="color:#3d3fbf">配信を停止する</a></p></div></body></html>',
+      blockers: []
+    };
+  }
+
+  var HISTORY = [
+    { id: 'demo-bc-2', subject: '【11月】無料オンライン相談会のご案内', status: 'scheduled', statusLabel: '予約', createdAt: new Date(now - 1 * DAY).toISOString(), scheduledAt: new Date(now + 3 * DAY).toISOString(), sentAt: '', count: 5, group: 'セミナー参加者', mine: true },
+    { id: 'demo-bc-1', subject: '年末年始の営業日のお知らせ', status: 'sent', statusLabel: '送信済み', createdAt: new Date(now - 12 * DAY).toISOString(), scheduledAt: '', sentAt: new Date(now - 12 * DAY + 60000).toISOString(), count: 33, group: '会員全員', mine: true }
+  ];
+  var STATS = { delivered: { n: 32, more: false }, opened: { n: 14, more: false }, clicked: { n: 5, more: false }, bounced: { n: 1, more: false }, unsubscribed: { n: 1, more: false } };
+
+  function month(iso) { return new Date(Date.parse(iso) + 9 * 3600000).toISOString().slice(0, 7); }
+  function growth() {
+    var months = [];
+    var d = new Date(now + 9 * 3600000);
+    var y = d.getUTCFullYear(), mo = d.getUTCMonth();
+    for (var i = 0; i < 12; i++) { months.unshift(y + '-' + ('0' + (mo + 1)).slice(-2)); if (--mo < 0) { mo = 11; y--; } }
+    var total = MEMBERS.filter(function (m) { return month(m.created) < months[0]; }).length;
+    var series = months.map(function (k) {
+      var n = MEMBERS.filter(function (m) { return month(m.created) === k; }).length;
+      total += n;
+      return { month: k, added: n, total: total };
+    });
+    var src = {};
+    MEMBERS.forEach(function (m) { if (m.consent) src[m.consent.source] = (src[m.consent.source] || 0) + 1; });
+    return {
+      ok: true, total: MEMBERS.length, subscribed: MEMBERS.filter(function (m) { return !m.unsubscribed; }).length,
+      unsubscribed: MEMBERS.filter(function (m) { return m.unsubscribed; }).length, thisMonth: series[11].added, series: series,
+      sources: Object.keys(src).map(function (k) { return { source: k, count: src[k] }; }).sort(function (a, b) { return b.count - a.count; }),
+      noRecord: MEMBERS.filter(function (m) { return !m.consent; }).length, consentsKnown: true,
+      stops: months.map(function (k, j) { return { month: k, stops: j === 9 || j === 11 ? 1 : 0 }; }), auditStored: true, truncated: false
+    };
+  }
+
+  function answer(u, method, body) {
+    var p = u.pathname.replace(/\/+$/, '');
+    var q = u.searchParams;
+    if (p === '/api/members-list') {
+      return { ok: true, count: MEMBERS.length, members: MEMBERS.map(pub), segments: SEGS, mode: 'segments', truncated: false };
+    }
+    if (method === 'POST') {
+      var a = String((body && body.action) || '');
+      // 何も変えない問い合わせ（人数・見本）は、本物と同じように答えます。
+      if (a === 'mail.count') return count(body.segment || '');
+      if (a === 'mail.preview') return preview(body);
+      return { ok: false, demo: true, message: MSG };
+    }
+    if (method !== 'GET') return { ok: false, demo: true, message: MSG };
+    var view = q.get('view') || '';
+    if (view === 'mail') {
+      return { ok: true, from: 'Lumenium <info@example.com>', sandbox: false, steps: '', address: ADDRESS, owner: 'owner@example.com',
+        limits: { subject: 120, body: 10000 }, history: HISTORY, historyFromResend: true };
+    }
+    if (view === 'broadcast') return { ok: true, id: q.get('id'), stats: STATS };
+    if (view === 'growth') return growth();
+    if (view === 'audit') return { ok: true, stored: true, items: [{ ref: 'ADEMO01', at: new Date(now - 20 * DAY).toISOString(), action: 'delete', reason: 'request', reasonLabel: '本人からの削除の依頼', hadConsent: true }] };
+    var m = MEMBERS.filter(function (x) { return x.id === q.get('id'); })[0];
+    if (!m) return { ok: false, missing: true, message: 'その会員は見つかりませんでした（すでに削除されたかもしれません）。一覧を「更新」してください。' };
+    return { ok: true, member: pub(m), consent: m.consent, consentStored: true };
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    var p = u ? u.pathname.replace(/\/+$/, '') : '';
+    if (p !== '/api/members' && p !== '/api/members-list') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    var body = null;
+    try { body = init && typeof init.body === 'string' ? JSON.parse(init.body) : null; } catch (_) {}
+    var out = answer(u, method, body);
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(out), { status: out.missing ? 404 : 200, headers: { 'Content-Type': 'application/json' } });
     });
   };
 })();
