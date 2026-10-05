@@ -2596,3 +2596,116 @@
     return reply({ ok: false, demo: true, message: MSG });
   };
 })();
+
+/* ---- デモ：口コミ管理（Googleレビュー）（shape: api/reviews.js） ----
+   架空の美容室「サロン・ルミエ」の口コミ25件。星・返信の有無・時期が
+   ばらけるようにしてあります。お名前はすべて架空、アドレスは example.jp
+   （実在しない決まりのドメイン）です。上の作りと同じくデモのときだけ動き、
+   /api/reviews だけを受けます。返信・設定・お願いメールはすべて断ります。
+   「AIで下書き」は、AIを呼ばずに決まった見本を返します（料金がかからないように）。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var D = 86400000;
+  var now = Date.now();
+  var LOC = 'accounts/100/locations/200';
+  function iso(daysAgo, h) { return new Date(now - daysAgo * D + (h || 0) * 3600000).toISOString(); }
+  // [日前, 星, 表示名, 本文, 返信（あれば）, 返信までの時間]
+  var RAW = [
+    [2, 5, '佐藤 美咲', 'カットとカラーをお願いしました。希望をていねいに聞いてくださって、仕上がりも思った通りでした。スタッフの皆さんの接客が気持ちよかったです。', '', 0],
+    [4, 2, 'K. T.', '予約の時間に行ったのに20分ほど待ちました。待ち時間の説明もなく残念でした。カットは良かったです。', '', 0],
+    [6, 5, '中村 陽菜', 'ヘッドスパが最高でした。雰囲気も落ち着いていて、ゆっくりできました。', 'ヘッドスパでゆっくりしていただけたようで、うれしいです。またお待ちしております。', 9],
+    [9, 4, 'たかし', '駅近で通いやすい。カットの技術は確か。駐車場がないのだけ少し不便。', '', 0],
+    [12, 1, '匿名希望', '電話の対応が失礼だと感じました。', 'ご不快な思いをおかけし、申し訳ございません。詳しくお話を伺いたく、お手数ですがお店までご連絡いただけますと幸いです。', 20],
+    [15, 5, '山本 さくら', 'カラーの色味の提案が上手で、友達にも褒められました。接客も丁寧です。', 'お友達にも褒めていただけたとのこと、私たちもうれしいです。', 5],
+    [19, 3, 'Yuki', '普通に良かったです。料金は少し高めかな。', '', 0],
+    [23, 5, '伊藤 結衣', '初めてでしたが、説明が丁寧で安心できました。カットの仕上がりも大満足です。', 'はじめてのご来店で不安もあったかと思います。安心していただけてよかったです。', 30],
+    [28, 4, '小林', 'スタッフの方が感じが良い。予約も取りやすい。', 'ありがとうございます。', 50],
+    [33, 5, '加藤 真由', 'パーマをかけてもらいました。手入れの方法まで教えてくれて親切でした。', 'お手入れのことまで聞いてくださり、ありがとうございました。', 12],
+    [38, 2, 'M.S', 'カラーが思っていた色と違いました。説明が少し足りなかったと思います。', '', 0],
+    [44, 5, '吉田 彩', '雰囲気が良く、居心地のいいお店です。シャンプーも気持ちよかった。', 'またゆっくりしにいらしてください。', 18],
+    [52, 4, '山田 太郎', 'カットが早くて上手。待ち時間もほぼなし。', 'ありがとうございます。またお待ちしております。', 26],
+    [60, 5, '松本 葵', 'トリートメントで髪がさらさらに。丁寧な接客でした。', 'さらさらになってよかったです。', 7],
+    [71, 3, 'けい', '技術は良いけど、店内が少しうるさかった。', 'ご意見ありがとうございます。音楽の音量などを見直します。', 40],
+    [83, 5, '井上 千尋', 'いつも希望通りのカットにしてくれます。スタッフの皆さんが親切。', 'いつもありがとうございます。', 15],
+    [97, 4, '木村', '予約がネットでできて便利。仕上がりも満足。', '', 0],
+    [110, 5, '林 優子', '子連れでも快く受け入れてくださいました。親切な対応に感謝です。', 'お子さまと一緒にいらしてくださり、ありがとうございました。', 22],
+    [126, 1, 'T.N', '待ち時間が長いうえに、仕上がりも雑でした。', 'ご期待に沿えず申し訳ございません。お店まで直接ご連絡いただけますと幸いです。', 70],
+    [140, 5, '清水 楓', 'カラーの持ちが良くて、色落ちもきれい。接客も丁寧。', 'ありがとうございます。', 10],
+    [158, 4, 'あおい', '雰囲気が好き。料金がもう少し安ければ通いたい。', '', 0],
+    [175, 5, '森 健', 'メンズカットも上手です。説明が分かりやすい。', 'ありがとうございます。またお待ちしております。', 34],
+    [201, 5, '池田 春香', 'ヘッドスパとカットのセットがおすすめ。居心地の良いお店。', 'ありがとうございます。', 8],
+    [230, 3, 'Ken', '可もなく不可もなく。駐車場が欲しい。', '', 0],
+    [262, 5, '橋本 美穂', '丁寧なカウンセリングで、仕上がりに大満足。スタッフの笑顔がすてきです。', 'うれしいお言葉、ありがとうございます。', 16]
+  ];
+  var REVIEWS = RAW.map(function (x, i) {
+    var created = iso(x[0], -(i % 7) * 2);
+    return {
+      id: 'demo' + (i + 1), name: LOC + '/reviews/demo' + (i + 1), location: LOC, stars: x[1], comment: x[3], author: x[2],
+      createdAt: created, updatedAt: created,
+      reply: x[4] ? { text: x[4], at: new Date(Date.parse(created) + x[5] * 3600000).toISOString() } : null
+    };
+  });
+  var PREFS = { shopName: 'サロン・ルミエ', tone: 'warm', signature: 'サロン・ルミエ 店長', notes: '電話 03-0000-0000（10〜19時・火曜定休）', placeId: '', requests: 'manual', contact: '03-0000-0000', monthlyYen: 500, locations: [LOC] };
+  var LINK = 'https://search.google.com/local/writereview?placeid=ChIJDEMO_salon_lumiere0';
+  function state() {
+    return {
+      ok: true, stored: true,
+      connection: { state: 'ready', ok: true, message: 'つながっています', steps: [] },
+      locations: [{ name: LOC, title: 'サロン・ルミエ 表参道店', avg: 4.1, total: 25, placeId: 'ChIJDEMO_salon_lumiere0', syncedAt: iso(0, -2), complete: true }],
+      lastSync: iso(0, -2), reviews: REVIEWS, prefs: PREFS,
+      ai: { ready: true, month: '', yen: 38, calls: 11, cap: 500, daily: 40 },
+      limits: { replyBytes: 4096, gapDays: 90, maxAgeDays: 14 },
+      requests: {
+        mode: PREFS.requests, link: LINK, address: true, sandbox: false, mail: true,
+        candidates: [
+          { id: 'bk_demo1', name: '佐々木 花子', email: 'ha***@example.jp', service: 'カット＋カラー', visitedAt: iso(1), ok: true, reason: 'ok', message: '送れます' },
+          { id: 'bk_demo2', name: '田中 一郎', email: 'ic***@example.jp', service: 'カット', visitedAt: iso(3), ok: false, reason: 'recent', message: '90日以内に一度お送りしています' },
+          { id: 'bk_demo3', name: '高橋 恵', email: 'me***@example.jp', service: 'ヘッドスパ', visitedAt: iso(5), ok: false, reason: 'opted_out', message: 'お客様が配信停止を選んでいます' }
+        ],
+        log: [
+          { at: iso(3, 1), booking: 'bk_demo2', name: '田中 一郎', ok: true },
+          { at: iso(9, 1), booking: 'bk_demo9', name: '鈴木 直子', ok: true }
+        ]
+      }
+    };
+  }
+  function draftFor(r) {
+    var name = r.author && r.author !== '匿名希望' ? r.author.replace(/\s.*$/, '') + '様' : 'お客様';
+    if (r.stars <= 2) {
+      return name + '、口コミをお寄せいただきありがとうございます。せっかくご来店いただいたのに、ご不快な思いをおかけしてしまい申し訳ございません。' +
+        'いただいたお声はスタッフ全員で共有いたします。詳しくお話を伺えればと思いますので、お手数ですが、お店（03-0000-0000・10〜19時）までご連絡いただけますと幸いです。\nサロン・ルミエ 店長';
+    }
+    return name + '、すてきな口コミをありがとうございます。' + (r.stars >= 4 ? '気に入っていただけたようで、スタッフ一同とてもうれしく思っています。' : '率直なご感想をありがとうございます。いただいた点は今後に生かしてまいります。') +
+      'またお会いできるのを楽しみにしております。\nサロン・ルミエ 店長';
+  }
+  function answer(u, method, body) {
+    if (method === 'GET') {
+      if (u.searchParams.get('view') === 'badge') return { ok: true, unreplied: REVIEWS.filter(function (r) { return !r.reply; }).length };
+      return state();
+    }
+    var b = {};
+    try { b = JSON.parse(body || '{}'); } catch (_) {}
+    if (b.action === 'draft') {
+      var r = REVIEWS.filter(function (x) { return x.id === b.id; })[0];
+      if (!r) return { ok: false, message: 'その口コミが見つかりませんでした。' };
+      return { ok: true, draft: draftFor(r), cost: { yen: 38, cap: 500, calls: 11 }, message: 'デモ版のため、AIは呼ばずに見本の下書きを出しています。実際は、口コミに合わせてAIが書きます。読んで直してから出してください。' };
+    }
+    if (b.action === 'sync') return Object.assign(state(), { ok: true, message: 'デモ版のため、Google からは読み直していません（見本の口コミです）。' });
+    return { ok: false, demo: true, message: MSG };
+  }
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/reviews') return inner(input, init);
+    var res = answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body);
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
