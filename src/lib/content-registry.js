@@ -10,7 +10,15 @@ import { FAQ_GROUPS } from '../data/faq.js'
 import { articles } from '../data/articles.js'
 import { SERVICES } from '../data/services.js'
 import { SECTION } from '../data/text.js'
+import { itemId, idArray, migratePath, ID_SEG } from './content-ids.js'
+import { applyExtra } from './content-extra.js'
 
+// Arrays whose items all carry an `id` (or a `key`) are addressed by it —
+// "site.TESTIMONIALS.@voice-p8q48v.text" — so an override stays on its item
+// when the list is reordered or grows. Plain string lists (ACHIEVEMENTS,
+// highlights…) have nothing to name an item by and keep their index. Older
+// index paths are read through migratePath (src/lib/content-ids.js).
+//
 // Group -> root object. The group name is the first path segment.
 export const REGISTRY = {
   text: SECTION,
@@ -62,7 +70,11 @@ export function collectPaths(root = REGISTRY, prefix = '') {
   const out = []
   const walk = (node, path) => {
     if (Array.isArray(node)) {
-      node.forEach((v, i) => walk(v, path ? `${path}.${i}` : String(i)))
+      const byId = idArray(node)
+      node.forEach((v, i) => {
+        const seg = byId ? '@' + itemId(v) : String(i)
+        walk(v, path ? `${path}.${seg}` : seg)
+      })
       return
     }
     if (node && typeof node === 'object') {
@@ -78,30 +90,49 @@ export function collectPaths(root = REGISTRY, prefix = '') {
   return out
 }
 
+/** One segment down: "@id" finds the item with that id in an array. */
+function step(node, seg) {
+  if (node == null || typeof node !== 'object') return undefined
+  if (ID_SEG.test(seg) && Array.isArray(node)) {
+    const id = seg.slice(1)
+    return node.find((x) => itemId(x) === id)
+  }
+  return seg in node ? node[seg] : undefined
+}
+
 /**
  * Apply a { path: string } override map onto the live registry objects.
  * Only replaces leaves that already exist and are already strings, so a stale
  * or hand-edited content.json can never introduce new shapes or wrong types.
+ * The `added` / `hidden` sections are the one way to change a list's length,
+ * and they are checked item by item (src/lib/content-extra.js).
  * Returns the number of values actually applied.
  */
 export function applyOverrides(overrides, root = REGISTRY) {
   if (!overrides || typeof overrides !== 'object') return 0
   let applied = 0
-  for (const [path, value] of Object.entries(overrides)) {
+  for (const [raw, value] of Object.entries(overrides)) {
     if (typeof value !== 'string') continue
+    // Older files keyed by index: read them as the item they meant.
+    const path = migratePath(raw)
+    if (!path) continue
+    if (path !== raw && Object.prototype.hasOwnProperty.call(overrides, path)) continue
     const parts = String(path).split('.')
     const leaf = parts.pop()
     if (LOCKED.has(leaf)) continue
     let node = root
     let ok = true
     for (const p of parts) {
-      if (node == null || typeof node !== 'object' || !(p in node)) { ok = false; break }
-      node = node[p]
+      node = step(node, p)
+      if (node === undefined) { ok = false; break }
     }
     if (!ok || node == null || typeof node !== 'object') continue
     if (typeof node[leaf] !== 'string') continue
     node[leaf] = value
     applied++
   }
-  return applied
+  // Items added in the admin (FAQ, お客様の声, 実績, blog posts) go after the
+  // built-in ones, and hidden ones come out — here, so the app, the prerender
+  // and every static page generator get the same lists from one call.
+  return applied + applyExtra(overrides, root)
 }

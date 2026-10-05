@@ -55,6 +55,10 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
 .list a:hover { color:#a5b4fc; }
 .list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.list .thumb { float:right; width:96px; height:64px; object-fit:cover; border-radius:8px; margin:4px 0 6px 12px; }
+.list li::after { content:''; display:block; clear:both; }
+figure.news-img { margin:0 0 22px; }
+figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }

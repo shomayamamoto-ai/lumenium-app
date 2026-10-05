@@ -48,6 +48,21 @@ function writeDist(rel, text) {
   if (existsSync(at('dist/' + rel + '.gz'))) writeFileSync(at('dist/' + rel + '.gz'), gzipSync(Buffer.from(text), { level: 9 }))
 }
 
+/* 公開する news.json からは、公開日の来ていない予約を外します。public/ の
+   ほうは管理画面が保存する元のファイルなので、そのままにします。外さないと、
+   予約した文面が /news.json で公開日より前に読めてしまいます。 */
+{
+  const { liveNews, jstToday } = await import('../src/lib/news.js')
+  try {
+    const all = JSON.parse(readFileSync(at('dist/news.json'), 'utf8'))
+    const live = liveNews(all, jstToday())
+    if (Array.isArray(all) && live.length !== all.length) {
+      writeDist('news.json', JSON.stringify(live, null, 2) + '\n')
+      console.log(`news.json: 予約中の ${all.length - live.length} 件を公開用から外しました`)
+    }
+  } catch (_) { /* no news.json in dist — nothing to filter */ }
+}
+
 try {
   await build({
     // Its own small config: the client build's (compression, chunking) is

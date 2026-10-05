@@ -19,6 +19,7 @@ import { readPrefs, readTemplates } from './_social-store.js'
 import { runVideoCron } from './video-publish.js'
 import { runBookingCron } from './booking-cron.js'
 import { runAutoCron } from './auto-cron.js'
+import { runNewsCron } from './_news-cron.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
 const BUDGET_MS = 21000
@@ -108,6 +109,14 @@ export async function GET(req) {
     catch (e) { booking = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
+  // お知らせの予約：公開日が来たものがあれば、サイトを作り直させます（_news-cron.js）。
+  // 呼ぶのはフック1回だけなので、自動改善より先に。
+  let news = null
+  if (BUDGET_MS - (Date.now() - started) > 5000) {
+    try { news = await runNewsCron(req) }
+    catch (e) { news = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
+  }
+
   // 自動改善（auto-cron.js）: 観測 → 実験の判定 → 設定しだいで採用・戻す → 提案。
   // 動画のぶん（6秒）を残し、長くても12秒まで。足りない日は翌朝に回します。
   let auto = null
@@ -123,7 +132,7 @@ export async function GET(req) {
     catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, booking, auto: auto && { ok: auto.ok, paused: auto.paused, steps: (auto.steps || []).map((x) => x.step + (x.ok === false ? '!' : '')) }, video }
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, booking, news, auto: auto && { ok: auto.ok, paused: auto.paused, steps: (auto.steps || []).map((x) => x.step + (x.ok === false ? '!' : '')) }, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }

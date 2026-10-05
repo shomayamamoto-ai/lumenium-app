@@ -76,3 +76,33 @@ export async function lastCommit(token, repo, path) {
     return null
   }
 }
+
+/** The last `n` commits that touched a file, newest first, for the
+ *  「保存の履歴」 lists. null when GitHub could not be asked. */
+export async function fileHistory(token, repo, path, n = 20) {
+  try {
+    const res = await gh(token, repo, `commits?path=${encodeURIComponent(path)}&per_page=${n}`)
+    if (!res.ok) return null
+    const list = await res.json()
+    return (Array.isArray(list) ? list : []).map((c) => ({
+      sha: String(c.sha || ''),
+      at: (c.commit && c.commit.committer && c.commit.committer.date) || '',
+      message: String((c.commit && c.commit.message) || '').split('\n')[0].slice(0, 140),
+    }))
+  } catch (_) {
+    return null
+  }
+}
+
+/** A file as it was at one commit: { ok, status, text }. A file that did not
+ *  exist yet at that commit reads as status 404. */
+export async function fileAt(token, repo, path, sha) {
+  try {
+    const res = await gh(token, repo, `contents/${path}?ref=${encodeURIComponent(sha)}`)
+    if (!res.ok) return { ok: false, status: res.status, text: '' }
+    const j = await res.json()
+    return { ok: true, status: 200, text: b64decodeUtf8(j.content || '') }
+  } catch (_) {
+    return { ok: false, status: 0, text: '' }
+  }
+}

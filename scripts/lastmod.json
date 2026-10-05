@@ -92,7 +92,15 @@
     "date": "2026-10-02"
   },
   "/news.html": {
-    "hash": "78760b6c8aecf0b3",
+    "hash": "637e405afb4002bb",
+    "date": "2026-10-05"
+  },
+  "/news/n-20260821-01.html": {
+    "hash": "04d13dfd4a52da63",
+    "date": "2026-08-21"
+  },
+  "/news/n-20260928-01.html": {
+    "hash": "6bb6a42a2d1522d2",
     "date": "2026-09-28"
   },
   "/onestop.html": {

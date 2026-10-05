@@ -3,6 +3,7 @@
 // this list as a form — it cannot import the app's ES modules itself.
 import { writeFileSync, readFileSync } from 'node:fs'
 import { REGISTRY, GROUP_LABELS, collectPaths, applyOverrides } from '../src/lib/content-registry.js'
+import { migratePath, idArray, itemId } from '../src/lib/content-ids.js'
 
 // Defaults must be the code's values, not whatever is currently overridden,
 // so the admin can always see and restore the original wording.
@@ -23,10 +24,28 @@ for (const { path, value } of collectPaths()) {
   ;(groups[g] ||= { key: g, label: GROUP_LABELS[g] || g, fields: [] }).fields.push({ path, value })
 }
 
+/* Where each "@id" item sits in its list today (1 = first), so the editor can
+   still say 「2件目」 — an id means nothing to the person reading it. */
+const positions = {}
+const mark = (node, path) => {
+  if (Array.isArray(node)) {
+    const byId = idArray(node)
+    node.forEach((v, i) => {
+      const seg = byId ? '@' + itemId(v) : String(i)
+      if (byId) positions[`${path}.${seg}`] = i + 1
+      mark(v, `${path}.${seg}`)
+    })
+  } else if (node && typeof node === 'object') {
+    for (const k of Object.keys(node)) mark(node[k], path ? `${path}.${k}` : k)
+  }
+}
+mark(REGISTRY, '')
+
 const schema = {
   generatedAt: new Date().toISOString(),
   count: Object.keys(defaults).length,
   groups: Object.values(groups),
+  positions,
 }
 // generatedAt moves only when the list itself does: rewriting the file on
 // every build, with nothing in it changed, left a diff after each build.
@@ -44,7 +63,7 @@ try {
   const overrides = JSON.parse(readFileSync('public/content.json', 'utf8'))
   const keys = Object.keys(overrides)
   if (keys.length) {
-    const unknown = keys.filter((k) => !(k in defaults))
+    const unknown = keys.filter((k) => typeof overrides[k] === 'string' && !(migratePath(k) in defaults))
     const applied = applyOverrides(overrides, REGISTRY)
     console.log(`content overrides: ${applied}/${keys.length} applied` +
       (unknown.length ? ` — ${unknown.length} stale key(s): ${unknown.slice(0, 5).join(', ')}` : ''))

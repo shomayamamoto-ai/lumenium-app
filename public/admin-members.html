@@ -987,6 +987,10 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-portal.js"></script>
 <!-- 自動改善（観測・提案・文章の実験・自動適用）。 -->
 <script src="/admin-auto.js"></script>
+<!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
+<script src="/admin-news.js"></script>
+<!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
+<script src="/admin-copy.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -2745,6 +2749,7 @@ window.lumAdmin = {
         newsPost({ action: 'delete', id: n.id }, del);
       };
       li.appendChild(d); li.appendChild(t); li.appendChild(ed); li.appendChild(del);
+      if (window.lumNews) window.lumNews.decorate(li, n);
       ul.appendChild(li);
     });
   }
@@ -2833,8 +2838,11 @@ window.lumAdmin = {
       if (api && api.res && api.res.ok && api.data && api.data.ok) {
         var items = api.data.items || [];
         renderNews(items);
+        if (window.lumNews) window.lumNews.load(api.data);
+        // 予約中のものはサイトに出ないので、比べるのは出ているはずの分だけ。
+        var vis = window.lumNews ? window.lumNews.visible : function (x) { return x; };
         window.lumDeployState('news-state',
-          JSON.stringify(items), live === null ? null : JSON.stringify(live),
+          JSON.stringify(vis(items)), live === null ? null : JSON.stringify(vis(live)),
           api.data.commit, '一覧');
         return;
       }
@@ -2842,6 +2850,7 @@ window.lumAdmin = {
       // is. Show it, and say that it is the published copy rather than the
       // saved one, so a missing post is not a mystery.
       renderNews(live || []);
+      if (window.lumNews) window.lumNews.load(api && api.data);
       var el = document.getElementById('news-state');
       if (el) {
         el.className = 'deploy-state problem';
@@ -2869,6 +2878,7 @@ window.lumAdmin = {
           if (x.d.commit && x.d.commit.sha) window.lumDeployWatch('news-state', x.d.commit.sha, 'お知らせ');
           else window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
           if (payload.action === 'add' || payload.action === 'edit') stopEdit();
+          if (window.lumNews) window.lumNews.saved(payload, x.d);
         } else {
           newsSay(x.d.message || '保存に失敗しました。');
         }
@@ -2876,6 +2886,8 @@ window.lumAdmin = {
       })
       .catch(function () { newsSay('通信に失敗しました。'); if (btn) btn.disabled = false; });
   }
+  // 「この時点に戻す」（admin-news.js）も同じ保存の流れを通します。
+  window.lumNewsPost = newsPost;
   // Editing in place. Correcting a typo used to mean deleting the post and
   // retyping it, which gave it today's date and moved it to the top — a
   // different post, not a correction.
@@ -2889,6 +2901,7 @@ window.lumAdmin = {
     if (n.date) { dateInput.value = n.date; markDay(); }
     document.getElementById('news-btn').textContent = 'この内容で更新';
     document.getElementById('news-cancel').style.display = 'inline-block';
+    if (window.lumNews) window.lumNews.edit(n);
     newsSay((n.date || '') + ' のお知らせを編集しています。日付を変えない限り、並び順も変わりません。', true);
     document.getElementById('news-title').focus();
     document.getElementById('news-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -2902,6 +2915,7 @@ window.lumAdmin = {
     setDay(0);
     document.getElementById('news-btn').textContent = '投稿する';
     document.getElementById('news-cancel').style.display = 'none';
+    if (window.lumNews) window.lumNews.reset();
   }
   document.getElementById('news-cancel').addEventListener('click', function () {
     stopEdit();
@@ -2984,14 +2998,18 @@ window.lumAdmin = {
     if (/（[^）]*）/.test(all) && /（(更新した内容|サービス名|業種・内容|記事の題名|期間|再開日|媒体名|イベント名|日時|テーマ)）/.test(all)) {
       newsSay('まだ書き換えていない（ ）があります。中身を入れてから投稿してください。'); return;
     }
-    newsPost({
+    var payload = {
       action: editingId ? 'edit' : 'add',
       id: editingId || undefined,
       title: title,
       body: document.getElementById('news-body').value.trim(),
       link: linkInput.value.trim(),
       date: dateInput.value || undefined
-    }, document.getElementById('news-btn'));
+    };
+    // 予約・画像を足し、下書きならその場で保存して終わり（admin-news.js）。
+    if (window.lumNews) payload = window.lumNews.extra(payload);
+    if (!payload) return;
+    newsPost(payload, document.getElementById('news-btn'));
   });
 
   function fmtDate(iso) {
@@ -3306,6 +3324,12 @@ window.lumAdmin = {
     for (var i = 1; i < parts.length; i++) {
       var seg = parts[i];
       if (/^\d+$/.test(seg)) { out.push((Number(seg) + 1) + '件目'); continue; }
+      // "@id"（並べ替えても同じ項目を指す住所）は、いまの並びで何件目かを出します。
+      if (seg.charAt(0) === '@') {
+        var pos = schema && schema.positions && schema.positions[parts.slice(0, i + 1).join('.')];
+        out.push(pos ? pos + '件目' : '追加した項目');
+        continue;
+      }
       if (seg === 'items' || seg === 'checks' || seg === 'list' ||
           seg === 'highlights' || seg === 'examples' || seg === 'tags' || seg === 'body') continue;
       out.push(LEAF[seg] || seg);
@@ -3313,6 +3337,13 @@ window.lumAdmin = {
     if (!out.length) out.push(LEAF[parts[parts.length - 1]] || parts[parts.length - 1]);
     return out.join(' · ');
   }
+  // 保存の履歴（admin-copy.js）が「どこが変わったか」を言葉にするのに使います。
+  window.lumCopyLabel = function (path) {
+    var g = schema && schema.groups.filter(function (x) {
+      return x.fields.some(function (f) { return f.path === path; });
+    })[0];
+    return (g ? g.label + ' · ' : '') + humanLabel(path);
+  };
 
   function say(text, isInfo) {
     msgEl.textContent = text || '';
@@ -3692,8 +3723,10 @@ window.lumAdmin = {
       var saved = await window.lumAdmin.fetch('/api/content-save');
       if (saved.res.ok && saved.data && saved.data.ok) {
         overrides = saved.data.overrides || {};
+        // 古い書き方の上書きは id の書き方に読み替えて返ってくるので、
+        // 公開中のファイルとはファイルそのもの（stored）で比べます。
         window.lumDeployState('copy-state',
-          JSON.stringify(overrides), JSON.stringify(live), saved.data.commit, '文章');
+          JSON.stringify(saved.data.stored || overrides), JSON.stringify(live), saved.data.commit, '文章');
       } else {
         overrides = deployed;
         var st = document.getElementById('copy-state');
@@ -3787,7 +3820,10 @@ window.lumAdmin = {
     if (loaded) return;
     loaded = true;
     loadAll();
+    if (window.lumCopyMore) window.lumCopyMore();
   };
+  // 「この時点に戻す」のあと、文章の一覧を読み直します（admin-copy.js）。
+  window.lumCopyReload = function () { return loadAll(); };
 })();
 </script>
 
