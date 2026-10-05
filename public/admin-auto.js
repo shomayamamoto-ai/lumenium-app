@@ -232,7 +232,7 @@
       h += '<div class="au-tbl"><table><thead><tr><th></th><th>見た人</th><th>成果</th><th>率</th><th>ありうる幅（95%）</th></tr></thead><tbody>' +
         abRow('A（元）', L.a) + abRow('B（案）', L.b) +
         '</tbody></table></div><p class="au-verdict">' + esc(L.text) + '</p>' +
-        '<p class="soc-small">' + (L.days != null ? L.days + '日目。' : '') + '人数は「人・日」です（同じ人が2日見れば2人）。各案' + S.data.min.exposures + '人・成果' + S.data.min.conversions + '件・' + S.data.min.days + '日がそろってから、B が良い確率' + Math.round(S.data.min.probability * 100) + '%以上で採用の目安とします。毎日見ているので、ごくまれに偶然の差を勝ちと判断することがあり、そのため採用後' + S.data.min.watchDays + '日間は見張ります。</p>';
+        (e.phase !== 'running' ? '' : '<p class="soc-small">' + (L.days != null ? L.days + '日目。' : '') + '人数は「人・日」です（同じ人が2日見れば2人）。各案' + S.data.min.exposures + '人・成果' + S.data.min.conversions + '件・' + S.data.min.days + '日がそろってから、B が良い確率' + Math.round(S.data.min.probability * 100) + '%以上で採用の目安とします。毎日見ているので、ごくまれに偶然の差を勝ちと判断することがあり、そのため採用後' + S.data.min.watchDays + '日間は見張ります。</p>');
     }
     if (e.phase === 'watch' && e.watchLive) {
       var w = e.watchLive;
