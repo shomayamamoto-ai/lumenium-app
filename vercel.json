@@ -116,6 +116,10 @@
       "destination": "/news.html"
     },
     {
+      "source": "/news/(.*)",
+      "destination": "/news/$1"
+    },
+    {
       "source": "/faq.html",
       "destination": "/faq.html"
     },

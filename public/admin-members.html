@@ -983,6 +983,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-inquiries.js"></script>
 <!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
 <script src="/admin-members-tool.js"></script>
+<!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
+<script src="/admin-news.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -2730,6 +2732,7 @@ window.lumAdmin = {
         newsPost({ action: 'delete', id: n.id }, del);
       };
       li.appendChild(d); li.appendChild(t); li.appendChild(ed); li.appendChild(del);
+      if (window.lumNews) window.lumNews.decorate(li, n);
       ul.appendChild(li);
     });
   }
@@ -2818,8 +2821,11 @@ window.lumAdmin = {
       if (api && api.res && api.res.ok && api.data && api.data.ok) {
         var items = api.data.items || [];
         renderNews(items);
+        if (window.lumNews) window.lumNews.load(api.data);
+        // 予約中のものはサイトに出ないので、比べるのは出ているはずの分だけ。
+        var vis = window.lumNews ? window.lumNews.visible : function (x) { return x; };
         window.lumDeployState('news-state',
-          JSON.stringify(items), live === null ? null : JSON.stringify(live),
+          JSON.stringify(vis(items)), live === null ? null : JSON.stringify(vis(live)),
           api.data.commit, '一覧');
         return;
       }
@@ -2827,6 +2833,7 @@ window.lumAdmin = {
       // is. Show it, and say that it is the published copy rather than the
       // saved one, so a missing post is not a mystery.
       renderNews(live || []);
+      if (window.lumNews) window.lumNews.load(api && api.data);
       var el = document.getElementById('news-state');
       if (el) {
         el.className = 'deploy-state problem';
@@ -2854,6 +2861,7 @@ window.lumAdmin = {
           if (x.d.commit && x.d.commit.sha) window.lumDeployWatch('news-state', x.d.commit.sha, 'お知らせ');
           else window.lumDeployState('news-state', 'saved', 'live', null, '一覧');
           if (payload.action === 'add' || payload.action === 'edit') stopEdit();
+          if (window.lumNews) window.lumNews.saved(payload, x.d);
         } else {
           newsSay(x.d.message || '保存に失敗しました。');
         }
@@ -2861,6 +2869,8 @@ window.lumAdmin = {
       })
       .catch(function () { newsSay('通信に失敗しました。'); if (btn) btn.disabled = false; });
   }
+  // 「この時点に戻す」（admin-news.js）も同じ保存の流れを通します。
+  window.lumNewsPost = newsPost;
   // Editing in place. Correcting a typo used to mean deleting the post and
   // retyping it, which gave it today's date and moved it to the top — a
   // different post, not a correction.
@@ -2874,6 +2884,7 @@ window.lumAdmin = {
     if (n.date) { dateInput.value = n.date; markDay(); }
     document.getElementById('news-btn').textContent = 'この内容で更新';
     document.getElementById('news-cancel').style.display = 'inline-block';
+    if (window.lumNews) window.lumNews.edit(n);
     newsSay((n.date || '') + ' のお知らせを編集しています。日付を変えない限り、並び順も変わりません。', true);
     document.getElementById('news-title').focus();
     document.getElementById('news-title').scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -2887,6 +2898,7 @@ window.lumAdmin = {
     setDay(0);
     document.getElementById('news-btn').textContent = '投稿する';
     document.getElementById('news-cancel').style.display = 'none';
+    if (window.lumNews) window.lumNews.reset();
   }
   document.getElementById('news-cancel').addEventListener('click', function () {
     stopEdit();
@@ -2969,14 +2981,18 @@ window.lumAdmin = {
     if (/（[^）]*）/.test(all) && /（(更新した内容|サービス名|業種・内容|記事の題名|期間|再開日|媒体名|イベント名|日時|テーマ)）/.test(all)) {
       newsSay('まだ書き換えていない（ ）があります。中身を入れてから投稿してください。'); return;
     }
-    newsPost({
+    var payload = {
       action: editingId ? 'edit' : 'add',
       id: editingId || undefined,
       title: title,
       body: document.getElementById('news-body').value.trim(),
       link: linkInput.value.trim(),
       date: dateInput.value || undefined
-    }, document.getElementById('news-btn'));
+    };
+    // 予約・画像を足し、下書きならその場で保存して終わり（admin-news.js）。
+    if (window.lumNews) payload = window.lumNews.extra(payload);
+    if (!payload) return;
+    newsPost(payload, document.getElementById('news-btn'));
   });
 
   function fmtDate(iso) {

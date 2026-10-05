@@ -45,7 +45,10 @@ export async function POST(req) {
   const token = await setting('BLOB_READ_WRITE_TOKEN', '', req)
   if (!token) return json(NO_BLOB, 503)
 
-  const preview = new URL(req.url).searchParams.get('kind') === 'preview'
+  const kind = new URL(req.url).searchParams.get('kind')
+  const preview = kind === 'preview'
+  // お知らせの画像（admin-news.js）も同じ置き場所に、別のフォルダで置きます。
+  const dir = kind === 'news' ? 'news' : 'social'
   const limit = preview ? MAX_PREVIEW : MAX_BYTES
   const declared = Number(req.headers.get('content-length') || 0)
   if (declared > limit) {
@@ -63,7 +66,7 @@ export async function POST(req) {
   if (!TYPES[type]) return json({ ok: false, message: 'JPEG・PNG・WebP の画像だけ置けます。' }, 415)
 
   const rand = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('')
-  const path = `social/${jstDate()}/${rand}${preview ? '-s' : ''}.${TYPES[type]}`
+  const path = `${dir}/${jstDate()}/${rand}${preview ? '-s' : ''}.${TYPES[type]}`
   try {
     const { put } = await import('@vercel/blob')
     const out = await put(path, Buffer.from(buf), { access: 'public', contentType: type, token, addRandomSuffix: false })

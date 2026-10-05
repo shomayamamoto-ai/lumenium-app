@@ -2328,3 +2328,76 @@
     });
   };
 })();
+
+/* ---- デモ：お知らせ投稿の下書き・予約・画像・保存の履歴（shape: api/news-post.js） ----
+   上の作りと同じく、デモのときだけ動きます。下書きの保存・削除・「この時点に
+   戻す」は断ります。投稿は上の作り（架空のコミット）に任せ、返ってきた一覧だけ
+   ここの見本に差し替えます。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var DAY = 86400000, JST = 9 * 3600000;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  function jst(back) { return new Date(Date.now() + JST - back * DAY).toISOString().slice(0, 10); }
+  function ago(ms) { return new Date(Date.now() - ms).toISOString(); }
+  var IMG = location.origin + '/intro-poster.jpg';
+
+  function items() {
+    return [
+      { id: 'demo-n5', date: jst(-6), title: '秋の無料相談会のお知らせ（サンプル）', body: 'これは予約投稿の見本です。公開日の朝に自動でサイトに出ます（架空のお知らせです）。',
+        link: '/#/info/contact-form', status: 'scheduled', publishAt: jst(-6) },
+      { id: 'demo-n4', date: jst(3), title: '年末年始の営業についてのお知らせ（サンプル）', body: 'これはデモ用のサンプル記事です。実際のお知らせではありません。', link: '',
+        image: { url: IMG, alt: '事務所の入口の写真（サンプル）' } },
+      { id: 'demo-n3', date: jst(12), title: '実績を追加しました（サンプル）', body: '飲食店のホームページ制作の事例を追加しました（架空の事例です）。', link: '/works.html' },
+      { id: 'demo-n2', date: jst(26), title: 'ブログを更新しました（サンプル）', body: '「AIを社内で使い始めるときの3つの決まりごと」を公開しました（デモ表示）。', link: '/blog/index.html' },
+      { id: 'demo-n1', date: jst(41), title: '新しいサービスを始めました（サンプル）', body: '「SNS運用サポート」の提供を始めました（デモ表示）。', link: '/#services' }
+    ];
+  }
+  function visible() {
+    var today = jst(0);
+    return items().filter(function (n) { return n.status !== 'scheduled' || n.publishAt <= today; });
+  }
+  var drafts = [
+    { id: 'd-demo-1', title: '冬季休業のお知らせ（下書き・サンプル）', body: '（期間）は休業いたします。', link: '', image: null, publishAt: '', savedAt: ago(2 * DAY + 3600000) },
+    { id: 'd-demo-2', title: '新しい料金表（下書き・サンプル）', body: '新しい料金表の案。まだ書きかけです（サンプル）。', link: '/pricing.html', image: { url: IMG, alt: '料金表の画面（サンプル）' }, publishAt: '', savedAt: ago(5 * 3600000) }
+  ];
+  function history() {
+    var msgs = ['news: 秋の無料相談会のお知らせ（サンプル）', 'news: edit 年末年始の営業についてのお知らせ（サンプル）',
+      'news: 実績を追加しました（サンプル）', 'news: remove demo-n0', 'news: ブログを更新しました（サンプル）', 'news: 新しいサービスを始めました（サンプル）'];
+    return msgs.map(function (m, i) {
+      return { sha: ('d' + i + 'e0000000000000000000000000000000000000').slice(0, 40), at: ago((i * 6 + 1) * DAY + i * 3600000), message: m };
+    });
+  }
+  function reply(body, status) {
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    var p = u ? u.pathname.replace(/\/+$/, '') : '';
+    if (u && u.origin === location.origin && p === '/news.json') return reply(visible());
+    if (p !== '/api/news-post') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    if (method === 'GET') {
+      if (u.searchParams.get('history')) return reply({ ok: true, history: history() });
+      return reply({ ok: true, items: items(), drafts: drafts, today: jst(0), commit: { sha: 'demo000', at: ago(3 * DAY), message: 'news' } });
+    }
+    var body = null;
+    try { body = init && typeof init.body === 'string' ? JSON.parse(init.body) : null; } catch (_) {}
+    var a = body && body.action;
+    if (a === 'draft-save' || a === 'draft-delete' || a === 'revert') return reply({ ok: false, demo: true, message: MSG });
+    return inner(input, init).then(function (r) { return r.json(); }).then(function (d) {
+      d.items = items();
+      d.id = (body && body.id) || 'demo-n4';
+      if (body && body.status === 'scheduled') d.message = 'デモ版のため保存はされません。実際の画面では、' + body.publishAt + ' の朝9時ごろにサイトに出る予約になります。';
+      return new Response(JSON.stringify(d), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();

@@ -138,6 +138,13 @@ export const SETTINGS = [
     why: 'これが無いと、お知らせの投稿もサイト文章の保存もできません。',
   },
   {
+    // device:false — the morning job (a cron request, no cookie of ours) is
+    // the one that calls it.
+    name: 'DEPLOY_HOOK_URL', label: 'お知らせの予約を公開日に出す（任意）', kind: 'secret', group: 'site', device: false,
+    where: 'Vercel › プロジェクト › Settings › Git › Deploy Hooks で、名前（例: news）とブランチ（main）を入れて Create Hook → 出てきた https://api.vercel.com/… の住所',
+    why: '予約したお知らせは、公開日の朝9時ごろの自動処理でサイトに出ます。これを入れると、そのときサイトの作り直しをこの住所で頼みます。入れなくても、代わりに「公開済み」の印を付けるコミットで作り直すので予約は動きます（GitHub の履歴が1行増えるだけの違いです）。どちらの場合も、自動処理の合言葉 CRON_SECRET が要ります。',
+  },
+  {
     name: 'MEMBER_CODE', label: '会員登録コード', kind: 'secret', group: 'site', device: false,
     where: '好きな文字列',
     why: '未設定のあいだは、リポジトリに公開されている既定コードが有効なままです。',

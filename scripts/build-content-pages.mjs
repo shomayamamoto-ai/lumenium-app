@@ -11,7 +11,8 @@
 //   /sitemap.xml          (every indexable page, with the date its content
 //                          last changed — see _lastmod.mjs)
 // Run via `npm run build` (prebuild) or directly.
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { liveNews, newsSlug } from '../src/lib/news.js'
 import { BEACON } from './_beacon.mjs'
 import { framePage } from './_page-frame.mjs'
 import { articles } from '../src/data/articles.js'
@@ -114,6 +115,10 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list a { color:var(--text); text-decoration:none; font-weight:600; font-size:15px; }
 .list a:hover { color:#a5b4fc; }
 .list p { font-size:12.5px; color:var(--sub); margin-top:2px; }
+.list .thumb { float:right; width:96px; height:64px; object-fit:cover; border-radius:8px; margin:4px 0 6px 12px; }
+.list li::after { content:''; display:block; clear:both; }
+figure.news-img { margin:0 0 22px; }
+figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -166,6 +171,11 @@ function withOrg(ld, canonical, title) {
             { '@type': 'ListItem', position: 2, name: 'ブログ', item: `${SITE}/blog/index.html` },
             { '@type': 'ListItem', position: 3, name: title, item: canonical },
           ]
+        : /^\/news\//.test(path)
+        ? [
+            { '@type': 'ListItem', position: 2, name: 'お知らせ', item: `${SITE}/news.html` },
+            { '@type': 'ListItem', position: 3, name: title, item: canonical },
+          ]
         : path === '/' ? [] : [{ '@type': 'ListItem', position: 2, name: title, item: canonical }]
     ),
   }
@@ -196,7 +206,7 @@ const CONTACT_STRIP = `
     <p class="note">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
   </section>`
 
-function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website' }) {
+function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website', ogImage = `${SITE}/api/og` }) {
   return framePage(`<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -210,7 +220,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website' }
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:type" content="${ogType}">
 <meta property="og:url" content="${canonical}">
-<meta property="og:image" content="${SITE}/api/og">
+<meta property="og:image" content="${esc(ogImage)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="index, follow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -394,13 +404,27 @@ ${md(a.content)}
 
 /* ---- News ---- */
 {
-  let news = []
-  try { news = JSON.parse(readFileSync('public/news.json', 'utf8')) } catch {}
+  let all = []
+  try { all = JSON.parse(readFileSync('public/news.json', 'utf8')) } catch {}
+  /* 予約したお知らせは、公開日（日本時間）が来るまで出しません。news.json
+     には入っていますが、ページにも一覧にも sitemap にも載せません
+     （src/lib/news.js の isLive）。公開日の朝の自動処理が作り直させます。 */
+  const news = liveNews(all, TODAY)
+  const waiting = all.length - news.length
+  if (waiting) console.log(`news: 予約中 ${waiting} 件は公開日まで出しません`)
   /* お知らせは全部残します（以前は50件で古いものが黙って消えていました）。
      ページが長くなりすぎないよう、新しい30件だけを開いて見せ、残りは
      「過去のお知らせ」の中に畳みます。動きのない、ブラウザ標準の開閉です。 */
   const NEWS_SHOWN = 30
-  const newsItem = (n) => `<li><time datetime="${esc(n.date)}">${esc(n.date)}</time>${n.link ? `<a href="${esc(n.link)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`
+  const pageOf = (n) => (newsSlug(n) ? `/news/${newsSlug(n)}.html` : '')
+  /* 題名は1件ずつのページへ。以前は題名がそのまま n.link に飛んでいて、
+     お知らせそのものの住所がありませんでした（共有も検索もできない）。 */
+  const newsItem = (n) => {
+    const href = pageOf(n) || n.link
+    const img = n.image && n.image.url
+      ? `<img class="thumb" src="${esc(n.image.url)}" alt="${esc(n.image.alt)}" width="96" height="64" loading="lazy" decoding="async">` : ''
+    return `<li>${img}<time datetime="${esc(n.date)}">${esc(n.date)}</time>${href ? `<a href="${esc(href)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`
+  }
   const url = `${SITE}/news.html`
   const ld = {
     '@context': 'https://schema.org',
@@ -408,7 +432,62 @@ ${md(a.content)}
     name: 'Lumenium お知らせ',
     itemListElement: news.slice(0, 20).map((n, i) => ({
       '@type': 'ListItem', position: i + 1, name: n.title,
+      ...(pageOf(n) ? { url: SITE + pageOf(n) } : {}),
     })),
+  }
+
+  /* ---- 1件ずつのページ（/news/<slug>.html） ----
+     題名・説明・OGP（画像があればその画像）・canonical・NewsArticle の
+     構造化データ。消したお知らせのページは、ここで一緒に消します（残すと
+     もう無いお知らせが検索に出続けます）。 */
+  mkdirSync('public/news', { recursive: true })
+  const made = new Set()
+  for (const n of news) {
+    const path = pageOf(n)
+    if (!path || made.has(path)) continue
+    made.add(path)
+    const canonical = SITE + path
+    const plain = String(n.body || '').replace(/\s+/g, ' ').trim()
+    const desc = (plain ? plain : `${n.date} のお知らせ「${n.title}」です。`).slice(0, 150)
+    const img = n.image && n.image.url ? n.image : null
+    const ldArticle = {
+      '@context': 'https://schema.org',
+      '@type': 'NewsArticle',
+      headline: n.title,
+      description: desc,
+      datePublished: n.date,
+      dateModified: DATE,
+      inLanguage: 'ja-JP',
+      ...(img ? { image: [img.url] } : {}),
+      author: { '@type': 'Organization', name: 'Lumenium', url: SITE },
+      publisher: { '@id': `${SITE}/#organization` },
+      mainEntityOfPage: canonical,
+    }
+    const linkLabel = /^https?:\/\//.test(n.link || '') ? '関連するページを開く（外部サイト）' : '関連するページを見る'
+    const body = `
+  <h1>${esc(n.title)}</h1>
+  <p class="meta"><time datetime="${esc(n.date)}">${esc(n.date)}</time> ・ お知らせ</p>
+  <article>
+  ${img ? `<figure class="news-img"><img src="${esc(img.url)}" alt="${esc(img.alt)}" loading="eager" decoding="async"></figure>` : ''}
+  ${String(n.body || '').split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('\n  ')}
+  </article>
+  <div class="cta">
+    ${n.link ? `<a class="primary" href="${esc(n.link)}">${linkLabel}</a>` : `<a class="primary" href="/#/info/contact-form">無料で相談する</a>`}
+    <a class="ghost" href="/news.html">お知らせの一覧へ</a>
+  </div>`
+    publish(path, shell({
+      title: `${n.title} | お知らせ | Lumenium（ルメニウム）`,
+      desc,
+      canonical,
+      ld: ldArticle,
+      eyebrow: 'お知らせ',
+      body,
+      ogType: 'article',
+      ...(img ? { ogImage: img.url } : {}),
+    }), { initial: n.date, source: JSON.stringify([n.title, n.body, n.link, n.date, img]) })
+  }
+  for (const f of readdirSync('public/news')) {
+    if (f.endsWith('.html') && !made.has(`/news/${f}`)) rmSync(`public/news/${f}`)
   }
   const body = `
   <h1>お知らせ</h1>
