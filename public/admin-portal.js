@@ -288,7 +288,7 @@
      お店が、Google 連携のせいでいつまでも 100% にならないのは不親切です。 */
   var STEPS = [
     { id: 'admin', title: '管理キーを長くする', where: 'Vercel の環境変数 ADMIN_KEY',
-      why: 'この管理画面の鍵です。24文字以上にすると、総当たりで当てられる心配がなくなります。',
+      why: 'この管理画面の鍵です。いまは短めです。24文字以上のランダムな文字列（パスワード管理アプリの自動生成など）にすると、総当たりで当てられる心配がなくなります。',
       go: { env: 'ADMIN_KEY' } },
     { id: 'store', title: '保存先（Upstash Redis）をつなぐ', test: 'store',
       why: '問い合わせ・予約・アクセスの記録をしまっておく場所です。無いと一覧が残りません。',
@@ -342,7 +342,7 @@
     var isOk = function (id) { return !!(by[id] && by[id].state === 'ok'); };
     var note = function (id) { return (by[id] && by[id].note) || ''; };
     var judge = {
-      admin: function () { return hOk ? [isOk('admin') ? 'done' : 'todo', isOk('admin') ? '' : note('admin')] : null; },
+      admin: function () { return hOk ? [isOk('admin') ? 'done' : 'todo', ''] : null; },
       store: function () { return hOk ? [isOk('store') ? 'done' : 'todo', isOk('store') ? '' : note('store')] : null; },
       resend: function () { return hOk ? [isOk('resend') ? 'done' : 'todo', ''] : null; },
       sender: function () {
@@ -658,7 +658,8 @@
     if (!host || !P.data) return;
     var r = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
     var full = r.pct === 100;
-    var open = setupOpen == null ? !full : setupOpen;
+    // 読めなかったときは、確かめようのない12行を並べず、たたんでおきます。
+    var open = setupOpen == null ? r.pct != null && !full : setupOpen;
     var pct = r.pct == null ? '状態を読み込めませんでした'
       : full ? 'すべて完了（' + r.total + ' / ' + r.total + '）'
       : r.done + ' / ' + r.total + ' 完了（' + r.pct + '%）';
