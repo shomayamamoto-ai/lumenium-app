@@ -462,6 +462,20 @@
     '.lp-out.ok{border-color:rgba(4,120,87,.4);background:rgba(20,184,166,.08)}.lp-out.error{border-color:rgba(180,35,24,.4);background:#fff8f7;color:#b42318}' +
     '.lp-out.warn{border-color:rgba(217,119,6,.45);background:rgba(251,191,36,.10)}' +
     '.lp-target{outline:2px solid #3d3fbf !important;outline-offset:3px}' +
+    /* ポモドーロは、表示を選んだときだけ。選んでいないときの時計は、
+       文字盤（秒針が回る）を外して、時刻と日付の1行にします。 */
+    '#portal:not(.lp-pomo) #pomo{display:none}' +
+    '#portal:not(.lp-pomo) .portal-body{grid-template-columns:minmax(0,1fr)}' +
+    'body:not(.lp-pomo) #pomo-pill{display:none !important}' +
+    '#portal:not(.lp-pomo) #portal-hub{padding:10px 16px;gap:10px;min-height:0}' +
+    '#portal:not(.lp-pomo) #portal-hub .hub-face{display:none}' +
+    '#portal:not(.lp-pomo) #portal-hub .hub-read{flex-direction:row;align-items:baseline;gap:10px}' +
+    '#portal:not(.lp-pomo) #portal-hub .hub-clock{font-size:20px}' +
+    '#portal:not(.lp-pomo) #portal-hub .hub-sub{font-size:12.5px;margin-top:0}' +
+    '#portal .pnode{transition:none}' +
+    '.lp-foot{margin-top:14px;font-size:12px;color:var(--sub)}' +
+    '.lp-foot label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}' +
+    '.lp-foot input{width:15px;height:15px;accent-color:#3d3fbf}' +
     '@media (max-width:560px){' +
       '.lp-box{padding:14px 12px}' +
       '.lp-row{grid-template-columns:58px minmax(0,1fr);gap:4px 10px;align-items:start}' +
@@ -721,9 +735,35 @@
     var setup = document.createElement('div');
     setup.id = 'lp-setup';
     portal.insertBefore(setup, box.nextSibling);
+    var foot = document.createElement('p');
+    foot.className = 'lp-foot';
+    foot.innerHTML = '<label><input type="checkbox" id="lp-pomo-on">ポモドーロタイマーを表示する</label>';
+    portal.appendChild(foot);
+    el('lp-pomo-on').addEventListener('change', function () {
+      try { localStorage.setItem('lum_pomo_show', this.checked ? '1' : '0'); } catch (_) {}
+      applyPomo();
+    });
+    applyPomo();
     paint();
     load();
   };
+
+  /* ポモドーロタイマーは、はじめは出しません（表示は端末ごとに覚えます）。
+     ただし、前に始めたタイマーが動いている・止めてあるときは出します。
+     見えないところで時間が来て鳴るのは、いちばん困るためです。 */
+  function applyPomo() {
+    var show = false, running = false;
+    try {
+      show = localStorage.getItem('lum_pomo_show') === '1';
+      var t = JSON.parse(localStorage.getItem('lum_pomo') || 'null');
+      running = !!(t && ((t.run && t.ends > Date.now()) || t.paused));
+    } catch (_) {}
+    var on = show || running;
+    el('portal').classList.toggle('lp-pomo', on);
+    document.body.classList.toggle('lp-pomo', on);
+    var box = el('lp-pomo-on');
+    if (box) box.checked = on;
+  }
   root.lumPortalData = function () { return P.data; };
   root.lumPortalReload = load;
 })(typeof window !== 'undefined' ? window : globalThis);
