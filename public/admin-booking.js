@@ -229,7 +229,7 @@
       ['会社名', b.company || ''],
       ['ご相談の内容', (b.topics || []).join('、')],
       ['ご要望', b.note || ''],
-      ['受付', (b.at ? new Date(b.at).toLocaleString('ja-JP') : '') + (b.page ? '（' + b.page + '）' : '')],
+      ['受付', (b.at ? new Date(b.at).toLocaleString('ja-JP') : '') + (b.page ? '・' + (b.page === '/' ? 'トップページ' : b.page) + 'から' : '')],
       ['カレンダー', b.mode === 'google' ? 'Googleカレンダーに登録済み' + (b.meet ? '・Meet: ' + b.meet : '')
         : '自動登録なし' + (b.addUrl && live ? '　<a class="linkish" href="' + esc(b.addUrl) + '" target="_blank" rel="noopener">Googleカレンダーに追加</a>' : ''), true],
       ['お知らせ', b.reminded ? '前日のお知らせを送りました' : '']
@@ -384,7 +384,7 @@
       '<h3 class="soc-h" style="margin-top:18px">曜日ごとの受付時間</h3>' +
       '<p class="soc-small" style="margin-bottom:6px">「10:00-18:00」のように書きます。昼休みがあるときは「10:00-12:00, 13:00-18:00」。空にした曜日は休みです。15分単位で書いてください。</p>' +
       '<div class="bk-hours">' + order.map(function (d) {
-        return '<label class="bk-hr"><span>' + WD[d] + '曜日</span><input type="text" class="vid-in" data-dow="' + d + '" value="' + esc(rangesText(r.week[d])) + '" inputmode="numeric" autocomplete="off"></label>';
+        return '<label class="bk-hr"><span>' + WD[d] + '曜日</span><input type="text" class="vid-in" data-dow="' + d + '" value="' + esc(rangesText(r.week[d])) + '" placeholder="休み" autocomplete="off"></label>';
       }).join('') + '</div>' +
       '<h3 class="soc-h" style="margin-top:18px">休みの日</h3>' +
       '<label class="bk-check"><input type="checkbox" id="bk-hol"' + (r.holidays ? ' checked' : '') + '> 祝日を休みにする</label>' +
@@ -591,8 +591,8 @@
 
   R.stats = function (body) {
     var all = list(), t = now();
-    var past = all.filter(function (b) { return span(b).start <= t; });
-    var rate = rates(past);
+    // 取り消しは先の予約にも起きるので、全部の予約で割ります。
+    var rate = rates(all);
     var monday = dayStart(t) - ((jp(dayStart(t)).dow + 6) % 7) * DAY;
     var weeks = [];
     for (var i = 7; i >= 0; i--) {
@@ -604,7 +604,7 @@
     var live = all.filter(function (b) { return status(b) !== 'cancelled'; });
     var slots = top(live, function (b) { var p = jp(span(b).start); return WD[p.dow] + '曜 ' + pad(p.h) + '時台'; });
     var svcs = top(live, function (b) { return (b.service && b.service.name) || '（メニューなし・以前の予約）'; });
-    var few = past.length < 20;
+    var few = all.length < 20;
     body.innerHTML =
       '<h3 class="soc-h">週ごとの予約（取り消しを除く）</h3>' +
       '<div class="bk-bars">' + weeks.map(function (w) {

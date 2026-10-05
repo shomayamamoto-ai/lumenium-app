@@ -1893,7 +1893,15 @@
     services: SERVICES
   };
   function svc(id) { return SERVICES.filter(function (s) { return s.id === id; })[0]; }
-  // [何日後, 開始(分), メニュー, 名前, 状態, メモ]
+  /* 営業日だけを数えて n 日後（負なら前）の 0:00。定休日に予約が並ばないように。 */
+  function openDay(n) {
+    var d = t0, step = n < 0 ? -1 : 1, left = Math.abs(n);
+    var open = function (ms) { return RULES.week[new Date(ms + JST).getUTCDay()].length > 0; };
+    if (!n) { while (!open(d)) d += DAY; return d; }
+    while (left) { d += step * DAY; if (open(d)) left--; }
+    return d;
+  }
+  // [営業日で何日後, 開始(分), メニュー, 名前, 状態, メモ]
   var ROWS = [
     [-6, 600, 'cut', '青木 みどり', 'visited', ''], [-6, 780, 'color', '石川 ゆい', 'visited', '前回と同じ明るさで'],
     [-5, 660, 'spa', '上田 かおり', 'visited', ''], [-4, 840, 'cut', '江藤 さとみ', 'noshow', 'お電話つながらず'],
@@ -1908,7 +1916,7 @@
   function bookings() {
     return ROWS.map(function (r, i) {
       var s = svc(r[2]);
-      var start = t0 + r[0] * DAY + r[1] * MIN;
+      var start = openDay(r[0]) + r[1] * MIN;
       var end = start + s.minutes * MIN;
       var hist = r[4] === 'cancelled' ? [{ at: new Date(start - 3 * DAY).toISOString(), what: 'cancel', by: 'customer' }]
         : r[4] === 'visited' || r[4] === 'noshow' ? [{ at: new Date(end + 2 * 3600000).toISOString(), what: r[4], by: 'owner' }] : [];
