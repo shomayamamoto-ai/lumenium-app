@@ -245,6 +245,19 @@
       go: { label: 'アクセス解析を見る' } }];
   }
 
+  /* AIアドバイザーの ToDo（「ToDoに入れる」を押したもの）。まだのものを1行に。
+     アドバイザーを使っていなければ何も出しません（読めなくても「読めなかった」
+     には数えません。使うかどうかは任意の機能なので）。 */
+  function advisorRows(s) {
+    if (!ok(s) || !Array.isArray(s.data.todos)) return [];
+    var open = s.data.todos.filter(function (t) { return t && !t.done; });
+    if (!open.length) return [];
+    var first = open.slice(0, 2).map(function (t) { return '「' + t.title + '」'; }).join('');
+    return [{ id: 'advisor-todo', level: 'action', tab: 'advisor-admin', count: open.length, unit: '件',
+      title: 'AIアドバイザーのToDo', why: first + (open.length > 2 ? 'ほか' : '') + '。済んだら印を付けてください。',
+      go: { label: 'ToDoを見る' } }];
+  }
+
   var SOURCE_NAMES = {
     inquiries: '問い合わせ', booking: '予約', social: 'SNS', members: '会員', news: 'お知らせ',
     health: '設定状況', deploy: 'サイトの更新状況', analytics: 'アクセス解析'
@@ -258,7 +271,7 @@
     var rows = [].concat(
       healthRows(src.health), deployRows(src.deploy), inquiryRows(src.inquiries),
       bookingRows(src.booking, now), socialRows(src.social, now), newsRows(src.news, now),
-      memberRows(src.members, now), analyticsRows(src.analytics)
+      memberRows(src.members, now), advisorRows(src.advisor), analyticsRows(src.analytics)
     );
     rows = rows.map(function (r, i) { r.order = i; return r; }).sort(function (a, b) {
       return (LEVELS[a.level] - LEVELS[b.level]) || (a.order - b.order);
@@ -547,7 +560,8 @@
     ['health', '/api/health'],
     ['settings', '/api/settings'],
     ['deploy', '/api/deploy-status?latest=1'],
-    ['analytics', '/api/analytics?days=7']
+    ['analytics', '/api/analytics?days=7'],
+    ['advisor', '/api/advisor-store?view=todos']
   ];
 
   function within(p, ms) {
@@ -591,7 +605,12 @@
     if (g.sec && row.tab === 'booking-admin') {
       try { sessionStorage.setItem('lum_booking_sec', g.sec); } catch (_) {}
     }
+    // AIアドバイザーの ToDo の行は、相談ではなく ToDo の一覧を開きます。
+    if (row.id === 'advisor-todo') {
+      try { sessionStorage.setItem('lum_advisor_view', 'todo'); } catch (_) {}
+    }
     if (window.lumShowTab) window.lumShowTab(row.tab);
+    if (row.id === 'advisor-todo' && window.lumAdvisorView) window.lumAdvisorView('todo');
     window.scrollTo(0, 0);
   }
 

@@ -753,9 +753,15 @@
       S.messages = saved.messages.filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'; })
         .map(function (m) { if (m.role === 'assistant') m.done = true; return m; });
     }
-    go('chat');
+    // ポータルの「AIアドバイザーのToDo」から来たときは、ToDo を開きます。
+    var want = '';
+    try { want = sessionStorage.getItem('lum_advisor_view') || ''; sessionStorage.removeItem('lum_advisor_view'); } catch (_) {}
+    go(want === 'todo' ? 'todo' : 'chat');
     await load();
-    if (S.view === 'chat' && !S.busy) renderChat();
-    else go(S.view);
+    if (!S.busy) go(S.view); // 読み込みの間に質問を送っていたら、その表示を壊さない
+  };
+  window.lumAdvisorView = function (view) {
+    try { sessionStorage.removeItem('lum_advisor_view'); } catch (_) {}
+    if (S.started && el('adv-body')) go(view);
   };
 })();
