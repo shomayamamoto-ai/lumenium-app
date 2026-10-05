@@ -17,7 +17,7 @@ import { settingStatus } from './_settings.js'
 import { socialStatus } from './_social.js'
 import { BRAND } from './_brand.js'
 import { senderInfo, SANDBOX_NOTE, DNS_STEPS } from './_sender.js'
-import { monthUsage, monthlyCap, ADVISOR_DAILY_CALLS, YEN_PER_USD } from './_ai-pricing.js'
+import { advisorMonth, monthlyCap, ADVISOR_DAILY_CALLS, YEN_PER_USD } from './_ai-pricing.js'
 import { setting } from './_settings.js'
 import { KV } from './_brand.js'
 
@@ -134,7 +134,7 @@ export async function GET(req) {
   // 出した額で、上限に近づいたら注意に変えます。請求が来てから驚かないように。
   if (has('ANTHROPIC_API_KEY')) {
     const cap = monthlyCap(await setting('ADVISOR_MONTHLY_YEN', '', req))
-    const m = await monthUsage('advisor', 'claude-opus-5')
+    const m = await advisorMonth()
     let today = 0
     const cfg = storeConfig()
     if (cfg) {
