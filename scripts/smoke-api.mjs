@@ -213,8 +213,9 @@ const CALLS = [
   ['unsubscribe', 'GET', '?e=a%40example.com&t=00', {}],
   // 設定状況の「テスト」。相手のサービスはすべて上の fetch が受け止めます。
   ...['resend', 'github', 'ai', 'store', 'google'].map((t) => ['settings-test', 'POST', '', JSONH, { target: t }]),
-  ['members-view', 'GET', '?key=smoke-admin-key', {}],
-  ['members-xlsx', 'GET', '?key=smoke-admin-key', {}],
+  // The key goes in the header; ?key= is refused (see api/_admin-auth.js).
+  ['members-view', 'GET', '', KEY],
+  ['members-xlsx', 'GET', '', KEY],
   ['analytics', 'GET', '?days=30', KEY],
   ['share-links', 'GET', '', KEY],
   ['share-links', 'POST', '', JSONH, { action: 'create', label: 'smoke', days: 7 }],

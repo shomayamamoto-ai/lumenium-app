@@ -11,9 +11,11 @@ import { BRAND } from './_brand.js'
 // always-current list as an HTML table — no download step. Auto-refreshes
 // every 60s; same auth guarantees as the other admin endpoints.
 //
-// ?key=<ADMIN_KEY> still works, because share tokens need Redis and it may not
-// be connected yet. Issue a share link from the admin page when it is: that
-// one can be withdrawn on its own, and it opens nothing but this list.
+// Two ways in, both checked by requireAdmin (api/_admin-auth.js): a share
+// token (?s=, needs Redis; each can be withdrawn on its own and opens nothing
+// but this list and its Excel), or the admin key in an Authorization: Bearer
+// header. The key is never accepted as ?key= — a credential in a URL stays in
+// history, referrers and logs, and the admin key opens every endpoint.
 
 const enc = new TextEncoder()
 

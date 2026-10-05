@@ -10,8 +10,8 @@ import { BRAND } from './_brand.js'
 
 // Permalink Excel export: GET /api/members-xlsx?s=<share token> builds a
 // fresh .xlsx from the live member list on every request, so the same URL
-// always yields the up-to-date sheet. Accepts the key via query (shareable
-// link) or an Authorization: Bearer header. Same hard rule as the list
+// always yields the up-to-date sheet. Accepts a share token (?s=) or the admin
+// key in an Authorization: Bearer header — never ?key=. Same hard rule as the list
 // endpoint: no dev fallback — ADMIN_KEY must be configured.
 
 const enc = new TextEncoder()
