@@ -277,8 +277,120 @@
     };
   }
 
+  /* ---------------- はじめての設定 ----------------
+     設定状況（api/health.js）の行と、キーの入力（api/settings.js）の有無から、
+     順番つきの手順にします。上から順にやれば、お客様に関わるもの
+     （記録・メール・宛先・会員）が先に整います。
+
+     state: done（済み）・todo（まだ）・skipped（「使わない」を選んだ）・
+            unknown（読めなかったので分からない）
+     任意の手順は「使わない」にでき、完了に数えます。予約を受けない
+     お店が、Google 連携のせいでいつまでも 100% にならないのは不親切です。 */
+  var STEPS = [
+    { id: 'admin', title: '管理キーを長くする', where: 'Vercel の環境変数 ADMIN_KEY',
+      why: 'この管理画面の鍵です。24文字以上にすると、総当たりで当てられる心配がなくなります。',
+      go: { env: 'ADMIN_KEY' } },
+    { id: 'store', title: '保存先（Upstash Redis）をつなぐ', test: 'store',
+      why: '問い合わせ・予約・アクセスの記録をしまっておく場所です。無いと一覧が残りません。',
+      go: { name: 'UPSTASH_REDIS_REST_URL', env: 'KV_REST_API_URL' } },
+    { id: 'resend', title: 'メールを送れるようにする（Resend）', test: 'resend',
+      why: '問い合わせフォームと会員登録のメールは、これで送ります。無いとフォームが動きません。',
+      go: { name: 'RESEND_API_KEY', env: 'RESEND_API_KEY' } },
+    { id: 'sender', title: '送信元を自社のドメインにする', test: 'resend', where: 'Resend の Domains と、Vercel の環境変数 CONTACT_FROM_EMAIL',
+      why: 'Resend の試用アドレスのままだと、お客様あてのメール（予約の確認・自動返信）が届きません。',
+      go: { env: 'CONTACT_FROM_EMAIL' } },
+    { id: 'contactTo', title: '問い合わせの届け先を決める',
+      why: '問い合わせの知らせが届くアドレスです。ふだん見ているアドレスにしてください。',
+      go: { name: 'CONTACT_TO_EMAIL', env: 'CONTACT_TO_EMAIL' } },
+    { id: 'member', title: '会員ページの鍵を決める（MEMBER_CODE・SESSION_SECRET）',
+      why: '会員登録とログインを守る鍵です。無いと会員登録が動きません。',
+      go: { name: 'MEMBER_CODE', env: 'MEMBER_CODE' } },
+    { id: 'github', title: 'お知らせ・文章の保存先（GitHub）をつなぐ', test: 'github', optional: true,
+      why: 'お知らせ投稿と文章編集で直したものを、サイトに反映するのに使います。',
+      go: { name: 'GITHUB_TOKEN', env: 'GITHUB_TOKEN' } },
+    { id: 'ai', title: 'AI のキーを入れる（Anthropic）', test: 'ai', optional: true,
+      why: 'SEO / AIO 分析と AIアドバイザーに使います。使った分だけ料金がかかります。',
+      go: { name: 'ANTHROPIC_API_KEY', env: 'ANTHROPIC_API_KEY' } },
+    { id: 'google', title: 'Google カレンダーとつなぐ（予約）', test: 'google', optional: true,
+      why: '予約の候補を、カレンダーの本当の空きに合わせます。二重予約を防げます。',
+      go: { name: 'GOOGLE_REFRESH_TOKEN', env: 'GOOGLE_REFRESH_TOKEN' } },
+    { id: 'cron', title: '毎朝の仕事の合言葉を決める（CRON_SECRET）', optional: true, where: 'Vercel の環境変数 CRON_SECRET',
+      why: '予約の前日のお知らせ・予約投稿・週のまとめメールは、これがあると毎朝自動で動きます。',
+      go: { env: 'CRON_SECRET' } },
+    { id: 'social', title: 'SNS を1つ以上つなぐ', optional: true,
+      why: '管理画面から、X・Instagram・LINE などへまとめて投稿できるようになります。',
+      go: { tab: 'social-admin' } },
+    { id: 'brand', title: 'サイトの名前を設定する（SITE_NAME・SITE_URL）', where: 'Vercel の環境変数 SITE_NAME・SITE_URL',
+      why: 'メールや画面に出る社名です。設定しないと、元の会社（Lumenium）の名前のままになります。',
+      go: {} }
+  ];
+
+  /* src: { health, settings, booking, social }（どれも {state, data}）
+     opts: { host: この画面のホスト名, skipped: { 手順のid: true } }
+     → { steps, done, total, pct（読めなかったときは null） } */
+  function buildSetup(src, opts) {
+    src = src || {};
+    opts = opts || {};
+    var skipped = opts.skipped || {};
+    var hOk = ok(src.health), by = {};
+    if (hOk) (src.health.data.checks || []).forEach(function (c) { by[c.id] = c; });
+    var set = null;
+    if (ok(src.settings) && Array.isArray(src.settings.data.settings)) {
+      set = {};
+      src.settings.data.settings.forEach(function (x) { set[x.name] = x; });
+    }
+    var isOk = function (id) { return !!(by[id] && by[id].state === 'ok'); };
+    var note = function (id) { return (by[id] && by[id].note) || ''; };
+    var judge = {
+      admin: function () { return hOk ? [isOk('admin') ? 'done' : 'todo', isOk('admin') ? '' : note('admin')] : null; },
+      store: function () { return hOk ? [isOk('store') ? 'done' : 'todo', isOk('store') ? '' : note('store')] : null; },
+      resend: function () { return hOk ? [isOk('resend') ? 'done' : 'todo', ''] : null; },
+      sender: function () {
+        if (!hOk) return null;
+        if (!isOk('resend')) return ['todo', '先にメールの送信（Resend）を設定してください。'];
+        return by.sender ? ['todo', '送信元が Resend の試用アドレスのままです。'] : ['done', ''];
+      },
+      contactTo: function () { return hOk ? [isOk('contactTo') ? 'done' : 'todo', isOk('contactTo') ? '' : note('contactTo')] : null; },
+      member: function () {
+        if (!hOk) return null;
+        var miss = [isOk('memberCode') ? '' : 'MEMBER_CODE', isOk('sessionSecret') ? '' : 'SESSION_SECRET'].filter(Boolean);
+        return miss.length ? ['todo', miss.join('・') + ' がまだです。'] : ['done', ''];
+      },
+      github: function () { return hOk ? [isOk('github') ? 'done' : 'todo', ''] : null; },
+      ai: function () { return hOk ? [isOk('ai') ? 'done' : 'todo', ''] : null; },
+      google: function () {
+        var b = ok(src.booking) ? src.booking.data : null;
+        if (by.google || (set && set.GOOGLE_REFRESH_TOKEN && set.GOOGLE_REFRESH_TOKEN.set) || (b && b.connected)) return ['done', ''];
+        if ((set && set.GOOGLE_CALENDAR_ICS_URL && set.GOOGLE_CALENDAR_ICS_URL.set) || (b && b.ics)) {
+          return ['done', '簡易接続（カレンダーの非公開URL）です。空きは見えますが、予約はカレンダーに自動では入りません。'];
+        }
+        if (!set && !b) return null;
+        return ['todo', ''];
+      },
+      cron: function () { return hOk ? [isOk('cron') ? 'done' : 'todo', ''] : null; },
+      social: function () { return hOk ? [isOk('social') ? 'done' : 'todo', isOk('social') ? note('social') : ''] : null; },
+      brand: function () {
+        var br = ok(src.social) && src.social.data.brand;
+        if (!br || !br.name) return null;
+        var host = String(opts.host || '').replace(/^www\./, '');
+        var same = !!br.host && !!host && (host === br.host || host.slice(-br.host.length - 1) === '.' + br.host);
+        return br.name !== 'Lumenium' || same ? ['done', '社名: ' + br.name] : ['todo', 'いまは「' + br.name + '」のままです。'];
+      }
+    };
+    var steps = STEPS.map(function (st, i) {
+      var j = judge[st.id]();
+      var state = j ? j[0] : 'unknown';
+      if (state !== 'done' && st.optional && skipped[st.id]) state = 'skipped';
+      return { id: st.id, n: i + 1, title: st.title, why: st.why, where: st.where || '', optional: !!st.optional,
+        test: st.id === 'google' && state !== 'done' ? '' : (st.test || ''), go: st.go, state: state, note: j ? j[1] : '' };
+    });
+    var known = steps.filter(function (x) { return x.state !== 'unknown'; }).length;
+    var done = steps.filter(function (x) { return x.state === 'done' || x.state === 'skipped'; }).length;
+    return { steps: steps, done: done, total: steps.length, pct: known ? Math.round((done / steps.length) * 100) : null };
+  }
+
   root.lumPortalCore = {
-    classify: classify, buildToday: buildToday, jstDay: jstDay, dayStart: dayStart,
+    classify: classify, buildToday: buildToday, buildSetup: buildSetup, jstDay: jstDay, dayStart: dayStart,
     LEVEL_LABEL: LEVEL_LABEL, SOURCE_NAMES: SOURCE_NAMES
   };
 
@@ -321,6 +433,35 @@
     '.lp-sub{font-size:12.5px;font-weight:800;color:var(--sub);margin:14px 0 8px}' +
     '.lp-notes{font-size:12px;color:var(--sub);line-height:1.7;margin-top:10px}' +
     '.lp-notes p+p{margin-top:2px}' +
+    /* はじめての設定 */
+    '.lp-setup summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap}' +
+    '.lp-setup summary::-webkit-details-marker{display:none}' +
+    '.lp-setup summary h2{font-size:16px;font-weight:800}' +
+    '.lp-setup summary .lp-pct{font-size:12.5px;font-weight:700;color:var(--sub)}' +
+    '.lp-setup summary .lp-tg{margin-left:auto;font-size:12px;color:var(--sub);text-decoration:underline}' +
+    '.lp-setup[open] summary .lp-tg-c,.lp-setup:not([open]) summary .lp-tg-o{display:none}' +
+    '.lp-bar{display:block;flex-basis:100%;height:6px;border-radius:999px;background:#eceae4;overflow:hidden}' +
+    '.lp-bar i{display:block;height:100%;background:#3d3fbf}' +
+    '.lp-steps{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--border)}' +
+    '.lp-step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:12px 2px;border-bottom:1px solid var(--border)}' +
+    '.lp-mk{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sub)}' +
+    '.lp-step.done .lp-mk{background:#047857;border-color:#047857;color:#fff}' +
+    '.lp-step.skipped .lp-mk{background:#8a8a94;border-color:#8a8a94;color:#fff}' +
+    '.lp-step.todo .lp-mk{border-color:#b45309;color:#b45309}' +
+    '.lp-step b{display:block;font-size:13.5px;line-height:1.5}' +
+    '.lp-step.done b,.lp-step.skipped b{color:var(--sub);font-weight:700}' +
+    '.lp-st{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;vertical-align:1px}' +
+    '.lp-st.done{background:rgba(16,185,129,.14);color:#047857}.lp-st.todo{background:rgba(251,191,36,.18);color:#92400e}' +
+    '.lp-st.skipped,.lp-st.unknown{background:rgba(23,23,28,.06);color:var(--sub)}' +
+    '.lp-step p{font-size:12.5px;color:var(--sub);line-height:1.7;margin-top:2px}' +
+    '.lp-step p.lp-nt{color:var(--text)}' +
+    '.lp-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}' +
+    '.lp-acts button{padding:7px 13px;font-size:12px}' +
+    '.lp-out{font-size:12px;line-height:1.75;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:#faf9f6}' +
+    '.lp-out[hidden]{display:none}' +
+    '.lp-out.ok{border-color:rgba(4,120,87,.4);background:rgba(20,184,166,.08)}.lp-out.error{border-color:rgba(180,35,24,.4);background:#fff8f7;color:#b42318}' +
+    '.lp-out.warn{border-color:rgba(217,119,6,.45);background:rgba(251,191,36,.10)}' +
+    '.lp-target{outline:2px solid #3d3fbf !important;outline-offset:3px}' +
     '@media (max-width:560px){' +
       '.lp-box{padding:14px 12px}' +
       '.lp-row{grid-template-columns:58px minmax(0,1fr);gap:4px 10px;align-items:start}' +
@@ -439,8 +580,128 @@
     host.querySelectorAll('[data-lp]').forEach(function (b) {
       b.addEventListener('click', function () { open(all[Number(b.getAttribute('data-lp'))]); });
     });
-    if (root.lumPortalAfterPaint) root.lumPortalAfterPaint(P.data);
+    paintSetup();
+    paintBadges();
   }
+
+  /* ---- はじめての設定 ---- */
+  function skippedMap() {
+    try { return JSON.parse(localStorage.getItem('lum_setup_skip') || '{}') || {}; } catch (_) { return {}; }
+  }
+  function setSkipped(id, on) {
+    var m = skippedMap();
+    if (on) m[id] = true; else delete m[id];
+    try { localStorage.setItem('lum_setup_skip', JSON.stringify(m)); } catch (_) {}
+  }
+
+  var STATE_LABEL = { done: '済み', todo: 'まだ', skipped: '使わない', unknown: '確認できません' };
+  var setupOpen = null;   // 開け閉めは、読み直しても保ちます
+
+  function paintSetup() {
+    var host = el('lp-setup');
+    if (!host || !P.data) return;
+    var r = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
+    var full = r.pct === 100;
+    var open = setupOpen == null ? !full : setupOpen;
+    var pct = r.pct == null ? '状態を読み込めませんでした'
+      : full ? 'すべて完了（' + r.total + ' / ' + r.total + '）'
+      : r.done + ' / ' + r.total + ' 完了（' + r.pct + '%）';
+    host.innerHTML = '<details class="lp-box lp-setup" id="lp-setup-d"' + (open ? ' open' : '') + '>' +
+      '<summary><h2 id="lp-setup-h">はじめての設定</h2><span class="lp-pct" id="lp-pct">' + esc(pct) + '</span>' +
+      '<span class="lp-tg"><span class="lp-tg-o">たたむ</span><span class="lp-tg-c">開く</span></span>' +
+      (r.pct == null ? '' : '<span class="lp-bar" aria-hidden="true"><i style="width:' + r.pct + '%"></i></span>') + '</summary>' +
+      (r.pct == null ? '<p class="lp-notes">設定状況が読めなかったため、どこまで済んでいるか分かりません。「再読込」でもう一度読みます。</p>' : '') +
+      '<ol class="lp-steps">' + r.steps.map(function (st) {
+        var acts = [];
+        if (st.state === 'todo' || st.state === 'unknown') acts.push('<button type="button" data-set="' + st.id + '">設定する</button>');
+        if (st.test && st.state !== 'skipped') acts.push('<button type="button" class="ghost" data-test="' + st.id + '">テスト</button>');
+        if (st.optional && st.state === 'todo') acts.push('<button type="button" class="ghost" data-skip="' + st.id + '">使わない</button>');
+        if (st.state === 'skipped') acts.push('<button type="button" class="ghost" data-unskip="' + st.id + '">やっぱり使う</button>');
+        return '<li class="lp-step ' + st.state + '" data-step="' + st.id + '">' +
+          '<span class="lp-mk" aria-hidden="true">' + (st.state === 'done' || st.state === 'skipped' ? '✓' : st.n) + '</span>' +
+          '<div><b>' + esc(st.title) + (st.optional ? '（任意）' : '') +
+          '<span class="lp-st ' + st.state + '">' + STATE_LABEL[st.state] + '</span></b>' +
+          (st.state === 'done' ? '' : '<p>' + esc(st.why) + '</p>') +
+          (st.note ? '<p class="lp-nt">' + esc(st.note) + '</p>' : '') +
+          (st.state !== 'done' && st.where ? '<p>設定する場所: ' + esc(st.where) + '（この画面からは変えられません）</p>' : '') +
+          (acts.length ? '<div class="lp-acts">' + acts.join('') + '</div>' : '') +
+          '<div class="lp-out" id="lp-out-' + st.id + '" hidden></div></div></li>';
+      }).join('') + '</ol></details>';
+    var d = el('lp-setup-d');
+    d.addEventListener('toggle', function () { setupOpen = d.open; });
+    var find = function (id) { return r.steps.filter(function (x) { return x.id === id; })[0]; };
+    host.querySelectorAll('[data-set]').forEach(function (b) {
+      b.addEventListener('click', function () { goSetting(find(b.getAttribute('data-set'))); });
+    });
+    host.querySelectorAll('[data-test]').forEach(function (b) {
+      b.addEventListener('click', function () { runTest(find(b.getAttribute('data-test')), b); });
+    });
+    host.querySelectorAll('[data-skip],[data-unskip]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        setSkipped(b.getAttribute('data-skip') || b.getAttribute('data-unskip'), b.hasAttribute('data-skip'));
+        paintSetup();
+        paintBadges();
+      });
+    });
+  }
+
+  /* 「設定する」: その値を入れる行（設定状況の「キーの入力」）か、設定状況の
+     説明の行まで連れて行き、枠で示します。動かさずに、その場所へ飛びます。 */
+  function goSetting(st) {
+    if (!st || !window.lumShowTab) return;
+    var g = st.go || {};
+    if (window.lumShowTab(g.tab || 'health-admin') === false) return;
+    if (g.tab) { window.scrollTo(0, 0); return; }
+    var label = '';
+    var set = P.data && ok(P.data.settings) ? P.data.settings.data.settings || [] : [];
+    set.forEach(function (x) { if (x.name === g.name) label = x.label; });
+    var tries = 0;
+    (function look() {
+      var hit = null;
+      if (label) {
+        document.querySelectorAll('#set-list .set-row').forEach(function (row) {
+          var h = row.querySelector('h4');
+          if (!hit && h && h.textContent.trim() === label) hit = row;
+        });
+      }
+      if (!hit && g.env) {
+        var b = document.querySelector('#health-list [data-env="' + g.env + '"]');
+        if (b) hit = b.closest('#health-list > div') || b.parentNode;
+      }
+      if (!hit && tries++ < 30) { setTimeout(look, 150); return; }
+      document.querySelectorAll('.lp-target').forEach(function (x) { x.classList.remove('lp-target'); });
+      if (hit) hit.classList.add('lp-target');
+      var target = hit || el('health-admin');
+      if (target) target.scrollIntoView({ block: hit ? 'center' : 'start' });
+    })();
+  }
+
+  async function runTest(st, btn) {
+    var out = el('lp-out-' + st.id);
+    btn.disabled = true;
+    out.hidden = false;
+    out.className = 'lp-out';
+    out.textContent = st.test === 'resend' ? '確かめています…（管理者のアドレスに、テストメールを1通送ります）' : '確かめています…';
+    var r = null;
+    try {
+      r = await window.lumAdmin.fetch('/api/settings-test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: st.test })
+      });
+    } catch (_) {}
+    btn.disabled = false;
+    if (!r || !r.res) { out.className = 'lp-out error'; out.textContent = '通信に失敗しました。時間をおいてもう一度お試しください。'; return; }
+    var d = r.data || {};
+    if (!r.res.ok || !d.ok) { out.className = 'lp-out error'; out.textContent = d.message || 'テストできませんでした。'; return; }
+    var items = d.items || [{ state: d.state, text: d.message }];
+    var worst = items.some(function (x) { return x.state === 'error'; }) ? 'error'
+      : items.some(function (x) { return x.state === 'warn'; }) ? 'warn' : 'ok';
+    out.className = 'lp-out ' + worst;
+    out.innerHTML = items.map(function (x) {
+      return '<div>' + (x.state === 'ok' ? '✓ ' : x.state === 'warn' ? '注意: ' : '問題: ') + esc(x.text) + '</div>';
+    }).join('');
+  }
+
+  function paintBadges() {}
 
   function bindHead() {
     var b = el('lp-reload');
@@ -457,6 +718,9 @@
     box.id = 'lp-today';
     box.setAttribute('aria-labelledby', 'lp-today-h');
     portal.insertBefore(box, portal.firstChild);
+    var setup = document.createElement('div');
+    setup.id = 'lp-setup';
+    portal.insertBefore(setup, box.nextSibling);
     paint();
     load();
   };

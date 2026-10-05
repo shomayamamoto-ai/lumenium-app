@@ -206,4 +206,76 @@ test('形の崩れた返事でも落ちない', () => {
   assert.deepEqual(t.rows.map((r) => r.id), ['news-stale'])
 })
 
+/* ---- はじめての設定 ---- */
+
+const setup = (...a) => out(C.buildSetup(...a))
+const chk = (id, state, extra = {}) => ({ id, label: id, state, note: id + ' の説明', ...extra })
+const ALL_OK = ['admin', 'resend', 'contactTo', 'store', 'ai', 'github', 'memberCode', 'sessionSecret', 'cron', 'social'].map((id) => chk(id, 'ok'))
+const st = (r, id) => r.steps.find((x) => x.id === id)
+
+test('設定: 全部済みなら 100%', () => {
+  const r = setup({
+    health: ok({ ok: true, checks: ALL_OK.concat([chk('google', 'ok')]) }),
+    settings: ok({ ok: true, settings: [] }),
+    social: ok({ ok: true, brand: { name: 'Sample Salon', host: 'sample.example' } }),
+  }, { host: 'www.sample.example' })
+  assert.equal(r.total, 12)
+  assert.equal(r.done, 12)
+  assert.equal(r.pct, 100)
+  assert.deepEqual(r.steps.map((x) => x.n), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], '順番つき')
+})
+
+test('設定: 一部まだ・試用の送信元・使わない', () => {
+  const checks = ALL_OK.filter((c) => !['cron', 'ai', 'sessionSecret'].includes(c.id))
+    .concat([chk('cron', 'warn'), chk('ai', 'warn'), chk('sessionSecret', 'error'), chk('sender', 'warn'), chk('admin', 'warn')])
+    .filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i || c.state !== 'ok')
+  const health = ok({ ok: true, checks: checks.filter((c) => !(c.id === 'admin' && c.state === 'ok')) })
+  const r = setup({
+    health,
+    settings: ok({ ok: true, settings: [{ name: 'GOOGLE_CALENDAR_ICS_URL', set: true }] }),
+    social: ok({ ok: true, brand: { name: 'Lumenium', host: 'lumenium.net' } }),
+  }, { host: 'client.example', skipped: { ai: true, admin: true } })
+  assert.equal(st(r, 'sender').state, 'todo')
+  assert.equal(st(r, 'member').state, 'todo')
+  assert.match(st(r, 'member').note, /SESSION_SECRET/)
+  assert.equal(st(r, 'admin').state, 'todo', '必須の手順は「使わない」にできない')
+  assert.equal(st(r, 'ai').state, 'skipped')
+  assert.equal(st(r, 'cron').state, 'todo')
+  assert.equal(st(r, 'google').state, 'done', '簡易接続でも済み')
+  assert.match(st(r, 'google').note, /簡易接続/)
+  assert.equal(st(r, 'brand').state, 'todo', '社名が既定のまま・別のドメイン')
+  assert.equal(st(r, 'resend').test, 'resend')
+  // まだ: admin, sender, member, cron, brand → 済み 7 / 12
+  assert.equal(r.done, 7)
+  assert.equal(r.pct, 58)
+})
+
+test('設定: メールが無いと送信元も「まだ」、Google のテストはつないでから', () => {
+  const r = setup({
+    health: ok({ ok: true, checks: [chk('resend', 'error')] }),
+    settings: ok({ ok: true, settings: [] }),
+    booking: ok({ ok: true, connected: false, ics: false }),
+  }, { host: 'x.example' })
+  assert.equal(st(r, 'sender').state, 'todo')
+  assert.match(st(r, 'sender').note, /先に/)
+  assert.equal(st(r, 'google').state, 'todo')
+  assert.equal(st(r, 'google').test, '')
+  assert.equal(st(r, 'brand').state, 'unknown', 'SNS が読めないと社名は分からない')
+})
+
+test('設定: 本家のドメインなら社名は既定のままで済み', () => {
+  const r = setup({ social: ok({ ok: true, brand: { name: 'Lumenium', host: 'lumenium.net' } }) }, { host: 'www.lumenium.net' })
+  assert.equal(st(r, 'brand').state, 'done')
+  const evil = setup({ social: ok({ ok: true, brand: { name: 'Lumenium', host: 'lumenium.net' } }) }, { host: 'notlumenium.net' })
+  assert.equal(st(evil, 'brand').state, 'todo')
+})
+
+test('設定: 何も読めなければ % は出さない', () => {
+  const r = setup({}, {})
+  assert.equal(r.pct, null)
+  assert.ok(r.steps.every((x) => x.state === 'unknown'))
+  const fail = { state: 'fail', data: null }
+  assert.equal(setup({ health: fail, settings: fail, booking: fail, social: fail }, {}).pct, null)
+})
+
 console.log(`✓ test-portal: ${n} checks`)
