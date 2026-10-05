@@ -147,7 +147,7 @@
       '.adv-starts { display: grid; gap: 6px; margin-bottom: 12px; }' +
       '.adv-starts .adv-s { display: grid; gap: 2px; min-width: 0; }' +
       '.adv-form { display: flex; gap: 8px; flex-wrap: wrap; }' +
-      '.adv-form input[type=text] { flex: 1 1 220px; }' +
+      '#advisor-admin .adv-form input[type=text] { flex: 1 1 220px; }' +
       '.adv-cont { margin-bottom: 12px; }' +
       '.adv-card { border: 1px solid var(--border); border-radius: 11px; background: #fff; padding: 11px 13px; min-width: 0; }' +
       '.adv-card h3 { font-size: 13.5px; font-weight: 700; line-height: 1.6; margin: 0 0 4px; overflow-wrap: anywhere; }' +
@@ -158,7 +158,7 @@
       '.adv-todo.done h3 { text-decoration: line-through; color: var(--sub); }' +
       '.adv-srcs ul { margin: 6px 0 0 18px; font-size: 12px; line-height: 1.8; }' +
       '.adv-srcs summary { cursor: pointer; font-size: 12.5px; font-weight: 700; }' +
-      '@media (max-width: 520px) { .adv-log { max-height: 64vh; padding: 11px; } .adv-form button { flex: 1 1 auto; } }';
+      '@media (max-width: 520px) { .adv-log { max-height: 64vh; padding: 11px; } #advisor-admin .adv-form input[type=text] { flex: 1 1 100%; } .adv-form button { flex: 1 1 auto; } }';
     document.head.appendChild(s);
   }
 
@@ -308,7 +308,7 @@
   function previewOf(a) {
     var i = a.input || {};
     if (a.kind === 'news') return '題名: ' + i.title + (i.body ? '\n本文: ' + i.body : '');
-    if (a.kind === 'copy') return (window.lumCopyLabel ? window.lumCopyLabel(i.path) : i.path) + '\n' + i.text;
+    if (a.kind === 'copy') return '項目: ' + (window.lumCopyLabel ? window.lumCopyLabel(i.path) : i.path) + '\n' + i.text;
     if (a.kind === 'sns') return i.text;
     if (a.kind === 'experiment') return '対象: ' + (i.label || i.key) + '\n比べる案（B）: ' + i.b;
     if (a.kind === 'pdca') return '仮説: ' + i.title + '\n' + i.hypothesis + '\n確かめる指標: ' + (METRIC_LABEL[i.metric] || i.metric) +
@@ -458,7 +458,6 @@
           S.convId = ev.saved.id;
           upsertConv(ev.saved);
         }
-        if (ev.demo) say('デモ版のため、会話は保存されません。', true);
         if (ev.done) {
           me.yen = ev.yen;
           if (S.state && S.state.usage) S.state.usage.yen += Number(ev.yen) || 0;
@@ -591,13 +590,10 @@
         var sec = await waitFor(function () { return document.querySelector('#video-admin [data-sec="pdca"]'); }, 6000);
         if (!sec) { result(card, 'SNS（動画）の画面が開けませんでした。', false); btn.disabled = false; return; }
         sec.click();
-        // プロジェクトが選ばれていないと「仮説を立てる」が出ません（その旨の文が出ます）。
-        var nb = await waitFor(function () {
-          if (el('vd-new')) return el('vd-new');
-          var vb = el('vid-body');
-          return vb && /まずプロジェクトを作るか選んで|保存先（Upstash Redis）が未接続/.test(vb.textContent) ? 'none' : null;
-        }, 6000);
-        if (!nb || nb === 'none') { result(card, 'SNS（動画）で、先にプロジェクトを選んでください。そのあと、もう一度このボタンを押してください。', false); btn.disabled = false; return; }
+        // プロジェクトを読み込み終わると「仮説を立てる」が出ます。選ばれていない・
+        // 無いときは出ないので、少し待ってから、その旨を書きます。
+        var nb = await waitFor(function () { return el('vd-new'); }, 7000);
+        if (!nb) { result(card, 'SNS（動画）で、先にプロジェクトを作るか選んでください。そのあと、もう一度このボタンを押してください。', false); btn.disabled = false; return; }
         nb.click();
         var title = await waitFor(function () { return el('vd-title'); }, 3000);
         if (!title) { result(card, 'PDCAの入力欄が開けませんでした。', false); btn.disabled = false; return; }
