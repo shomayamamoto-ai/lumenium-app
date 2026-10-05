@@ -31,7 +31,7 @@ export const config = { runtime: 'edge' }
 // Admin key only, by the header only: this spends the site's own accounts, so
 // it must not be reachable by a share link or a key in a URL.
 
-import { requireAdmin, json } from './_admin-auth.js'
+import { requireAdmin, json, whoOf } from './_admin-auth.js'
 import {
   NETWORKS, socialStatus, readPayload, precheck, sendPost, recentPosts, socialActivity,
   historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo, repeatBuilder,
@@ -194,12 +194,12 @@ export async function POST(req) {
     if (action === 'approval-schedule') {
       const r = await addScheduled(String(body.date || ''), payload)
       if (!r.ok) return json({ ...r, approvals: await listApprovals() }, 400)
-      await markApproval(item.id, { status: 'scheduled', scheduledId: r.item.id, date: r.item.date, error: '' })
+      await markApproval(item.id, { status: 'scheduled', scheduledId: r.item.id, date: r.item.date, error: '', sentBy: (whoOf(req) || {}).name || '' })
       return json({ ok: true, message: `${r.item.date} の朝${SCHEDULE.jstHour}時ごろに投稿するよう予約しました。`, items: (await listScheduled()).map(summarize), approvals: await listApprovals() })
     }
     const { results, kept } = await sendPost(payload, req)
     const okCount = results.filter((r) => r.ok).length
-    if (okCount) await markApproval(item.id, { status: 'done', postedAt: new Date().toISOString(), error: '' })
+    if (okCount) await markApproval(item.id, { status: 'done', postedAt: new Date().toISOString(), error: '', sentBy: (whoOf(req) || {}).name || '' })
     return json({
       ok: okCount > 0, posted: okCount, total: results.length, kept, results,
       recent: await recentPosts(20, req), approvals: await listApprovals(), message: outcome(results),
@@ -221,7 +221,7 @@ export async function POST(req) {
   }
 
   if (action === 'approval-create') {
-    const r = await createApproval(payload, { date: String(body.date || ''), note: String(body.note || '') })
+    const r = await createApproval(payload, { date: String(body.date || ''), note: String(body.note || ''), by: (whoOf(req) || {}).name || '' })
     if (!r.ok) return json(r, 400)
     return json({
       ok: true, link: approvalUrl(BRAND.url, r.token), days: APPROVE_DAYS, approvals: await listApprovals(),

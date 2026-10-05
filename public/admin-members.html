@@ -8436,6 +8436,8 @@ window.lumAdmin = {
       b.innerHTML = '<span class="soc-chip ' + esc(a.status) + '">' + esc(a.expired ? '期限切れ' : a.label) + '</span> ' +
         '<span class="soc-small">' + esc(new Date(a.createdAt).toLocaleDateString('ja-JP')) + ' ・ ' + esc(labels) + (a.date ? ' ・ 予定日 ' + esc(a.date) : '') + '</span><br>' +
         esc(a.text || '（本文なし）') +
+        // 依頼した人・出した人の名前は、担当者のアカウントで入っているときに残ります（古い記録には無し）。
+        (a.by ? '<div class="soc-small">依頼：' + esc(a.by) + (a.sentBy ? ' ／ 出した人：' + esc(a.sentBy) : '') + '</div>' : '') +
         (a.note ? '<div class="soc-small">担当者：' + esc(a.note) + '</div>' : '') +
         (a.comment ? '<div class="soc-small" style="color:' + (a.status === 'returned' ? '#b42318' : '#047857') + '">責任者：' + esc(a.comment) + '</div>' : '') +
         (a.error ? '<div class="soc-small" style="color:#b45309">' + esc(a.error) + '</div>' : '');

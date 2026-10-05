@@ -58,7 +58,7 @@ export async function getApproval(id) {
 
 /** 承認待ちとして保存し、1回きりのリンク（の文字列）を返します。
  *  token はこの返事にしか出ません（保存するのはハッシュだけ）。 */
-export async function createApproval(payload, { date, note } = {}) {
+export async function createApproval(payload, { date, note, by } = {}) {
   const cfg = storeConfig()
   if (!cfg) return { ok: false, message: NO_STORE }
   const [count] = await pipeline(cfg, [['HLEN', APPROVE_KEY]])
@@ -73,6 +73,8 @@ export async function createApproval(payload, { date, note } = {}) {
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? String(date) : '',
     note: String(note || '').replace(/\r/g, '').trim().slice(0, 300),
     comment: '', decidedAt: null, tokenHash: made.hash,
+    // 依頼した人（担当者のアカウントで入っているとき）。オーナーのときは「オーナー」。
+    by: String(by || '').slice(0, 40),
   }
   await write(item)
   return { ok: true, item, token: made.token }
@@ -133,7 +135,7 @@ export async function listApprovals() {
   return (await readAll()).map((i) => ({
     id: i.id, status: i.status, label: STATUS_LABEL[i.status] || i.status,
     createdAt: i.createdAt, decidedAt: i.decidedAt, date: i.date || '', note: i.note || '', comment: i.comment || '',
-    error: i.error || '', scheduledId: i.scheduledId || '',
+    error: i.error || '', scheduledId: i.scheduledId || '', by: i.by || '', sentBy: i.sentBy || '',
     expired: i.status === 'pending' && i.expiresAt ? Date.parse(i.expiresAt) < now : false,
     targets: (i.payload && i.payload.targets) || [], text: String((i.payload && i.payload.text) || '').slice(0, 140),
     payload: i.payload,
