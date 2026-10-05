@@ -80,6 +80,9 @@ body {
   outline-offset: 2px;
 }
 
+/* hidden の付いたものは、どの部品の display 指定よりも優先して隠します。 */
+[hidden] { display: none !important; }
+
 .ui-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---- アイコン ---- */
@@ -308,4 +311,193 @@ button.ui-stat:hover { border-color: var(--ui-border-strong); background: var(--
 @media (max-width: 1023px), (pointer: coarse) {
   .ui-btn, .ui-help, .ui-tabs > button, .ui-tabs > a { min-height: var(--ui-touch); }
   .ui-btn.sm { min-height: 40px; }
+}
+
+/* =========================================================================
+   画面の枠（上の帯・左のメニュー・本文）
+   広い画面（1024px 以上）: 左に 232px のメニューがいつも出ている。
+   それより狭い画面: 上の帯の「メニュー」で、左から引き出しが一瞬で出る
+   （動きなし）。背景は暗くなり、Esc・背景・「閉じる」で閉じる。
+   ========================================================================= */
+body { margin: 0; padding: 0; }
+.wrap { max-width: none; margin: 0; min-height: 100dvh; }
+
+/* ---- 上の帯 ---- */
+.ui-top {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: var(--ui-s2);
+  height: var(--ui-top-h); padding: 0 var(--ui-s4) 0 var(--ui-s5);
+  margin: 0;
+  background: var(--ui-surface); border-bottom: 1px solid var(--ui-border);
+}
+.ui-top > * { flex: none; }
+.ui-top .ui-top-menu { order: -2; }
+.ui-top .ui-brand { order: -1; flex: 0 1 auto; }
+.ui-top .ui-top-gap { order: 0; flex: 1 1 auto; }
+.ui-top #who-chip { order: 1; margin-left: 0; }
+.ui-top .ui-top-help { order: 2; }
+.ui-top #site-link { order: 3; }
+.ui-top #sign-out { order: 4; }
+.ui-brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--ui-text); text-decoration: none; }
+.ui-brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ui-fs-16); font-weight: 700; }
+.ui-brand-mark {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; border-radius: var(--ui-r);
+  background: var(--ui-text); color: #fff; overflow: hidden;
+  font-size: var(--ui-fs-14); font-weight: 700; line-height: 1;
+}
+.ui-brand-mark.is-img { background: transparent; }
+.ui-brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ui-top-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 var(--ui-s3);
+  border: 1px solid transparent; border-radius: var(--ui-r);
+  background: none; color: var(--ui-text-2);
+  font-family: inherit; font-size: var(--ui-fs-13); font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.ui-top-link:hover { background: var(--ui-surface-3); color: var(--ui-text); filter: none; }
+#site-link::after { content: '↗'; font-size: 12px; margin-left: 2px; }
+.ui-top #who-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 var(--ui-s3);
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r-pill); background: var(--ui-surface-2);
+  font-size: var(--ui-fs-12); font-weight: 700; color: var(--ui-text);
+}
+.ui-top #who-chip[hidden] { display: none; }
+.ui-top-menu {
+  display: none; align-items: center; gap: 6px;
+  min-height: var(--ui-touch); padding: 0 var(--ui-s3) 0 var(--ui-s2); margin-left: calc(var(--ui-s2) * -1);
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r);
+  background: var(--ui-surface); color: var(--ui-text);
+  font-family: inherit; font-size: var(--ui-fs-13); font-weight: 700; cursor: pointer;
+}
+.ui-top-menu:hover { background: var(--ui-surface-2); filter: none; }
+.ui-top-menu .ui-icon { width: 20px; height: 20px; }
+body:not(.is-in) .ui-top-menu, body:not(.is-in) .ui-top-help, body:not(.is-in) #who-chip { display: none !important; }
+
+/* ---- ログイン ---- */
+.ui-login.panel {
+  max-width: 440px; margin: 72px auto 32px; padding: var(--ui-s6);
+  border-radius: var(--ui-r-lg);
+}
+.ui-login-title { font-size: var(--ui-fs-20); font-weight: 700; line-height: var(--ui-lh-tight); margin-bottom: var(--ui-s2); }
+.ui-login-sub { font-size: var(--ui-fs-13); color: var(--ui-text-2); margin-bottom: var(--ui-s5); }
+.ui-login #key-form { display: grid; gap: var(--ui-s2); }
+.ui-login #key-form label { font-size: var(--ui-fs-13); font-weight: 700; }
+.ui-login #admin-key { width: 100%; min-width: 0; min-height: 44px; background: var(--ui-surface); border-color: var(--ui-border-strong); border-radius: var(--ui-r); }
+.ui-login #admin-key:focus { outline: 2px solid var(--ui-focus); outline-offset: 0; box-shadow: none; }
+.ui-login #key-btn { min-height: 44px; margin-top: var(--ui-s2); width: 100%; }
+
+/* ---- 本文と左のメニュー ---- */
+.shell { grid-template-columns: var(--ui-side-w) minmax(0, 1fr); gap: 0; align-items: start; }
+.shell-main { min-width: 0; padding: var(--ui-s5) var(--ui-s6) 64px; max-width: 1280px; }
+.shell-main > .panel { margin-top: 0 !important; }
+
+.ui-side {
+  position: sticky; top: var(--ui-top-h);
+  height: calc(100dvh - var(--ui-top-h)); overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  padding: var(--ui-s3) var(--ui-s3) var(--ui-s5);
+  background: #efede7; border-right: 1px solid var(--ui-border);
+}
+.ui-side-brand, .ui-side-foot { display: none; }
+.shell-nav { display: block; position: static; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.ui-nav-group + .ui-nav-group { margin-top: var(--ui-s3); }
+.ui-nav-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ui-nav-label {
+  margin: 0 0 6px; padding: 5px 10px;
+  border-left: 3px solid var(--ui-accent); border-radius: 0 var(--ui-r-sm) var(--ui-r-sm) 0;
+  background: #e4e1d9;
+  font-size: var(--ui-fs-12); font-weight: 700; color: #45454f; line-height: 1.4;
+}
+.ui-nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 40px; padding: 7px 10px;
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r-lg);
+  background: var(--ui-surface); color: var(--ui-text);
+  font-family: inherit; font-size: var(--ui-fs-13); font-weight: 600; line-height: 1.35; text-align: left; text-decoration: none;
+  cursor: pointer; letter-spacing: 0;
+}
+.ui-nav-item:hover { border-color: var(--ui-border-strong); background: var(--ui-surface); color: var(--ui-text); filter: none; }
+.ui-nav-item[aria-current="page"], .ui-nav-item[aria-current="page"]:hover {
+  background: var(--ui-accent-weak); border-color: var(--ui-accent); color: var(--ui-accent); font-weight: 700;
+}
+.ui-nav-ic { display: inline-flex; flex: none; color: var(--ui-text-2); }
+.ui-nav-item[aria-current="page"] .ui-nav-ic { color: var(--ui-accent); }
+.ui-nav-lbl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.ui-nav-item .inq-badge, .ui-nav-item .rev-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin: 0;
+  border-radius: var(--ui-r-pill); background: var(--ui-badge); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 1; vertical-align: 0;
+}
+.ui-ext { margin-left: auto; color: var(--ui-text-3); }
+
+/* ---- 画面の見出しと、役割の一行 ---- */
+.shell-main > .ui-page-header { margin-bottom: var(--ui-s4); }
+.shell-main > .ui-page-header h1:focus { outline: none; }
+#role-note {
+  margin: 0 0 var(--ui-s3); padding: 8px var(--ui-s3);
+  border: 1px solid var(--ui-info-line); border-radius: var(--ui-r);
+  background: var(--ui-info-bg); font-size: var(--ui-fs-13); line-height: var(--ui-lh);
+}
+
+/* ---- デモの帯（細く） ---- */
+body #lum-demo-bar {
+  max-width: none; margin: 0; padding: 4px var(--ui-s4) 4px var(--ui-s5);
+  border: 0; border-bottom: 1px solid var(--ui-warn-line); border-radius: 0;
+  background: var(--ui-warn-bg); color: var(--ui-text);
+  font-size: var(--ui-fs-12); font-weight: 600; line-height: 1.5; gap: 4px 12px;
+}
+body #lum-demo-bar .t b { border-color: var(--ui-warn); color: var(--ui-warn); font-size: 10px; padding: 0 5px; }
+body #lum-demo-bar button, body #lum-demo-bar select {
+  min-height: 28px; padding: 0 10px; font-size: var(--ui-fs-12);
+  border: 1px solid var(--ui-border-strong); border-radius: var(--ui-r-sm); background: var(--ui-surface); color: var(--ui-text);
+}
+body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
+
+/* ---- 狭い画面：引き出し ---- */
+@media (max-width: 1023px) {
+  .ui-top { padding: 0 var(--ui-s3) 0 var(--ui-s4); }
+  body.is-in .ui-top-menu { display: inline-flex; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .shell-main { padding: var(--ui-s4) var(--ui-s4) 48px; }
+  .ui-side {
+    display: none;
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 60;
+    width: min(80vw, 320px); height: auto;
+    padding: var(--ui-s3) var(--ui-s3) var(--ui-s5);
+    border-right: 1px solid var(--ui-border-strong);
+  }
+  body.nav-open .ui-side { display: flex; }
+  body.nav-open { overflow: hidden; }
+  .ui-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(23, 23, 28, 0.45); }
+  .ui-scrim[hidden] { display: none; }
+  .ui-side-brand {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: var(--ui-s3) var(--ui-s5) var(--ui-s4); margin-bottom: var(--ui-s2);
+    text-align: center;
+  }
+  .ui-side-brand .ui-brand-mark { width: 40px; height: 40px; font-size: 18px; }
+  .ui-side-name { font-size: var(--ui-fs-16); font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+  .ui-side-pill {
+    display: inline-block; padding: 2px 10px; border-radius: var(--ui-r-pill);
+    border: 1px solid var(--ui-border-strong); background: var(--ui-surface);
+    font-size: 11px; font-weight: 700; color: var(--ui-text-2);
+  }
+  .ui-side-close {
+    position: absolute; top: 0; right: -4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: var(--ui-touch); height: var(--ui-touch); padding: 0;
+    border: 0; border-radius: var(--ui-r); background: none; color: var(--ui-text-2); cursor: pointer;
+  }
+  .ui-side-close:hover { background: var(--ui-surface-3); color: var(--ui-text); filter: none; }
+  .ui-side-close .ui-icon { width: 22px; height: 22px; }
+  .ui-side-foot { display: grid; gap: 6px; margin-top: var(--ui-s4); padding-top: var(--ui-s3); border-top: 1px solid var(--ui-border); }
+  .ui-nav-item { min-height: var(--ui-touch); }
+  .ui-top #site-link, .ui-top #sign-out, .ui-top #who-chip, .ui-top .ui-top-help { display: none !important; }
+}
+@media (min-width: 1024px) {
+  .ui-scrim { display: none !important; }
 }

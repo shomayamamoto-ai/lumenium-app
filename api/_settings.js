@@ -111,6 +111,19 @@ export const SETTINGS = [
     where: 'カンマ区切り（例: /menu.html メニュー, /access.html アクセス）。空ならサイトの一覧（sitemap）から自動で作ります',
     why: 'アドバイザーが、実際にあるページについて助言できるようにするためです。',
   },
+  /* 管理画面の左上に出す会社名とロゴ。管理画面はお客様の会社のものとして
+     見せるので、ここを入れるとその会社の名前とロゴになります。読むのは
+     管理画面へのログインの確認（/api/admin-ping）だけです。 */
+  {
+    name: 'ADMIN_BRAND_NAME', label: '管理画面に出す会社名（任意）', kind: 'text', group: 'site', device: false,
+    where: '会社名・屋号（例: 山田工務店）。空ならサイトの名前（SITE_NAME）',
+    why: '管理画面の左上とメニューに出す名前です。',
+  },
+  {
+    name: 'ADMIN_LOGO_URL', label: '管理画面に出すロゴの画像（任意）', kind: 'text', group: 'site', device: false,
+    where: '画像のURL（https://… または /logo.svg のようなサイト内のパス）。正方形に近いものがきれいに出ます',
+    why: '空なら、会社名の頭文字の入った無地の印を出します。',
+  },
   /* AIO計測で「Claude以外のAIにも聞く」ためのキー。どれも任意で、入って
      いるものだけが計測画面で選べるようになります。読むのは管理者自身の
      計測リクエストなので、Claude のキーと同じく端末保存できます。

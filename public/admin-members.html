@@ -20,52 +20,8 @@
     --text: #17171c; --sub: #5b5b66;
     --grad: #3d3fbf;
   }
-  body {
-    min-height: 100dvh;
-    background: var(--bg); color: var(--text);
-    font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', system-ui, -apple-system, sans-serif;
-    padding: 32px 20px;
-  }
-  .wrap { max-width: 860px; margin: 0 auto; }
-  body.is-in .wrap { max-width: 1220px; }
+  body { min-height: 100dvh; background: var(--bg); color: var(--text); }
 
-  /* Six panels stacked made one very long page where nothing could be found.
-     The nav names them and only one panel is mounted at a time.
-
-     It used to be a column down the right-hand side. It is now a row across
-     the top: with nine entries the column was taller than most of the panels
-     it pointed at, and it pushed the content — charts, tables, the funnel —
-     into a narrower well than the screen could give it. Across the top it
-     costs one line and hands the full width back. */
-  .shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-  .shell-main { min-width: 0; }
-  .shell-main > .panel { margin-top: 0 !important; }
-  .shell-nav {
-    /* 画面に貼り付いて付いてきます。長い画面を下まで見たあと、別の項目に
-       移るのに一番上まで戻らずに済みます。背景を敷いているので下の内容は
-       透けません。 */
-    position: sticky; top: 12px; z-index: 5;
-    display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 6px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
-  }
-  .shell-tab {
-    /* 9つが一列に収まるかどうかは、ここの余白で決まります。ノートPCの
-       幅（1180px前後）で2行に割れないところまで詰めてあります。 */
-    display: flex; align-items: center; gap: 7px;
-    padding: 9px 10px;
-    border: none; border-radius: 9px;
-    background: none; color: var(--sub);
-    font-family: inherit; font-size: 13px; font-weight: 600; text-align: left;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 0.18s ease, color 0.18s ease;
-  }
-  .shell-tab span:first-child { flex: none; font-size: 15px; line-height: 1; }
-  .shell-tab:hover { background: rgba(23,23,28,0.05); color: var(--text); }
-  .shell-tab[aria-current="true"] { background: var(--grad); color: #fff; }
-  .shell-tab:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 2px; }
 
   /* ---- Portal ----
      A hub with the sections in orbit around it. The point is not the shape:
@@ -307,48 +263,6 @@
     .pomo-presets { grid-template-columns: repeat(4, 1fr); }
   }
 
-  /* Back to the portal, shown while a section is open. */
-  #to-portal {
-    display: none;
-    align-items: center; gap: 6px;
-    margin-bottom: 12px; padding: 7px 14px;
-    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
-    color: var(--sub); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  }
-  #to-portal.on { display: inline-flex; }
-  #to-portal:hover { color: var(--text); border-color: var(--sub); }
-
-  #sign-out {
-    margin-left: auto;
-    padding: 7px 13px;
-    border: 1px solid var(--border); border-radius: 999px;
-    background: none; color: var(--sub);
-    font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
-  }
-  #sign-out:hover { color: var(--text); border-color: var(--sub); }
-  body.is-in header a { margin-left: 14px; }
-
-  /* 狭い画面では折り返すより横スクロールのほうが読めます。9つが3行に
-     割れると、どこまでがメニューなのかが分からなくなるためです。 */
-  @media (max-width: 860px) {
-    .shell-nav {
-      position: static;
-      flex-wrap: nowrap;
-      overflow-x: auto; -webkit-overflow-scrolling: touch;
-      border-radius: 12px; box-shadow: none;
-    }
-    .shell-tab { flex: none; padding: 9px 12px; }
-  }
-  header { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
-  header img { width: 30px; height: 30px; }
-  header h1 { font-size: 18px; font-weight: 700; }
-  header .tag {
-    font-size: 10px; font-weight: 800; letter-spacing: 0.18em;
-    background: var(--grad); color: #fff;
-    padding: 4px 10px; border-radius: 999px;
-  }
-  header a { margin-left: auto; color: var(--sub); font-size: 12.5px; text-decoration: none; }
-  header a:hover { color: var(--text); }
   .panel {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 16px; padding: 24px;
@@ -863,11 +777,6 @@ details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
    on wide screens); the clock is a card of its own.
    ========================================================================= */
 body { font-family: 'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif; letter-spacing: .01em; }
-header h1 { font-family: 'Zen Old Mincho', 'Hiragino Mincho ProN', serif; font-size: 20px; }
-header .tag { background: none; color: var(--sub); border: 1px solid var(--border); letter-spacing: .14em; }
-.shell-nav { box-shadow: none; background: #fff; }
-.shell-tab { font-weight: 600; }
-.shell-tab:hover:not([aria-current="true"]) { background: #f3f1ec; }
 .panel, .pomo { box-shadow: none; }
 button { letter-spacing: .02em; }
 button:hover:not(:disabled) { filter: brightness(1.08); }
@@ -951,16 +860,6 @@ input, select, textarea { color: var(--text); }
   #portal-hub .hub-face { width: 124px; height: 124px; border-width: 5px; }
   #portal-hub .hub-clock { font-size: 30px; }
 }
-/* Phone header: one line, title never broken into syllables. */
-header h1, header button, header a { white-space: nowrap; }
-@media (max-width: 560px) {
-  body { padding: 18px 14px; }
-  header { flex-wrap: wrap; gap: 8px 10px; }
-  header h1 { font-size: 17px; }
-  header .tag { display: none; }
-  body.is-in header a { margin-left: auto; font-size: 12px; }
-  #sign-out { padding: 8px 12px; font-size: 12px; }
-}
 
   /* Anyone who has asked their device for less motion gets none here: no
      transitions (the portal's open/close, hover lifts) and no animation.
@@ -1003,26 +902,53 @@ header h1, header button, header a { white-space: nowrap; }
 <!-- 担当者と権限・操作の記録・ログイン中の人と役割（役割で使えないタブは出しません）。 -->
 <script src="/admin-staff.js"></script>
   <div class="wrap">
-    <header>
-      <img src="/lumenium-logo.svg?v=3" alt="">
-      <h1 id="page-title">会員リスト</h1>
-      <span class="tag">ADMIN</span>
-      <button type="button" id="sign-out" style="display:none">ログアウト</button>
-      <a href="/">← サイトに戻る</a>
+    <!-- 上の帯。左はお客様の会社のロゴと名前（設定の ADMIN_BRAND_NAME / ADMIN_LOGO_URL。
+         無ければ SITE_NAME）。右はログイン中の人・ヘルプ・サイト・ログアウト。 -->
+    <header class="ui-top" id="app-top">
+      <button type="button" class="ui-top-menu" id="nav-open" aria-label="メニューを開く" aria-controls="side" aria-expanded="false"></button>
+      <span class="ui-brand" id="brand"><span class="ui-brand-mark" id="brand-mark" aria-hidden="true"></span><span class="ui-brand-name" id="brand-name"></span></span>
+      <span class="ui-top-gap"></span>
+      <button type="button" class="ui-help ui-top-help" id="top-help" aria-controls="page-help" aria-expanded="false" hidden>ヘルプ</button>
+      <a class="ui-top-link" id="site-link" href="/" target="_blank" rel="noopener">サイトを見る<span class="ui-sr">（新しいタブ）</span></a>
+      <button type="button" class="ui-top-link" id="sign-out" style="display:none">ログアウト</button>
     </header>
 
-    <div class="panel" id="key-panel">
+    <div class="panel ui-login" id="key-panel">
+      <h1 class="ui-login-title">管理画面にログイン</h1>
+      <p class="ui-login-sub">お渡ししている管理キー、または担当者のキーを入力してください。</p>
       <form id="key-form">
         <label for="admin-key">管理キー（Vercel の ADMIN_KEY）または担当者のキー</label>
         <input type="password" id="admin-key" autocomplete="off" required>
-        <button type="submit" id="key-btn">表示する</button>
+        <button type="submit" id="key-btn">ログイン</button>
       </form>
       <p class="msg" id="key-msg"></p>
     </div>
 
     <div class="shell" id="shell" style="display:none">
-    <div class="shell-nav" id="shell-nav" role="tablist" aria-label="管理メニュー" aria-orientation="horizontal"></div>
-    <div class="shell-main">
+    <div class="ui-scrim" id="nav-scrim" hidden></div>
+    <!-- 左のメニュー。広い画面ではいつも出ていて、狭い画面では「メニュー」で開く引き出しです。
+         項目は /admin-members.html の NAV_GROUPS の順に、役割で見られるものだけを並べます。 -->
+    <aside class="ui-side" id="side" aria-label="管理メニュー">
+      <div class="ui-side-brand">
+        <span class="ui-brand-mark" id="side-mark" aria-hidden="true"></span>
+        <span class="ui-side-name" id="side-name"></span>
+        <span class="ui-side-pill" id="side-pill">管理画面</span>
+        <button type="button" class="ui-side-close" id="nav-close" aria-label="メニューを閉じる"></button>
+      </div>
+      <nav class="shell-nav" id="shell-nav" aria-label="管理メニュー"></nav>
+      <div class="ui-side-foot">
+        <a class="ui-nav-item" href="/" target="_blank" rel="noopener" id="side-site"><i class="ui-nav-ic" data-icon="web"></i><span>サイトを見る</span><span class="ui-ext" aria-hidden="true">↗</span><span class="ui-sr">（新しいタブ）</span></a>
+        <button type="button" class="ui-nav-item" id="side-sign-out"><i class="ui-nav-ic" data-icon="logout"></i><span>ログアウト</span></button>
+      </div>
+    </aside>
+    <div class="shell-main" id="main">
+    <!-- 画面の見出し（1画面に1つ）。題名・一行の説明・右に操作と「？」。 -->
+    <div class="ui-page-header" id="page-head">
+      <div class="ui-ph-text"><h1 id="page-title" tabindex="-1">ホーム</h1><p class="ui-ph-desc" id="page-desc"></p></div>
+      <div class="ui-ph-actions" id="page-actions"><button type="button" class="ui-help" id="page-help-btn" aria-controls="page-help" aria-expanded="false" hidden><span aria-hidden="true">？</span><span>説明</span></button></div>
+      <div class="ui-help-panel" id="page-help" role="region" aria-label="この画面の説明" hidden></div>
+    </div>
+    <p id="role-note" role="note" hidden></p>
 
     <!-- The portal. One screen that shows every part of the admin at once,
          what state each one is in, and lets you go straight to it. The seven
@@ -1081,7 +1007,6 @@ header h1, header button, header a { white-space: nowrap; }
     </div>
     <button type="button" id="pomo-pill" title="ポータルに戻る"><span id="pomo-pill-left">--:--</span></button>
 
-    <button type="button" id="to-portal">← ポータル</button>
 
     <div class="panel" id="list-view">
       <!-- 項目の切り替えと詳しい内容。中身は /admin-members-tool.js が組み立てます。 -->
@@ -1855,6 +1780,44 @@ window.lumAdmin = {
     keyMsg.classList.toggle('info', !!isInfo);
   }
 
+  /* ---- 左上の会社名とロゴ ----
+     管理画面はお客様の会社のものとして見せます。名前とロゴは設定の
+     ADMIN_BRAND_NAME / ADMIN_LOGO_URL（/api/admin-ping が返す brand）。
+     無ければサイトの名前（SITE_NAME = このページの application-name）。
+     ロゴが無いときは、頭文字の入った無地の印にします（Lumenium の星は、
+     名前が Lumenium のときだけ）。ログイン画面でも同じ名前を出せるよう、
+     最後に分かった値をこの端末に覚えておきます。 */
+  function applyBrand(b) {
+    if (b && b.name) {
+      try { localStorage.setItem('lum_admin_brand', JSON.stringify({ name: b.name, logo: b.logo || '' })); } catch (_) {}
+    } else {
+      try { b = JSON.parse(localStorage.getItem('lum_admin_brand') || 'null'); } catch (_) { b = null; }
+    }
+    var name = (b && b.name) || window.lumSite.name;
+    var logo = (b && b.logo) || (/^lumenium$/i.test(name) ? '/lumenium-logo.svg?v=3' : '');
+    window.lumBrand = { name: name, logo: logo };
+    ['brand-mark', 'side-mark'].forEach(function (id) {
+      var m = document.getElementById(id);
+      if (!m) return;
+      m.innerHTML = '';
+      m.classList.toggle('is-img', !!logo);
+      if (logo) {
+        var img = document.createElement('img');
+        img.src = window.lumSafeHref(logo) === '#' ? '' : logo;
+        img.alt = '';
+        img.addEventListener('error', function () { m.classList.remove('is-img'); m.textContent = name.charAt(0).toUpperCase(); });
+        m.appendChild(img);
+      } else {
+        m.textContent = name.charAt(0).toUpperCase();
+      }
+    });
+    ['brand-name', 'side-name'].forEach(function (id) {
+      var n = document.getElementById(id);
+      if (n) n.textContent = name;
+    });
+  }
+  applyBrand(null);
+
   /* ---- section nav ----
      Each panel keeps its own init function; they are called on first view
      rather than all at once on login, which used to fire four API requests
@@ -1863,61 +1826,154 @@ window.lumAdmin = {
      which parts actually work right now instead of listing seven doors and
      letting you find the locked ones by opening them. */
   var TABS = [
-    { id: 'health-admin', icon: '🩺', label: '設定状況', init: 'lumHealthInit',
+    { id: 'health-admin', icon: 'settings', label: '設定状況', init: 'lumHealthInit',
       desc: '何が使えるか確認', accent: '#047857', tint: 'rgba(16,185,129,0.14)' },
     /* The store: without it enquiries arrive by mail only and there is no
        list to keep. The unread count on this tab and its card comes from
        /admin-inquiries.js (lumInqBadge, called from buildTabs). */
-    { id: 'inquiries-admin', icon: '📨', label: '問い合わせ管理', init: 'lumInquiriesInit', needs: 'store',
+    { id: 'inquiries-admin', icon: 'inbox', label: '問い合わせ管理', init: 'lumInquiriesInit', needs: 'store',
       desc: '届いた問い合わせと返信', accent: '#1d4ed8', tint: 'rgba(59,130,246,0.13)' },
     /* The store: the reviews are kept there between syncs. The unreplied count
        on this tab and its card comes from /admin-reviews.js (lumRevBadge). */
-    { id: 'reviews-admin', icon: '⭐', label: '口コミ管理', init: 'lumReviewsInit', needs: 'store',
+    { id: 'reviews-admin', icon: 'star', label: '口コミ管理', init: 'lumReviewsInit', needs: 'store',
       desc: 'Googleの口コミを読む・返信する', accent: '#a16207', tint: 'rgba(234,179,8,0.15)' },
     /* The store: quotes, numbering and the issuer settings live there. Writing
        the quote needs nothing else; sending it by mail checks Resend itself. */
-    { id: 'quotes-admin', icon: '🧾', label: '見積書', init: 'lumQuotesInit', needs: 'store',
+    { id: 'quotes-admin', icon: 'file', label: '見積書', init: 'lumQuotesInit', needs: 'store',
       desc: '見積書を作る・送る・請求書にする', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
-    { id: 'list-view', icon: '👥', label: '会員リスト', needs: 'resend',
+    { id: 'list-view', icon: 'users', label: '会員リスト', needs: 'resend',
       desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
-    { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
+    { id: 'news-admin', icon: 'megaphone', label: 'お知らせ投稿', needs: 'github',
       desc: 'お知らせを出す', accent: '#6d28d9', tint: 'rgba(139,92,246,0.14)' },
-    { id: 'social-admin', icon: '📣', label: 'SNS（文章）', init: 'lumSocialInit', needs: 'social',
+    { id: 'social-admin', icon: 'chat', label: 'SNS（文章）', init: 'lumSocialInit', needs: 'social',
       desc: 'SNSとLINEにまとめて出す', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
     /* The store, not the SNS keys: research, scripts and the PDCA log are
        saved records, and the two browser-only checks work with nothing set. */
-    { id: 'video-admin', icon: '🎬', label: 'SNS（動画）', init: 'lumVideoInit', needs: 'store',
+    { id: 'video-admin', icon: 'video', label: 'SNS（動画）', init: 'lumVideoInit', needs: 'store',
       desc: 'ショート動画を調べる・作る・出す', accent: '#9a3412', tint: 'rgba(234,88,12,0.13)' },
     /* The store: bookings, rules and the double-booking locks all live there,
        and without it the site shows no booking box at all. */
-    { id: 'booking-admin', icon: '📅', label: '予約管理', init: 'lumBookingInit', needs: 'store',
+    { id: 'booking-admin', icon: 'calendar', label: '予約管理', init: 'lumBookingInit', needs: 'store',
       desc: '予約を見る・受付時間を決める', accent: '#4d7c0f', tint: 'rgba(132,204,22,0.15)' },
-    { id: 'copy-admin', icon: '✍️', label: '文章編集', init: 'lumCopyInit', needs: 'github',
+    { id: 'copy-admin', icon: 'pen', label: '文章編集', init: 'lumCopyInit', needs: 'github',
       desc: 'サイトの文章を直す', accent: '#be185d', tint: 'rgba(236,72,153,0.13)' },
-    { id: 'stats-admin', icon: '📈', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
+    { id: 'stats-admin', icon: 'chart', label: 'アクセス解析', init: 'lumStatsInit', needs: 'store',
       desc: '訪問と問い合わせ導線', accent: '#0e7490', tint: 'rgba(6,182,212,0.14)' },
     /* The key alone. A run keeps its state in the request and the report in
        this browser, so a missing database no longer makes this door say
        「未設定」 to someone who has pasted their key — it only means the
        reports are not shared with another machine. */
-    { id: 'seo-admin', icon: '🔎', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: 'ai',
+    { id: 'seo-admin', icon: 'search', label: 'SEO / AIO 分析', init: 'lumSeoInit', needs: 'ai',
       desc: 'AI検索での見え方', accent: '#b45309', tint: 'rgba(245,158,11,0.14)' },
-    { id: 'advisor-admin', icon: '🤖', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
+    { id: 'advisor-admin', icon: 'sparkle', label: 'AIアドバイザー', init: 'lumAdvisorInit', needs: 'ai',
       desc: '次の一手を相談する', accent: '#b45309', tint: 'rgba(249,115,22,0.14)' },
     /* The store: snapshots, proposals, experiments and the log all live
        there. Everything it does is in /admin-auto.js. */
-    { id: 'auto-admin', icon: '🔁', label: '自動改善', init: 'lumAutoInit', needs: 'store',
+    { id: 'auto-admin', icon: 'refresh', label: '自動改善', init: 'lumAutoInit', needs: 'store',
       desc: '数字から提案・文章を比べる', accent: '#0f766e', tint: 'rgba(13,148,136,0.13)' },
     /* The store: staff accounts and the audit log live there. Who may open
        which tab is decided in /admin-staff.js (the server decides for real). */
-    { id: 'staff-admin', icon: '🔑', label: '担当者と権限', init: 'lumStaffInit', needs: 'store',
+    { id: 'staff-admin', icon: 'shield', label: '担当者と権限', init: 'lumStaffInit', needs: 'store',
       desc: '入れる人と役割を決める', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
-    { id: 'audit-admin', icon: '🧾', label: '操作の記録', init: 'lumAuditInit', needs: 'store',
+    { id: 'audit-admin', icon: 'list', label: '操作の記録', init: 'lumAuditInit', needs: 'store',
       desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' }
   ];
   var PORTAL = 'portal';
-  var NAV = [{ id: PORTAL, label: 'ポータル', icon: '🧭' }].concat(TABS);
+  var NAV = [{ id: PORTAL, label: 'ホーム', icon: 'home' }].concat(TABS);
   var started = {};
+
+  /* 左のメニューの並び。お客様対応 → 発信 → サイト → 改善 → 管理。
+     役割で見られない項目は TABS から外れているので、ここでも出ません
+     （項目が1つも残らない見出しは、見出しごと出しません）。 */
+  var NAV_GROUPS = [
+    { label: '', ids: [PORTAL] },
+    { label: 'お客様対応', ids: ['inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'list-view'] },
+    { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin'] },
+    { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
+    { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
+    { label: '管理', ids: ['health-admin', 'staff-admin', 'audit-admin'] }
+  ];
+  /* 画面の見出しの下に出す一行の説明。長い説明は「？」の中です。 */
+  var PAGE_DESC = {
+    portal: '今日やることと、今週の数字をまとめて見ます。',
+    'health-admin': 'サイトの機能が動いているか、足りない設定はどれかを確かめます。',
+    'inquiries-admin': 'フォームから届いた問い合わせを読み、返信の状況を管理します。',
+    'reviews-admin': 'Google の口コミを読み、返信します。',
+    'quotes-admin': '見積書を作って送り、請求書にします。',
+    'list-view': '会員登録した人の一覧と、外部に渡す共有リンク。',
+    'news-admin': 'サイトの「お知らせ」に記事を出します。',
+    'social-admin': 'SNS と LINE に、文章と画像をまとめて投稿します。',
+    'video-admin': 'ショート動画のネタ探しから、台本・投稿・振り返りまで。',
+    'booking-admin': '予約の確認・変更と、受け付ける曜日と時間の設定。',
+    'copy-admin': 'サイトに出ている文章を直して公開します。',
+    'stats-admin': 'サイトへの訪問と、問い合わせまでの流れを見ます。',
+    'seo-admin': '検索と AI の回答に、このサイトがどう出ているかを調べます。',
+    'advisor-admin': 'サイトの数字をもとに、次にやることを AI に相談します。',
+    'auto-admin': '数字から改善案を出し、文章を比べて良い方を残します。',
+    'staff-admin': '管理画面に入れる人と、その役割を決めます。',
+    'audit-admin': 'だれが、いつ、何をしたかの記録です。'
+  };
+  var icon = function (n) { return window.lumIcon ? window.lumIcon(n) : ''; };
+  var currentTab = null;
+
+  /* ---- 画面ごとの説明（「？」の中身） ----
+     各画面の上にあった長い説明文は、class="ui-intro" を付けておくと、
+     ここで「？」の中へ移します。画面が自分で組み直しても（innerHTML の
+     書き直し）、そのたびに拾い直します。 */
+  var HELP = {};
+  window.lumPageHelp = function (id, html) { HELP[id] = html; if (currentTab === id) paintHead(id); };
+  function takeIntro(id) {
+    var panel = document.getElementById(id === PORTAL ? 'portal' : id);
+    if (!panel) return;
+    var intro = panel.querySelectorAll('.ui-intro');
+    if (!intro.length) return;
+    var html = '';
+    Array.prototype.forEach.call(intro, function (p) {
+      html += '<p>' + p.innerHTML + '</p>';
+      p.parentNode.removeChild(p);
+    });
+    HELP[id] = html;
+    if (currentTab === id) paintHead(id);
+  }
+  function watchIntro(id) {
+    var panel = document.getElementById(id === PORTAL ? 'portal' : id);
+    if (!panel || panel.getAttribute('data-intro-watch') || !window.MutationObserver) return;
+    panel.setAttribute('data-intro-watch', '1');
+    new MutationObserver(function () { takeIntro(id); }).observe(panel, { childList: true, subtree: true });
+  }
+  function paintHead(id) {
+    var tab = id === PORTAL ? NAV[0] : TABS.find(function (t) { return t.id === id; });
+    var h = document.getElementById('page-title');
+    if (h) h.textContent = tab ? tab.label : '';
+    var d = document.getElementById('page-desc');
+    if (d) d.textContent = PAGE_DESC[id] || '';
+    var btn = document.getElementById('page-help-btn');
+    var box = document.getElementById('page-help');
+    var has = !!HELP[id];
+    if (btn) btn.hidden = !has;
+    var top = document.getElementById('top-help');
+    if (top) top.hidden = !has;
+    if (box) {
+      if (box.getAttribute('data-for') !== id) {
+        box.hidden = true;
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (top) top.setAttribute('aria-expanded', 'false');
+      }
+      box.setAttribute('data-for', id);
+      box.innerHTML = HELP[id] || '';
+    }
+  }
+  function toggleHelp(force) {
+    var box = document.getElementById('page-help');
+    if (!box || !box.innerHTML) return;
+    var open = typeof force === 'boolean' ? force : box.hidden;
+    box.hidden = !open;
+    ['page-help-btn', 'top-help'].forEach(function (x) {
+      var b = document.getElementById(x);
+      if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    if (open) box.scrollIntoView({ block: 'nearest' });
+  }
 
   function showTab(id) {
     // The copy editor's beforeunload guard only covers closing the tab. Now
@@ -1930,47 +1986,103 @@ window.lumAdmin = {
       }
     }
     var onPortal = id === PORTAL;
+    var changed = currentTab !== id;
+    currentTab = id;
     document.getElementById('portal').classList.toggle('on', onPortal);
-    document.getElementById('to-portal').classList.toggle('on', !onPortal);
-    var pbtn = document.getElementById('tab-portal');
-    if (pbtn) {
-      pbtn.setAttribute('aria-current', onPortal ? 'true' : 'false');
-      pbtn.setAttribute('aria-selected', onPortal ? 'true' : 'false');
-      pbtn.tabIndex = onPortal ? 0 : -1;
-    }
+    NAV.forEach(function (t) {
+      var btn = document.getElementById('tab-' + t.id);
+      if (!btn) return;
+      if (t.id === id) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
+    });
     TABS.forEach(function (t) {
       var panel = document.getElementById(t.id);
-      if (panel) panel.style.display = t.id === id ? 'block' : 'none';
-      var btn = document.getElementById('tab-' + t.id);
-      if (btn) {
-        var on = t.id === id;
-        btn.setAttribute('aria-current', on ? 'true' : 'false');
-        btn.setAttribute('aria-selected', on ? 'true' : 'false');
-        btn.tabIndex = on ? 0 : -1;
-      }
       if (panel) {
-        panel.setAttribute('role', 'tabpanel');
-        panel.setAttribute('aria-labelledby', 'tab-' + t.id);
+        panel.style.display = t.id === id ? 'block' : 'none';
+        panel.setAttribute('aria-labelledby', 'page-title');
       }
     });
     var tab = TABS.find(function (t) { return t.id === id; });
+    watchIntro(id);
     if (tab && tab.init && !started[id]) {
       started[id] = true;
       if (window[tab.init]) window[tab.init]();
     }
-    var title = onPortal ? '管理ポータル' : (tab ? tab.label : '');
-    var h = document.getElementById('page-title');
-    if (h) h.textContent = title;
+    takeIntro(id);
+    paintHead(id);
+    var title = onPortal ? 'ホーム' : (tab ? tab.label : '');
     document.title = title + ' | ' + window.lumSite.name + ' 管理';
     if (onPortal) layoutPortal();
     // The one-line note above a panel the role can see but not fully use.
     if (window.lumStaff) window.lumStaff.onTab(id);
     try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
+    closeNav(false);
+    if (changed) window.scrollTo(0, 0);
   }
 
   // Panels link to each other — the SNS composer points at the key panel —
   // and they are separate scripts, so one way in has to be reachable.
   window.lumShowTab = showTab;
+
+  /* ---- 引き出し（狭い画面のメニュー） ----
+     開くと一瞬で出ます（動きは付けません）。Esc か背景か「閉じる」で閉じ、
+     開いているあいだは Tab キーがメニューの中だけを回ります。 */
+  var navOpen = false;
+  var wide = window.matchMedia('(min-width: 1024px)');
+  function focusables() {
+    return Array.prototype.filter.call(
+      document.getElementById('side').querySelectorAll('a[href], button:not([disabled])'),
+      function (x) { return x.offsetParent !== null; });
+  }
+  function openNav() {
+    if (wide.matches) return;
+    navOpen = true;
+    document.body.classList.add('nav-open');
+    document.getElementById('nav-scrim').hidden = false;
+    document.getElementById('nav-open').setAttribute('aria-expanded', 'true');
+    var side = document.getElementById('side');
+    side.setAttribute('role', 'dialog');
+    side.setAttribute('aria-modal', 'true');
+    var cur = side.querySelector('[aria-current="page"]') || document.getElementById('nav-close');
+    if (cur) cur.focus();
+  }
+  function closeNav(refocus) {
+    if (!navOpen) return;
+    navOpen = false;
+    document.body.classList.remove('nav-open');
+    document.getElementById('nav-scrim').hidden = true;
+    document.getElementById('nav-open').setAttribute('aria-expanded', 'false');
+    var side = document.getElementById('side');
+    side.removeAttribute('role');
+    side.removeAttribute('aria-modal');
+    if (refocus !== false) document.getElementById('nav-open').focus();
+  }
+  function bindNav() {
+    var openBtn = document.getElementById('nav-open');
+    openBtn.innerHTML = icon('menu') + '<span>メニュー</span>';
+    document.getElementById('top-help').innerHTML = icon('help') + '<span>ヘルプ</span>';
+    openBtn.addEventListener('click', function () { if (navOpen) closeNav(); else openNav(); });
+    var closeBtn = document.getElementById('nav-close');
+    closeBtn.innerHTML = icon('close');
+    closeBtn.addEventListener('click', function () { closeNav(); });
+    document.getElementById('nav-scrim').addEventListener('click', function () { closeNav(); });
+    document.addEventListener('keydown', function (e) {
+      if (!navOpen) return;
+      if (e.key === 'Escape') { e.preventDefault(); closeNav(); return; }
+      if (e.key !== 'Tab') return;
+      var f = focusables();
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !document.getElementById('side').contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || !document.getElementById('side').contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+    });
+    var onWide = function () { if (wide.matches) closeNav(false); };
+    if (wide.addEventListener) wide.addEventListener('change', onWide); else if (wide.addListener) wide.addListener(onWide);
+    document.querySelectorAll('#side [data-icon]').forEach(function (x) { x.innerHTML = icon(x.getAttribute('data-icon')); });
+    document.getElementById('side-sign-out').addEventListener('click', function () { document.getElementById('sign-out').click(); });
+    document.getElementById('page-help-btn').addEventListener('click', function () { toggleHelp(); });
+    document.getElementById('top-help').addEventListener('click', function () { toggleHelp(); });
+  }
 
   function buildTabs() {
     var nav = document.getElementById('shell-nav');
@@ -1978,29 +2090,48 @@ window.lumAdmin = {
     // Only the tabs this role may open (/admin-staff.js). The owner sees all.
     if (window.lumStaff) {
       TABS = window.lumStaff.filterTabs(TABS);
-      NAV = [NAV[0]].concat(TABS);
     }
-    nav.innerHTML = '<button type="button" class="shell-tab" id="tab-portal" role="tab" tabindex="0"' +
-      ' aria-controls="portal" aria-selected="false"><span>ポータル</span></button>' +
-      TABS.map(function (t) {
-        return '<button type="button" class="shell-tab" id="tab-' + t.id + '" role="tab" tabindex="-1"' +
-          ' aria-controls="' + t.id + '" aria-selected="false">' +
-          '<span>' + t.label + '</span></button>';
-      }).join('');
+    var byId = {};
+    [NAV[0]].concat(TABS).forEach(function (t) { byId[t.id] = t; });
+    // メニューの並び（矢印キーで動く順）も、見た目の並びにそろえます。
+    NAV = [];
+    var html = '';
+    NAV_GROUPS.forEach(function (g) {
+      var items = g.ids.filter(function (x) { return byId[x]; });
+      if (!items.length) return;
+      html += '<div class="ui-nav-group">' + (g.label ? '<p class="ui-nav-label">' + g.label + '</p>' : '') + '<ul>';
+      items.forEach(function (x) {
+        var t = byId[x];
+        NAV.push(t);
+        html += '<li><button type="button" class="shell-tab ui-nav-item" id="tab-' + t.id + '" aria-controls="' + (t.id === PORTAL ? 'portal' : t.id) + '">' +
+          '<i class="ui-nav-ic">' + icon(t.icon) + '</i><span class="ui-nav-lbl">' + t.label + '</span></button></li>';
+      });
+      html += '</ul></div>';
+    });
+    // 見出しに入っていない項目（新しく足したもの）は、最後にまとめます。
+    var rest = TABS.filter(function (t) { return NAV.indexOf(t) < 0; });
+    if (rest.length) {
+      html += '<div class="ui-nav-group"><p class="ui-nav-label">その他</p><ul>' + rest.map(function (t) {
+        NAV.push(t);
+        return '<li><button type="button" class="shell-tab ui-nav-item" id="tab-' + t.id + '" aria-controls="' + t.id + '">' +
+          '<i class="ui-nav-ic">' + icon(t.icon) + '</i><span class="ui-nav-lbl">' + t.label + '</span></button></li>';
+      }).join('') + '</ul></div>';
+    }
+    nav.innerHTML = html;
     NAV.forEach(function (t) {
       var el = document.getElementById('tab-' + t.id);
       el.addEventListener('click', function () { showTab(t.id); });
-      // A tablist is one stop in the tab order; the arrows move within it.
+      // 上下の矢印でメニューの中を動けます（Tab キーでも順に進めます）。
       el.addEventListener('keydown', function (e) {
         var i = NAV.findIndex(function (x) { return x.id === t.id; });
         var to = null;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') to = (i + 1) % NAV.length;
-        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') to = (i - 1 + NAV.length) % NAV.length;
+        if (e.key === 'ArrowDown') to = (i + 1) % NAV.length;
+        if (e.key === 'ArrowUp') to = (i - 1 + NAV.length) % NAV.length;
         if (e.key === 'Home') to = 0;
         if (e.key === 'End') to = NAV.length - 1;
         if (to === null) return;
         e.preventDefault();
-        if (showTab(NAV[to].id) !== false) document.getElementById('tab-' + NAV[to].id).focus();
+        document.getElementById('tab-' + NAV[to].id).focus();
       });
     });
     buildPortal();
@@ -2009,7 +2140,7 @@ window.lumAdmin = {
     try { saved = sessionStorage.getItem('lum_admin_tab'); } catch (_) {}
     showTab(NAV.some(function (t) { return t.id === saved; }) ? saved : PORTAL);
   }
-
+  bindNav();
 
   /* ---- Portal ----
      Nodes are laid out from the count, so a new section needs no geometry.
@@ -2076,7 +2207,6 @@ window.lumAdmin = {
         if (h) h.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 90);
     });
-    document.getElementById('to-portal').addEventListener('click', function () { showTab(PORTAL); });
     window.addEventListener('resize', layoutPortal);
     loadPortalHealth();
     layoutPortal();
@@ -2701,6 +2831,7 @@ window.lumAdmin = {
     // A staff key comes back as a 12-hour session, which is kept in its
     // place: the key itself is not sent again. The owner's key is kept as is.
     sessionStorage.setItem('lum_admin_key', data.session || key);
+    applyBrand(data.brand || null);
     if (window.lumStaff && window.lumStaff.signedIn(data)) {
       // Signed back in as a different role: the tabs were built for the old one.
       location.reload();
