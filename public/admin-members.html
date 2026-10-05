@@ -997,6 +997,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-copy.js"></script>
 <!-- AIアドバイザー（相談・実行ボタン・保存した相談・ToDo・料金の目安）。 -->
 <script src="/admin-advisor.js"></script>
+<!-- 担当者と権限・操作の記録・ログイン中の人と役割（役割で使えないタブは出しません）。 -->
+<script src="/admin-staff.js"></script>
   <div class="wrap">
     <header>
       <img src="/lumenium-logo.svg?v=3" alt="">
@@ -1008,7 +1010,7 @@ header h1, header button, header a { white-space: nowrap; }
 
     <div class="panel" id="key-panel">
       <form id="key-form">
-        <label for="admin-key">管理キー（Vercel の ADMIN_KEY）</label>
+        <label for="admin-key">管理キー（Vercel の ADMIN_KEY）または担当者のキー</label>
         <input type="password" id="admin-key" autocomplete="off" required>
         <button type="submit" id="key-btn">表示する</button>
       </form>
@@ -1509,6 +1511,10 @@ header h1, header button, header a { white-space: nowrap; }
 
     <!-- AIアドバイザー。中身はすべて /admin-advisor.js が作ります。 -->
     <div class="panel" id="advisor-admin" style="display:none; margin-top:20px"></div>
+
+    <!-- 担当者と権限（オーナーだけ）と操作の記録（管理者以上）。中身は /admin-staff.js が組み立てます。 -->
+    <div class="panel" id="staff-admin" style="display:none; margin-top:20px"></div>
+    <div class="panel" id="audit-admin" style="display:none; margin-top:20px"></div>
     </div>
     </div>
 
@@ -1791,6 +1797,7 @@ window.lumAdmin = {
   key: function () { try { return sessionStorage.getItem('lum_admin_key') || ''; } catch (_) { return ''; } },
   signOut: function (reason) {
     try { sessionStorage.removeItem('lum_admin_key'); } catch (_) {}
+    if (window.lumStaff) window.lumStaff.signedOut();
     document.body.classList.remove('is-in');
     var shell = document.getElementById('shell');
     if (shell) shell.style.display = 'none';
@@ -1897,7 +1904,13 @@ window.lumAdmin = {
     /* The store: snapshots, proposals, experiments and the log all live
        there. Everything it does is in /admin-auto.js. */
     { id: 'auto-admin', icon: '🔁', label: '自動改善', init: 'lumAutoInit', needs: 'store',
-      desc: '数字から提案・文章を比べる', accent: '#0f766e', tint: 'rgba(13,148,136,0.13)' }
+      desc: '数字から提案・文章を比べる', accent: '#0f766e', tint: 'rgba(13,148,136,0.13)' },
+    /* The store: staff accounts and the audit log live there. Who may open
+       which tab is decided in /admin-staff.js (the server decides for real). */
+    { id: 'staff-admin', icon: '🔑', label: '担当者と権限', init: 'lumStaffInit', needs: 'store',
+      desc: '入れる人と役割を決める', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
+    { id: 'audit-admin', icon: '🧾', label: '操作の記録', init: 'lumAuditInit', needs: 'store',
+      desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ポータル', icon: '🧭' }].concat(TABS);
@@ -1947,6 +1960,8 @@ window.lumAdmin = {
     if (h) h.textContent = title;
     document.title = title + ' | ' + window.lumSite.name + ' 管理';
     if (onPortal) layoutPortal();
+    // The one-line note above a panel the role can see but not fully use.
+    if (window.lumStaff) window.lumStaff.onTab(id);
     try { sessionStorage.setItem('lum_admin_tab', id); } catch (_) {}
   }
 
@@ -1957,6 +1972,11 @@ window.lumAdmin = {
   function buildTabs() {
     var nav = document.getElementById('shell-nav');
     if (nav.childElementCount) return;
+    // Only the tabs this role may open (/admin-staff.js). The owner sees all.
+    if (window.lumStaff) {
+      TABS = window.lumStaff.filterTabs(TABS);
+      NAV = [NAV[0]].concat(TABS);
+    }
     nav.innerHTML = '<button type="button" class="shell-tab" id="tab-portal" role="tab" tabindex="0"' +
       ' aria-controls="portal" aria-selected="false"><span>ポータル</span></button>' +
       TABS.map(function (t) {
@@ -2675,8 +2695,15 @@ window.lumAdmin = {
       showMsg(data.message || '管理キーが正しくありません。');
       return false;
     }
-    sessionStorage.setItem('lum_admin_key', key);
-    loadShare();
+    // A staff key comes back as a 12-hour session, which is kept in its
+    // place: the key itself is not sent again. The owner's key is kept as is.
+    sessionStorage.setItem('lum_admin_key', data.session || key);
+    if (window.lumStaff && window.lumStaff.signedIn(data)) {
+      // Signed back in as a different role: the tabs were built for the old one.
+      location.reload();
+      return true;
+    }
+    if (!window.lumStaff || window.lumStaff.isOwner()) loadShare();
     keyPanel.style.display = 'none';
     document.body.classList.add('is-in');
     document.getElementById('sign-out').style.display = 'inline-block';
@@ -8445,6 +8472,8 @@ window.lumAdmin = {
       b.innerHTML = '<span class="soc-chip ' + esc(a.status) + '">' + esc(a.expired ? '期限切れ' : a.label) + '</span> ' +
         '<span class="soc-small">' + esc(new Date(a.createdAt).toLocaleDateString('ja-JP')) + ' ・ ' + esc(labels) + (a.date ? ' ・ 予定日 ' + esc(a.date) : '') + '</span><br>' +
         esc(a.text || '（本文なし）') +
+        // 依頼した人・出した人の名前は、担当者のアカウントで入っているときに残ります（古い記録には無し）。
+        (a.by ? '<div class="soc-small">依頼：' + esc(a.by) + (a.sentBy ? ' ／ 出した人：' + esc(a.sentBy) : '') + '</div>' : '') +
         (a.note ? '<div class="soc-small">担当者：' + esc(a.note) + '</div>' : '') +
         (a.comment ? '<div class="soc-small" style="color:' + (a.status === 'returned' ? '#b42318' : '#047857') + '">責任者：' + esc(a.comment) + '</div>' : '') +
         (a.error ? '<div class="soc-small" style="color:#b45309">' + esc(a.error) + '</div>' : '');

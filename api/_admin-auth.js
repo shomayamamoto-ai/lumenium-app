@@ -28,6 +28,12 @@ import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { useShare } from './_share.js'
 import { KV } from './_brand.js'
+import { decide, endpointOf, isRead, areaOf } from './_permissions.js'
+import {
+  OWNER, getStaff, putStaff, verifyKey, verifySession, keyId, isStaffKey, isSessionToken,
+  userFailState, recordUserFail, clearUserFails, userLocked,
+} from './_staff.js'
+import { entry, record, targetOf, ipHash } from './_audit.js'
 
 const WINDOW_S = 15 * 60
 const MAX_FAILS = 5
@@ -82,6 +88,22 @@ export function json(body, status = 200, extra) {
   })
 }
 
+/** Who passed requireAdmin for this request: { id, name, role, via }.
+ *  Kept beside the request rather than on it, so nothing about a request
+ *  object has to change. A share-link visitor is { id: 'share', role: 'share' }. */
+const WHO = new WeakMap()
+export function whoOf(req) {
+  return WHO.get(req) || null
+}
+
+/** The body's `action` (and the fields the audit log may name), read from a
+ *  copy so the handler can still read the body itself. Only for JSON. */
+async function peekBody(req) {
+  if (isRead(req.method) || req.bodyUsed) return null
+  if (!/json/i.test(req.headers.get('content-type') || '')) return null
+  try { return await req.clone().json() } catch (_) { return null }
+}
+
 /** Returns null when the caller is authorised, or a Response to return as-is.
  *
  *  A locked-out caller gets 429 and a retry-after, not 401. Returning the same
@@ -93,7 +115,15 @@ export function json(body, status = 200, extra) {
  *  The key is accepted only in the Authorization header, never as ?key=: a
  *  credential in a URL survives in history, in referrers and in logs, and
  *  the admin key opens every endpoint.
- *  opts.share: '<scope>' — also accept ?s=<share token> for that scope. */
+ *  opts.share: '<scope>' — also accept ?s=<share token> for that scope.
+ *  opts.perm: '<name>'   — the row of the permission table (api/_permissions.js)
+ *                          to use, when it is not the endpoint's own name.
+ *
+ *  Three kinds of Bearer value: ADMIN_KEY (the owner — exactly as before),
+ *  a staff member's own key (lsk_…, accepted only by /api/admin-ping, which
+ *  hands back a 12-hour session), and that session (lss.…). Whoever it is,
+ *  the permission table then decides; every write is recorded in the audit
+ *  log (api/_audit.js), refused ones included. */
 export async function requireAdmin(req, opts) {
   const asText = opts && opts.as === 'text'
   const shareScope = (opts && opts.share) || null
@@ -133,7 +163,10 @@ export async function requireAdmin(req, opts) {
       // A good share token must not reset the failure count: otherwise
       // anyone holding a link could guess the admin key four times, open
       // the link once, and guess again — forever.
-      if (await useShare(token, shareScope)) return null
+      if (await useShare(token, shareScope)) {
+        WHO.set(req, { id: 'share', name: '共有リンク', role: 'share', via: 'share' })
+        return null
+      }
       await recordFail(ip, cfg)
       return fail({
         ok: false, code: 'SHARE_INVALID',
@@ -145,9 +178,16 @@ export async function requireAdmin(req, opts) {
   const auth = req.headers.get('authorization') || ''
   const fromHeader = auth.startsWith('Bearer ') ? auth.slice(7) : ''
   const submitted = fromHeader.trim()
-
-  if (!submitted || !(await keyMatches(submitted, adminKey))) {
+  const endpoint = (opts && opts.perm) || endpointOf(url.pathname)
+  const audit = async (who, result, extra) => {
+    if (!cfg) return
+    await record(entry({
+      who, area: areaOf(endpoint), endpoint, method: req.method, ip: await ipHash(ip, adminKey), result, ...(extra || {}),
+    }), cfg)
+  }
+  const wrong = async (staffId) => {
     await recordFail(ip, cfg)
+    if (staffId) await recordUserFail(staffId, cfg)
     const left = MAX_FAILS - (state.count + 1)
     return fail({
       ok: false, code: 'UNAUTHORIZED',
@@ -157,7 +197,77 @@ export async function requireAdmin(req, opts) {
     }, 401)
   }
 
+  let who = null
+  if (submitted && (await keyMatches(submitted, adminKey))) {
+    who = { ...OWNER, via: 'owner' }
+  } else if (isSessionToken(submitted) || isStaffKey(submitted)) {
+    if (!cfg) {
+      return fail({
+        ok: false, code: 'STAFF_NEEDS_STORE',
+        message: '担当者のキーは、保存先（Upstash Redis）をつないでいるときだけ使えます。オーナーの管理キーで入ってください。',
+      }, 401)
+    }
+    if (isSessionToken(submitted)) {
+      const v = await verifySession(submitted, adminKey)
+      if (!v.ok && v.reason === 'expired') {
+        // Not a guess — a signature only this server can make — so it is not
+        // counted against the address.
+        return fail({ ok: false, code: 'SESSION_EXPIRED', message: 'ログインから12時間たちました。もう一度キーを入れてください。' }, 401)
+      }
+      if (!v.ok) return wrong('')
+      const rec = await getStaff(v.sid, cfg).catch(() => null)
+      if (!rec || rec.active === false || (Number(rec.gen) || 0) !== v.gen) {
+        return fail({
+          ok: false, code: 'STAFF_REVOKED',
+          message: 'このキーは使えなくなりました（止められたか、作り直されました）。オーナーに確かめてください。',
+        }, 401)
+      }
+      who = { id: rec.id, name: rec.name, role: rec.role, via: 'session' }
+    } else {
+      // The raw staff key is for signing in only; afterwards the session goes
+      // in its place, so the key itself is not on every request.
+      const id = keyId(submitted)
+      if (!id || endpoint !== 'admin-ping') return wrong('')
+      const us = await userFailState(id, cfg)
+      if (userLocked(us.count)) {
+        const mins = Math.max(1, Math.ceil(us.retryAfter / 60))
+        return fail({
+          ok: false, code: 'RATE_LIMITED', retryAfter: us.retryAfter,
+          message: `このキーは試行回数の上限に達しました。あと約${mins}分お待ちください。`,
+        }, 429, { 'retry-after': String(us.retryAfter || WINDOW_S) })
+      }
+      const rec = await getStaff(id, cfg).catch(() => null)
+      if (!rec || !(await verifyKey(submitted, rec))) {
+        if (rec) await audit({ id: rec.id, name: rec.name, role: rec.role }, 'failed')
+        return wrong(rec ? rec.id : '')
+      }
+      if (rec.active === false) {
+        return fail({ ok: false, code: 'STAFF_REVOKED', message: 'このキーは止められています。オーナーに確かめてください。' }, 401)
+      }
+      await clearUserFails(rec.id, cfg)
+      rec.lastLoginAt = new Date().toISOString()
+      await putStaff(rec, cfg).catch(() => {})
+      who = { id: rec.id, name: rec.name, role: rec.role, via: 'key' }
+      await audit(who, 'login')
+    }
+  } else {
+    return wrong('')
+  }
+
   await clearFails(ip, cfg)
+
+  // What may this person do here? The owner may do anything; the table is
+  // still consulted so the audit log knows which area it was.
+  const body = await peekBody(req)
+  const action = body && typeof body.action === 'string' ? body.action : ''
+  const view = url.searchParams.get('view') || ''
+  const d = decide({ role: who.role, endpoint, method: req.method, action, view })
+  if (!d.allow) {
+    await audit(who, 'denied', { action, target: targetOf(endpoint, body, url) })
+    return fail({ ok: false, code: 'FORBIDDEN', need: d.need, message: d.message }, 403)
+  }
+  if (!isRead(req.method) && !d.quiet) await audit(who, 'ok', { action, target: targetOf(endpoint, body, url) })
+  WHO.set(req, who)
   return null
 }
 
