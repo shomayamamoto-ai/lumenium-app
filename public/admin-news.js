@@ -74,7 +74,8 @@
     '.nw-after button{margin-top:8px;font-size:12px;padding:7px 12px}' +
     '#nw-history summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--sub);padding:6px 0}' +
     '#news-items li img.nw-th{width:44px;height:30px;object-fit:cover;border-radius:5px;flex-shrink:0;align-self:center}' +
-    '@media (max-width:480px){#news-items li{flex-wrap:wrap}}';
+    // スマホでは題名に幅を残し、ボタンは次の行へ（題名が1文字ずつ折り返さないように）。
+    '@media (max-width:480px){#news-items li{flex-wrap:wrap}#news-items li .nw-t{flex:1 1 55%;min-width:0}}';
 
   function build() {
     if (S.built) return;
@@ -485,6 +486,7 @@
       var today = jstDay(0);
       var t = li.children[1];
       if (!t) return;
+      t.classList.add('nw-t');
       if (n.status === 'scheduled') {
         var due = n.publishAt && n.publishAt <= today;
         var b = document.createElement('span');
