@@ -48,7 +48,7 @@ export async function POST(req) {
   const kind = new URL(req.url).searchParams.get('kind')
   const preview = kind === 'preview'
   // お知らせの画像（admin-news.js）も同じ置き場所に、別のフォルダで置きます。
-  const dir = kind === 'news' ? 'news' : 'social'
+  const dir = kind === 'news' ? 'news' : kind === 'quote' ? 'quote' : 'social'
   const limit = preview ? MAX_PREVIEW : MAX_BYTES
   const declared = Number(req.headers.get('content-length') || 0)
   if (declared > limit) {
