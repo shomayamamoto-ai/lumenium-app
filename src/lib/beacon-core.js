@@ -32,7 +32,7 @@
 export function lumBeacon(cfg) {
   cfg = cfg || {}
   var W = window, D = document, L = location
-  var NOOP = { event: function () {}, view: function () {}, settle: function () {} }
+  var NOOP = { event: function () {}, view: function () {}, settle: function () {}, exp: function () {} }
   // 広告ブロッカーに目を付けられにくい、意味の無い名前にしてあります
   // （/api/track は古いページのためにまだ受け付けています）。
   var EP = '/api/p'
@@ -85,6 +85,11 @@ export function lumBeacon(cfg) {
 
   function post(b) {
     if (off()) return
+    // 文章の実験（src/lib/experiments.js）。この訪問で見た案の印（"実験名:A"
+    // など）を添えます。印は訪問の控えに置くので、トップで案を見たあと
+    // 静的ページで問い合わせても、同じ案の成果として数えられます。
+    var xs = read()
+    if (xs && xs.xt && !b.x) b.x = xs.xt
     try {
       // keepalive: ページを離れる瞬間に送るものも、離れたあとまで届くように。
       fetch(EP, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b), keepalive: true, credentials: 'omit' })
@@ -311,5 +316,16 @@ export function lumBeacon(cfg) {
   if (D.prerendering) D.addEventListener('prerenderingchange', start, { once: true })
   else start()
 
-  return { event: event, view: view, settle: settle }
+  /* 文章の実験の印を置き、その日に初めて見せたときだけ「見た」を送ります。
+     印は「実験名:A」「実験名:B」（採用後の見張りは「実験名:W」）だけで、
+     訪問者を見分けるものは何も送りません。 */
+  function exp(tag, first) {
+    if (!/^[a-z0-9]{4,20}:[ABW]$/.test(String(tag || ''))) return
+    var x = cur()
+    x.xt = tag
+    touch(x)
+    if (first) event('exp_view')
+  }
+
+  return { event: event, view: view, settle: settle, exp: exp }
 }

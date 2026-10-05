@@ -49,6 +49,11 @@ export function startPageviews() {
   })
 }
 
+/** 文章の実験（src/lib/experiments.js）の印。first はその日に初めて見せたとき。 */
+export function tagExperiment(tag, first) {
+  if (api && api.exp) api.exp(tag, first)
+}
+
 /** Once the page has drawn: a page that fits on screen has been read to the
  *  end, but only once there is something on it. */
 export function settlePageviews() {

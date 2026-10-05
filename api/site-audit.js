@@ -27,7 +27,8 @@ export const config = { runtime: 'edge' }
 // against the built files as well as over the live site.
 
 import { requireAdmin, json } from './_admin-auth.js'
-import { storeFor } from './_analytics-store.js'
+import { storeFor, pipeline } from './_analytics-store.js'
+import { AUDIT_KEY, auditSummary } from './_auto-signals.js'
 import { readCrawls } from './_crawlers.js'
 import { QUESTIONS } from './_aio-catalog.js'
 import { SITE, CHECKS, auditSite, questionCoverage } from './_audit-rules.js'
@@ -115,6 +116,11 @@ export async function GET(req) {
   // only one of them is about the site.
   const cfg = await storeFor(req)
   const crawlers = cfg ? await readCrawls(cfg, 30) : null
+  // 自動改善（api/_auto-signals.js）が毎朝読む、点検結果の要約。点検は
+  // 20秒かかるので、毎朝走らせずに、ここで測った最後の結果を使います。
+  if (cfg) {
+    try { await pipeline(cfg, [['SET', AUDIT_KEY, JSON.stringify(auditSummary(run, CHECKS)), 'EX', 400 * 86400]]) } catch (_) {}
+  }
 
   // The grams and blocks are used by the joins above; they are not for
   // reading, and some are Sets, which are not JSON.

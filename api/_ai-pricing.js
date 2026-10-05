@@ -17,6 +17,7 @@ import { KV } from './_brand.js'
 /** USD per 1M tokens. */
 export const PRICES = {
   'claude-opus-5': { input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.5 },
+  'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
 }
 export const WEB_SEARCH_USD = 10 / 1000
 /** 円に直すときのレート（目安）。 */

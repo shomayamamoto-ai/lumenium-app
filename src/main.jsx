@@ -2,7 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { loadContent } from './lib/content'
-import { startPageviews, settlePageviews } from './lib/pageview'
+import { startPageviews, settlePageviews, tagExperiment } from './lib/pageview'
+import { fetchExperiments, applyExperiments } from './lib/experiments'
 import { resolveRoute } from './lib/routes'
 import './styles.css'
 
@@ -33,7 +34,16 @@ if (first.redirect) {
   // page away and redraw it after logging an error, so hydrating would buy
   // nothing and cost a console error. The prerendered page sits under the
   // splash, so replacing it is invisible.
-  loadContent().finally(() => {
+  //
+  // 文章の実験（src/lib/experiments.js）も同じ時に当てます。読むのは
+  // トップページだけで、content.json と並べて読むので待ち時間は増えません
+  // （遅いときは元の文章のまま出します）。文章の差し替えは content.json の
+  // あと——実験の案が、保存済みの文章より優先されるように。
+  const exps = first.path === '/' ? fetchExperiments() : Promise.resolve(null)
+  Promise.all([loadContent(), exps]).then(([, cfg]) => {
+    const tag = applyExperiments(cfg)
+    if (tag) tagExperiment(tag.tag, tag.first)
+  }).catch(() => {}).finally(() => {
     ReactDOM.createRoot(document.getElementById('root')).render(
       <App />
     )

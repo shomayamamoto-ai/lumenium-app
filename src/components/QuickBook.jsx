@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { funnel, whenSeen } from '../lib/analytics'
 import { bookingCopy } from './bookingCopy'
+import { textFor } from '../lib/experiments'
 
 /**
  * 空き日時をその場で予約する。
@@ -130,7 +131,7 @@ export default function QuickBook() {
         ) : (
           <>
             <div className="qb-head">
-              <h2 className="qb-h" id="qb-h">{copy.heading}</h2>
+              <h2 className="qb-h" id="qb-h">{textFor('booking.heading', copy.heading)}</h2>
               <p className="qb-lead">文章を書かなくても大丈夫です。日時を選んで、お名前とメールアドレスを入れるだけ。{copy.length}</p>
             </div>
             {copy.services.length > 1 ? (

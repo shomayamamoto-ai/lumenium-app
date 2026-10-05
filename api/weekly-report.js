@@ -140,7 +140,10 @@ async function send(cfg, req, { test }) {
   // SNS（文章）の一節。読めなくてもメールは送ります（その節を省くだけ）。
   let sns = null
   try { sns = await snsSummary(rep.range) } catch (_) { sns = null }
-  const { subject, text } = compose(rep, { test, sns })
+  // 自動改善の一節。読めなくてもメールは送ります。
+  let auto = null
+  try { const a = await import('./_auto-run.js'); auto = a.weeklyAutoLines(await a.weeklyAuto(cfg, pipeline)) } catch (_) { auto = null }
+  const { subject, text } = compose(rep, { test, sns, auto })
   let res
   try {
     res = await fetch('https://api.resend.com/emails', {
@@ -285,7 +288,7 @@ export function advice(rep) {
   return '大きな変化はありませんでした。いまのペースで発信を続けましょう。'
 }
 
-export function compose(rep, { test, sns } = {}) {
+export function compose(rep, { test, sns, auto } = {}) {
   const c = rep.summary.cur, p = rep.summary.prev
   const span = `${md(rep.range.from)}〜${md(rep.range.to)}`
   const subject = `${test ? '【テスト送信】' : ''}【${BRAND.name}】先週のアクセスのまとめ（${span}）`
@@ -319,6 +322,10 @@ export function compose(rep, { test, sns } = {}) {
   lines.push('')
   if (sns) {
     lines.push(...snsLines(sns))
+    lines.push('')
+  }
+  if (auto && auto.length) {
+    lines.push(...auto)
     lines.push('')
   }
   lines.push('■ ひとこと')
