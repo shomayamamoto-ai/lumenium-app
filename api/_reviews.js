@@ -38,6 +38,7 @@ import {
   normalizeReview, mergeReviews, needMore, filterCounts, replyPrompt, byteLength, REPLY_MAX_BYTES,
   reviewLink, requestEligibility, requestMail, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS, TONES,
 } from './_reviews-core.js'
+import { createWithFallback } from './_ai-create.js'
 
 const GBP_INFO = 'https://mybusinessbusinessinformation.googleapis.com/v1'
 export const MODEL = 'claude-opus-5-5'
@@ -338,11 +339,9 @@ export async function draftReply(req, id, opts = {}) {
   const client = opts.client || new Anthropic({ apiKey: key, maxRetries: 0 })
   let out
   try {
-    out = await client.beta.messages.create({
+    out = await createWithFallback(client, {
       model: MODEL,
       max_tokens: 1500,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       system,
       output_config: { effort: 'low', format: { type: 'json_schema', schema: DRAFT_SCHEMA } },
       messages: [{ role: 'user', content: user }],

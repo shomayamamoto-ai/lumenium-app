@@ -15,6 +15,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { BRAND } from './_brand.js'
 import { recordUsage, monthUsage } from './_ai-pricing.js'
 import { textProblem, EXP_KEYS } from './_auto-core.js'
+import { createWithFallback } from './_ai-create.js'
 
 export const MODEL = 'claude-opus-5-5'
 export const DAILY_CALLS = 3
@@ -101,11 +102,9 @@ export async function writeDrafts(list, { key, monthlyYen, guard }) {
   if (guard && (await guard())) return { ok: false, drafts: {}, reason: '本日のAIの回数の上限に達しました。' }
   try {
     const client = new Anthropic({ apiKey: key })
-    const res = await client.beta.messages.create({
+    const res = await createWithFallback(client, {
       model: MODEL,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
       messages: [{ role: 'user', content: promptFor(todo) }],
     })

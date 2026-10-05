@@ -20,6 +20,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { BRAND } from './_brand.js'
 import { RULES, lengthFor, xLength } from './_social-text.js'
+import { createWithFallback } from './_ai-create.js'
 
 const MODEL = 'claude-opus-5-5'
 const TIMEOUT_MS = 22000
@@ -126,11 +127,9 @@ export async function POST(req) {
   const client = new Anthropic({ apiKey: key, maxRetries: 0 })
   let out
   try {
-    out = await client.beta.messages.create({
+    out = await createWithFallback(client, {
       model: MODEL,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       system: SYSTEM,
       output_config: { effort: 'low', format: { type: 'json_schema', schema: schema(nets) } },
       messages: [{ role: 'user', content: ask }],

@@ -14,11 +14,19 @@
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
 
-/** USD per 1M tokens. */
+/** USD per 1M tokens. claude-sonnet-5-5 は入力 $2 / 出力 $10、キャッシュ読み込み
+ *  $0.2（書き込みは入力の1.25倍）。 */
 export const PRICES = {
   'claude-opus-5': { input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.5 },
   'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
+  'claude-sonnet-5-5': { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
 }
+
+/** AIアドバイザーが使うモデル。deep = ふだんの相談、quick = 短い質問向けの
+ *  安いほう（同じ質問でおよそ半分の額）。使用量は別々に記録し
+ *  （advisor / advisor-quick）、月の合計は advisorMonth で足します。 */
+export const ADVISOR_MODELS = { deep: 'claude-opus-5-5', quick: 'claude-sonnet-5-5' }
+export const ADVISOR_KINDS = { deep: 'advisor', quick: 'advisor-quick' }
 export const WEB_SEARCH_USD = 10 / 1000
 /** 円に直すときのレート（目安）。 */
 export const YEN_PER_USD = 150
@@ -73,6 +81,20 @@ export async function monthUsage(kind, model) {
     return { month: jstMonth(), usage: u, ...estimateCost(model, u), recorded: true }
   } catch (_) {
     return blank
+  }
+}
+
+/** AIアドバイザーの今月の合計（ふだんの相談と、安いほうのモデルの分を足したもの）。 */
+export async function advisorMonth() {
+  const [deep, quick] = await Promise.all([
+    monthUsage(ADVISOR_KINDS.deep, ADVISOR_MODELS.deep),
+    monthUsage(ADVISOR_KINDS.quick, ADVISOR_MODELS.quick),
+  ])
+  const calls = (deep.usage.calls || 0) + (quick.usage.calls || 0)
+  return {
+    month: deep.month, recorded: deep.recorded || quick.recorded,
+    yen: deep.yen + quick.yen, usd: deep.usd + quick.usd, calls,
+    usage: { ...deep.usage, calls }, deep, quick,
   }
 }
 

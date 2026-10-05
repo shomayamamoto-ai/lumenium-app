@@ -303,4 +303,15 @@ test('印: 急ぎが無ければ予定・設定の進み具合', () => {
   assert.deepEqual(out(C.buildBadges(undefined, NOW, null)), {})
 })
 
+test('AIアドバイザーの ToDo: まだのものを1行に・無ければ出さない・読めなくても「読めなかった」に数えない', () => {
+  const t = build({ advisor: ok({ ok: true, todos: [{ id: 't1', title: '写真を足す', done: false }, { id: 't2', title: '掲載を頼む', done: false }, { id: 't3', title: '済んだ', done: true }] }) }, NOW)
+  const row = t.rows.find((r) => r.id === 'advisor-todo')
+  assert.equal(row.count, 2)
+  assert.equal(row.level, 'action')
+  assert.equal(row.tab, 'advisor-admin')
+  assert.match(row.why, /「写真を足す」「掲載を頼む」/)
+  assert.equal(build({ advisor: ok({ ok: true, todos: [{ id: 't3', title: 'x', done: true }] }) }, NOW).rows.filter((r) => r.id === 'advisor-todo').length, 0)
+  assert.ok(!build({ advisor: { state: 'off', data: null } }, NOW).failed.some((f) => /アドバイザー/.test(f)))
+})
+
 console.log(`✓ test-portal: ${n} checks`)

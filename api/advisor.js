@@ -1,29 +1,43 @@
 export const config = { runtime: 'edge' }
 
-// The SEO/AIO advisor in the admin page.
+// 管理画面の AIアドバイザー。
 //
-// It is given the site's own service data (imported, so it cannot drift from
-// what the site actually says), whatever the last visibility probe found, and
-// the last thirty days of pageviews — then asked what to do next. Web search
-// is on so it can check current practice rather than answer from memory.
+// 各ツールの数字（自動改善の毎朝のまとめ＋問い合わせのジャンル別の件数・
+// これからの予約の件数・お知らせの日付・自動改善の提案・クローラーの来訪・
+// AIの答えの中身）を、個人の情報を抜いた短い文章にして渡し、次に何を
+// するかを聞きます。集め方は _advisor-data.js、文章にするのは _advisor-core.js。
+// ウェブ検索も使えるので、いまのやり方を確かめてから答えます。
 //
-// Streams as SSE: an edge function has to produce a first byte quickly, and a
-// considered answer takes longer than that.
+// 「実行」ボタン: AIは道具（tool）として、お知らせ・文章・SNS・動画の
+// 下書きや ToDo をボタンで出します。ここでは中身を確かめて画面に送るだけで、
+// 何も実行しません。押したときに起きることは、ボタンの下にそのまま書きます。
+//
+// SSE で返します。edge の関数は最初の1バイトを早く返す必要があり、
+// 考えた答えにはそれより時間がかかるからです。送るもの:
+//   { meta }    最初に1回（使うモデル・渡した数字の名前）
+//   { t }       本文の続き
+//   { action }  「実行」ボタン1つ
+//   { note }    途中のお知らせ（別のモデルで続けた、など）
+//   { saved }   会話を保存した（id と題名）
+//   { done, yen }  終わり（この回答の額の目安）
+//   { error }
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
-import { storeConfig, pipeline, lastDays, K } from './_analytics-store.js'
-import { MAIN, SIDE, ENGAGE, STEP_KEYS } from './_analytics-report.js'
-import { socialActivity, socialStatus } from './_social.js'
+import { storeFor, pipeline } from './_analytics-store.js'
 import { SERVICES } from '../src/data/services.js'
-import { QUESTIONS, BRAND, VERDICTS, isHit, isBranded } from './_aio-catalog.js'
-import { readCrawls } from './_crawlers.js'
-import { KV, BRAND as SITE } from './_brand.js'
+import { QUESTIONS, BRAND } from './_aio-catalog.js'
+import { BRAND as SITE } from './_brand.js'
 import { setting } from './_settings.js'
-import { recordUsage, monthUsage, monthlyCap, ADVISOR_DAILY_CALLS } from './_ai-pricing.js'
+import { recordUsage, advisorMonth, monthlyCap, ADVISOR_DAILY_CALLS, ADVISOR_MODELS, ADVISOR_KINDS } from './_ai-pricing.js'
+import {
+  groundingText, actionTools, checkAction, setCopyPaths, cleanMessages, historyForModel, parseTail,
+  usageYen, TOOL_TO_KIND, ACTIONS_PER_ANSWER, SOURCE_LABELS,
+} from './_advisor-core.js'
 
-const MODEL = 'claude-opus-5'
 const MAX_TURNS = 16
+/** 1回の相談の中で、AIとやりとりする回数の上限（ウェブ検索の続き・ボタンの確認を含む）。 */
+const MAX_LOOPS = 6
 
 /* 主なページ。以前はこの会社のページ一覧を手で書いていたため、別のサイトに
    載せると存在しないページについて助言していました。いまは
@@ -53,219 +67,41 @@ async function sitePages(req) {
   return ['/']
 }
 
-async function liveNumbers(req) {
-  // How much went out, and where. Advice about being invisible in answer
-  // engines is half an answer if the month it covers contained two posts:
-  // "書く量を増やす" and "書いたものを出す先を増やす" are different jobs.
-  const social = { activity: await socialActivity(30), networks: await socialStatus(req) }
-
-  const cfg = storeConfig()
-  if (!cfg) return { analytics: null, aio: null, social, crawl: null }
-
-  // Who actually fetched anything. Without this the advisor can only reason
-  // about what our pages say, and will keep proposing page edits to a site
-  // that no crawler has been to — which is the one situation where editing
-  // pages changes nothing.
-  const crawl = await readCrawls(cfg, 30).catch(() => null)
-
-  const dates = lastDays(30)
-  try {
-    const cmds = [
-      ['LRANGE', `${KV}aio:index`, 0, 0],
-      ...dates.map((d) => ['GET', K.dayViews(d)]),
-      ...dates.map((d) => ['HGETALL', K.dayEvents(d)]),
-      ['PFCOUNT', ...dates.map((d) => K.dayVisitors(d))],
-      ...STEP_KEYS.map((e) => ['PFCOUNT', ...dates.map((d) => K.dayEventUsers(d, e))]),
-    ]
-    const out = await pipeline(cfg, cmds)
-    const ids = Array.isArray(out[0]) ? out[0] : []
-    const views = out.slice(1, 1 + dates.length).map((v) => Number(v) || 0)
-
-    // The enquiry funnel. Advice about search rankings is only half the job:
-    // without this the advisor cannot see that the visitors already arriving
-    // are being lost, and where.
-    const ev = {}
-    for (const flat of out.slice(1 + dates.length, 1 + 2 * dates.length)) {
-      if (!Array.isArray(flat)) continue
-      for (let i = 0; i + 1 < flat.length; i += 2) {
-        ev[String(flat[i])] = (ev[String(flat[i])] || 0) + (Number(flat[i + 1]) || 0)
-      }
-    }
-
-    // …and the same steps in people, which is the only unit a rate can be
-    // built from. The advisor used to be handed event counts divided by each
-    // other, so an optional detour in the middle of the list produced a
-    // "drop" of −1700% and it was told that as fact.
-    let at = 1 + 2 * dates.length
-    const arrivals = Number(out[at++]) || 0
-    const people = {}
-    for (const e of STEP_KEYS) people[e] = Number(out[at++]) || 0
-
-    let aio = null
-    if (ids.length) {
-      const [raw] = await pipeline(cfg, [['GET', `${KV}aio:run:${ids[0]}`]])
-      try {
-        const run = JSON.parse(raw)
-        if (run && run.summary) {
-          aio = {
-            finishedAt: run.finishedAt,
-            asked: run.summary.asked,
-            questions: run.summary.questions || run.summary.asked,
-            samples: run.summary.samples || 1,
-            stats: run.summary.stats || null,
-            mentionRate: run.summary.mentionRate,
-            openMentionRate: run.summary.openMentionRate,
-            citeRate: run.summary.citeRate,
-            recommendRate: run.summary.recommendRate,
-            verdicts: run.summary.verdicts,
-            fallback: !!run.summary.fallback,
-            byCategory: run.summary.byCategory,
-            competitors: (run.summary.competitors || []).slice(0, 10),
-            // The questions we did not come back on, and why — 「見つからないと
-            // 言われた」 and 「話題にすら出ない」 need different work, and the
-            // advisor could not tell them apart when this was one flag.
-            // Non-branded means "no name in the question", not "not in the
-            // 指名 category": two 評判 questions carry the name too. With
-            // several answers per question, one line per question.
-            missed: [...new Map((run.results || [])
-              .filter((r) => !r.error && !r.truncated && r.cat !== 'ブランド指名' && !isBranded(r) && !isHit(r.verdict))
-              .map((r) => [r.id + '|' + r.verdict, { q: r.q, verdict: r.verdict }])).values()],
-          }
-        }
-      } catch (_) { /* no usable run yet */ }
-    }
-    return {
-      analytics: {
-        days: 30, total: views.reduce((a, b) => a + b, 0), daily: views,
-        events: ev, people, arrivals,
-      },
-      aio,
-      social,
-      crawl,
-    }
-  } catch (_) {
-    return { analytics: null, aio: null, social, crawl: null }
-  }
-}
-
-export function systemPrompt(live) {
+/* 指示文のうち、数字に関係なく変わらない部分。キャッシュがよく効くよう、
+   日付や件数はここに入れません（下の liveBlock に入れます）。 */
+function staticPrompt() {
   const services = SERVICES.map((s) => `- ${s.title}（${s.price}）`).join('\n')
-
-  const c = live.crawl
-  const crawl = !c
-    ? '記録できていません（Upstash Redis 未設定のため、来訪を保存する先がありません）。'
-    : c.total === 0
-      ? '直近30日で0件。どのクローラーも、ページ・robots.txt・llms.txt のどれも取りに来ていません。'
-      : [
-          // 名乗っているだけで、本物かどうかは確かめていない数です。
-          `合計 ${c.total}回（User-Agent の名乗りによる数。なりすましを含む可能性あり）`,
-          '種類別: ' + (c.groups || []).filter((g) => g.hits).map((g) => `${g.label} ${g.hits}回`).join(' / '),
-          '内訳: ' + c.agents.map((a) => `${a.id} ${a.hits}回（最終 ${String(a.lastAt || '').slice(0, 10)}` +
-            ((a.topPaths || []).length ? `、よく読んだページ ${a.topPaths.slice(0, 3).map((p) => p.path).join(' ')}` : '') + '）').join(' / '),
-          c.missing.length ? '一度も来ていない主要なクローラー: ' + c.missing.map((m) => `${m.id}（${m.groupLabel}）`).join('、') : '',
-        ].filter(Boolean).join('\n')
-
-  const aio = live.aio
-    ? [
-        `最終計測: ${live.aio.finishedAt}（${live.aio.questions}問を${live.aio.samples}回ずつ、判定できた回答 ${live.aio.asked}回）`,
-        `全体の出現率: ${(live.aio.mentionRate * 100).toFixed(0)}%`,
-        // The range goes with the number: AI answers vary run to run, and the
-        // advisor should not call a move inside it a change.
-        `非指名質問での出現率: ${(live.aio.openMentionRate * 100).toFixed(0)}%` +
-          (live.aio.stats && live.aio.stats.openMention
-            ? `（95%の確からしさで ${Math.round(live.aio.stats.openMention.lo * 100)}〜${Math.round(live.aio.stats.openMention.hi * 100)}%。この幅の中の上下は誤差です）`
-            : ''),
-        `そのうち依頼先の候補として挙げられた率: ${((live.aio.recommendRate || 0) * 100).toFixed(0)}%`,
-        `自社サイトが情報源に使われた率: ${(live.aio.citeRate * 100).toFixed(0)}%`,
-        live.aio.verdicts
-          ? '回答の扱われ方の内訳: ' + Object.entries(live.aio.verdicts)
-              .filter(([, n]) => n)
-              .map(([k, n]) => `${VERDICTS[k] ? VERDICTS[k].label : k} ${n}件`).join(' / ')
-          : '（この回は回答の読み取りができず、社名が本文に含まれるかだけで判定しています。実際より高く出ます）',
-        'カテゴリ別: ' + live.aio.byCategory.map((c) => `${c.cat} ${c.mentions}/${c.asked}`).join(' / '),
-        '同時に名前が挙がった会社: ' + live.aio.competitors.map((c) => `${c.name}(${c.count})`).join(', '),
-        // Why we did not appear matters more than that we did not. Being told
-        // we could not be found is an indexing problem; not coming up at all
-        // is a content and authority problem. They do not share a fix.
-        '出現できなかった質問（かっこ内は理由）:\n' + live.aio.missed
-          .map((m) => `  ・${m.q}（${VERDICTS[m.verdict] ? VERDICTS[m.verdict].label : '判定できず'}）`).join('\n'),
-      ].join('\n')
-    : 'まだ計測されていません（管理画面の「AIO出現率を計測」を実行すると入ります）。'
-
-  let pv = 'アクセス解析は未接続です（Upstash Redis 未設定）。'
-  if (live.analytics) {
-    const ev = live.analytics.events || {}
-    const ppl = live.analytics.people || {}
-    const arrivals = live.analytics.arrivals || 0
-
-    const row = ([k, label], prev) => {
-      const n = ppl[k] || 0
-      const rate = arrivals ? Math.round((n / arrivals) * 100) : 0
-      // Only when it is a loss. A step bigger than the one above it means
-      // people arrived straight into it, which is information, not a negative.
-      const tail = prev === null ? ''
-        : n > prev ? '（前段より多い＝そこに直接到達している人がいる）'
-        : prev > 0 ? `（前段から −${Math.round((1 - n / prev) * 100)}%）`
-        : ''
-      return `  ${label}: ${n}人 / ${ev[k] || 0}回 — 訪問の${rate}%${tail}`
-    }
-
-    const main = []
-    let prev = arrivals
-    for (const s of MAIN) { main.push(row(s, prev)); prev = ppl[s[0]] || 0 }
-
-    const any = arrivals || STEP_KEYS.some((k) => ppl[k])
-    pv = [
-      `直近30日の合計ページビュー: ${live.analytics.total}`,
-      `同期間の延べ訪問者: ${arrivals}（同じ日の再訪は1人、日をまたぐと別の1人）`,
-      '',
-      '［問い合わせまでの導線（直近30日）］',
-      '数値は「人数 / 回数」で、割合はすべて延べ訪問者に対する人数の割合です。',
-      any ? main.join('\n') : '  まだ記録がありません。',
-      '',
-      '［任意の経路（全員が通るわけではないので、上の導線とは分けて見ること）］',
-      SIDE.map((s) => row(s, null)).join('\n'),
-      ENGAGE.map((s) => row(s, null)).join('\n'),
-      any
-        ? '脱落が大きい段が、集客より先に直すべき場所です。SEOの話と混ぜず、どちらが先かを明示してください。' +
-          '回数と人数を取り違えないこと（1人が3回見ても人数は1です）。'
-        : '',
-    ].filter(Boolean).join('\n')
-  }
-
-  const act = live.social && live.social.activity
-  const ready = ((live.social && live.social.networks) || []).filter((n) => n.ready)
-  const sns = !act || !act.posts
-    ? '直近30日、この管理画面からのSNS投稿は0件です。' +
-      (ready.length
-        ? `投稿できる状態なのは ${ready.map((n) => n.label).join('・')} です。`
-        : 'どのSNSも資格情報が未入力で、管理画面からは投稿できません。') +
-      '（管理画面を経由しない手動投稿はここに出ません。数を語るときは必ずその旨を断ること）'
-    : [
-        `直近30日: ${act.posts}回（成功 ${act.sent} / 失敗 ${act.failed}）、直近7日: ${act.last7}回`,
-        '内訳: ' + Object.entries(act.byNet).map(([k, n]) => `${k} ${n}件`).join(' / '),
-        `最後の投稿: ${act.lastAt || '記録なし'}`,
-        '投稿できる状態: ' + (ready.length ? ready.map((n) => n.label).join('・') : 'なし'),
-        'これは管理画面から出した分だけの数です。手動投稿は含みません。',
-      ].join('\n')
-
   return [
-    `あなたは ${BRAND.domain}（${SITE.kana || SITE.name}）専属のSEO / AIO（AI検索最適化）アドバイザーです。`,
-    `相手はこのサイトのオーナー${SITE.ownerName ? `（${SITE.ownerName}）` : ''}本人で、管理画面から相談しています。日本語で答えてください。`,
+    `あなたは ${BRAND.domain}（${SITE.kana || SITE.name}）専属の相談相手です。集客（検索・AIでの見え方・SNS）から、問い合わせ・予約・会員まで、このサイトの数字を見て次の一手を答えます。`,
+    `相手はこのサイトのオーナー${SITE.ownerName ? `（${SITE.ownerName}）` : ''}本人で、ITに詳しくない小さな事業者です。管理画面から相談しています。日本語で答えてください。`,
     '',
     '【あなたの仕事】',
-    '一般論のSEO講座ではなく、このサイトで次に何をするかを具体的に答えること。',
-    '優先順位をつけ、なぜそれが先かを示す。',
-    '「誰が」「どこで」やるかを書く（あなたが直接できないこと＝Search Console登録、',
-    'Googleビジネスプロフィール、外部メディア掲載などは、その旨を明示して手順を書く）。',
-    'サイト側のコード変更で済むものは、どのページの何を変えるかまで書く。',
-    '数字の根拠がないときは推測だと断る。確かめられることは web_search で確認する。',
+    '一般論の講座ではなく、このサイトで次に何をするかを具体的に答えること。',
+    '優先順位をつけ、なぜそれが先かを、下の数字を根拠に示す。',
+    '「誰が」「どこで」やるかを書く（Search Console登録、Googleビジネスプロフィール、外部メディア掲載など、管理画面の外でやることは、その旨を明示して手順を書く）。',
+    '確かめられることは web_search で確認する。',
     '',
-    '【答えの書き方（これが一番大事）】',
+    '【数字の使い方（いちばん大事）】',
+    '数字を使ったら、その文の中で、どの数字かを名前で示す。名前は【いまの数字】の［ ］の中の言葉をそのまま使う。',
+    '例:「問い合わせ画面まで来た42人のうち、送信したのは9人でした（アクセス解析：過去30日）。」',
+    '［判断できません］［参考程度］が付いた数字や、「まだありません」と書かれた数字から、結論を出さない。',
+    'そのときは「まだ数が少なく、この数字からは言えません」とはっきり書き、何をどれだけ貯めれば言えるようになるかを書く。',
+    '下の数字に根拠のない一般的な助言（「SNSを頑張りましょう」「コンテンツを充実させましょう」など）は書かない。',
+    'どうしても一般論になるときは「このサイトの数字からではなく一般的な話です」と断る。',
+    '推測は推測だと書く。数字を作らない。',
+    '',
+    '【実行ボタン（道具）】',
+    'すぐ使える形の提案（お知らせの文、サイトの文章の書き換え、SNSの投稿文、文章の比べる案、動画の仮説、オーナーが自分でやること）があるときは、道具を使ってボタンにする。',
+    '1回の答えでボタンは4つまで。本当に使うものだけにする。質問に答えるだけのときは使わない。',
+    'ボタンは押されるまで何もしない。押されても、入力欄に入るか一覧に1件入るだけで、公開・投稿・保存はオーナーがいつもの画面で行う。',
+    'だから本文では「入力欄に入れられるようにしました」「ボタンを押すと入ります」と書き、「投稿しました」「直しました」とは決して書かない。',
+    '文章の書き換え（prefill_copy）の path は【文章編集で開ける項目】にあるものだけを使う。実験（draft_experiment）の key は【自動改善で実験できる項目】だけ。',
+    '道具がエラーを返したら、その理由に合わせて直してもう一度だけ試すか、本文で文案を示す。',
+    '',
+    '【答えの書き方】',
     'ここでの答えは、そのまま別のAIに貼り付けて相談を続けたり、人に転送したりするために使われます。',
     '貼った先では、この管理画面も数字も見えません。読む相手が何も知らない前提で書いてください。',
     '',
-    '守ること。',
     '記号で飾らないこと。# や ## の見出し、** の強調、バッククォート、縦棒の表、引用記号は使わない。',
     '行頭に - や * を置かない。並べるときは「1つ目は」「2つ目は」と文章で書くか、行頭に「・」を置く。',
     '番号を振るときは 1. ではなく「1つ目」「2つ目」と書く。',
@@ -273,62 +109,61 @@ export function systemPrompt(live) {
     '高校生が読んで分かる言葉で書くこと。カタカナの専門語を並べない。',
     '専門語をどうしても使うときは、初めて出したところで短く言い換える。',
     '例:「インデックス（検索エンジンがそのページを見つけて、検索結果に出せる状態にしていること）」',
-    '同じ扱いにする語: クローラー、AIO、非指名、被リンク、構造化データ、ディレクトリ、NAP。',
+    '同じ扱いにする語: クローラー、AIO、非指名、被リンク、構造化データ、ディレクトリ、NAP、CTA、コンバージョン。',
     '',
     '1文を短くし、2〜3行ごとに1行空ける。長い前置きは書かない。',
     '数字を出すときは「何の数字か」「いつ測ったものか」を文の中で説明する。',
-    '（例:「9月21日に28問を3回ずつ試したうち、名前が出たのは0回でした」）',
     '最後に、この話を知らない相手にそのまま渡せるよう、いまの状況と頼みたいことを3〜5行でまとめる。',
     '',
-    '【答えの最後に、次に押せる質問を付ける】',
-    'まとめのあと、改行してから次の1行だけを、この形のまま書いてください。',
+    '【答えの最後の2行】',
+    'まとめのあと、改行してから次の2行を、この形のまま、この順で書いてください。',
+    'SOURCES:: 使った数字の名前1 || 使った数字の名前2',
     'NEXT:: 質問1 || 質問2 || 質問3',
     '',
-    '相手はこれをボタンとして押します。だから守ること。',
-    '2つから4つ。多いと選べません。',
-    'それぞれ25文字以内。ボタンに収まらないと読まれません。',
-    '「はい」「もっと詳しく」のような、押しても内容の決まらないものは書かない。',
-    'いま答えた内容の「次の一手」になっているものを書く。',
-    '例: 直すべきページを挙げたなら「その文面を書いて」「他のページも見て」「なぜそれが先か」。',
-    'この行は画面には出ず、ボタンに変わります。だから本文でこの行に触れないこと。',
-    '本文の中で「以下の質問から選んでください」などと書かない。',
+    'SOURCES は、この答えで実際に使った数字の名前（［ ］の中の言葉そのまま）。使っていなければ「SOURCES:: なし」。',
+    'NEXT は、相手がボタンとして押す次の質問。2つから4つ、それぞれ25文字以内。',
+    '「はい」「もっと詳しく」のような、押しても内容の決まらないものは書かない。いま答えた内容の「次の一手」になっているものを書く。',
+    'この2行は画面には出ず、印とボタンに変わります。本文でこの2行に触れないこと。',
     '',
     '【このサイトの前提】',
     [`ドメイン: ${BRAND.domain}`, SITE.area, SITE.ownerName && `代表 ${SITE.ownerName}`, SITE.founded].filter(Boolean).join(' / '),
     `${SITE.description ? SITE.description + '。' : ''}事業は${SERVICES.length}領域:`,
     services,
     '',
-    '主なページ:',
-    ((live && live.pages) || ['/']).map((p) => `- ${p}`).join('\n'),
-    '',
     '既に実施済み（重複提案しないこと）: 構造化データ（Organization/FAQPage/Service/DefinedTerm ほか）、',
     'sitemap.xml（実際に中身が変わった日を lastmod に入れている）、llms.txt、同名企業との区別、',
-    'サービス別静的ページ、カテゴリ別の記事ページ、IndexNow スクリプト。',
+    'サービス別静的ページ、カテゴリ別の記事ページ、IndexNow スクリプト、管理画面の自動改善（文章の比べる実験）。',
     '',
-    '【いまの計測値】',
-    pv,
-    '',
-    '［AIO出現率（answer engine に実際に質問した結果）］',
-    aio,
-    '',
-    '［クローラーの来訪（robots.txt / llms.txt を取りに来た記録・直近30日）］',
-    crawl,
-    'これは推測ではなく、サーバーに残った取得記録です。0なら「内容が弱い」のではなく「まだ見つかっていない」状態で、',
-    'そのときページの書き直しを勧めても数字は動きません。外部からのリンク、事業者ディレクトリへの登録、',
-    'プレスリリース、Google ビジネスプロフィールなど、サイトの外に足がかりを作る提案を優先してください。',
-    '回答エンジンのクローラーが来ているのに出現率が低い場合は、逆に内容と形式（質問文の見出し・金額・地域の明記）の問題です。',
-    '',
-    '［SNS発信量（管理画面から投稿した分）］',
-    sns,
-    'answer engine は最近の言及と一次情報を拾います。出現率が低いまま発信も少ないなら、',
-    '内部施策より先に「出す量」を指摘してください。逆に発信しているのに出てこないなら、',
-    '出し先・書き方・被リンクの問題として切り分けること。',
-    '',
-    `計測に使っている質問は${QUESTIONS.length}問で、「ブランド指名」と「非指名」に分かれています。`,
-    '非指名での出現率が低いことが、対策の主戦場です。',
+    `AIでの見え方は${QUESTIONS.length}問の質問で測っていて、「ブランド指名」と「非指名」に分かれています。非指名での出現が、対策の主戦場です。`,
     '「見つからないと回答」はインデックスと実在性の問題、「出てこない」は内容と被リンクの問題で、打ち手が違います。',
-    'どちらが多いかを見てから助言してください。',
+    'クローラーの来訪が0なら「内容が弱い」のではなく「まだ見つかっていない」状態で、ページの書き直しより、外部からのリンク・事業者ディレクトリ・Googleビジネスプロフィールなど、サイトの外の足がかりを優先する。',
+    '問い合わせの導線で人が大きく減っている段があれば、集客より先にそこを直す。どちらが先かを明示する。人数と回数を取り違えない。',
+    '数字は個人の情報を抜いて件数にしたものです。お客様の名前や問い合わせの中身は渡していないので、推測もしないこと。',
   ].join('\n')
+}
+
+const STATIC = staticPrompt()
+/** 料金の目安（/api/advisor-store）で、指示文の長さに使います。 */
+export const STATIC_PROMPT_CHARS = STATIC.length
+
+/** その時点の数字。live: { pages, ground?, ...loadGrounding の答え } */
+function liveBlock(live) {
+  const g = (live && live.ground) || groundingText(live || {})
+  return [
+    '【使える数字の名前】',
+    Object.values(SOURCE_LABELS).join(' / '),
+    '',
+    '【主なページ】',
+    ((live && live.pages) || ['/']).map((p) => `- ${p}`).join('\n'),
+    '',
+    '【いまの数字】',
+    g.text,
+  ].join('\n')
+}
+
+/** 指示文全体（テストと、昔の呼び出し方のため）。 */
+export function systemPrompt(live) {
+  return STATIC + '\n\n' + liveBlock(live)
 }
 
 export async function POST(req) {
@@ -341,23 +176,25 @@ export async function POST(req) {
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
 
-  const incoming = Array.isArray(body.messages) ? body.messages : []
-  const messages = incoming
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
-    .slice(-MAX_TURNS)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, 8000) }))
-
-  if (!messages.length || messages[messages.length - 1].role !== 'user') {
+  // 会話の形をそろえる（長すぎる会話は古い方から落とす）。AIには直近の分だけ。
+  const saved = cleanMessages(body.messages)
+  let recent = saved.slice(-MAX_TURNS)
+  while (recent.length && recent[0].role !== 'user') recent = recent.slice(1)
+  if (!recent.length || recent[recent.length - 1].role !== 'user') {
     return json({ ok: false, message: '質問が空です。' }, 400)
   }
+  const quick = body.mode === 'quick'
+  const model = quick ? ADVISOR_MODELS.quick : ADVISOR_MODELS.deep
+  const kind = quick ? ADVISOR_KINDS.quick : ADVISOR_KINDS.deep
 
   const capped = await spendGuard('advisor', ADVISOR_DAILY_CALLS)
   if (capped) return capped
 
   // 月の上限（円の目安）。1日の回数だけでは、長い相談が続いた月に請求が
   // 思ったより膨らむことがあるので、使ったトークンから出した額でも止めます。
+  // 2つのモデルの分を足した額で比べます。
   const cap = monthlyCap(await setting('ADVISOR_MONTHLY_YEN', '', req))
-  const month = await monthUsage('advisor', MODEL)
+  const month = await advisorMonth()
   if (month.recorded && month.yen >= cap) {
     return json({
       ok: false, code: 'MONTHLY_LIMIT',
@@ -365,41 +202,115 @@ export async function POST(req) {
     }, 429)
   }
 
-  const [live, pages] = await Promise.all([liveNumbers(req), sitePages(req)])
-  live.pages = pages
+  const cfg = await storeFor(req)
+  const [{ loadGrounding }, pages] = await Promise.all([import('./_advisor-data.js'), sitePages(req)])
+  const g = await loadGrounding(cfg, req)
+  setCopyPaths(g.copyPaths)
+  const ground = groundingText(g)
+  const live = { pages, ground }
   const client = new Anthropic({ apiKey: key })
   const encoder = new TextEncoder()
+  const store = cfg ? await import('./_advisor-store.js') : null
 
   const stream = new ReadableStream({
     async start(controller) {
       const send = (obj) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
-      const history = [...messages]
+      const history = historyForModel(recent)
+      const actions = []
+      let acc = ''
+      let yen = 0
+      let plain = false
+      send({ meta: { mode: quick ? 'quick' : 'deep', sources: ground.sources } })
       try {
-        // A server tool can hand the turn back with pause_turn when it has
-        // more work to do; continue it rather than truncating the answer.
-        for (let turn = 0; turn < 3; turn++) {
-          const s = client.messages.stream({
-            model: MODEL,
-            max_tokens: 4000,
-            output_config: { effort: 'medium' },
-            system: [{ type: 'text', text: systemPrompt(live), cache_control: { type: 'ephemeral' } }],
-            tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
+        for (let loop = 0; loop < MAX_LOOPS; loop++) {
+          // 断られたときは、Anthropic が勧める別のモデルで続けます（fallbacks: 'default'）。
+          // ただしこの指定（と会話全体のキャッシュ指定）を API が受け付けない
+          // ときは、相談そのものが止まらないよう、付けずに1回だけ送り直します
+          // （plain が true の回）。
+          const extra = plain ? {} : {
+            betas: ['server-side-fallback-2026-07-01'],
+            fallbacks: 'default',
+            // 会話の続きもキャッシュに載せます（直前までのやりとりを毎回読み直さない）。
+            cache_control: { type: 'ephemeral' },
+          }
+          const s = client.beta.messages.stream({
+            model,
+            max_tokens: quick ? 8000 : 16000,
+            ...extra,
+            output_config: { effort: quick ? 'low' : 'medium' },
+            system: [
+              { type: 'text', text: STATIC, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: liveBlock(live), cache_control: { type: 'ephemeral' } },
+            ],
+            tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: quick ? 2 : 4 }, ...actionTools()],
             messages: history,
           })
-
-          s.on('text', (t) => send({ t }))
-          const final = await s.finalMessage()
+          s.on('text', (t) => { acc += t; send({ t }) })
+          s.on('streamEvent', (ev) => {
+            if (ev && ev.type === 'content_block_start' && ev.content_block && ev.content_block.type === 'fallback') {
+              send({ note: '途中から、別のモデルで答えを続けています。' })
+            }
+          })
+          let final
+          try {
+            final = await s.finalMessage()
+          } catch (e) {
+            // 最初の1回で、まだ何も流していない「指定の誤り（400）」なら、付け足しを外して送り直します。
+            if (!plain && loop === 0 && !acc && e && e.status === 400) { plain = true; loop--; continue }
+            throw e
+          }
           // 1回ごとの使用量を月の合計に足します（設定状況の「今月の目安」と月の上限に使う）。
-          await recordUsage('advisor', final.usage)
+          await recordUsage(kind, final.usage)
+          yen += usageYen(model, final.usage)
 
           if (final.stop_reason === 'refusal') {
-            send({ t: '\n\n（この内容には回答できませんでした。言い方を変えて試してください。）' })
+            const t = '\n\n（この内容には回答できませんでした。言い方を変えて試してください。）'
+            acc += t; send({ t })
             break
           }
-          if (final.stop_reason !== 'pause_turn') break
-          history.push({ role: 'assistant', content: final.content })
+          if (final.stop_reason === 'tool_use') {
+            // ボタンの中身を確かめて、画面に送ります。実行はしません。
+            const results = []
+            for (const b of final.content) {
+              if (b.type !== 'tool_use') continue
+              let input = b.input
+              if (typeof input === 'string') { try { input = JSON.parse(input) } catch (_) { input = null } }
+              const k = TOOL_TO_KIND[b.name]
+              const r = k ? checkAction(k, input) : { ok: false, message: 'この道具はありません。' }
+              if (r.ok && actions.length < ACTIONS_PER_ANSWER) {
+                actions.push(r.action)
+                send({ action: r.action })
+                results.push({ type: 'tool_result', tool_use_id: b.id, content: `ボタンにしました。オーナーが押すまで何も起きません。押すと: ${r.action.does}` })
+              } else {
+                results.push({ type: 'tool_result', tool_use_id: b.id, is_error: true, content: r.ok ? `この答えではボタンは${ACTIONS_PER_ANSWER}つまでです。` : r.message })
+              }
+            }
+            history.push({ role: 'assistant', content: final.content })
+            history.push({ role: 'user', content: results })
+            continue
+          }
+          // ウェブ検索の途中で手番が返ってきたときは、そのまま続けます。
+          if (final.stop_reason === 'pause_turn') {
+            history.push({ role: 'assistant', content: final.content })
+            continue
+          }
+          if (final.stop_reason === 'max_tokens') {
+            const t = '\n\n（答えが長くなりすぎたため、ここで切れました。「続きを」と送ると続きを書きます。）'
+            acc += t; send({ t })
+          }
+          break
         }
-        send({ done: true })
+
+        // 会話を保存します（保存先があるときだけ）。題名は最初の質問から。
+        if (store && acc.trim() && body.save !== false) {
+          const tail = parseTail(acc)
+          const meta = await store.saveConv(cfg, pipeline, {
+            id: body.convId,
+            messages: [...saved, { role: 'assistant', content: acc, actions, sources: tail.sources }],
+          }).catch(() => null)
+          if (meta) send({ saved: meta })
+        }
+        send({ done: true, yen: Math.round(yen * 10) / 10 })
       } catch (e) {
         send({ error: String((e && e.message) || e).slice(0, 300) })
       }

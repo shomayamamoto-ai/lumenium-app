@@ -405,6 +405,17 @@ const CALLS = [
   ['auto', 'POST', '', JSONH, { action: 'kill' }],
   ['auto', 'POST', '', JSONH, { action: 'resume' }],
   ['auto', 'POST', '', JSONH, { action: 'run' }],
+  // AIアドバイザーの保存と「実行」ボタン（AIは呼びません）。
+  ['advisor-store', 'GET', '?view=state', KEY],
+  ['advisor-store', 'GET', '?view=todos', KEY],
+  ['advisor-store', 'GET', '?view=conv&id=cnone000', KEY],
+  ['advisor-store', 'POST', '', JSONH, { action: 'todo.add', input: { title: 'Googleビジネスプロフィールに写真を足す', detail: '', tab: '' } }],
+  ['advisor-store', 'POST', '', JSONH, { action: 'todo.done', id: 'tnone000' }],
+  ['advisor-store', 'POST', '', JSONH, { action: 'todo.delete', id: 'tnone000' }],
+  ['advisor-store', 'POST', '', JSONH, { action: 'conv.delete', id: 'cnone000' }],
+  ['advisor-store', 'POST', '', JSONH, { action: 'proposal.add', input: { key: 'text.lp.ctaPrimary', b: 'まずは相談してみる', why: 'スモーク' } }],
+  // 本文まで行くと AI を呼ぶので、空の質問で断られる道だけ。
+  ['advisor', 'POST', '', JSONH, { messages: [] }],
   ['p', 'POST', '', { 'content-type': 'application/json' }, { p: '/', e: 'exp_view', x: 'xsmoke1:B' }],
   // 口コミ管理。ここでは Googleビジネスプロフィールを連携していない状態（つながっている
   // 状態は下でまとめて通します）。

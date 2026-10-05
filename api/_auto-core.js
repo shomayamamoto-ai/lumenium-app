@@ -462,7 +462,9 @@ export function mergeProposals(existing, fresh, now = Date.now()) {
   }
   for (const [id, old] of Object.entries(ex)) {
     if (seen.has(id)) continue
-    if (old.status === 'open') continue // もう当てはまらない
+    // もう当てはまらない。ただし AIアドバイザーから入れた案（rule: advisor）は
+    // 決まりから出たものではないので、30日は残します。
+    if (old.status === 'open' && old.rule !== 'advisor') continue
     if (now - Date.parse(old.decidedAt || old.updatedAt || 0) < QUIET_DAYS * DAY) out[id] = old
   }
   return out

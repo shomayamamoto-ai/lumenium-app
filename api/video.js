@@ -21,6 +21,7 @@ import {
 import { pipeline } from './_analytics-store.js'
 import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
+import { createWithFallback } from './_ai-create.js'
 
 const MODEL = 'claude-opus-5-5'
 const AI_DAILY = 60
@@ -138,11 +139,9 @@ async function claude(req, { system, user, schema, maxTokens }) {
   const client = new Anthropic({ apiKey: key, maxRetries: 0 })
   let out
   try {
-    out = await client.beta.messages.create({
+    out = await createWithFallback(client, {
       model: MODEL,
       max_tokens: maxTokens || 8000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       system,
       output_config: { effort: 'low', format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content: user }],
