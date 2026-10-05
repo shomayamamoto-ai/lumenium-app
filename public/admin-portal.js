@@ -389,8 +389,43 @@
     return { steps: steps, done: done, total: steps.length, pct: known ? Math.round((done / steps.length) * 100) : null };
   }
 
+  /* ---------------- カードの印 ----------------
+     機能のカードに出す「未対応 3」などの印。「今日やること」と同じ読み込み・
+     同じ行から作るので、上の一覧とカードで数が食い違うことはありません。
+     → { タブのid: { text, tone: urgent|action|today|fyi } } */
+  function buildBadges(src, now, setup) {
+    src = src || {};
+    var rows = buildToday(src, now).rows, by = {};
+    rows.forEach(function (r) { by[r.id] = r; });
+    var out = {};
+    var put = function (tab, text, tone) { if (!out[tab]) out[tab] = { text: text, tone: tone }; };
+
+    if (ok(src.inquiries)) {
+      var c = (src.inquiries.data.metrics || {}).counts || {};
+      if (num(c.new)) put('inquiries-admin', '未対応 ' + c.new, by['inq-late'] ? 'urgent' : 'action');
+    }
+    if (by['bk-tentative']) put('booking-admin', '仮予約 ' + by['bk-tentative'].count, 'action');
+    if (by['bk-today']) put('booking-admin', '今日 ' + by['bk-today'].count + '件', 'today');
+
+    if (by['sns-failed']) put('social-admin', '失敗 ' + by['sns-failed'].count, 'urgent');
+    if (by['sns-today'] && by['sns-today'].level === 'urgent') put('social-admin', '予約投稿が止まっています', 'urgent');
+    if (by['sns-unknown']) put('social-admin', '要確認 ' + by['sns-unknown'].count, 'action');
+    var ap = (by['sns-approved'] ? by['sns-approved'].count : 0) + (by['sns-returned'] ? by['sns-returned'].count : 0);
+    if (ap) put('social-admin', '承認の対応 ' + ap, 'action');
+    if (by['sns-today']) put('social-admin', '今日の予約 ' + by['sns-today'].count, by['sns-today'].level);
+
+    if (by['news-stale']) put('news-admin', by['news-stale'].count ? by['news-stale'].count + '日 更新なし' : 'まだありません', 'action');
+    if (by['mem-new']) put('list-view', '今週 +' + by['mem-new'].count + '人', 'fyi');
+    if (by['analytics-week']) put('stats-admin', '7日で ' + by['analytics-week'].count + '回', 'fyi');
+
+    var bad = (by['health-error'] ? by['health-error'].count : 0) + (by['deploy-failed'] ? 1 : 0);
+    if (bad) put('health-admin', '要対応 ' + bad, 'urgent');
+    if (setup && setup.pct != null && setup.pct < 100) put('health-admin', '設定 ' + setup.pct + '%', 'action');
+    return out;
+  }
+
   root.lumPortalCore = {
-    classify: classify, buildToday: buildToday, buildSetup: buildSetup, jstDay: jstDay, dayStart: dayStart,
+    classify: classify, buildToday: buildToday, buildSetup: buildSetup, buildBadges: buildBadges, jstDay: jstDay, dayStart: dayStart,
     LEVEL_LABEL: LEVEL_LABEL, SOURCE_NAMES: SOURCE_NAMES
   };
 
@@ -473,6 +508,13 @@
     '#portal:not(.lp-pomo) #portal-hub .hub-clock{font-size:20px}' +
     '#portal:not(.lp-pomo) #portal-hub .hub-sub{font-size:12.5px;margin-top:0}' +
     '#portal .pnode{transition:none}' +
+    /* カードの印。問い合わせの「未読」の丸はタブの方に残し、カードではこちらに揃えます。 */
+    '.pnode .inq-badge{display:none}' +
+    '.pn-live{margin-top:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;border:1px solid transparent}' +
+    '.pn-live.urgent{background:#b42318;color:#fff}' +
+    '.pn-live.action{background:rgba(251,191,36,.2);color:#92400e;border-color:rgba(217,119,6,.35)}' +
+    '.pn-live.today{background:rgba(61,63,191,.1);color:#3d3fbf}' +
+    '.pn-live.fyi{background:#f3f1ec;color:var(--sub)}' +
     '.lp-foot{margin-top:14px;font-size:12px;color:var(--sub)}' +
     '.lp-foot label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}' +
     '.lp-foot input{width:15px;height:15px;accent-color:#3d3fbf}' +
@@ -715,7 +757,24 @@
     }).join('');
   }
 
-  function paintBadges() {}
+  /* カードの印。印が無くなったカードからは消します。 */
+  function paintBadges() {
+    if (!P.data) return;
+    var setup = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
+    var b = buildBadges(P.data, Date.now(), setup);
+    document.querySelectorAll('#portal-nodes .pnode').forEach(function (node) {
+      var tab = node.id.replace(/^pnode-/, '');
+      var span = node.querySelector('.pn-live');
+      var x = b[tab];
+      if (!x) { if (span) span.remove(); return; }
+      if (!span) {
+        span = document.createElement('span');
+        node.appendChild(span);
+      }
+      span.className = 'pn-live ' + x.tone;
+      span.textContent = x.text;
+    });
+  }
 
   function bindHead() {
     var b = el('lp-reload');

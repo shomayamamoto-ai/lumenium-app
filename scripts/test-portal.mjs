@@ -278,4 +278,29 @@ test('設定: 何も読めなければ % は出さない', () => {
   assert.equal(setup({ health: fail, settings: fail, booking: fail, social: fail }, {}).pct, null)
 })
 
+/* ---- カードの印 ---- */
+
+test('印: 一覧と同じ数・急ぎの方を優先', () => {
+  const b = out(C.buildBadges(FULL, NOW, { pct: 75 }))
+  assert.deepEqual(b['inquiries-admin'], { text: '未対応 3', tone: 'urgent' })
+  assert.deepEqual(b['booking-admin'], { text: '仮予約 1', tone: 'action' })
+  assert.deepEqual(b['social-admin'], { text: '失敗 1', tone: 'urgent' })
+  assert.deepEqual(b['news-admin'], { text: '65日 更新なし', tone: 'action' })
+  assert.deepEqual(b['list-view'], { text: '今週 +2人', tone: 'fyi' })
+  assert.deepEqual(b['stats-admin'], { text: '7日で 120回', tone: 'fyi' })
+  assert.deepEqual(b['health-admin'], { text: '要対応 2', tone: 'urgent' }, '止まっている機能1 + ビルド失敗1')
+  // 一覧の行と同じ数
+  const rows = build(FULL, NOW).rows
+  assert.equal(rows.find((r) => r.id === 'sns-failed').count, 1)
+})
+
+test('印: 急ぎが無ければ予定・設定の進み具合', () => {
+  const b = out(C.buildBadges({ booking: ok({ ok: true, bookings: [{ start: NOW + H, end: NOW + 2 * H, status: 'confirmed' }] }) }, NOW, { pct: 58 }))
+  assert.deepEqual(b['booking-admin'], { text: '今日 1件', tone: 'today' })
+  assert.deepEqual(b['health-admin'], { text: '設定 58%', tone: 'action' })
+  assert.equal(b['inquiries-admin'], undefined)
+  assert.deepEqual(out(C.buildBadges({}, NOW, { pct: 100 })), {})
+  assert.deepEqual(out(C.buildBadges(undefined, NOW, null)), {})
+})
+
 console.log(`✓ test-portal: ${n} checks`)
