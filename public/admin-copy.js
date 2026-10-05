@@ -3,6 +3,7 @@
    次の画面を並べます:
      項目を足す・隠す  よくある質問・お客様の声・実績を足す／元からある項目を隠す
      検索結果の見え方  ページごとのタイトルと説明文（数え表示と検索結果の見本つき）
+     ブログ記事を書く  新しい記事を書く・直す・消す（見え方の確認つき、下書きも可）
      保存の履歴      最近20回の保存と、それぞれで変わった項目。「この時点に戻す」
 
    保存はどれも /api/content-save に送り、サイトへの反映は同じ欄
@@ -21,6 +22,7 @@
     { id: 'text', label: '文章を直す' },
     { id: 'items', label: '項目を足す・隠す' },
     { id: 'seo', label: '検索結果の見え方' },
+    { id: 'blog', label: 'ブログ記事を書く' },
     { id: 'history', label: '保存の履歴' }
   ];
 
@@ -56,6 +58,9 @@
     '.cp-h{font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin:12px 0 6px}' +
     '.cp-in{display:block;width:100%;margin-top:5px;padding:10px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;line-height:1.7;font-weight:400}' +
     'textarea.cp-in{resize:vertical}' +
+    '.cp-prev{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;line-height:1.9;max-height:420px;overflow:auto;overflow-wrap:anywhere}' +
+    '.cp-prev h2{font-size:18px;margin:0 0 4px}.cp-prev h3{font-size:15.5px;margin:16px 0 6px;padding-left:10px;border-left:3px solid #4f46e5}' +
+    '.cp-prev h4{font-size:14px;margin:12px 0 4px}.cp-prev p{margin:0 0 8px}.cp-prev ul{margin:0 0 8px 1.2em}' +
     '.cp-serp{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:Arial,"Hiragino Sans","Noto Sans JP",sans-serif;max-width:600px}' +
     '.cp-serp .u{font-size:12px;color:#4d5156;overflow-wrap:anywhere}' +
     '.cp-serp .h{font-size:18px;line-height:1.35;color:#1a0dab;margin:3px 0;overflow-wrap:anywhere}' +
@@ -117,6 +122,7 @@
     if (id === 'history') renderHistory();
     if (id === 'items') renderItems();
     if (id === 'seo') renderSeo();
+    if (id === 'blog') renderBlog();
   }
 
   /* ---- 読み込みと保存（項目の追加・SEO・記事が使う） ---- */
@@ -525,6 +531,186 @@
       ops.seo[seoPath] = null;
       if (await saveOps(ops, this, 'cp-seo-msg', '元の文に戻しました。')) { var m = $('cp-seo-msg').textContent; await renderSeo(); say('cp-seo-msg', m, true); }
     });
+  }
+
+  /* ---- ブログ記事を書く ----
+     content.json の "added.articles" に入り、ビルドで /blog/<英字の名前>.html に
+     なります（元からある記事は /blog/post-<番号>.html のまま）。本文の書き方は
+     ビルドと同じ: 「## 見出し」「### 小見出し」「- 箇条書き」「**太字**」、
+     空行で段落。決まりは src/lib/content-extra.js の checkArticle と同じです。 */
+  var SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/;
+  var ALIM = { title: [4, 80], description: [10, 160], body: [50, 20000] };
+
+  function slugProblem(slug, taken) {
+    if (!slug) return '英字の名前を入れてください。';
+    if (!SLUG_RE.test(slug) || /--/.test(slug)) return '英小文字・数字・ハイフンだけで、先頭と末尾は英数字にしてください（例：ai-first-steps）。';
+    if (slug === 'index' || /^post-/.test(slug)) return '「index」と「post-」で始まる名前は使えません。';
+    if (taken.indexOf(slug) >= 0) return 'この名前はほかの記事で使っています。';
+    return '';
+  }
+  /* ビルド（scripts/build-content-pages.mjs の md）と同じ書き方の見本。 */
+  function mdLite(src) {
+    var inl = function (t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); };
+    var html = '', inList = false;
+    var close = function () { if (inList) { html += '</ul>'; inList = false; } };
+    String(src || '').split('\n').forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) { close(); return; }
+      if (line.indexOf('### ') === 0) { close(); html += '<h4>' + inl(line.slice(4)) + '</h4>'; return; }
+      if (line.indexOf('## ') === 0) { close(); html += '<h3>' + inl(line.slice(3)) + '</h3>'; return; }
+      if (line.indexOf('- ') === 0) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + inl(line.slice(2)) + '</li>'; return; }
+      close();
+      html += '<p>' + inl(line) + '</p>';
+    });
+    close();
+    return html;
+  }
+
+  async function renderBlog() {
+    var box = $('cp-v-blog');
+    box.innerHTML = '<p class="cp-s">読み込み中…</p>';
+    await loadSchema();
+    if (!C.stored) await loadData();
+    var list = (section('added').articles || []).slice();
+    list.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+    box.innerHTML =
+      '<p class="share-note" style="margin-bottom:10px">新しいブログ記事を書けます。保存すると約1〜2分でサイトのブログに出ます（「下書き」にした記事は出ません）。元からある記事の文の直しは「文章を直す」の「ブログ記事」からできます。</p>' +
+      '<p class="msg" id="cp-b-msg"></p>' +
+      '<div id="cp-b-edit"></div>' +
+      '<h3 class="cp-h">ここで書いた記事（' + list.length + '本）</h3><ul class="cp-list" id="cp-b-list"></ul>';
+    var ul = $('cp-b-list');
+    if (!list.length) ul.innerHTML = '<li class="cp-s">まだありません。</li>';
+    list.forEach(function (a) {
+      var li = document.createElement('li');
+      var row = document.createElement('div');
+      row.className = 'cp-row';
+      row.innerHTML = '<span class="cp-s" style="flex:0 0 auto">' + esc(a.date || '日付なし') + '</span>' +
+        '<span class="t">' + (a.draft ? '<span class="cp-chip" style="margin-right:6px">下書き</span>' : '') + esc(a.title || '（題名なし）') +
+        '<br><span class="cp-s">/blog/' + esc(a.slug) + '.html</span></span>';
+      var ed = document.createElement('button');
+      ed.type = 'button'; ed.className = 'ghost'; ed.textContent = '直す';
+      ed.addEventListener('click', function () { openArticle(a, list); });
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'ghost'; del.textContent = '削除';
+      del.addEventListener('click', async function () {
+        if (!confirm('記事「' + (a.title || a.slug) + '」を削除しますか？\nサイトからも消えます（保存の履歴からは戻せます）。')) return;
+        var ops = { articles: {} };
+        ops.articles[a.slug] = null;
+        if (await saveOps(ops, del, 'cp-b-msg', '削除しました。')) { var m = $('cp-b-msg').textContent; await renderBlog(); say('cp-b-msg', m, true); }
+      });
+      row.appendChild(ed); row.appendChild(del);
+      li.appendChild(row);
+      ul.appendChild(li);
+    });
+    var add = document.createElement('button');
+    add.type = 'button'; add.textContent = '＋ 新しい記事を書く';
+    add.addEventListener('click', function () { openArticle(null, list); });
+    $('cp-b-edit').appendChild(add);
+  }
+
+  function categories() {
+    var seen = {};
+    (C.schema.groups || []).forEach(function (g) {
+      g.fields.forEach(function (f) { if (/^articles\.[^.]+\.category$/.test(f.path)) seen[f.value] = 1; });
+    });
+    return Object.keys(seen);
+  }
+
+  function openArticle(a, list) {
+    var host = $('cp-b-edit');
+    var taken = list.filter(function (x) { return !a || x.slug !== a.slug; }).map(function (x) { return x.slug; });
+    var today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    host.innerHTML =
+      '<div class="nq">' +
+      '<p class="nq-label" style="font-size:13px">' + (a ? '記事を直す' : '新しい記事') + '</p>' +
+      '<label class="nq-label" for="cp-b-title">題名<input type="text" id="cp-b-title" class="cp-in" maxlength="80"></label><p class="cp-s" id="cp-b-tn"></p>' +
+      '<label class="nq-label" for="cp-b-slug" style="margin-top:8px">記事の住所に使う英字の名前<input type="text" id="cp-b-slug" class="cp-in" maxlength="60" placeholder="例：ai-first-steps" autocapitalize="off" spellcheck="false"></label>' +
+      '<p class="cp-s" id="cp-b-sn"></p>' +
+      '<div class="cp-row" style="margin-top:8px"><label class="nq-label" style="flex:1 1 150px">公開日<input type="date" id="cp-b-date" class="cp-in"></label>' +
+      '<label class="nq-label" style="flex:1 1 150px">カテゴリ<input type="text" id="cp-b-cat" class="cp-in" maxlength="20" list="cp-b-cats"></label></div>' +
+      '<datalist id="cp-b-cats">' + categories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
+      '<label class="nq-label" for="cp-b-desc" style="margin-top:8px">説明（検索結果や一覧に出る1〜2文）<textarea id="cp-b-desc" class="cp-in" rows="2" maxlength="160"></textarea></label><p class="cp-s" id="cp-b-dn"></p>' +
+      '<p class="nq-label" style="margin-top:8px">本文</p>' +
+      '<div class="nq-row" style="margin-bottom:6px">' +
+        '<button type="button" class="nq-chip" data-ins="## ">見出し</button>' +
+        '<button type="button" class="nq-chip" data-ins="### ">小見出し</button>' +
+        '<button type="button" class="nq-chip" data-ins="- ">箇条書き</button>' +
+        '<button type="button" class="nq-chip" data-bold="1">太字</button></div>' +
+      '<textarea id="cp-b-body" class="cp-in" rows="12" maxlength="20000"></textarea><p class="cp-s" id="cp-b-bn"></p>' +
+      '<label class="copy-only" style="display:block;margin:10px 0"><input type="checkbox" id="cp-b-draft"> 下書きにする（保存はしますが、サイトには出しません）</label>' +
+      '<p class="nq-label">見え方（サイトでの出方の見本）</p><div class="cp-prev" id="cp-b-prev"></div>' +
+      '<div class="cp-row" style="margin-top:12px"><button type="button" id="cp-b-save">保存</button><button type="button" class="ghost" id="cp-b-cancel">やめる</button></div>' +
+      '</div>';
+    var f = {
+      title: $('cp-b-title'), slug: $('cp-b-slug'), date: $('cp-b-date'), cat: $('cp-b-cat'),
+      desc: $('cp-b-desc'), body: $('cp-b-body'), draft: $('cp-b-draft')
+    };
+    f.title.value = a ? a.title : '';
+    f.slug.value = a ? a.slug : '';
+    f.date.value = (a && a.date) || today;
+    f.cat.value = a ? a.category : '';
+    f.desc.value = a ? a.description : '';
+    f.body.value = a ? a.body : '## はじめに\n\n';
+    f.draft.checked = !!(a && a.draft);
+    function n(el, lim, id) {
+      var k = el.value.trim().length;
+      var bad = k && (k < lim[0] || k > lim[1]);
+      $(id).textContent = k + ' 文字（' + lim[0] + '〜' + lim[1] + '）';
+      $(id).style.color = bad ? '#b45309' : '';
+    }
+    function upd() {
+      n(f.title, ALIM.title, 'cp-b-tn');
+      n(f.desc, ALIM.description, 'cp-b-dn');
+      n(f.body, ALIM.body, 'cp-b-bn');
+      var sp = slugProblem(f.slug.value.trim(), taken);
+      $('cp-b-sn').textContent = sp || ('住所：' + location.origin + '/blog/' + f.slug.value.trim() + '.html');
+      $('cp-b-sn').style.color = sp && f.slug.value ? '#b42318' : '';
+      $('cp-b-prev').innerHTML = '<h2>' + esc(f.title.value || '（題名）') + '</h2>' +
+        '<p class="cp-s">' + esc((f.date.value || '').replace(/-/g, '.')) + ' ・ ' + esc(f.cat.value || 'カテゴリ') + '</p>' + mdLite(f.body.value);
+    }
+    ['title', 'slug', 'date', 'cat', 'desc', 'body'].forEach(function (k) { f[k].addEventListener('input', upd); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-ins]'), function (b) {
+      b.addEventListener('click', function () {
+        var ta = f.body, s0 = ta.selectionStart, v = ta.value;
+        var ls = v.lastIndexOf('\n', s0 - 1) + 1;
+        ta.value = v.slice(0, ls) + b.getAttribute('data-ins') + v.slice(ls);
+        ta.focus();
+        ta.setSelectionRange(s0 + b.getAttribute('data-ins').length, s0 + b.getAttribute('data-ins').length);
+        upd();
+      });
+    });
+    host.querySelector('[data-bold]').addEventListener('click', function () {
+      var ta = f.body, s0 = ta.selectionStart, s1 = ta.selectionEnd, v = ta.value;
+      if (s0 === s1) { say('cp-b-msg', '太字にしたい言葉を選んでから押してください。', true); return; }
+      ta.value = v.slice(0, s0) + '**' + v.slice(s0, s1) + '**' + v.slice(s1);
+      ta.focus();
+      upd();
+    });
+    upd();
+    $('cp-b-cancel').addEventListener('click', function () { renderBlog(); });
+    $('cp-b-save').addEventListener('click', async function () {
+      var v = {
+        slug: f.slug.value.trim(), title: f.title.value.trim(), date: f.date.value, category: f.cat.value.trim(),
+        description: f.desc.value.trim(), body: f.body.value, draft: f.draft.checked
+      };
+      var sp = slugProblem(v.slug, taken);
+      if (sp) { say('cp-b-msg', sp); f.slug.focus(); return; }
+      if (!v.draft) {
+        var checks = [['title', '題名'], ['description', '説明'], ['body', '本文']];
+        for (var i = 0; i < checks.length; i++) {
+          var k = checks[i][0], lim = ALIM[k], len = String(v[k]).trim().length;
+          if (len < lim[0] || len > lim[1]) { say('cp-b-msg', checks[i][1] + 'は' + lim[0] + '〜' + lim[1] + '文字にしてください（いま' + len + '文字）。下書きなら、このままでも保存できます。'); return; }
+        }
+        if (!v.category) { say('cp-b-msg', 'カテゴリを入れてください。'); f.cat.focus(); return; }
+      } else if (!v.title) { say('cp-b-msg', '下書きでも題名は入れてください。'); f.title.focus(); return; }
+      var ops = { articles: {} };
+      if (a && a.slug !== v.slug) ops.articles[a.slug] = null;
+      ops.articles[v.slug] = v;
+      if (await saveOps(ops, this, 'cp-b-msg', v.draft ? '下書きを保存しました（サイトには出ません）。' : '記事を保存しました。')) {
+        var m = $('cp-b-msg').textContent; await renderBlog(); say('cp-b-msg', m, true);
+      }
+    });
+    f.title.focus();
   }
 
   // 文章編集を初めて開いたとき（admin-members.html の lumCopyInit から）。

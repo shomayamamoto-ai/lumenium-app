@@ -1,5 +1,6 @@
 // Generates statically indexable content pages:
-//   /blog/post-<id>.html  (Article JSON-LD, one per article)
+//   /blog/post-<id>.html  (Article JSON-LD, one per article; posts written in
+//                          the admin are /blog/<slug>.html — articlePath)
 //   /blog/index.html      (article hub)
 //   /news.html            (from public/news.json — refreshes every build,
 //                          so each news post republishes it automatically)
@@ -11,7 +12,7 @@
 //   /sitemap.xml          (every indexable page, with the date its content
 //                          last changed — see _lastmod.mjs)
 // Run via `npm run build` (prebuild) or directly.
-import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs'
 import { liveNews, newsSlug } from '../src/lib/news.js'
 import { BEACON } from './_beacon.mjs'
 import { framePage } from './_page-frame.mjs'
@@ -167,7 +168,7 @@ function withOrg(ld, canonical, title) {
   const crumbs = {
     '@type': 'BreadcrumbList',
     itemListElement: [{ '@type': 'ListItem', position: 1, name: 'ホーム', item: SITE }].concat(
-      /^\/blog\/post-/.test(path)
+      /^\/blog\/(?!index\.html)/.test(path)
         ? [
             { '@type': 'ListItem', position: 2, name: 'ブログ', item: `${SITE}/blog/index.html` },
             { '@type': 'ListItem', position: 3, name: title, item: canonical },
@@ -288,6 +289,11 @@ function articleDesc(a) {
 mkdirSync('public/blog', { recursive: true })
 const urls = []
 
+/** Where a post lives. The ones in src/data/articles.js are /blog/post-<n>.html;
+ *  the ones written in the admin (content.json "added.articles") carry a slug
+ *  and live at /blog/<slug>.html. */
+const articlePath = (a) => (a.slug ? `/blog/${a.slug}.html` : `/blog/post-${a.id}.html`)
+
 /** Write a page with its real last-changed date filled in, and remember it
  *  for the sitemap with that same date — the two used to disagree with each
  *  other as well as with the page. */
@@ -302,7 +308,7 @@ function publish(path, html, opts) {
 
 /* ---- Blog articles ---- */
 for (const a of articles) {
-  const path = `/blog/post-${a.id}.html`
+  const path = articlePath(a)
   const url = SITE + path
   const others = articles.filter((o) => o.id !== a.id).slice(0, 4)
   const svc = SVC[a.category]
@@ -331,7 +337,7 @@ ${md(a.content)}
   </div>
   <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
   <ul class="list">
-    ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="/blog/post-${o.id}.html">${esc(o.title)}</a></li>`).join('\n    ')}
+    ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="${articlePath(o)}">${esc(o.title)}</a></li>`).join('\n    ')}
   </ul>`
   publish(path, shell({
     title: `${a.title} | Lumenium（ルメニウム）ブログ`,
@@ -347,6 +353,15 @@ ${md(a.content)}
     // not an edit to this one.
     source: JSON.stringify([a.title, a.summary, a.category, a.date, a.content]),
   })
+}
+
+/* 管理画面で消した記事のページは、ここで一緒に消します（残すと、もう無い記事が
+   検索に出続けます）。元からある記事（post-<n>）と一覧のページはそのまま。 */
+{
+  const keep = new Set(articles.map((a) => articlePath(a)))
+  for (const f of readdirSync('public/blog')) {
+    if (f.endsWith('.html') && f !== 'index.html' && !/^post-\d+\.html$/.test(f) && !keep.has(`/blog/${f}`)) rmSync(`public/blog/${f}`)
+  }
 }
 
 /* ---- Blog index ---- */
@@ -393,7 +408,7 @@ ${md(a.content)}
   <h2>記事一覧（新しい順）</h2>
   </article>
   <ul class="list">
-    ${recent.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="/blog/post-${a.id}.html">${esc(a.title)}</a><p>${esc(a.category)}｜${esc(a.summary)}</p></li>`).join('\n    ')}
+    ${recent.map((a) => `<li><time datetime="${isoDate(a.date)}">${esc(a.date)}</time><a href="${articlePath(a)}">${esc(a.title)}</a><p>${esc(a.category)}｜${esc(a.summary)}</p></li>`).join('\n    ')}
   </ul>
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a><a class="ghost" href="/faq.html">よくある質問</a></div>`
   publish('/blog/index.html', shell({
@@ -1243,7 +1258,7 @@ ${t.body()}${faqHtml}
     ['読みもの', [
       ['/blog/index.html', 'ブログ記事一覧'],
       ['/news.html', 'お知らせ'],
-      ...articles.map((a) => [`/blog/post-${a.id}.html`, a.title]),
+      ...articles.map((a) => [articlePath(a), a.title]),
     ]],
     ['ミニゲーム', [
       ['/game.html', 'シューティング'],
@@ -1335,6 +1350,22 @@ ${core.map((u) => `  <url>
   </url>`).join('\n')}
 </urlset>
 `
+  /* 出してはいけないものが出ていないか、出すべきものが出ているか。
+     予約中のお知らせ・下書きの記事が sitemap に載っていたら、ビルドを止めます。 */
+  {
+    let all = []
+    try { all = JSON.parse(readFileSync('public/news.json', 'utf8')) } catch {}
+    const live = new Set(liveNews(all, TODAY).map((n) => newsSlug(n)))
+    for (const n of all) {
+      const p = `/news/${newsSlug(n)}.html`
+      if (newsSlug(n) && !live.has(newsSlug(n)) && (xml.includes(SITE + p) || existsSync('public' + p))) {
+        throw new Error(`予約中のお知らせ ${p} が公開日より前に出ています`)
+      }
+    }
+    for (const a of articles) {
+      if (!xml.includes(SITE + articlePath(a))) throw new Error(`記事 ${articlePath(a)} が sitemap にありません`)
+    }
+  }
   writeFileSync('public/sitemap.xml', xml)
   writeFileSync('public/sitemap-urls.txt', core.map((u) => SITE + u.path).join('\n') + '\n')
   console.log(`sitemap.xml written: ${core.length} URLs` + (dropped.length ? ` (left out, noindex: ${dropped.join(', ')})` : ''))

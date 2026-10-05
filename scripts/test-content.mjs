@@ -429,4 +429,44 @@ await t('content-save: SEO は path ごとに保存・null で元に戻す', asy
   assert.equal(repo.content.seo, undefined)
 })
 
+/* ==== 文章編集：ブログ記事を書く ==== */
+const ART = { slug: 'ai-first-steps', title: 'AIを使い始める前に', date: '2026-10-01', category: 'AI活用',
+  description: '社内でAIを使い始める前に決めておくことをまとめました。', body: '## はじめに\n\n' + 'あ'.repeat(60) + '\n\n- 箇条書き\n- **太字**' }
+
+await t('blog: 英字の名前の決まり（形・予約語・重なり）', () => {
+  for (const ok of ['ai-first-steps', 'a1', '2026-plan']) assert.ok(extra.validArticleSlug(ok), ok)
+  for (const bad of ['', 'index', 'post-3', 'Post', 'a--b', '-a', 'a-', 'あ', 'a_b', 'a'.repeat(61)]) assert.ok(!extra.validArticleSlug(bad), bad)
+  assert.equal(extra.checkArticle(ART), '')
+  assert.match(extra.checkArticle(ART, ['ai-first-steps']), /ほかの記事で使っています/)
+  assert.match(extra.checkArticle({ ...ART, body: '短い' }), /本文は50文字以上/)
+  assert.match(extra.checkArticle({ ...ART, date: '' }), /公開日/)
+  assert.equal(extra.checkArticle({ slug: 'draft-x', title: '書きかけ', draft: true }), '', '下書きは書きかけでよい')
+})
+
+await t('blog: 記事の形に直して一覧に足す（下書きは出さない）', () => {
+  const root = { articles: [{ id: 1, title: '元からある記事' }] }
+  extra.applyExtra({ added: { articles: [ART, { ...ART, slug: 'draft-x', draft: true }] } }, root)
+  assert.equal(root.articles.length, 2)
+  const a = root.articles[1]
+  assert.deepEqual([a.id, a.slug, a.date, a.summary, a.added], ['ai-first-steps', 'ai-first-steps', '2026.10.01', ART.description, true])
+  assert.equal(a.content, ART.body)
+})
+
+await t('content-save: 記事の保存・名前の付け替え・重なりは断る・削除', async () => {
+  const repo = fakeRepo({})
+  on([repo.handler])
+  const { POST } = await import('../api/content-save.js')
+  let r = await POST(req('content-save', 'POST', { ops: { articles: { [ART.slug]: ART } } }))
+  assert.equal(r.status, 200)
+  r = await POST(req('content-save', 'POST', { ops: { articles: { other: { ...ART, slug: 'other' } } } }))
+  assert.equal(r.status, 200)
+  r = await POST(req('content-save', 'POST', { ops: { articles: { other: { ...ART, slug: 'ai-first-steps' } } } }))
+  assert.equal(r.status, 400, '別の記事と同じ名前にはできない')
+  r = await POST(req('content-save', 'POST', { ops: { articles: { 'ai-first-steps': null, 'ai-start': { ...ART, slug: 'ai-start' } } } }))
+  assert.equal(r.status, 200)
+  assert.deepEqual(repo.content.added.articles.map((x) => x.slug).sort(), ['ai-start', 'other'])
+  r = await POST(req('content-save', 'POST', { ops: { articles: { other: null, 'ai-start': null } } }))
+  assert.equal(repo.content.added, undefined)
+})
+
 console.log(`test-content: ${passed} passed`)

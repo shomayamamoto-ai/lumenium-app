@@ -100,11 +100,13 @@ export function checkArticle(a, taken = []) {
   const slug = String(a.slug || '')
   if (!validArticleSlug(slug)) return '記事の住所（英字の名前）は、英小文字・数字・ハイフンで60文字まで。先頭と末尾は英数字、「post-」で始まるものと「index」は使えません。'
   if (taken.includes(slug)) return `「${slug}」はほかの記事で使っています。別の名前にしてください。`
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.date || ''))) return '公開日を選んでください。'
+  // 下書きは書きかけでよいので、上限と題名だけを見ます。
+  const draft = !!a.draft
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.date || '')) && !(draft && !a.date)) return '公開日を選んでください。'
   for (const [k, [min, max]] of Object.entries(ARTICLE_LIMIT)) {
     const n = String(a[k] ?? '').trim().length
     const label = { title: '題名', description: '説明', body: '本文', category: 'カテゴリ' }[k]
-    if (n < min) return `${label}は${min}文字以上で書いてください。`
+    if (n < (draft ? (k === 'title' ? 1 : 0) : min)) return `${label}は${min}文字以上で書いてください。`
     if (n > max) return `${label}は${max}文字までです（いま${n}文字）。`
   }
   return ''
@@ -160,6 +162,8 @@ export function applyExtra(data, root) {
   if (Array.isArray(root.articles)) {
     const taken = root.articles.map((a) => String(a.slug || ''))
     for (const a of Array.isArray(added.articles) ? added.articles : []) {
+      // 下書きはサイトに出しません（保存はされていて、管理画面からは続きを書けます）。
+      if (a && a.draft) continue
       if (checkArticle(a, taken)) continue
       root.articles.push(toArticle(a)); taken.push(a.slug); n++
     }
@@ -231,8 +235,9 @@ export function applyOps(cur, ops, { builtinSlugs = [] } = {}) {
       const taken = builtinSlugs.concat(arr.filter((x, i) => i !== at).map((x) => x.slug))
       const why = checkArticle(a, taken)
       if (why) return { error: why }
-      const v = { slug: a.slug, title: String(a.title).trim(), date: a.date, category: String(a.category).trim(),
-        description: String(a.description).trim(), body: String(a.body).replace(/\r\n/g, '\n').trim() }
+      const v = { slug: a.slug, title: String(a.title).trim(), date: String(a.date || ''), category: String(a.category || '').trim(),
+        description: String(a.description || '').trim(), body: String(a.body || '').replace(/\r\n/g, '\n').trim() }
+      if (a.draft) v.draft = true
       if (at >= 0) { if (JSON.stringify(arr[at]) !== JSON.stringify(v)) { arr[at] = v; changed++ } } else { arr.push(v); changed++ }
     }
     if (arr.length > 200) return { error: '記事は200本までです。' }
