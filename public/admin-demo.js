@@ -1910,7 +1910,7 @@
   var ROWS = [
     [1.5, '山田 花子', '株式会社サンプル商事', '法人', 'hanako@example.com', ['動画制作'], '会社紹介の動画を作りたいと考えています。1分くらいの短いもので、採用ページに載せる予定です。おおよその費用と期間を教えてください。', 'ig', 'new', false, false, null, '', false, 'sent'],
     [5, '佐藤 一郎', '', '個人事業主', 'ichiro@example.jp', ['SNS運用・LINE'], 'カフェを一人でやっています。インスタの投稿が続かず困っています。月にどのくらいの費用で手伝ってもらえますか。', 'google', 'new', false, true, null, '', false, 'sent'],
-    [30, '鈴木 美咲', '合同会社みどり工房', '法人', 'misaki@example.com', ['Web制作・システム', 'ロゴ・バナー'], 'ホームページを新しくしたいです。いまのサイトはスマホで見づらいと言われます。\n\n概算: 見積りシミュレーターで約45万円と出ました。', 'gpt', 'new', false, true, null, '', true, 'sent'],
+    [30, '鈴木 美咲', '合同会社みどり工房', '法人', 'misaki@example.com', ['Web制作・システム', 'ロゴ・バナー'], 'ホームページを新しくしたいです。いまのサイトはスマホで見づらいと言われます。\n\n【Web制作・システム開発】の概算見積り\n・つくるもの: コーポレートサイト\n・規模: 〜5ページ / 小規模\n・追加: 自分で更新できる仕組み（CMS）\n概算: ¥810,000〜¥1,300,000（一式）', 'gpt', 'new', false, true, null, '', true, 'sent'],
     [60, '高橋 健', '株式会社テスト建設', '法人', 'ken@example.com', ['AI導入・研修'], '社員20名ほどの会社です。AIの使い方を社内で勉強する研修をお願いできますか。日程は来月以降を考えています。', 'card', 'new', false, false, null, '', false, 'failed'],
     [20, '伊藤 さくら', '', '個人', 'sakura@example.jp', ['まだ決まっていない'], '何をお願いできるのかよく分かっていないのですが、お店の宣伝について相談に乗っていただけますか。', 'line', 'doing', false, true, 6.5, '山本', false, 'sent'],
     [50, '渡辺 大輔', '株式会社サンプル物流', '法人', 'daisuke@example.com', ['動画制作', 'キャスト手配'], '展示会で流す動画と、当日の司会の方の手配をまとめてお願いしたいです。', 'google', 'doing', false, true, 30, '山本', false, 'sent'],
@@ -2705,6 +2705,172 @@
     if (!u || u.pathname.replace(/\/+$/, '') !== '/api/reviews') return inner(input, init);
     var res = answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body);
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
+
+/* ---- デモ：見積書（shape: api/quotes.js） ----
+   架空の制作会社「見本クリエイティブ株式会社」の見積書10件と請求書1件。
+   状態（下書き・送付済み・受注・失注・期限切れ）と、問い合わせから作ったもの・
+   ここで作ったものがばらけるようにしてあります。宛先は上の「問い合わせ管理」の
+   デモと同じ架空の人・会社で、アドレスは example.jp / example.com（実在しない
+   決まりのドメイン）、登録番号 T9000000000000 は形と検査用の数字だけ合わせた
+   架空の番号です。上の作りと同じくデモのときだけ動き、/api/quotes だけを
+   受けます。保存・状態の変更・メール・リンク作りはすべて断ります。
+   「問い合わせから作る」は、上の問い合わせのデモから下書きを作って見せます
+   （保存はしません）。印刷・PDF は画面の中で作るので、デモでもそのまま使えます。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・送信はされません。';
+  var D = 86400000;
+  var now = Date.now();
+  function ymd(daysAgo) { return new Date(now + 9 * 3600000 - daysAgo * D).toISOString().slice(0, 10); }
+  function iso(daysAgo, h) { return new Date(now - daysAgo * D + (h || 0) * 3600000).toISOString(); }
+  var SRC = { ig: 'Instagram（計測リンク）', google: '検索（google.com）', gpt: 'ChatGPT（AI）', line: 'LINE（計測リンク）', note: 'SNS（note.com）' };
+  var SETTINGS = {
+    company: '見本クリエイティブ株式会社', address: '〒100-0000\n東京都千代田区見本町1-2-3 見本ビル4F', tel: '03-0000-0000',
+    email: 'info@example.jp', person: '山本', regNo: 'T9000000000000', bank: '見本銀行 本店営業部 普通 1234567\n口座名義 ミホンクリエイティブ（カ',
+    validDays: 30, rounding: 'floor', taxMode: 'excl', payTerms: '月末締め・翌月末までにお振込み', delivery: 'ご発注から2週間ほど',
+    notes: '・お見積りの内容に変更がある場合は、改めてご相談のうえお見積りします。\n・素材（写真・文章）はご支給をお願いします。', logo: '', seal: '',
+    prefix: 'Q', invoicePrefix: 'INV', linkDays: 60,
+    mailSubject: '【お見積書】{件名}（{会社名}）',
+    mailBody: '{宛名}\n\nいつもお世話になっております。{会社名}の{担当者}です。\nご依頼いただいた「{件名}」のお見積書をお送りします。\n\n　お見積金額：{金額}（税込）\n　有効期限：{有効期限}\n\n下のリンクから、お見積書をご覧いただけます（印刷・PDFでの保存もできます）。\n{リンク}\n\nご不明な点がございましたら、このメールにご返信ください。\nどうぞよろしくお願いいたします。\n\n{会社名}\n{担当者}'
+  };
+  var CATALOG = [
+    { name: 'Web制作・システム開発（LP）', unit: '式', price: 300000, rate: 10 },
+    { name: 'Web制作・システム開発（サイト）', unit: '式', price: 600000, rate: 10 },
+    { name: 'AI研修・AI導入支援（講師1回）', unit: '回', price: 100000, rate: 10 },
+    { name: '動画制作・映像編集', unit: '式', price: 50000, rate: 10 },
+    { name: 'SNS運用・LINE構築（初期）', unit: '式', price: 200000, rate: 10 },
+    { name: 'SNS運用・LINE構築（月額）', unit: '月', price: 100000, rate: 10 },
+    { name: 'クリエイティブ制作', unit: '式', price: 30000, rate: 10 },
+    { name: 'キャスト手配・イベント（キャスト1名）', unit: '名', price: 5000, rate: 10 }
+  ];
+  function it(name, qty, unit, price, rate) { return { kind: 'item', name: name, qty: qty, unit: unit, price: price, rate: rate == null ? 10 : rate }; }
+  function off(name, price, rate) { return { kind: 'discount', name: name, price: price, rate: rate }; }
+  // [id, 番号, 何日前, 有効日数, 状態, 会社, 名前, 敬称, メール, 件名, 品目, 問い合わせ, どこから, 送付(日前), 開いた(日前), 決まった(日前), 社内メモ]
+  var ROWS = [
+    ['qtdemo12', 'Q-2026-0012', 0, 30, 'draft', '合同会社みどり工房', '鈴木 美咲', '様', 'misaki@example.com', 'コーポレートサイト制作のお見積り',
+      [it('コーポレートサイト制作（5ページ・スマホ対応）', 1, '式', 810000), it('更新の仕組み（CMS）の導入', 1, '式', 150000), it('ロゴの清書・データ化', 1, '式', 30000), off('初回のお取引のお値引き', 40000, 10)],
+      'qdemo2', 'gpt', null, null, null, 'サイトの概算見積り: ¥810,000〜¥1,300,000（一式）。ページ数が決まったら直す。'],
+    ['qtdemo11', 'Q-2026-0011', 3, 30, 'sent', '株式会社サンプル商事', '山田 花子', '様', 'hanako@example.com', '採用向け 会社紹介動画（1分）',
+      [it('企画・構成', 1, '式', 50000), it('撮影（半日ロケ・カメラマン1名）', 1, '式', 80000), it('編集・テロップ・BGM', 1, '本', 70000), it('SNS用の縦型への作り直し', 2, '本', 15000)],
+      'qdemo0', 'ig', 3, 2, null, ''],
+    ['qtdemo10', 'Q-2026-0010', 4, 30, 'sent', '', '佐藤 一郎', '様', 'ichiro@example.jp', 'Instagram運用のお手伝い',
+      [it('アカウントの整え（プロフィール・ハイライト）', 1, '式', 50000), it('投稿の代行（週1回）', 3, '月', 40000)],
+      'qdemo1', 'google', 4, null, null, '月額は3か月分で出した。続けるなら毎月の請求。'],
+    ['qtdemo9', 'Q-2026-0009', 6, 30, 'won', '株式会社見本製作所', '小林 誠', '様', 'makoto@example.com', '予約管理システムの開発',
+      [it('要件の整理・画面の設計', 1, '式', 200000), it('予約管理システムの開発', 1, '式', 900000), it('操作の説明会（オンライン・1回2時間）', 1.5, '回', 40000)],
+      'qdemo7', 'gpt', 6, 5, 1, '来月から着手。'],
+    ['qtdemo8', 'Q-2026-0008', 9, 30, 'won', 'ゆみ整体院', '中村 由美', '様', 'yumi@example.jp', 'LINE公式アカウントの立ち上げ',
+      [it('LINE公式アカウントの初期設定', 1, '式', 200000), it('リッチメニューの画像', 1, '点', 30000)],
+      'qdemo6', 'ig', 9, 9, 6, ''],
+    ['qtdemo7', 'Q-2026-0007', 15, 30, 'lost', '株式会社サンプル食品', '吉田 拓也', '様', 'takuya@example.com', '商品紹介の短い動画（10本）',
+      [it('商品紹介の短い動画（〜30秒）', 10, '本', 45000), off('まとめてのご依頼のお値引き', 50000, 10)],
+      'qdemo9', 'line', 15, 14, 8, '予算が合わず。来年度に再提案。'],
+    ['qtdemo6', 'Q-2026-0006', 10, 7, 'sent', '', '加藤 絵里', '様', 'eri@example.jp', '教室のロゴ制作',
+      [it('ロゴ制作（3案・修正2回まで）', 1, '式', 90000)],
+      'qdemo8', 'note', 10, null, null, '返事なし。一度だけ電話する。'],
+    ['qtdemo5', 'Q-2026-0005', 22, 30, 'won', '株式会社サンプル物流', '渡辺 大輔', '様', 'daisuke@example.com', '展示会の司会・スタッフ手配と当日の飲食',
+      [it('MC・司会（1日）', 1, '名', 60000), it('イベントスタッフ（1日）', 3, '名', 15000), it('出演者・スタッフ用お弁当（持ち帰り）', 5, '個', 1080, 8), it('飲み物（ペットボトル）', 10, '本', 150, 8), off('セットでのお値引き', 5000, 'all')],
+      '', '', 21, 20, 12, '当日のお弁当と飲み物は軽減税率（8%）。'],
+    ['qtdemo4', 'Q-2026-0004', 40, 30, 'lost', '株式会社見本不動産', '', '御中', '', '物件紹介ページ（LP）制作',
+      [it('ランディングページ制作（1枚）', 1, '式', 300000), it('写真撮影（物件3件）', 3, '件', 20000)],
+      '', '', 40, 39, 30, '他社に決まった。'],
+    ['qtdemo3', 'Q-2026-0003', 50, 30, 'won', 'めぐみ商店', '山口 恵', '様', 'megumi@example.jp', 'AI活用の研修（半日）',
+      [it('AI導入研修（半日・10名まで）', 1, '回', 100000), it('自社用の教材づくり', 1, '式', 60000)],
+      '', '', 48, 47, 44, '']
+  ];
+  function rec(r) {
+    var hist = [{ at: iso(r[2], 1), what: 'created', text: r[11] ? '問い合わせから作成' : '作成' }];
+    if (r[13] != null) hist.push({ at: iso(r[13], 2), what: 'mail', text: (r[8] || 'お客様') + ' にメールで送った' });
+    if (r[14] != null) hist.push({ at: iso(r[14], 5), what: 'opened', text: 'お客様がリンクを開いた' });
+    if (r[15] != null) hist.push({ at: iso(r[15], 3), what: 'status', text: '送付済み → ' + (r[4] === 'won' ? '受注' : '失注') });
+    return {
+      id: r[0], kind: 'quote', number: r[1], date: ymd(r[2]), toCompany: r[5], toPerson: r[6], honor: r[7], toEmail: r[8], subject: r[9],
+      items: r[10], taxMode: 'excl', validUntil: ymd(r[2] - r[3]), delivery: SETTINGS.delivery, payTerms: SETTINGS.payTerms,
+      dueDate: '', notes: SETTINGS.notes, memo: r[16], status: r[4], inquiryId: r[11], source: r[12] ? SRC[r[12]] : '', sourceKind: '',
+      fromQuote: '', createdAt: iso(r[2], 1), sentAt: r[13] != null ? iso(r[13], 2) : '', openedAt: r[14] != null ? iso(r[14], 5) : '',
+      lastViewedAt: r[14] != null ? iso(Math.max(0, r[14] - 1), 6) : '', views: r[14] != null ? 2 : 0, decidedAt: r[15] != null ? iso(r[15], 3) : '',
+      sentTo: r[13] != null ? r[8] : '', history: hist
+    };
+  }
+  var QUOTES = ROWS.map(rec);
+  // 受注した Q-2026-0005 から作った請求書（送付済み）。
+  var INV = JSON.parse(JSON.stringify(QUOTES.filter(function (q) { return q.id === 'qtdemo5'; })[0]));
+  INV.id = 'qtdemoinv3'; INV.kind = 'invoice'; INV.number = 'INV-2026-0003'; INV.date = ymd(11); INV.validUntil = ''; INV.delivery = ''; INV.payTerms = '';
+  INV.status = 'sent'; INV.fromQuote = 'qtdemo5'; INV.sentAt = iso(11, 2); INV.openedAt = iso(10, 4); INV.lastViewedAt = iso(10, 4); INV.views = 1;
+  INV.decidedAt = ''; INV.memo = '';
+  INV.dueDate = new Date(Date.UTC(Number(INV.date.slice(0, 4)), Number(INV.date.slice(5, 7)) + 1, 0)).toISOString().slice(0, 10);
+  INV.history = [{ at: iso(11, 1), what: 'created', text: '受注した見積書から作成' }, { at: iso(11, 2), what: 'mail', text: 'daisuke@example.com にメールで送った' }, { at: iso(10, 4), what: 'opened', text: 'お客様がリンクを開いた' }];
+  QUOTES.push(INV);
+
+  /* 見本の印影（角印）。画像ファイルを持たずに、その場で描きます。 */
+  var seal = '';
+  function sealImage() {
+    if (seal) return seal;
+    try {
+      var c = document.createElement('canvas');
+      c.width = 200; c.height = 200;
+      var g = c.getContext('2d');
+      g.strokeStyle = '#c0392b'; g.fillStyle = '#c0392b'; g.lineWidth = 10;
+      g.strokeRect(12, 12, 176, 176);
+      g.font = 'bold 54px "Hiragino Mincho ProN","Yu Mincho",serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('見本', 100, 72); g.fillText('之印', 100, 132);
+      seal = c.toDataURL('image/png');
+    } catch (_) {}
+    return seal;
+  }
+  function core() { return window.lumQuoteCore; }
+  function state() {
+    var C = core();
+    return {
+      ok: true, stored: true, today: ymd(0), settings: Object.assign({}, SETTINGS, { seal: sealImage() }), regNo: C.checkRegNo(SETTINGS.regNo),
+      catalog: CATALOG, catalogSeeded: true,
+      list: QUOTES.map(function (q) { return C.quoteSummary(q, SETTINGS.rounding); }),
+      mail: { key: true, sandbox: false, secret: true, from: '見本クリエイティブ <info@example.jp>' }
+    };
+  }
+  async function answer(u, method, body, ask) {
+    if (method === 'GET') {
+      var id = u.searchParams.get('id');
+      if (id) {
+        var q = QUOTES.filter(function (x) { return x.id === id; })[0];
+        return q ? { ok: true, quote: q } : { ok: false, message: 'その見積書は見つかりませんでした。' };
+      }
+      if (u.searchParams.get('view') === 'inquiries') {
+        var r = await (await ask('/api/inquiries?status=all')).json();
+        return { ok: true, items: (r.items || []).filter(function (s) { return !s.spam; }).map(function (s) {
+          return { id: s.id, receivedAt: s.receivedAt, name: s.name, company: s.company, topics: s.topics || [], estimate: !!s.estimate, source: s.source || '', snippet: String(s.snippet || '').slice(0, 80), status: s.status };
+        }) };
+      }
+      return state();
+    }
+    var b = {};
+    try { b = JSON.parse(body || '{}'); } catch (_) {}
+    if (b.action === 'from-inquiry') {
+      var x = await (await ask('/api/inquiries?id=' + encodeURIComponent(b.inquiryId || ''))).json();
+      if (!x.ok || !x.item) return { ok: false, message: 'その問い合わせは見つかりませんでした。' };
+      return { ok: true, draft: core().prefillFromInquiry(x.item, SETTINGS, ymd(0)) };
+    }
+    if (b.action === 'link') return { ok: false, demo: true, message: MSG + '実際は、お客様が見るだけのリンク（' + SETTINGS.linkDays + '日間有効）を作ります。' };
+    return { ok: false, demo: true, message: MSG };
+  }
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/quotes') return inner(input, init);
+    var ask = function (path) { return inner(path, { headers: (init && init.headers) || {} }); };
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body, ask);
+    }).then(function (res) {
       return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
   };
