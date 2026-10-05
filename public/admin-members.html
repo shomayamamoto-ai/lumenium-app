@@ -983,6 +983,8 @@ header h1, header button, header a { white-space: nowrap; }
 <script src="/admin-inquiries.js"></script>
 <!-- 口コミ管理（Googleレビュー）。計算は /reviews-core.js（開いたときに読みます）。 -->
 <script src="/admin-reviews.js"></script>
+<!-- 見積書（と請求書）。計算と紙の形は /quote-core.js（開いたときに読みます）。 -->
+<script src="/admin-quotes.js"></script>
 <!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
 <script src="/admin-members-tool.js"></script>
 <!-- ポータルの「今日やること」と「はじめての設定」。 -->
@@ -1342,6 +1344,9 @@ header h1, header button, header a { white-space: nowrap; }
 
     <!-- 口コミ管理（Googleレビュー）。中身は /admin-reviews.js が組み立てます。 -->
     <div class="panel" id="reviews-admin" style="display:none; margin-top:20px"></div>
+
+    <!-- 見積書。中身は /admin-quotes.js が組み立てます。 -->
+    <div class="panel" id="quotes-admin" style="display:none; margin-top:20px"></div>
 
     <!-- 予約管理。中身は /admin-booking.js が組み立てます（項目が多いので別ファイル）。 -->
     <div class="panel" id="booking-admin" style="display:none; margin-top:20px"></div>
@@ -1859,6 +1864,10 @@ window.lumAdmin = {
        on this tab and its card comes from /admin-reviews.js (lumRevBadge). */
     { id: 'reviews-admin', icon: '⭐', label: '口コミ管理', init: 'lumReviewsInit', needs: 'store',
       desc: 'Googleの口コミを読む・返信する', accent: '#a16207', tint: 'rgba(234,179,8,0.15)' },
+    /* The store: quotes, numbering and the issuer settings live there. Writing
+       the quote needs nothing else; sending it by mail checks Resend itself. */
+    { id: 'quotes-admin', icon: '🧾', label: '見積書', init: 'lumQuotesInit', needs: 'store',
+      desc: '見積書を作る・送る・請求書にする', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
     { id: 'list-view', icon: '👥', label: '会員リスト', needs: 'resend',
       desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: '📰', label: 'お知らせ投稿', needs: 'github',
