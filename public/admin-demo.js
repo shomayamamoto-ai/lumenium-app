@@ -2328,3 +2328,119 @@
     });
   };
 })();
+
+/* ---- 自動改善（/admin-auto.js）のデモ ----
+   上の作りと同じくデモのときだけ動き、/api/auto だけを受けます。
+   提案4件（下書きつき）・実験中1件（人数つき）・採用して見張り中1件・
+   自動で元に戻した1件と、その記録。保存・実験の開始・採用・元に戻すは
+   すべて断ります。数字はどれも架空です。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var MSG = 'デモ版のため保存・変更はされません。';
+  var DAY = 86400000;
+  var now = Date.now();
+  var iso = function (d) { return new Date(now - d * DAY).toISOString(); };
+  var day = function (d) { return new Date(now + 9 * 3600000 - d * DAY).toISOString().slice(0, 10); };
+  var R = function (k, n, lo, hi, label) { return { k: k, n: n, p: n ? k / n : null, lo: lo, hi: hi, label: label || '' }; };
+
+  var SETTINGS = { paused: false, drafts: true, autoStart: false, autoAdopt: true, autoRevert: true, snsToQueue: false, monthlyYen: 300 };
+  var PROPS = [
+    { id: 'form-copy', area: 'site', kind: 'experiment', status: 'open', risk: '低', updatedAt: iso(0),
+      title: '問い合わせ欄の説明文を、別の言い方と比べる',
+      evidence: [{ text: '問い合わせ画面まで来た人の送信率：いま 8.1%（13/160人、幅 4.8%〜13.4%）', label: '' },
+        { text: '前の30日 15.6%（25/160人、幅 10.8%〜22.0%）。誤差を超えて下がっています。', label: '' }],
+      effect: '良くなるとは限りません。元の文章と新しい案を半分ずつの人に見せて比べ、はっきり良い方だけを残します。差が出なければ元のままです。',
+      action: { type: 'experiment', key: 'text.contact.desc', a: 'お気軽にご相談ください。', b: '' },
+      draft: { kind: 'copy', text: 'まだ決まっていなくても大丈夫です。', why: '依頼前の迷いを先に和らげる', by: 'ai' } },
+    { id: 'seo-must', area: 'seo', kind: 'fix', status: 'open', risk: '低', updatedAt: iso(0),
+      title: 'SEO点検の「必ず直す」1件を直す',
+      evidence: [{ text: '最後の点検（' + day(3) + '）で「必ず直す」1件・「直すと良い」4件。', label: '' }],
+      effect: '検索に出られないページが出られるようになります。順位が上がるかどうかは別の話で、約束はできません。',
+      action: { type: 'fix', items: [{ level: 'must', problem: 'サイトマップに載っているのに開けないページ', fix: 'ページを元に戻すか、サイトマップから外します。', count: 1, pages: ['/services/old-campaign.html'] }] } },
+    { id: 'sns-pillar', area: 'sns', kind: 'sns', status: 'open', risk: '低', updatedAt: iso(0),
+      title: '柱「仕事の裏側」の投稿を週1本増やす',
+      evidence: [{ text: '柱「仕事の裏側」：8投稿で問い合わせ4件（1投稿あたり0.50件、90日）。', label: '' },
+        { text: '次に多い柱「お役立ち」：11投稿で2件。', label: '' }],
+      effect: '増やしても、同じ割合で問い合わせが来るとは限りません。投稿は承認待ちに入れるだけで、自動では出しません。',
+      action: { type: 'sns', pillar: 'ura', pillarName: '仕事の裏側' },
+      draft: { kind: 'sns', text: '撮影の前日は、小道具の色合わせから。完成した写真には写らない準備の話を、少しだけ。#仕事の裏側', by: 'ai' } },
+    { id: 'inq-autoreply', area: 'inquiry', kind: 'setting', status: 'open', risk: '低', updatedAt: iso(0),
+      title: '受付確認メール（自動返信）を入れる',
+      evidence: [{ text: '返信までの時間の中央値：52時間（30日・6件・参考程度）。目安の48時間を超えています。', label: '参考程度' }],
+      effect: '「届いたか分からない」不安を減らせます。返信そのものが早くなるわけではなく、問い合わせが増えるかも分かりません。',
+      action: { type: 'setting', setting: 'inquiry.autoReply', value: true } },
+    { id: 'mem-unsub', area: 'members', kind: 'info', status: 'dismissed', risk: '低', updatedAt: iso(9), decidedAt: iso(9),
+      title: 'お知らせメールの回数と内容を見直す',
+      evidence: [{ text: '配信停止した人：4人 / 38人。', label: '' }],
+      effect: '止める人が減るかは、内容と回数しだいです。', action: { type: 'open', tab: 'list-view' } }
+  ];
+  var RUN = { a: R(4, 168, 0.0093, 0.0596, '参考程度'), b: R(7, 171, 0.0200, 0.0821), days: 6, prob: 0.79, verdict: 'collecting',
+    text: 'まだ判断できません：あと約2日（見た人が各案200人以上（いまA 168人・B 171人）、7日以上（いま6日目））。' };
+  var WON = { a: R(14, 640, 0.0131, 0.0364), b: R(29, 655, 0.0310, 0.0629), days: 18, prob: 0.99, verdict: 'b_wins',
+    text: '新しい案（B）の方が良い確率は99%です。B を採用してよい水準です。' };
+  var OLD = { a: R(12, 380, 0.0182, 0.0544), b: R(24, 371, 0.0438, 0.0945), days: 15, prob: 0.98, verdict: 'b_wins',
+    text: '新しい案（B）の方が良い確率は98%です。B を採用してよい水準です。' };
+  var EXPS = [
+    { id: 'xdemorun1', key: 'text.lp.ctaPrimary', label: 'トップのボタン（無料で相談する）', goalLabel: '問い合わせ・予約・電話・LINE・メール',
+      a: '無料で相談する', b: 'まずは話を聞いてみる', phase: 'running', startedAt: iso(6), by: 'auto', live: RUN },
+    { id: 'xdemowin1', key: 'text.lp.lead', label: 'トップの説明文', goalLabel: '問い合わせ・予約・電話・LINE・メール',
+      a: 'ホームページや業務システムを作りたい、社内でAIを使えるようにしたい。何から手をつけるか決まっていない段階から、お話を伺って一緒に進めます。',
+      b: '何を作ればよいか決まっていなくても大丈夫です。ホームページ・業務システム・社内のAI活用まで、お話を伺いながら一緒に形にします。',
+      phase: 'watch', startedAt: iso(30), adoptedAt: iso(12), by: 'owner', result: WON, baseline: WON.a,
+      watchLive: { action: 'continue', days: 12, w: R(13, 288, 0.0265, 0.0757), fell: false } },
+    { id: 'xdemoold1', key: 'booking.heading', label: '予約欄の見出し', goalLabel: '予約の確定',
+      a: '無料のオンライン相談を、いま予約する', b: '空いている日時を見て、そのまま予約する',
+      phase: 'reverted', startedAt: iso(60), adoptedAt: iso(44), revertedAt: iso(36), by: 'auto', result: OLD, baseline: OLD.a,
+      revertReason: '採用後の率 1.2%（3/251人）が、採用前の元の文章の幅（下限 1.8%）を下回りました。' }
+  ];
+  var LOG = [
+    { id: 'ldemo1', at: iso(6), kind: 'exp_start', by: 'auto', title: '実験を始めました：トップのボタン（無料で相談する）', before: '無料で相談する', after: 'まずは話を聞いてみる',
+      evidence: ['「訪問」→「サービスを見た」で 84.0% の人が先へ進んでいません（1,250人 → 200人、30日）。'], undo: { type: 'exp_stop', id: 'xdemorun1' } },
+    { id: 'ldemo2', at: iso(12), kind: 'adopt', by: 'owner', title: '新しい案を採用しました：トップの説明文', before: EXPS[1].a, after: EXPS[1].b,
+      evidence: [WON.text, 'A 2.2%（14/640人）・B 4.4%（29/655人）'], note: 'このあと14日間、下がっていないかを見張ります。サイトへの反映は約1〜2分後です。', undo: { type: 'revert', id: 'xdemowin1' } },
+    { id: 'ldemo3', at: iso(36), kind: 'revert', by: 'auto', title: '元の文章に戻しました：予約欄の見出し', before: EXPS[2].b, after: EXPS[2].a, evidence: [EXPS[2].revertReason] },
+    { id: 'ldemo4', at: iso(44), kind: 'adopt', by: 'auto', title: '新しい案を採用しました：予約欄の見出し', before: EXPS[2].a, after: EXPS[2].b,
+      evidence: [OLD.text, 'A 3.2%（12/380人）・B 6.5%（24/371人）'], undone: iso(36) }
+  ];
+  var SNAPS = [];
+  for (var i = 0; i < 14; i++) {
+    var v = 1180 + ((i * 37) % 120) - i * 6;
+    var k = 13 + (i % 4), n = 150 + (i % 5) * 4;
+    SNAPS.push({ date: day(i), sources: {},
+      analytics: { visits: v, form: { cur: { k: k, n: n, p: k / n } }, ai: { visits: 9 + (i % 3) } },
+      seo: { must: i < 3 ? 1 : 2, should: 4 }, aio: { mention: { k: 6, n: 40, p: 0.15 } },
+      inquiries: { median30: 52 - (i % 3) }, booking: { noshow: { k: 2, n: 24, p: 2 / 24 } }, members: { total: 38 - (i > 9 ? 1 : 0) } });
+  }
+
+  function answer(u, method) {
+    // 書き込みはすべて断ります。「下書きを作る」もデモでは呼びません（料金がかかるため）。
+    if (method !== 'GET') return { ok: false, demo: true, message: MSG };
+    if (u.searchParams.get('view') === 'snapshots') return { ok: true, snapshots: SNAPS };
+    return {
+      ok: true, settings: SETTINGS, defaults: SETTINGS,
+      switches: { drafts: '提案と下書きを作る', autoStart: '自動で実験を始める', autoAdopt: '勝った案を自動で採用', autoRevert: '自動で戻す', snsToQueue: 'SNSの下書きを承認待ちに入れる' },
+      areas: { site: 'サイトの文章', seo: 'SEO（検索）', aio: 'AIでの見え方', sns: 'SNS', inquiry: '問い合わせ', booking: '予約', members: '会員' },
+      keys: { 'text.contact.desc': { label: '問い合わせ欄の説明文', goal: '問い合わせの送信' }, 'text.lp.ctaPrimary': { label: 'トップのボタン（無料で相談する）', goal: '問い合わせ・予約・電話・LINE・メール' } },
+      min: { exposures: 200, conversions: 10, days: 7, maxDays: 42, probability: 0.95, watchDays: 14, watchMin: 100 },
+      proposals: PROPS, experiments: EXPS, log: LOG, snapshots: SNAPS,
+      last: { at: new Date(now - 3 * 3600000).toISOString(), steps: [] },
+      usage: { yen: 38, calls: 9, month: day(0).slice(0, 7), cap: 300 },
+      ready: { github: true, ai: true, cron: true }
+    };
+  }
+
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/auto') return inner(input, init);
+    var out = answer(u, String((init && init.method) || 'GET').toUpperCase());
+    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return new Response(JSON.stringify(out), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
