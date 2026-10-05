@@ -467,3 +467,47 @@ export function mergeProposals(existing, fresh, now = Date.now()) {
   }
   return out
 }
+
+/* ---------------- 訪問者に配る設定 ---------------- */
+
+/** /api/exp が配る、いまの実験。
+ *  ・「すべて止める」のときは実験を配りません（全員が元の文章に戻ります）。
+ *  ・採用済みで content.json に入らない項目（予約欄の見出し）は pins で
+ *    配ります。これは止めても残します（採用した文章を戻すのは「元に戻す」）。 */
+export function liveConfig(exps, settings) {
+  const list = Array.isArray(exps) ? exps : []
+  const paused = !!(settings && settings.paused)
+  const out = []
+  if (!paused) {
+    const pages = new Set()
+    for (const e of list) {
+      if (e.phase !== 'running' && e.phase !== 'watch') continue
+      const meta = EXP_KEYS[e.key]
+      if (!meta || keyBlocked(e.key)) continue
+      if (pages.has(meta.page)) continue // 1ページに1つまで
+      pages.add(meta.page)
+      out.push({ id: e.id, key: e.key, phase: e.phase, goal: GOALS[meta.goal] || GOALS.lead, ...(e.phase === 'running' ? { b: e.b } : {}) })
+    }
+  }
+  const pins = {}
+  for (const e of list) {
+    const meta = EXP_KEYS[e.key]
+    if (!meta || meta.registry || keyBlocked(e.key)) continue
+    if ((e.phase === 'watch' || e.phase === 'adopted') && e.b) pins[e.key] = e.b
+  }
+  return { v: 1, exps: out, pins }
+}
+
+/** 計測（track.js）が数えてよい印か。live は liveConfig の形。
+ *  返り値: { id, variant, kind: 'x'（見た）|'c'（成果） } か null。 */
+export function countFor(live, tag, ev) {
+  const m = TAG_RE.exec(String(tag || ''))
+  if (!m || !live || !Array.isArray(live.exps)) return null
+  const e = live.exps.find((x) => x.id === m[1])
+  if (!e) return null
+  const v = m[2]
+  if ((v === 'W') !== (e.phase === 'watch')) return null
+  if (ev === 'exp_view') return { id: e.id, variant: v, kind: 'x' }
+  if ((e.goal || []).includes(ev)) return { id: e.id, variant: v, kind: 'c' }
+  return null
+}

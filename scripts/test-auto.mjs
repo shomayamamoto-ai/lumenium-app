@@ -219,4 +219,201 @@ await t('AIの下書き: 決まりに合わない案は捨てる', () => {
   assert.equal(bad['form-copy'], undefined)
 })
 
+/* ---------------- 実験 ---------------- */
+
+const EXP = await import('../src/lib/experiments.js')
+const { SECTION } = await import('../src/data/text.js')
+const STORE = await import('../api/_auto-store.js')
+
+await t('振り分け: 端末と同じ計算・同じ種なら同じ答え・ほぼ半々', () => {
+  for (const s of ['a', '2026-10-05:abc', 'x'.repeat(40)]) assert.equal(C.hash32(s), EXP.hash32(s))
+  assert.equal(C.assign('2026-10-05:k1', 'xab12'), C.assign('2026-10-05:k1', 'xab12'))
+  let b = 0
+  const N = 20000
+  for (let i = 0; i < N; i++) if (EXP.assign(`2026-10-05:${i.toString(36)}`, 'xab12') === 'B') b++
+  assert.ok(b / N > 0.48 && b / N < 0.52, `B の割合 ${b / N}`)
+  // 実験が違えば、同じ人でも振り分けは独立（偏りが持ち越されない）。
+  let same = 0
+  for (let i = 0; i < 2000; i++) if (EXP.assign('s' + i, 'xaaaa1') === EXP.assign('s' + i, 'xbbbb2')) same++
+  assert.ok(same / 2000 > 0.45 && same / 2000 < 0.55)
+})
+
+await t('訪問者の画面: B は差し替え・A はそのまま・止めたら元のまま', () => {
+  const orig = SECTION.lp.title
+  const cfg = { v: 1, exps: [{ id: 'xtest1', key: 'text.lp.title', phase: 'running', b: '別の見出し\nです' }], pins: {} }
+  // 管理画面の「この端末で見る」は数えない（印を返さない）。
+  assert.equal(EXP.applyExperiments(cfg, { force: 'A' }), null)
+  assert.equal(SECTION.lp.title, orig)
+  EXP.applyExperiments(cfg, { force: 'B' })
+  assert.equal(SECTION.lp.title, '別の見出し\nです')
+  SECTION.lp.title = orig
+  // 振り分けで決まった人には印が付く。
+  const tag = EXP.applyExperiments(cfg, { force: null })
+  assert.match(tag.tag, /^xtest1:[AB]$/)
+  SECTION.lp.title = orig
+  // 予約欄の見出し（content.json に無い項目）は textFor で。
+  EXP.applyExperiments({ exps: [{ id: 'xtest2', key: 'booking.heading', phase: 'running', b: '空き日時を見て予約する' }] }, { force: 'B' })
+  assert.equal(EXP.textFor('booking.heading', '元'), '空き日時を見て予約する')
+  EXP.applyExperiments({ exps: [] }, { force: null })
+  assert.equal(EXP.textFor('booking.heading', '元'), '元')
+  // 採用後の見張りは文章を替えず、印だけ W。
+  const w = EXP.applyExperiments({ exps: [{ id: 'xtest3', key: 'text.lp.lead', phase: 'watch' }] }, { force: null })
+  assert.equal(w.tag, 'xtest3:W')
+  // 壊れた設定・無い設定は何もしない。
+  assert.equal(EXP.applyExperiments(null), null)
+  assert.equal(EXP.applyExperiments({ exps: [{ id: 'BAD ID', key: 'text.lp.title' }] }), null)
+  EXP._reset()
+})
+
+/** 作り物の保存先（Upstash の pipeline と同じ返し方）。 */
+function fakeRedis() {
+  const kv = new Map(), hll = new Map(), hashes = new Map(), lists = new Map()
+  const run = (c) => {
+    const [op, k, ...a] = c
+    switch (String(op).toUpperCase()) {
+      case 'GET': return kv.has(k) ? kv.get(k) : null
+      case 'SET': kv.set(k, a[0]); return 'OK'
+      case 'PFADD': { const s = hll.get(k) || new Set(); s.add(a[0]); hll.set(k, s); return 1 }
+      case 'PFCOUNT': return (hll.get(k) || new Set()).size
+      case 'EXPIRE': return 1
+      case 'HSET': { const h = hashes.get(k) || new Map(); h.set(a[0], a[1]); hashes.set(k, h); return 1 }
+      case 'HDEL': { const h = hashes.get(k); return h && h.delete(a[0]) ? 1 : 0 }
+      case 'HGETALL': { const h = hashes.get(k); return h ? [...h].flat() : [] }
+      case 'LPUSH': { const l = lists.get(k) || []; l.unshift(a[0]); lists.set(k, l); return l.length }
+      case 'LTRIM': { const l = lists.get(k) || []; lists.set(k, l.slice(Number(a[0]), Number(a[1]) + 1)); return 'OK' }
+      case 'LRANGE': { const l = lists.get(k) || []; return l.slice(Number(a[0]), Number(a[1]) + 1) }
+      case 'LSET': { const l = lists.get(k) || []; l[Number(a[0])] = a[1]; return 'OK' }
+      case 'DEL': kv.delete(k); hashes.delete(k); return 1
+      default: return null
+    }
+  }
+  return { cfg: { url: 'fake', token: 'fake' }, pipeline: async (_cfg, cmds) => cmds.map(run), kv, hll }
+}
+
+await t('数え方: 今の実験と合う印だけ・見た人と成果を案ごとに・同じ人は1回', async () => {
+  const R = fakeRedis()
+  const exps = [{ id: 'xcount1', key: 'text.contact.desc', phase: 'running', b: 'B案', startedAt: '2026-10-01T00:00:00Z' }]
+  const live = await STORE.publishLive(R.cfg, R.pipeline, exps, C.DEFAULT_SETTINGS)
+  assert.deepEqual(live.exps[0].goal, ['contact_submit'])
+  const hit = async (tag, ev, vid) => { const cmds = await STORE.countCommands(R.cfg, R.pipeline, tag, ev, vid); if (cmds.length) await R.pipeline(R.cfg, cmds); return cmds.length > 0 }
+  assert.ok(await hit('xcount1:A', 'exp_view', 'v1'))
+  assert.ok(await hit('xcount1:A', 'exp_view', 'v1')) // 同じ人・同じ日 → 数は増えない
+  assert.ok(await hit('xcount1:B', 'exp_view', 'v2'))
+  assert.ok(await hit('xcount1:B', 'exp_view', 'v3'))
+  assert.ok(await hit('xcount1:B', 'contact_submit', 'v3'))
+  assert.ok(!(await hit('xcount1:B', 'click_tel', 'v3'))) // この実験の成果ではない
+  assert.ok(!(await hit('xother:B', 'exp_view', 'v4'))) // 知らない実験
+  assert.ok(!(await hit('xcount1:W', 'exp_view', 'v4'))) // 見張り中ではない
+  assert.ok(!(await hit('xcount1:A; DROP', 'exp_view', 'v4')))
+  const counts = await STORE.readCounts(R.cfg, R.pipeline, 'xcount1')
+  assert.deepEqual(counts, { A: { x: 1, c: 0 }, B: { x: 2, c: 1 } })
+  // 「すべて止める」: 配る実験が空になり、数えるのも止まる。
+  const stopped = await STORE.publishLive(R.cfg, R.pipeline, exps, { ...C.DEFAULT_SETTINGS, paused: true })
+  assert.equal(stopped.exps.length, 0)
+  assert.ok(!(await hit('xcount1:B', 'exp_view', 'v9')))
+})
+
+await t('判定: 最低人数・最低日数・確率・期限', () => {
+  const start = Date.parse('2026-09-01T00:00:00Z')
+  const exp = { startedAt: new Date(start).toISOString() }
+  const at = (d) => start + d * C.DAY
+  // 人数が足りない → まだ判断できません（あと約◯日）
+  let e = C.evaluate(exp, { A: { x: 100, c: 3 }, B: { x: 100, c: 8 } }, at(5))
+  assert.equal(e.verdict, 'collecting')
+  assert.match(e.text, /まだ判断できません：あと約\d+日/)
+  assert.ok(e.daysLeft >= 5)
+  // 人数は足りても7日未満 → 判断しない
+  e = C.evaluate(exp, { A: { x: 400, c: 10 }, B: { x: 400, c: 30 } }, at(3))
+  assert.equal(e.verdict, 'collecting')
+  // 十分 + B が明らかに良い
+  e = C.evaluate(exp, { A: { x: 400, c: 10 }, B: { x: 400, c: 30 } }, at(8))
+  assert.equal(e.verdict, 'b_wins')
+  assert.ok(e.prob >= 0.95)
+  assert.ok(e.pValue < 0.05)
+  // 十分 + A が明らかに良い
+  e = C.evaluate(exp, { A: { x: 400, c: 30 }, B: { x: 400, c: 10 } }, at(8))
+  assert.equal(e.verdict, 'a_wins')
+  // 十分だが差が小さい → まだ。期限（42日）を過ぎたら元のまま。
+  e = C.evaluate(exp, { A: { x: 400, c: 20 }, B: { x: 400, c: 22 } }, at(10))
+  assert.equal(e.verdict, 'collecting')
+  assert.match(e.text, /差はまだはっきりしません/)
+  e = C.evaluate(exp, { A: { x: 400, c: 20 }, B: { x: 400, c: 22 } }, at(43))
+  assert.equal(e.verdict, 'no_diff')
+  // 成果が10件に届かない（各案200人以上でも）
+  e = C.evaluate(exp, { A: { x: 300, c: 2 }, B: { x: 300, c: 6 } }, at(20))
+  assert.equal(e.verdict, 'collecting')
+  // まだ誰も来ていない → 見込みが立たない
+  e = C.evaluate(exp, {}, at(2))
+  assert.equal(e.daysLeft, null)
+  assert.match(e.text, /見込みが立ちません/)
+  // 確率の向きと、同じなら 50%
+  assert.ok(Math.abs(C.probBBeatsA({ k: 10, n: 100 }, { k: 10, n: 100 }) - 0.5) < 1e-9)
+})
+
+await t('採用・停止・見張り・元に戻すの判断', () => {
+  const on = { ...C.DEFAULT_SETTINGS, autoAdopt: true, autoRevert: true }
+  const off = C.DEFAULT_SETTINGS
+  assert.equal(C.decideRunning({ verdict: 'b_wins' }, on), 'adopt')
+  assert.equal(C.decideRunning({ verdict: 'b_wins' }, off), 'won')
+  assert.equal(C.decideRunning({ verdict: 'b_wins' }, { ...on, paused: true }), 'won') // 止めている間は自動で採用しない
+  assert.equal(C.decideRunning({ verdict: 'a_wins' }, on), 'stop')
+  assert.equal(C.decideRunning({ verdict: 'no_diff' }, on), 'stop')
+  assert.equal(C.decideRunning({ verdict: 'collecting' }, on), 'continue')
+  const adopted = Date.parse('2026-10-01T00:00:00Z')
+  const exp = { adoptedAt: new Date(adopted).toISOString(), baseline: SIG.rateOf(20, 400) } // A: 5%（幅 約3.3〜7.6%）
+  // 下がった（見張りの率が A の幅の下より下）→ 戻す
+  assert.equal(C.decideWatch(exp, { x: 300, c: 6 }, adopted + 5 * C.DAY, on).action, 'revert')
+  assert.equal(C.decideWatch(exp, { x: 300, c: 6 }, adopted + 5 * C.DAY, off).action, 'suggest_revert')
+  // 人数が少ないうちは、低く見えても戻さない
+  assert.equal(C.decideWatch(exp, { x: 50, c: 0 }, adopted + 5 * C.DAY, on).action, 'continue')
+  // 14日たって下がっていなければ、見張りを終える
+  assert.equal(C.decideWatch(exp, { x: 300, c: 18 }, adopted + 14 * C.DAY, on).action, 'finish')
+  assert.equal(C.decideWatch(exp, { x: 300, c: 18 }, adopted + 6 * C.DAY, on).action, 'continue')
+})
+
+await t('触らないもの: 料金・法的なページ・連絡先・一覧に無い項目', () => {
+  for (const k of ['site.PRICE_OPTIONS.0.label', 'text.pricing.lead', 'legal.privacy.body', 'text.contact.tel', 'text.contact.email',
+    'text.footer.address', 'services.0.price', 'faq.0.items.0.a', 'text.lp.adminNote', '']) {
+    assert.ok(C.keyBlocked(k), k)
+  }
+  for (const k of Object.keys(C.EXP_KEYS)) assert.equal(C.keyBlocked(k), '', k)
+  // 文章の中身の決まり
+  const A = '無料で相談する'
+  assert.equal(C.textProblem(A, 'まずは無料で相談'), '')
+  assert.match(C.textProblem(A, '5,000円で相談する'), /金額/)
+  assert.match(C.textProblem(A, 'info@example.com へ'), /連絡先/)
+  assert.match(C.textProblem(A, '必ず解決します！'), /言い切り/)
+  assert.match(C.textProblem('お気軽にご相談ください。', '無料でご相談ください。'), /無料/)
+  assert.match(C.textProblem(A, 'とても長い文章になってしまった相談のボタン'), /長さ/)
+  assert.match(C.textProblem('一行', '二\n行'), /改行|長さ/)
+  assert.match(C.textProblem(A, A), /同じ/)
+  // 自動で始めてよいか
+  const prop = { risk: '低', action: { type: 'experiment', key: 'text.lp.ctaPrimary', a: A, b: '' }, draft: { text: 'まずは無料で相談' } }
+  const on = { ...C.DEFAULT_SETTINGS, autoStart: true }
+  assert.equal(C.canAutoStart(prop, [], on), '')
+  assert.match(C.canAutoStart(prop, [], C.DEFAULT_SETTINGS), /切れています/)
+  assert.match(C.canAutoStart(prop, [], { ...on, paused: true }), /切れています/)
+  assert.match(C.canAutoStart(prop, [{ key: 'text.lp.title', phase: 'running' }], on), /1ページに1つ/)
+  assert.match(C.canAutoStart({ ...prop, action: { ...prop.action, key: 'site.PRICE_OPTIONS.0.label' } }, [], on), /試せません/)
+  assert.match(C.canAutoStart({ ...prop, risk: '中' }, [], on), /低/)
+  // 配る設定にも、触らない項目は載らない
+  const live = C.liveConfig([{ id: 'xbad1', key: 'site.PRICE_OPTIONS.0.label', phase: 'running', b: 'x' }, { id: 'xok01', key: 'text.lp.title', phase: 'running', b: 'y' }, { id: 'xok02', key: 'text.lp.lead', phase: 'running', b: 'z' }], C.DEFAULT_SETTINGS)
+  assert.deepEqual(live.exps.map((e) => e.id), ['xok01']) // 1ページに1つまで
+})
+
+await t('すべて止める: どの自動の動きも止まる', () => {
+  const all = { ...C.DEFAULT_SETTINGS, autoStart: true, autoAdopt: true, autoRevert: true, snsToQueue: true, drafts: true }
+  for (const k of Object.keys(C.SWITCH_LABELS)) {
+    assert.equal(C.allowed(all, k), true, k)
+    assert.equal(C.allowed({ ...all, paused: true }, k), false, k)
+  }
+  // 最初の設定では「提案と下書きを作る」だけ
+  assert.deepEqual(Object.keys(C.SWITCH_LABELS).filter((k) => C.allowed(C.DEFAULT_SETTINGS, k)), ['drafts'])
+  const s = C.cleanSettings({ autoStart: 'yes', autoAdopt: true, monthlyYen: '1,000円', evil: 1 })
+  assert.equal(s.autoStart, false)
+  assert.equal(s.autoAdopt, true)
+  assert.equal(s.monthlyYen, 1000)
+  assert.ok(!('evil' in s))
+})
+
 console.log(`✓ test-auto: ${n} 件`)

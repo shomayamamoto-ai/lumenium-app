@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' }
 import { storeConfig, pipeline, jstDate, jstHour, K } from './_analytics-store.js'
 import { visitPlan, fromOurPages, selfReferrer } from './_visit.js'
 import { sourceKey } from './_referrers.js'
+import { countCommands } from './_auto-store.js'
 
 const enc = new TextEncoder()
 
@@ -209,6 +210,21 @@ export async function POST(req) {
     return ok()
   }
 
+  /* ---- 文章の実験（自動改善）: 見た人と成果を、案ごとに数える ----
+     印（"実験名:A" など）が、いま動いている実験と合うときだけ数えます
+     （_auto-store.js の countCommands。合わない印は何も書きません）。
+     「見た」（exp_view）は導線の段ではないので、ここで終わります。 */
+  const tag = typeof body?.x === 'string' ? body.x.slice(0, 30) : ''
+  let expCmds = []
+  if (tag && ev) expCmds = await countCommands(cfg, pipeline, tag, ev, vid).catch(() => [])
+  if (ev === 'exp_view') {
+    if (!expCmds.length) return ok()
+    const g = await guard(cfg, rateKey, [])
+    if (!g) return ok()
+    try { await pipeline(cfg, expCmds) } catch (_) { /* best-effort */ }
+    return ok()
+  }
+
   if (ev) {
     if (!EVENTS.has(ev)) return ok()
     const g = await guard(cfg, rateKey, [[K.dayEventPaths(date, ev), path, '/(other)'], ...plan.slots])
@@ -237,6 +253,7 @@ export async function POST(req) {
           ['EXPIRE', K.dayLinks(date), K.expire],
         ] : []),
         ...plan.commands(visitFields),
+        ...expCmds,
       ])
     } catch (_) { /* a beacon must never surface an error */ }
     return ok()
