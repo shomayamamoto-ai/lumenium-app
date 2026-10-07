@@ -88,7 +88,7 @@
   var bar = document.createElement('div');
   bar.id = 'lum-demo-bar';
   bar.setAttribute('role', 'note');
-  bar.innerHTML = '<span class="t"><b>DEMO</b>デモ表示中：表示されている数字・名前はすべて架空のサンプルです。保存や送信は行われません。</span>' +
+  bar.innerHTML = '<span class="t"><b>DEMO</b>デモ表示中：数字・名前はすべて架空です。保存や送信はされません。</span>' +
     '<button type="button" id="lum-demo-exit">デモを終了</button>';
   if (document.body) document.body.insertBefore(bar, document.body.firstChild);
   else document.addEventListener('DOMContentLoaded', function () { document.body.insertBefore(bar, document.body.firstChild); });

@@ -136,8 +136,7 @@
   function shell() {
     var host = el(TAB);
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">見積書</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">見積書を作って、印刷・PDFにしたり、お客様にメールで送ったりします。合計と消費税は自動で計算します（税率ごとに1回だけ端数を処理する、インボイス制度の決まりどおり）。' +
+      '<p class="share-note ui-intro">見積書を作って、印刷・PDFにしたり、お客様にメールで送ったりします。合計と消費税は自動で計算します（税率ごとに1回だけ端数を処理する、インボイス制度の決まりどおり）。' +
       '受注したら、同じ内容で請求書の下書きも作れます。</p>' +
       '<div class="nq-row" role="tablist" aria-label="見積書の項目">' + SECTIONS.map(function (s) {
         return '<button type="button" class="nq-chip" data-qsec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';

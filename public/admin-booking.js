@@ -102,8 +102,7 @@
   function shell() {
     var host = el('booking-admin');
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">予約管理</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">サイトの予約欄から入った予約を見て、確定・来店済み・取り消し・日時の変更をします。' +
+      '<p class="share-note ui-intro">サイトの予約欄から入った予約を見て、確定・来店済み・取り消し・日時の変更をします。' +
       '受付する曜日と時間、休みの日、メニューもここで決めます。お客様は、予約のメールに入っているリンクから自分で変更・取り消しができます。</p>' +
       '<div class="nq-row vid-secs" role="tablist" aria-label="予約管理の項目">' + SECTIONS.map(function (s) {
         return '<button type="button" class="nq-chip" data-sec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';

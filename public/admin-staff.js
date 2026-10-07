@@ -228,8 +228,7 @@
     if (!p || p.dataset.built) return;
     p.dataset.built = '1';
     p.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">担当者と権限</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">管理画面に入れる人を足して、役割ごとに使える範囲を決めます。' +
+      '<p class="share-note ui-intro">管理画面に入れる人を足して、役割ごとに使える範囲を決めます。' +
       'パスワードではなく、1人ずつの「個人のキー」を発行します（作ったときに1回だけ表示します）。ログインすると12時間使えます。</p>' +
       '<div id="stf-off"></div>' +
       roleCards() +
@@ -362,8 +361,7 @@
     if (!p || p.dataset.built) return;
     p.dataset.built = '1';
     p.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">操作の記録</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">だれが・いつ・どの画面で保存や送信をしたか（断られたものも）の記録です。' +
+      '<p class="share-note ui-intro">だれが・いつ・どの画面で保存や送信をしたか（断られたものも）の記録です。' +
       '180日・5,000件まで残ります。本文・キー・メールアドレスなどの中身は残しません。接続元は IP ではなく、元に戻せない印だけです。</p>' +
       '<div class="aud-bar">' +
         '<label>だれ<select id="aud-by"><option value="">全員</option></select></label>' +

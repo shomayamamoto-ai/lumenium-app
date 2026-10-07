@@ -178,8 +178,7 @@
   function shell() {
     var host = el(TAB);
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">口コミ管理（Googleレビュー）</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">Google マップ・検索に出るお店の口コミを読み、返信します。ここで出した返信は、お店の名前で Google に公開されます。' +
+      '<p class="share-note ui-intro">Google マップ・検索に出るお店の口コミを読み、返信します。ここで出した返信は、お店の名前で Google に公開されます。' +
       '口コミの読み直しは毎朝9時ごろに自動で行います（「今すぐ同期」でいつでも）。</p>' +
       '<div class="nq-row" role="tablist" aria-label="口コミ管理の項目">' + SECTIONS.map(function (s) {
         return '<button type="button" class="nq-chip" data-rsec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';

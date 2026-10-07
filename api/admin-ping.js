@@ -3,6 +3,8 @@ export const config = { runtime: 'edge' }
 import { requireAdmin, json, whoOf } from './_admin-auth.js'
 import { ROLE_LABEL } from './_permissions.js'
 import { signSession, getStaff, staffReady } from './_staff.js'
+import { setting } from './_settings.js'
+import { BRAND } from './_brand.js'
 
 // The admin's login check, and nothing else. Logging in used to call
 // /api/members-list, so a missing RESEND_API_KEY refused the login with a
@@ -27,6 +29,8 @@ export async function GET(req) {
     ok: true,
     who: { id: who.id, name: who.name, role: who.role, roleLabel: ROLE_LABEL[who.role] || who.role },
     staff: staffReady(),
+    // 管理画面の左上の会社名とロゴ（ADMIN_BRAND_NAME / ADMIN_LOGO_URL。無ければ SITE_NAME）。
+    brand: await brandOf(req),
   }
   if (who.via === 'key') {
     const rec = await getStaff(who.id)
@@ -35,4 +39,14 @@ export async function GET(req) {
     out.expiresAt = s.expiresAt
   }
   return json(out)
+}
+
+async function brandOf(req) {
+  try {
+    const name = (await setting('ADMIN_BRAND_NAME', '', req)) || BRAND.name
+    const logo = (await setting('ADMIN_LOGO_URL', '', req)) || ''
+    return { name: String(name).slice(0, 60), logo: /^(https:\/\/|\/(?!\/))/.test(logo) ? logo.slice(0, 500) : '' }
+  } catch (_) {
+    return { name: BRAND.name, logo: '' }
+  }
 }

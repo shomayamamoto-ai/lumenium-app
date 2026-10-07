@@ -90,8 +90,7 @@
   function shell() {
     var host = el('video-admin');
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">SNS（動画）</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">ショート動画（Instagram リール・YouTube ショート・TikTok）を、競合を調べるところから、台本・絵コンテ・出す前の確認・投稿・数字の振り返りまで続けて行います。' +
+      '<p class="share-note ui-intro">ショート動画（Instagram リール・YouTube ショート・TikTok）を、競合を調べるところから、台本・絵コンテ・出す前の確認・投稿・数字の振り返りまで続けて行います。' +
       '動画の解析はこのブラウザの中だけで行い、どこにも送りません。</p>' +
       '<div class="vid-top">' +
         '<label class="soc-lab" for="vid-project" style="margin:0">プロジェクト</label>' +

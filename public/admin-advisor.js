@@ -166,8 +166,7 @@
     style();
     var host = el('advisor-admin');
     host.innerHTML =
-      '<h2 style="font-size:15px;font-weight:700;margin-bottom:4px">AIアドバイザー</h2>' +
-      '<p class="share-note" style="margin-bottom:12px">アクセス解析・SEO点検・AIでの見え方・SNS・問い合わせ・予約・会員・お知らせ・自動改善の数字を渡して、次に何をするかを相談できます。' +
+      '<p class="share-note ui-intro">アクセス解析・SEO点検・AIでの見え方・SNS・問い合わせ・予約・会員・お知らせ・自動改善の数字を渡して、次に何をするかを相談できます。' +
       'お客様の名前・メール・電話・問い合わせの本文は渡していません（件数だけです）。答えの下の<b>ボタンは、押すまで何も起きません</b>。押しても入力欄に入るか一覧に1件入るだけで、公開や投稿はいつもの画面で行います。</p>' +
       '<div id="adv-bar" class="adv-bar"><p>読み込んでいます…</p></div>' +
       '<div class="nq-row vid-secs" role="tablist" aria-label="AIアドバイザーの項目">' + VIEWS.map(function (v) {
