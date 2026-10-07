@@ -10,7 +10,7 @@ import Wordmark from './Wordmark'
  */
 const LINKS = [
   { label: 'できること', href: '#services' },
-  { label: '作ったシステム', href: '#systems' },
+  { label: 'システム制作実績', href: '#systems' },
   { label: '実績', href: '#works' },
   { label: 'ご依頼の流れ', href: '#flow' },
   { label: 'よくある質問', href: '#faq' },
