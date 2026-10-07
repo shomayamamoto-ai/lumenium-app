@@ -119,7 +119,10 @@ export default function Landing({ onPrivacy }) {
                   </div>
                 </div>
                 <div className="lp-main-foot">
-                  <p className="lp-main-price">{priceHead(s.price)}</p>
+                  <p className="lp-main-price">
+                    {/* 「システム … / サイト … / LP …」は1項目ずつ改行（項目の途中で折れないように） */}
+                    {priceHead(s.price).split(' / ').map((p) => <span key={p} className="lp-main-price-item">{p}</span>)}
+                  </p>
                   <a href={`/services/${s.id}.html`} className="lp-btn lp-btn--ghost lp-main-go">{SECTION.lp.mainMore.replace('{name}', s.title.split('・')[0])} →</a>
                 </div>
               </article>

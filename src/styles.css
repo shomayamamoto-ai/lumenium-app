@@ -11001,6 +11001,7 @@ body { color: var(--lp-ink); }
 
 /* 作ってきたシステム（9件）。カードは3列→2列→1列。誰が入れたか（お客様像）を
    名前の直下に置き、「何ができるか」の前に「自分と同じ立場か」が分かるように。 */
+.lp-main-price-item { display: block; white-space: nowrap; }
 .lp-sys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 /* 同じ行のカードで、名前・お客様・本文・ボタンの高さをそろえます（subgrid）。
    名前が1行のカードと2行のカードが並ぶと、下の「導入したお客様」と本文が
