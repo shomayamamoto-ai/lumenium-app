@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
@@ -35,6 +36,28 @@ const priceHead = (p = '') => p.split(/[（(]/)[0].trim()
 // トップに少し出します。社名の読み方などは /faq.html に。
 const practicalFaq = landingFaq
 
+/* 最初の見出し。「ぼんやり」と「はっきり」を見た目でも対比させます——
+   「ぼんやり」は輪郭をにじませた薄い字、「はっきり」は濃い字に藍色の下線。
+   動きは付けません（止まった絵で伝えます）。文字そのものは普通の文字の
+   ままなので、読み上げや検索には同じ文として届きます。管理画面で見出しを
+   書き換えて、この2語が無くなれば、普通の見出しとして出ます。 */
+function heroTitle(text) {
+  return String(text ?? '').split('\n').map((line, li) => (
+    <Fragment key={li}>
+      {li > 0 && <br />}
+      {line.split(/(ぼんやり|はっきり)/).map((part, pi) => {
+        if (part === 'ぼんやり') return <span key={pi} className="lp-h1-blur">{part}</span>
+        if (part === 'はっきり') return <span key={pi} className="lp-h1-sharp">{part}</span>
+        // 「の」のあとでだけ折り返します（「夢実現の／プロフェッショナルです」）。
+        // ほかの位置で切れると、スマホで「です」だけが次の行に落ちました。
+        return part ? part.split(/(?<=の)/).map((seg, si) => (
+          <span key={pi + '-' + si} className="lp-h1-ph">{seg}</span>
+        )) : null
+      })}
+    </Fragment>
+  ))
+}
+
 // 「このシステムについて相談する」: フォームはこのページに1つだけ置いてあり、
 // すでに表示されています。そこへシステム名を渡す合図を出します（受け取るのは
 // ContactForm.jsx）。
@@ -55,7 +78,7 @@ export default function Landing({ onPrivacy }) {
       <section className="lp-hero" id="top">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-copy">
-            <h1 className="lp-h1">{rich(SECTION.lp.title)}</h1>
+            <h1 className="lp-h1">{heroTitle(SECTION.lp.title)}</h1>
             <p className="lp-lead">{rich(SECTION.lp.lead)}</p>
             <div className="lp-actions">
               <a href="#contact" className="lp-btn lp-btn--primary" data-cta="hero-consult">{SECTION.lp.ctaPrimary}</a>

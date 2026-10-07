@@ -10898,6 +10898,25 @@ body { color: var(--lp-ink); }
   margin: 0 0 22px;
   word-break: auto-phrase;
 }
+/* 「ぼんやり」と「はっきり」の対比。ぼんやりは色を薄くして輪郭をにじませ、
+   はっきりは一番濃い字に、くっきりした藍の下線。にじみは文字の大きさに
+   合わせて（em）変わるので、スマホでも読めない程にはなりません。 */
+.lp-h1-ph { display: inline-block; }
+.lp-h1-blur {
+  display: inline-block; white-space: nowrap;
+  color: #8d8b96;
+  filter: blur(0.032em);
+  text-shadow: 0 0 0.28em rgba(23, 23, 28, 0.28);
+}
+.lp-h1-sharp {
+  display: inline-block; white-space: nowrap;
+  color: #0c0c10;
+  text-decoration: underline;
+  text-decoration-color: var(--lp-accent);
+  text-decoration-thickness: 0.09em;
+  text-underline-offset: 0.16em;
+}
+@media (forced-colors: active) { .lp-h1-blur { filter: none; text-shadow: none; } }
 .lp-h2 {
   font-family: var(--lp-serif);
   font-weight: 700;

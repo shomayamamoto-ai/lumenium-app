@@ -437,7 +437,10 @@ await test('窓口: 送付（試用アドレスは断る・送ると送付済み
   assert.equal(q.views, 1)
   await open(decodeURIComponent(link[1]))
   assert.equal((await get('?id=' + first.id)).d.quote.views, 2)
-  assert.equal((await open(decodeURIComponent(link[1]).slice(0, -1) + '0')).status, 400, '書き換えたリンク')
+  // 最後の1文字を「必ず別の文字」に変えます（もとが '0' だと書き換えにならず、16回に1回落ちていました）。
+  const good = decodeURIComponent(link[1])
+  const bad = good.slice(0, -1) + (good.slice(-1) === '0' ? '1' : '0')
+  assert.equal((await open(bad)).status, 400, '書き換えたリンク')
   const old = await S.signView(first.id, Date.now() - 1000, 'sess-quote')
   assert.equal((await open(old)).status, 410, '期限切れのリンク')
   const lk = await post({ action: 'link', id: first.id })

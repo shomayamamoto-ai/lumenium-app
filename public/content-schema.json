@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T09:34:29.929Z",
+  "generatedAt": "2026-10-07T10:11:54.431Z",
   "count": 405,
   "groups": [
     {
@@ -8,7 +8,7 @@
       "fields": [
         {
           "path": "text.lp.title",
-          "value": "Webサイト・システムの開発\nAI研修を手がける\n制作会社です"
+          "value": "ぼんやりとしたお悩みを\nはっきりとさせる\n夢実現のプロフェッショナルです"
         },
         {
           "path": "text.lp.lead",
