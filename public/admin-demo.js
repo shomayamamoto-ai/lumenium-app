@@ -967,7 +967,17 @@
         judgeBatch: JUDGE_BATCH, judgeEstUsd: 0.0136,
         estimateUsd: qs.length * 3 * 0.059 + Math.ceil(qs.length * 3 / JUDGE_BATCH) * 0.0136,
         limits: { questions: 60, q: 200, cat: 30, id: 40, callsPerDay: 1600 },
-        aiReady: true, stored: true, brand: 'lumenium.net', brandName: 'Lumenium'
+        aiReady: true, stored: true, brand: 'lumenium.net', brandName: 'Lumenium',
+        // 自動計測（api/_aio-auto.js autoStatus の形）。毎週、最新の計測は自動で取ったもの。
+        auto: {
+          settings: { on: true, every: 7, samples: 3, engines: ['claude'] },
+          running: false, stale: false, progress: null,
+          nextAt: (function () { var d = new Date(Date.now() + 6 * 864e5); d.setHours(9, 0, 0, 0); return d.toISOString(); })(),
+          lastRunId: latest ? latest.id : null,
+          lastFinishedAt: latest ? latest.finishedAt : null,
+          lastResult: latest ? { openMentionRate: latest.summary.openMentionRate, recommendRate: latest.summary.recommendRate, citeRate: latest.summary.citeRate, asked: latest.summary.asked, total: latest.summary.total } : null,
+          lastError: null, cronReady: true
+        }
       },
       social: socialActivity(),
       latest: latest,

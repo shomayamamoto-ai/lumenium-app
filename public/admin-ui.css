@@ -697,3 +697,27 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .ui-fold { margin: var(--ui-s2) 0 var(--ui-s5); }
 #shell .ui-fold-btn { width: 100%; justify-content: center; }
 #shell .ui-fold-off { display: none !important; }
+
+/* ---- AIO出現率の自動計測（/admin-aio-auto.js） ---- */
+#shell .aio-auto {
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r-lg); background: var(--ui-surface);
+  padding: var(--ui-s3) var(--ui-s4); margin: 0 0 var(--ui-s4);
+}
+#shell .aio-auto[hidden] { display: none; }
+#shell .aio-auto-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-s2) var(--ui-s3); }
+#shell .aio-auto-row > b { font-size: var(--ui-fs-14); }
+#shell .aio-auto-pill { font-size: var(--ui-fs-12); font-weight: 700; padding: 2px 10px; border-radius: var(--ui-r-pill); border: 1px solid var(--ui-border); color: var(--ui-text-2); background: var(--ui-surface-3); }
+#shell .aio-auto-pill.on { color: var(--ui-ok); background: var(--ui-ok-bg); border-color: var(--ui-ok-line); }
+#shell .aio-auto-facts { font-size: var(--ui-fs-13); color: var(--ui-text-2); flex: 1 1 260px; }
+#shell .aio-auto-acts { display: flex; gap: var(--ui-s2); flex-wrap: wrap; }
+#shell .aio-auto-prog { margin-top: var(--ui-s3); }
+#shell .aio-auto-bar { height: 6px; border-radius: var(--ui-r-pill); background: var(--ui-surface-3); overflow: hidden; }
+#shell .aio-auto-bar > span { display: block; height: 100%; background: var(--ui-accent); }
+#shell .aio-auto-prog p, #shell .aio-auto-note { font-size: var(--ui-fs-12); color: var(--ui-text-2); line-height: var(--ui-lh); margin-top: 6px; }
+#shell .aio-auto-warn { font-size: var(--ui-fs-12); color: var(--ui-warn); background: var(--ui-warn-bg); border: 1px solid var(--ui-warn-line); border-radius: var(--ui-r); padding: 6px 10px; margin-top: var(--ui-s2); line-height: var(--ui-lh); }
+#shell .aio-auto-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-s2) var(--ui-s4); margin-top: var(--ui-s3); padding-top: var(--ui-s3); border-top: 1px solid var(--ui-border); font-size: var(--ui-fs-13); }
+#shell .aio-auto-form label { display: inline-flex; align-items: center; gap: 6px; }
+#shell .aio-auto-form .aio-auto-note { flex-basis: 100%; margin: 0; }
+#shell .aio-auto-msg { font-size: var(--ui-fs-12); margin-top: 6px; color: var(--ui-ok); }
+#shell .aio-auto-msg:empty { display: none; }
+#shell .aio-auto-msg.bad { color: var(--ui-ng); }

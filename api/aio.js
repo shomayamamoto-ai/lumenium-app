@@ -31,7 +31,7 @@ export const config = { runtime: 'edge' }
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, NO_AI, spendGuard } from './_admin-auth.js'
-import { storeFor, pipeline, jstDate } from './_analytics-store.js'
+import { storeFor, storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { socialActivity } from './_social.js'
 import {
   DEFAULT_QUESTIONS, BRAND, JUDGE_MODEL, JUDGE_BATCH, JUDGE_EST_USD, MIN_FOR_RATE, LIMITS,
@@ -50,14 +50,14 @@ import { KV, BRAND as SITE } from './_brand.js'
    自分で先に打ち切れば、理由の付いた失敗として記録できます。
    SDK 側の自動リトライも切ってあります（内側で3回粘られると、その合計が
    プラットフォームの上限を越えてしまうため）。 */
-const ASK_TIMEOUT_MS = 18000
+export const ASK_TIMEOUT_MS = 18000
 const ANALYSE_TIMEOUT_MS = 22000
 
 /* 検索の途中で止まった回答（pause_turn）を続けさせる回数。続きは別の
    リクエストで送ります——1回の続きにも数十秒かかり、同じリクエストの
    中ではエッジ関数の持ち時間に収まらないためです。2回続けても終わら
    なければ「途中で切れた回答」として、率には入れません。 */
-const MAX_CONTINUATIONS = 2
+export const MAX_CONTINUATIONS = 2
 
 export const SAMPLE_OPTIONS = [1, 3, 5]
 export const DEFAULT_SAMPLES = 3
@@ -69,9 +69,9 @@ export const DEFAULT_SAMPLES = 3
    最大の設定（60問×5回×4つのAI＋判定）が1回は回せる大きさにしてあり、
    ASK は再試行と続きの分を含むので、計画した回数より多めです。 */
 const RUNS_PER_DAY = 3
-const CALLS_PER_DAY = 1600
-const ASK_PER_DAY = 2000
-const JUDGE_PER_DAY = 500
+export const CALLS_PER_DAY = 1600
+export const ASK_PER_DAY = 2000
+export const JUDGE_PER_DAY = 500
 
 /** 失敗を、直し方が分かる形に変える。英語の一文だけでは何をすればよいか
  *  決まらない。種類・HTTPステータス・かかった時間の3つが分かれば、時間
@@ -115,11 +115,11 @@ export const ERROR_HINTS = {
   unknown: '原因を特定できませんでした。下の詳細をそのまま伝えてください。',
 }
 
-const RUN_TTL = 400 * 24 * 60 * 60
+export const RUN_TTL = 400 * 24 * 60 * 60
 const RK = (id) => `${KV}aio:run:${id}`
 // One hash field per answer. Answers from different engines arrive at the
 // same time, and a read-modify-write of one run document would lose some.
-const RES = (id) => `${KV}aio:res:${id}`
+export const RES = (id) => `${KV}aio:res:${id}`
 const INDEX = `${KV}aio:index`
 const QKEY = `${KV}aio:questions`
 
@@ -180,7 +180,7 @@ function runFromBody(body) {
  *  保存先が一瞬でも応答しないと、質問を投げる前に関数ごと落ち、ブラウザ
  *  には理由の分からない失敗だけが残っていました。保存はあくまで便利のため
  *  で、計測そのものは保存先が無くても成立します。 */
-async function readRun(cfg, id) {
+export async function readRun(cfg, id) {
   let raw
   try {
     ;[raw] = await pipeline(cfg, [['GET', RK(id)]])
@@ -196,7 +196,7 @@ async function writeRun(cfg, run) {
 }
 
 /** The answers stored one by one while a run is going. */
-async function readAnswers(cfg, id) {
+export async function readAnswers(cfg, id) {
   try {
     const [flat] = await pipeline(cfg, [['HGETALL', RES(id)]])
     const out = []
@@ -209,11 +209,11 @@ async function readAnswers(cfg, id) {
   }
 }
 
-const keyOf = (r) => (r && (r.key || r.id)) || ''
+export const keyOf = (r) => (r && (r.key || r.id)) || ''
 
 /** What is kept of an answer. The paused turn's content is a request body
  *  for the next call, not part of the record. */
-function storable(r) {
+export function storable(r) {
   const { resume, ...rest } = r || {}
   return { ...rest, answer: String(rest.answer || '').slice(0, 3000) }
 }
@@ -746,6 +746,146 @@ function engineMeta(keys) {
   }))
 }
 
+/** 計測を始める。管理画面のボタンと、自動の計測（_aio-auto.js）の両方から。
+ *  断るときは { error, status } を、始めたときは { run, plan } を返します。 */
+export async function startRun(cfg, keys, opts = {}) {
+  const samples = SAMPLE_OPTIONS.includes(Number(opts.samples)) ? Number(opts.samples) : DEFAULT_SAMPLES
+  const asked = Array.isArray(opts.engines) && opts.engines.length ? opts.engines : ['claude']
+  const engines = ENGINE_IDS.filter((id) => asked.includes(id))
+  const missing = engines.filter((id) => !keys[id])
+  if (!engines.length) return { status: 400, error: { ok: false, message: '使うAIが選ばれていません。' } }
+  if (missing.length) {
+    return { status: 400, error: { ok: false, code: 'NO_ENGINE_KEY', message: `${missing.map((id) => ENGINES[id].label).join('、')} のキーが未設定です。設定状況の画面で入れてください。` } }
+  }
+  const { list, custom } = await loadQuestions(cfg)
+  const plan = planRun(list.length, samples, engines, Object.fromEntries(ENGINE_IDS.map((id) => [id, ENGINES[id].estUsd])))
+  // A run bigger than a whole day's ceiling would only ever be refused with
+  // 「本日の上限に達しました」, which reads as "come back tomorrow" when
+  // tomorrow will refuse it too. Say what is actually wrong.
+  if (plan.calls > CALLS_PER_DAY) {
+    return {
+      status: 400,
+      error: {
+        ok: false, code: 'RUN_TOO_LARGE',
+        message: `この設定では1回の計測が${plan.calls}回の呼び出しになり、1日の上限（${CALLS_PER_DAY}回）を越えます。回数か使うAIを減らしてください。`,
+      },
+    }
+  }
+  const asError = async (res) => ({ status: res.status, error: await res.json() })
+  const capped = await spendGuard('aio', RUNS_PER_DAY)
+  if (capped) return asError(capped)
+  // The day's ceiling in calls, reserved in full now, so a leaked admin key
+  // cannot spend without limit and a run is refused before it starts rather
+  // than cut off half way.
+  const overCalls = await spendGuard('aio-calls', CALLS_PER_DAY, plan.calls)
+  if (overCalls) return asError(overCalls)
+  const run = {
+    id: `${jstDate()}-${Math.random().toString(36).slice(2, 8)}`,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    auto: !!opts.auto,
+    settings: {
+      samples,
+      engines,
+      questionsHash: questionSetHash(list),
+      questionCount: list.length,
+      customQuestions: custom,
+      models: Object.fromEntries(engines.map((id) => [id, ENGINES[id].model()])),
+      judgeModel: JUDGE_MODEL,
+    },
+    questions: list,
+    results: [],
+    summary: null,
+  }
+  let storeWarning = null
+  if (cfg) {
+    try {
+      await writeRun(cfg, run)
+      await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
+    } catch (e) {
+      // 保存できないだけ。計測は回せるので、そのまま回して最後に
+      // ブラウザ側へ返します（そちらが原本を持っています）。
+      storeWarning = describeError(e, 0).message
+    }
+  }
+  return { run, plan, storeWarning }
+}
+
+/** 1つの質問を1つのAIに1回聞いた結果。失敗も同じ形で返します。
+ *  paused のときは resume を付けて返すので、続きは呼んだ側が送ります。 */
+export async function askOnce(keys, item, engine, sample, continuation = 0, resumeIn = null) {
+  const t0 = Date.now()
+  let result
+  try {
+    const resume = engine === 'claude' && continuation > 0 && Array.isArray(resumeIn) ? resumeIn : null
+    const a = await askEngine(engine, keys[engine], item.q, { timeoutMs: ASK_TIMEOUT_MS, resume })
+    result = scoreAnswer(item, a, sample)
+    if (a.paused) {
+      if (continuation < MAX_CONTINUATIONS) {
+        result.paused = true
+        result.resume = a.resume
+      } else {
+        result.truncated = true
+        result.truncReason = 'paused'
+      }
+    }
+    result.continuations = continuation
+    result.ms = Date.now() - t0
+  } catch (e) {
+    const d = describeError(e, Date.now() - t0)
+    result = {
+      key: `${item.id}#${engine}#${sample}`, id: item.id, cat: item.cat, q: item.q, branded: isBranded(item),
+      engine, model: ENGINES[engine].model(), sample, answer: '',
+      named: false, verdict: null, cited: false, citedRank: null, citedUrls: [], searched: false,
+      searchCount: 0, sources: [], sourceUrls: [], ownPages: [], companies: [],
+      // 画面に出るのは短い日本語、原因の特定に要る素の文は detail に。
+      error: ERROR_HINTS[d.kind] || d.message,
+      errorKind: d.kind,
+      detail: d,
+      ms: d.ms,
+    }
+  }
+  return result
+}
+
+/** 集めた回答から集計して、計測を閉じる。 */
+export async function finalizeRun(cfg, run, sent, analysisFailures) {
+  const merged = new Map()
+  for (const r of run.results || []) if (keyOf(r)) merged.set(keyOf(r), r)
+  if (cfg) for (const r of await readAnswers(cfg, run.id)) merged.set(keyOf(r), r)
+  // The browser's copy wins: it carries the verdicts, and the answers that
+  // never reached the store (a request that failed outright was written
+  // nowhere, so without these the report could not tell a failure from a
+  // question that was never asked).
+  for (const r of sent || []) if (r && typeof r.id === 'string') merged.set(keyOf(r), storable(r))
+  const results = [...merged.values()].slice(0, LIMITS.questions * 5 * ENGINE_IDS.length)
+  if (!results.length) return { status: 400, error: { ok: false, message: '集計できる回答がありません。' } }
+
+  // Nothing was judged at all — treat it as the judge having failed rather
+  // than reporting every answer as a miss.
+  const fallback = !results.some((r) => r.verdict)
+  run.companiesFailed = fallback
+  run.analysisFailures = (Array.isArray(analysisFailures) ? analysisFailures : []).slice(0, 50)
+  run.results = results.map(storable)
+  run.summary = summarise(run.results, fallback, run.settings)
+  const social = await socialActivity(30)
+  run.actions = buildActions(run.results, run.summary, social)
+  // Frozen with the run: comparing this month's mention rate against last
+  // month's only means something if you can also see what was published in
+  // between, and that number moves.
+  run.social = social
+  run.finishedAt = new Date().toISOString()
+  let stored = false
+  if (cfg) {
+    try {
+      await writeRun(cfg, run)
+      await pipeline(cfg, [['DEL', RES(run.id)]])
+      stored = true
+    } catch (_) { stored = false }
+  }
+  return { run, stored }
+}
+
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
@@ -753,7 +893,18 @@ export async function GET(req) {
   const cfg = await storeFor(req)
   const keys = await engineKeys(req)
   const { list, custom } = await loadQuestions(cfg)
+  // 自動計測の状態。止まっている計測があれば、ここで続きを呼び直します
+  // （画面を開くだけで再開するように）。読めなくても画面は出します。
+  let auto = null
+  if (cfg) {
+    try {
+      const A = await import('./_aio-auto.js')
+      auto = await A.autoStatus(cfg)
+      if (auto.running && auto.stale) auto.kicked = await A.kick(new URL(req.url).origin)
+    } catch (_) { auto = null }
+  }
   const meta = {
+    auto,
     questions: list.length,
     questionSet: { custom, hash: questionSetHash(list), list, defaults: DEFAULT_QUESTIONS.length },
     categories: categoriesOf(list),
@@ -849,6 +1000,7 @@ export async function GET(req) {
   const brief = (r) => ({
     id: r.id,
     finishedAt: r.finishedAt,
+    auto: !!r.auto,
     mentionRate: r.summary.mentionRate,
     openMentionRate: r.summary.openMentionRate,
     recommendRate: r.summary.recommendRate,
@@ -890,79 +1042,47 @@ export async function POST(req) {
   if (denied) return denied
 
   const keys = await engineKeys(req)
-  // The judge is Claude whichever engines answer, so its key is required.
-  if (!keys.claude) return json(NO_AI, 503)
-
   const cfg = await storeFor(req)
 
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '不正なリクエストです。' }, 400) }
   const action = body && body.action
 
+  /* 自動計測（_aio-auto.js）。設定の保存と「今すぐ自動で計測」。
+     自動の計測はサーバーだけで進むので、保存先と CRON_SECRET が要ります。 */
+  if (action === 'auto-save' || action === 'auto-now') {
+    if (!storeConfig()) return json({ ok: false, message: '自動計測には保存先（Upstash Redis）を Vercel の環境変数に入れる必要があります。' }, 503)
+    const A = await import('./_aio-auto.js')
+    const store = storeConfig()
+    if (action === 'auto-save') {
+      await A.saveSettings(store, { on: body.on, every: body.every, samples: body.samples, engines: body.engines })
+      return json({ ok: true, auto: await A.autoStatus(store) })
+    }
+    if (!(process.env.CRON_SECRET || '').trim()) {
+      return json({ ok: false, code: 'NO_CRON_SECRET', message: 'CRON_SECRET が未設定のため、自動計測を動かせません。Vercel の環境変数に入れてください。' }, 503)
+    }
+    const r = await A.startAuto(store, 'manual')
+    if (!r.ok) return json({ ok: false, message: r.message }, 400)
+    const kicked = await A.kick(new URL(req.url).origin)
+    return json({ ok: true, kicked, auto: await A.autoStatus(store) })
+  }
+
+  // The judge is Claude whichever engines answer, so its key is required.
+  if (!keys.claude) return json(NO_AI, 503)
+
   if (action === 'start') {
-    const samples = SAMPLE_OPTIONS.includes(Number(body.samples)) ? Number(body.samples) : DEFAULT_SAMPLES
-    const asked = Array.isArray(body.engines) && body.engines.length ? body.engines : ['claude']
-    const engines = ENGINE_IDS.filter((id) => asked.includes(id))
-    const missing = engines.filter((id) => !keys[id])
-    if (!engines.length) return json({ ok: false, message: '使うAIが選ばれていません。' }, 400)
-    if (missing.length) {
-      return json({ ok: false, message: `${missing.map((id) => ENGINES[id].label).join('、')} のキーが未設定です。設定状況の画面で入れてください。` }, 400)
-    }
-    const { list, custom } = await loadQuestions(cfg)
-    const plan = planRun(list.length, samples, engines, Object.fromEntries(ENGINE_IDS.map((id) => [id, ENGINES[id].estUsd])))
-    // A run bigger than a whole day's ceiling would only ever be refused with
-    // 「本日の上限に達しました」, which reads as "come back tomorrow" when
-    // tomorrow will refuse it too. Say what is actually wrong.
-    if (plan.calls > CALLS_PER_DAY) {
-      return json({
-        ok: false, code: 'RUN_TOO_LARGE',
-        message: `この設定では1回の計測が${plan.calls}回の呼び出しになり、1日の上限（${CALLS_PER_DAY}回）を越えます。回数か使うAIを減らしてください。`,
-      }, 400)
-    }
-    const capped = await spendGuard('aio', RUNS_PER_DAY)
-    if (capped) return capped
-    // The day's ceiling in calls, reserved in full now, so a leaked admin key
-    // cannot spend without limit and a run is refused before it starts rather
-    // than cut off half way.
-    const overCalls = await spendGuard('aio-calls', CALLS_PER_DAY, plan.calls)
-    if (overCalls) return overCalls
-    const run = {
-      id: `${jstDate()}-${Math.random().toString(36).slice(2, 8)}`,
-      startedAt: new Date().toISOString(),
-      finishedAt: null,
-      settings: {
-        samples,
-        engines,
-        questionsHash: questionSetHash(list),
-        questionCount: list.length,
-        customQuestions: custom,
-        models: Object.fromEntries(engines.map((id) => [id, ENGINES[id].model()])),
-        judgeModel: JUDGE_MODEL,
-      },
-      questions: list,
-      results: [],
-      summary: null,
-    }
-    let storeWarning = null
-    if (cfg) {
-      try {
-        await writeRun(cfg, run)
-        await pipeline(cfg, [['LPUSH', INDEX, run.id], ['LTRIM', INDEX, 0, 59]])
-      } catch (e) {
-        // 保存できないだけ。計測は回せるので、そのまま回して最後に
-        // ブラウザ側へ返します（そちらが原本を持っています）。
-        storeWarning = describeError(e, 0).message
-      }
-    }
+    const r = await startRun(cfg, keys, { samples: body.samples, engines: body.engines })
+    if (r.error) return json(r.error, r.status)
+    const { run, plan, storeWarning } = r
     return json({
       ok: true, runId: run.id, startedAt: run.startedAt, stored: !!cfg && !storeWarning, storeWarning,
-      samples, engines, settings: run.settings, plan,
+      samples: run.settings.samples, engines: run.settings.engines, settings: run.settings, plan,
       // The pause between two answers from the same engine. Back to back, the
       // provider's per-minute limit cuts the second half of a run off.
       paceMs: 1500,
       maxContinuations: MAX_CONTINUATIONS,
       judgeBatch: JUDGE_BATCH,
-      questions: list.map(({ id, cat, q, branded }) => ({ id, cat, q, branded })),
+      questions: run.questions.map(({ id, cat, q, branded }) => ({ id, cat, q, branded })),
     })
   }
 
@@ -1023,38 +1143,7 @@ export async function POST(req) {
     }
     if (!item) return json({ ok: false, message: '質問が見つかりません。最初からやり直してください。' }, 400)
 
-    const t0 = Date.now()
-    let result
-    try {
-      const resume = engine === 'claude' && continuation > 0 && Array.isArray(body.resume) ? body.resume : null
-      const a = await askEngine(engine, keys[engine], item.q, { timeoutMs: ASK_TIMEOUT_MS, resume })
-      result = scoreAnswer(item, a, sample)
-      if (a.paused) {
-        if (continuation < MAX_CONTINUATIONS) {
-          // Not finished yet: the browser sends this back to continue it.
-          result.paused = true
-          result.resume = a.resume
-        } else {
-          result.truncated = true
-          result.truncReason = 'paused'
-        }
-      }
-      result.continuations = continuation
-      result.ms = Date.now() - t0
-    } catch (e) {
-      const d = describeError(e, Date.now() - t0)
-      result = {
-        key: `${item.id}#${engine}#${sample}`, id: item.id, cat: item.cat, q: item.q, branded: isBranded(item),
-        engine, model: ENGINES[engine].model(), sample, answer: '',
-        named: false, verdict: null, cited: false, citedRank: null, citedUrls: [], searched: false,
-        searchCount: 0, sources: [], sourceUrls: [], ownPages: [], companies: [],
-        // 画面に出るのは短い日本語、原因の特定に要る素の文は detail に。
-        error: ERROR_HINTS[d.kind] || d.message,
-        errorKind: d.kind,
-        detail: d,
-        ms: d.ms,
-      }
-    }
+    const result = await askOnce(keys, item, engine, sample, continuation, body.resume)
 
     // 保存に失敗しても、取れた回答は捨てない。ここで例外を投げていたので、
     // 料金を払って取れた回答がそのまま消え、ブラウザ側には理由の分からない
@@ -1098,42 +1187,10 @@ export async function POST(req) {
     // ときも、ブラウザが答えを持っていれば、それで集計する。最後の一歩で、
     // 取れている回答を全部捨てるのが一番もったいない。
     if (!run || run.unreachable) run = runFromBody(body)
-    const merged = new Map()
-    for (const r of run.results || []) if (keyOf(r)) merged.set(keyOf(r), r)
-    if (cfg) for (const r of await readAnswers(cfg, run.id)) merged.set(keyOf(r), r)
-    // The browser's copy wins: it carries the verdicts, and the answers that
-    // never reached the store (a request that failed outright was written
-    // nowhere, so without these the report could not tell a failure from a
-    // question that was never asked).
-    const sent = Array.isArray(body && body.results) ? body.results : []
-    for (const r of sent) if (r && typeof r.id === 'string') merged.set(keyOf(r), storable(r))
-    const results = [...merged.values()].slice(0, LIMITS.questions * 5 * ENGINE_IDS.length)
-    if (!results.length) return json({ ok: false, message: '集計できる回答がありません。' }, 400)
-
-    // Nothing was judged at all — treat it as the judge having failed rather
-    // than reporting every answer as a miss.
-    const fallback = !results.some((r) => r.verdict)
-    run.companiesFailed = fallback
-    run.analysisFailures = (Array.isArray(body.analysisFailures) ? body.analysisFailures : []).slice(0, 50)
-    run.results = results.map(storable)
-    run.summary = summarise(run.results, fallback, run.settings)
-    const social = await socialActivity(30)
-    run.actions = buildActions(run.results, run.summary, social)
-    // Frozen with the run: comparing this month's mention rate against last
-    // month's only means something if you can also see what was published in
-    // between, and that number moves.
-    run.social = social
-    run.finishedAt = new Date().toISOString()
-    let saved = false
-    if (cfg) {
-      try {
-        await writeRun(cfg, run)
-        await pipeline(cfg, [['DEL', RES(run.id)]])
-        saved = true
-      } catch (_) { saved = false }
-    }
+    const r = await finalizeRun(cfg, run, Array.isArray(body && body.results) ? body.results : [], body.analysisFailures)
+    if (r.error) return json(r.error, r.status)
     // stored:false のとき、ブラウザはこの結果を自分の端末に残します。
-    return json({ ok: true, run, stored: saved })
+    return json({ ok: true, run: r.run, stored: r.stored })
   }
 
   return json({ ok: false, message: '不明な操作です。' }, 400)

@@ -253,7 +253,7 @@
       root: 'seo-admin',
       label: 'SEO / AIO 分析の表示の切り替え',
       tabs: [
-        { key: 'ai', label: 'AIでの見え方', pick: ['#seo-run', '#seo-setup', '#seo-progress', '#seo-msg', '#seo-social', '#seo-body'] },
+        { key: 'ai', label: 'AIでの見え方', pick: ['#seo-auto', '#seo-run', '#seo-setup', '#seo-progress', '#seo-msg', '#seo-social', '#seo-body'] },
         { key: 'gsc', label: 'Google検索', pick: '#gsc-body' },
         { key: 'site', label: 'サイトの点検・クローラー', pick: '#audit-run' },
       ],

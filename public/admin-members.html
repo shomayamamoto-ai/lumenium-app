@@ -888,6 +888,7 @@ input, select, textarea { color: var(--text); }
 <body>
 <script src="/admin-demo.js"></script>
 <script src="/admin-subtabs.js"></script>
+<script src="/admin-aio-auto.js"></script>
 <script src="/social-text.js"></script>
 <script src="/video-core.js"></script>
 <script src="/admin-video.js"></script>
@@ -5657,6 +5658,8 @@ window.lumAdmin = {
       el('seo-cost').textContent = (data.meta.aiReady ? '' : 'APIキー未設定') +
         (data.meta.stored === false ? (data.meta.aiReady ? '' : '・') + '結果はこの端末に保存' : '');
       setup();
+      // 自動計測の欄（/admin-aio-auto.js）。
+      if (window.lumAioAuto) window.lumAioAuto(data.meta.auto, data.meta, function () { load(); });
       // The key is the only thing a run needs. Without a database the run is
       // driven from here and the report is kept in this browser; it used to be
       // refused outright, which is what "キーを入れたのに動かない" was.
@@ -5690,7 +5693,7 @@ window.lumAdmin = {
     if (list.length > 1) {
       sel.innerHTML = list.map(function (r) {
         return '<option value="' + r.id + '">' + new Date(r.finishedAt).toLocaleDateString('ja-JP') +
-          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%）</option>';
+          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%' + (r.auto ? '・自動' : '') + '）</option>';
       }).join('');
       if (data.latest) sel.value = data.latest.id;
       sel.style.display = 'inline-block';
