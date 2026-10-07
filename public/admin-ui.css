@@ -693,3 +693,7 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 @media (max-width: 640px) {
   #shell .ui-subtabs > button { padding: 0 11px; font-size: var(--ui-fs-13); }
 }
+/* 内訳をたたむ（SEO / AIO の詳しい結果など） */
+#shell .ui-fold { margin: var(--ui-s2) 0 var(--ui-s5); }
+#shell .ui-fold-btn { width: 100%; justify-content: center; }
+#shell .ui-fold-off { display: none !important; }

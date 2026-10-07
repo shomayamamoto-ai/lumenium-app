@@ -213,6 +213,7 @@
   /* 隠れているタブの中へ移ろうとしたら、先にそのタブを開きます。
      外側の入れ物から順に開くので、入れ子（設定状況 → キーの入力 → SNS）でも届きます。 */
   function reveal(node) {
+    if (lumSubtabs.unfold) { try { lumSubtabs.unfold(node); } catch (_) {} }
     all.forEach(function (t) {
       if (!node || !t.root.contains(node)) return;
       var k = t.keyOf(node);
@@ -257,6 +258,39 @@
         { key: 'site', label: 'サイトの点検・クローラー', pick: '#audit-run' },
       ],
     });
+
+    // AIでの見え方は、数字・次の一手・前回との差を先に出し、内訳はたたみます。
+    if (seoBody) {
+      var diff = $('seo-diff'), actions = $('seo-actions');
+      if (diff && actions) seoBody.insertBefore(diff, actions.nextSibling);
+      var fold = document.createElement('div');
+      fold.className = 'ui-fold';
+      fold.innerHTML = '<button type="button" class="ghost ui-fold-btn" aria-expanded="false">' +
+        '詳しい内訳を見る（AIごと・カテゴリ・競合・読まれたページ・質問ごと・推移）</button>';
+      seoBody.insertBefore(fold, (diff || actions || seoBody.firstChild).nextSibling);
+      var keep = ['seo-cards', 'seo-howto', 'seo-actions', 'seo-diff'];
+      var paintFold = function (open) {
+        var after = false;
+        Array.prototype.forEach.call(seoBody.children, function (c) {
+          if (c === fold) { after = true; return; }
+          if (after && keep.indexOf(c.id) === -1) c.classList.toggle('ui-fold-off', !open);
+        });
+        var b = fold.querySelector('button');
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+        b.firstChild.nodeValue = open ? '内訳をたたむ' : '詳しい内訳を見る（AIごと・カテゴリ・競合・読まれたページ・質問ごと・推移）';
+      };
+      fold.querySelector('button').addEventListener('click', function () {
+        paintFold(this.getAttribute('aria-expanded') !== 'true');
+      });
+      // AIごとの内訳は、たたんだ中の先頭に置きます。
+      var anchor = fold;
+      ['seo-extra', 'seo-engine-rows', 'seo-breakdown'].forEach(function (id) {
+        var x = $(id);
+        if (x) { seoBody.insertBefore(x, anchor.nextSibling); anchor = x; }
+      });
+      paintFold(false);
+      lumSubtabs.unfold = function (node) { if (seoBody.contains(node) && node.closest('.ui-fold-off')) paintFold(true); };
+    }
 
     // 設定状況: 「いま動いているか」と「キーを入れる」を分け、キーはまとまりごとに。
     lumSubtabs({
