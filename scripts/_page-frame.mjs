@@ -15,6 +15,7 @@ import { SECTION } from '../src/data/text.js'
 
 const NAV = [
   ['/#services', 'できること'],
+  ['/systems.html', '作ったシステム'],
   ['/works.html', '実績'],
   ['/flow.html', 'ご依頼の流れ'],
   ['/faq.html', 'よくある質問'],

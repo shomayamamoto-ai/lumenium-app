@@ -19,7 +19,8 @@ import { framePage } from './_page-frame.mjs'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
-  PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS, PROFILES } from '../src/data/site.js'
+  PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS, PROFILES, SYSTEMS } from '../src/data/site.js'
+import { SECTION } from '../src/data/text.js'
 
 // Admin copy overrides are applied to the shared data modules before any
 // page is rendered, so the static pages always match what the site shows.
@@ -837,6 +838,63 @@ const TOPIC_PAGES = [
     <p class="note">飲食・IT・美容・教育・広告・士業など12以上の業界で実績があります。同業種の実績がない領域でも、リサーチから入るため支援可能です。</p>`,
   },
   {
+    /* 作ってきたシステム。「なんでも作れる」と言うだけでは、何を頼めるのかが
+       伝わりませんでした。トップのカードの詳しい版で、1件ずつ「誰が・何に
+       困って・何ができて・どう変わったか」を書きます。相談ボタンは、
+       トップのフォームにシステム名を入れた状態で開きます（?ask=）。 */
+    file: 'systems.html',
+    eyebrow: '作ってきたシステム',
+    title: '作ってきたシステムと導入例 | Lumenium（ルメニウム）',
+    h1: 'これまでに作ってきたシステム',
+    desc: `ルメニウム（Lumenium）がこれまでに開発したシステム${SYSTEMS.length}例。管理画面つきホームページ、SNS運用の自動化、監視カメラのAI感知、電話の自動応対、名刺からの営業リスト、マッチング、在庫管理、契約書作成、不動産ポータルなど。`,
+    lead: SECTION.lp.systemsLead,
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumenium が開発したシステム',
+      itemListElement: SYSTEMS.map((x, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        item: {
+          '@type': 'Service',
+          name: x.name,
+          description: x.short,
+          provider: { '@id': `${SITE}/#organization` },
+          url: `${SITE}/systems.html#${x.id}`,
+        },
+      })),
+    }),
+    body: () => `
+    <h2>どんなシステムを作れますか？</h2>
+    <p>業種を問わず、お客様の業務の流れに合わせたシステムを作ります。下は、これまでに実際に作ったシステムを、導入したお客様の例と一緒にまとめたものです。似た困りごとがあれば、そのまま「このシステムについて相談する」からご連絡ください。ITに詳しくなくても大丈夫です。</p>
+    <ul>
+      ${SYSTEMS.map((x) => `<li><a href="#${esc(x.id)}">${esc(x.name)}</a>（${esc(x.tag)}）</li>`).join('\n      ')}
+    </ul>
+    ${SYSTEMS.map((x) => `
+    <h2 id="${esc(x.id)}">${esc(x.name)}</h2>
+    <p class="note">${esc(x.tag)}</p>
+    <p>${esc(x.short)}</p>
+    <h3>${esc(SECTION.lp.systemsWho)}</h3>
+    <p>${esc(x.who)}</p>
+    <h3>${esc(SECTION.lp.systemsPain)}</h3>
+    <p>${esc(x.pain)}</p>
+    <h3>${esc(SECTION.lp.systemsDoes)}</h3>
+    <ul>
+      ${x.does.map((d) => `<li>${esc(d)}</li>`).join('\n      ')}
+    </ul>
+    <h3>${esc(SECTION.lp.systemsAfter)}</h3>
+    <p>${esc(x.after)}</p>
+    <p><a class="sys-ask" href="/?ask=${encodeURIComponent(x.id)}#contact">${esc(SECTION.lp.systemsAsk)} →</a></p>`).join('\n')}
+    <p class="note">${esc(SECTION.lp.systemsNote)}</p>`,
+    faq: [
+      ['どんなシステムを作ってもらえますか？',
+       'ホームページの管理画面、SNS運用の自動化、監視カメラ映像のAI解析、電話の自動応対、名刺からの営業リスト作成と一斉送信、会員制のマッチング、在庫・仕入れ管理、契約書の作成、不動産のポータルサイトなどを作ってきました。業務の流れを伺って、必要な形に合わせて作ります。'],
+      ['ITに詳しくなくても相談できますか？',
+       'できます。専門用語は使わずに、いまの仕事の流れと困っていることを伺うところから始めます。何を作ればよいか決まっていない段階のご相談も歓迎です。'],
+      ['費用はどのくらいかかりますか？',
+       '作るものの範囲によって変わるため、内容を伺ってからお見積りします。無料相談で概算をお伝えし、最小限の形から始めて広げていくこともできます。'],
+    ],
+  },
+  {
     file: 'voice.html',
     eyebrow: 'お客様の声',
     title: 'お客様の声・評判 | Lumenium（ルメニウム）',
@@ -1242,6 +1300,7 @@ ${t.body()}${faqHtml}
       ['/choose.html', '制作会社の選び方（比較の5基準）'],
       ['/onestop.html', '動画・Web・AI研修を一社にまとめる'],
       ['/pricing.html', '料金・費用の目安'],
+      ['/systems.html', '作ってきたシステムと導入例'],
       ['/works.html', '実績・制作事例'],
       ['/voice.html', 'お客様の声・評判'],
       ['/flow.html', 'ご依頼の流れ・進め方'],

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-05T02:17:11.567Z",
-  "count": 394,
+  "generatedAt": "2026-10-07T09:34:29.929Z",
+  "count": 405,
   "groups": [
     {
       "key": "text",
@@ -77,6 +77,46 @@
         {
           "path": "text.lp.servicesMore",
           "value": "詳しく"
+        },
+        {
+          "path": "text.lp.systemsTitle",
+          "value": "作ってきたシステム"
+        },
+        {
+          "path": "text.lp.systemsLead",
+          "value": "「何を作れるのか分からない」というお声をいただくので、これまでに作ったシステムを、導入したお客様の例と一緒に並べました。似た困りごとがあれば、そのままご相談ください。"
+        },
+        {
+          "path": "text.lp.systemsWho",
+          "value": "導入したお客様"
+        },
+        {
+          "path": "text.lp.systemsPain",
+          "value": "困っていたこと"
+        },
+        {
+          "path": "text.lp.systemsDoes",
+          "value": "できること"
+        },
+        {
+          "path": "text.lp.systemsAfter",
+          "value": "導入後のイメージ"
+        },
+        {
+          "path": "text.lp.systemsAsk",
+          "value": "このシステムについて相談する"
+        },
+        {
+          "path": "text.lp.systemsMore",
+          "value": "くわしく見る"
+        },
+        {
+          "path": "text.lp.systemsAll",
+          "value": "{n}つのシステムを詳しく見る"
+        },
+        {
+          "path": "text.lp.systemsNote",
+          "value": "お客様の例は、守秘義務のため業種と規模を一般化したモデルケースです。費用は内容に合わせてお見積りします（無料相談で概算をお伝えします）。"
         },
         {
           "path": "text.lp.adminTitle",
@@ -169,6 +209,10 @@
         {
           "path": "text.lp.faqMore",
           "value": "すべての質問を見る"
+        },
+        {
+          "path": "text.contact.systemsAskText",
+          "value": "「{name}」のようなシステムについて相談したいです。\n\n（業種・いま困っていること・やりたいことを、わかる範囲でお書きください）\n"
         },
         {
           "path": "text.contact.title",

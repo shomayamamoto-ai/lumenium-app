@@ -1,7 +1,7 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
-import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS } from '../data/site'
+import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS, SYSTEMS } from '../data/site'
 import { landingFaq } from '../data/faq'
 import LineIcon from './LineIcon'
 import ContactForm from './ContactForm'
@@ -34,6 +34,13 @@ const priceHead = (p = '') => p.split(/[（(]/)[0].trim()
 // 相談を迷っている人が気にすること（料金・納期・進め方）の質問だけを、
 // トップに少し出します。社名の読み方などは /faq.html に。
 const practicalFaq = landingFaq
+
+// 「このシステムについて相談する」: フォームはこのページに1つだけ置いてあり、
+// すでに表示されています。そこへシステム名を渡す合図を出します（受け取るのは
+// ContactForm.jsx）。
+function askAbout(id) {
+  try { window.dispatchEvent(new CustomEvent('lum:ask', { detail: id })) } catch (_) {}
+}
 
 export default function Landing({ onPrivacy }) {
   // 中心の2つ（Web制作・システム開発、AI研修）は内容まで見せ、ほかは一覧で。
@@ -124,6 +131,39 @@ export default function Landing({ onPrivacy }) {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* 作ってきたシステム。「なんでも作れる」だけでは何を頼めるか伝わらないので、
+          実際に作ったものを「誰が・何に困って・何を入れたか」で並べます。
+          相談ボタンは、下のフォームにそのシステム名を入れて移動します。 */}
+      <section className="lp-sec lp-sec--alt" id="systems" aria-labelledby="lp-systems-h">
+        <div className="lp-wrap">
+          <header className="lp-sec-head">
+            <h2 id="lp-systems-h" className="lp-h2">{SECTION.lp.systemsTitle}</h2>
+            <p className="lp-sec-lead">{rich(SECTION.lp.systemsLead)}</p>
+          </header>
+          <div className="lp-sys">
+            {SYSTEMS.map((sys) => (
+              <article key={sys.id} className="lp-sys-card">
+                <p className="lp-sys-tag">{sys.tag}</p>
+                <h3 className="lp-sys-name">{sys.name}</h3>
+                <p className="lp-sys-who"><span>{SECTION.lp.systemsWho}</span>{sys.who}</p>
+                <p className="lp-sys-desc">{rich(sys.short)}</p>
+                <div className="lp-sys-acts">
+                  <a href={`/systems.html#${sys.id}`} className="lp-sys-more">{SECTION.lp.systemsMore} →</a>
+                  <a
+                    href="#contact"
+                    className="lp-sys-ask"
+                    data-cta={`system-${sys.id}`}
+                    onClick={() => askAbout(sys.id)}
+                  >{SECTION.lp.systemsAsk}</a>
+                </div>
+              </article>
+            ))}
+          </div>
+          <p className="lp-sys-note">{SECTION.lp.systemsNote}</p>
+          <a href="/systems.html" className="lp-link">{SECTION.lp.systemsAll.replace('{n}', String(SYSTEMS.length))} →</a>
         </div>
       </section>
 

@@ -3,7 +3,7 @@ import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import { events, funnel, whenSeen } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
-import { ORG_TYPES, TOPICS } from '../data/site'
+import { ORG_TYPES, TOPICS, SYSTEMS } from '../data/site'
 import { scrollBehavior } from '../lib/motion'
 import { visitSource } from '../lib/pageview'
 
@@ -46,6 +46,38 @@ export default function ContactForm() {
       website: '',
     }
   })
+  /* 「作ってきたシステム」の相談ボタンから来たとき。トップページ内のボタンは
+     合図（lum:ask）で、/systems.html からは ?ask=<id> で届きます。本文が
+     空か、前に入れた相談文のままのときだけ書き換えます（打ちかけの文章は
+     消しません）。 */
+  useEffect(() => {
+    const fill = (id) => {
+      const sys = SYSTEMS.find((x) => x.id === id)
+      if (!sys) return
+      const text = SECTION.contact.systemsAskText.replace('{name}', sys.name)
+      setForm((f) => {
+        const blank = !f.message.trim() || SYSTEMS.some((x) => f.message === SECTION.contact.systemsAskText.replace('{name}', x.name))
+        return {
+          ...f,
+          message: blank ? text : f.message,
+          topics: f.topics.includes('web') ? f.topics : [...f.topics, 'web'],
+        }
+      })
+    }
+    const onAsk = (e) => fill(e && e.detail)
+    window.addEventListener('lum:ask', onAsk)
+    try {
+      const u = new URL(window.location.href)
+      const id = u.searchParams.get('ask')
+      if (id) {
+        fill(id)
+        u.searchParams.delete('ask')
+        window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash)
+      }
+    } catch (_) {}
+    return () => window.removeEventListener('lum:ask', onAsk)
+  }, [])
+
   const [carried] = useState(() => {
     try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
   })

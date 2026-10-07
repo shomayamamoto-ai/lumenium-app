@@ -124,12 +124,15 @@ dl.qa { padding: 6px 20px 18px; border-radius: 10px; }
 .site-nav a { font-size: 14px; color: var(--ink-soft) !important; text-decoration: none; }
 .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--ink) !important; }
 .site-nav a[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--accent); padding-bottom: 4px; }
-.site-cta, .side-btn {
+.site-cta, .side-btn, .sys-ask {
   display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 18px;
   border-radius: 8px; background: var(--accent); color: #fff !important; font-size: 14px; font-weight: 700;
   letter-spacing: .04em; text-decoration: none;
 }
-.site-cta:hover, .side-btn:hover { background: var(--accent-2); }
+.site-cta:hover, .side-btn:hover, .sys-ask:hover { background: var(--accent-2); }
+/* /systems.html の「このシステムについて相談する」。本文の中のリンクの色を
+   上書きされないように、色を明示します。 */
+article a.sys-ask { color: #fff !important; text-decoration: none; display: inline-block; margin: 4px 0 8px; }
 
 .page-head { border-bottom: 1px solid var(--hair); padding: 64px 0 48px; }
 .page-head .eyebrow { margin: 0 0 14px; }
