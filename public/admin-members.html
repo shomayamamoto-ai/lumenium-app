@@ -5438,6 +5438,8 @@ window.lumAdmin = {
       return;
     }
     var s = run.summary;
+    // 取れなかった回答があれば、数字より先に理由と直し方を（/admin-aio-auto.js）。
+    if (window.lumAioFail) window.lumAioFail(run);
     cards(s);
     howto(s);
     extra(s);

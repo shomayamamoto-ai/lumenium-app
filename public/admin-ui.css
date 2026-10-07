@@ -721,3 +721,13 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .aio-auto-msg { font-size: var(--ui-fs-12); margin-top: 6px; color: var(--ui-ok); }
 #shell .aio-auto-msg:empty { display: none; }
 #shell .aio-auto-msg.bad { color: var(--ui-ng); }
+/* 計測できなかった理由（/admin-aio-auto.js lumAioFail） */
+#shell .aio-fail { border: 1px solid var(--ui-ng-line); background: var(--ui-ng-bg); border-radius: var(--ui-r-lg); padding: var(--ui-s3) var(--ui-s4); margin: 0 0 var(--ui-s4); }
+#shell .aio-fail[hidden] { display: none; }
+#shell .aio-fail-title { font-size: var(--ui-fs-14); font-weight: 700; color: var(--ui-ng); line-height: var(--ui-lh); }
+#shell .aio-fail ul { margin: var(--ui-s2) 0 0 18px; font-size: var(--ui-fs-13); line-height: var(--ui-lh); }
+#shell .aio-fail li + li { margin-top: var(--ui-s2); }
+#shell .aio-fail-fix { color: var(--ui-text); margin-top: 2px; }
+#shell .aio-fail-raw { font-size: 11px; color: var(--ui-text-3); word-break: break-all; margin-top: 2px; }
+#shell .aio-fail-acts { display: flex; flex-wrap: wrap; gap: var(--ui-s2); margin-top: var(--ui-s3); }
+#shell .aio-hide { display: none !important; }

@@ -48,6 +48,25 @@ const MAX_STEPS = 80
 // この時間、何も進んでいなければ「止まった」とみなして続きを呼び直します。
 export const STALE_MS = 3 * 60 * 1000
 
+/* サーバー側の計測の呼び出しに付ける合言葉。CRON_SECRET があればそれを、
+   無ければ管理キー（ADMIN_KEY）から作った値を使います。CRON_SECRET が
+   未設定のサイトでも「今すぐ自動で計測」と画面を開いたときの再開が動くように。
+   管理キーそのものは送りません（そこから一方向に作った値だけ）。 */
+export async function stepToken() {
+  const cron = (process.env.CRON_SECRET || '').trim()
+  if (cron) return cron
+  const admin = (process.env.ADMIN_KEY || '').trim()
+  if (!admin) return ''
+  const enc = new TextEncoder()
+  const k = await crypto.subtle.importKey('raw', enc.encode(admin), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode('aio-cron-step')))
+  return 'aio-' + [...sig].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/* サーバーで回すときの1回の回答の待ち時間。ブラウザから回すとき（18秒）より
+   長く待てるので、混み合う時間帯の「時間切れ」がほとんど無くなります。 */
+export const SERVER_ASK_TIMEOUT_MS = 30000
+
 const parse = (raw, dflt) => { try { return raw ? JSON.parse(raw) : dflt } catch (_) { return dflt } }
 
 export function cleanSettings(x) {
@@ -133,7 +152,9 @@ export async function autoStatus(cfg) {
     lastFinishedAt: state.lastFinishedAt || null,
     lastResult: state.lastResult || null,
     lastError: state.lastError || null,
+    // 毎朝の自動処理が動くか（CRON_SECRET）。無くても「今すぐ」と、画面を開いたときの開始・再開は動きます。
     cronReady: !!(process.env.CRON_SECRET || '').trim(),
+    stepReady: !!(process.env.CRON_SECRET || process.env.ADMIN_KEY || '').trim(),
   }
 }
 
@@ -240,11 +261,12 @@ export async function stepAuto(cfg, budgetMs = STEP_BUDGET_MS) {
       state.phase = 'ask'
       const doing = jobs.slice(0, PARALLEL * Math.max(1, Math.floor(budgetMs / 12000)))
       await pool(doing, PARALLEL, async (job) => {
-        if (capped || left() < ASK_TIMEOUT_MS + 1500) return
+        const wait = Math.min(SERVER_ASK_TIMEOUT_MS, Math.max(ASK_TIMEOUT_MS, budgetMs - 15000))
+        if (capped || left() < wait + 1500) return
         const over = await spendGuard('aio-ask', ASK_PER_DAY)
         if (over) { capped = '本日の上限に達したため、続きは明日の朝に再開します。'; return }
         const cont = job.p ? job.p.continuation : 0
-        const r = await askOnce(keys, job.item, job.engine, job.sample, cont, job.p ? job.p.resume : null)
+        const r = await askOnce(keys, job.item, job.engine, job.sample, cont, job.p ? job.p.resume : null, wait)
         const cmds = []
         if (r.paused) {
           cmds.push(['HSET', PEND(run.id), job.key, JSON.stringify({ continuation: cont + 1, resume: r.resume })], ['EXPIRE', PEND(run.id), 3 * 24 * 3600])
@@ -341,7 +363,7 @@ export async function stepAuto(cfg, budgetMs = STEP_BUDGET_MS) {
 /** 続きを、別の呼び出しとして始める（自分の持ち時間を越えないように）。
  *  呼ばれた側はすぐに 202 を返して、応答のあとで進めます。 */
 export async function kick(origin) {
-  const secret = (process.env.CRON_SECRET || '').trim()
+  const secret = await stepToken()
   if (!secret || !origin) return false
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), 8000)

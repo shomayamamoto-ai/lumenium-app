@@ -189,15 +189,37 @@ export function readClaudeBlocks(blocks) {
   return { text, cited: uniqueEntries(cited), searched: uniqueEntries(searched) }
 }
 
+/* 決めたモデル・ウェブ検索の版がそのアカウントで使えないとき（400/404）に
+   順に試す控え。ここで一度通った組み合わせを覚えておき、以降はそれを使います
+   （検索の続き＝pause_turn は、同じモデルで送らないと受け付けられないため）。
+   取れないまま全回答が「失敗」になり、0% と表示されていたのを避けるためです。 */
+const CLAUDE_MODELS = () => [...new Set([ENGINES.claude.model(), 'claude-sonnet-5', 'claude-opus-5-5'])]
+const SEARCH_TOOLS = ['web_search_20260209', 'web_search_20250305']
+let claudeWorking = null
+
+/** 別のモデル・検索の版で掛け直す意味がある失敗か（速く返ってくる 400/404 だけ）。 */
+function rejectedSetup(e) {
+  const status = e && (e.status || e.statusCode)
+  const msg = String((e && e.message) || '')
+  if (status === 404) return 'model'
+  if (status !== 400) return null
+  if (/credit|balance|billing/i.test(msg)) return null
+  if (/web.?search|server.?tool|tool.*type|tools\.\d/i.test(msg)) return 'tool'
+  if (/model/i.test(msg)) return 'model'
+  return null
+}
+
+/** テスト用: 覚えた組み合わせを忘れる。 */
+export function resetClaudeSetup() { claudeWorking = null }
+
 export async function askClaude(key, question, opts = {}) {
-  const model = ENGINES.claude.model()
   // Retries are ours (one question at a time, from the browser); the SDK's
   // own three would add up past the time the function has.
   const client = new Anthropic({ apiKey: key, maxRetries: 0 })
   const prior = Array.isArray(opts.resume) ? opts.resume : null
   const messages = [{ role: 'user', content: question }]
   if (prior) messages.push({ role: 'assistant', content: prior })
-  const res = await client.messages.create({
+  const send = (model, tool) => client.messages.create({
     model,
     // Room for the thinking that precedes the answer as well as the answer.
     max_tokens: 4000,
@@ -208,9 +230,33 @@ export async function askClaude(key, question, opts = {}) {
     system: SYSTEM,
     // The same three searches on a retry as on the first try. Searching less
     // on a retry made a retried answer a different measurement.
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+    tools: [{ type: tool, name: 'web_search', max_uses: 3 }],
     messages,
   }, { timeout: opts.timeoutMs || 18000 })
+
+  const tries = claudeWorking
+    ? [claudeWorking]
+    : CLAUDE_MODELS().flatMap((m) => SEARCH_TOOLS.map((t) => ({ model: m, tool: t })))
+  let res = null
+  let model = tries[0].model
+  let lastErr = null
+  for (let i = 0; i < tries.length; i++) {
+    const t = tries[i]
+    try {
+      res = await send(t.model, t.tool)
+      model = t.model
+      claudeWorking = t
+      break
+    } catch (e) {
+      lastErr = e
+      const why = rejectedSetup(e)
+      // 続き（prior）は同じモデルでしか送れない。時間切れ・キー・残高は、変えても通らない。
+      if (!why || prior || claudeWorking) throw e
+      // 検索の版が原因ならモデルはそのまま次の版へ、モデルが原因なら次のモデルへ。
+      if (why === 'model') while (i + 1 < tries.length && tries[i + 1].model === t.model) i++
+    }
+  }
+  if (!res) throw lastErr
 
   const all = [...(prior || []), ...(res.content || [])]
   const read = readClaudeBlocks(all)

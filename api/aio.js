@@ -813,12 +813,12 @@ export async function startRun(cfg, keys, opts = {}) {
 
 /** 1つの質問を1つのAIに1回聞いた結果。失敗も同じ形で返します。
  *  paused のときは resume を付けて返すので、続きは呼んだ側が送ります。 */
-export async function askOnce(keys, item, engine, sample, continuation = 0, resumeIn = null) {
+export async function askOnce(keys, item, engine, sample, continuation = 0, resumeIn = null, timeoutMs = ASK_TIMEOUT_MS) {
   const t0 = Date.now()
   let result
   try {
     const resume = engine === 'claude' && continuation > 0 && Array.isArray(resumeIn) ? resumeIn : null
-    const a = await askEngine(engine, keys[engine], item.q, { timeoutMs: ASK_TIMEOUT_MS, resume })
+    const a = await askEngine(engine, keys[engine], item.q, { timeoutMs, resume })
     result = scoreAnswer(item, a, sample)
     if (a.paused) {
       if (continuation < MAX_CONTINUATIONS) {
@@ -900,7 +900,17 @@ export async function GET(req) {
     try {
       const A = await import('./_aio-auto.js')
       auto = await A.autoStatus(cfg)
-      if (auto.running && auto.stale) auto.kicked = await A.kick(new URL(req.url).origin)
+      const origin = new URL(req.url).origin
+      if (auto.running && auto.stale) auto.kicked = await A.kick(origin)
+      /* 計測の日が来ていれば、画面を開いたときにも始めます。毎朝の自動処理
+         （CRON_SECRET が要る）が動いていないサイトでも、測り忘れないように。 */
+      else if (!auto.running && auto.settings.on && auto.nextAt && Date.parse(auto.nextAt) <= Date.now() && storeConfig()) {
+        const st = await A.startAuto(storeConfig(), 'visit')
+        if (st.ok && !st.already) {
+          await A.kick(origin)
+          auto = await A.autoStatus(cfg)
+        }
+      }
     } catch (_) { auto = null }
   }
   const meta = {
@@ -1057,9 +1067,6 @@ export async function POST(req) {
     if (action === 'auto-save') {
       await A.saveSettings(store, { on: body.on, every: body.every, samples: body.samples, engines: body.engines })
       return json({ ok: true, auto: await A.autoStatus(store) })
-    }
-    if (!(process.env.CRON_SECRET || '').trim()) {
-      return json({ ok: false, code: 'NO_CRON_SECRET', message: 'CRON_SECRET が未設定のため、自動計測を動かせません。Vercel の環境変数に入れてください。' }, 503)
     }
     const r = await A.startAuto(store, 'manual')
     if (!r.ok) return json({ ok: false, message: r.message }, 400)

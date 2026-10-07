@@ -3,7 +3,8 @@
 // 動かします。ウェブ検索つきの回答は1回に10〜30秒かかり、エッジ関数の持ち時間では
 // 1回に1つずつしか進められないためです。
 // 中身は _aio-auto.js。毎朝の自動処理（social-cron.js）と、この窓口自身
-// （続きがあるとき）から、CRON_SECRET を付けて呼ばれます。
+// （続きがあるとき）から、合言葉（CRON_SECRET、無ければ管理キーから作った値。
+// _aio-auto.js の stepToken）を付けて呼ばれます。
 // vercel.json の "crons" には入れていません（定期実行は social-cron.js にまとめています）。
 //
 // すぐに 202 を返し、計測は応答のあと（waitUntil・関数の持ち時間まで）で進めます。呼んだ側が
@@ -11,7 +12,7 @@
 
 import { json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
-import { stepAuto, kick } from './_aio-auto.js'
+import { stepAuto, kick, stepToken } from './_aio-auto.js'
 
 async function same(a, b) {
   const enc = new TextEncoder()
@@ -46,10 +47,12 @@ export async function advance(cfg, origin) {
 }
 
 export async function GET(req) {
-  const secret = (process.env.CRON_SECRET || '').trim()
-  if (!secret) return json({ ok: false, code: 'NO_CRON_SECRET', message: 'CRON_SECRET が未設定のため動きません。' }, 503)
+  const secret = await stepToken()
+  if (!secret) return json({ ok: false, code: 'NO_SECRET', message: 'CRON_SECRET も ADMIN_KEY も未設定のため動きません。' }, 503)
   const auth = req.headers.get('authorization') || ''
-  if (!(await same(auth, `Bearer ${secret}`))) return json({ ok: false, message: '認証できませんでした。' }, 401)
+  const cron = (process.env.CRON_SECRET || '').trim()
+  const okAuth = (await same(auth, `Bearer ${secret}`)) || (cron && (await same(auth, `Bearer ${cron}`)))
+  if (!okAuth) return json({ ok: false, message: '認証できませんでした。' }, 401)
   const cfg = storeConfig()
   if (!cfg) return json({ ok: false, message: '保存先（Upstash Redis）の環境変数がありません。' }, 503)
 

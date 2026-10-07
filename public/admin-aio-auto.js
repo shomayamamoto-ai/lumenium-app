@@ -91,8 +91,8 @@
     if (a.lastError && a.lastError.message) {
       body += '<p class="aio-auto-warn">' + esc(a.lastError.message) + '</p>';
     }
-    if (!a.cronReady) {
-      body += '<p class="aio-auto-warn">CRON_SECRET が未設定のため、自動計測は動きません。Vercel の環境変数に入れてください（毎朝の自動処理と同じものです）。</p>';
+    if (!a.cronReady && on) {
+      body += '<p class="aio-auto-note">毎朝9時の自動実行には、Vercel の環境変数 CRON_SECRET が要ります（未設定です）。未設定のままでも、「今すぐ自動で計測」と、計測の日にこの画面を開いたときの計測は動きます。</p>';
     }
     if (state.open) {
       body += '<div class="aio-auto-form">' +
@@ -175,6 +175,85 @@
       else paint();
     }, 20000);
   }
+
+
+  /* ---- 計測できなかった理由 ----
+     回答が取れなかったとき、これまでは「0%」のカードが並び、理由は
+     たたんだ内訳の奥にしかありませんでした。数字より先に、何が起きたかと
+     直し方を出します。理由は API が返した英文から読み取ります。 */
+  function diagnose(kind, raw) {
+    var m = String(raw || '');
+    if (/credit balance|purchase credits|billing|insufficient/i.test(m)) return {
+      cause: 'Anthropic の残高（クレジット）が足りません。',
+      fix: 'console.anthropic.com の「Billing」でクレジットを追加してください。追加すれば、そのまま計測できます。' };
+    if (/web.?search/i.test(m) && /(not enabled|disabled|enable|not allowed|organization)/i.test(m)) return {
+      cause: 'Anthropic のアカウントで、ウェブ検索がオフになっています。',
+      fix: 'console.anthropic.com の組織の設定（Settings › Privacy など）で「Web search」を有効にしてください。' };
+    if (kind === 'auth' || /x-api-key|authentication|invalid api key/i.test(m)) return {
+      cause: 'Claude のAPIキーが受け付けられませんでした。',
+      fix: '設定状況 › キーの入力 で、Claude（ANTHROPIC_API_KEY）を入れ直してください（「この画面で保存」）。' };
+    if (kind === 'rate' || /rate.?limit/i.test(m)) return {
+      cause: '短い時間に呼びすぎて、Anthropic の上限に当たりました。',
+      fix: '数分おいてから「今すぐ自動で計測」を押してください（サーバーで3件ずつ、間をあけて聞きます）。' };
+    if (kind === 'timeout') return {
+      cause: 'AIの回答が、待てる時間（18秒）を超えました。',
+      fix: '「今すぐ自動で計測」はサーバーで1回30秒まで待つので、通りやすくなります。' };
+    if (kind === 'request' && /model/i.test(m)) return {
+      cause: 'このアカウントでは使えないモデルが指定されていました。',
+      fix: '使えるモデル・検索の版へ自動で切り替えて聞き直すようにしました。もう一度計測してください。' };
+    if (kind === 'request') return {
+      cause: 'AIへの依頼の形が受け付けられませんでした（下の英文が API の返した理由です）。',
+      fix: 'モデルとウェブ検索の版を自動で切り替えて聞き直すようにしました。もう一度計測し、同じ英文が出るときはそのままお知らせください。' };
+    if (kind === 'server' || /overloaded|529|internal/i.test(m)) return {
+      cause: 'Anthropic 側で一時的な障害・混雑が起きていました。',
+      fix: '時間をおいて「今すぐ自動で計測」を押してください。' };
+    if (kind === 'network') return {
+      cause: '通信が途中で切れました。',
+      fix: 'もう一度計測すれば、ほとんどの場合は通ります。' };
+    return { cause: '原因を特定できませんでした。', fix: '「1問だけ試す」で原因を確かめられます。下の英文をそのままお知らせください。' };
+  }
+
+  window.lumAioFail = function (run) {
+    var body = el('seo-body');
+    if (!body) return;
+    var host = el('seo-fail');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'seo-fail';
+      body.insertBefore(host, body.firstChild);
+      host.addEventListener('click', function (e) {
+        var t = e.target.closest('[data-fail]');
+        if (!t) return;
+        if (t.dataset.fail === 'probe') { var p = el('seo-probe'); if (p) p.click(); }
+        if (t.dataset.fail === 'now') { var n = document.querySelector('#seo-auto [data-act="now"]'); if (n) n.click(); }
+      });
+    }
+    var s = (run && run.summary) || {};
+    var failed = s.failed || 0;
+    var none = s.asked === 0 && (s.total || 0) > 0;
+    ['seo-cards', 'seo-howto', 'seo-actions'].forEach(function (id) {
+      var x = el(id);
+      if (x) x.classList.toggle('aio-hide', none);
+    });
+    if (!failed && !none) { host.innerHTML = ''; host.hidden = true; return; }
+    host.hidden = false;
+    var title = none
+      ? 'この計測では、AIから回答を1件も取れませんでした。数字は「0%」ではなく「測れていない」状態です。'
+      : '回答 ' + (s.total || 0) + ' 回のうち ' + failed + ' 回が取れませんでした。率は取れた分だけで出しています。';
+    var rows = (s.errors || []).map(function (e) {
+      var d = diagnose(e.kind, e.sample);
+      return '<li><b>' + esc(e.label || e.kind) + '（' + e.count + '回）</b> ' + esc(d.cause) +
+        '<div class="aio-fail-fix">直し方：' + esc(d.fix) + '</div>' +
+        (e.sample ? '<div class="aio-fail-raw">API の返した理由：' + esc(String(e.sample).slice(0, 300)) + '</div>' : '') + '</li>';
+    }).join('');
+    host.className = 'aio-fail';
+    host.innerHTML = '<p class="aio-fail-title">' + esc(title) + '</p>' +
+      (rows ? '<ul>' + rows + '</ul>' : '') +
+      '<div class="aio-fail-acts">' +
+        '<button type="button" data-fail="now">今すぐ自動で計測し直す</button>' +
+        '<button type="button" class="ghost" data-fail="probe">1問だけ試して原因を確かめる</button>' +
+      '</div>';
+  };
 
   window.lumAioAuto = function (auto, meta, reload) {
     state.auto = auto || null;

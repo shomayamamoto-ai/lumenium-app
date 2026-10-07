@@ -59,6 +59,10 @@ let pauseNext = 0       // この回数ぶん、検索の途中で止まった�
 let failNext = 0        // この回数ぶん、500 を返す
 let judgeFail = false
 const kicks = []
+const kickAuth = []
+let rejectModel = null   // このモデルを 404 で断る
+let rejectTool = null    // この検索の版を 400 で断る
+const seenModels = []
 const realFetch = globalThis.fetch
 globalThis.fetch = async (input, init = {}) => {
   const u = String(input && input.url ? input.url : input)
@@ -66,7 +70,7 @@ globalThis.fetch = async (input, init = {}) => {
     const cmds = JSON.parse(init.body || '[]')
     return new Response(JSON.stringify(cmds.map((c) => ({ result: run(c) }))), { status: 200 })
   }
-  if (u.includes('/api/aio-cron')) { kicks.push(u); return new Response('{"ok":true}', { status: 202 }) }
+  if (u.includes('/api/aio-cron')) { kicks.push(u); kickAuth.push(new Headers(init.headers || {}).get('authorization')); return new Response('{"ok":true}', { status: 202 }) }
   if (u.includes('api.anthropic.com')) {
     const body = JSON.parse((init && init.body) || (input && input.body ? await input.text() : '{}'))
     const isJudge = !!(body.output_config && body.output_config.format)
@@ -78,6 +82,9 @@ globalThis.fetch = async (input, init = {}) => {
       return msg([{ type: 'text', text: JSON.stringify({ items }) }], 'end_turn')
     }
     askCalls++
+    seenModels.push(body.model + '|' + (body.tools && body.tools[0] && body.tools[0].type))
+    if (rejectModel && body.model === rejectModel) return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'model: ' + body.model } }), { status: 404, headers: { 'content-type': 'application/json' } })
+    if (rejectTool && body.tools && body.tools[0].type === rejectTool) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'tools.0: Input tag \'' + rejectTool + '\' found using \'type\' does not match any of the expected tags' } }), { status: 400, headers: { 'content-type': 'application/json' } })
     if (failNext > 0) { failNext--; return new Response(JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'overloaded' } }), { status: 500, headers: { 'content-type': 'application/json' } }) }
     if (pauseNext > 0) { pauseNext--; return msg([{ type: 'text', text: '調べています' }], 'pause_turn') }
     return msg([{ type: 'text', text: 'おすすめは Lumenium（ルメニウム）とサンプル制作株式会社です。' }], 'end_turn')
@@ -92,6 +99,7 @@ function msg(content, stop) {
 }
 
 const A = await import(new URL('../api/_aio-auto.js', import.meta.url))
+const E = await import(new URL('../api/_engines.js', import.meta.url))
 const cron = await import(new URL('../api/aio-cron.js', import.meta.url))
 const aio = await import(new URL('../api/aio.js', import.meta.url))
 const { storeConfig } = await import(new URL('../api/_analytics-store.js', import.meta.url))
@@ -261,6 +269,80 @@ await test('管理画面: 状態は GET に入り、保存と「今すぐ」は 
   const gj = await g.json()
   assert.equal(gj.meta.auto.running, true)
   assert.ok(gj.meta.auto.progress && gj.meta.auto.progress.total > 0)
+})
+
+await test('CRON_SECRET が無くても: 管理キーから作った合言葉で続きを呼び、窓口もそれを受け付ける', async () => {
+  reset(); kicks.length = 0; kickAuth.length = 0
+  const keep = process.env.CRON_SECRET
+  delete process.env.CRON_SECRET
+  try {
+    const tok = await A.stepToken()
+    assert.ok(tok.startsWith('aio-') && tok.length > 40)
+    assert.ok(!tok.includes(process.env.ADMIN_KEY), '管理キーそのものは送らない')
+    const ok = await A.kick('https://lumenium.net')
+    assert.equal(ok, true)
+    assert.equal(kickAuth[0], 'Bearer ' + tok)
+    const res = await cron.GET(new Request('https://lumenium.net/api/aio-cron', { headers: { authorization: 'Bearer ' + tok } }))
+    assert.ok(res.status === 200 || res.status === 202)
+    const bad = await cron.GET(new Request('https://lumenium.net/api/aio-cron', { headers: { authorization: 'Bearer aio-wrong' } }))
+    assert.equal(bad.status, 401)
+    const H = { authorization: 'Bearer ' + process.env.ADMIN_KEY, 'content-type': 'application/json' }
+    const now = await aio.POST(new Request('https://lumenium.net/api/aio', { method: 'POST', headers: H, body: JSON.stringify({ action: 'auto-now' }) }))
+    const nj = await now.json()
+    assert.equal(nj.ok, true, JSON.stringify(nj))
+    assert.equal(nj.auto.cronReady, false)
+    assert.equal(nj.auto.stepReady, true)
+  } finally { process.env.CRON_SECRET = keep }
+})
+
+await test('モデルが使えない（404）・検索の版が受け付けられない（400）ときは、次の組み合わせで聞き直す', async () => {
+  E.resetClaudeSetup(); seenModels.length = 0
+  rejectModel = 'claude-sonnet-5-5'
+  rejectTool = 'web_search_20260209'
+  try {
+    const a = await E.askClaude('sk-test', 'テストの質問', { timeoutMs: 5000 })
+    assert.equal(a.model, 'claude-sonnet-5')
+    assert.ok(/Lumenium/.test(a.text))
+    assert.deepEqual(seenModels, ['claude-sonnet-5-5|web_search_20260209', 'claude-sonnet-5|web_search_20260209', 'claude-sonnet-5|web_search_20250305'])
+    // 通った組み合わせを覚え、次からはそれだけで聞く
+    seenModels.length = 0
+    await E.askClaude('sk-test', 'もう1問', { timeoutMs: 5000 })
+    assert.deepEqual(seenModels, ['claude-sonnet-5|web_search_20250305'])
+  } finally { rejectModel = null; rejectTool = null; E.resetClaudeSetup() }
+})
+
+await test('残高不足などは聞き直さず、そのまま失敗として理由を残す', async () => {
+  E.resetClaudeSetup()
+  const keepFail = failNext
+  failNext = 0
+  const realBody = globalThis.fetch
+  globalThis.fetch = async (input, init = {}) => {
+    const u = String(input && input.url ? input.url : input)
+    if (u.includes('api.anthropic.com')) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }), { status: 400, headers: { 'content-type': 'application/json' } })
+    return realBody(input, init)
+  }
+  try {
+    await assert.rejects(() => E.askClaude('sk-test', 'q', { timeoutMs: 5000 }), /credit balance/)
+  } finally { globalThis.fetch = realBody; failNext = keepFail; E.resetClaudeSetup() }
+})
+
+await test('画面を開いたとき: 計測の日なら始める（毎朝の処理が動いていなくても測り忘れない）', async () => {
+  reset(); kicks.length = 0
+  const H = { authorization: 'Bearer ' + process.env.ADMIN_KEY }
+  const g = await aio.GET(new Request('https://lumenium.net/api/aio', { headers: H }))
+  const gj = await g.json()
+  assert.equal(gj.meta.auto.running, true, JSON.stringify(gj.meta.auto))
+  assert.equal(kicks.length, 1)
+  // もう一度開いても、二重には始めない
+  const g2 = await (await aio.GET(new Request('https://lumenium.net/api/aio', { headers: H }))).json()
+  assert.equal(g2.meta.auto.running, true)
+  assert.equal(kicks.length, 1)
+  // オフなら始めない
+  reset(); kicks.length = 0
+  await A.saveSettings(cfg, { on: false })
+  const g3 = await (await aio.GET(new Request('https://lumenium.net/api/aio', { headers: H }))).json()
+  assert.equal(g3.meta.auto.running, false)
+  assert.equal(kicks.length, 0)
 })
 
 globalThis.fetch = realFetch
