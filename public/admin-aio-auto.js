@@ -235,7 +235,18 @@
       var x = el(id);
       if (x) x.classList.toggle('aio-hide', none);
     });
-    if (!failed && !none) { host.innerHTML = ''; host.hidden = true; return; }
+    if (!failed && !none) {
+      // チャットで行った計測は、どう測ったかを一言添えます（数字の読み方が変わるため）。
+      if (run && run.source === 'chat') {
+        host.hidden = false;
+        host.className = 'aio-info';
+        host.innerHTML = '<p><b>この計測は、Claude のチャットがウェブ検索で各質問に答えたものです。</b>' +
+          'APIの料金はかかっていません。1問1回・AIは Claude だけなので、数字の幅（誤差）は広めです。' +
+          (run.note ? '<br><span class="aio-info-sub">' + esc(run.note) + '</span>' : '') + '</p>';
+        return;
+      }
+      host.innerHTML = ''; host.hidden = true; return;
+    }
     host.hidden = false;
     var title = none
       ? 'この計測では、AIから回答を1件も取れませんでした。数字は「0%」ではなく「測れていない」状態です。'

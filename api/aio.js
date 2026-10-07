@@ -41,6 +41,7 @@ import {
 import { ENGINES, ENGINE_IDS, engineKeys, askEngine } from './_engines.js'
 import { rate, compareRates } from './_aio-stats.js'
 import { KV, BRAND as SITE } from './_brand.js'
+import { CHAT_RUNS } from './_aio-chat-runs.js'
 
 /* 1回の回答にかけてよい時間。
    エッジ関数は最初の応答までに使える時間が決まっていて、そこを越えると
@@ -614,7 +615,7 @@ export function summarise(results, fallback, settings) {
  *  came back, which is why it can be trusted to say 「まだ分からない」 when
  *  the run did not measure enough. Counts are in questions, not in samples:
  *  the same question asked three times is still one thing to fix. */
-function buildActions(results, s, social) {
+export function buildActions(results, s, social) {
   const done = results.filter((r) => r && !r.error && r.answer && !r.truncated)
   const open = done.filter((r) => !brandedOf(r))
   const qsOf = (list) => [...new Map(list.map((r) => [r.id, r.q])).values()]
@@ -933,23 +934,31 @@ export async function GET(req) {
   // recent to find; a mention rate read without the publishing rate beside it
   // invites the wrong fix.
   const social = await socialActivity(30)
+  /* チャットで行った計測（APIの残高を使わない計測。_aio-chat-runs.js）。
+     そのサイト用に取ったものなので、同じサイトのときだけ履歴に並べます。 */
+  const chatRuns = CHAT_RUNS.filter((r) => r.site === SITE.host)
+  const byTime = (r) => Date.parse(r.finishedAt || r.startedAt || '') || 0
+
+  let stored = []
+  if (cfg) {
+    let ids = []
+    try {
+      const [raw] = await pipeline(cfg, [['LRANGE', INDEX, 0, 29]])
+      ids = Array.isArray(raw) ? raw : []
+    } catch (_) {
+      return json({ ok: false, code: 'STORE_ERROR', message: '保存先の読み取りに失敗しました。', meta }, 502)
+    }
+    if (ids.length) {
+      stored = (await pipeline(cfg, ids.map((id) => ['GET', RK(id)])))
+        .map((raw) => { try { return JSON.parse(raw) } catch (_) { return null } })
+        .filter(Boolean)
+    }
+  }
   // Without a store there is no shared history to send; the browser keeps its
   // own and draws that. The panel is otherwise fully usable.
-  if (!cfg) return json({ ok: true, meta, social, latest: null, history: [], runs: [] })
-
-  let ids = []
-  try {
-    const [raw] = await pipeline(cfg, [['LRANGE', INDEX, 0, 29]])
-    ids = Array.isArray(raw) ? raw : []
-  } catch (_) {
-    return json({ ok: false, code: 'STORE_ERROR', message: '保存先の読み取りに失敗しました。', meta }, 502)
-  }
-
-  if (!ids.length) return json({ ok: true, meta, social, latest: null, history: [] })
-
-  const runs = (await pipeline(cfg, ids.map((id) => ['GET', RK(id)])))
-    .map((raw) => { try { return JSON.parse(raw) } catch (_) { return null } })
-    .filter(Boolean)
+  const runs = stored.concat(chatRuns.filter((c) => !stored.some((r) => r.id === c.id)))
+    .sort((a, b) => byTime(b) - byTime(a))
+  if (!runs.length) return json({ ok: true, meta, social, latest: null, history: [], runs: [] })
 
   // A specific past run, when asked for. Comparing against a month ago is the
   // whole point of measuring repeatedly, and only the newest was reachable.
@@ -957,7 +966,7 @@ export async function GET(req) {
   const latest = (wanted && runs.find((r) => r.id === wanted)) || runs[0] || null
 
   // A run that never finished keeps its answers in the per-answer hash.
-  if (latest && !latest.summary) {
+  if (cfg && latest && !latest.summary) {
     const have = new Set((latest.results || []).map(keyOf))
     for (const r of await readAnswers(cfg, latest.id)) if (!have.has(keyOf(r))) (latest.results = latest.results || []).push(r)
   }
@@ -1011,6 +1020,7 @@ export async function GET(req) {
     id: r.id,
     finishedAt: r.finishedAt,
     auto: !!r.auto,
+    source: r.source || (r.auto ? 'auto' : 'manual'),
     mentionRate: r.summary.mentionRate,
     openMentionRate: r.summary.openMentionRate,
     recommendRate: r.summary.recommendRate,

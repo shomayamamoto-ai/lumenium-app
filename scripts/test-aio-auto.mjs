@@ -345,6 +345,24 @@ await test('画面を開いたとき: 計測の日なら始める（毎朝の処
   assert.equal(kicks.length, 0)
 })
 
+await test('チャットで行った計測（APIの残高を使わない計測）が、計測の履歴と最新の結果に並ぶ', async () => {
+  reset()
+  await A.saveSettings(cfg, { on: false })
+  const H = { authorization: 'Bearer ' + process.env.ADMIN_KEY }
+  const j = await (await aio.GET(new Request('https://lumenium.net/api/aio', { headers: H }))).json()
+  assert.equal(j.ok, true)
+  assert.ok(j.latest && j.latest.source === 'chat', JSON.stringify(j.latest && j.latest.id))
+  assert.equal(j.latest.summary.total, 28)
+  assert.ok(j.runs.some((r) => r.source === 'chat'))
+  // 保存先の計測と並ぶ（新しい順）
+  const st = await A.startAuto(cfg, 'manual')
+  assert.equal(st.ok, true)
+  const j2 = await (await aio.GET(new Request('https://lumenium.net/api/aio', { headers: H }))).json()
+  assert.equal(j2.latest.id, st.runId, '新しい計測が先頭')
+  const j3 = await (await aio.GET(new Request('https://lumenium.net/api/aio?run=' + j.latest.id, { headers: H }))).json()
+  assert.equal(j3.latest.source, 'chat', '選べば見られる')
+})
+
 globalThis.fetch = realFetch
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

@@ -5695,7 +5695,7 @@ window.lumAdmin = {
     if (list.length > 1) {
       sel.innerHTML = list.map(function (r) {
         return '<option value="' + r.id + '">' + new Date(r.finishedAt).toLocaleDateString('ja-JP') +
-          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%' + (r.auto ? '・自動' : '') + '）</option>';
+          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%' + (r.source === 'chat' ? '・チャット' : r.auto ? '・自動' : '') + '）</option>';
       }).join('');
       if (data.latest) sel.value = data.latest.id;
       sel.style.display = 'inline-block';
