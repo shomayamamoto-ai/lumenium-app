@@ -11002,13 +11002,16 @@ body { color: var(--lp-ink); }
 /* 作ってきたシステム（9件）。カードは3列→2列→1列。誰が入れたか（お客様像）を
    名前の直下に置き、「何ができるか」の前に「自分と同じ立場か」が分かるように。 */
 .lp-sys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.lp-sys-card { display: flex; flex-direction: column; background: var(--lp-card); border: 1px solid var(--lp-line); border-radius: 8px; padding: 22px 22px 18px; min-width: 0; }
-.lp-sys-tag { align-self: flex-start; font-size: 12px; color: var(--lp-ink-2); border: 1px solid var(--lp-line); border-radius: 4px; padding: 2px 8px; margin: 0 0 10px; }
+/* 同じ行のカードで、名前・お客様・本文・ボタンの高さをそろえます（subgrid）。
+   名前が1行のカードと2行のカードが並ぶと、下の「導入したお客様」と本文が
+   ずれていました。 */
+.lp-sys-card { display: grid; grid-template-rows: subgrid; grid-row: span 5; row-gap: 0; align-content: start; background: var(--lp-card); border: 1px solid var(--lp-line); border-radius: 8px; padding: 22px 22px 18px; min-width: 0; }
+.lp-sys-tag { justify-self: start; align-self: start; font-size: 12px; color: var(--lp-ink-2); border: 1px solid var(--lp-line); border-radius: 4px; padding: 2px 8px; margin: 0 0 10px; }
 .lp-sys-name { font-family: var(--lp-serif); font-weight: 700; font-size: 18px; line-height: 1.5; margin: 0 0 10px; }
-.lp-sys-who { font-size: 13px; line-height: 1.7; color: var(--lp-ink); background: var(--lp-paper-2); border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; }
+.lp-sys-who { align-self: start; font-size: 13px; line-height: 1.7; color: var(--lp-ink); background: var(--lp-paper-2); border-radius: 6px; padding: 8px 10px; margin: 0 0 10px; }
 .lp-sys-who span { display: block; font-size: 11px; font-weight: 700; color: var(--lp-ink-3); letter-spacing: .04em; }
 .lp-sys-desc { font-size: 14px; line-height: 1.85; color: var(--lp-ink-2); margin: 0 0 14px; }
-.lp-sys-acts { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.lp-sys-acts { align-self: end; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .lp-sys-more { font-size: 13px; font-weight: 600; color: var(--lp-ink-2) !important; text-decoration: none; border-bottom: 1px solid var(--lp-line); }
 .lp-sys-ask { display: inline-block; font-size: 13px; font-weight: 700; color: #fff !important; background: var(--lp-accent); border: 1px solid var(--lp-accent); border-radius: 6px; padding: 8px 12px; text-decoration: none; }
 .lp-sys-ask:hover { background: var(--lp-accent-2); border-color: var(--lp-accent-2); }

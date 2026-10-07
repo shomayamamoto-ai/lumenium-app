@@ -170,7 +170,7 @@ export default function Landing({ onPrivacy }) {
             {SYSTEMS.map((sys) => (
               <article key={sys.id} className="lp-sys-card">
                 <p className="lp-sys-tag">{sys.tag}</p>
-                <h3 className="lp-sys-name">{sys.name}</h3>
+                <h3 className="lp-sys-name">{rich(sys.name)}</h3>
                 <p className="lp-sys-who"><span>{SECTION.lp.systemsWho}</span>{sys.who}</p>
                 <p className="lp-sys-desc">{rich(sys.short)}</p>
                 <div className="lp-sys-acts">

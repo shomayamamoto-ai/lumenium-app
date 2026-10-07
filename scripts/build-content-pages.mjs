@@ -856,7 +856,7 @@ const TOPIC_PAGES = [
         '@type': 'ListItem', position: i + 1,
         item: {
           '@type': 'Service',
-          name: x.name,
+          name: x.name.replace(/\n/g, ''),
           description: x.short,
           provider: { '@id': `${SITE}/#organization` },
           url: `${SITE}/systems.html#${x.id}`,
@@ -867,10 +867,10 @@ const TOPIC_PAGES = [
     <h2>どんなシステムを作れますか？</h2>
     <p>業種を問わず、お客様の業務の流れに合わせたシステムを作ります。下は、これまでのシステム制作実績を、導入したお客様の例と一緒にまとめたものです。似た困りごとがあれば、そのまま「このシステムについて相談する」からご連絡ください。ITに詳しくなくても大丈夫です。</p>
     <ul>
-      ${SYSTEMS.map((x) => `<li><a href="#${esc(x.id)}">${esc(x.name)}</a>（${esc(x.tag)}）</li>`).join('\n      ')}
+      ${SYSTEMS.map((x) => `<li><a href="#${esc(x.id)}">${esc(x.name.replace(/\n/g, ''))}</a>（${esc(x.tag)}）</li>`).join('\n      ')}
     </ul>
     ${SYSTEMS.map((x) => `
-    <h2 id="${esc(x.id)}">${esc(x.name)}</h2>
+    <h2 id="${esc(x.id)}">${esc(x.name.replace(/\n/g, ''))}</h2>
     <p class="note">${esc(x.tag)}</p>
     <p>${esc(x.short)}</p>
     <h3>${esc(SECTION.lp.systemsWho)}</h3>
