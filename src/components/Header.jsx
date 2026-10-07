@@ -9,7 +9,7 @@ import Wordmark from './Wordmark'
  * 会社概要、それに相談ボタンだけにしています。ほかのページはフッターから。
  */
 const LINKS = [
-  { label: 'できること', href: '#services' },
+  { label: '事業内容', href: '#services' },
   { label: 'システム制作実績', href: '#systems' },
   { label: '実績', href: '#works' },
   { label: 'ご依頼の流れ', href: '#flow' },

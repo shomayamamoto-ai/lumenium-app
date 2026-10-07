@@ -14,7 +14,7 @@ import { SECTION } from '../src/data/text.js'
 // content exactly as they do; only the frame around it changes.
 
 const NAV = [
-  ['/#services', 'できること'],
+  ['/#services', '事業内容'],
   ['/systems.html', 'システム制作実績'],
   ['/works.html', '実績'],
   ['/flow.html', 'ご依頼の流れ'],

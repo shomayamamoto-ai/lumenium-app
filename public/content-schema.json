@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T12:24:12.196Z",
+  "generatedAt": "2026-10-07T12:30:54.918Z",
   "count": 405,
   "groups": [
     {
@@ -36,7 +36,7 @@
         },
         {
           "path": "text.lp.servicesTitle",
-          "value": "できること"
+          "value": "事業内容"
         },
         {
           "path": "text.lp.servicesLead",
