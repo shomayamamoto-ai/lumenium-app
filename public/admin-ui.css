@@ -457,6 +457,37 @@ body #lum-demo-bar button, body #lum-demo-bar select {
 }
 body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 
+/* ---- 広い画面：見本（オーナー指定）に合わせて、左のメニューを画面の
+   一番上から置き、その頭にロゴ・会社名・札を出します。上の帯は右側だけ
+   （ログイン中の人・ヘルプ・サイト・ログアウト）になります。
+   ログイン前（メニューが無い画面）は、上の帯にロゴを残します。 ---- */
+@media (min-width: 1024px) {
+  body.is-in .ui-side {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+    width: var(--ui-side-w); height: 100dvh;
+  }
+  body.is-in .shell-main { grid-column: 2; }
+  body.is-in .ui-top { padding-left: calc(var(--ui-side-w) + var(--ui-s5)); }
+  body.is-in .ui-top .ui-brand { display: none; }
+  /* 「サイトを見る」「ログアウト」は左のメニューの下にあるので、上では出しません（見本と同じ）。 */
+  body.is-in .ui-top #site-link, body.is-in .ui-top #sign-out { display: none !important; }
+  body.is-in #lum-demo-bar { padding-left: calc(var(--ui-side-w) + var(--ui-s5)); }
+  body.is-in .ui-side-brand {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: var(--ui-s3) var(--ui-s3) var(--ui-s4); margin-bottom: var(--ui-s2);
+    border-bottom: 1px solid var(--ui-border); text-align: center;
+  }
+  body.is-in .ui-side-brand .ui-brand-mark { width: 44px; height: 44px; font-size: 18px; }
+  body.is-in .ui-side-name { font-size: var(--ui-fs-16); font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+  body.is-in .ui-side-pill {
+    display: inline-block; padding: 2px 10px; border-radius: var(--ui-r-pill);
+    border: 1px solid var(--ui-border-strong); background: var(--ui-surface);
+    font-size: 11px; font-weight: 700; color: var(--ui-text-2);
+  }
+  body.is-in .ui-side-close { display: none; }
+  body.is-in .ui-side-foot { display: grid; gap: 6px; margin-top: var(--ui-s4); padding-top: var(--ui-s3); border-top: 1px solid var(--ui-border); }
+}
+
 /* ---- 狭い画面：引き出し ---- */
 @media (max-width: 1023px) {
   .ui-top { padding: 0 var(--ui-s3) 0 var(--ui-s4); }
