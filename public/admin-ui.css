@@ -654,3 +654,42 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   #shell button:not(.linkish):not(.bk-ev):not(.ui-more):not(.d):not(.env-copy), #shell select { min-height: var(--ui-touch); }
   #shell .nq-row[role="tablist"] .nq-chip, #shell .spl-tabs button { min-height: 40px; }
 }
+
+/* ---- 長い画面の中の切り替え（/admin-subtabs.js） ----
+   画面の上で「この画面には何があるか」を見せ、選んだまとまりだけを出します。
+   下線のタブは画面の大きな区切り、chips はその中の小さな区切りです。 */
+#shell .ui-subtabs {
+  display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+  margin: 0 0 var(--ui-s5); border-bottom: 1px solid var(--ui-border);
+}
+#shell .ui-subtabs::-webkit-scrollbar { display: none; }
+#shell .ui-subtabs[hidden] { display: none; }
+#shell .ui-subtabs > button {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 14px; margin-bottom: -1px;
+  background: transparent; color: var(--ui-text-2);
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0; box-shadow: none;
+  font-size: var(--ui-fs-14); font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+#shell .ui-subtabs > button:hover:not(:disabled) { color: var(--ui-text); background: transparent; filter: none; }
+#shell .ui-subtabs > button[aria-selected="true"] { color: var(--ui-text); border-bottom-color: var(--ui-accent); font-weight: 700; }
+#shell .ui-subtabs.chips {
+  flex-wrap: wrap; gap: 6px; border-bottom: 0; margin: var(--ui-s2) 0 var(--ui-s4); overflow: visible;
+}
+#shell .ui-subtabs.chips > button {
+  min-height: 36px; padding: 0 12px; margin: 0;
+  border: 1px solid var(--ui-border); border-radius: var(--ui-r-pill); background: var(--ui-surface);
+  font-size: var(--ui-fs-13);
+}
+#shell .ui-subtabs.chips > button[aria-selected="true"] { background: var(--ui-accent-weak); border-color: var(--ui-accent-line); color: var(--ui-accent); }
+#shell .ui-subtab-badge {
+  display: inline-block; padding: 1px 7px; border-radius: var(--ui-r-pill);
+  background: var(--ui-surface-3); color: var(--ui-text-2); font-size: 11px; font-weight: 700; line-height: 1.6;
+}
+#shell .ui-subtab-badge.ok { background: var(--ui-ok-bg); color: var(--ui-ok); }
+#shell .ui-subtab-badge.warn { background: var(--ui-warn-bg); color: var(--ui-warn); }
+#shell .ui-subtab-badge.ng { background: var(--ui-ng-bg); color: var(--ui-ng); }
+#shell .ui-sub-off { display: none !important; }
+@media (max-width: 640px) {
+  #shell .ui-subtabs > button { padding: 0 11px; font-size: var(--ui-fs-13); }
+}

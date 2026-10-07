@@ -133,14 +133,47 @@
     root.dataset.ready = '1';
     addCss();
     root.innerHTML =
-      '<div class="spl-tabs" role="group" aria-label="表示の切り替え">' +
-        '<button type="button" id="spl-to-compose" aria-pressed="true">投稿する</button>' +
-        '<button type="button" id="spl-to-plan" aria-pressed="false">運用プラン</button>' +
-      '</div>' +
       '<div id="spl-view" style="display:none"><p class="msg" id="spl-msg" style="margin-bottom:10px"></p><div id="spl-body"></div></div>';
-    el('spl-to-compose').addEventListener('click', function () { setView('compose'); });
-    el('spl-to-plan').addEventListener('click', function () { setView('plan'); });
+    tabsSetup(root);
     composerAddon();
+  }
+
+  /* 画面の中の切り替え。投稿欄の下に予約・承認・コメント・成果・リンク集が
+     縦に積まれて 6000px 近くあったので、まとまりごとのタブに分けます。
+     運用プランもその並びの1つです。 */
+  var T = null;
+  function tabsSetup(root) {
+    var panel = el('social-admin');
+    var headOf = function (id) {
+      return function () { var x = el(id); return x && x.previousElementSibling && x.previousElementSibling.tagName === 'H3' ? x.previousElementSibling : x; };
+    };
+    if (!window.lumSubtabs || !panel) {
+      // 部品が読めなかったときは、これまでの2つの切り替えだけを出します。
+      root.insertAdjacentHTML('afterbegin',
+        '<div class="spl-tabs" role="group" aria-label="表示の切り替え">' +
+          '<button type="button" id="spl-to-compose" aria-pressed="true">投稿する</button>' +
+          '<button type="button" id="spl-to-plan" aria-pressed="false">運用プラン</button>' +
+        '</div>');
+      el('spl-to-compose').addEventListener('click', function () { setView('compose'); });
+      el('spl-to-plan').addEventListener('click', function () { setView('plan'); });
+      return;
+    }
+    T = window.lumSubtabs({
+      id: 'social',
+      root: panel,
+      label: 'SNS（文章）の表示の切り替え',
+      tabs: [
+        { key: 'compose', id: 'spl-to-compose', label: '投稿する', from: '#social-compose' },
+        { key: 'queue', label: '予約・承認', from: headOf('social-queue') },
+        { key: 'inbox', label: 'コメント', from: headOf('social-inbox') },
+        { key: 'results', label: 'カレンダー・成果', from: headOf('social-cal') },
+        { key: 'links', label: 'リンク集', from: headOf('social-links') },
+        { key: 'plan', id: 'spl-to-plan', label: '運用プラン' },
+      ],
+      place: function (bar) { root.parentNode.insertBefore(bar, root); },
+      onChange: function (k) { setView(k === 'plan' ? 'plan' : 'compose'); },
+    });
+    if (T.current() === 'plan') setView('plan');
   }
 
   function setView(v) {
@@ -148,8 +181,13 @@
     var root = el('social-plan-root');
     var panel = el('social-admin');
     if (!root || !panel) return;
-    el('spl-to-compose').setAttribute('aria-pressed', v === 'compose' ? 'true' : 'false');
-    el('spl-to-plan').setAttribute('aria-pressed', v === 'plan' ? 'true' : 'false');
+    if (T) {
+      if (v === 'plan' && T.current() !== 'plan') T.select('plan', true);
+      else if (v !== 'plan' && T.current() === 'plan') T.select('compose', true);
+    } else {
+      el('spl-to-compose').setAttribute('aria-pressed', v === 'compose' ? 'true' : 'false');
+      el('spl-to-plan').setAttribute('aria-pressed', v === 'plan' ? 'true' : 'false');
+    }
     el('spl-view').style.display = v === 'plan' ? 'block' : 'none';
     // 運用プランを見ている間は、投稿欄から下を隠します（消しはしません）。
     var after = false;

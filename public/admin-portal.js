@@ -130,13 +130,13 @@
       out.push({ id: 'sns-failed', level: 'urgent', tab: 'social-admin', count: failed, unit: '件',
         title: '送れなかったSNS投稿（ここ7日）',
         why: '相手のサービスが受け付けませんでした。理由を確かめて、必要なら送り直してください。',
-        go: { label: 'SNSの記録を見る' } });
+        go: { label: 'SNSの記録を見る', el: 'social-log' } });
     }
     if (unknown) {
       out.push({ id: 'sns-unknown', level: 'action', tab: 'social-admin', count: unknown, unit: '件',
         title: '届いたか分からないSNS投稿（ここ7日）',
         why: '途中で通信が切れ、結果を受け取れませんでした。二重に出さないよう、先にSNSの画面で確かめてください。',
-        go: { label: 'SNSの記録を見る' } });
+        go: { label: 'SNSの記録を見る', el: 'social-log' } });
     }
     var sch = d.schedule || {}, today = jstDay(now);
     var items = (sch.items || []).filter(function (i) { return i.date === today; });
@@ -147,13 +147,13 @@
         out.push({ id: 'sns-today', level: 'urgent', tab: 'social-admin', count: items.length, unit: '件',
           title: '今日の予約投稿が送られない状態です',
           why: sch.message || '予約投稿を送る仕組みが止まっています。',
-          go: { label: '予約投稿を見る' } });
+          go: { label: '予約投稿を見る', el: 'social-queue' } });
       } else {
         out.push({ id: 'sns-today', level: nowH > hour ? 'action' : 'today', tab: 'social-admin', count: items.length, unit: '件',
           title: '今日の予約投稿',
           why: nowH > hour ? '今朝' + hour + '時に送られるはずの分が、まだ残っています。記録を確かめてください。'
             : '今朝' + hour + '時ごろに自動で送られます。',
-          go: { label: '予約投稿を見る' } });
+          go: { label: '予約投稿を見る', el: 'social-queue' } });
       }
     }
     var ap = (d.approvals || []).filter(function (a) { return !a.expired; });
@@ -164,19 +164,19 @@
       out.push({ id: 'sns-approved', level: 'action', tab: 'social-admin', count: approved.length, unit: '件',
         title: '承認されたのに、まだ出していない投稿',
         why: '確認がすみました。「今すぐ送る」か「予約」で出せます。',
-        go: { label: '承認の一覧を見る' } });
+        go: { label: '承認の一覧を見る', el: 'social-approvals' } });
     }
     if (returned.length) {
       out.push({ id: 'sns-returned', level: 'action', tab: 'social-admin', count: returned.length, unit: '件',
         title: '差し戻された投稿',
         why: '直してほしい点が書かれています。直して、もう一度確認を頼んでください。',
-        go: { label: '承認の一覧を見る' } });
+        go: { label: '承認の一覧を見る', el: 'social-approvals' } });
     }
     if (pending.length) {
       out.push({ id: 'sns-pending', level: 'fyi', tab: 'social-admin', count: pending.length, unit: '件',
         title: '承認待ちの投稿',
         why: '確認をお願いした相手の返事を待っています。',
-        go: { label: '承認の一覧を見る' } });
+        go: { label: '承認の一覧を見る', el: 'social-approvals' } });
     }
     return out;
   }
@@ -217,7 +217,7 @@
     return [{ id: 'health-error', level: 'urgent', tab: 'health-admin', count: bad.length, unit: '件',
       title: '止まっている機能があります',
       why: bad.slice(0, 3).map(function (c) { return c.label; }).join('・') + (bad.length > 3 ? ' ほか' : '') + 'が動いていません。',
-      go: { label: '設定状況を見る' } }];
+      go: { label: '設定状況を見る', el: 'health-body' } }];
   }
 
   function deployRows(s) {
@@ -226,7 +226,7 @@
     return [{ id: 'deploy-failed', level: 'urgent', tab: 'health-admin', count: 1, unit: '',
       title: 'サイトの更新（ビルド）が失敗しています',
       why: '保存したお知らせや文章が、まだサイトに出ていません。サイトの制作担当に連絡してください。',
-      go: url ? { label: '詳しい状況を開く', href: url } : { label: '設定状況を見る' } }];
+      go: url ? { label: '詳しい状況を開く', href: url } : { label: '設定状況を見る', el: 'health-body' } }];
   }
 
   function analyticsRows(s) {
@@ -628,6 +628,13 @@
     if (window.lumShowTab) window.lumShowTab(row.tab);
     if (row.id === 'advisor-todo' && window.lumAdvisorView) window.lumAdvisorView('todo');
     window.scrollTo(0, 0);
+    // 長い画面は中で切り替わっているので、その行の中身があるところを開きます。
+    if (g.el) {
+      setTimeout(function () {
+        var t = el(g.el);
+        if (t && window.lumSubtabs) window.lumSubtabs.reveal(t);
+      }, 60);
+    }
   }
 
   function rowHtml(r, i) {
