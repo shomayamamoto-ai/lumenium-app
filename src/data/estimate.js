@@ -129,7 +129,7 @@ export const ESTIMATE = [
   },
   {
     id: 'web',
-    title: 'Web制作・システム開発',
+    title: 'システム開発・ホームページ制作',
     base: 300000,
     unitNote: '一式',
     steps: [

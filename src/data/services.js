@@ -1,25 +1,25 @@
 // Service cards — copy only. Services.jsx pairs each entry with its icon
 // by id, so every sentence here is editable from the admin page.
-// Order is the order of importance: Web制作・システム開発 and AI研修 are the
+// Order is the order of importance: システム開発・ホームページ制作 and AI研修 are the
 // main lines; the rest are offered too, listed after them.
 export const SERVICES = [
   {
     id: 'web',
-    title: 'Web制作・システム開発',
-    desc: 'コーポレートサイト・LPの制作から、業務システム・Webアプリの開発まで。公開後も自分たちで更新・分析できる管理画面をお付けできます。',
-    tags: ['HP制作', 'LP', 'システム開発'],
+    title: 'システム開発・ホームページ制作',
+    desc: '予約・在庫・契約書・営業リストなど、手作業で回している仕事を仕組みにする**業務効率化システム**の開発と、ホームページ制作。公開後も自分たちで更新・分析できる管理画面をお付けできます。',
+    tags: ['業務効率化', 'システム開発', 'HP制作'],
     highlights: [
-      '古いHPをリニューアルしたい方',
+      '紙やExcel、電話で回している業務を効率化したい方',
+      '予約・在庫・顧客の管理を1つの仕組みにまとめたい方',
       '公開後の更新や分析を自分たちで行いたい方',
-      'キャンペーン用のLPを短納期で作りたい方',
-      '業務効率化のための社内ツールを開発したい方',
+      '古いホームページをリニューアルしたい方',
     ],
     examples: [
+      '業務効率化システムの開発',
+      '予約・在庫・契約書などの管理システム',
       '企業ホームページ制作',
-      '業務システム開発',
-      'スマートフォンアプリ',
     ],
-    price: 'LP 30万円〜 / サイト 60万円〜',
+    price: 'システムはお見積り / サイト 60万円〜 / LP 30万円〜',
   },
   {
     id: 'ai',

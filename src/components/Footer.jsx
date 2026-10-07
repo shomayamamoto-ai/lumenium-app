@@ -29,7 +29,7 @@ export default function Footer({ onPrivacy }) {
           <div className="footer-links">
             <div className="footer-col">
               <h4><span>サービス</span></h4>
-              <a href="/services/web.html">Web制作・システム開発</a>
+              <a href="/services/web.html">システム開発・ホームページ制作</a>
               <a href="/services/ai.html">AI研修・AI導入支援</a>
               <a href="/services/video.html">動画制作・映像編集</a>
               <a href="/services/sns.html">SNS運用・LINE構築</a>

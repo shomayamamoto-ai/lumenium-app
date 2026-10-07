@@ -66,7 +66,7 @@ function askAbout(id) {
 }
 
 export default function Landing({ onPrivacy }) {
-  // 中心の2つ（Web制作・システム開発、AI研修）は内容まで見せ、ほかは一覧で。
+  // 中心の2つ（システム開発・ホームページ制作、AI研修）は内容まで見せ、ほかは一覧で。
   const MAIN = ['web', 'ai']
   const main = SERVICES.filter((s) => MAIN.includes(s.id))
   const other = SERVICES.filter((s) => !MAIN.includes(s.id))
