@@ -92,8 +92,8 @@
     "date": "2026-10-07"
   },
   "/news.html": {
-    "hash": "637e405afb4002bb",
-    "date": "2026-10-05"
+    "hash": "bf8673a118de0b87",
+    "date": "2026-10-07"
   },
   "/news/n-20260821-01.html": {
     "hash": "04d13dfd4a52da63",
@@ -102,6 +102,10 @@
   "/news/n-20260928-01.html": {
     "hash": "6bb6a42a2d1522d2",
     "date": "2026-09-28"
+  },
+  "/news/n-20261005-3427.html": {
+    "hash": "a637e59a77f03c02",
+    "date": "2026-10-05"
   },
   "/onestop.html": {
     "hash": "2be3b0fbb299cd76",
