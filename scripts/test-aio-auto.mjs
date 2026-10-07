@@ -204,7 +204,7 @@ await test('検索の途中で止まった回答は続きから。失敗は掛�
   assert.equal(run.results.filter((x) => x.error).length, 0, '掛け直して取れている')
   assert.equal(new Set(run.results.map((x) => x.key)).size, qs)
   assert.equal(askCalls, qs + 2 + 2, '続き2回・掛け直し2回のぶんだけ多い')
-  assert.equal(hashes.has(`aio:pend:${st.runId}`), false, '続きの控えは片付いている')
+  assert.equal(hashes.has(`lum:aio:pend:${st.runId}`), false, '続きの控えは片付いている')
 })
 
 await test('判定がずっと失敗しても、止まらずに「名前が出たか」で集計して閉じる', async () => {
@@ -224,8 +224,16 @@ await test('同時に2つの呼び出しが来ても、片方は待つ（ロッ�
   reset()
   await A.saveSettings(cfg, { samples: 1 })
   await A.startAuto(cfg, 'manual')
-  const [a, b] = await Promise.all([A.stepAuto(cfg, 60000), A.stepAuto(cfg, 60000)])
-  assert.ok(a.busy || b.busy, JSON.stringify([a, b]))
+  // 別の呼び出しが進めている最中（ロックが掛かっている）なら、手を出さずに返る。
+  str.set('lum:aio:auto:lock', 'someone-else')
+  const a = await A.stepAuto(cfg, 60000)
+  assert.equal(a.busy, true, JSON.stringify(a))
+  assert.equal(askCalls > 0 && hashes.size > 0 && [...hashes.keys()].some((k) => k.startsWith('lum:aio:res:')), false, '何も聞いていない')
+  // 自分のものでないロックは外さない
+  assert.equal(str.get('lum:aio:auto:lock'), 'someone-else')
+  str.delete('lum:aio:auto:lock')
+  const b = await A.stepAuto(cfg, 60000)
+  assert.ok(!b.busy, JSON.stringify(b))
 })
 
 await test('キーが無ければ始めず、理由を残す', async () => {

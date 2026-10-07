@@ -70,9 +70,11 @@ const runs = files.map((f) => {
     judgeModel: MODEL,
   }
   const summary = summarise(results, false, settings)
+  // 同じ日に何回か測っても別の計測になるよう、日本時間の時刻まで入れます。
   const day = src.measuredAt.slice(0, 10)
+  const hm = src.measuredAt.slice(11, 16).replace(':', '')
   return {
-    id: `${day}-chat`,
+    id: `${day}-${hm}-chat`,
     source: 'chat',
     site: 'lumenium.net',
     note: src.note,
