@@ -1,11 +1,11 @@
 // Service cards — copy only. Services.jsx pairs each entry with its icon
 // by id, so every sentence here is editable from the admin page.
-// Order is the order of importance: システム開発・ホームページ制作 and AI研修 are the
+// Order is the order of importance: システム開発・HP制作 and AI研修 are the
 // main lines; the rest are offered too, listed after them.
 export const SERVICES = [
   {
     id: 'web',
-    title: 'システム開発・ホームページ制作',
+    title: 'システム開発・HP制作',
     desc: '予約・在庫・契約書・営業リストなど、手作業で回している仕事を仕組みにする**業務効率化システム**の開発と、ホームページ制作。公開後も自分たちで更新・分析できる管理画面をお付けできます。',
     tags: ['業務効率化', 'システム開発', 'HP制作'],
     highlights: [
