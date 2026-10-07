@@ -469,6 +469,11 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   body.is-in .shell-main { grid-column: 2; }
   body.is-in .ui-top { padding-left: calc(var(--ui-side-w) + var(--ui-s5)); }
   body.is-in .ui-top .ui-brand { display: none; }
+  /* 上の帯は、広い画面では出しません。ロゴ・ログイン中の人は左のメニューの頭に、
+     「説明」は各画面の見出しの右に、サイト・ログアウトはメニューの下にあります。
+     中身だけの帯が画面の上を占めていたので、その分を本文に回します。 */
+  body.is-in { --ui-top-h: 0px; }
+  body.is-in .ui-top { display: none; }
   /* 「サイトを見る」「ログアウト」は左のメニューの下にあるので、上では出しません（見本と同じ）。 */
   body.is-in .ui-top #site-link, body.is-in .ui-top #sign-out { display: none !important; }
   body.is-in #lum-demo-bar { padding-left: calc(var(--ui-side-w) + var(--ui-s5)); }

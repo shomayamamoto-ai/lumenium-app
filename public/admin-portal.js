@@ -456,7 +456,17 @@
   }
 
   var CSS =
-    '.lp-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px}' +
+    '.lp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 18px}' +
+    '.lp-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);cursor:pointer;font:inherit;min-width:0}' +
+    '.lp-kpi:hover{border-color:#3d3fbf;filter:none;background:#fff}' +
+    '.lp-kpi-l{font-size:12px;font-weight:700;color:var(--sub)}' +
+    '.lp-kpi-v{font-size:26px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}' +
+    '.lp-kpi-s{font-size:12px;color:var(--sub)}' +
+    '.lp-kpi.warn .lp-kpi-s{color:#b45309;font-weight:700}' +
+    '.lp-more{margin-top:8px;padding:8px 14px;font-size:12.5px;border-radius:999px;background:#fff;color:#3d3fbf;border:1px solid #c9c8ef;font-weight:700}' +
+    '.lp-more:hover{background:#f5f5ff;filter:none}' +
+    '@media (max-width:900px){.lp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+        '.lp-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px}' +
     '.lp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}' +
     '.lp-head h2{font-size:16px;font-weight:800;margin-right:auto}' +
     '.lp-when{font-size:12px;color:var(--sub)}' +
@@ -475,6 +485,9 @@
     '.lp-what b{display:block;font-size:14px;line-height:1.5}' +
     '.lp-what span{display:block;font-size:12.5px;color:var(--sub);line-height:1.7}' +
     '.lp-row button,.lp-row a.lp-go{padding:9px 14px;font-size:12.5px;white-space:nowrap}' +
+    /* 行のボタンは、至急の行だけ塗りつぶし。ほかは白地に藍の文字（濃い青が10個並ぶと、どれが大事か分からないため）。 */
+    '.lp-row:not(.urgent) button,.lp-row:not(.urgent) a.lp-go{background:#fff;color:#3d3fbf;border:1px solid #c9c8ef;box-shadow:none}' +
+    '.lp-row:not(.urgent) button:hover,.lp-row:not(.urgent) a.lp-go:hover{background:#f5f5ff;filter:none}' +
     '.lp-row a.lp-go{display:inline-block;border-radius:10px;background:var(--grad);color:#fff;font-weight:700;text-decoration:none}' +
     '.lp-empty{font-size:14px;font-weight:700;padding:14px 12px;border:1px dashed var(--border);border-radius:10px;background:#faf9f6}' +
     '.lp-empty small{display:block;font-size:12px;font-weight:400;color:var(--sub);margin-top:2px}' +
@@ -561,7 +574,8 @@
     ['settings', '/api/settings'],
     ['deploy', '/api/deploy-status?latest=1'],
     ['analytics', '/api/analytics?days=7'],
-    ['advisor', '/api/advisor-store?view=todos']
+    ['advisor', '/api/advisor-store?view=todos'],
+    ['reviews', '/api/reviews?view=badge']
   ];
 
   function within(p, ms) {
@@ -626,6 +640,53 @@
       '<div class="lp-what"><b>' + esc(r.title) + '</b><span>' + esc(r.why) + '</span></div>' + btn + '</li>';
   }
 
+  /* ---- 今週の数字（ホームのいちばん上） ----
+     やることの一覧より先に、「いまの調子」が一目で分かる4つの数字を並べます。
+     どれも読み込んだデータからの計算で、読めなかったものは「—」にします。 */
+  function kpis(src, now) {
+    var out = [];
+    var a = ok(src.analytics) && src.analytics.data.summary ? src.analytics.data.summary : null;
+    var cur = a && a.cur, prev = a && a.prev;
+    var delta = function (k) {
+      if (!cur || !prev || !num(prev[k])) return '';
+      var d = Math.round(((num(cur[k]) - num(prev[k])) / num(prev[k])) * 100);
+      return d === 0 ? '前週と同じ' : '前週より ' + (d > 0 ? '+' : '') + d + '%';
+    };
+    var vk = cur && num(cur.visits) ? 'visits' : 'views';
+    out.push({ label: 'サイトの訪問（7日）', value: cur ? num(cur[vk]).toLocaleString('ja-JP') : '—', sub: delta(vk), tab: 'stats-admin' });
+    var inq = ok(src.inquiries) && src.inquiries.data.metrics ? src.inquiries.data.metrics : null;
+    var unread = inq && inq.counts ? num(inq.counts.unread) : null;
+    out.push({ label: '問い合わせ（7日）', value: cur ? String(num(cur.submits)) : '—',
+      sub: unread != null ? '未読 ' + unread + '件' : '', tab: 'inquiries-admin', warn: !!unread });
+    var bk = ok(src.booking) ? (src.booking.data.bookings || []) : null;
+    var today = 0, tent = 0;
+    if (bk) {
+      var d0 = dayStart(now);
+      bk.forEach(function (b) {
+        var sp = bkSpan(b), st = bkStatus(b);
+        if (st === 'cancelled' || st === 'noshow') return;
+        if (sp.start >= d0 && sp.start < d0 + DAY) today++;
+        if (st === 'tentative' && sp.end >= now) tent++;
+      });
+    }
+    out.push({ label: '今日の予約', value: bk ? today + '件' : '—', sub: bk && tent ? '仮予約 ' + tent + '件' : '', tab: 'booking-admin', warn: !!tent });
+    var rv = ok(src.reviews) ? num(src.reviews.data.unreplied) : null;
+    out.push({ label: '未返信の口コミ', value: rv == null ? '—' : rv + '件', sub: rv ? '早めの返信が評価につながります' : '', tab: 'reviews-admin', warn: !!rv });
+    return out;
+  }
+
+  function kpiHtml(list) {
+    return '<div class="lp-kpis" role="list">' + list.map(function (k, i) {
+      return '<button type="button" class="lp-kpi' + (k.warn ? ' warn' : '') + '" role="listitem" data-kpi="' + i + '">' +
+        '<span class="lp-kpi-l">' + esc(k.label) + '</span>' +
+        '<span class="lp-kpi-v">' + esc(k.value) + '</span>' +
+        '<span class="lp-kpi-s">' + esc(k.sub || '　') + '</span></button>';
+    }).join('') + '</div>';
+  }
+
+  var TODO_FIRST = 5;   // 最初に見せる「やること」の数（残りは「ほか n件」で開く）
+  var todoAll = false;
+
   function stamp(ms) {
     var d = new Date(ms);
     return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
@@ -640,8 +701,12 @@
     if (!P.data) { host.innerHTML = head + '<p class="lp-notes">各機能の状態を読み込んでいます…</p>'; bindHead(); return; }
     var t = buildToday(P.data, Date.now());
     var all = t.todo.concat(t.fyi);
+    var K = kpis(P.data, Date.now());
+    var shown = todoAll ? t.todo : t.todo.slice(0, TODO_FIRST);
+    var more = t.todo.length - shown.length;
     var body = t.todo.length
-      ? '<ol class="lp-rows" id="lp-todo">' + t.todo.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join('') + '</ol>'
+      ? '<ol class="lp-rows" id="lp-todo">' + shown.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join('') + '</ol>' +
+        (more > 0 ? '<button type="button" class="lp-more" id="lp-more">ほか ' + more + '件を表示</button>' : '')
       : '<p class="lp-empty" id="lp-empty">今日やることはありません' +
         '<small>' + (t.failed.length ? 'ただし、読み込めなかったものがあります（下に書いています）。' : '急ぎのものも、今日の予定も見つかりませんでした。') + '</small></p>';
     if (t.fyi.length) {
@@ -652,8 +717,13 @@
     if (t.failed.length) notes.push('読み込めなかったもの: ' + t.failed.join('・') + '（通信の失敗か、まだ準備中です。「再読込」でもう一度読みます）');
     if (t.off.length) notes.push('未設定のため見ていないもの: ' + t.off.join('・'));
     if (notes.length) body += '<div class="lp-notes" id="lp-notes">' + notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('') + '</div>';
-    host.innerHTML = head + body;
+    host.innerHTML = kpiHtml(K) + head + body;
     bindHead();
+    host.querySelectorAll('[data-kpi]').forEach(function (b) {
+      b.addEventListener('click', function () { var k = K[Number(b.getAttribute('data-kpi'))]; if (k && window.lumShowTab) window.lumShowTab(k.tab); });
+    });
+    var mb = el('lp-more');
+    if (mb) mb.addEventListener('click', function () { todoAll = true; paint(); });
     host.querySelectorAll('[data-lp]').forEach(function (b) {
       b.addEventListener('click', function () { open(all[Number(b.getAttribute('data-lp'))]); });
     });

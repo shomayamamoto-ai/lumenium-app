@@ -129,6 +129,11 @@
     chip.innerHTML = S.who.role === 'owner'
       ? esc(S.who.name || 'オーナー')
       : esc(S.who.name) + '<span class="r">・' + esc(LABEL[S.who.role] || S.who.role) + '</span>';
+    // 広い画面では上の帯を出さないので、左のメニューの頭の札にも同じことを書きます。
+    var pill = el('side-pill');
+    if (pill) pill.textContent = S.who.role === 'owner'
+      ? (S.who.name && S.who.name !== 'オーナー' ? S.who.name + '・オーナー' : 'オーナー')
+      : (S.who.name || '') + '・' + (LABEL[S.who.role] || S.who.role);
   }
 
   /* ---- 役割に合わせた画面 ---- */

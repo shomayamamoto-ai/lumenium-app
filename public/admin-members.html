@@ -416,6 +416,8 @@
   .soc-net .left { font-size: 11px; font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
   .soc-net .left.over { color: #b42318; }
   .soc-net .sub { grid-column: 2 / -1; font-size: 10.5px; color: var(--sub); line-height: 1.6; }
+  /* 投稿先カードの説明は2行まで（全文は各SNSのタブに出ます）。カードが文字で埋まっていました。 */
+  .soc-net .sub:not(.soc-quota) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .soc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .soc-fields input {
     width: 100%; padding: 10px 12px; background: #faf9f6; color: var(--text);
@@ -871,6 +873,14 @@ input, select, textarea { color: var(--text); }
       scroll-behavior: auto !important;
     }
   }
+/* 会員リスト: 一覧を先に、共有リンクは下にたたんで。 */
+#list-view > .share-block { margin-top: 18px; }
+.share-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer; padding: 2px 0; }
+.share-toggle:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 3px; border-radius: 6px; }
+.share-toggle .share-tg::after { content: '開く'; font-size: 12px; color: #3d3fbf; font-weight: 700; margin-left: auto; }
+.share-block.open .share-toggle .share-tg::after { content: 'たたむ'; }
+.share-toggle .share-tg { margin-left: auto; }
+.share-block:not(.open) > #share-inner { display: none; }
 </style>
 <!-- 色・余白・部品の決まり。上の <style> より後に読み、同じ強さの指定ならこちらが勝ちます。 -->
 <link rel="stylesheet" href="/admin-ui.css">
@@ -1012,10 +1022,13 @@ input, select, textarea { color: var(--text); }
       <!-- 項目の切り替えと詳しい内容。中身は /admin-members-tool.js が組み立てます。 -->
       <div id="members-tool-slot"></div>
       <div class="share-block">
-        <div class="share-head">
-          <span class="share-label">会員リストの共有リンク</span>
+        <!-- 共有リンクは、たまに使う機能なので一覧の下にたたんで置きます（押すと開きます）。 -->
+        <button type="button" class="share-head share-toggle" id="share-toggle" aria-expanded="false" aria-controls="share-inner">
+          <span class="share-label">会員リストの共有リンク（外部の方に一覧を見せる）</span>
           <span id="share-count"></span>
-        </div>
+          <span class="share-tg" aria-hidden="true"></span>
+        </button>
+        <div id="share-inner">
 
         <!-- Shown once, right after issuing. The token is not stored in a form
              that can be read back, so this is the only time the full link
@@ -1051,7 +1064,23 @@ input, select, textarea { color: var(--text); }
         </div>
         <p class="msg" id="share-msg"></p>
         <p class="share-note" id="share-note"></p>
+        </div>
       </div>
+      <script>
+        (function () {
+          var b = document.getElementById('share-toggle'), box = b && b.parentNode;
+          if (!b) return;
+          // 一覧（検索・表）のあとへ移します。パネルは表示のたびに display が
+          // 書き換わるので、CSS の並べ替え（order）では効きませんでした。
+          // この時点では検索・表がまだ読み込まれていないので、読み終えてから移します。
+          document.addEventListener('DOMContentLoaded', function () { box.parentNode.appendChild(box); });
+          b.addEventListener('click', function () {
+            var open = !box.classList.contains('open');
+            box.classList.toggle('open', open);
+            b.setAttribute('aria-expanded', open ? 'true' : 'false');
+          });
+        })();
+      </script>
       <div class="toolbar">
         <input type="search" id="search" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
