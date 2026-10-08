@@ -5440,6 +5440,7 @@ window.lumAdmin = {
     var s = run.summary;
     // 取れなかった回答があれば、数字より先に理由と直し方を（/admin-aio-auto.js）。
     if (window.lumAioFail) window.lumAioFail(run);
+    if (window.lumAioSummary) window.lumAioSummary(run, meta && meta.brandName);
     cards(s);
     howto(s);
     extra(s);
@@ -5452,10 +5453,22 @@ window.lumAdmin = {
        同じ質問を何回聞いても、分野の傾向は質問の数ぶんしか分かりません。
        返ってこなかった回答がある分野には、その旨も書きます。 */
     var unit = s.stats ? '回' : '問';
+    // 分野ごとに、代わりに挙がった会社。出現が 0 の分野でも、誰が枠を取ったかは分かっています。
+    var rivalsOf = {};
+    (run.results || []).forEach(function (r) {
+      if (!r || r.branded || !r.cat) return;
+      (r.companies || []).forEach(function (c) {
+        if (isUs(c)) return;
+        var m = rivalsOf[r.cat] || (rivalsOf[r.cat] = {});
+        m[c] = (m[c] || 0) + 1;
+      });
+    });
     bars('seo-cats', s.byCategory.map(function (c) {
       var lost = (c.planned || c.asked) - c.asked;
       var note = c.mentions + '/' + c.asked + unit + (c.thin ? '（' + (c.questions || c.asked) + '問のみ・率は出せません）' : '');
       if (lost > 0) note += '　' + lost + unit + '未取得';
+      var top = Object.keys(rivalsOf[c.cat] || {}).sort(function (a, b) { return rivalsOf[c.cat][b] - rivalsOf[c.cat][a]; }).slice(0, 3);
+      if (!c.mentions && top.length) note += '　代わりに：' + top.join('、');
       return { name: c.cat + (c.branded ? '（社名入り）' : ''), value: c.thin ? 0 : c.rate, note: note, us: false };
     }), { labelWidth: 150 });
     bars('seo-comp', (s.competitors || []).map(function (c) {
@@ -5474,9 +5487,13 @@ window.lumAdmin = {
     var h = (data.history || []).slice(0, 12).reverse();
     bars('seo-trend', h.map(function (r) {
       var st = r.stats && r.stats.openMention;
-      return { name: (r.finishedAt || '').slice(0, 10), value: r.openMentionRate,
-        note: pct(r.openMentionRate) + (st && st.n ? '（' + Math.round(st.lo * 100) + '〜' + Math.round(st.hi * 100) + '%）' : ''), us: false };
-    }), { labelWidth: 100 });
+      // 回答が1件も取れなかった回は「0%」ではなく「計測できず」。
+      var none = r.asked === 0;
+      var at = r.finishedAt ? new Date(r.finishedAt) : null;
+      var when = at && !isNaN(at) ? (at.getMonth() + 1) + '/' + at.getDate() + ' ' + ('0' + at.getHours()).slice(-2) + ':' + ('0' + at.getMinutes()).slice(-2) : '';
+      return { name: when + (r.source === 'chat' ? ' チャット' : r.auto ? ' 自動' : ''), value: none ? 0 : r.openMentionRate,
+        note: none ? '計測できず（回答0件）' : pct(r.openMentionRate) + (st && st.n ? '（' + Math.round(st.lo * 100) + '〜' + Math.round(st.hi * 100) + '%）' : ''), us: false };
+    }), { labelWidth: 150 });
     el('seo-body').style.display = 'block';
     say((run.finishedAt ? ('最終計測: ' + new Date(run.finishedAt).toLocaleString('ja-JP')) : '') +
       (data.localOnly ? '（この端末に保存されている結果です。次の計測から保存先にも残ります）' : ''), true);
@@ -5695,7 +5712,7 @@ window.lumAdmin = {
     if (list.length > 1) {
       sel.innerHTML = list.map(function (r) {
         return '<option value="' + r.id + '">' + new Date(r.finishedAt).toLocaleDateString('ja-JP') +
-          '（非指名 ' + Math.round(r.openMentionRate * 100) + '%' + (r.source === 'chat' ? '・チャット' : r.auto ? '・自動' : '') + '）</option>';
+          (r.asked === 0 ? '（計測できず' : '（非指名 ' + Math.round(r.openMentionRate * 100) + '%') + (r.source === 'chat' ? '・チャット' : r.auto ? '・自動' : '') + '）</option>';
       }).join('');
       if (data.latest) sel.value = data.latest.id;
       sel.style.display = 'inline-block';
@@ -5851,6 +5868,17 @@ window.lumAdmin = {
     el('seo-run').disabled = true;
     el('seo-progress').style.display = 'block';
     say('');
+    /* 始める前に、キーと残高が使えるかを確かめる（1円未満）。残高切れのまま
+       始めると、全部の質問が断られて 0% の結果だけが残っていました。 */
+    el('seo-progress-text').textContent = 'AIが使える状態かを確かめています…';
+    try {
+      var ck = await post({ action: 'check' });
+      if (ck && ck.ready === false) {
+        say(ck.message || 'AIが使えない状態です。', true);
+        running = false; el('seo-run').disabled = false; el('seo-progress').style.display = 'none';
+        return;
+      }
+    } catch (_) { /* 確かめられなくても、計測そのものは試します */ }
     var started;
     try {
       started = await post({ action: 'start', samples: chosenSamples(), engines: chosenEngines() });

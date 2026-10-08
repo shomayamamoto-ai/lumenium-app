@@ -58,6 +58,7 @@ let judgeCalls = 0
 let pauseNext = 0       // この回数ぶん、検索の途中で止まった回答を返す
 let failNext = 0        // この回数ぶん、500 を返す
 let judgeFail = false
+let creditOut = false   // 残高切れ
 const kicks = []
 const kickAuth = []
 let rejectModel = null   // このモデルを 404 で断る
@@ -80,6 +81,11 @@ globalThis.fetch = async (input, init = {}) => {
       const ids = [...String(body.messages[0].content).matchAll(/^### (.+)$/gm)].map((m) => m[1])
       const items = ids.map((id, i) => ({ id, companies: ['サンプル制作株式会社'], missing: '', verdict: i % 2 ? 'absent' : 'recommended', position: i % 2 ? null : 1, sentiment: i % 2 ? 'none' : 'positive' }))
       return msg([{ type: 'text', text: JSON.stringify({ items }) }], 'end_turn')
+    }
+    // 計測前の確かめ（検索なしの短い依頼）。回答の数には入れません。
+    if (!body.tools) {
+      if (creditOut) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } }), { status: 400, headers: { 'content-type': 'application/json' } })
+      return msg([{ type: 'text', text: 'OK' }], 'end_turn')
     }
     askCalls++
     seenModels.push(body.model + '|' + (body.tools && body.tools[0] && body.tools[0].type))
@@ -369,6 +375,34 @@ await test('チャットで行った計測（APIの残高を使わない計測�
   assert.equal(j2.latest.id, st.runId, '新しい計測が先頭')
   const j3 = await (await aio.GET(new Request('https://lumenium.net/api/aio?run=' + j.latest.id, { headers: H }))).json()
   assert.equal(j3.latest.source, 'chat', '選べば見られる')
+})
+
+await test('残高切れ: 計測を始める前の確かめで止め、理由と直し方を出す（全部失敗する計測を回さない）', async () => {
+  reset(); kicks.length = 0
+  creditOut = true
+  try {
+    const before = askCalls
+    const r = await A.startAuto(cfg, 'manual')
+    assert.equal(r.ok, false)
+    assert.equal(r.kind, 'credit')
+    assert.ok(/Billing/.test(r.message) && /チャット/.test(r.message))
+    assert.equal(askCalls, before, '質問は1つも送っていない')
+    const s = await A.autoStatus(cfg)
+    assert.equal(s.running, false)
+    assert.ok(/残高/.test(s.lastError.message))
+    const H = { authorization: 'Bearer ' + process.env.ADMIN_KEY, 'content-type': 'application/json' }
+    const c = await (await aio.POST(new Request('https://lumenium.net/api/aio', { method: 'POST', headers: H, body: JSON.stringify({ action: 'check' }) }))).json()
+    assert.equal(c.ok, true)
+    assert.equal(c.ready, false)
+    assert.equal(c.kind, 'credit')
+    const now = await (await aio.POST(new Request('https://lumenium.net/api/aio', { method: 'POST', headers: H, body: JSON.stringify({ action: 'auto-now' }) }))).json()
+    assert.equal(now.ok, false)
+    assert.ok(/残高/.test(now.message))
+    assert.equal(kicks.length, 0)
+  } finally { creditOut = false }
+  const H = { authorization: 'Bearer ' + process.env.ADMIN_KEY, 'content-type': 'application/json' }
+  const ok = await (await aio.POST(new Request('https://lumenium.net/api/aio', { method: 'POST', headers: H, body: JSON.stringify({ action: 'check' }) }))).json()
+  assert.equal(ok.ready, true, '残高が戻れば使える')
 })
 
 globalThis.fetch = realFetch

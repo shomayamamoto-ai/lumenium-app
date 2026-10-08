@@ -734,3 +734,9 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .aio-info { border: 1px solid var(--ui-info-line); background: var(--ui-info-bg); border-radius: var(--ui-r-lg); padding: var(--ui-s3) var(--ui-s4); margin: 0 0 var(--ui-s4); font-size: var(--ui-fs-13); line-height: var(--ui-lh); }
 #shell .aio-info[hidden] { display: none; }
 #shell .aio-info-sub { color: var(--ui-text-2); font-size: var(--ui-fs-12); }
+/* 今回の計測で分かったこと（/admin-aio-auto.js lumAioSummary） */
+#shell .aio-sum { border: 1px solid var(--ui-border); background: var(--ui-surface); border-radius: var(--ui-r-lg); padding: var(--ui-s3) var(--ui-s4); margin: 0 0 var(--ui-s4); }
+#shell .aio-sum[hidden] { display: none; }
+#shell .aio-sum-title { font-size: var(--ui-fs-14); font-weight: 700; margin-bottom: var(--ui-s2); }
+#shell .aio-sum ul { margin: 0 0 0 18px; font-size: var(--ui-fs-13); line-height: var(--ui-lh); }
+#shell .aio-sum li + li { margin-top: 6px; }

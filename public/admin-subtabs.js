@@ -268,7 +268,7 @@
       fold.innerHTML = '<button type="button" class="ghost ui-fold-btn" aria-expanded="false">' +
         '詳しい内訳を見る（AIごと・カテゴリ・競合・読まれたページ・質問ごと・推移）</button>';
       seoBody.insertBefore(fold, (diff || actions || seoBody.firstChild).nextSibling);
-      var keep = ['seo-fail', 'seo-cards', 'seo-howto', 'seo-actions', 'seo-diff'];
+      var keep = ['seo-fail', 'seo-summary', 'seo-cards', 'seo-howto', 'seo-actions', 'seo-diff'];
       var paintFold = function (open) {
         var after = false;
         Array.prototype.forEach.call(seoBody.children, function (c) {

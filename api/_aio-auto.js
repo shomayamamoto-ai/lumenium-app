@@ -20,11 +20,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { spendGuard } from './_admin-auth.js'
-import { engineKeys, ENGINES } from './_engines.js'
+import { engineKeys, ENGINES, checkClaude } from './_engines.js'
 import { JUDGE_BATCH } from './_aio-catalog.js'
 import { KV } from './_brand.js'
 import {
-  startRun, askOnce, finalizeRun, readRun, readAnswers, storable, analyseBatch, describeError,
+  startRun, CHECK_MESSAGES, askOnce, finalizeRun, readRun, readAnswers, storable, analyseBatch, describeError,
   RES, RUN_TTL, SAMPLE_OPTIONS, DEFAULT_SAMPLES, ASK_TIMEOUT_MS, ASK_PER_DAY, JUDGE_PER_DAY,
 } from './aio.js'
 
@@ -167,6 +167,13 @@ export async function startAuto(cfg, reason) {
     state.lastError = { at: new Date().toISOString(), message: 'Claude のAPIキーが、サーバーから読める場所にありません。設定状況の「キーの入力」で「この画面で保存」してください（この端末だけに保存したキーは、自動の計測からは使えません）。' }
     await writeState(cfg, state)
     return { ok: false, message: state.lastError.message }
+  }
+  // 残高切れ・キーの拒否なら、始めずに理由を残します（全部失敗する計測を回さない）。
+  const c = await checkClaude(keys.claude)
+  if (!c.ok) {
+    state.lastError = { at: new Date().toISOString(), kind: c.kind, message: CHECK_MESSAGES[c.kind] || c.message }
+    await writeState(cfg, state)
+    return { ok: false, kind: c.kind, message: state.lastError.message }
   }
   const r = await startRun(cfg, keys, { samples: settings.samples, engines: settings.engines, auto: true })
   if (r.error) {

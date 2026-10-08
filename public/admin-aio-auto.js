@@ -266,6 +266,58 @@
       '</div>';
   };
 
+
+  /* ---- 今回の計測で分かったこと ----
+     出現率が 0% だと、カードも棒も空に見え、「何も測れていない」と読まれて
+     しまいます。0% でも、代わりに誰が挙がったか・社名で聞くと何と言われたか・
+     AIが何を材料にしたかは分かっているので、数字より先に言葉で出します。 */
+  window.lumAioSummary = function (run, usName) {
+    var body = el('seo-body');
+    if (!body) return;
+    var host = el('seo-summary');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'seo-summary';
+      host.className = 'aio-sum';
+      var after = el('seo-fail');
+      body.insertBefore(host, after ? after.nextSibling : body.firstChild);
+    }
+    var s = (run && run.summary) || {};
+    if (!s.asked) { host.hidden = true; host.innerHTML = ''; return; }
+    host.hidden = false;
+    var n = function (x) { return x == null ? 0 : x; };
+    var open = s.stats && s.stats.openMention ? s.stats.openMention.n : 0;
+    var rec = s.stats && s.stats.recommend ? s.stats.recommend.k : 0;
+    var men = s.stats && s.stats.openMention ? s.stats.openMention.k : 0;
+    var v = s.verdicts || {};
+    var rivals = (s.competitors || []).filter(function (c) { return !c.us; }).slice(0, 8);
+    var srcs = (s.topSources || []).slice(0, 6);
+    var miss = (s.missingEvidence || []).slice(0, 5);
+    var name = usName || '自社';
+    var lines = [];
+    lines.push('<li><b>社名の入っていない質問 ' + open + '回のうち、' + esc(name) + 'が候補に挙がったのは ' + rec + '回、名前が出たのは ' + men + '回</b>でした。</li>');
+    if (n(v.denied) || n(v.other_company)) {
+      lines.push('<li><b>社名で聞いたとき：</b>' +
+        (n(v.denied) ? '「見つからない・確認できない」と答えられた回答が ' + v.denied + '回' : '') +
+        (n(v.denied) && n(v.other_company) ? '、' : '') +
+        (n(v.other_company) ? '名前の似た別の会社の話にすり替わった回答が ' + v.other_company + '回' : '') + '。</li>');
+    }
+    if (rivals.length) {
+      lines.push('<li><b>代わりに挙がった会社（多い順）：</b>' + rivals.map(function (c) {
+        return esc(c.name) + '（' + c.count + '回）';
+      }).join('、') + '</li>');
+    }
+    if (srcs.length) {
+      lines.push('<li><b>AIが答えの材料にしたサイト：</b>' + srcs.map(function (h) {
+        return esc(h.name) + '（' + h.count + '問）';
+      }).join('、') + '。ここに載っている会社から候補が選ばれています。</li>');
+    }
+    if (miss.length) {
+      lines.push('<li><b>「足りない」と言われた情報：</b>' + miss.map(esc).join('、') + '</li>');
+    }
+    host.innerHTML = '<p class="aio-sum-title">今回の計測で分かったこと</p><ul>' + lines.join('') + '</ul>';
+  };
+
   window.lumAioAuto = function (auto, meta, reload) {
     state.auto = auto || null;
     state.meta = meta || null;

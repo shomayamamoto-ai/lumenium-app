@@ -209,6 +209,30 @@ function rejectedSetup(e) {
   return null
 }
 
+/** 計測を始める前の確かめ。ごく短い依頼を1回だけ送り、キーと残高が
+ *  使える状態かを見ます（ウェブ検索は使わないので、費用は1円未満）。
+ *  残高切れ・キーの拒否のときだけ止め、それ以外（モデルの違いなど）は
+ *  計測の中で切り替えて聞き直せるので、通します。 */
+export async function checkClaude(key) {
+  if (!key) return { ok: false, kind: 'nokey', message: 'Claude のAPIキーが未設定です。' }
+  const client = new Anthropic({ apiKey: key, maxRetries: 0 })
+  try {
+    await client.messages.create({
+      model: ENGINES.claude.model(),
+      max_tokens: 16,
+      output_config: { effort: 'low' },
+      messages: [{ role: 'user', content: 'OK とだけ返してください。' }],
+    }, { timeout: 15000 })
+    return { ok: true }
+  } catch (e) {
+    const status = e && (e.status || e.statusCode)
+    const message = String((e && e.message) || e).slice(0, 300)
+    if (/credit balance|purchase credits|billing/i.test(message)) return { ok: false, kind: 'credit', status, message }
+    if (status === 401 || status === 403) return { ok: false, kind: 'auth', status, message }
+    return { ok: true, warning: message }
+  }
+}
+
 /** テスト用: 覚えた組み合わせを忘れる。 */
 export function resetClaudeSetup() { claudeWorking = null }
 

@@ -1026,6 +1026,7 @@
       return { ok: true, verdicts: verdicts };
     }
     if (a === 'finalize') return { ok: true, run: aioRun(0), stored: true };
+    if (a === 'check') return { ok: true, ready: true, kind: null, message: '', detail: '' };
     if (a === 'probe') {
       var s0 = SAMPLE_QS[0];
       return { ok: true, probe: { ok: true, q: s0.q, engine: 'claude', ms: 16800, named: true, cited: true, searched: true, searchCount: 6,

@@ -38,7 +38,7 @@ import {
   namesBrand, hostOf, isHit, isOwnHost, isOwnCompany, companyKey, isBranded, VERDICTS, SENTIMENTS,
   validateQuestions, questionSetHash, categoriesOf, planRun,
 } from './_aio-catalog.js'
-import { ENGINES, ENGINE_IDS, engineKeys, askEngine } from './_engines.js'
+import { ENGINES, ENGINE_IDS, engineKeys, askEngine, checkClaude } from './_engines.js'
 import { rate, compareRates } from './_aio-stats.js'
 import { KV, BRAND as SITE } from './_brand.js'
 import { CHAT_RUNS } from './_aio-chat-runs.js'
@@ -749,6 +749,13 @@ function engineMeta(keys) {
 
 /** 計測を始める。管理画面のボタンと、自動の計測（_aio-auto.js）の両方から。
  *  断るときは { error, status } を、始めたときは { run, plan } を返します。 */
+/** 確かめの結果を、画面に出す日本語に。 */
+export const CHECK_MESSAGES = {
+  credit: 'Anthropic の残高（クレジット）が足りないため、AIに質問できません。これまで計測できていたのは残高があったためです。console.anthropic.com の「Billing」でクレジットを追加してください（残高が減ったら自動で足す設定もできます）。追加すれば、すぐに計測できます。残高が戻るまでは、Claude のチャットで「計測し直して」と頼めば、料金をかけずに計測できます。',
+  auth: 'Claude のAPIキーが受け付けられませんでした（期限切れ・削除・権限のいずれか）。console.anthropic.com でキーを確かめ、設定状況 › キーの入力 で入れ直してください。',
+  nokey: 'Claude のAPIキーが未設定です。設定状況 › キーの入力 で入れてください。',
+}
+
 export async function startRun(cfg, keys, opts = {}) {
   const samples = SAMPLE_OPTIONS.includes(Number(opts.samples)) ? Number(opts.samples) : DEFAULT_SAMPLES
   const asked = Array.isArray(opts.engines) && opts.engines.length ? opts.engines : ['claude']
@@ -1086,6 +1093,13 @@ export async function POST(req) {
 
   // The judge is Claude whichever engines answer, so its key is required.
   if (!keys.claude) return json(NO_AI, 503)
+
+  /* 計測を始める前の確かめ。残高切れのまま始めると、84回の呼び出しが
+     すべて断られ、0% の結果だけが残っていました。 */
+  if (action === 'check') {
+    const c = await checkClaude(keys.claude)
+    return json({ ok: true, ready: c.ok, kind: c.kind || null, message: c.ok ? '' : (CHECK_MESSAGES[c.kind] || c.message), detail: c.message || c.warning || '' })
+  }
 
   if (action === 'start') {
     const r = await startRun(cfg, keys, { samples: body.samples, engines: body.engines })
