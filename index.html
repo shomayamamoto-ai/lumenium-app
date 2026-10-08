@@ -269,6 +269,27 @@
            visitor sees exactly what they saw before: the plain background,
            then the page. -->
       <div id="boot-splash" style="position:fixed;inset:0;z-index:99999;background:#f6f4ef;"></div>
+      <!-- Whether the opening plays is decided here, once, before anything is
+           drawn: on the top page, opened from outside the site, once per tab.
+           Not for a link to a place on the page (#contact-form …), not when
+           arriving from one of our own pages, not for automated browsers
+           (?intro forces it). The placeholder turns dark to match the opening,
+           so the light page never flashes in between. App reads the flag. -->
+      <script>
+        (function () {
+          try {
+            var l = location, q = /[?&]intro\b/.test(l.search), seen = false
+            try { seen = sessionStorage.getItem('lum:intro') === '1' } catch (e) {}
+            var inside = false
+            try { inside = !!document.referrer && new URL(document.referrer).origin === l.origin } catch (e) {}
+            var play = q || (l.pathname === '/' && !l.hash && !seen && !inside && !navigator.webdriver)
+            if (!play) return
+            window.__lumIntro = true
+            var b = document.getElementById('boot-splash')
+            if (b) b.style.background = '#010104'
+          } catch (e) {}
+        })()
+      </script>
       <!--prerender:app-->
     </div>
     <!-- The crawlable copy that used to live here is the page itself now

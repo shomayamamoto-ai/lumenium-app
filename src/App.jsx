@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import Header from './components/Header'
 import Landing from './components/Landing'
 import MobileCTA from './components/MobileCTA'
@@ -10,6 +10,9 @@ import { initWebVitals } from './lib/webVitals'
 import { scrollBehavior } from './lib/motion'
 import { resolveRoute } from './lib/routes'
 import NotFound from './components/NotFound'
+import Intro3D from './components/Intro3D'
+import Splash from './components/Splash'
+import { supports3D } from './lib/lumen3d-support'
 
 // The landing page is the site now, so it ships in the main bundle.
 // ChatWidget/Privacy stay on-demand.
@@ -20,11 +23,28 @@ const Privacy = lazy(() => import('./components/Privacy'))
 // code reads the same one and counts what this component actually shows.
 
 export default function App() {
-  /* The opening movie, the logo-only search home and its dial are gone.
-     Every visitor lands straight on the page that says what Lumenium does,
-     for whom, for how much and how to ask — nothing to wait through first.
-     `phase` stays (2 = page shown) so the effects below keep their guards. */
+  /* The page is always drawn; `phase` stays (2 = page shown) so the
+     effects below keep their guards. */
   const phase = 2
+
+  /* オープニング。流すかどうかは index.html の小さなスクリプトが、描く前に
+     1回だけ決めます（トップページを外から開いたとき、タブごとに1回）。
+     3Dが使える端末では光が集まって結晶になる3Dのオープニング（'3d'）、
+     使えない端末では平面のオープニング（'flat'）。ページは最初から幕の
+     後ろに描いてあるので、幕が薄れればそのまま読み始められます。
+     クリック・Esc・Enter・SKIP でいつでも飛ばせます。 */
+  const [intro, setIntro] = useState(() => {
+    if (typeof window === 'undefined' || !window.__lumIntro) return 'none'
+    return supports3D() ? '3d' : 'flat'
+  })
+  const endIntro = useCallback(() => setIntro('none'), [])
+  useEffect(() => {
+    if (intro === 'none') return
+    try { sessionStorage.setItem('lum:intro', '1') } catch (_) { /* private mode */ }
+    const root = document.documentElement
+    root.style.overflow = 'hidden'
+    return () => { root.style.overflow = '' }
+  }, [intro])
   const [pageReady, setPageReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [chatReady, setChatReady] = useState(false)
@@ -360,6 +380,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {intro === '3d' && <Intro3D onDone={endIntro} onFail={() => setIntro('flat')} />}
+      {intro === 'flat' && <Splash onComplete={endIntro} />}
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
       <Header />
       <main id="main">
