@@ -10,9 +10,7 @@ import { initWebVitals } from './lib/webVitals'
 import { scrollBehavior } from './lib/motion'
 import { resolveRoute } from './lib/routes'
 import NotFound from './components/NotFound'
-import Intro3D from './components/Intro3D'
 import Splash from './components/Splash'
-import { supports3D } from './lib/lumen3d-support'
 
 // The landing page is the site now, so it ships in the main bundle.
 // ChatWidget/Privacy stay on-demand.
@@ -27,20 +25,16 @@ export default function App() {
      effects below keep their guards. */
   const phase = 2
 
-  /* オープニング。流すかどうかは index.html の小さなスクリプトが、描く前に
-     1回だけ決めます（トップページを外から開いたとき、タブごとに1回）。
-     3Dが使える端末では光が集まって結晶になる3Dのオープニング（'3d'）、
-     使えない端末では平面のオープニング（'flat'）。ページは最初から幕の
-     後ろに描いてあるので、幕が薄れればそのまま読み始められます。
-     クリック・Esc・Enter・SKIP でいつでも飛ばせます。 */
-  const [intro, setIntro] = useState(() => {
-    if (typeof window === 'undefined' || !window.__lumIntro) return 'none'
-    return supports3D() ? '3d' : 'flat'
-  })
+  /* オープニング。光が集まり、明るさ（lm）が上がるにつれてロゴが光って
+     現れます（components/Splash.jsx）。トップページを開くたびに毎回流します。
+     流すかどうかは index.html の小さなスクリプトが描く前に決め、ここでは
+     その印を読むだけです。ページは最初から幕の後ろに描いてあるので、幕が
+     消えればそのまま読み始められます。クリック・Esc・Enter・SKIP で
+     いつでも飛ばせます。 */
+  const [intro, setIntro] = useState(() => (typeof window !== 'undefined' && window.__lumIntro ? 'on' : 'none'))
   const endIntro = useCallback(() => setIntro('none'), [])
   useEffect(() => {
     if (intro === 'none') return
-    try { sessionStorage.setItem('lum:intro', '1') } catch (_) { /* private mode */ }
     const root = document.documentElement
     root.style.overflow = 'hidden'
     return () => { root.style.overflow = '' }
@@ -380,8 +374,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {intro === '3d' && <Intro3D onDone={endIntro} onFail={() => setIntro('flat')} />}
-      {intro === 'flat' && <Splash onComplete={endIntro} />}
+      {intro === 'on' && <Splash onComplete={endIntro} />}
       <a href="#main" className="skip-link">メインコンテンツへスキップ</a>
       <Header />
       <main id="main">

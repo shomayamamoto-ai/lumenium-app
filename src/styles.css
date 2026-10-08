@@ -7307,7 +7307,7 @@ html[data-theme="dark"] .company-card {
   animation: lxHudIn 0.4s ease 0.2s forwards;
 }
 .lx-hud--topleft  { top: 28px; left: 28px; }
-.lx-hud--topright { top: 28px; right: 100px; text-align: right; }
+.lx-hud--topright { top: 28px; right: 128px; text-align: right; }
 .lx-hud--bottomright { bottom: 28px; right: 28px; }
 .lx-hud-row { display: flex; gap: 12px; margin-bottom: 3px; justify-content: flex-end; }
 .lx-hud--topleft .lx-hud-row { justify-content: flex-start; }
