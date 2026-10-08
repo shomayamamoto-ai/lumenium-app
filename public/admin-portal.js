@@ -495,6 +495,8 @@
     '.lp-notes{font-size:12px;color:var(--sub);line-height:1.7;margin-top:10px}' +
     '.lp-notes p+p{margin-top:2px}' +
     /* はじめての設定 */
+    '.lp-setup-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}' +
+    '.lp-setup-head .lp-pct{font-size:13px;font-weight:700;color:var(--sub)}' +
     '.lp-setup summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap}' +
     '.lp-setup summary::-webkit-details-marker{display:none}' +
     '.lp-setup summary h2{font-size:16px;font-weight:800}' +
@@ -707,6 +709,14 @@
       '<button type="button" class="ghost" id="lp-reload"' + (P.loading ? ' disabled' : '') + '>' + (P.loading ? '読み込み中…' : '再読込') + '</button></div>';
     if (!P.data) { host.innerHTML = head + '<p class="lp-notes">各機能の状態を読み込んでいます…</p>'; bindHead(); return; }
     var t = buildToday(P.data, Date.now());
+    // はじめての設定が残っていれば、「今週の様子」に1行だけ（中身は専用のタブ）。
+    var su = setupSummary();
+    if (su && su.left > 0) {
+      t.fyi.push({ id: 'setup-left', level: 'fyi', tab: 'setup-admin', count: su.left, unit: '件',
+        title: 'はじめての設定が残っています',
+        why: su.done + ' / ' + su.total + ' 完了。済ませると、使える機能が増えます。',
+        go: { label: '設定を続ける' } });
+    }
     var all = t.todo.concat(t.fyi);
     var K = kpis(P.data, Date.now());
     var shown = todoAll ? t.todo : t.todo.slice(0, TODO_FIRST);
@@ -749,25 +759,41 @@
   }
 
   var STATE_LABEL = { done: '済み', todo: 'まだ', skipped: '使わない', unknown: '確認できません' };
-  var setupOpen = null;   // 開け閉めは、読み直しても保ちます
+
+  /** 残りの数（オーナーだけ）。ホームの1行と、メニューの数字に使います。 */
+  function setupSummary() {
+    if (!P.data || (window.lumStaff && !window.lumStaff.isOwner())) return null;
+    var r = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
+    if (r.pct == null) return null;
+    return { done: r.done, total: r.total, left: r.total - r.done };
+  }
+
+  function paintSetupBadge() {
+    var tab = el('tab-setup-admin');
+    if (!tab) return;
+    var su = setupSummary();
+    var b = tab.querySelector('.ui-badge');
+    if (!su || su.left <= 0) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'ui-badge warn'; tab.appendChild(b); }
+    b.textContent = String(su.left);
+    b.setAttribute('aria-label', '残り' + su.left + '件');
+  }
 
   function paintSetup() {
+    paintSetupBadge();
     var host = el('lp-setup');
     if (!host || !P.data) return;
     // キーの入力はオーナーだけなので、ほかの役割には手順を出しません（/admin-staff.js）。
     if (window.lumStaff && !window.lumStaff.isOwner()) { host.hidden = true; return; }
     var r = buildSetup(P.data, { host: location.hostname, skipped: skippedMap() });
     var full = r.pct === 100;
-    // 読めなかったときは、確かめようのない12行を並べず、たたんでおきます。
-    var open = setupOpen == null ? r.pct != null && !full : setupOpen;
     var pct = r.pct == null ? '状態を読み込めませんでした'
       : full ? 'すべて完了（' + r.total + ' / ' + r.total + '）'
       : r.done + ' / ' + r.total + ' 完了（' + r.pct + '%）';
-    host.innerHTML = '<details class="lp-box lp-setup" id="lp-setup-d"' + (open ? ' open' : '') + '>' +
-      '<summary><h2 id="lp-setup-h">はじめての設定</h2><span class="lp-pct" id="lp-pct">' + esc(pct) + '</span>' +
-      '<span class="lp-tg"><span class="lp-tg-o">たたむ</span><span class="lp-tg-c">開く</span></span>' +
-      (r.pct == null ? '' : '<span class="lp-bar" aria-hidden="true"><i style="width:' + r.pct + '%"></i></span>') + '</summary>' +
-      (r.pct == null ? '<p class="lp-notes">設定状況が読めなかったため、どこまで済んでいるか分かりません。「再読込」でもう一度読みます。</p>' : '') +
+    host.innerHTML = '<section class="lp-setup" id="lp-setup-d" aria-label="はじめての設定">' +
+      '<div class="lp-setup-head"><span class="lp-pct" id="lp-pct">' + esc(pct) + '</span>' +
+      (r.pct == null ? '' : '<span class="lp-bar" aria-hidden="true"><i style="width:' + r.pct + '%"></i></span>') + '</div>' +
+      (r.pct == null ? '<p class="lp-notes">設定状況が読めなかったため、どこまで済んでいるか分かりません。ホームの「再読込」でもう一度読みます。</p>' : '') +
       '<ol class="lp-steps">' + r.steps.map(function (st) {
         var acts = [];
         if (st.state === 'todo' || st.state === 'unknown') acts.push('<button type="button" data-set="' + st.id + '">設定する</button>');
@@ -783,9 +809,7 @@
           (st.state !== 'done' && st.where ? '<p>設定する場所: ' + esc(st.where) + '（この画面からは変えられません）</p>' : '') +
           (acts.length ? '<div class="lp-acts">' + acts.join('') + '</div>' : '') +
           '<div class="lp-out" id="lp-out-' + st.id + '" hidden></div></div></li>';
-      }).join('') + '</ol></details>';
-    var d = el('lp-setup-d');
-    d.addEventListener('toggle', function () { setupOpen = d.open; });
+      }).join('') + '</ol></section>';
     var find = function (id) { return r.steps.filter(function (x) { return x.id === id; })[0]; };
     host.querySelectorAll('[data-set]').forEach(function (b) {
       b.addEventListener('click', function () { goSetting(find(b.getAttribute('data-set'))); });
@@ -892,9 +916,7 @@
     box.id = 'lp-today';
     box.setAttribute('aria-labelledby', 'lp-today-h');
     portal.insertBefore(box, portal.firstChild);
-    var setup = document.createElement('div');
-    setup.id = 'lp-setup';
-    portal.insertBefore(setup, box.nextSibling);
+    // はじめての設定は、専用のタブ（#setup-admin の #lp-setup）に出します。
     var foot = document.createElement('p');
     foot.className = 'lp-foot';
     foot.innerHTML = '<label><input type="checkbox" id="lp-pomo-on">ポモドーロタイマーを表示する</label>';

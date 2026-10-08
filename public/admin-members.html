@@ -1312,6 +1312,9 @@ input, select, textarea { color: var(--text); }
     <!-- 自動改善。中身は /admin-auto.js が組み立てます。 -->
     <div class="panel" id="auto-admin" style="display:none; margin-top:20px"></div>
 
+    <!-- はじめての設定。中身は /admin-portal.js が作ります。 -->
+    <div class="panel" id="setup-admin" style="display:none; margin-top:20px"><div id="lp-setup"></div></div>
+
     <div class="panel" id="health-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイトのどの機能が動いていて、どこが止まっているかを1画面で確認できます。値そのものは表示しません（設定されているかどうかだけを見ています）。</p>
       <div class="toolbar" style="margin-bottom:12px">
@@ -1851,6 +1854,10 @@ window.lumAdmin = {
      which parts actually work right now instead of listing seven doors and
      letting you find the locked ones by opening them. */
   var TABS = [
+    /* はじめての設定。中身は /admin-portal.js（ホームと同じ読み込み結果から作ります）。
+       キーの入力はオーナーだけなので、ほかの役割には出しません（/admin-staff.js）。 */
+    { id: 'setup-admin', icon: 'check', label: 'はじめての設定',
+      desc: '使い始めるための設定を順に', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
     { id: 'health-admin', icon: 'settings', label: '設定状況', init: 'lumHealthInit',
       desc: '何が使えるか確認', accent: '#047857', tint: 'rgba(16,185,129,0.14)' },
     /* The store: without it enquiries arrive by mail only and there is no
@@ -1916,12 +1923,13 @@ window.lumAdmin = {
     { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
-    { label: '管理', ids: ['health-admin', 'staff-admin', 'audit-admin'] }
+    { label: '管理', ids: ['setup-admin', 'health-admin', 'staff-admin', 'audit-admin'] }
   ];
   /* 画面の見出しの下に出す一行の説明。長い説明は「？」の中です。 */
   var PAGE_DESC = {
     portal: '今日やることと、今週の数字をまとめて見ます。',
     'health-admin': 'サイトの機能が動いているか、足りない設定はどれかを確かめます。',
+    'setup-admin': 'このサイトの機能を使い始めるための設定を、上から順に済ませます。',
     'inquiries-admin': 'フォームから届いた問い合わせを読み、返信の状況を管理します。',
     'reviews-admin': 'Google の口コミを読み、返信します。',
     'quotes-admin': '見積書を作って送り、請求書にします。',

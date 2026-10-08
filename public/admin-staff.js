@@ -27,7 +27,7 @@
   var METHOD = { POST: '送信・保存', PUT: '保存', PATCH: '更新', DELETE: '削除' };
 
   /* タブを見るのに要る役割。書いていないタブは全員が見られます（閲覧のみも）。 */
-  var TAB_MIN = { 'health-admin': 'manager', 'advisor-admin': 'staff', 'staff-admin': 'owner', 'audit-admin': 'manager' };
+  var TAB_MIN = { 'setup-admin': 'owner', 'health-admin': 'manager', 'advisor-admin': 'staff', 'staff-admin': 'owner', 'audit-admin': 'manager' };
   /* その画面の主な保存・送信に要る役割。足りないときに上へ一言出します。 */
   var WRITE_MIN = {
     'inquiries-admin': 'staff', 'reviews-admin': 'staff', 'social-admin': 'staff', 'booking-admin': 'staff',
