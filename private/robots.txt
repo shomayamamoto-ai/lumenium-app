@@ -36,6 +36,18 @@ Allow: /
 User-agent: Claude-Web
 Allow: /
 
+# Anthropic: Claude-SearchBot indexes for Claude's web search, Claude-User
+# fetches a page when someone asks Claude about it.
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+# DuckDuckGo の AI 回答（DuckAssist）
+User-agent: DuckAssistBot
+Allow: /
+
 User-agent: anthropic-ai
 Allow: /
 

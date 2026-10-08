@@ -55,6 +55,18 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
+  /* 管理画面のホームを開くたびに呼ばれるので、ここで「サイトが変わって
+     いたら検索エンジンに知らせる」を済ませます（IndexNow。変わっていなければ
+     何もしません）。応答は待たせず、返事のあとで送ります。 */
+  if (new URL(req.url).searchParams.get('latest') === '1') {
+    const task = import('./indexnow.js').then((m) => m.autoIndexNow(new URL(req.url).origin)).catch(() => null)
+    try {
+      const c = globalThis[Symbol.for('@vercel/request-context')]
+      const ctx = c && c.get && c.get()
+      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(task)
+    } catch (_) { /* 送れなくても画面には関係ありません */ }
+  }
+
   const q = new URL(req.url).searchParams
   // HEAD は GitHub 側で既定のブランチの最新に読み替えられます。
   const sha = q.get('latest') === '1' ? 'HEAD' : String(q.get('sha') || '')

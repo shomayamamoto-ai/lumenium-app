@@ -57,6 +57,8 @@ export const SECTION = {
     flowTitle: 'ご依頼の流れ',
     faqTitle: 'よくある質問',
     faqMore: 'すべての質問を見る',
+    consultTitle: 'ご相談の多い内容',
+    consultLead: '依頼先を探している方から、よくいただく質問と答えです。料金はいずれも目安で、お見積りは無料です。',
   },
   contact: {
     systemsAskText: '「{name}」のようなシステムについて相談したいです。\n\n（業種・いま困っていること・やりたいことを、わかる範囲でお書きください）\n',

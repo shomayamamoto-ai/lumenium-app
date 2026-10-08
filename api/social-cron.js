@@ -23,6 +23,7 @@ import { runAutoCron } from './auto-cron.js'
 import { runNewsCron } from './_news-cron.js'
 import { runReviewsCron } from './_reviews.js'
 import { runAioDaily } from './_aio-auto.js'
+import { autoIndexNow } from './indexnow.js'
 
 // 全体で使ってよい時間。Edge は25秒以内に返事を始める必要があります。
 const BUDGET_MS = 21000
@@ -120,6 +121,13 @@ export async function GET(req) {
     catch (e) { news = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
+  // サイトが変わっていたら、検索エンジン（Bing ほか）に全ページを知らせます（indexnow.js）。
+  let indexnow = null
+  if (BUDGET_MS - (Date.now() - started) > 3000) {
+    try { indexnow = await autoIndexNow(new URL(req.url).origin) }
+    catch (e) { indexnow = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
+  }
+
   // AIO出現率の自動計測（_aio-auto.js）: 計測の日なら始めるだけ。進めるのは
   // /api/aio-cron が別の呼び出しで行うので、ここで使うのは1〜2秒です。
   let aio = null
@@ -151,7 +159,7 @@ export async function GET(req) {
     catch (e) { video = { ok: false, message: String((e && e.message) || e).slice(0, 160) } }
   }
 
-  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, booking, news, aio, reviews, auto: auto && { ok: auto.ok, paused: auto.paused, steps: (auto.steps || []).map((x) => x.step + (x.ok === false ? '!' : '')) }, video }
+  const summary = { at: new Date().toISOString(), date: today, sent: done, left, repeats, threads, metrics, booking, news, aio, indexnow: indexnow && { ok: indexnow.ok, skipped: indexnow.skipped || null }, reviews, auto: auto && { ok: auto.ok, paused: auto.paused, steps: (auto.steps || []).map((x) => x.step + (x.ok === false ? '!' : '')) }, video }
   try { await pipeline(cfg, [['SET', CRON_LAST, JSON.stringify(summary), 'EX', 30 * 86400]]) } catch (_) {}
   return json({ ok: true, ...summary })
 }

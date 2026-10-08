@@ -12,7 +12,7 @@
 import { renderToString } from 'react-dom/server'
 import App from './App'
 import { applyOverrides } from './lib/content-registry'
-import { landingFaq } from './data/faq'
+import { landingFaq, consultFaq } from './data/faq'
 
 export function render(overrides) {
   const applied = applyOverrides(overrides)
@@ -20,6 +20,7 @@ export function render(overrides) {
     html: renderToString(<App />),
     applied,
     // The questions the page shows, after the overrides, for its FAQPage data.
-    faq: landingFaq().map((f) => ({ q: f.q, a: f.a })),
+    // トップに出ている質問すべて（よくある質問＋ご相談の多い内容）。
+    faq: landingFaq().concat(consultFaq()).map((f) => ({ q: f.q, a: f.a })),
   }
 }

@@ -3,7 +3,7 @@ import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
 import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS, SYSTEMS } from '../data/site'
-import { landingFaq } from '../data/faq'
+import { landingFaq, consultFaq } from '../data/faq'
 import LineIcon from './LineIcon'
 import ContactForm from './ContactForm'
 import QuickBook from './QuickBook'
@@ -280,6 +280,21 @@ export default function Landing({ onPrivacy }) {
               ))}
             </div>
             <a href="/faq.html" className="lp-link">{SECTION.lp.faqMore} →</a>
+          </div>
+          {/* 依頼先を探している人が、AIや検索にそのまま打つ質問と、その答え。
+              トップは検索エンジンが最初に読むページなので、答えをここに置きます
+              （閉じていても、文章はページの中にあります）。 */}
+          <div id="consult" className="lp-consult">
+            <h2 className="lp-h2">{SECTION.lp.consultTitle}</h2>
+            <p className="lp-consult-lead">{SECTION.lp.consultLead}</p>
+            <div className="lp-faq lp-faq-2">
+              {consultFaq().map((f) => (
+                <details key={f.q}>
+                  <summary>{f.q}</summary>
+                  <p>{f.a}</p>
+                </details>
+              ))}
+            </div>
           </div>
         </div>
       </section>

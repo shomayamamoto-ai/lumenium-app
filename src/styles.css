@@ -11038,6 +11038,10 @@ body { color: var(--lp-ink); }
 .lp-faq summary::after { content: '+'; position: absolute; right: 4px; top: 14px; font-size: 20px; font-weight: 400; color: var(--lp-ink-3); }
 .lp-faq details[open] summary::after { content: '−'; }
 .lp-faq details p { margin: 0 0 18px; font-size: 14px; line-height: 1.9; color: var(--lp-ink-2); }
+.lp-consult { grid-column: 1 / -1; }
+.lp-consult-lead { margin: 8px 0 0; font-size: 14px; line-height: 1.8; color: var(--lp-ink-2); }
+.lp-faq-2 { display: grid; grid-template-columns: 1fr 1fr; column-gap: 48px; align-items: start; }
+@media (max-width: 900px) { .lp-faq-2 { grid-template-columns: 1fr; } }
 
 /* Contact keeps the dark form it already has, as the closing band */
 .lp-contact { background: #15162b; }
