@@ -5833,12 +5833,12 @@ export const CHAT_RUNS = [
   "analysisFailures": []
  },
  {
-  "id": "2026-10-08-1230-chat",
+  "id": "2026-10-08-1035-chat",
   "source": "chat",
   "site": "lumenium.net",
   "note": "3回目（サイト改善の反映後）。lumenium.net は28問すべての検索結果に出てこなかった。検索エンジンが持っている lumenium.net はトップページ1枚だけで、内容は約134日前のまま（「ご相談の多い内容」などの改善はまだ読まれていない）。紹介サイト web-kanji.com 経由で、小規模な制作会社（STUDIO WORKS・ゼロイチ・シーファイブ・キュープラント）が候補に挙がっていた。",
-  "startedAt": "2026-10-08T03:30:00.000Z",
-  "finishedAt": "2026-10-08T03:30:00.000Z",
+  "startedAt": "2026-10-08T01:35:00.000Z",
+  "finishedAt": "2026-10-08T01:35:00.000Z",
   "settings": {
    "samples": 1,
    "engines": [

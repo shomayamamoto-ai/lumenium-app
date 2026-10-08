@@ -24,6 +24,8 @@ const MODEL = 'Claude（チャット・ウェブ検索）'
 const files = fs.readdirSync(here).filter((f) => /^aio-chat-.*\.json$/.test(f)).sort()
 const runs = files.map((f) => {
   const src = JSON.parse(fs.readFileSync(path.join(here, f), 'utf8'))
+  // 未来の日時にすると、あとから測った計測より上に並んでしまうので止めます。
+  if (Date.parse(src.measuredAt) > Date.now() + 60 * 1000) throw new Error(`${f}: measuredAt が未来の日時です（${src.measuredAt}）`)
   const results = src.answers.map((a) => {
     const item = byId.get(a.id)
     if (!item) throw new Error(`${f}: 質問 ${a.id} が既定の質問にありません`)
