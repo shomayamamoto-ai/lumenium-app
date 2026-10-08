@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 
 /**
  * Opening I (G+H) — Lumen Convergence.
@@ -8,14 +8,29 @@ import { useState, useEffect, useMemo } from 'react'
  *
  * Combines the lumen-measurement instrumentation of G
  * with the scattered → focused particle convergence of H.
+ *
+ * 数字・バー・中心の明るさは、毎コマ要素へ直接書き込みます。以前は数字を
+ * React の状態にしていたので、毎コマこの画面全体（光の粒60個・筋20本）を
+ * 描き直していて、後ろでトップページを組み立てている最初の数秒は特に
+ * コマが飛び、数字とバーがカクついていました。時計も、最初のコマが
+ * 描かれてから動かし始めます（読み込み直後の重い時間に進んだ分を、
+ * 一気に飛ばさないため）。場面の切り替え（衝突・ロゴ・退場）も同じ時計で
+ * 決めるので、数字が上がりきる瞬間と光の衝突がずれません。
  */
 
 const TARGET_LUMENS = 10000
 const CONVERGE_DURATION = 2600
 
+// 0→1 の進み方。ほぼ一定の速さで進み、始まりと終わりだけ少しやわらげる。
+// （以前の「速く始まって最後に這う」形だと、出だしで数字が飛び、終わりで
+// 止まったように見えていました。）
+const meterEase = (p) => p - (0.8 * Math.sin(2 * Math.PI * p)) / (2 * Math.PI)
+
 export default function Splash({ onComplete }) {
-  const [lumens, setLumens] = useState(0)
   const [phase, setPhase] = useState(0) // 0 converge, 1 impact, 2 reveal, 3 exit
+  const rootRef = useRef(null)
+  const numRef = useRef(null)
+  const fillRef = useRef(null)
 
   const particles = useMemo(() => (
     Array.from({ length: 60 }, (_, i) => {
@@ -41,28 +56,28 @@ export default function Splash({ onComplete }) {
     }))
   ), [])
 
-  // Lumen ramp-up synced with convergence
+  // 数字・バー・明るさを1つの時計で進め、場面の切り替えも同じ時計で決める
   useEffect(() => {
-    const start = performance.now()
-    let raf = 0
+    let raf = 0, start = 0, frames = 0, shown = 0, cur = 0, ended = false
     const step = (now) => {
-      const p = Math.min((now - start) / CONVERGE_DURATION, 1)
-      const eased = 1 - Math.pow(1 - p, 2.2)
-      setLumens(Math.round(eased * TARGET_LUMENS))
-      if (p < 1) raf = requestAnimationFrame(step)
+      raf = requestAnimationFrame(step)
+      // 2コマ目から時計を動かす（1コマ目は組み立て直後で重い）
+      if (frames < 2) { frames++; return }
+      if (!start) start = now
+      const t = now - start
+      const p = Math.min(t / CONVERGE_DURATION, 1)
+      const k = meterEase(p)
+      const v = Math.round(k * TARGET_LUMENS)
+      if (v !== shown && numRef.current) { shown = v; numRef.current.textContent = String(v) }
+      if (fillRef.current) fillRef.current.style.transform = `scaleX(${k.toFixed(4)})`
+      if (rootRef.current) rootRef.current.style.setProperty('--lm', k.toFixed(4))
+      const ph = t >= CONVERGE_DURATION + 1800 ? 3 : t >= CONVERGE_DURATION + 400 ? 2 : t >= CONVERGE_DURATION ? 1 : 0
+      if (ph !== cur) { cur = ph; setPhase(ph) }
+      if (!ended && t >= CONVERGE_DURATION + 2400) { ended = true; onComplete?.() }
     }
     raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
-  useEffect(() => {
-    const timers = []
-    timers.push(setTimeout(() => setPhase(1), CONVERGE_DURATION))         // impact
-    timers.push(setTimeout(() => setPhase(2), CONVERGE_DURATION + 400))   // reveal
-    timers.push(setTimeout(() => setPhase(3), CONVERGE_DURATION + 1800))  // exit
-    timers.push(setTimeout(() => onComplete?.(), CONVERGE_DURATION + 2400))
-    timers.push(setTimeout(() => onComplete?.(), 7000)) // failsafe
-    return () => timers.forEach((t) => clearTimeout(t))
+    const failsafe = setTimeout(() => onComplete?.(), 7000)
+    return () => { cancelAnimationFrame(raf); clearTimeout(failsafe) }
   }, [onComplete])
 
   useEffect(() => {
@@ -74,13 +89,12 @@ export default function Splash({ onComplete }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onComplete])
 
-  const brightness = lumens / TARGET_LUMENS
-
   return (
     <div
+      ref={rootRef}
       className={`lx phase-${phase}`}
       onClick={() => onComplete?.()}
-      style={{ '--lm': brightness }}
+      style={{ '--lm': 0 }}
       role="presentation"
     >
       <button
@@ -170,7 +184,7 @@ export default function Splash({ onComplete }) {
       <div className="lx-readout">
         {/* No thousands separator — this reads as an instrument display, and
             the comma also made the number jump width as it counted up. */}
-        <div className="lx-readout-num">{lumens}</div>
+        <div className="lx-readout-num" ref={numRef}>0</div>
         <div className="lx-readout-unit">lm</div>
       </div>
 
@@ -182,7 +196,7 @@ export default function Splash({ onComplete }) {
           ))}
         </div>
         <div className="lx-meter-bar">
-          <div className="lx-meter-fill" style={{ transform: `scaleX(${brightness})` }} />
+          <div className="lx-meter-fill" ref={fillRef} />
         </div>
         <div className="lx-meter-label">
           <span>LUMINOUS FLUX</span>
