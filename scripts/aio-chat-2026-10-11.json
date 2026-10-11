@@ -1,0 +1,404 @@
+{
+  "measuredAt": "2026-10-11T23:40:00+09:00",
+  "note": "4回目。lumenium.net は28問すべての検索結果に出てこなかった（社名で聞いた質問でも、公式サイトが一度も根拠に挙がらない）。答えの根拠になったのは、比較・紹介サイト（比較ビズ・アイミツ・発注ナビ・ミツモア・@SOHO・web-kanji）、クラウドソーシングの個人・会社プロフィール（ランサーズ・クラウドワークス・ココナラ）、プレスリリース（PR TIMES・ValuePress）。サイトの中身より、外の名簿に載っているかで決まっている。",
+  "answers": [
+    {
+      "id": "brand-what",
+      "verdict": "other_company",
+      "companies": [
+        "日本ルメンタム株式会社"
+      ],
+      "missing": "公式サイト・会社情報",
+      "answer": "「ルメニウム（Lumenium）」という会社は見つからず、名前の近い日本ルメンタム株式会社（光半導体、相模原・高尾・新宿）を説明しました。",
+      "urls": [
+        "https://hrmos.co/pages/lumentum/jobs/2230523987053064211",
+        "https://mynavi-agent.jp/corpdetail/31921/",
+        "https://www.datanyze.com/companies/lumium/353729374"
+      ]
+    },
+    {
+      "id": "brand-real",
+      "verdict": "denied",
+      "companies": [
+        "株式会社Lumii",
+        "Lumens",
+        "LUM Japan"
+      ],
+      "missing": "公式サイト・会社情報",
+      "answer": "「Lumenium」という日本の制作会社も公式サイトも確認できないと答え、近い名前として動画制作の株式会社Lumiiを挙げました。法人番号公表サイトでの確認を勧めました。",
+      "urls": [
+        "https://www.shopowner-support.net/?p=173632",
+        "https://www.ledinside.com/node/22285"
+      ]
+    },
+    {
+      "id": "brand-vs",
+      "verdict": "denied",
+      "companies": [
+        "Lumentum",
+        "日本ルメンタム株式会社"
+      ],
+      "missing": "",
+      "answer": "「ルメニウム」という名前は見つからず、ルメンタムの表記違いか誤記の可能性があると答えました。",
+      "urls": [
+        "https://hrmos.co/pages/lumentum",
+        "https://www.careercross.com/company/pdf-338352"
+      ]
+    },
+    {
+      "id": "trust-review",
+      "verdict": "denied",
+      "companies": [
+        "株式会社Lumii",
+        "Lumena"
+      ],
+      "missing": "第三者の口コミ",
+      "answer": "「ルメニウム」という制作会社の情報も評判も見つからないと答え、別会社のLumiiの口コミを紹介しました。",
+      "urls": [
+        "https://www.shopowner-support.net/?p=173632",
+        "https://boxil.jp/service/8347/reviews/30031/"
+      ]
+    },
+    {
+      "id": "trust-real",
+      "verdict": "denied",
+      "companies": [
+        "LUMIUM Design, Inc.",
+        "Lumium"
+      ],
+      "missing": "事業者情報",
+      "answer": "lumenium.net の事業者情報は見つからないと答え、サイトの特定商取引法に基づく表記やWHOIS、法人番号公表サイトで確かめるよう勧めました。",
+      "urls": [
+        "https://www.datanyze.com/companies/lumium/353729374",
+        "https://directory.designnews.com/lumium-design-inc-comp256016.html"
+      ]
+    },
+    {
+      "id": "trust-newco",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "契約書と見積もりの照合、著作権の範囲、連絡先の実在、担当者の引き継ぎ体制などを見分け方として挙げました。会社名の推薦はありません。",
+      "urls": [
+        "https://atsoho.com/blog/unreachable-production-company-response-record",
+        "https://atsoho.com/blog/video-production-company-yokohama",
+        "https://imitsu.jp/matome/movie/2142261655649452"
+      ]
+    },
+    {
+      "id": "video-hire",
+      "verdict": "absent",
+      "companies": [
+        "株式会社LOCUS",
+        "株式会社タレントアンドアセスメント",
+        "株式会社フォロアス"
+      ],
+      "missing": "",
+      "answer": "発注ナビ・ミツモア・@SOHOの一覧を案内し、採用動画の実績がある会社としてLOCUS・タレントアンドアセスメント・フォロアスを挙げました。",
+      "urls": [
+        "https://hnavi.co.jp/knowledge/blog/tokyo_video_companies/",
+        "https://meetsmore.com/t/video-production/tokyo",
+        "https://atsoho.com/vendors/video/tokyo/9010401114447",
+        "https://imitsu.jp/ct-movie/pr-tokyo/ci-chiyoda-ku/supplier/61578/service/120175/achievement/14357"
+      ]
+    },
+    {
+      "id": "video-cheap",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "制作会社は30万〜200万円が目安、SNS向けの短い動画は1〜3万円台から、フリーランスは安くなりやすいと説明しました。会社名の推薦はありません。",
+      "urls": [
+        "https://atsoho.com/blog/video-outsourcing-freelance-vs-agency-cost",
+        "https://0120.co.jp/blog/video-02/",
+        "https://atsoho.com/blog/video-production-cost-guide"
+      ]
+    },
+    {
+      "id": "video-price",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "会社紹介動画は30万〜200万円、フリーランス1〜10万円、広告代理店100〜1,000万円と依頼先別の相場を説明しました。",
+      "urls": [
+        "https://atsoho.com/blog/company-video-production-cost",
+        "https://imitsu.jp/cost/movie/",
+        "https://meetsmore.com/product-services/CM-video-advertisement-production/media/208535"
+      ]
+    },
+    {
+      "id": "ai-train",
+      "verdict": "absent",
+      "companies": [
+        "AVILEN",
+        "Aidemy Business",
+        "SIGNATE Cloud",
+        "インソース",
+        "Algoage",
+        "テックアカデミー",
+        "NOVEL",
+        "パーソル総合研究所",
+        "富士通ラーニングメディア",
+        "サイバーエージェント"
+      ],
+      "missing": "",
+      "answer": "比較記事から法人向け生成AI研修の会社を挙げました（Algoage 30万円〜、NOVEL 50万円/回など）。",
+      "urls": [
+        "https://www.shopowner-support.net/attracting_customers/btob-business/office-solution/produced-ai-training/",
+        "https://weel.co.jp/media/generative-ai-training",
+        "https://www.cyberagent.co.jp/techinfo/news/detail/id=29837"
+      ]
+    },
+    {
+      "id": "ai-intro",
+      "verdict": "absent",
+      "companies": [
+        "株式会社Saira",
+        "株式会社ユニークポイント",
+        "中小企業基盤整備機構"
+      ],
+      "missing": "",
+      "answer": "民間の無料相談窓口（Saira「AI、DXなんでも相談室」）、ユニークポイント「みんなのAI相談室」、中小機構を案内しました。どちらもプレスリリースが根拠でした。",
+      "urls": [
+        "https://prtimes.jp/main/html/rd/p/000000009.000152184.html",
+        "https://prtimes.jp/main/html/rd/p/000000005.000170244.html",
+        "https://www.jfc.go.jp/n/findings/pdf/ronbun2102_02.pdf"
+      ]
+    },
+    {
+      "id": "ai-rule",
+      "verdict": "absent",
+      "companies": [
+        "LegalOn Technologies",
+        "電通デジタル"
+      ],
+      "missing": "",
+      "answer": "社内ルールの作り方の解説と、LegalOn Technologiesの無料ひな形を紹介しました。支援会社の比較までは示せないと答えました。",
+      "urls": [
+        "https://ai.giftx.co.jp/blog/chatgpt-company-rollout-guide/",
+        "https://www.legalontech.com/jp/download/112-01",
+        "https://ai-market.jp/purpose/chatgpt-corporate-use/"
+      ]
+    },
+    {
+      "id": "sns-line",
+      "verdict": "absent",
+      "companies": [
+        "MARKELINK",
+        "S.Line",
+        "スパイアソリューション",
+        "LME"
+      ],
+      "missing": "",
+      "answer": "比較記事と、MARKELINKの構築パッケージ（初期55万〜88万円）などを紹介しました。",
+      "urls": [
+        "https://www.shopowner-support.net/customer_attraction_information/online/linebiz/line-official-account-setup-service/",
+        "https://meetsmore.com/products/markelink",
+        "https://lme.jp/media/line/construction/"
+      ]
+    },
+    {
+      "id": "sns-ops",
+      "verdict": "absent",
+      "companies": [
+        "株式会社ハーマンドット"
+      ],
+      "missing": "",
+      "answer": "web-kanji.com の「東京都のSNS運用代行会社15社」から株式会社ハーマンドットを挙げ、費用相場を45.5万円と紹介しました。",
+      "urls": [
+        "https://web-kanji.com/posts/sns-tokyo",
+        "https://www.onamae.com/business/article/242480/",
+        "https://stock-sun.com/column/sns-management-tokyo/"
+      ]
+    },
+    {
+      "id": "sns-short",
+      "verdict": "absent",
+      "companies": [
+        "株式会社アドライブエージェント",
+        "株式会社S.Line",
+        "株式会社課題解決プラットフォーム"
+      ],
+      "missing": "",
+      "answer": "ランサーズに掲載されたアドライブエージェントのプロフィールなどから、撮影から投稿まで一括で受ける会社を挙げました。クラウドワークスの個人も選択肢として紹介しました。",
+      "urls": [
+        "https://www.lancers.jp/profile/lib_creators/portfolio",
+        "https://s--line.co.jp/short-video-agency/",
+        "https://crowdworks.jp/public/employees/4202948"
+      ]
+    },
+    {
+      "id": "web-make",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "比較ビズ・ミツモアの一覧と、比較ビズに掲載された依頼案件（予算70万円など）を紹介しました。会社名の推薦はありません。",
+      "urls": [
+        "https://meetsmore.com/t/website-development/tokyo",
+        "https://www.biz.ne.jp/list/hp-design/13_tokyo/taitoku/",
+        "https://webtan.impress.co.jp/u/2021/04/28/39987"
+      ]
+    },
+    {
+      "id": "web-sys",
+      "verdict": "absent",
+      "companies": [
+        "株式会社リエゾン",
+        "株式会社オープンウェーブ",
+        "株式会社システムフォーサイト"
+      ],
+      "missing": "",
+      "answer": "発注ナビ「小規模なシステム開発でおすすめの開発会社16社」とアイミツの一覧から、小規模システム向けの会社を挙げました。",
+      "urls": [
+        "https://hnavi.co.jp/knowledge/blog/small-system_companies/",
+        "https://imitsu.jp/list/web-system/small-business/",
+        "https://yamagata-gosetsu.mhlw.go.jp/2025/03/6694/"
+      ]
+    },
+    {
+      "id": "web-renew",
+      "verdict": "absent",
+      "companies": [
+        "オフィスピコッツ"
+      ],
+      "missing": "",
+      "answer": "「残す・直す・外す」で現状を見直す考え方と、比較ビズのリニューアル依頼の例を紹介しました。",
+      "urls": [
+        "https://www.biz.ne.jp/subject/toi_detail.html?tid=992516",
+        "https://www.value-press.com/pressrelease/378443"
+      ]
+    },
+    {
+      "id": "cast-book",
+      "verdict": "absent",
+      "companies": [
+        "アイミツ",
+        "株式会社ベルフォース"
+      ],
+      "missing": "",
+      "answer": "アイミツの一括見積もりと、ココナラ・クラウドワークスのMC個人を案内しました。",
+      "urls": [
+        "https://imitsu.jp/list/event-planning/liveevent-staff/",
+        "https://coconala.com/services/4279981",
+        "https://crowdworks.jp/public/employees/142436"
+      ]
+    },
+    {
+      "id": "cast-expo",
+      "verdict": "absent",
+      "companies": [
+        "株式会社ケイプロモーション"
+      ],
+      "missing": "",
+      "answer": "コンパニオン派遣会社、マッチングサイト「イベコン.com」、イベント企画会社の3つの探し方を紹介しました。",
+      "urls": [
+        "https://imitsu.jp/list/event-planning/event-companion/",
+        "https://prtimes.jp/main/html/rd/p/000000006.000057754.html",
+        "https://rocket-boys.co.jp/?p=1165"
+      ]
+    },
+    {
+      "id": "cast-shoot",
+      "verdict": "absent",
+      "companies": [
+        "株式会社アクエリアス",
+        "株式会社エーフラット"
+      ],
+      "missing": "",
+      "answer": "モデル事務所が運営する動画制作サービスや、ナレーター手配に対応する会社を挙げました。",
+      "urls": [
+        "https://www.biz.ne.jp/company/aq-movie/",
+        "https://www.value-press.com/pressrelease/325993",
+        "https://www.lancers.jp/menu/detail/1276479"
+      ]
+    },
+    {
+      "id": "cre-logo",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "比較ビズの「ロゴ制作会社22社」とクラウドワークスの提案例を案内しました。",
+      "urls": [
+        "https://www.biz.ne.jp/matome/2002867/",
+        "https://crowdworks.jp/public/proposal_products/15167315"
+      ]
+    },
+    {
+      "id": "cre-brand",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "クラウドワークスで個人デザイナーがロゴと名刺をまとめて提案している例を紹介しました。会社案内まで一括で頼める会社は見つからないと答えました。",
+      "urls": [
+        "https://crowdworks.jp/public/proposal_products/15140470",
+        "https://crowdworks.jp/public/proposal_products/14249159"
+      ]
+    },
+    {
+      "id": "cre-pamph",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "比較ビズに掲載された展示会パネルとパンフレットの依頼例を紹介しました。制作会社名は挙がりませんでした。",
+      "urls": [
+        "https://www.biz.ne.jp/subject/toi_detail.html?tid=939245",
+        "https://www.biz.ne.jp/subject/toi_detail.html?tid=989999"
+      ]
+    },
+    {
+      "id": "cross-onestop",
+      "verdict": "absent",
+      "companies": [
+        "Enter ENT",
+        "aicrew株式会社",
+        "株式会社SDキャリアサポート"
+      ],
+      "missing": "",
+      "answer": "動画・Web・AI研修の3つをまとめて提供する会社は特定できないと答え、近い例としてEnter ENT（ランサーズのプロフィール）などを挙げました。",
+      "urls": [
+        "https://www.lancers.jp/client/Enter_ENT",
+        "https://webtan.impress.co.jp/r/prtimes/items/000000013.000163392",
+        "https://en-gage.net/sdvision_jobs1/work_18130592"
+      ]
+    },
+    {
+      "id": "cross-dx",
+      "verdict": "absent",
+      "companies": [
+        "株式会社フォーバル",
+        "ミロク情報サービス",
+        "キヤノンS&S"
+      ],
+      "missing": "",
+      "answer": "自治体の委託事業（静岡市・フォーバル）やMJS、キヤノンS&Sの伴走支援を紹介しました。",
+      "urls": [
+        "https://www.zenkyo.or.jp/chiiki/docs/jigyou2026/18_shizuoka_p2026.pdf",
+        "https://www.mjs.co.jp/news/news_2025/000000430.000018493/pdf/d18493-430-68e7049e03b3ec1e661835811bab9bc8.pdf",
+        "https://cloud.watch.impress.co.jp/docs/news/1668514.html"
+      ]
+    },
+    {
+      "id": "cross-choose",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "同業種の実績、実績の実物確認、見積もりの内訳、業務範囲の書面化などを基準に挙げました。おすすめの会社は示しませんでした。",
+      "urls": [
+        "https://atsoho.com/blog/production-company-choice-tokyo",
+        "https://jinrai.co.jp/blog/homepage-seisaku-kaisha-erabikata/",
+        "https://hnavi.co.jp/knowledge/blog/homepage-company_choice"
+      ]
+    },
+    {
+      "id": "cross-budget",
+      "verdict": "absent",
+      "companies": [],
+      "missing": "",
+      "answer": "比較ビズの予算100万円の依頼例を紹介し、動画とサイトを一社で請け負えるか見積もりで確認するよう勧めました。会社名はありません。",
+      "urls": [
+        "https://www.biz.ne.jp/subject/toi_detail.html?tid=980566",
+        "https://www.biz.ne.jp/matome/2003590/"
+      ]
+    }
+  ]
+}
