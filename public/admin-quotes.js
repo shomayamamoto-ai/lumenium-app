@@ -973,6 +973,11 @@
   /* ---------------- 開始 ---------------- */
 
   /* ほかの画面から見積書を開く（いまは使っていませんが、問い合わせ管理から呼べるように）。 */
+  /* どこでも検索（admin-finder.js）の「新しい見積書を作る」。読み込み前なら、読み込んだあとで開きます。 */
+  window.lumQuoteNew = function () {
+    if (S.data) { if (leaveOk()) openNew(); }
+    else S.pendingNew = true;
+  };
   window.lumQuoteOpen = function (id) {
     if (window.lumShowTab && window.lumShowTab(TAB) === false) return;
     if (S.data) openQuote(id);
@@ -993,6 +998,7 @@
     }
     if (await load()) {
       if (S.pendingOpen) { var id = S.pendingOpen; S.pendingOpen = ''; S.sec = 'list'; openQuote(id); }
+      else if (S.pendingNew) { S.pendingNew = false; openNew(); }
       else go(S.sec);
     }
   };

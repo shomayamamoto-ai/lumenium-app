@@ -12,7 +12,7 @@
    たまたまの差を傾向と呼ばないようにしています。 */
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var S = { started: false, data: null, rules: null, sec: 'list', view: 'upcoming', status: '', weekOff: 0, open: '', seenAt: 0 };
+  var S = { started: false, data: null, rules: null, sec: 'list', view: 'upcoming', status: '', weekOff: 0, open: '', seenAt: 0, pendingOpen: null };
   var SECTIONS = [
     ['list', '予約一覧'], ['week', '週の表'], ['rules', '受付の決まり'], ['menu', 'メニュー'],
     ['conn', 'つながり・お知らせ'], ['stats', '数字']
@@ -752,6 +752,24 @@
     return '﻿' + [head.map(q).join(',')].concat(rows).join('\r\n') + '\r\n';
   }
 
+  /* どこでも検索（admin-finder.js）から1件を開く。id が空なら「要対応」の一覧へ。
+     まだ読み込んでいなければ、読み込んだあとで開きます。 */
+  function openFromOutside(id) {
+    S.viewPicked = true;
+    S.status = '';
+    S.view = id ? 'all' : 'todo';
+    S.open = id || '';
+    go('list');
+    if (id) setTimeout(function () {
+      var c = document.querySelector('#booking-admin .bk-card[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (c) c.scrollIntoView({ block: 'center' });
+    }, 30);
+  }
+  window.lumBookOpen = function (id) {
+    if (S.data && !S.data.failed) openFromOutside(id);
+    else S.pendingOpen = id || '';
+  };
+
   /* ---------------- 開始 ---------------- */
 
   window.lumBookingInit = async function () {
@@ -760,7 +778,10 @@
     shell();
     try { S.sec = sessionStorage.getItem('lum_booking_sec') || 'list'; } catch (_) {}
     if (!SECTIONS.some(function (s) { return s[0] === S.sec; })) S.sec = 'list';
-    if (await load()) go(S.sec);
+    if (await load()) {
+      if (S.pendingOpen != null) { var pid = S.pendingOpen; S.pendingOpen = null; openFromOutside(pid); }
+      else go(S.sec);
+    }
     else document.querySelectorAll('#booking-admin [data-sec]').forEach(function (b) { b.disabled = true; });
     if (demo()) say('デモ表示：架空のサロンの予約です。保存・変更・メールの送信は行われません。', true);
   };
