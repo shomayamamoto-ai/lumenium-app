@@ -58,6 +58,7 @@ export function cleanQuoteSettings(input, cur) {
   pick('company', 80); pick('address', 160, true); pick('tel', 30); pick('email', 100); pick('person', 40)
   pick('bank', 300, true); pick('payTerms', 120); pick('delivery', 120); pick('notes', 1500, true)
   pick('mailSubject', 120); pick('mailBody', 3000, true)
+  pick('defScope', 1500, true); pick('defExcluded', 1500, true); pick('defTerms', 1500, true); pick('defSchedule', 120)
   if (x.regNo !== undefined) {
     const r = checkRegNo(x.regNo)
     if (!r.ok) return { ok: false, message: r.message }

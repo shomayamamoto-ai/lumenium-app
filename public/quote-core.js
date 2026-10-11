@@ -12,6 +12,9 @@
 //   ・サイトのサービス紹介の価格から、よく使う品目を作る
 //   ・数字（今月の件数と金額・受注率・決まるまでの日数・どこから来たか）
 //   ・A4 の紙の形（HTML。印刷・「PDFで保存」・お客様が開くページで同じもの）
+//   ・オプション品目（合計に含めず、「追加するといくら」を別の表で見せる）
+//   ・作業範囲・前提条件／含まれないもの／お取引条件（揉めやすい所を先に書く）
+//   ・お支払いの分割（着手時 50%・納品時 50% など。金額は合計から自動で割る）
 //
 // 消費税の決まり（インボイス制度）。
 //   消費税は「1枚の書類につき、税率ごとに1回」端数を処理します。品目ごとに
@@ -40,12 +43,15 @@ const TAX_MODE = { excl: '税抜の単価で書く', incl: '税込の単価で�
 const QCAPS = {
   items: 60, name: 80, unit: 8, text: 120, notes: 1500, memo: 1500, company: 80, person: 40,
   address: 160, number: 30, catalog: 80, records: 2000, history: 60, price: 999999999, qty: 999999,
+  clause: 1500, steps: 6, stepLabel: 24,
 }
 
 const DEFAULT_QUOTE_SETTINGS = {
   company: '', address: '', tel: '', email: '', person: '', regNo: '', bank: '',
   validDays: 30, rounding: 'floor', taxMode: 'excl', payTerms: '月末締め・翌月末までにお振込み', delivery: 'ご発注から2週間ほど',
   notes: '', logo: '', seal: '', prefix: 'Q', invoicePrefix: 'INV', linkDays: 60,
+  // 新しい見積書に最初から入れる「作業範囲・前提条件」「含まれないもの」「お取引条件」「お支払いの分割」。
+  defScope: '', defExcluded: '', defTerms: '', defSchedule: '',
   mailSubject: '【お見積書】{件名}（{会社名}）',
   mailBody:
     '{宛名}\n\nいつもお世話になっております。{会社名}の{担当者}です。\n' +
@@ -195,6 +201,49 @@ function allocate(amount, weights) {
   return out
 }
 
+/* ------------------------------------------------ お支払いの分割 -- */
+
+/** 「着手時 50% / 納品時 50%」→ [{ label, pct }]。区切りは「/」「／」「、」「,」改行。
+ *  割合の無い区切りは無視します。読めた分だけ返し、合計の確認は scheduleAmounts で。 */
+function parseSchedule(text) {
+  if (Array.isArray(text)) return cleanSchedule(text)
+  const out = []
+  String(text == null ? '' : text).split(/[\/／、,，\n]+/).forEach((part) => {
+    const m = toHalf(part).match(/^\s*(.*?)\s*(\d{1,3})\s*[%％]\s*$/)
+    if (!m) return
+    out.push({ label: m[1] || '', pct: Number(m[2]) })
+  })
+  return cleanSchedule(out)
+}
+function cleanSchedule(list) {
+  return (Array.isArray(list) ? list : []).slice(0, QCAPS.steps).map((x) => ({
+    label: line(x && x.label, QCAPS.stepLabel) || 'お支払い',
+    pct: Math.max(0, Math.min(100, Math.round(Number(x && x.pct) || 0))),
+  })).filter((x) => x.pct > 0)
+}
+function scheduleText(list) {
+  return (Array.isArray(list) ? list : []).map((x) => x.label + ' ' + x.pct + '%').join(' / ')
+}
+/** 分割ごとの金額（税込の総額を割合で割り、1円の端数は割合の大きい回へ）。
+ *  { rows: [{ label, pct, amount }], ok, message } — 割合の合計が100%でないときは ok:false。 */
+function scheduleAmounts(total, list) {
+  const sch = cleanSchedule(list)
+  if (!sch.length) return { rows: [], ok: true, message: '' }
+  const sum = sch.reduce((a, x) => a + x.pct, 0)
+  const parts = allocate(Math.max(0, Math.round(total || 0)), sch.map((x) => x.pct))
+  const rows = sch.map((x, i) => ({ label: x.label, pct: x.pct, amount: parts[i] }))
+  return sum === 100 ? { rows, ok: true, message: '' } : { rows, ok: false, message: 'お支払いの分割の割合が合計' + sum + '%です。100%になるように直してください。' }
+}
+
+/** 設定の「ひな形を入れる」で入る文面。どの業種でも揉めやすい所だけを、短く。
+ *  （修正の回数・仕様変更・検収・不具合の扱い・支払い。数字は自分の取引に合わせて直します。） */
+const CLAUSE_TEMPLATES = {
+  defScope: '・本お見積りは、お打ち合わせで伺った内容（〇年〇月〇日時点）にもとづきます。\n・作業の内容と範囲は、上の品目に書いたものです。\n・素材（文章・写真・ロゴなど）とアカウント類は、お客様にご用意いただく前提です。',
+  defExcluded: '・品目に書いていない作業（追加の画面・機能、文章の作成、撮影など）\n・サーバー・ドメイン・有料ツールなどの利用料（実費をご負担いただきます）\n・公開後の保守・運用（ご希望の場合は別にお見積りします）',
+  defTerms: '・修正：各工程で2回までを含みます。それを超える修正や、合意した内容にない追加・変更は、事前にお見積りしてから行います。\n・検収：納品から7日以内にご確認ください。期間内にご連絡がない場合は、検収が済んだものとします。\n・不具合：検収から3か月以内に見つかった当方の作業による不具合は、無償で直します。\n・ご都合による中止：それまでに行った作業の分をご請求します。',
+  defSchedule: '着手時 50% / 納品時 50%',
+}
+
 /** 書類1枚の計算。
  *  q.items: [{ kind:'item', name, qty, unit, price, rate } | { kind:'discount', name, price, rate: 10|8|0|'all' }]
  *  q.taxMode: 'excl'（単価は税抜）| 'incl'（単価は税込）
@@ -209,6 +258,7 @@ function computeTotals(q, rounding) {
   const amounts = []
   const errors = []
   const spread = []
+  const opt = { 10: 0, 8: 0, 0: 0 }
   items.forEach((it, i) => {
     if (it.kind === 'discount') {
       const a = Math.max(0, Math.round(Number(it.price) || 0))
@@ -220,7 +270,9 @@ function computeTotals(q, rounding) {
     const r = RATES.indexOf(Number(it.rate)) >= 0 ? Number(it.rate) : 10
     const a = lineAmount(it.qty, it.price, mode)
     amounts.push(a)
-    sums[r] += a
+    // オプションは合計に入れず、別に足しておく（「追加するといくら」）。
+    if (it.optional) opt[r] += a
+    else sums[r] += a
   })
   // 「全体」の値引きは、税率ごとの（値引き前の）金額の割合で分けます。
   spread.forEach((a) => {
@@ -258,7 +310,17 @@ function computeTotals(q, rounding) {
   })
   const discount = RATES.reduce((a, r) => a + disc[r], 0)
   const itemsTotal = RATES.reduce((a, r) => a + sums[r], 0)
-  return { amounts, groups, itemsTotal, subtotal, tax, total, discount, errors, taxMode, rounding: mode }
+  // オプションの合計（税率ごとに消費税を出して足す。本体と同じ決まり）。
+  const options = { count: items.filter((it) => it.kind !== 'discount' && it.optional).length, excl: 0, tax: 0, incl: 0 }
+  RATES.forEach((r) => {
+    const base = opt[r]
+    if (!base) return
+    const t = r ? (taxMode === 'incl' ? divRound(base * r, 100 + r, mode) : divRound(base * r, 100, mode)) : 0
+    options.excl += taxMode === 'incl' ? base - t : base
+    options.tax += t
+    options.incl += taxMode === 'incl' ? base : base + t
+  })
+  return { amounts, groups, itemsTotal, subtotal, tax, total, discount, errors, taxMode, rounding: mode, options }
 }
 
 /* -------------------------------------------------------------- 番号 -- */
@@ -312,6 +374,7 @@ function cleanItem(it) {
     unit: line(x.unit, QCAPS.unit),
     price: isFinite(price) ? Math.min(QCAPS.price, Math.max(0, Math.round(price))) : 0,
     rate: RATES.indexOf(Number(x.rate)) >= 0 ? Number(x.rate) : 10,
+    ...(x.optional === true || x.optional === 'true' || x.optional === 'on' ? { optional: true } : {}),
   }
 }
 
@@ -343,6 +406,10 @@ function cleanQuote(input, prev, today) {
     dueDate: validYmd(x.dueDate) ? x.dueDate : '',
     notes: clip(x.notes, QCAPS.notes).trim(),
     memo: clip(x.memo, QCAPS.memo).trim(),
+    scope: clip(x.scope, QCAPS.clause).trim(),
+    excluded: clip(x.excluded, QCAPS.clause).trim(),
+    terms: clip(x.terms, QCAPS.clause).trim(),
+    schedule: kind === 'quote' ? parseSchedule(x.schedule) : [],
     status: p.status || 'draft',
     inquiryId: p.inquiryId || line(x.inquiryId, 40),
     source: p.source || line(x.source, 60),
@@ -409,6 +476,9 @@ function invoiceFromQuote(q, today) {
     subject: q.subject, fromQuote: q.id, payTerms: '',
     // 見積書の備考（「内容が変わったら…」など）は請求書には合わないので持ち越しません。
     notes: '',
+    // オプションは「選ばれたら足す」もの。請求書には、選ばれた分だけを足し直します。
+    items: (q.items || []).filter((it) => !it.optional),
+    scope: '', excluded: '', terms: '', schedule: [],
   })
 }
 
@@ -651,6 +721,8 @@ const DOC_CSS =
   '.qd .foot{font-size:8.5pt;color:#55555e;margin-top:1.5mm;text-align:right}' +
   '.qd .box{border:1px solid #9a978f;padding:2.5mm 3mm;margin-top:5mm;font-size:9.5pt;break-inside:avoid;overflow-wrap:anywhere}' +
   '.qd .box h2{font-size:9.5pt;font-weight:700;margin:0 0 1mm}' +
+  '.qd .opt{margin-top:6mm;break-inside:avoid}.qd .opt h2{font-size:10pt;font-weight:700;margin:0 0 1.5mm}.qd .opt h2 small{font-weight:400;font-size:8.5pt;color:#55555e;margin-left:3mm}' +
+  '.qd table.pay{border-collapse:collapse;width:100%;font-size:9.5pt}.qd table.pay th{font-weight:400;text-align:left;padding:.6mm 0}.qd table.pay td{padding:.6mm 0 .6mm 6mm;width:1%}' +
   '.qd .warn{border:1px dashed #b42318;color:#b42318;padding:2mm 3mm;margin:0 0 4mm;font-size:9pt}' +
   '@media screen{.qd{padding:14mm;box-shadow:0 1px 6px rgba(0,0,0,.12);margin:12px auto;max-width:210mm}}' +
   '@media screen and (max-width:640px){.qd{padding:16px 14px;font-size:13px}.qd .top{flex-direction:column;gap:12px}.qd .from,.qd .to{flex:1 1 auto;width:100%}' +
@@ -666,14 +738,22 @@ function renderDoc(q, issuer, opts) {
   const t = computeTotals(q, s.rounding)
   const inv = q.kind === 'invoice'
   const title = inv ? '請求書' : '御見積書'
+  let no = 0
+  const optRows = []
   const rows = (q.items || []).map((it, i) => {
     const a = t.amounts[i]
+    if (it.kind !== 'discount' && it.optional) {
+      optRows.push('<tr><td class="c">' + (optRows.length + 1) + '</td><td class="nm">' + esc(it.name) + '</td><td class="num">' + qtyText(it.qty) + '</td><td class="c col-u">' + esc(it.unit) +
+        '</td><td class="num">' + yen(it.price) + '</td><td class="c col-r">' + (it.rate === 8 ? '8%※' : it.rate === 0 ? '非課税' : '10%') + '</td><td class="num">' + yen(a) + '</td></tr>')
+      return ''
+    }
+    no++
     if (it.kind === 'discount') {
       const rl = it.rate === 'all' ? '—' : RATE_LABEL[it.rate]
-      return '<tr class="disc"><td class="c">' + (i + 1) + '</td><td class="nm">' + esc(it.name || '値引き') + (it.rate === 'all' ? '（税率ごとに按分）' : '') +
+      return '<tr class="disc"><td class="c">' + no + '</td><td class="nm">' + esc(it.name || '値引き') + (it.rate === 'all' ? '（税率ごとに按分）' : '') +
         '</td><td class="num"></td><td class="c col-u"></td><td class="num"></td><td class="c col-r">' + esc(rl) + '</td><td class="num">' + yen(a) + '</td></tr>'
     }
-    return '<tr><td class="c">' + (i + 1) + '</td><td class="nm">' + esc(it.name) + '</td><td class="num">' + qtyText(it.qty) + '</td><td class="c col-u">' + esc(it.unit) +
+    return '<tr><td class="c">' + no + '</td><td class="nm">' + esc(it.name) + '</td><td class="num">' + qtyText(it.qty) + '</td><td class="c col-u">' + esc(it.unit) +
       '</td><td class="num">' + yen(it.price) + '</td><td class="c col-r">' + (it.rate === 8 ? '8%※' : it.rate === 0 ? '非課税' : '10%') + '</td><td class="num">' + yen(a) + '</td></tr>'
   }).join('')
   const incl = t.taxMode === 'incl'
@@ -705,6 +785,8 @@ function renderDoc(q, issuer, opts) {
   if (o.draft && inv && (!reg.value || reg.state === 'format')) warn.push('請求書を適格請求書（インボイス）として出すには、設定に登録番号が必要です。')
   if (o.draft && inv && !q.delivery) warn.push('適格請求書には、取引の年月日（納品日・作業の月など）が必要です。「お取引日」に入れてください。')
   if (o.draft && t.errors.length) warn.push(t.errors.join(' '))
+  const sch = inv ? { rows: [], ok: true } : scheduleAmounts(t.total, q.schedule)
+  if (o.draft && !sch.ok) warn.push(sch.message)
   if (o.draft) warn.unshift('この画面は確認用です（「下書き」の印はお客様に送るものには出ません）。')
   const to = [q.toCompany, q.toPerson].filter(Boolean)
   const toHtml = to.length
@@ -734,6 +816,20 @@ function renderDoc(q, issuer, opts) {
     '<tbody>' + (rows || '<tr><td colspan="7" class="c" style="color:#9a978f">（品目なし）</td></tr>') + '</tbody></table>' +
     '<div class="sum"><table>' + sumRows.join('') + '</table></div>' +
     '<div class="foot">' + (has8 ? '※は軽減税率（8%）の対象です。' : '') + '消費税は税率ごとの合計から計算し、1円未満は' + ROUNDING[t.rounding] + 'にしています。</div>' +
+    (optRows.length
+      ? '<div class="opt"><h2>オプション<small>ご希望に応じて追加できます。上の御見積金額には含みません。</small></h2>' +
+        '<table class="it"><thead><tr><th style="width:7%">No.</th><th>品目</th><th style="width:9%">数量</th><th class="col-u" style="width:8%">単位</th>' +
+        '<th style="width:14%">単価' + (incl ? '（税込）' : '') + '</th><th class="col-r" style="width:9%">税率</th><th style="width:15%">金額' + (incl ? '（税込）' : '') + '</th></tr></thead><tbody>' +
+        optRows.join('') + '</tbody></table>' +
+        '<div class="foot">すべて追加した場合：＋' + yen(t.options.incl) + '（税込）／ 御見積金額との合計 ' + yen(t.total + t.options.incl) + '（税込）</div></div>'
+      : '') +
+    (sch.rows.length
+      ? '<div class="box"><h2>お支払いの分割</h2><table class="pay">' + sch.rows.map((r, i) =>
+        '<tr><th>' + (i + 1) + '回目　' + esc(r.label) + '</th><td class="num">' + r.pct + '%</td><td class="num">' + yen(r.amount) + '（税込）</td></tr>').join('') + '</table></div>'
+      : '') +
+    (!inv && q.scope ? '<div class="box"><h2>作業範囲・前提条件</h2>' + nl(q.scope) + '</div>' : '') +
+    (!inv && q.excluded ? '<div class="box"><h2>このお見積りに含まれないもの</h2>' + nl(q.excluded) + '</div>' : '') +
+    (!inv && q.terms ? '<div class="box"><h2>お取引条件</h2>' + nl(q.terms) + '</div>' : '') +
     (inv && s.bank ? '<div class="box"><h2>お振込先</h2>' + nl(s.bank) + '<div style="margin-top:1mm">お振込手数料はご負担くださいますようお願いいたします。</div></div>' : '') +
     (q.notes ? '<div class="box"><h2>備考</h2>' + nl(q.notes) + '</div>' : '') +
     '</div>'
@@ -753,5 +849,5 @@ function docPage(q, issuer, opts) {
     bar + renderDoc(q, issuer, o) + '</body></html>'
 }
 
-window.lumQuoteCore = { QUOTE_STATUS, INVOICE_STATUS, RATES, RATE_LABEL, ROUNDING, TAX_MODE, QCAPS, DEFAULT_QUOTE_SETTINGS, toHalf, num, divRound, lineAmount, comma, yen, qtyText, jstToday, validYmd, addDays, daysBetween, endOfNextMonth, jpDate, normalizeRegNo, regCheckDigit, checkRegNo, allocate, computeTotals, formatNumber, nextNumber, effectiveStatus, statusLabel, cleanQuote, quoteSummary, applyStatus, duplicateQuote, invoiceFromQuote, quoteStats, rateText, parseEstimate, prefillFromInquiry, parseYenAll, catalogFromServices, cleanCatalog, MAIL_VARS, fillMail, addressee, mailVars, DOC_CSS, renderDoc, docPage };
+window.lumQuoteCore = { QUOTE_STATUS, INVOICE_STATUS, RATES, RATE_LABEL, ROUNDING, TAX_MODE, QCAPS, DEFAULT_QUOTE_SETTINGS, toHalf, num, divRound, lineAmount, comma, yen, qtyText, jstToday, validYmd, addDays, daysBetween, endOfNextMonth, jpDate, normalizeRegNo, regCheckDigit, checkRegNo, allocate, parseSchedule, cleanSchedule, scheduleText, scheduleAmounts, CLAUSE_TEMPLATES, computeTotals, formatNumber, nextNumber, effectiveStatus, statusLabel, cleanQuote, quoteSummary, applyStatus, duplicateQuote, invoiceFromQuote, quoteStats, rateText, parseEstimate, prefillFromInquiry, parseYenAll, catalogFromServices, cleanCatalog, MAIL_VARS, fillMail, addressee, mailVars, DOC_CSS, renderDoc, docPage };
 })();

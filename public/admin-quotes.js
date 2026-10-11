@@ -105,6 +105,9 @@
     '.qt-row.head{font-size:11px;font-weight:700;color:var(--sub)}.qt-row.head span{padding-left:2px}' +
     '.qt-row .lb{display:none}.qt-row .amt{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}' +
     '.qt-row.disc .amt{color:#7a2a20}.qt-row .c{min-width:0;display:block}' +
+    '.qt-row .opt{display:inline-flex;gap:5px;align-items:center;font-size:11px;color:var(--sub);margin-top:3px;cursor:pointer}.qt-row .opt input{width:14px;height:14px;margin:0}' +
+    '.qt-row.is-opt{background:#f4f2fb;border-radius:10px}.qt-row.is-opt .amt{color:var(--sub);font-weight:600}' +
+    '.qt-pay{font-size:12.5px;margin-top:6px}.qt-pay span{display:inline-block;margin-right:12px;white-space:nowrap}' +
     '#quotes-admin .qt-row .del{padding:6px 0;width:34px;font-size:13px;background:#faf9f6;border:1px solid var(--border);color:var(--sub)}' +
     '.qt-row input.num{text-align:right;font-variant-numeric:tabular-nums}' +
     '.qt-tot{margin-top:10px;margin-left:auto;max-width:360px;font-size:13px}.qt-tot table{width:100%;border-collapse:collapse}' +
@@ -313,7 +316,8 @@
       kind: 'quote', number: '', date: t, toCompany: '', toPerson: '', honor: '御中', toEmail: '', subject: '',
       items: [{ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }],
       taxMode: s.taxMode || 'excl', validUntil: core().addDays(t, Number(s.validDays) || 30),
-      delivery: s.delivery || '', payTerms: s.payTerms || '', notes: s.notes || '', memo: '', status: 'draft', history: []
+      delivery: s.delivery || '', payTerms: s.payTerms || '', notes: s.notes || '', memo: '', status: 'draft', history: [],
+      scope: s.defScope || '', excluded: s.defExcluded || '', terms: s.defTerms || '', schedule: core().parseSchedule(s.defSchedule || '')
     };
     S.dirty = false;
     S.panel = '';
@@ -346,8 +350,9 @@
         '<span class="amt" data-amt="' + i + '"></span>' +
         '<button type="button" class="del" data-del="' + i + '" aria-label="この行を消す">✕</button></div>';
     }
-    return '<div class="qt-row" data-i="' + i + '" data-kind="item">' +
-      '<label class="c nm"><span class="lb">品目</span><input class="qt-in" data-f="name" value="' + esc(it.name) + '" placeholder="品目" aria-label="品目" list="qt-cat"></label>' +
+    return '<div class="qt-row' + (it.optional ? ' is-opt' : '') + '" data-i="' + i + '" data-kind="item">' +
+      '<div class="c nm"><label><span class="lb">品目</span><input class="qt-in" data-f="name" value="' + esc(it.name) + '" placeholder="品目" aria-label="品目" list="qt-cat"></label>' +
+      '<label class="opt"><input type="checkbox" data-f="optional"' + (it.optional ? ' checked' : '') + '>オプション（合計に含めず、別の表で見せる）</label></div>' +
       '<label class="c"><span class="lb">数量</span><input class="qt-in num" data-f="qty" inputmode="decimal" value="' + esc(it.qty) + '" aria-label="数量"></label>' +
       '<label class="c"><span class="lb">単位</span><input class="qt-in" data-f="unit" value="' + esc(it.unit) + '" aria-label="単位"></label>' +
       '<label class="c"><span class="lb">単価</span><input class="qt-in num" data-f="price" inputmode="numeric" value="' + esc(it.price || '') + '" aria-label="単価"></label>' +
@@ -419,6 +424,16 @@
         '<div class="soc-small" style="margin-top:6px">品目の欄に打ち始めると、よく使う品目が候補に出ます（選ぶと単価と単位も入ります）。値引きは「どの税率から引くか」を選びます。「全体」にすると、税率ごとの金額の割合で分けて引きます。</div>' +
         '<div class="qt-tot" id="qt-tot" aria-live="polite"></div>' +
       '</div>' +
+      (inv ? '' :
+      '<div class="qt-sec"><h4>作業範囲とお取引条件</h4>' +
+        '<div class="soc-small" style="margin-bottom:8px">「どこまでが含まれるか」「修正や変更をどう扱うか」を先に書いておくと、あとで揉めにくくなります。空の欄は印刷されません。既定の文面は「設定」で決められます。</div>' +
+        field('qt-scope', '作業範囲・前提条件', '<textarea class="qt-in" id="qt-scope" rows="3" placeholder="例: ・お打ち合わせで伺った内容にもとづきます　・素材はお客様にご用意いただきます">' + esc(q.scope || '') + '</textarea>') +
+        field('qt-excluded', 'このお見積りに含まれないもの', '<textarea class="qt-in" id="qt-excluded" rows="3" placeholder="例: ・サーバー・ドメイン費用（実費）　・公開後の保守">' + esc(q.excluded || '') + '</textarea>') +
+        field('qt-terms', 'お取引条件（修正の回数・仕様変更・検収・不具合の扱いなど）', '<textarea class="qt-in" id="qt-terms" rows="4">' + esc(q.terms || '') + '</textarea>') +
+        field('qt-schedule', 'お支払いの分割', inp('qt-schedule', C.scheduleText(q.schedule), ' placeholder="例: 着手時 50% / 納品時 50%（一括なら空のまま）"'),
+          '「着手時 30% / 中間 40% / 納品時 30%」のように書くと、合計を割合で分けた金額が見積書に載ります。割合は合計100%に。') +
+        '<div class="qt-pay" id="qt-pay" aria-live="polite"></div>' +
+      '</div>') +
       '<div class="qt-sec"><h4>備考と社内メモ</h4>' +
         field('qt-notes', '備考（' + noun + 'に印刷されます）', '<textarea class="qt-in" id="qt-notes" rows="3">' + esc(q.notes) + '</textarea>') +
         field('qt-memo', '社内メモ（印刷されません・お客様には見えません）', '<textarea class="qt-in" id="qt-memo" rows="3">' + esc(q.memo) + '</textarea>') +
@@ -518,17 +533,22 @@
   function val(id) { var f = el(id); return f ? f.value : undefined; }
   function readForm() {
     var q = S.cur;
-    ['toCompany', 'toPerson', 'honor', 'toEmail', 'subject', 'number', 'date', 'validUntil', 'dueDate', 'delivery', 'payTerms', 'taxMode', 'notes', 'memo'].forEach(function (k) {
+    ['toCompany', 'toPerson', 'honor', 'toEmail', 'subject', 'number', 'date', 'validUntil', 'dueDate', 'delivery', 'payTerms', 'taxMode', 'notes', 'memo', 'scope', 'excluded', 'terms'].forEach(function (k) {
       var v = val('qt-' + k);
       if (v !== undefined) q[k] = v;
     });
+    if (val('qt-schedule') !== undefined) q.schedule = core().parseSchedule(val('qt-schedule'));
     var items = [];
     document.querySelectorAll('#qt-items .qt-row[data-i]').forEach(function (row) {
       var g = function (f) { var x = row.querySelector('[data-f=' + f + ']'); return x ? x.value : ''; };
       if (row.getAttribute('data-kind') === 'discount') {
         items.push({ kind: 'discount', name: g('name'), price: g('price'), rate: g('rate') === 'all' ? 'all' : Number(g('rate')) });
       } else {
-        items.push({ kind: 'item', name: g('name'), qty: g('qty'), unit: g('unit'), price: g('price'), rate: Number(g('rate')) });
+        var o = row.querySelector('[data-f=optional]');
+        var it = { kind: 'item', name: g('name'), qty: g('qty'), unit: g('unit'), price: g('price'), rate: Number(g('rate')) };
+        if (o && o.checked) it.optional = true;
+        row.classList.toggle('is-opt', !!(o && o.checked));
+        items.push(it);
       }
     });
     q.items = items;
@@ -541,7 +561,7 @@
       items: q.items.map(function (it) {
         return it.kind === 'discount'
           ? { kind: 'discount', name: it.name, price: Math.round(n(it.price)), rate: it.rate }
-          : { kind: 'item', name: it.name, qty: Math.round(n(it.qty) * 100) / 100, unit: it.unit, price: Math.round(n(it.price)), rate: it.rate };
+          : { kind: 'item', name: it.name, qty: Math.round(n(it.qty) * 100) / 100, unit: it.unit, price: Math.round(n(it.price)), rate: it.rate, optional: !!it.optional };
       })
     });
   }
@@ -562,6 +582,16 @@
         '<tr><th>' + g.rate + '% 消費税' + (incl ? '（内税）' : '') + '</th><td>' + yen(g.tax) + '</td></tr>';
     });
     rows += '<tr class="big"><th>合計（税込）</th><td>' + yen(t.total) + '</td></tr>';
+    if (t.options && t.options.count) rows += '<tr><th>オプション ' + t.options.count + '件（合計に含まない）</th><td>＋' + yen(t.options.incl) + '</td></tr>';
+    var pay = el('qt-pay');
+    if (pay) {
+      var sa = C.scheduleAmounts(t.total, S.cur.schedule);
+      pay.innerHTML = sa.rows.length
+        ? (sa.ok ? '' : '<div class="qt-note red">' + esc(sa.message) + '</div>') + sa.rows.map(function (r, i) {
+            return '<span>' + (i + 1) + '回目 ' + esc(r.label) + ' ' + r.pct + '%：<b>' + yen(r.amount) + '</b></span>';
+          }).join('')
+        : '';
+    }
     el('qt-tot').innerHTML = (t.errors.length ? '<div class="qt-note red">' + esc(t.errors.join(' ')) + '</div>' : '') +
       '<table>' + rows + '</table><div class="soc-small" style="margin-top:4px">消費税は税率ごとの合計から1回だけ計算し、1円未満は「' + esc(C.ROUNDING[t.rounding]) + '」です（「設定」で変えられます）。</div>';
   }
@@ -571,6 +601,8 @@
     var q = numeric(S.cur);
     var t = core().computeTotals(q, S.data.settings.rounding);
     if (t.errors.length) { say(t.errors.join(' ')); return false; }
+    var sa = core().scheduleAmounts(t.total, q.schedule);
+    if (!sa.ok) { say(sa.message); return false; }
     var b = el('qt-save');
     b.disabled = true;
     var r = await send({ action: 'save', quote: q });
@@ -825,6 +857,12 @@
           field('qs-payTerms', 'お支払条件（既定）', inp('qs-payTerms', s.payTerms)) +
         '</div>' +
         field('qs-notes', '備考（既定。新しい見積書に最初から入ります）', '<textarea class="qt-in" id="qs-notes" rows="2">' + esc(s.notes) + '</textarea>') +
+        '<h4 style="margin:14px 0 4px">作業範囲とお取引条件（既定。新しい見積書に最初から入ります）</h4>' +
+        '<div class="soc-small" style="margin-bottom:6px">見積書で揉めやすいのは「どこまで含むか」「修正や変更の扱い」「検収」「支払い」です。ひな形を入れて、数字や言い回しを自分の取引に合わせて直してください。 <button type="button" class="ghost" id="qs-tpl" style="font-size:12px;padding:6px 12px">ひな形を入れる</button></div>' +
+        field('qs-defScope', '作業範囲・前提条件', '<textarea class="qt-in" id="qs-defScope" rows="3">' + esc(s.defScope || '') + '</textarea>') +
+        field('qs-defExcluded', 'このお見積りに含まれないもの', '<textarea class="qt-in" id="qs-defExcluded" rows="3">' + esc(s.defExcluded || '') + '</textarea>') +
+        field('qs-defTerms', 'お取引条件', '<textarea class="qt-in" id="qs-defTerms" rows="4">' + esc(s.defTerms || '') + '</textarea>') +
+        field('qs-defSchedule', 'お支払いの分割', inp('qs-defSchedule', s.defSchedule || '', ' placeholder="例: 着手時 50% / 納品時 50%（一括なら空のまま）"')) +
         field('qs-bank', 'お振込先（請求書に出ます）', '<textarea class="qt-in" id="qs-bank" rows="2" placeholder="例: 〇〇銀行 本店 普通 1234567 カ）ミホン">' + esc(s.bank) + '</textarea>') +
       '</div>' +
       '<div class="qt-sec"><h4>送るメールの文</h4>' +
@@ -882,9 +920,18 @@
       } catch (_) { say('画像を読み込めませんでした。PNG・JPEG・WebP の画像を選んでください。'); }
     });
 
+    el('qs-tpl').addEventListener('click', function () {
+      var T = core().CLAUSE_TEMPLATES;
+      var filled = 0;
+      Object.keys(T).forEach(function (k) {
+        var f = el('qs-' + k);
+        if (f && !f.value.trim()) { f.value = T[k]; filled++; }
+      });
+      say(filled ? 'ひな形を入れました（空の欄だけ）。数字や言い回しを直して「設定を保存」を押してください。' : '空の欄がないので、ひな形は入れませんでした。', true);
+    });
     el('qs-save').addEventListener('click', async function () {
       var out = { logo: img.logo, seal: img.seal };
-      ['company', 'person', 'tel', 'email', 'address', 'regNo', 'taxMode', 'validDays', 'linkDays', 'prefix', 'invoicePrefix', 'delivery', 'payTerms', 'notes', 'bank', 'mailSubject', 'mailBody'].forEach(function (k) {
+      ['company', 'person', 'tel', 'email', 'address', 'regNo', 'taxMode', 'validDays', 'linkDays', 'prefix', 'invoicePrefix', 'delivery', 'payTerms', 'notes', 'bank', 'mailSubject', 'mailBody', 'defScope', 'defExcluded', 'defTerms', 'defSchedule'].forEach(function (k) {
         out[k] = el('qs-' + k).value;
       });
       var r0 = body.querySelector('input[name=qt-round]:checked');

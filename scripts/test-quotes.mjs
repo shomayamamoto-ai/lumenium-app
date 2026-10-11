@@ -480,4 +480,75 @@ await test('窓口: よく使う品目を保存・知らない操作', async () 
   assert.equal((await post({ action: 'nope' })).status, 400)
 })
 
+/* ------------------------------------- オプション・分割・取引条件 -- */
+await test('オプション品目は合計に入らず、別に税込で足される', () => {
+  const t = tot([item(100000, 10), { ...item(30000, 10), optional: true }])
+  assert.equal(t.subtotal, 100000)
+  assert.equal(t.total, 110000)
+  assert.equal(t.options.count, 1)
+  assert.equal(t.options.excl, 30000)
+  assert.equal(t.options.incl, 33000)
+  assert.deepEqual(t.amounts, [100000, 30000])
+  // 「全体」の値引きはオプションに配られない
+  const d = tot([item(100000, 10), { ...item(30000, 10), optional: true }, { kind: 'discount', name: '値引き', price: 10000, rate: 'all' }])
+  assert.equal(d.subtotal, 90000)
+  assert.equal(d.options.incl, 33000)
+})
+
+await test('オプションの印は保存できる形に残り、請求書には持ち越さない', () => {
+  const r = C.cleanQuote({ subject: 'HP', items: [item(1000), { ...item(500), optional: 'on' }], schedule: '着手時 50% / 納品時 50%', scope: '前提', excluded: '範囲外', terms: '条件' }, null, '2026-10-11')
+  assert.equal(r.ok, true)
+  assert.equal(r.quote.items[1].optional, true)
+  assert.equal(r.quote.items[0].optional, undefined)
+  assert.deepEqual(r.quote.schedule, [{ label: '着手時', pct: 50 }, { label: '納品時', pct: 50 }])
+  assert.equal(r.quote.terms, '条件')
+  const inv = C.invoiceFromQuote(Object.assign({ id: 'q1' }, r.quote), '2026-10-11')
+  assert.equal(inv.items.length, 1)
+  assert.deepEqual(inv.schedule, [])
+  assert.equal(inv.terms, '')
+})
+
+await test('お支払いの分割: 書き方・全角・端数・100%でないとき', () => {
+  assert.deepEqual(C.parseSchedule('着手時３０％／中間 40%、納品時 30%'), [{ label: '着手時', pct: 30 }, { label: '中間', pct: 40 }, { label: '納品時', pct: 30 }])
+  assert.deepEqual(C.parseSchedule(''), [])
+  assert.deepEqual(C.parseSchedule('一括'), [])
+  const a = C.scheduleAmounts(110001, C.parseSchedule('着手時 30% / 中間 40% / 納品時 30%'))
+  assert.equal(a.ok, true)
+  assert.equal(a.rows.reduce((x, r) => x + r.amount, 0), 110001)
+  assert.deepEqual(a.rows.map((r) => r.amount), [33000, 44001, 33000])
+  const bad = C.scheduleAmounts(1000, C.parseSchedule('着手時 50% / 納品時 40%'))
+  assert.equal(bad.ok, false)
+  assert.match(bad.message, /90%/)
+  assert.equal(C.scheduleText(C.parseSchedule('着手時 50% / 納品時 50%')), '着手時 50% / 納品時 50%')
+})
+
+await test('紙の形: オプションの表・分割の金額・作業範囲と取引条件', () => {
+  const q = { kind: 'quote', number: 'Q-1', date: '2026-10-11', subject: 'HP', items: [item(100000), { ...item(30000), name: '<b>保守</b>', optional: true }],
+    schedule: [{ label: '着手時', pct: 50 }, { label: '納品時', pct: 50 }], scope: '前提A', excluded: '範囲外B', terms: '修正2回', notes: '' }
+  const h = C.renderDoc(q, { company: 'L' })
+  assert.match(h, /オプション/)
+  assert.match(h, /御見積金額には含みません/)
+  assert.match(h, /＋¥33,000/)
+  assert.match(h, /1回目　着手時/)
+  assert.match(h, /¥55,000（税込）/)
+  assert.match(h, /作業範囲・前提条件/)
+  assert.match(h, /含まれないもの/)
+  assert.match(h, /お取引条件/)
+  assert.ok(!/<b>保守<\/b>/.test(h), 'オプションの名前も HTML として埋め込まない')
+  // 本体の表の番号は、オプションを飛ばして1から
+  const main = h.split('オプション<small>')[0]
+  assert.ok(!/保守/.test(main))
+  // 100%でない分割は、確認用の画面で知らせる
+  const w = C.renderDoc(Object.assign({}, q, { schedule: [{ label: 'a', pct: 60 }] }), {}, { draft: true })
+  assert.match(w, /合計60%/)
+  // 請求書には作業範囲や分割を出さない
+  const inv = C.renderDoc(Object.assign({}, q, { kind: 'invoice' }), {})
+  assert.ok(!/お支払いの分割|作業範囲・前提条件/.test(inv))
+})
+
+await test('ひな形: 4つの既定があり、分割は100%', () => {
+  ['defScope', 'defExcluded', 'defTerms', 'defSchedule'].forEach((k) => assert.ok(C.CLAUSE_TEMPLATES[k].length > 5, k))
+  assert.equal(C.scheduleAmounts(100, C.parseSchedule(C.CLAUSE_TEMPLATES.defSchedule)).ok, true)
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)
