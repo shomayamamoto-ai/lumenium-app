@@ -426,7 +426,7 @@ body:not(.is-in) .ui-top-menu, body:not(.is-in) .ui-top-help, body:not(.is-in) #
 .ui-nav-ic { display: inline-flex; flex: none; color: var(--ui-text-2); }
 .ui-nav-item[aria-current="page"] .ui-nav-ic { color: var(--ui-accent); }
 .ui-nav-lbl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
-.ui-nav-item .inq-badge, .ui-nav-item .rev-badge {
+.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px; margin: 0;
   border-radius: var(--ui-r-pill); background: var(--ui-badge); color: #fff;

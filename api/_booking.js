@@ -387,6 +387,32 @@ export const recStatus = (rec) => rec.status || (rec.mode === 'google' ? 'confir
 /** 枠を使っている（＝他の人が取れない）予約か。 */
 export const occupies = (rec) => ['confirmed', 'tentative', 'visited'].includes(recStatus(rec))
 
+/** 見落とし防止の件数（管理画面のタブの横に出す数）。
+ *   fresh     … 前回この画面を開いたあとに入った予約（取り消し済みは数えない）
+ *   tentative … これからの仮予約（確定の連絡待ち）
+ *   unmarked  … 終わったのに「来店済み・無断キャンセル」を付けていない予約
+ *  total は、同じ予約が2つに当たっても1件として数えます。seenMs が 0（まだ一度も
+ *  開いていない）のときは、昔の予約をすべて「新しい」にしないよう fresh を数えません。 */
+export function bookingAttention(list, seenMs = 0, now = Date.now()) {
+  const fresh = []
+  const tentative = []
+  const unmarked = []
+  for (const r of Array.isArray(list) ? list : []) {
+    if (!r || !r.id) continue
+    const st = recStatus(r)
+    const live = st === 'confirmed' || st === 'tentative'
+    const { end } = recSpan(r)
+    const at = Date.parse(r.at || '') || 0
+    if (live && seenMs && at > seenMs) fresh.push(r.id)
+    if (st === 'tentative' && end >= now) tentative.push(r.id)
+    if (live && end < now) unmarked.push(r.id)
+  }
+  return {
+    total: new Set(fresh.concat(tentative, unmarked)).size,
+    fresh: fresh.length, tentative: tentative.length, unmarked: unmarked.length, freshIds: fresh,
+  }
+}
+
 export async function saveBooking(cfg, pipeline, rec, isNew = true) {
   if (!cfg) return
   try {

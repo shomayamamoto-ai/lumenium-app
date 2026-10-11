@@ -27,7 +27,7 @@ import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.j
 import { busyFromUrl } from './_ics.js'
 import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
-  cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS,
+  cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS, bookingAttention,
   saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
 } from './_booking.js'
@@ -39,6 +39,17 @@ const LIMITS = { name: 50, email: 100, message: 500 }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BURST = { max: 4, windowS: 15 * 60 }
 const SLOT_CACHE = `${KV}bk:cache`
+// 管理画面で予約一覧を最後に開いた時刻（ミリ秒）。これより後に入った予約が「新しい予約」です。
+const SEEN = `${KV}bk:seen`
+
+async function readSeen(store) {
+  if (!store) return 0
+  try { const [raw] = await pipeline(store, [['GET', SEEN]]); return Number(raw) || 0 } catch (_) { return 0 }
+}
+async function writeSeen(store, ms) {
+  if (!store) return
+  try { await pipeline(store, [['SET', SEEN, String(ms)]]) } catch (_) { /* 次に開いたときに書きます */ }
+}
 
 const json = (payload, status = 200, extra) => new Response(JSON.stringify(payload), {
   status,
@@ -93,6 +104,19 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '') {
 export async function GET(req) {
   const url = new URL(req.url)
 
+  // 管理画面のタブの横に出す「要対応」の数。軽く済むよう、件数だけを返します。
+  if (url.searchParams.get('view') === 'badge') {
+    const denied = await requireAdmin(req)
+    if (denied) return denied
+    const store = storeConfig()
+    if (!store) return json({ ok: true, total: 0, fresh: 0, tentative: 0, unmarked: 0, stored: false })
+    let seen = await readSeen(store)
+    // 初めて数えるとき: いまを「見た時刻」にして、昔の予約を新しい扱いにしない。
+    if (!seen) { seen = Date.now(); await writeSeen(store, seen) }
+    const { freshIds, ...counts } = bookingAttention(await recentBookings(store, pipeline, 300), seen)
+    return json({ ok: true, ...counts, stored: true })
+  }
+
   // 管理画面からの一覧。
   if (url.searchParams.get('recent')) {
     const denied = await requireAdmin(req)
@@ -115,6 +139,8 @@ export async function GET(req) {
       rules: await readRules(store, pipeline),
       // 予約管理の画面は、一覧・週の表・数字をこの記録から作ります（直近300件）。
       bookings: await recentBookings(store, pipeline, url.searchParams.get('recent') === 'all' ? 300 : 20),
+      // 前回この一覧を開いた時刻。これより後に入った予約に「新着」の印を付けます。
+      seenAt: await readSeen(store),
       holidayLast: HOLIDAY_LAST,
       holidays: HOLIDAYS,
       // メール・リンク・毎朝の仕事・LINE が動く状態か。値そのものは返しません。
@@ -315,6 +341,12 @@ export async function PATCH(req) {
   if (!store) return json({ ok: false, message: '保存先（Upstash Redis）が無いため、予約を変えられません。' }, 503)
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
+  // 一覧を開いた（新しい予約を見た）。タブの横の数から「新しい予約」が消えます。
+  if (body?.action === 'seen') {
+    const at = Date.now()
+    await writeSeen(store, at)
+    return json({ ok: true, seenAt: at })
+  }
   const rec = await getBooking(store, pipeline, body?.id)
   if (!rec) return json({ ok: false, message: 'その予約が見つかりませんでした（180日より前の記録は消えています）。' }, 404)
   const rules = await readRules(store, pipeline)

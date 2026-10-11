@@ -12,7 +12,7 @@
    たまたまの差を傾向と呼ばないようにしています。 */
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var S = { started: false, data: null, rules: null, sec: 'list', view: 'upcoming', status: '', weekOff: 0, open: '' };
+  var S = { started: false, data: null, rules: null, sec: 'list', view: 'upcoming', status: '', weekOff: 0, open: '', seenAt: 0 };
   var SECTIONS = [
     ['list', '予約一覧'], ['week', '週の表'], ['rules', '受付の決まり'], ['menu', 'メニュー'],
     ['conn', 'つながり・お知らせ'], ['stats', '数字']
@@ -97,6 +97,71 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }
 
+  /* ---------------- タブの横の「要対応」の数 ----------------
+     新しい予約（前回この画面を開いたあとに入ったもの）・確定待ちの仮予約・
+     来た／来なかったが未記入の予約を、重ならないように数えて出します。
+     ログインのあとタブが現れたら1回、その後は画面を開いているあいだ3分ごとと、
+     ほかのタブから戻ってきたときに数え直します（新しい予約を見落とさないため）。 */
+  var BTAB = 'booking-admin';
+  function addBadgeCss() {
+    if (el('bk-badge-css')) return;
+    var st = document.createElement('style');
+    st.id = 'bk-badge-css';
+    st.textContent = '.bk-badge{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:999px;background:#b42318;color:#fff;font-size:10.5px;font-weight:800;line-height:18px;text-align:center;vertical-align:1px}' +
+      '.bk-new{display:inline-block;margin-right:6px;padding:0 7px;border-radius:999px;background:#b42318;color:#fff;font-size:10.5px;font-weight:800;line-height:18px;vertical-align:1px}' +
+      '#shell .bk-sum > button{all:unset;box-sizing:border-box;display:block;cursor:pointer;background:var(--ui-surface);border-radius:var(--ui-r-lg);padding:var(--ui-s3) var(--ui-s4);border:1px solid transparent}' +
+      '#shell .bk-sum > button:hover,#shell .bk-sum > button:focus-visible{border-color:var(--ui-accent,#3d3fbf)}' +
+      '#shell .bk-sum > button.hot b{color:#b42318}' +
+      '#shell .bk-sum > button b{display:block}#shell .bk-sum > button span{display:block}';
+    document.head.appendChild(st);
+  }
+  function setBadge(c) {
+    var n = (c && c.total) || 0;
+    var parts = [];
+    if (c && c.fresh) parts.push('新しい予約 ' + c.fresh + '件');
+    if (c && c.tentative) parts.push('確定待ち ' + c.tentative + '件');
+    if (c && c.unmarked) parts.push('来た・来なかったが未記入 ' + c.unmarked + '件');
+    ['tab-' + BTAB, 'pnode-' + BTAB].forEach(function (id) {
+      var host = el(id);
+      if (!host) return;
+      var target = host.querySelector(id.indexOf('tab-') === 0 ? 'span' : '.pn-name') || host;
+      var b = target.querySelector('.bk-badge');
+      if (!n) { if (b) b.remove(); host.removeAttribute('title'); return; }
+      if (!b) { b = document.createElement('span'); b.className = 'bk-badge'; target.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.setAttribute('aria-label', '要対応 ' + n + '件（' + parts.join('・') + '）');
+      host.setAttribute('title', '要対応: ' + parts.join('・'));
+    });
+  }
+  window.lumBookBadge = async function () {
+    addBadgeCss();
+    var r = await api('/api/booking?view=badge');
+    if (r.data && r.data.ok) setBadge(r.data);
+  };
+  (function watchTabs() {
+    var done = false;
+    function check() {
+      if (done || !el('tab-' + BTAB) || !window.lumAdmin) return;
+      done = true;
+      if (obs) obs.disconnect();
+      window.lumBookBadge();
+      setInterval(function () { if (!document.hidden) window.lumBookBadge(); }, 3 * 60000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) window.lumBookBadge(); });
+    }
+    var obs = window.MutationObserver ? new MutationObserver(check) : null;
+    function start() {
+      if (obs) obs.observe(document.body, { childList: true, subtree: true });
+      check();
+    }
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  })();
+
+  /* 新しい予約（前回この一覧を開いたあとに入ったもの）。初めて開くときは印を付けません。 */
+  function isFresh(b) {
+    var st = status(b);
+    return !!S.seenAt && (st === 'confirmed' || st === 'tentative') && (Date.parse(b.at || '') || 0) > S.seenAt;
+  }
+
   /* ---------------- 骨組み ---------------- */
 
   function shell() {
@@ -138,6 +203,9 @@
     }
     S.data = r.data;
     S.rules = JSON.parse(JSON.stringify(r.data.rules));
+    // 前回開いた時刻で「新着」を決めてから、いま見たことを記録します（タブの数が減ります）。
+    S.seenAt = Number(r.data.seenAt) || 0;
+    if (!demo() && r.data.stored) send('PATCH', { action: 'seen' }).then(function () { if (window.lumBookBadge) window.lumBookBadge(); });
     return true;
   }
 
@@ -171,22 +239,35 @@
     var ahead = all.filter(function (b) { return span(b).end >= t && (status(b) === 'confirmed' || status(b) === 'tentative'); });
     var tent = ahead.filter(function (b) { return status(b) === 'tentative'; });
     var unmarked = all.filter(function (b) { return span(b).end < t && (status(b) === 'confirmed' || status(b) === 'tentative'); });
-    var VIEWS = [['upcoming', 'これから'], ['today', '今日'], ['past', '過去'], ['all', 'すべて']];
+    var fresh = all.filter(isFresh);
+    var todoIds = {};
+    fresh.concat(tent, unmarked).forEach(function (b) { todoIds[b.id] = 1; });
+    var todoN = Object.keys(todoIds).length;
+    // 最初に開いたとき、対応が要る予約があれば、それだけを先に見せます。
+    if (!S.viewPicked) { S.view = todoN ? 'todo' : 'upcoming'; S.viewPicked = true; }
+    var VIEWS = [['todo', '要対応' + (todoN ? ' ' + todoN : '')], ['upcoming', 'これから'], ['today', '今日'], ['past', '過去'], ['all', 'すべて']];
     var shown = all.filter(function (b) {
       var sp = span(b);
+      if (S.view === 'todo') return !!todoIds[b.id] && (!S.status || status(b) === S.status);
       if (S.view === 'upcoming' && sp.end < t) return false;
       if (S.view === 'today' && !(sp.start >= t0 && sp.start < t0 + DAY)) return false;
       if (S.view === 'past' && sp.end >= t) return false;
       return !S.status || status(b) === S.status;
     });
     if (S.view === 'past' || S.view === 'all') shown.reverse();
+    addBadgeCss();
+    var sumBtn = function (key, n, label, hot) {
+      return '<button type="button" data-jump="' + key + '"' + (hot && n ? ' class="hot"' : '') + '><b>' + n + '</b><span>' + label + '</span></button>';
+    };
     body.innerHTML = mailWarn() +
       '<div class="bk-sum">' +
-        '<div><b>' + today.length + '</b><span>今日の予約</span></div>' +
-        '<div><b>' + ahead.length + '</b><span>これからの予約</span></div>' +
-        '<div><b>' + tent.length + '</b><span>仮予約（確定の連絡待ち）</span></div>' +
-        '<div><b>' + unmarked.length + '</b><span>来た・来なかったが未記入</span></div>' +
+        sumBtn('fresh', fresh.length, '新しい予約（前回見たあと）', true) +
+        sumBtn('tentative', tent.length, '仮予約（確定の連絡待ち）', true) +
+        sumBtn('unmarked', unmarked.length, '来た・来なかったが未記入', true) +
+        sumBtn('today', today.length, '今日の予約') +
+        sumBtn('upcoming', ahead.length, 'これからの予約') +
       '</div>' +
+      (todoN && S.view === 'todo' ? '<p class="soc-small" style="margin:0 0 10px">対応が要る予約だけを並べています。新しい予約は内容を確かめ、仮予約は「確定にする」、終わった予約は「来店済み」か「無断キャンセル」を付けると、この一覧とタブの数から消えます。</p>' : '') +
       (tent.length ? '<p class="soc-small" style="margin:0 0 10px">仮予約は、カレンダーへの自動登録をしていない予約です。内容を確かめて「確定にする」を押すと、お客様に確定のメールが届きます。</p>' : '') +
       '<div class="vid-row" style="margin-bottom:10px">' +
         '<div class="nq-row" role="group" aria-label="表示する期間" style="margin:0">' + VIEWS.map(function (v) {
@@ -198,9 +279,19 @@
         }).join('') + '</select>' +
       '</div>' +
       (shown.length ? '<div class="bk-list">' + shown.map(card).join('') + '</div>'
-        : '<p class="soc-small">' + (all.length ? 'この条件の予約はありません。' : 'まだ予約はありません。サイトの予約欄から入ると、ここに並びます。') + '</p>');
+        : '<p class="soc-small">' + (S.view === 'todo' && all.length ? '対応が要る予約はありません。見落としはありません。' : all.length ? 'この条件の予約はありません。' : 'まだ予約はありません。サイトの予約欄から入ると、ここに並びます。') + '</p>');
     body.querySelectorAll('[data-view]').forEach(function (b) {
       b.addEventListener('click', function () { S.view = b.getAttribute('data-view'); draw(); });
+    });
+    body.querySelectorAll('[data-jump]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-jump');
+        if (k === 'fresh') { S.view = 'todo'; S.status = ''; }
+        else if (k === 'tentative') { S.view = 'upcoming'; S.status = 'tentative'; }
+        else if (k === 'unmarked') { S.view = 'past'; S.status = ''; }
+        else { S.view = k; S.status = ''; }
+        draw();
+      });
     });
     el('bk-st').addEventListener('change', function () { S.status = this.value; draw(); });
     bindCards(body);
@@ -210,7 +301,7 @@
     var st = status(b), open = S.open === b.id, sp = span(b);
     return '<div class="bk-card' + (st === 'cancelled' ? ' is-off' : '') + '" data-id="' + esc(b.id) + '">' +
       '<button type="button" class="bk-head" aria-expanded="' + open + '">' +
-        '<span class="bk-when">' + esc(dayLabel(sp.start)) + ' <b>' + hm(sp.start) + '〜' + hm(sp.end) + '</b></span>' +
+        '<span class="bk-when">' + (isFresh(b) ? '<span class="bk-new">新着</span>' : '') + esc(dayLabel(sp.start)) + ' <b>' + hm(sp.start) + '〜' + hm(sp.end) + '</b></span>' +
         '<span class="bk-who">' + esc(b.name || '（名前なし）') + ' 様' +
           (b.service ? '<span class="soc-small"> ' + esc(b.service.name) + '</span>' : '') + '</span>' +
         tag(st) +
@@ -284,6 +375,7 @@
     replace(r.data.booking);
     draw();
     say(r.data.message, true);
+    if (window.lumBookBadge) window.lumBookBadge();
   }
   function replace(nb) {
     var arr = S.data.bookings;

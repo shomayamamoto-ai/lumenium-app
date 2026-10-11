@@ -2114,6 +2114,17 @@
       };
     });
   }
+  /* タブの横の「要対応」の数（api/booking.js ?view=badge と同じ数え方。デモでは「新しい予約」は数えません）。 */
+  function badge() {
+    var t = Date.now(), tent = 0, unm = 0, ids = {};
+    bookings().forEach(function (b) {
+      var st = b.status || 'tentative', end = typeof b.end === 'number' ? b.end : (Date.parse(b.end || '') || 0);
+      var live = st === 'confirmed' || st === 'tentative';
+      if (st === 'tentative' && end >= t) { tent++; ids[b.id] = 1; }
+      if (live && end && end < t) { unm++; ids[b.id] = 1; }
+    });
+    return { ok: true, total: Object.keys(ids).length, fresh: 0, tentative: tent, unmarked: unm, stored: true };
+  }
   function admin() {
     return {
       ok: true, connected: false, ics: true, stored: true, storedHere: true, calendarId: 'primary',
@@ -2155,6 +2166,7 @@
     if (!u || u.pathname.replace(/\/+$/, '') !== '/api/booking') return inner(input, init);
     var method = String((init && init.method) || 'GET').toUpperCase();
     var body = method !== 'GET' ? { ok: false, demo: true, message: MSG }
+      : u.searchParams.get('view') === 'badge' ? badge()
       : u.searchParams.get('recent') ? admin() : slots(u.searchParams);
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });

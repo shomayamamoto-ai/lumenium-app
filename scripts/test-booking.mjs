@@ -280,6 +280,29 @@ globalThis.fetch = async (input, init = {}) => {
   if (u.startsWith('https://api.resend.com/')) { mails.push(JSON.parse(init.body)); return new Response('{}', { status: 200 }) }
   throw new Error('外に出ようとした: ' + u)
 }
+await t('見落とし防止の数: 新しい予約・確定待ち・未記入を重ねずに数える', () => {
+  const now = jst('2026-10-12 12:00')
+  const seen = jst('2026-10-12 09:00')
+  const rec = (id, start, status, atStr) => ({ id, start: jst(start), end: jst(start) + 60 * MIN, status, at: new Date(jst(atStr)).toISOString() })
+  const list = [
+    rec('a', '2026-10-13 10:00', 'tentative', '2026-10-12 10:00'), // 新しい＋確定待ち（1件として数える）
+    rec('b', '2026-10-14 10:00', 'confirmed', '2026-10-12 11:00'), // 新しい
+    rec('c', '2026-10-15 10:00', 'confirmed', '2026-10-11 10:00'), // 前から知っている
+    rec('d', '2026-10-11 10:00', 'confirmed', '2026-10-01 10:00'), // 終わったのに未記入
+    rec('e', '2026-10-10 10:00', 'visited', '2026-10-01 10:00'), // 記入済み
+    rec('f', '2026-10-16 10:00', 'cancelled', '2026-10-12 11:30'), // 取り消し（新しくても数えない）
+  ]
+  const c = B.bookingAttention(list, seen, now)
+  assert.equal(c.fresh, 2)
+  assert.equal(c.tentative, 1)
+  assert.equal(c.unmarked, 1)
+  assert.equal(c.total, 3)
+  assert.deepEqual(c.freshIds.sort(), ['a', 'b'])
+  // まだ一度も開いていない（seen = 0）ときは、昔の予約を「新しい」にしない
+  assert.equal(B.bookingAttention(list, 0, now).fresh, 0)
+  assert.equal(B.bookingAttention([], seen, now).total, 0)
+})
+
 const api = await import('../api/booking.js')
 const manage = await import('../api/booking-manage.js')
 const ADMIN = { Authorization: 'Bearer test-admin-key', 'content-type': 'application/json' }
@@ -360,6 +383,24 @@ await t('通し: 管理画面から 確定・来店済み・メモ・取消（�
   assert.equal((await r.json()).booking.status, 'cancelled')
   r = await call(api.PATCH, 'PATCH', '/api/booking', { 'content-type': 'application/json' }, { id: live.id, action: 'cancel' })
   assert.equal(r.status, 401)
+})
+
+await t('通し: タブの数（view=badge）と「見た」の記録', async () => {
+  // 鍵が無いと数は返さない
+  assert.equal((await call(api.GET, 'GET', '/api/booking?view=badge', {})).status, 401)
+  // 初めて数えるときは「いま見た」になり、昔の予約は新しい扱いにならない
+  let c = await (await call(api.GET, 'GET', '/api/booking?view=badge', ADMIN)).json()
+  assert.equal(c.ok, true)
+  assert.equal(c.fresh, 0)
+  assert.equal(typeof c.total, 'number')
+  assert.equal(c.freshIds, undefined)
+  // 一覧は前回見た時刻を返し、「見た」を記録すると時刻が進む
+  const before = (await (await call(api.GET, 'GET', '/api/booking?recent=all', ADMIN)).json()).seenAt
+  assert.ok(before > 0)
+  const r = await (await call(api.PATCH, 'PATCH', '/api/booking', ADMIN, { action: 'seen' })).json()
+  assert.equal(r.ok, true)
+  assert.ok(r.seenAt >= before)
+  assert.equal((await call(api.PATCH, 'PATCH', '/api/booking', { 'content-type': 'application/json' }, { action: 'seen' })).status, 401)
 })
 
 await t('通し: 空き枠の控え（1分）は、予約・取り消しのたびに捨てられる', async () => {
