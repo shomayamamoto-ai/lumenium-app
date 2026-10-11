@@ -309,7 +309,7 @@
 
   /* ---------------- 作る・直す ---------------- */
 
-  function openNew() {
+  function openNew(pre) {
     var s = S.data.settings || {};
     var t = S.data.today;
     S.cur = {
@@ -319,6 +319,8 @@
       delivery: s.delivery || '', payTerms: s.payTerms || '', notes: s.notes || '', memo: '', status: 'draft', history: [],
       scope: s.defScope || '', excluded: s.defExcluded || '', terms: s.defTerms || '', schedule: core().parseSchedule(s.defSchedule || '')
     };
+    // お客様カルテ（admin-customer.js）から開いたときは、宛先を入れておきます。
+    if (pre) ['toCompany', 'toPerson', 'toEmail', 'honor'].forEach(function (k) { if (pre[k]) S.cur[k] = String(pre[k]); });
     S.dirty = false;
     S.panel = '';
     go('list');
@@ -974,9 +976,9 @@
 
   /* ほかの画面から見積書を開く（いまは使っていませんが、問い合わせ管理から呼べるように）。 */
   /* どこでも検索（admin-finder.js）の「新しい見積書を作る」。読み込み前なら、読み込んだあとで開きます。 */
-  window.lumQuoteNew = function () {
-    if (S.data) { if (leaveOk()) openNew(); }
-    else S.pendingNew = true;
+  window.lumQuoteNew = function (pre) {
+    if (S.data) { if (leaveOk()) openNew(pre); }
+    else S.pendingNew = pre || true;
   };
   window.lumQuoteOpen = function (id) {
     if (window.lumShowTab && window.lumShowTab(TAB) === false) return;
@@ -998,7 +1000,7 @@
     }
     if (await load()) {
       if (S.pendingOpen) { var id = S.pendingOpen; S.pendingOpen = ''; S.sec = 'list'; openQuote(id); }
-      else if (S.pendingNew) { S.pendingNew = false; openNew(); }
+      else if (S.pendingNew) { var pre = S.pendingNew === true ? null : S.pendingNew; S.pendingNew = false; openNew(pre); }
       else go(S.sec);
     }
   };

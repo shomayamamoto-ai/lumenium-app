@@ -199,6 +199,27 @@
       return groups;
     }
     if (tb.length) groups.push(['画面', tb.slice(0, 6)]);
+    /* お客様（メールアドレスで1人にまとめる）。開くとお客様カルテ（admin-customer.js）。 */
+    if (window.lumCustomer) {
+      var people = {};
+      var add = function (email, name, company, kind) {
+        var e = String(email || '').trim().toLowerCase();
+        if (!e || e.indexOf('@') < 0) return;
+        var p = people[e] || (people[e] = { email: String(email).trim(), name: '', company: '', n: { inq: 0, bk: 0, mb: 0 } });
+        if (!p.name && name) p.name = name;
+        if (!p.company && company) p.company = company;
+        p.n[kind]++;
+      };
+      (inq || []).forEach(function (x) { add(x.email, x.name, x.company, 'inq'); });
+      (C.bookings || []).forEach(function (b) { if (hit([b.name, b.company, b.email].join(' '), words)) add(b.email, b.name, b.company, 'bk'); });
+      (C.members || []).forEach(function (m) { if (hit([m.name, m.company, m.email].join(' '), words)) add(m.email, m.name, m.company, 'mb'); });
+      var ppl = Object.keys(people).map(function (k) { return people[k]; }).slice(0, 5).map(function (p) {
+        var cnt = [p.n.inq ? '問い合わせ ' + p.n.inq : '', p.n.bk ? '予約 ' + p.n.bk : '', p.n.mb ? '会員' : ''].filter(Boolean).join('・');
+        return { k: 'カルテ', t: (p.name || p.email) + (p.company ? '（' + p.company + '）' : ''), s: [p.email, cnt].filter(Boolean).join('　'),
+          run: function () { close(); window.lumCustomer.open({ email: p.email, name: p.name, company: p.company }); } };
+      });
+      if (ppl.length) groups.push(['お客様', ppl]);
+    }
     if (inq && inq.length) groups.push(['問い合わせ', inq.slice(0, 8).map(function (x) {
       return { k: ST_INQ[x.status] || '問い合わせ', t: (x.name || '（名前なし）') + (x.company ? '（' + x.company + '）' : ''),
         s: [md(Date.parse(x.receivedAt)), x.email, x.snippet].filter(Boolean).join('　'), run: function () { go('inquiries-admin', function () { if (window.lumInqOpen) window.lumInqOpen(x.id); }); } };

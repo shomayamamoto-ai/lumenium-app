@@ -342,6 +342,7 @@
       '<dl class="bk-dl">' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + (r[2] ? r[1] : esc(r[1])) + '</dd>'; }).join('') + '</dl>' +
       fld('メモ（お客様には見えません）', '<textarea class="vid-in" rows="2" data-memo maxlength="1000">' + esc(b.memo || '') + '</textarea>') +
       '<div class="vid-acts"><button type="button" class="ghost" data-act="memo">メモを保存</button>' +
+        (b.email || b.name ? '<button type="button" class="ghost" data-act="customer">このお客様の記録</button>' : '') +
         acts.map(function (a) { return '<button type="button" class="' + a[2] + '" data-act="' + a[0] + '">' + a[1] + '</button>'; }).join('') +
       '</div>' +
       '<div data-move></div>' +
@@ -365,6 +366,7 @@
     var b = find(id);
     if (!b) return;
     if (action === 'move') return pickMove(b, cardEl);
+    if (action === 'customer') { if (window.lumCustomer) window.lumCustomer.open({ email: b.email, name: b.name, company: b.company }); return; }
     if (action === 'cancel' && !confirm(b.name + ' 様の ' + whenText(b) + ' の予約を取り消します。お客様にも取り消しのメールが届きます。よろしいですか？')) return;
     var body = { id: id, action: action };
     if (action === 'memo') body.memo = cardEl.querySelector('[data-memo]').value;

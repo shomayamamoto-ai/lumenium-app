@@ -432,6 +432,7 @@
       '<div class="inq-d">' +
       '<h3>' + esc(who) + '</h3>' +
       '<div class="soc-small">' + when(it.receivedAt) + ' に受信' + (it.repliedAt ? '・' + when(it.repliedAt) + ' に返信（' + hours(it.replyH) + '後）' : '') + '</div>' +
+      (it.email ? '<div class="inq-acts" style="margin-top:8px"><button type="button" class="ghost" id="inq-customer">このお客様の記録（問い合わせ・予約・見積書）</button></div>' : '') +
       (o === 'late' ? '<div class="inq-note red" style="margin-top:10px">受信から48時間を超えています。サイトでは「48時間以内に返信」とお約束しています。</div>'
         : o === 'warn' ? '<div class="inq-note" style="margin-top:10px">受信から24時間を超えました。48時間以内の返信をお約束しています。</div>' : '') +
       (mail.owner === 'failed' || mail.owner === 'pending' ? '<div class="inq-note red" style="margin-top:10px">この問い合わせは、メールでの通知が送れていません（' + esc(mail.ownerError || '理由不明') + '）。ここから返信してください。</div>' : '') +
@@ -492,6 +493,7 @@
       '</div>';
 
     el('inq-back').addEventListener('click', closeItem);
+    if (el('inq-customer')) el('inq-customer').addEventListener('click', function () { if (window.lumCustomer) window.lumCustomer.open({ email: it.email, name: it.name, company: it.company }); });
     body.querySelectorAll('[data-ist]').forEach(function (b) {
       b.addEventListener('click', function () { patch({ status: b.getAttribute('data-ist') }, b); });
     });
