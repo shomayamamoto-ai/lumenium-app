@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-08T01:13:29.902Z",
-  "count": 442,
+  "generatedAt": "2026-10-11T07:18:36.489Z",
+  "count": 446,
   "groups": [
     {
       "key": "text",
@@ -33,6 +33,22 @@
         {
           "path": "text.lp.assure3",
           "value": "LP1枚・研修1回から"
+        },
+        {
+          "path": "text.lp.movieLabel",
+          "value": "紹介ムービー"
+        },
+        {
+          "path": "text.lp.movieTitle",
+          "value": "Lumenium を約8秒で"
+        },
+        {
+          "path": "text.lp.movieNote",
+          "value": "AIで生成・編集した動画です。音声が流れます。"
+        },
+        {
+          "path": "text.lp.moviePlay",
+          "value": "紹介ムービーを再生する"
         },
         {
           "path": "text.lp.servicesTitle",

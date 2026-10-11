@@ -13,6 +13,11 @@ export const SECTION = {
     assure1: '相談・お見積りは無料',
     assure2: '48時間以内にご返信',
     assure3: 'LP1枚・研修1回から',
+    // 最初の画面の紹介ムービー（public/intro.mp4）。押すまで再生しません。
+    movieLabel: '紹介ムービー',
+    movieTitle: 'Lumenium を約8秒で',
+    movieNote: 'AIで生成・編集した動画です。音声が流れます。',
+    moviePlay: '紹介ムービーを再生する',
     servicesTitle: '事業内容',
     servicesLead: '中心は**業務効率化システムの開発**と、AI研修です。ホームページ制作もお受けします。料金はいずれも目安で、内容を伺ってから正確にお見積りします。',
     servicesFor: 'こんな方に',

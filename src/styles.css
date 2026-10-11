@@ -11169,6 +11169,36 @@ body { color: var(--lp-ink); }
 .lp-hero-copy { max-width: 760px; }
 .lp-hero { padding-bottom: 64px; }
 
+/* The intro movie beside the copy (Landing.jsx HeroMovie). Nothing moves
+   until it is pressed; the cover is type and a play button, no image. */
+.lp-hero-grid.has-movie { grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 48px; align-items: center; }
+.lp-movie { margin: 0; }
+.lp-movie-frame { position: relative; aspect-ratio: 1280 / 704; background: #12131a; border-radius: 10px; overflow: hidden; }
+.lp-movie-player { display: block; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.lp-movie-cover {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 18px 20px; border: 0; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left;
+  color: #f3f2ee; font-family: var(--lp-sans);
+  background: radial-gradient(120% 90% at 85% 15%, rgba(61, 63, 191, .55) 0%, rgba(61, 63, 191, 0) 60%), #12131a;
+}
+.lp-movie-mark { width: 40px; height: 40px; opacity: .95; }
+.lp-movie-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 58px; height: 58px; border-radius: 50%; background: #f3f2ee; color: #12131a;
+  display: flex; align-items: center; justify-content: center; padding-left: 3px;
+  transition: background-color .15s, color .15s;
+}
+.lp-movie-cover:hover .lp-movie-play, .lp-movie-cover:focus-visible .lp-movie-play { background: var(--lp-accent); color: #fff; }
+.lp-movie-cover:focus-visible { outline: 3px solid var(--lp-accent); outline-offset: -3px; }
+.lp-movie-text { display: flex; flex-direction: column; gap: 2px; }
+.lp-movie-label { font-size: 11.5px; letter-spacing: .14em; color: rgba(243, 242, 238, .72); }
+.lp-movie-title { font-size: 15px; font-weight: 700; }
+.lp-movie-note { margin-top: 8px; font-size: 12.5px; color: var(--lp-ink-3); }
+@media (max-width: 900px) {
+  .lp-hero-grid.has-movie { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .lp-movie { max-width: 520px; }
+}
+
 /* The dot of the i. The nav/footer rules paint a clipped gradient onto
    every <span> inside the logo, including the i's wrapper; in Safari a
    clipped-text parent stops the child's own fill from painting, so the

@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
@@ -65,6 +65,35 @@ function askAbout(id) {
   try { window.dispatchEvent(new CustomEvent('lum:ask', { detail: id })) } catch (_) {}
 }
 
+/* 紹介ムービー。AIで作った約8秒の動画（public/intro.mp4）を、最初の画面の
+   横に置きます。勝手には動かさず、押したときだけその場で再生します（音声つき）。
+   表紙は画像ではなく、文字と再生ボタンだけで描きます——手元の静止画は
+   320×180 と小さく、この大きさではぼやけるためです。 */
+function HeroMovie() {
+  const [on, setOn] = useState(false)
+  return (
+    <figure className="lp-movie">
+      <div className="lp-movie-frame">
+        {on ? (
+          <video className="lp-movie-player" src="/intro.mp4" controls autoPlay playsInline preload="auto">
+            お使いのブラウザは動画の再生に対応していません。
+          </video>
+        ) : (
+          <button type="button" className="lp-movie-cover" onClick={() => setOn(true)} data-cta="hero-movie" aria-label={SECTION.lp.moviePlay}>
+            <img className="lp-movie-mark" src="/lumenium-logo.svg?v=3" alt="" width="44" height="44" />
+            <span className="lp-movie-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg></span>
+            <span className="lp-movie-text">
+              <span className="lp-movie-label">{SECTION.lp.movieLabel}</span>
+              <span className="lp-movie-title">{SECTION.lp.movieTitle}</span>
+            </span>
+          </button>
+        )}
+      </div>
+      <figcaption className="lp-movie-note">{SECTION.lp.movieNote}</figcaption>
+    </figure>
+  )
+}
+
 export default function Landing({ onPrivacy }) {
   // 中心の2つ（システム開発・HP制作、AI研修）は内容まで見せ、ほかは一覧で。
   const MAIN = ['web', 'ai']
@@ -76,7 +105,7 @@ export default function Landing({ onPrivacy }) {
     <div className="lp">
       {/* 1. 最初の画面 */}
       <section className="lp-hero" id="top">
-        <div className="lp-wrap lp-hero-grid">
+        <div className="lp-wrap lp-hero-grid has-movie">
           <div className="lp-hero-copy">
             <h1 className="lp-h1">{heroTitle(SECTION.lp.title)}</h1>
             <p className="lp-lead">{rich(SECTION.lp.lead)}</p>
@@ -90,6 +119,7 @@ export default function Landing({ onPrivacy }) {
               <li>{SECTION.lp.assure3}</li>
             </ul>
           </div>
+          <HeroMovie />
         </div>
       </section>
 
