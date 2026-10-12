@@ -111,6 +111,12 @@
   }
 
   function show(id) {
+    // ブログの記事を書いている途中で別の画面へ移ると、書いたものが消えます。先に確かめます。
+    if (C.view === 'blog' && blogDirty) {
+      if (id === 'blog') return;
+      if (!confirm('ブログの記事に保存していない変更があります。移動しますか？\n（書きかけはこの端末に残してあります。もう一度開くと戻せます）')) return;
+      blogDirty = false;
+    }
     C.view = id;
     Array.prototype.forEach.call(document.querySelectorAll('[data-cp-view]'), function (b) {
       b.setAttribute('aria-pressed', String(b.getAttribute('data-cp-view') === id));
@@ -566,7 +572,18 @@
     return html;
   }
 
+  /* ---- ブログの書きかけ ----
+     記事は長いので、保存する前にタブを閉じたり、画面を移ったりして消えるのがいちばん痛い。
+     書いている間はこの端末に書きかけを残し、次に開いたときに戻せるようにします。 */
+  var blogDirty = false;
+  window.lumBlogDirty = function () { return blogDirty ? 1 : 0; };
+  function draftKey(slug) { return 'lum_blog_draft:' + (slug || 'new'); }
+  function readDraft(slug) { try { return JSON.parse(localStorage.getItem(draftKey(slug)) || 'null'); } catch (_) { return null; } }
+  function writeDraft(slug, v) { try { localStorage.setItem(draftKey(slug), JSON.stringify({ v: v, at: Date.now() })); } catch (_) {} }
+  function dropDraft(slug) { try { localStorage.removeItem(draftKey(slug)); } catch (_) {} }
+
   async function renderBlog() {
+    blogDirty = false;
     var box = $('cp-v-blog');
     box.innerHTML = '<p class="cp-s">読み込み中…</p>';
     await loadSchema();
@@ -623,6 +640,7 @@
     host.innerHTML =
       '<div class="nq">' +
       '<p class="nq-label" style="font-size:13px">' + (a ? '記事を直す' : '新しい記事') + '</p>' +
+      '<div id="cp-b-restore"></div>' +
       '<label class="nq-label" for="cp-b-title">題名<input type="text" id="cp-b-title" class="cp-in" maxlength="80"></label><p class="cp-s" id="cp-b-tn"></p>' +
       '<label class="nq-label" for="cp-b-slug" style="margin-top:8px">記事の住所に使う英字の名前<input type="text" id="cp-b-slug" class="cp-in" maxlength="60" placeholder="例：ai-first-steps" autocapitalize="off" spellcheck="false"></label>' +
       '<p class="cp-s" id="cp-b-sn"></p>' +
@@ -638,6 +656,7 @@
         '<button type="button" class="nq-chip" data-bold="1">太字</button></div>' +
       '<textarea id="cp-b-body" class="cp-in" rows="12" maxlength="20000"></textarea><p class="cp-s" id="cp-b-bn"></p>' +
       '<label class="copy-only" style="display:block;margin:10px 0"><input type="checkbox" id="cp-b-draft"> 下書きにする（保存はしますが、サイトには出しません）</label>' +
+      '<p class="cp-s" id="cp-b-autosave" aria-live="polite"></p>' +
       '<p class="nq-label">見え方（サイトでの出方の見本）</p><div class="cp-prev" id="cp-b-prev"></div>' +
       '<div class="cp-row" style="margin-top:12px"><button type="button" id="cp-b-save">保存</button><button type="button" class="ghost" id="cp-b-cancel">やめる</button></div>' +
       '</div>';
@@ -652,6 +671,32 @@
     f.desc.value = a ? a.description : '';
     f.body.value = a ? a.body : '## はじめに\n\n';
     f.draft.checked = !!(a && a.draft);
+    var KEYS = ['title', 'slug', 'date', 'cat', 'desc', 'body'];
+    function current() { var o = {}; KEYS.forEach(function (k) { o[k] = f[k].value; }); o.draft = f.draft.checked; return o; }
+    function fill(o) { KEYS.forEach(function (k) { if (o[k] != null) f[k].value = o[k]; }); f.draft.checked = !!o.draft; }
+    var origin = JSON.stringify(current());
+    var own = a ? a.slug : '';
+    // 前に書きかけたものがあれば、戻すかどうかを聞きます。
+    var saved = readDraft(own);
+    if (saved && saved.v && JSON.stringify(saved.v) !== origin) {
+      $('cp-b-restore').innerHTML = '<div class="cp-row" style="background:#fffdf7;border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:8px 10px;margin:4px 0 10px">' +
+        '<span class="t">保存していない書きかけがあります（' + esc(new Date(saved.at).toLocaleString('ja-JP')) + '）。</span>' +
+        '<button type="button" id="cp-b-restore-yes">書きかけに戻す</button><button type="button" class="ghost" id="cp-b-restore-no">捨てる</button></div>';
+      $('cp-b-restore-yes').addEventListener('click', function () { fill(saved.v); $('cp-b-restore').innerHTML = ''; changed(); });
+      $('cp-b-restore-no').addEventListener('click', function () { dropDraft(own); $('cp-b-restore').innerHTML = ''; });
+    }
+    var saveTimer = null;
+    function changed() {
+      var now = current();
+      blogDirty = JSON.stringify(now) !== origin;
+      clearTimeout(saveTimer);
+      if (!blogDirty) { dropDraft(own); $('cp-b-autosave').textContent = ''; return; }
+      saveTimer = setTimeout(function () {
+        writeDraft(own, now);
+        $('cp-b-autosave').textContent = '書きかけをこの端末に残しました（' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + '）。サイトにはまだ出ていません。';
+      }, 600);
+      upd();
+    }
     function n(el, lim, id) {
       var k = el.value.trim().length;
       var bad = k && (k < lim[0] || k > lim[1]);
@@ -663,12 +708,15 @@
       n(f.desc, ALIM.description, 'cp-b-dn');
       n(f.body, ALIM.body, 'cp-b-bn');
       var sp = slugProblem(f.slug.value.trim(), taken);
-      $('cp-b-sn').textContent = sp || ('住所：' + location.origin + '/blog/' + f.slug.value.trim() + '.html');
-      $('cp-b-sn').style.color = sp && f.slug.value ? '#b42318' : '';
+      var moved = a && !a.draft && f.slug.value.trim() && f.slug.value.trim() !== a.slug;
+      $('cp-b-sn').textContent = sp || ('住所：' + location.origin + '/blog/' + f.slug.value.trim() + '.html' +
+        (moved ? '　※ 住所を変えると、いまの住所（/blog/' + a.slug + '.html）は開けなくなります。SNSやほかのサイトに貼ったリンクも切れます。' : ''));
+      $('cp-b-sn').style.color = (sp && f.slug.value) || moved ? '#b42318' : '';
       $('cp-b-prev').innerHTML = '<h2>' + esc(f.title.value || '（題名）') + '</h2>' +
         '<p class="cp-s">' + esc((f.date.value || '').replace(/-/g, '.')) + ' ・ ' + esc(f.cat.value || 'カテゴリ') + '</p>' + mdLite(f.body.value);
     }
-    ['title', 'slug', 'date', 'cat', 'desc', 'body'].forEach(function (k) { f[k].addEventListener('input', upd); });
+    KEYS.forEach(function (k) { f[k].addEventListener('input', changed); });
+    f.draft.addEventListener('change', changed);
     Array.prototype.forEach.call(host.querySelectorAll('[data-ins]'), function (b) {
       b.addEventListener('click', function () {
         var ta = f.body, s0 = ta.selectionStart, v = ta.value;
@@ -676,7 +724,7 @@
         ta.value = v.slice(0, ls) + b.getAttribute('data-ins') + v.slice(ls);
         ta.focus();
         ta.setSelectionRange(s0 + b.getAttribute('data-ins').length, s0 + b.getAttribute('data-ins').length);
-        upd();
+        changed();
       });
     });
     host.querySelector('[data-bold]').addEventListener('click', function () {
@@ -684,10 +732,13 @@
       if (s0 === s1) { say('cp-b-msg', '太字にしたい言葉を選んでから押してください。', true); return; }
       ta.value = v.slice(0, s0) + '**' + v.slice(s0, s1) + '**' + v.slice(s1);
       ta.focus();
-      upd();
+      changed();
     });
     upd();
-    $('cp-b-cancel').addEventListener('click', function () { renderBlog(); });
+    $('cp-b-cancel').addEventListener('click', function () {
+      if (blogDirty && !confirm('保存していない変更があります。やめますか？\n（書きかけはこの端末に残してあります。もう一度開くと戻せます）')) return;
+      renderBlog();
+    });
     $('cp-b-save').addEventListener('click', async function () {
       var v = {
         slug: f.slug.value.trim(), title: f.title.value.trim(), date: f.date.value, category: f.cat.value.trim(),
@@ -703,15 +754,22 @@
         }
         if (!v.category) { say('cp-b-msg', 'カテゴリを入れてください。'); f.cat.focus(); return; }
       } else if (!v.title) { say('cp-b-msg', '下書きでも題名は入れてください。'); f.title.focus(); return; }
+      if (a && !a.draft && a.slug !== v.slug &&
+          !confirm('記事の住所を /blog/' + a.slug + '.html から /blog/' + v.slug + '.html に変えます。\n前の住所は開けなくなり、SNSなどに貼ったリンクも切れます。よろしいですか？')) return;
       var ops = { articles: {} };
       if (a && a.slug !== v.slug) ops.articles[a.slug] = null;
       ops.articles[v.slug] = v;
       if (await saveOps(ops, this, 'cp-b-msg', v.draft ? '下書きを保存しました（サイトには出ません）。' : '記事を保存しました。')) {
+        dropDraft(own);
+        blogDirty = false;
         var m = $('cp-b-msg').textContent; await renderBlog(); say('cp-b-msg', m, true);
       }
     });
     f.title.focus();
   }
+
+  // どこでも検索から「文章を直す」を開くとき（admin-members.html の lumCopyOpen）。
+  window.lumCopyView = function (id) { if ($('cp-v-' + id) || id === 'text') show(id); };
 
   // 文章編集を初めて開いたとき（admin-members.html の lumCopyInit から）。
   window.lumCopyMore = function () {

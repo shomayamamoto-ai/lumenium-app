@@ -3624,7 +3624,8 @@ window.lumAdmin = {
     return def;
   }
 
-  function dirtyCount() { return Object.keys(edited).length; }
+  // ブログの記事の書きかけ（admin-copy.js）も、未保存の変更として数えます。
+  function dirtyCount() { return Object.keys(edited).length + (window.lumBlogDirty ? window.lumBlogDirty() : 0); }
   window.lumDirtyCopy = dirtyCount;
 
   /* --- 見え方（デモ）と、編集を助ける小道具 --- */
@@ -3824,6 +3825,7 @@ window.lumAdmin = {
 
       var wrap = document.createElement('div');
       wrap.style.cssText = 'margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(23,23,28,.06)';
+      wrap.setAttribute('data-path', f.path);
 
       var head = document.createElement('div');
       head.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap';
@@ -3966,7 +3968,7 @@ window.lumAdmin = {
   }
 
   function updateCount(shown, total) {
-    var d = dirtyCount();
+    var d = Object.keys(edited).length;
     var base = (shown != null) ? (shown + ' / ' + total + ' 件') : countEl.dataset.base || '';
     if (shown != null) countEl.dataset.base = base;
     countEl.textContent = (countEl.dataset.base || '') + (d ? '（未保存 ' + d + ' 件）' : '');
@@ -4014,6 +4016,7 @@ window.lumAdmin = {
       groupSel.appendChild(o);
     });
     say('編集できる文章：' + schema.count + ' 件', true);
+    copyReady = true;
     render();
   }
 
@@ -4070,7 +4073,10 @@ window.lumAdmin = {
   document.getElementById('copy-admin').addEventListener('keydown', function (e) {
     if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
-      if (dirtyCount()) save();
+      // ブログの記事を書いているときは、その記事を保存します（admin-copy.js）。
+      var bs = document.getElementById('cp-b-save');
+      if (bs && bs.offsetParent && window.lumBlogDirty && window.lumBlogDirty()) { bs.click(); return; }
+      if (Object.keys(edited).length) save();
     }
   });
   document.getElementById('copy-save').addEventListener('click', save);
@@ -4078,6 +4084,47 @@ window.lumAdmin = {
 
   window.addEventListener('beforeunload', function (e) {
     if (dirtyCount()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  var copyReady = false;   // 文章と、保存済みの直しを読み終えたか（読み終える前に開くと、描き直しで入力欄が消えるため）
+  /* どこでも検索から、文章の1項目を開きます（その項目だけを出して、入力欄へ）。 */
+  window.lumCopyOpen = function (path) {
+    if (window.lumShowTab && window.lumShowTab('copy-admin') === false) return;
+    var tries = 0;
+    (function go() {
+      if (!schema || !copyReady) { if (tries++ < 60) setTimeout(go, 150); return; }
+      if (window.lumCopyView) window.lumCopyView('text');
+      // 検索欄には、その文の書き出しを入れます（項目の内部名より、見て分かるので）。
+      var fv = '';
+      schema.groups.forEach(function (g) { g.fields.forEach(function (f) { if (f.path === path) fv = current(f.path, f.value); }); });
+      var head = String(fv).split('\n')[0].trim().slice(0, 20);
+      searchEl.value = head || path;
+      render();
+      var w = null;
+      Array.prototype.forEach.call(fieldsEl.querySelectorAll('[data-path]'), function (x) { if (!w && x.getAttribute('data-path') === path) w = x; });
+      if (!w) return;
+      w.scrollIntoView({ block: 'center' });
+      // 検索の窓が閉じて、元の場所へ戻ったあとで入力欄に移ります。
+      var ta = w.querySelector('textarea, input');
+      if (ta) setTimeout(function () { ta.focus({ preventScroll: true }); }, 150);
+    })();
+  };
+  (window.lumFinderSources = window.lumFinderSources || []).push({
+    group: 'サイトの文章', tab: 'copy-admin',
+    load: function () { return fetch('/content-schema.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); },
+    match: function (words, data, hit) {
+      var out = [];
+      ((data && data.groups) || []).forEach(function (g) {
+        (g.fields || []).forEach(function (f) {
+          if (out.length >= 8) return;
+          var v = current(f.path, f.value);
+          if (!hit([v, g.label].join(' '), words)) return;
+          out.push({ k: g.label, t: String(v).replace(/\*\*/g, '').replace(/\s+/g, ' ').slice(0, 50), s: '文章編集で開く',
+            run: function () { window.lumCopyOpen(f.path); } });
+        });
+      });
+      return out;
+    }
   });
 
   // Called once the admin key has been accepted.
