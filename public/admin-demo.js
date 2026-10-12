@@ -2706,6 +2706,17 @@
     return name + '、すてきな口コミをありがとうございます。' + (r.stars >= 4 ? '気に入っていただけたようで、スタッフ一同とてもうれしく思っています。' : '率直なご感想をありがとうございます。いただいた点は今後に生かしてまいります。') +
       'またお会いできるのを楽しみにしております。\nサロン・ルミエ 店長';
   }
+  /* 計算の部品（/reviews-core.js・/quote-core.js）は、その画面を開くまで読み込まれません。
+     ホームが先に数を聞いたときのため、無ければここで読み込んでから答えます。 */
+  window.lumDemoNeed = window.lumDemoNeed || function (src, name) {
+    if (window[name]) return Promise.resolve();
+    return new Promise(function (ok) {
+      var sc = document.createElement('script');
+      sc.src = src;
+      sc.onload = sc.onerror = function () { ok(); };
+      document.head.appendChild(sc);
+    });
+  };
   function answer(u, method, body) {
     if (method === 'GET') {
       if (u.searchParams.get('view') === 'badge') {
@@ -2731,9 +2742,12 @@
     var u = null;
     try { u = new URL(url, location.href); } catch (_) {}
     if (!u || u.pathname.replace(/\/+$/, '') !== '/api/reviews') return inner(input, init);
-    var res = answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body);
-    return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
-      return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    return window.lumDemoNeed('/reviews-core.js', 'lumReviewsCore').then(function () {
+      var res = answer(u, method, init && init.body);
+      return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+        return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      });
     });
   };
 })();
@@ -3025,6 +3039,17 @@
       mail: { key: true, sandbox: false, secret: true, from: '見本クリエイティブ <info@example.jp>' }
     };
   }
+  /* 計算の部品（/reviews-core.js・/quote-core.js）は、その画面を開くまで読み込まれません。
+     ホームが先に数を聞いたときのため、無ければここで読み込んでから答えます。 */
+  window.lumDemoNeed = window.lumDemoNeed || function (src, name) {
+    if (window[name]) return Promise.resolve();
+    return new Promise(function (ok) {
+      var sc = document.createElement('script');
+      sc.src = src;
+      sc.onload = sc.onerror = function () { ok(); };
+      document.head.appendChild(sc);
+    });
+  };
   async function answer(u, method, body, ask) {
     if (method === 'GET') {
       var id = u.searchParams.get('id');
@@ -3062,6 +3087,8 @@
     if (!u || u.pathname.replace(/\/+$/, '') !== '/api/quotes') return inner(input, init);
     var ask = function (path) { return inner(path, { headers: (init && init.headers) || {} }); };
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
+      return window.lumDemoNeed('/quote-core.js', 'lumQuoteCore');
+    }).then(function () {
       return answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body, ask);
     }).then(function (res) {
       return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });

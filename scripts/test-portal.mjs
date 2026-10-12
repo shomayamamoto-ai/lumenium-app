@@ -72,6 +72,9 @@ const FULL = {
   health: ok({ ok: true, worst: 'error', checks: [{ id: 'resend', label: '問い合わせメール送信', state: 'error' }, { id: 'ai', state: 'warn' }] }),
   deploy: ok({ ok: true, state: 'failed', url: 'https://vercel.example/x' }),
   analytics: ok({ ok: true, summary: { cur: { visits: 120, submits: 3 }, prev: { visits: 100 } } }),
+  reviews: ok({ ok: true, total: 3, low: 1, recent: 2, fresh: 1, unreplied: 4 }),
+  quotes: ok({ ok: true, total: 4, overdue: 1, expiring: 1, opened: 1, expired: 0, stale: 1 }),
+  video: ok({ ok: true, total: 3, failed: 1, stuck: 0, inbox: 1, today: 1, stored: true }),
 }
 
 test('classify: 読めた・未設定・読めなかった', () => {
@@ -89,14 +92,14 @@ test('全部そろったときの行と並び', () => {
   const t = build(FULL, NOW)
   const ids = t.rows.map((r) => r.id)
   assert.deepEqual(ids, [
-    'health-error', 'deploy-failed', 'inq-late', 'sns-failed',
-    'inq-unread', 'bk-tentative', 'sns-unknown', 'sns-today', 'sns-approved', 'news-stale',
-    'bk-today', 'bk-tomorrow',
+    'health-error', 'deploy-failed', 'inq-late', 'qt-overdue', 'sns-failed', 'vid-failed',
+    'inq-unread', 'bk-tentative', 'qt-follow', 'rv-low', 'rv-todo', 'sns-unknown', 'sns-today', 'sns-approved', 'vid-inbox', 'news-stale',
+    'bk-today', 'bk-tomorrow', 'vid-today',
     'sns-pending', 'mem-new', 'analytics-week',
   ])
   const levels = t.rows.map((r) => ({ urgent: 0, action: 1, today: 2, fyi: 3 })[r.level])
   assert.deepEqual(levels, levels.slice().sort((a, b) => a - b), '急ぎの順')
-  assert.equal(t.todo.length, 12)
+  assert.equal(t.todo.length, 19)
   assert.equal(t.fyi.length, 3)
   assert.deepEqual(t.failed, [])
   assert.deepEqual(t.off, [])
@@ -187,10 +190,10 @@ test('全部読めなかったとき: 落ちずに、読めなかったものを
   const fail = { state: 'fail', data: null }
   const t = build({ inquiries: fail, booking: fail, social: fail, members: fail, news: fail, health: fail, deploy: fail, analytics: fail }, NOW)
   assert.equal(t.rows.length, 0)
-  assert.equal(t.failed.length, 8)
+  assert.equal(t.failed.length, 11)
   const none = build(undefined, NOW)
   assert.equal(none.rows.length, 0)
-  assert.equal(none.failed.length, 8)
+  assert.equal(none.failed.length, 11)
 })
 
 test('未設定は「読めなかった」と分ける', () => {
@@ -316,6 +319,25 @@ test('AIアドバイザーの ToDo: まだのものを1行に・無ければ出�
   assert.match(row.why, /「写真を足す」「掲載を頼む」/)
   assert.equal(build({ advisor: ok({ ok: true, todos: [{ id: 't3', title: 'x', done: true }] }) }, NOW).rows.filter((r) => r.id === 'advisor-todo').length, 0)
   assert.ok(!build({ advisor: { state: 'off', data: null } }, NOW).failed.some((f) => /アドバイザー/.test(f)))
+})
+
+test('口コミ・見積書・動画: 内訳と開く先', () => {
+  const r = build({ reviews: FULL.reviews, quotes: FULL.quotes, video: FULL.video }, NOW).rows
+  const by = (id) => r.find((x) => x.id === id)
+  assert.equal(by('rv-low').count, 1)
+  assert.equal(by('rv-todo').count, 2, '低評価以外の残り')
+  assert.match(by('rv-todo').why, /前回見たあと/)
+  assert.equal(by('qt-overdue').level, 'urgent')
+  assert.equal(by('qt-follow').count, 3)
+  assert.match(by('qt-follow').why, /有効期限が3日以内 1件・お客様が開いたまま返事がない 1件・3日以上前の下書き 1件/)
+  assert.equal(by('vid-failed').tab, 'video-admin')
+  assert.equal(by('vid-today').level, 'today')
+  // 0件なら行を出さない・読めなければ何も出さない
+  const zero = build({ reviews: ok({ ok: true, total: 0, low: 0 }), quotes: ok({ ok: true, total: 0 }), video: ok({ ok: true, total: 0 }) }, NOW)
+  assert.equal(zero.rows.length, 0)
+  assert.ok(!zero.failed.includes('口コミ'))
+  const off = build({ video: { state: 'off', data: { ok: true, stored: false } } }, NOW)
+  assert.ok(off.off.includes('SNS動画'))
 })
 
 console.log(`✓ test-portal: ${n} checks`)

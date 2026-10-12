@@ -260,9 +260,83 @@
       go: { label: 'ToDoを見る' } }];
   }
 
+  /* 口コミ（api/reviews.js ?view=badge。数え方は _reviews-core.js の reviewAttention）。 */
+  function reviewRows(s) {
+    if (!ok(s)) return [];
+    var d = s.data, out = [];
+    if (num(d.low)) {
+      out.push({ id: 'rv-low', level: 'action', tab: 'reviews-admin', count: d.low, unit: '件',
+        title: '返信していない低めの評価（★1〜3）の口コミ',
+        why: 'これから来るお客様が、お店の返し方を見ています。事情の説明とお礼を、落ち着いた言葉で返しましょう。',
+        go: { label: '口コミを開く' } });
+    }
+    var rest = num(d.total) - num(d.low);
+    if (rest > 0) {
+      out.push({ id: 'rv-todo', level: 'action', tab: 'reviews-admin', count: rest, unit: '件',
+        title: '返信していない新しい口コミ',
+        why: num(d.fresh) ? 'うち' + num(d.fresh) + '件は、前回見たあとに届いたものです。' : 'ここ30日の、コメントつきの口コミです。短くてもお礼を返すと印象が残ります。',
+        go: { label: '口コミを開く' } });
+    }
+    return out;
+  }
+
+  /* 見積書・請求書（api/quotes.js ?view=badge。数え方は _quote-core.js の quoteAttention）。 */
+  function quoteRows(s) {
+    if (!ok(s)) return [];
+    var d = s.data, out = [];
+    if (num(d.overdue)) {
+      out.push({ id: 'qt-overdue', level: 'urgent', tab: 'quotes-admin', count: d.overdue, unit: '件',
+        title: '支払い期限を過ぎた請求書',
+        why: '入金を確かめて、入っていれば「入金済み」に、まだならお客様へ確認の連絡をしてください。',
+        go: { label: '請求書を見る' } });
+    }
+    var parts = [
+      num(d.expiring) ? '有効期限が3日以内 ' + d.expiring + '件' : '',
+      num(d.opened) ? 'お客様が開いたまま返事がない ' + d.opened + '件' : '',
+      num(d.expired) ? '期限が切れた ' + d.expired + '件' : '',
+      num(d.stale) ? '3日以上前の下書き ' + d.stale + '件' : ''
+    ].filter(Boolean);
+    var n = num(d.expiring) + num(d.opened) + num(d.expired) + num(d.stale);
+    if (n) {
+      out.push({ id: 'qt-follow', level: 'action', tab: 'quotes-admin', count: n, unit: '件',
+        title: 'ひと声かけたい見積書',
+        why: parts.join('・') + '。電話やメールでひと声かけると、決まりやすくなります。',
+        go: { label: '見積書を見る' } });
+    }
+    return out;
+  }
+
+  /* SNS動画（api/video-publish.js ?view=badge。数え方は _video-core.js の videoAttention）。 */
+  function videoRows(s) {
+    if (!ok(s)) return [];
+    var d = s.data, out = [];
+    var bad = num(d.failed) + num(d.stuck);
+    if (bad) {
+      out.push({ id: 'vid-failed', level: 'urgent', tab: 'video-admin', count: bad, unit: '件',
+        title: '出せなかった動画',
+        why: (num(d.failed) ? '失敗 ' + d.failed + '件' : '') + (num(d.failed) && num(d.stuck) ? '・' : '') + (num(d.stuck) ? '準備中のまま止まっている ' + d.stuck + '件' : '') +
+          '。理由を確かめて、直して送り直してください。',
+        go: { label: '動画を見る' } });
+    }
+    if (num(d.inbox)) {
+      out.push({ id: 'vid-inbox', level: 'action', tab: 'video-admin', count: d.inbox, unit: '件',
+        title: 'TikTok の受信箱で公開待ちの動画',
+        why: 'TikTok のアプリを開いて、受信箱から公開してください（公開するまでお客様には見えません）。',
+        go: { label: '動画を見る' } });
+    }
+    if (num(d.today)) {
+      out.push({ id: 'vid-today', level: 'today', tab: 'video-admin', count: d.today, unit: '件',
+        title: '今日の動画の予約',
+        why: '予約した時刻に自動で出ます。',
+        go: { label: '動画を見る' } });
+    }
+    return out;
+  }
+
   var SOURCE_NAMES = {
     inquiries: '問い合わせ', booking: '予約', social: 'SNS', members: '会員', news: 'お知らせ',
-    health: '設定状況', deploy: 'サイトの更新状況', analytics: 'アクセス解析'
+    health: '設定状況', deploy: 'サイトの更新状況', analytics: 'アクセス解析',
+    reviews: '口コミ', quotes: '見積書', video: 'SNS動画'
   };
 
   /* src: { inquiries: {state, data}, booking: …, … }（無いものは読めなかった扱い）
@@ -272,7 +346,7 @@
     now = now || Date.now();
     var rows = [].concat(
       healthRows(src.health), deployRows(src.deploy), inquiryRows(src.inquiries),
-      bookingRows(src.booking, now), socialRows(src.social, now), newsRows(src.news, now),
+      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now),
       memberRows(src.members, now), advisorRows(src.advisor), analyticsRows(src.analytics)
     );
     rows = rows.map(function (r, i) { r.order = i; return r; }).sort(function (a, b) {
@@ -429,6 +503,14 @@
     if (ap) put('social-admin', '承認の対応 ' + ap, 'action');
     if (by['sns-today']) put('social-admin', '今日の予約 ' + by['sns-today'].count, by['sns-today'].level);
 
+    if (by['rv-low']) put('reviews-admin', '★1〜3 未返信 ' + by['rv-low'].count, 'action');
+    if (by['rv-todo']) put('reviews-admin', '未返信 ' + by['rv-todo'].count, 'action');
+    if (by['qt-overdue']) put('quotes-admin', '支払い期限切れ ' + by['qt-overdue'].count, 'urgent');
+    if (by['qt-follow']) put('quotes-admin', 'フォロー ' + by['qt-follow'].count, 'action');
+    if (by['vid-failed']) put('video-admin', '失敗 ' + by['vid-failed'].count, 'urgent');
+    if (by['vid-inbox']) put('video-admin', '公開待ち ' + by['vid-inbox'].count, 'action');
+    if (by['vid-today']) put('video-admin', '今日 ' + by['vid-today'].count + '件', 'today');
+
     if (by['news-stale']) put('news-admin', by['news-stale'].count ? by['news-stale'].count + '日 更新なし' : 'まだありません', 'action');
     if (by['mem-new']) put('list-view', '今週 +' + by['mem-new'].count + '人', 'fyi');
     if (by['analytics-week']) put('stats-admin', '7日で ' + by['analytics-week'].count + '回', 'fyi');
@@ -579,7 +661,9 @@
     ['deploy', '/api/deploy-status?latest=1'],
     ['analytics', '/api/analytics?days=7'],
     ['advisor', '/api/advisor-store?view=todos'],
-    ['reviews', '/api/reviews?view=badge']
+    ['reviews', '/api/reviews?view=badge'],
+    ['quotes', '/api/quotes?view=badge'],
+    ['video', '/api/video-publish?view=badge']
   ];
 
   function within(p, ms) {
@@ -682,13 +766,16 @@
     }
     out.push({ label: '今日の予約', value: bk ? today + '件' : '—', sub: bk && tent ? '仮予約 ' + tent + '件' : '', tab: 'booking-admin', warn: !!tent });
     var rv = ok(src.reviews) ? num(src.reviews.data.unreplied) : null;
-    out.push({ label: '未返信の口コミ', value: rv == null ? '—' : rv + '件', sub: rv ? '早めの返信が評価につながります' : '', tab: 'reviews-admin', warn: !!rv });
+    var low = ok(src.reviews) ? num(src.reviews.data.low) : 0;
+    out.push({ label: '未返信の口コミ', value: rv == null ? '—' : rv + '件', sub: low ? 'うち★1〜3が ' + low + '件' : rv ? '早めの返信が評価につながります' : '', tab: 'reviews-admin', warn: !!rv });
     return out;
   }
 
   function kpiHtml(list) {
-    return '<div class="lp-kpis" role="list">' + list.map(function (k, i) {
-      return '<button type="button" class="lp-kpi' + (k.warn ? ' warn' : '') + '" role="listitem" data-kpi="' + i + '">' +
+    // ボタンは読み上げで「ボタン」と分かるよう、role は付けません。中身はまとめて1文で読ませます。
+    return '<div class="lp-kpis">' + list.map(function (k, i) {
+      return '<button type="button" class="lp-kpi' + (k.warn ? ' warn' : '') + '" data-kpi="' + i + '" aria-label="' +
+        esc(k.label + ' ' + k.value + (k.sub ? '、' + k.sub : '') + '。押すと開きます') + '">' +
         '<span class="lp-kpi-l">' + esc(k.label) + '</span>' +
         '<span class="lp-kpi-v">' + esc(k.value) + '</span>' +
         '<span class="lp-kpi-s">' + esc(k.sub || '　') + '</span></button>';
