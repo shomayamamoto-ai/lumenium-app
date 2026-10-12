@@ -28,7 +28,7 @@ import { storeConfig, pipeline, jstDate } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { useShare } from './_share.js'
 import { KV } from './_brand.js'
-import { decide, endpointOf, isRead, areaOf } from './_permissions.js'
+import { decide, endpointOf, isRead, areaOf, quietBody } from './_permissions.js'
 import {
   OWNER, getStaff, putStaff, verifyKey, verifySession, keyId, isStaffKey, isSessionToken,
   userFailState, recordUserFail, clearUserFails, userLocked,
@@ -266,7 +266,7 @@ export async function requireAdmin(req, opts) {
     await audit(who, 'denied', { action, target: targetOf(endpoint, body, url) })
     return fail({ ok: false, code: 'FORBIDDEN', need: d.need, message: d.message }, 403)
   }
-  if (!isRead(req.method) && !d.quiet) await audit(who, 'ok', { action, target: targetOf(endpoint, body, url) })
+  if (!isRead(req.method) && !d.quiet && !quietBody(body)) await audit(who, 'ok', { action, target: targetOf(endpoint, body, url) })
   WHO.set(req, who)
   return null
 }

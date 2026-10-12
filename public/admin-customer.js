@@ -185,7 +185,7 @@
         run: function () { go('quotes-admin', function () { if (window.lumQuoteOpen) window.lumQuoteOpen(x.id); }); } });
     });
     if (d.mb) {
-      var mAt = Date.parse(d.mb.created_at || d.mb.createdAt || '') || 0;
+      var mAt = Date.parse(d.mb.created || d.mb.created_at || d.mb.createdAt || '') || 0;
       items.push({ at: mAt, k: 'mb', tag: '会員', t: '会員登録' + (d.mb.unsubscribed ? '（配信停止中）' : ''), p: '', run: null });
     }
     items.sort(function (a, b) { return b.at - a.at; });

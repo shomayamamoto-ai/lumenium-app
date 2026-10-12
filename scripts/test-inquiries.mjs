@@ -305,5 +305,32 @@ await t('どこから来たかの言い方', () => {
   assert.equal(I.sourceInfo({ r: 'javascript:alert(1)' }).r, '')
 })
 
+await t('要対応の数: 返信がまだ・通知未送信・新着・期限（設定の時間で判定）', () => {
+  const H = 3600e3
+  const now = Date.parse('2026-10-12T12:00:00Z')
+  const at = (h) => new Date(now - h * H).toISOString()
+  const list = [
+    { id: 'a', status: 'new', receivedAt: at(1) },                        // 新着・要対応
+    { id: 'b', status: 'doing', receivedAt: at(30) },                     // 24h の約束なら超過
+    { id: 'c', status: 'new', receivedAt: at(13), repliedAt: at(12) },   // 返信済み
+    { id: 'd', status: 'done', receivedAt: at(5), mailOwner: 'failed' }, // 完了（通知失敗でも数えない）
+    { id: 'e', status: 'new', receivedAt: at(40), mailOwner: 'pending', repliedAt: at(39) }, // 途中で止まった通知
+    { id: 'f', status: 'new', receivedAt: at(2), spam: true },            // 迷惑
+  ]
+  const c = I.inquiryAttention(list, now - 3 * H, now, 24)
+  assert.equal(c.open, 2)
+  assert.equal(c.mailFailed, 1)
+  assert.equal(c.total, 3)
+  assert.equal(c.fresh, 1) // 迷惑は新着に数えない
+  assert.equal(c.late, 1)
+  // 約束が48時間なら、30時間は「近い」
+  assert.equal(I.overdue(list[1], now, 48), 'warn')
+  assert.equal(I.overdue(list[1], now, 24), 'late')
+  // 一度も開いていなければ新着は数えない
+  assert.equal(I.inquiryAttention(list, 0, now, 24).fresh, 0)
+  // 集計の未送信は pending も数える
+  assert.equal(I.metrics(list, now, 24).counts.mailFailed, 2)
+})
+
 console.error = quiet
 console.log(`✓ test-inquiries: ${n} checks`)

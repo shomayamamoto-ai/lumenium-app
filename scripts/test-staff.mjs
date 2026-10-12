@@ -336,4 +336,21 @@ await test('保存先が無いとき', async () => {
   } finally { process.env.UPSTASH_REDIS_REST_URL = keep.u }
 })
 
+await test('見積書: 担当者は作る・送る、削除と設定は管理者から。既読・見たは記録しない', () => {
+  const d = (role, action, method = 'POST') => P.decide({ role, endpoint: 'quotes', method, action }).allow
+  assert.equal(d('staff', 'save'), true)
+  assert.equal(d('staff', 'send'), true)
+  assert.equal(d('staff', 'invoice'), true)
+  assert.equal(d('staff', 'delete'), false)
+  assert.equal(d('staff', 'settings'), false)
+  assert.equal(d('manager', 'delete'), true)
+  assert.equal(d('viewer', 'save'), false)
+  assert.equal(d('viewer', '', 'GET'), true)
+  assert.equal(P.AREA_LABEL.quotes, '見積書')
+  assert.equal(P.quietBody({ action: 'seen' }), true)
+  assert.equal(P.quietBody({ id: 'x', read: true }), true)
+  assert.equal(P.quietBody({ id: 'x', read: true, status: 'done' }), false)
+  assert.equal(P.quietBody({ id: 'x', action: 'confirmed' }), false)
+})
+
 console.log(`test-staff: ${n} 件 OK`)

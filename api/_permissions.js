@@ -29,7 +29,7 @@ export const AREA_LABEL = {
   login: 'ログイン', inquiries: '問い合わせ', booking: '予約', reviews: '口コミ', sns: 'SNS',
   video: 'SNS（動画）', news: 'お知らせ', copy: '文章編集', members: '会員', analytics: 'アクセス解析',
   seo: 'SEO / AIO', advisor: 'AIアドバイザー', auto: '自動改善', settings: '設定・キー',
-  staff: '担当者と権限', share: '共有リンク', audit: '操作の記録', other: 'その他',
+  staff: '担当者と権限', share: '共有リンク', audit: '操作の記録', quotes: '見積書', other: 'その他',
 }
 
 /** どの役割でもオーナーだけ。表の書き間違いより強く効きます。 */
@@ -96,6 +96,17 @@ export const TABLE = {
   advisor: { area: 'advisor', write: 'staff', quiet: true },
   'advisor-store': { area: 'advisor', read: 'viewer', write: 'staff' },
   auto: { area: 'auto', read: 'viewer', write: 'manager' },
+  // 見積書: 作る・直す・送る・請求書にするのは担当者から。消す・発行元の設定・よく使う品目は管理者から。
+  quotes: { area: 'quotes', read: 'viewer', write: 'staff', actions: { delete: 'manager', settings: 'manager', catalog: 'manager' } },
+}
+
+/** 記録しない操作: 「見た」「開いた（既読）」の印だけを付けるもの。毎回記録すると、
+ *  大事な操作が上限（5,000件）から押し出されてしまうためです。 */
+export function quietBody(body) {
+  if (!body || typeof body !== 'object') return false
+  if (body.action === 'seen') return true
+  const keys = Object.keys(body).filter((k) => k !== 'id')
+  return keys.length === 1 && keys[0] === 'read'
 }
 
 const DEFAULT_READ = 'viewer'

@@ -1946,7 +1946,8 @@
       if (r.spam) { c.spam++; return; }
       c[r.status]++;
       if (r.status === 'new' && !r.readAt) c.unread++;
-      if (r.mail.owner === 'failed') c.mailFailed++;
+      if (r.mail.owner === 'failed' || r.mail.owner === 'pending') c.mailFailed++;
+      if (r.status !== 'done' && !r.repliedAt) c.todo = (c.todo || 0) + 1;
       var o = overdue(r);
       if (o === 'late') late++; else if (o === 'warn') warn++;
       var h = replyH(r);
@@ -1960,7 +1961,9 @@
     };
   }
   function match(r, status, q) {
-    if (status === 'spam') { if (!r.spam) return false; }
+    if (status === 'todo') { if (r.spam || r.status === 'done' || r.repliedAt) return false; }
+    else if (status === 'overdue') { if (r.spam || !overdue(r)) return false; }
+    else if (status === 'spam') { if (!r.spam) return false; }
     else if (r.spam) { if (status !== 'all') return false; }
     else if (STATUS[status] && r.status !== status) return false;
     if (!q) return true;
@@ -2016,7 +2019,11 @@
       if (!r) return { ok: false, missing: true, message: 'その問い合わせは見つかりませんでした（保存期間を過ぎて消えたか、削除されたかもしれません）。' };
       return { ok: true, stored: true, item: Object.assign({}, r, { overdue: overdue(r), replyH: round(replyH(r)) }), sender: SENDER };
     }
-    if (view === 'badge') { var m = metrics(); return { ok: true, stored: true, unread: m.counts.unread, late: m.late }; }
+    if (view === 'badge') {
+      var m = metrics();
+      var open = RECS.filter(function (x) { return !x.spam && x.status !== 'done' && !x.repliedAt; }).length;
+      return { ok: true, stored: true, unread: m.counts.unread, total: open, open: open, fresh: 0, warn: m.warn, late: m.late, mailFailed: m.counts.mailFailed };
+    }
     if (view === 'stats') return { ok: true, stored: true, stats: stats(q.get('days') === '90' ? 90 : 30), retentionDays: 365 };
     if (view === 'settings') return { ok: true, stored: true, settings: SETTINGS, templates: TEMPLATES, vars: ['name', 'company', 'brand', 'reply_hours', 'topics'], sender: SENDER, lineToken: true, brand: 'Lumenium' };
     var status = q.get('status') || 'new';
@@ -2024,7 +2031,7 @@
     if (view === 'export') return { csv: csv(hits) };
     return {
       ok: true, stored: true, status: status, q: q.get('q') || '', total: hits.length, page: 1, pages: 1, per: 25,
-      items: hits.map(summary), metrics: metrics(), promised: 48, warnH: 24, retentionDays: 365,
+      items: hits.map(summary), metrics: metrics(), promised: 48, warnH: 24, retentionDays: 365, seenAt: now - 26 * H,
       autoReply: true, lineOn: true, removed: 0, sender: SENDER
     };
   }

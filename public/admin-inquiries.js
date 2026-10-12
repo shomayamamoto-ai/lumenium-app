@@ -19,11 +19,11 @@
   var TAB = 'inquiries-admin';
   var el = function (id) { return document.getElementById(id); };
   var S = {
-    started: false, sec: 'inbox', status: 'new', q: '', page: 1, list: null, sel: {}, open: '', item: null,
+    started: false, sec: 'inbox', status: 'todo', q: '', page: 1, list: null, sel: {}, open: '', item: null, seenAt: null, promised: 48,
     sender: null, settings: null, templates: null, vars: [], brand: '', lineToken: false, days: 30, tplEdit: null
   };
   var SECTIONS = [['inbox', '受信箱'], ['stats', '集計'], ['templates', '返信の文例'], ['settings', '設定']];
-  var FILTERS = [['new', '未対応'], ['doing', '対応中'], ['done', '完了'], ['spam', '迷惑'], ['all', 'すべて']];
+  var FILTERS = [['todo', '要対応'], ['overdue', '期限が近い・過ぎた'], ['new', '未対応'], ['doing', '対応中'], ['done', '完了'], ['spam', '迷惑'], ['all', 'すべて']];
   var STATUS = { new: '未対応', doing: '対応中', done: '完了' };
   var MAIL = {
     owner: { sent: '送信済み', failed: '送れませんでした', skipped: '送っていません（ブロックするドメイン）', pending: '送れませんでした（途中で止まりました）' },
@@ -89,6 +89,7 @@
     '.inq-card .k{font-size:11px;font-weight:700;color:var(--sub)}.inq-card .v{font-size:20px;font-weight:800;line-height:1.3}' +
     '.inq-card .n{font-size:11px;color:var(--sub);line-height:1.6}' +
     '.inq-card.warn{border-color:#d97706;background:rgba(251,191,36,.08)}.inq-card.late{border-color:#b42318;background:rgba(248,113,113,.08)}' +
+    'button.inq-card-btn{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}button.inq-card-btn:hover{border-color:var(--ui-border-strong,#b9b4a8)}button.inq-card-btn.on{outline:2px solid var(--ui-accent,#3d3fbf);outline-offset:-2px}' +
     '.inq-note{border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.75;background:#fffdf7}' +
     '.inq-note.red{border-left-color:#b42318;background:#fff8f7}.inq-note.gray{border-left-color:var(--sub);background:#faf9f6}' +
     '.inq-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}' +
@@ -139,25 +140,23 @@
     document.head.appendChild(s);
   }
 
-  /* ---------------- タブとポータルの「未読」の印 ---------------- */
-
-  function setBadge(n) {
-    ['tab-' + TAB, 'pnode-' + TAB].forEach(function (id) {
-      var host = el(id);
-      if (!host) return;
-      var target = host.querySelector(id.indexOf('tab-') === 0 ? 'span' : '.pn-name') || host;
-      var b = target.querySelector('.inq-badge');
-      if (!n) { if (b) b.remove(); return; }
-      if (!b) { b = document.createElement('span'); b.className = 'inq-badge'; target.appendChild(b); }
-      b.textContent = n > 99 ? '99+' : String(n);
-      b.setAttribute('aria-label', '未読 ' + n + '件');
-    });
-  }
+  /* ---------------- タブとホームの「要対応」の数 ----------------
+     まだ返信していない問い合わせと、通知メールが届いていないものの数です（開いただけでは
+     減りません。「返信した」か「完了」にすると減ります）。共通の部品 admin-badge.js で出します。 */
   window.lumInqBadge = async function () {
-    addCss();
     var r = await api('/api/inquiries?view=badge');
-    setBadge(r.data && r.data.ok ? r.data.unread || 0 : 0);
+    var d = r.data && r.data.ok ? r.data : null;
+    if (!d || !window.lumNavBadge) return;
+    var total = d.total != null ? d.total : (d.unread || 0);
+    var parts = [];
+    if (d.fresh) parts.push('新着 ' + d.fresh + '件');
+    if (d.late) parts.push('返信の約束を過ぎた ' + d.late + '件');
+    if (d.warn) parts.push('約束の時間が近い ' + d.warn + '件');
+    if (d.mailFailed) parts.push('通知メール未送信 ' + d.mailFailed + '件');
+    if (d.open && !parts.length) parts.push('まだ返信していない ' + d.open + '件');
+    window.lumNavBadge(TAB, total, parts);
   };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumInqBadge(); });
 
   /* ---------------- 骨組み ---------------- */
 
@@ -165,7 +164,8 @@
     var host = el(TAB);
     host.innerHTML =
       '<p class="share-note ui-intro">フォームから届いた問い合わせの一覧です。返信したら「返信した」を押すと、約束（' +
-      '<span id="inq-promise">48</span>時間以内に返信）を守れているかが分かります。返信はふだんのメールソフトで行います。</p>' +
+      '<span id="inq-promise">48</span>時間以内に返信）を守れているかが分かります。返信はふだんのメールソフトで行います。' +
+      '最初は「要対応」（まだ返信していないもの）だけを並べます。</p>' +
       '<div class="nq-row" role="tablist" aria-label="問い合わせ管理の項目">' + SECTIONS.map(function (s) {
         return '<button type="button" class="nq-chip" data-isec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';
       }).join('') + '</div>' +
@@ -197,9 +197,14 @@
     var r = await api('/api/inquiries' + qs);
     S.list = r.data || {};
     if (S.list.sender) S.sender = S.list.sender;
-    if (S.list.promised && el('inq-promise')) el('inq-promise').textContent = S.list.promised;
+    if (S.list.promised) { S.promised = S.list.promised; if (el('inq-promise')) el('inq-promise').textContent = S.list.promised; }
+    // 前回受信箱を開いた時刻（この画面を開いているあいだは最初の値を使い、新着の印を保ちます）。
+    if (S.seenAt === null && S.list.seenAt != null) {
+      S.seenAt = Number(S.list.seenAt) || 0;
+      if (!demo() && S.list.stored) send('PATCH', { action: 'seen' }).then(function () { window.lumInqBadge(); });
+    }
     if (!r.res.ok && !S.list.ok) say(S.list.message || '読み込めませんでした。');
-    if (S.list.metrics) setBadge(S.list.metrics.counts.unread);
+    window.lumInqBadge();
     return S.list;
   }
 
@@ -209,17 +214,22 @@
     var med = m.median30;
     var few = m.replied30 < 3;
     var medCls = med == null ? '' : med > d.promised ? ' late' : med > d.warnH ? ' warn' : '';
+    var p = d.promised || 48;
     return '<div class="inq-top">' +
-      card('未読', m.counts.unread + '件', '開いていない「未対応」', '') +
-      card('24時間を超えて未返信', m.warn + '件', '約束の48時間まで、あと少し', m.warn ? ' warn' : '') +
-      card('48時間を超えて未返信', m.late + '件', m.late ? '約束の時間を過ぎています' : '約束を過ぎたものはありません', m.late ? ' late' : '') +
+      card('要対応', (m.counts.todo || 0) + '件', 'まだ返信していない（未読 ' + m.counts.unread + '件）', '', 'todo') +
+      card(Math.round(p / 2) + '時間を超えて未返信', m.warn + '件', '約束の' + p + '時間まで、あと少し', m.warn ? ' warn' : '', 'overdue') +
+      card(p + '時間を超えて未返信', m.late + '件', m.late ? '約束の時間を過ぎています' : '約束を過ぎたものはありません', m.late ? ' late' : '', 'overdue') +
       card('返信までの時間（30日）', med == null ? '—' : hours(med),
         med == null ? 'ここ30日で「返信した」ものがまだありません'
           : '中央値・' + m.replied30 + '件のうち' + m.within + '件が' + d.promised + '時間以内' + (few ? '（件数が少ないため参考程度）' : ''), medCls) +
       '</div>';
   }
-  function card(k, v, n, cls) {
-    return '<div class="inq-card' + cls + '"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div></div>';
+  /* 上の数字。filter があるものは押すと、その条件で一覧を絞り込みます。 */
+  function card(k, v, n, cls, filter) {
+    var inner = '<div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div>';
+    return filter
+      ? '<button type="button" class="inq-card inq-card-btn' + cls + (S.status === filter ? ' on' : '') + '" data-ijump="' + filter + '">' + inner + '</button>'
+      : '<div class="inq-card' + cls + '">' + inner + '</div>';
   }
 
   function notes(d) {
@@ -253,8 +263,8 @@
       '<ul class="inq-list" id="inq-list"></ul>' +
       '<div class="inq-pages" id="inq-pages"></div>' +
       (d.stored ? '<p class="soc-small" style="margin-top:12px">受信から' + (d.retentionDays || 365) + '日を過ぎた問い合わせは、自動で消えます（期間は「設定」で変えられます）。必要なものはCSVで書き出して保管してください。</p>' : '');
-    body.querySelectorAll('[data-ifil]').forEach(function (b) {
-      b.addEventListener('click', function () { S.status = b.getAttribute('data-ifil'); S.page = 1; S.sel = {}; inbox(body); });
+    body.querySelectorAll('[data-ifil], [data-ijump]').forEach(function (b) {
+      b.addEventListener('click', function () { S.status = b.getAttribute('data-ifil') || b.getAttribute('data-ijump'); S.page = 1; S.sel = {}; inbox(body); });
     });
     var qt = null;
     el('inq-q').addEventListener('input', function () {
@@ -272,15 +282,18 @@
     if (!items.length) {
       ul.innerHTML = '<li><span class="soc-small">' + (d.stored === false ? 'まだ表示できる問い合わせはありません。'
         : S.q ? '「' + esc(S.q) + '」に当てはまる問い合わせはありません。'
+        : S.status === 'todo' ? 'まだ返信していない問い合わせはありません。見落としはありません。'
+        : S.status === 'overdue' ? '返信の約束の時間が近い・過ぎた問い合わせはありません。'
         : S.status === 'new' ? '未対応の問い合わせはありません。' : 'この状態の問い合わせはありません。') + '</span></li>';
     } else {
       ul.innerHTML = items.map(function (it) {
         var tags = '';
         if (it.spam) tags += '<span class="inq-tag">迷惑</span>';
         else tags += '<span class="inq-tag' + (it.status === 'new' ? ' new' : it.status === 'done' ? ' ok' : '') + '">' + STATUS[it.status] + '</span>';
+        if (S.seenAt && Date.parse(it.receivedAt) > S.seenAt && !it.spam) tags = '<span class="inq-tag late">新着</span>' + tags;
         if (it.status === 'new' && !it.readAt && !it.spam) tags += '<span class="inq-tag new">未読</span>';
-        if (it.overdue === 'late') tags += '<span class="inq-tag late">48時間を超えています</span>';
-        else if (it.overdue === 'warn') tags += '<span class="inq-tag warn">24時間を超えています</span>';
+        if (it.overdue === 'late') tags += '<span class="inq-tag late">' + S.promised + '時間を超えています</span>';
+        else if (it.overdue === 'warn') tags += '<span class="inq-tag warn">' + Math.round(S.promised / 2) + '時間を超えています</span>';
         if (it.mailOwner === 'failed' || it.mailOwner === 'pending') tags += '<span class="inq-tag ng">メール未送信</span>';
         if (it.replyH != null) tags += '<span class="inq-tag ok">返信まで ' + hours(it.replyH) + '</span>';
         if (it.estimate) tags += '<span class="inq-tag">見積り付き</span>';
@@ -408,6 +421,7 @@
     }
     S.item = r.data.item;
     if (r.data.sender) S.sender = r.data.sender;
+    if (r.data.promised) S.promised = r.data.promised;
     drawDetail();
     // 開いたら既読。デモや通信の失敗では何も言いません（既読は大事な操作ではないので）。
     if (!S.item.readAt && !demo()) {
@@ -433,8 +447,8 @@
       '<h3>' + esc(who) + '</h3>' +
       '<div class="soc-small">' + when(it.receivedAt) + ' に受信' + (it.repliedAt ? '・' + when(it.repliedAt) + ' に返信（' + hours(it.replyH) + '後）' : '') + '</div>' +
       (it.email ? '<div class="inq-acts" style="margin-top:8px"><button type="button" class="ghost" id="inq-customer">このお客様の記録（問い合わせ・予約・見積書）</button></div>' : '') +
-      (o === 'late' ? '<div class="inq-note red" style="margin-top:10px">受信から48時間を超えています。サイトでは「48時間以内に返信」とお約束しています。</div>'
-        : o === 'warn' ? '<div class="inq-note" style="margin-top:10px">受信から24時間を超えました。48時間以内の返信をお約束しています。</div>' : '') +
+      (o === 'late' ? '<div class="inq-note red" style="margin-top:10px">受信から' + S.promised + '時間を超えています。「' + S.promised + '時間以内に返信」とお約束しています。</div>'
+        : o === 'warn' ? '<div class="inq-note" style="margin-top:10px">受信から' + Math.round(S.promised / 2) + '時間を超えました。' + S.promised + '時間以内の返信をお約束しています。</div>' : '') +
       (mail.owner === 'failed' || mail.owner === 'pending' ? '<div class="inq-note red" style="margin-top:10px">この問い合わせは、メールでの通知が送れていません（' + esc(mail.ownerError || '理由不明') + '）。ここから返信してください。</div>' : '') +
 
       '<div class="inq-sec"><h4>状態</h4><div class="inq-acts">' +
@@ -669,7 +683,7 @@
       '<div class="inq-sec"><h4>返信の約束</h4>' +
         '<label class="soc-lab" for="inq-rh">何時間以内に返信するか（受付確認メールの {reply_hours} に入ります）</label>' +
         '<input type="number" class="inq-in" id="inq-rh" min="1" max="168" value="' + st.replyHours + '"> 時間' +
-        '<p class="soc-small" style="margin-top:6px">サイトには「48時間以内に返信」と書いてあります。ここだけ変えても、サイトの文は変わりません（「文章編集」で直します）。一覧の黄色・赤は24時間・48時間のままです。</p></div>' +
+        '<p class="soc-small" style="margin-top:6px">一覧の黄色（約束の半分を超えた）・赤（約束を過ぎた）と、メニューの数は、この時間で決まります。サイトに書いてある「○時間以内に返信」の文は、ここでは変わりません（「文章編集」で同じ時間に直してください）。</p></div>' +
 
       '<div class="inq-sec"><h4>受付確認メール（送ってくれた人へ自動で1通）</h4>' +
         (sd.sandbox ? '<div class="inq-note">' + esc(sd.sandboxNote) + '</div>' : '') +
