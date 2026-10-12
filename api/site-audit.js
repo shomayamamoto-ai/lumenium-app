@@ -30,15 +30,17 @@ import { requireAdmin, json } from './_admin-auth.js'
 import { storeFor, pipeline } from './_analytics-store.js'
 import { AUDIT_KEY, auditSummary } from './_auto-signals.js'
 import { readCrawls } from './_crawlers.js'
-import { QUESTIONS } from './_aio-catalog.js'
-import { SITE, CHECKS, auditSite, questionCoverage } from './_audit-rules.js'
-import { BRAND } from './_brand.js'
+import { loadQuestions } from './_aio-catalog.js'
+import { SITE, CHECKS, auditSite, questionCoverage, nominatePages } from './_audit-rules.js'
+import { BRAND, KV } from './_brand.js'
 
 /* Which page is supposed to answer each measured question. The two halves of
    this screen never met: the probe reported 「動画制作 0%」 and the audit
    reported 「/services/video.html にFAQが無い」 on the same page, and nobody
    joined them. Joined here, a miss reads as an instruction — this question
-   has no page, or has one that does not answer it. */
+   has no page, or has one that does not answer it.
+   この対応は Lumenium のページ構成のものです。ほかのサイトや、ここに無い分野は
+   nominatePages() が質問の言葉からページを選びます。 */
 export const ANSWERS = {
   'ブランド指名': ['/about.html', '/profile.html'],
   /* 評判・信頼性。候補に残ったあと最後に確かめられることで、ここで
@@ -64,9 +66,42 @@ const EXCLUDE = [/^\/(game|racing|runner|hitblow)\.html$/]
    get 18 of them; what is not reached by then is reported as not checked. */
 const BUDGET_MS = 18000
 
+/* 最後の点検の全体（画面を開いたとき、20秒待たずにすぐ出すため）。 */
+const AUDIT_FULL = `${KV}seo:audit:full`
+const findingKey = (f) => `${f.check}|${f.page || ''}`
+
+/** 前回と比べて、新しく見つかったものに印を付け、直ったものを並べます。 */
+export function diffFindings(cur, prev) {
+  if (!Array.isArray(prev)) return { findings: cur, fixed: null }
+  const before = new Set(prev.map(findingKey))
+  const now = new Set(cur.map(findingKey))
+  return {
+    findings: cur.map((f) => (before.has(findingKey(f)) ? f : { ...f, fresh: true })),
+    fixed: prev.filter((f) => !now.has(findingKey(f))).slice(0, 20).map((f) => ({ check: f.check, level: f.level, problem: f.problem, page: f.page })),
+  }
+}
+
+async function readJson(cfg, key) {
+  if (!cfg) return null
+  try { const [raw] = await pipeline(cfg, [['GET', key]]); return raw ? JSON.parse(raw) : null } catch (_) { return null }
+}
+
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
+
+  const view = new URL(req.url).searchParams.get('view')
+  // タブの横の数: 最後の点検の「必ず直す」の数（点検はしません）。
+  if (view === 'badge') {
+    const sum = await readJson(await storeFor(req), AUDIT_KEY)
+    const must = sum && sum.counts ? Number(sum.counts.must) || 0 : 0
+    return json({ ok: true, total: must, must, should: sum && sum.counts ? Number(sum.counts.should) || 0 : 0, at: (sum && sum.at) || null })
+  }
+  // 最後の点検の結果（点検はしません）。
+  if (view === 'last') {
+    const last = await readJson(await storeFor(req), AUDIT_FULL)
+    return json(last ? { ...last, ok: true, cached: true } : { ok: true, none: true })
+  }
 
   // The deployment answering is the one read, so a preview checks itself.
   const origin = new URL(req.url).origin
@@ -83,17 +118,21 @@ export async function GET(req) {
     .sort((a, b) => b.count - a.count)
 
   const site = run.site
-  const questions = questionCoverage(pages, ANSWERS)
+  // 保存した質問（無ければ最初の質問）で点検します。計測と同じ一覧です。
+  const cfg = await storeFor(req)
+  const { list: qs, custom } = await loadQuestions(cfg)
+  const answers = nominatePages(pages, qs, BRAND.isLumenium ? ANSWERS : {})
+  const questions = questionCoverage(pages, answers, qs)
 
   // Per category, as before — the row a person reads first — now carrying the
   // weakest question under it, which is the one to write for.
   const byPath = new Map(ok.map((p) => [p.url, p]))
   const seen = new Set()
   const coverage = []
-  for (const q of QUESTIONS) {
+  for (const q of qs) {
     if (seen.has(q.cat)) continue
     seen.add(q.cat)
-    const wants = ANSWERS[q.cat] || []
+    const wants = answers[q.cat] || []
     const rows = wants.map((w) => byPath.get(w)).filter(Boolean)
     const mine = questions.filter((x) => x.cat === q.cat)
     const weakest = mine.slice().sort((a, b) => a.head - b.head)[0] || null
@@ -114,8 +153,8 @@ export async function GET(req) {
   // Crawl evidence. Needs the store, and says so rather than showing zero:
   // 「まだ誰も来ていない」 and 「記録していない」 are different answers and
   // only one of them is about the site.
-  const cfg = await storeFor(req)
   const crawlers = cfg ? await readCrawls(cfg, 30) : null
+  const before = await readJson(cfg, AUDIT_FULL)
   // 自動改善（api/_auto-signals.js）が毎朝読む、点検結果の要約。点検は
   // 20秒かかるので、毎朝走らせずに、ここで測った最後の結果を使います。
   if (cfg) {
@@ -128,11 +167,17 @@ export async function GET(req) {
     for (const k of ['headLines', 'bodyGrams', 'descText', 'blocks', 'leadBlocks', 'shingles', 'found', 'fetched']) delete p[k]
   }
 
-  return json({
+  const diff = diffFindings(
+    run.findings.map((f) => ({ ...f, problem: CHECKS[f.check].bad, fix: CHECKS[f.check].fix })),
+    before && Array.isArray(before.findings) ? before.findings : null,
+  )
+  const out = {
     ok: true,
     checkedAt: new Date().toISOString(),
+    previousAt: (before && before.checkedAt) || null,
     coverage,
     questions,
+    questionsFrom: custom ? 'saved' : 'default',
     site,
     crawlers,
     crawlStore: !!cfg,
@@ -142,10 +187,20 @@ export async function GET(req) {
     issues,
     // 点検結果: 「必ず直す」「直すと良い」 and what passed. The words for each
     // check travel with it (CHECKS), so the screen and the demo say the same.
-    findings: run.findings.map((f) => ({ ...f, problem: CHECKS[f.check].bad, fix: CHECKS[f.check].fix })),
+    findings: diff.findings,
+    // 前回の点検で見つかって、今回は見つからなかったもの（直ったもの）。初めての点検では null。
+    fixed: diff.fixed,
     passed: run.passed,
     counts: run.counts,
     linksChecked: run.linksChecked,
     notes: run.notes,
-  })
+  }
+  // 次に画面を開いたとき、すぐ出せるように控えます（大きすぎるときは控えません）。
+  if (cfg) {
+    try {
+      const raw = JSON.stringify({ ...out, crawlers: null })
+      if (raw.length < 600000) await pipeline(cfg, [['SET', AUDIT_FULL, raw, 'EX', 400 * 86400]])
+    } catch (_) {}
+  }
+  return json(out)
 }

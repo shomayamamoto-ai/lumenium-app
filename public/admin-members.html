@@ -6148,7 +6148,7 @@ window.lumAdmin = {
   async function audit() {
     var btn = el('audit-run');
     btn.disabled = true;
-    el('audit-note').textContent = '点検しています…';
+    el('audit-note').textContent = '点検しています…（20秒ほどかかります）';
     var data;
     try {
       var res = await window.lumAdmin.tap(await fetch('/api/site-audit', { headers: { Authorization: 'Bearer ' + key() } }));
@@ -6158,7 +6158,28 @@ window.lumAdmin = {
       el('audit-note').textContent = '点検できませんでした: ' + e.message;
       btn.disabled = false; return;
     }
-    el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）。';
+    renderAudit(data);
+    if (window.lumSeoBadge) window.lumSeoBadge();
+  }
+
+  /* 画面を開いたときは、前回の点検の結果をすぐ出します（点検は20秒かかるため）。
+     前回が無いか、1日より前なら、そのあと点検し直します。 */
+  async function auditFirst() {
+    var r = null;
+    try { r = await window.lumAdmin.fetch('/api/site-audit?view=last'); } catch (_) { r = null; }
+    var d = r && r.data;
+    if (d && d.ok && !d.none && d.checkedAt) {
+      renderAudit(d);
+      if (Date.now() - Date.parse(d.checkedAt) < 86400000) return;
+    }
+    audit();
+  }
+
+  function renderAudit(data) {
+    var btn = el('audit-run');
+    btn.textContent = 'もう一度点検';
+    el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）' +
+      (data.cached ? '。前回の結果です。直したあとは「もう一度点検」を押してください。' : '。');
     /* The join: each measured question next to the page that should answer it.
        A 0% with no page behind it is a different instruction from a 0% with a
        page that says nothing. */
@@ -6221,7 +6242,7 @@ window.lumAdmin = {
         order.map(function (k) {
           var g = by[k];
           var rows = g.rows.slice(0, 12).map(function (f) {
-            return '<li style="margin:3px 0;word-break:break-all">' + pageRef(f.page) +
+            return '<li style="margin:3px 0;word-break:break-all">' + (f.fresh ? '<span class="st-new">新着</span>' : '') + pageRef(f.page) +
               (f.detail ? '<span style="color:var(--sub)">　' + esc(f.detail) + '</span>' : '') + '</li>';
           }).join('') + (g.rows.length > 12 ? '<li style="color:var(--sub)">ほか ' + (g.rows.length - 12) + '件</li>' : '');
           return '<div style="background:#f3f1ec;border:1px solid var(--border);border-left:3px solid ' + color + ';border-radius:10px;padding:11px 13px;margin-bottom:7px">' +
@@ -6245,6 +6266,7 @@ window.lumAdmin = {
         (s.medianMs ? '表示にかかる時間は中央値 ' + s.medianMs + 'ミリ秒。' : '') + '</p>' + notesHtml +
       levelHtml('must', '必ず直す', '#b42318') +
       levelHtml('should', '直すと良い', '#b45309') +
+      fixedHtml(data) +
       passedHtml +
       (cov ? H('計測している質問と、それに答えるページ') + TABLE(cov) : '') +
       (fitRows
@@ -6257,6 +6279,25 @@ window.lumAdmin = {
           '計測中の質問はすべて、答えるページの見出しに同じ言葉で載っています。</p>');
     btn.disabled = false;
   }
+  /* 前回の点検で見つかって、今回は見つからなかったもの。直した手ごたえが分かるように出します。 */
+  function fixedHtml(data) {
+    var list = data.fixed || [];
+    if (!list.length) return '';
+    return '<h3 style="font-size:12px;letter-spacing:.1em;color:#2f6f3e;font-weight:700;margin:16px 0 8px">前回の点検から直ったもの　' + list.length + '件</h3>' +
+      '<ul style="font-size:11.5px;line-height:1.8;margin:0 0 4px;padding-left:18px">' + list.map(function (f) {
+        return '<li style="word-break:break-all">✓ ' + esc(f.problem || f.check) + (f.page ? '<span style="color:var(--sub)">　' + esc(f.page) + '</span>' : '') + '</li>';
+      }).join('') + '</ul>';
+  }
+
+  /* タブの横の数: 最後の点検の「必ず直す」の数。 */
+  window.lumSeoBadge = async function () {
+    if (!window.lumNavBadge) return;
+    var r = null;
+    try { r = await window.lumAdmin.fetch('/api/site-audit?view=badge'); } catch (_) { r = null; }
+    var d = r && r.data;
+    if (d && d.ok) window.lumNavBadge('seo-admin', d.must || 0, d.must ? ['サイトの点検で「必ず直す」' + d.must + '件'] : []);
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumSeoBadge(); });
 
   /* クローラーの来訪。この画面で唯一、推測ではない数字です。
      root の middleware.js が、すべてのページ・サイトマップ・robots.txt・
@@ -6548,7 +6589,7 @@ window.lumAdmin = {
     if (loaded) return; loaded = true; load();
     // Free and fast, so it runs without being asked — the panel should say
     // something useful before any money has been spent on a measurement.
-    if (!auditDone) { auditDone = true; audit(); crawlBox(); loadSearchConsole(); }
+    if (!auditDone) { auditDone = true; auditFirst(); crawlBox(); loadSearchConsole(); }
   };
 })();
 </script>

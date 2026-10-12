@@ -108,7 +108,7 @@ const tokens = (text) => String(text)
  *  test would call that a miss and send someone to rewrite a page that is
  *  already right. Latin words are kept whole — SNS split into SN and NS is
  *  not a word in anything. */
-function grams(text, skipStop = true) {
+export function grams(text, skipStop = true) {
   const out = new Set()
   for (const t of tokens(text)) {
     if (skipStop && STOP.has(t)) continue
@@ -762,9 +762,32 @@ export async function auditSite({ origin, site = SITE, fetchImpl = globalThis.fe
 
 /** Every measured question, next to the page that is supposed to answer it
  *  and how close that page actually is to the question. */
-export function questionCoverage(pages, answers) {
+/* どのページがどの分野の質問に答えるか。決めてある分（fixed）があればそれを使い、
+   無い分野は、その分野の質問の言葉をいちばん多く使っているページを選びます。
+   こうしておくと、ページの構成が違うサイトでも、保存した自分の質問でも、
+   「この質問にはこのページ」が自動で決まります。 */
+export function nominatePages(pages, questions, fixed = {}) {
+  const ok = (pages || []).filter((p) => p && !p.error && !p.excluded)
+  const have = new Set(ok.map((p) => p.url))
+  const cats = [...new Set((questions || []).map((q) => q.cat))]
+  const out = {}
+  for (const cat of cats) {
+    const set = (fixed[cat] || []).filter((u) => have.has(u))
+    if (set.length) { out[cat] = set; continue }
+    const qs = questions.filter((q) => q.cat === cat)
+    const scored = ok.map((p) => {
+      let sc = 0
+      for (const q of qs) { const f = questionFit(p, q.q); sc += f.head * 2 + f.body }
+      return { url: p.url, sc }
+    }).filter((x) => x.sc > 0).sort((a, b) => b.sc - a.sc || (a.url < b.url ? -1 : 1))
+    out[cat] = scored.slice(0, 2).map((x) => x.url)
+  }
+  return out
+}
+
+export function questionCoverage(pages, answers, questions = QUESTIONS) {
   const byPath = new Map(pages.filter((p) => !p.error).map((p) => [p.url, p]))
-  return QUESTIONS.map((q) => {
+  return questions.map((q) => {
     const wants = answers[q.cat] || []
     const rows = wants.map((w) => byPath.get(w)).filter(Boolean)
     const fits = rows.map((r) => ({ url: r.url, ...questionFit(r, q.q) }))

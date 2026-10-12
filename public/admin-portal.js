@@ -344,6 +344,15 @@
       go: { label: 'アクセス解析を開く' } }];
   }
 
+  /* サイトの点検（api/site-audit.js ?view=badge。最後の点検の「必ず直す」）。 */
+  function seoRows(s) {
+    if (!ok(s) || !num(s.data.must)) return [];
+    return [{ id: 'seo-must', level: 'action', tab: 'seo-admin', count: s.data.must, unit: '件',
+      title: 'サイトの点検で「必ず直す」もの',
+      why: '検索に載らなくなる原因や、検索エンジンの決まりに反しているところです。直したら「もう一度点検」を押してください。',
+      go: { label: '点検の結果を見る' } }];
+  }
+
   var SOURCE_NAMES = {
     inquiries: '問い合わせ', booking: '予約', social: 'SNS', members: '会員', news: 'お知らせ',
     health: '設定状況', deploy: 'サイトの更新状況', analytics: 'アクセス解析',
@@ -357,7 +366,7 @@
     now = now || Date.now();
     var rows = [].concat(
       healthRows(src.health), deployRows(src.deploy), inquiryRows(src.inquiries),
-      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now), statsRows(src.statsTodo),
+      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now), statsRows(src.statsTodo), seoRows(src.seoAudit),
       memberRows(src.members, now), advisorRows(src.advisor), analyticsRows(src.analytics)
     );
     rows = rows.map(function (r, i) { r.order = i; return r; }).sort(function (a, b) {
@@ -524,6 +533,7 @@
 
     if (by['news-stale']) put('news-admin', by['news-stale'].count ? by['news-stale'].count + '日 更新なし' : 'まだありません', 'action');
     if (by['mem-new']) put('list-view', '今週 +' + by['mem-new'].count + '人', 'fyi');
+    if (by['seo-must']) put('seo-admin', '必ず直す ' + by['seo-must'].count, 'action');
     if (by['an-404']) put('stats-admin', '新しい404 ' + by['an-404'].count, 'action');
     if (by['analytics-week']) put('stats-admin', '7日で ' + by['analytics-week'].count + '回', 'fyi');
 
@@ -676,7 +686,8 @@
     ['reviews', '/api/reviews?view=badge'],
     ['quotes', '/api/quotes?view=badge'],
     ['video', '/api/video-publish?view=badge'],
-    ['statsTodo', '/api/analytics?view=badge']
+    ['statsTodo', '/api/analytics?view=badge'],
+    ['seoAudit', '/api/site-audit?view=badge']
   ];
 
   function within(p, ms) {

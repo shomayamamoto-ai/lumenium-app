@@ -13,6 +13,7 @@ Object.assign(process.env, {
   // 名前が残っていないか、を見るため）。
   SITE_NAME: 'Sample', SITE_NAME_KANA: 'サンプル', SITE_URL: 'https://sample.example',
   OWNER_EMAIL: 'owner@sample.example', GITHUB_REPO: 'sample/site',
+  SITE_DESCRIPTION: 'ヘアサロン', SITE_AREA: '大阪',
   UPSTASH_REDIS_REST_URL: REDIS,
   UPSTASH_REDIS_REST_TOKEN: 'x',
 })
@@ -388,6 +389,50 @@ await t('github: リポジトリ未設定なら GitHub に問い合わせずに�
   const r = await gh('tok', '', 'contents/x')
   assert.equal(calls.length, 0)
   assert.match(ghDetail(r.status), /GITHUB_REPO/)
+})
+
+await t('AIO: ほかの会社では、最初の質問がその業種・地域のものになる', async () => {
+  const C = await import('../api/_aio-catalog.js')
+  const all = C.DEFAULT_QUESTIONS.map((q) => q.q).join('\n')
+  assert.ok(!/動画制作|キャスト|ルメニウム|Lumenium/.test(all), '元の会社の業種や名前が残っている')
+  assert.ok(C.DEFAULT_QUESTIONS.some((q) => q.q.includes('大阪でヘアサロンを探しています')))
+  const svc = C.DEFAULT_QUESTIONS.filter((q) => q.cat === 'ヘアサロン')
+  assert.ok(svc.length >= C.MIN_FOR_RATE, '分野の率を読めるだけの数')
+  assert.ok(svc.every((q) => !C.isBranded(q)), '業種の質問は非指名')
+  // 保存した一覧が無ければ、この最初の質問を使う
+  const { list, custom } = await C.loadQuestions(null)
+  assert.equal(custom, false)
+  assert.equal(list.length, C.DEFAULT_QUESTIONS.length)
+})
+
+await t('サイトの点検: 質問に答えるページを、質問の言葉から選ぶ', async () => {
+  const R = await import('../api/_audit-rules.js')
+  const page = (url, head, body) => ({ url, missing: [], leadMissing: [], headLines: head, bodyGrams: R.grams(body) })
+  const pages = [
+    page('/', ['サンプル　大阪のヘアサロン'], 'サンプルは大阪のヘアサロンです'),
+    page('/price.html', ['ヘアサロンの料金の目安'], 'カット 料金 目安 4000円 カラー 料金'),
+    page('/blog.html', ['ブログ'], 'きょうの天気'),
+  ]
+  const qs = [
+    { cat: 'ヘアサロン', q: '大阪でヘアサロンを探しています。おすすめを教えてください。' },
+    { cat: '料金', q: 'ヘアサロンの料金の目安を教えてください。' },
+  ]
+  const a = R.nominatePages(pages, qs, { 料金: ['/missing.html'] })
+  assert.equal(a['ヘアサロン'][0], '/')
+  assert.equal(a['料金'][0], '/price.html', '決めたページが無ければ、言葉から選ぶ')
+  assert.ok(!a['ヘアサロン'].includes('/blog.html'))
+  const fixed = R.nominatePages(pages, qs, { 料金: ['/'] })
+  assert.deepEqual(fixed['料金'], ['/'], '決めたページがあればそれを使う')
+})
+
+await t('サイトの点検: 前回と比べて「新着」と「直ったもの」を出す', async () => {
+  const { diffFindings } = await import('../api/site-audit.js')
+  const first = diffFindings([{ check: 'a', page: '/x' }], null)
+  assert.equal(first.fixed, null, '初めての点検では「直ったもの」を出さない')
+  assert.ok(!first.findings[0].fresh, '初めての点検では全部に「新着」を付けない')
+  const d = diffFindings([{ check: 'a', page: '/x' }, { check: 'b', page: '/y' }], [{ check: 'a', page: '/x' }, { check: 'c', page: '/z', problem: 'p', level: 'must' }])
+  assert.deepEqual(d.findings.map((f) => !!f.fresh), [false, true])
+  assert.deepEqual(d.fixed.map((f) => f.check), ['c'])
 })
 
 console.log(`test-foundation: ${passed} passed`)

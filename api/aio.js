@@ -36,7 +36,7 @@ import { socialActivity } from './_social.js'
 import {
   DEFAULT_QUESTIONS, BRAND, JUDGE_MODEL, JUDGE_BATCH, JUDGE_EST_USD, MIN_FOR_RATE, LIMITS,
   namesBrand, hostOf, isHit, isOwnHost, isOwnCompany, companyKey, isBranded, VERDICTS, SENTIMENTS,
-  validateQuestions, questionSetHash, categoriesOf, planRun,
+  validateQuestions, questionSetHash, categoriesOf, planRun, QKEY, loadQuestions,
 } from './_aio-catalog.js'
 import { ENGINES, ENGINE_IDS, engineKeys, askEngine, checkClaude } from './_engines.js'
 import { rate, compareRates } from './_aio-stats.js'
@@ -122,7 +122,6 @@ const RK = (id) => `${KV}aio:run:${id}`
 // same time, and a read-modify-write of one run document would lose some.
 export const RES = (id) => `${KV}aio:res:${id}`
 const INDEX = `${KV}aio:index`
-const QKEY = `${KV}aio:questions`
 
 const NO_STORE = {
   ok: false,
@@ -140,20 +139,8 @@ const clampInt = (v, lo, hi, dflt) => {
  *  there was. Both are honoured, plus the text itself. */
 const brandedOf = (r) => !!r && (r.branded === true || r.cat === 'ブランド指名' || namesBrand(r.q))
 
-/** This site's question list: the one saved from the admin, or the defaults.
- *  A saved list that no longer validates is ignored rather than trusted. */
-export async function loadQuestions(cfg) {
-  if (cfg) {
-    try {
-      const [raw] = await pipeline(cfg, [['GET', QKEY]])
-      if (raw) {
-        const v = validateQuestions(JSON.parse(raw))
-        if (v.ok) return { list: v.questions, custom: true }
-      }
-    } catch (_) { /* the defaults still work */ }
-  }
-  return { list: DEFAULT_QUESTIONS.map((q) => ({ ...q, branded: isBranded(q) })), custom: false }
-}
+// loadQuestions() と QKEY は _aio-catalog.js にあります（サイトの点検も同じ一覧を読むため）。
+export { loadQuestions }
 
 /** The shape a run has to have, whether it came from the store or from the
  *  browser that is running it. Anything else in the body is ignored. */

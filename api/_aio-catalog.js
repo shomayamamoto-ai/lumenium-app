@@ -11,7 +11,8 @@
 // timestamped, and comparable run over run. Treat it as "how visible are we to
 // an AI that searches the web right now", not as a Google metric.
 
-import { BRAND as SITE } from './_brand.js'
+import { BRAND as SITE, KV } from './_brand.js'
+import { pipeline } from './_analytics-store.js'
 
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -44,7 +45,7 @@ const CALL = BRAND.kana || BRAND.name
  *  non-branded — which flattered the number that matters most. isBranded()
  *  below also checks the text, so a question typed in from the admin without
  *  the flag is still caught. */
-export const DEFAULT_QUESTIONS = [
+const LUMENIUM_QUESTIONS = [
   // --- 指名: the floor. If we lose here we are invisible even to people
   //     who already know the name.
   { id: 'brand-what', cat: BRANDED_CAT, branded: true, q: `${NAME}とはどんな会社ですか？事業内容と拠点を教えてください。` },
@@ -102,8 +103,36 @@ export const DEFAULT_QUESTIONS = [
   { id: 'cross-budget', cat: '横断・比較', q: '予算100万円以内で、動画制作とホームページ制作の両方を相談できる会社はありますか？' },
 ]
 
+/* 別の会社のサイトでの最初の質問。上の一覧は Lumenium の業種（動画制作・AI研修…）の
+   ものなので、そのまま使うと、ほかの会社では「出てこない」のが当たり前の質問を
+   測ることになります。ここでは社名・評判に加えて、SITE_DESCRIPTION（何をしている
+   会社・お店か）と SITE_AREA（地域）から、お客様が AI に聞きそうな3問を作ります。
+   そのあとは「SEO / AIO 分析」の質問の編集で、自分の言葉に直してもらいます。 */
+const WHAT = String(SITE.description || '').trim().slice(0, 30)
+const AREA = String(SITE.area || '').trim().slice(0, 20)
+const GENERIC_QUESTIONS = [
+  { id: 'brand-what', cat: BRANDED_CAT, branded: true, q: `${NAME}とはどんな会社（お店）ですか？何をしているか、場所も教えてください。` },
+  { id: 'brand-real', cat: BRANDED_CAT, branded: true, q: `${BRAND.name} は実在しますか？公式サイトはどこですか？` },
+  ...(SITE.lookalikes.length
+    ? [{ id: 'brand-vs', cat: BRANDED_CAT, branded: true, q: `${CALL}と${SITE.lookalikes[0]}は同じ会社ですか？` }]
+    : []),
+  { id: 'trust-review', cat: '評判・信頼性', branded: true, q: `${NAME}の評判を教えてください。実際に利用した人の声はありますか？` },
+  { id: 'trust-real', cat: '評判・信頼性', branded: true, q: `${CALL}に頼んでも大丈夫ですか？所在地や事業者情報は確認できますか？` },
+  { id: 'trust-choose', cat: '評判・信頼性', q: `${WHAT || 'お店や会社'}を選ぶとき、信頼できるかどうかは何で見分ければよいですか？` },
+  ...(WHAT
+    ? [
+      { id: 'svc-find', cat: WHAT, q: `${AREA ? AREA + 'で' : ''}${WHAT}を探しています。おすすめを教えてください。` },
+      { id: 'svc-price', cat: WHAT, q: `${AREA ? AREA + 'で' : ''}${WHAT}を利用するときの料金の目安と、依頼先の候補を教えてください。` },
+      { id: 'svc-first', cat: WHAT, q: `初めて${WHAT}を利用します。失敗しない選び方と、${AREA ? AREA + 'の' : ''}おすすめを教えてください。` },
+    ]
+    : []),
+]
+
+/** 最初の質問の一覧（保存した一覧が無いときに使います）。 */
+export const DEFAULT_QUESTIONS = SITE.isLumenium ? LUMENIUM_QUESTIONS : GENERIC_QUESTIONS
+
 /** The default set. Other modules (the site audit, the advisor) read this;
- *  a run itself reads the saved list first — see aio.js loadQuestions(). */
+ *  a run itself reads the saved list first — see loadQuestions() below. */
 export const QUESTIONS = DEFAULT_QUESTIONS
 
 /** 分野ごとの率を読んでよい最低の問数。
@@ -287,4 +316,23 @@ export function isOwnCompany(name) {
   if (namesBrand(name)) return true
   const k = companyKey(name)
   return !!k && OWN_KEYS.has(k)
+}
+
+/* ---- 保存した質問の一覧 ----
+   計測（aio.js）とサイトの点検（site-audit.js）が同じ一覧を読むよう、ここに置きます。 */
+export const QKEY = `${KV}aio:questions`
+
+/** This site's question list: the one saved from the admin, or the defaults.
+ *  A saved list that no longer validates is ignored rather than trusted. */
+export async function loadQuestions(cfg) {
+  if (cfg) {
+    try {
+      const [raw] = await pipeline(cfg, [['GET', QKEY]])
+      if (raw) {
+        const v = validateQuestions(JSON.parse(raw))
+        if (v.ok) return { list: v.questions, custom: true }
+      }
+    } catch (_) { /* the defaults still work */ }
+  }
+  return { list: DEFAULT_QUESTIONS.map((q) => ({ ...q, branded: isBranded(q) })), custom: false }
 }

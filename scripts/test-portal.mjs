@@ -340,6 +340,10 @@ test('口コミ・見積書・動画: 内訳と開く先', () => {
   assert.equal(an[0].id, 'an-404')
   assert.equal(an[0].count, 2)
   assert.match(an[0].why, /「\/old-page」ほか/)
+  const seo = build({ seoAudit: ok({ ok: true, total: 3, must: 3, should: 5 }) }, NOW).rows
+  assert.equal(seo[0].id, 'seo-must')
+  assert.equal(seo[0].count, 3)
+  assert.equal(build({ seoAudit: ok({ ok: true, total: 0, must: 0 }) }, NOW).rows.length, 0)
   const off = build({ video: { state: 'off', data: { ok: true, stored: false } } }, NOW)
   assert.ok(off.off.includes('SNS動画'))
 })

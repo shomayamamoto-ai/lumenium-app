@@ -1044,6 +1044,20 @@
   }
 
   /* ---- site audit (shape: api/site-audit.js) ---- */
+  /* 最後の点検（shape: api/site-audit.js ?view=last / ?view=badge）。見本では、1件を「新着」、1件を「直ったもの」にします。 */
+  function auditLast() {
+    var a = siteAudit();
+    var first = true;
+    a.findings = (a.findings || []).map(function (f) { if (first && f.level === 'must') { first = false; return Object.assign({}, f, { fresh: true }); } return f; });
+    a.fixed = [{ check: 'demo-fixed', level: 'should', problem: '説明文（meta description）が短すぎる', page: '/news.html' }];
+    a.checkedAt = ago(2 * 3600000);
+    a.cached = true;
+    return a;
+  }
+  function auditBadge() {
+    var c = siteAudit().counts || {};
+    return { ok: true, total: c.must || 0, must: c.must || 0, should: c.should || 0, at: ago(2 * 3600000) };
+  }
   function siteAudit() {
     return {
       ok: true, checkedAt: new Date().toISOString(),
@@ -1727,7 +1741,7 @@
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());
       case '/api/aio': return reply(aioGet(q.get('run')));
-      case '/api/site-audit': return reply(siteAudit());
+      case '/api/site-audit': return reply(q.get('view') === 'badge' ? auditBadge() : q.get('view') === 'last' ? auditLast() : siteAudit());
       case '/api/indexnow':
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });
       case '/api/booking': return reply(q.get('recent') ? bookingRecent() : { ok: true, enabled: false, mode: 'off', slots: [] });
