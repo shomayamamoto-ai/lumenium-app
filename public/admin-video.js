@@ -21,10 +21,14 @@
     pubQueue: null, polling: {}
   };
   var SECTIONS = [
+    ['todo', '要対応・予定'],
     ['project', 'プロジェクト'], ['research', '競合リサーチ'], ['script', '台本'], ['board', '絵コンテ'],
     ['ship', '出荷前チェック'], ['silence', '無音カット'], ['publish', '投稿'], ['metrics', '数字'],
-    ['pdca', 'PDCA'], ['import', 'snsautoから取り込む']
+    ['pdca', 'PDCA']
   ];
+  /* 以前の仕組みからの取り込みは、開発者向けです（?dev=1 か localStorage の lum_dev=1 のときだけ出します）。 */
+  var DEV = (function () { try { return /[?&]dev=1/.test(location.search) || localStorage.getItem('lum_dev') === '1'; } catch (_) { return false; } })();
+  if (DEV) SECTIONS.push(['import', '以前の仕組みから取り込む']);
   var NET_LABEL = { instagram: 'Instagram リール', youtube: 'YouTube ショート', tiktok: 'TikTok' };
   var STATUS_LABEL = {
     draft: '下書き', uploading: 'アップロード中', scheduled: '予約済み', processing: '準備中（Instagram が変換中）',
@@ -38,7 +42,12 @@
     });
   }
   /* 入力欄には、消えてしまう placeholder ではなく、常に見える見出しを付けます。 */
-  function fld(label, control) { return '<label class="vid-fld"><span class="soc-lab">' + label + '</span>' + control + '</label>'; }
+  function fld(label, control, note) { return '<label class="vid-fld"><span class="soc-lab">' + label + '</span>' + control + (note ? '<span class="soc-small" style="display:block;margin-top:3px">' + esc(note) + '</span>' : '') + '</label>'; }
+  /* SNS から返ってきた投稿のURL。http(s) 以外（javascript: など）は出しません。 */
+  function safeHref(u) {
+    if (window.lumSafeHref) { var h = window.lumSafeHref(u); return h === '#' ? '' : h; }
+    return /^https?:\/\//i.test(String(u || '')) ? String(u) : '';
+  }
   function demo() { try { return sessionStorage.getItem('lum_demo') === '1'; } catch (_) { return false; } }
   function say(t, info) {
     var m = el('vid-msg');
@@ -1232,19 +1241,68 @@
   function pubRow(u) {
     var acts = [];
     if (u.status === 'failed' || u.status === 'draft') acts.push('<button type="button" class="linkish vp-send" data-id="' + esc(u.id) + '">' + (u.status === 'failed' ? 'もう一度送る' : '送る') + '</button>');
+    if (u.status === 'failed' || u.status === 'draft') acts.push('<button type="button" class="linkish vp-edit" data-id="' + esc(u.id) + '">直す' + (u.video_url ? '' : '（動画を付ける）') + '</button>');
     if (u.status === 'processing') acts.push('<button type="button" class="linkish vp-ig" data-id="' + esc(u.id) + '">状況を確かめる</button>');
     if (u.status === 'scheduled' && u.platform === 'instagram') acts.push('<button type="button" class="linkish vp-unsch" data-id="' + esc(u.id) + '">予約を取り消す</button>');
     if (u.status === 'inbox') acts.push('<button type="button" class="linkish vp-tt" data-id="' + esc(u.id) + '">TikTok 側の状況</button>');
     if (u.external_id) acts.push('<button type="button" class="linkish vp-mx" data-id="' + esc(u.id) + '">数字を取る</button>');
     acts.push('<button type="button" class="linkish vp-del" data-id="' + esc(u.id) + '">削除</button>');
     var last = V.latestSnapshot(u);
-    return '<div class="soc-post"><div class="when">' + esc(NET_LABEL[u.platform] || u.platform) + '　<span class="vid-tag ' + (u.status === 'published' || u.status === 'inbox' ? 'ok' : u.status === 'failed' ? 'ng' : '') + '">' + esc(STATUS_LABEL[u.status] || u.status) + '</span>' +
+    return '<div class="soc-post' + (S.focusPub === u.id ? ' is-focus' : '') + '" id="vp-' + esc(u.id) + '"><div class="when">' + esc(NET_LABEL[u.platform] || u.platform) + '　<span class="vid-tag ' + (u.status === 'published' || u.status === 'inbox' ? 'ok' : u.status === 'failed' ? 'ng' : '') + '">' + esc(STATUS_LABEL[u.status] || u.status) + '</span>' +
       (u.scheduled_for ? '　予約: ' + esc(u.scheduled_for) : '') + (u.published_at ? '　' + esc(new Date(u.published_at).toLocaleString('ja-JP')) : '') + '</div>' +
       '<div class="body">' + esc(u.title ? u.title + '\n' : '') + esc(String(u.caption || '').slice(0, 160)) + '</div>' +
       (u.error ? '<div class="mx" style="color:#b42318">' + esc(u.error) + '</div>' : '') +
-      (u.external_url ? '<div class="mx"><a href="' + esc(u.external_url) + '" target="_blank" rel="noopener">投稿を開く</a></div>' : '') +
+      (u.external_url && safeHref(u.external_url) ? '<div class="mx"><a href="' + esc(safeHref(u.external_url)) + '" target="_blank" rel="noopener">投稿を開く</a></div>' : '') +
       (last ? '<div class="mx">最新の数字（' + esc(String(last.captured_at).slice(0, 10)) + '）: 再生 ' + int(last.views) + '・いいね ' + int(last.likes) + '・保存 ' + int(last.saves) + (last.avg_watch_sec != null ? '・平均視聴 ' + sec(last.avg_watch_sec) : '') + '</div>' : '') +
-      '<div class="vid-links">' + acts.join('') + '</div></div>';
+      '<div class="vid-links">' + acts.join('') + '</div>' + (S.editPub === u.id ? editForm(u) : '') + '</div>';
+  }
+
+  /* 下書き・失敗した投稿を直す（本文・タイトル・タグと、あとから付ける動画）。 */
+  function editForm(u) {
+    return '<div class="vp-edit-form" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--ui-border,#dcd8ce)">' +
+      fld('タイトル' + (u.platform === 'youtube' ? '（YouTube は必須）' : ''), '<input type="text" class="vid-in" data-ef="title" maxlength="100" value="' + esc(u.title || '') + '">') +
+      fld('本文', '<textarea class="vid-in" data-ef="caption" rows="3">' + esc(u.caption || '') + '</textarea>') +
+      fld('タグ（空白区切り）', '<input type="text" class="vid-in" data-ef="tags" value="' + esc((u.hashtags || []).map(function (t) { return '#' + t; }).join(' ')) + '">') +
+      fld('動画ファイル' + (u.video_url ? '（差し替えるときだけ）' : '（まだ付いていません）'), '<input type="file" data-ef="file" accept="video/mp4,video/quicktime,video/webm">',
+        u.platform === 'youtube' ? 'YouTube は送るときにこのブラウザから動画を送ります。「直して送る」を押してください。' : '') +
+      '<div class="vid-acts"><button type="button" class="vp-esave" data-id="' + esc(u.id) + '">保存</button>' +
+      '<button type="button" class="ghost vp-esend" data-id="' + esc(u.id) + '">直して送る</button>' +
+      '<button type="button" class="ghost vp-ecancel" data-id="' + esc(u.id) + '">やめる</button><span class="soc-small" data-ef="st"></span></div></div>';
+  }
+  async function saveEdit(u, andSend) {
+    var box = document.querySelector('#vp-' + (window.CSS && CSS.escape ? CSS.escape(u.id) : u.id) + ' .vp-edit-form');
+    if (!box) return;
+    var g = function (k) { return box.querySelector('[data-ef="' + k + '"]'); };
+    var st = g('st');
+    var file = g('file').files[0] || null;
+    var patch = {
+      title: g('title').value, caption: g('caption').value,
+      hashtags: g('tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean)
+    };
+    var cap = V.findBanned([patch.title, patch.caption], (project().brand || {}).banned_words);
+    if (cap.length) { say('本文に禁止ワード（' + cap.map(function (b) { return b.word; }).join('・') + '）が入っています。'); return; }
+    if (u.platform === 'youtube' && !patch.title.trim()) { say('YouTube はタイトルが必要です。'); return; }
+    if (andSend && !file && !u.video_url) { say('動画ファイルを選んでください。'); return; }
+    box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    try {
+      if (file) {
+        var meta = await videoMeta(URL.createObjectURL(file));
+        patch.duration_sec = meta.duration || null;
+        patch.video_size = file.size;
+        if (u.platform !== 'youtube') patch.video_url = await uploadToBlob(file, function (t) { st.textContent = t; });
+      }
+      st.textContent = '保存しています…';
+      var r = await post({ action: 'pub.update', id: u.id, patch: patch });
+      if (!r.data.ok) throw new Error(r.data.message || '保存できませんでした。');
+      S.editPub = '';
+      if (andSend) await sendPub(r.data.item, file, function (t) { st.textContent = t; });
+      else say('投稿を直しました。', true);
+      await reload();
+      window.lumVideoBadge();
+    } catch (e) {
+      say(String((e && e.message) || e));
+      box.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+    }
   }
 
   function drawPubs() {
@@ -1252,6 +1310,10 @@
     if (!host) return;
     var pubs = S.data.pubs || [];
     host.innerHTML = pubs.length ? pubs.map(pubRow).join('') : '<p class="soc-small">まだありません。</p>';
+    if (S.focusPub) {
+      var fe = el('vp-' + S.focusPub);
+      if (fe) setTimeout(function () { fe.scrollIntoView({ block: 'center' }); }, 30);
+    }
     host.onclick = async function (e) {
       var t = e.target;
       var id = t.getAttribute && t.getAttribute('data-id');
@@ -1259,9 +1321,14 @@
       var u = S.data.pubs.filter(function (x) { return x.id === id; })[0];
       if (!u) return;
       if (t.classList.contains('vp-send')) {
-        if (u.platform === 'youtube') { say('YouTube は動画ファイルをこのブラウザから送るため、上の「新しい投稿」で動画を選び直して送ってください。'); return; }
+        if (u.platform === 'youtube') { S.editPub = u.id; drawPubs(); say('YouTube は動画ファイルをこのブラウザから送ります。下の「動画ファイル」で選んで「直して送る」を押してください。', true); return; }
+        if (!u.video_url) { S.editPub = u.id; drawPubs(); say('動画が付いていません。下の「動画ファイル」で選んで「直して送る」を押してください。', true); return; }
         await sendPub(u, null);
       }
+      if (t.classList.contains('vp-edit')) { S.editPub = S.editPub === u.id ? '' : u.id; drawPubs(); return; }
+      if (t.classList.contains('vp-ecancel')) { S.editPub = ''; drawPubs(); return; }
+      if (t.classList.contains('vp-esave')) { await saveEdit(u, false); return; }
+      if (t.classList.contains('vp-esend')) { await saveEdit(u, true); return; }
       if (t.classList.contains('vp-ig')) await pollInstagram(u.id, 1);
       if (t.classList.contains('vp-unsch')) { var r = await pubApi({ action: 'unschedule', pub: u.id }); if (!r.data.ok) say(r.data.message); await reload(); }
       if (t.classList.contains('vp-tt')) { var r2 = await pubApi({ action: 'tiktok.status', pub: u.id }); say(r2.data.ok ? r2.data.label : r2.data.message, r2.data.ok); if (r2.data.ok) await reload(); }
@@ -1765,6 +1832,112 @@
     } finally { if (btn) btn.disabled = false; }
   }
 
+  /* ---------------- 要対応・予定（全プロジェクト） ----------------
+     失敗・準備中のまま・TikTok の受信箱で公開待ち・今日の予約と、これからの予約を、
+     プロジェクトをまたいで並べます（api/video-publish.js の items と attention）。 */
+  var TODO_KIND = { failed: '失敗', stuck: '準備中のまま', inbox: 'TikTok 受信箱で公開待ち', today: '今日の予約', scheduled: 'これからの予約' };
+  function kindOf(u) {
+    var t = Date.now();
+    if (u.status === 'failed') return 'failed';
+    if (u.status === 'inbox') return 'inbox';
+    if ((u.status === 'processing' || u.status === 'uploading') && t - (Date.parse(u.updated_at || u.created_at || '') || t) >= 3600000) return 'stuck';
+    if (u.status === 'scheduled') {
+      var today = new Date(t + 9 * 3600000).toISOString().slice(0, 10);
+      var day = String(u.scheduled_for || '').slice(0, 10);
+      if (u.platform !== 'youtube' && day && day < today) return 'stuck';
+      if (u.platform !== 'youtube' && day === today) return 'today';
+      return 'scheduled';
+    }
+    return '';
+  }
+  R.todo = async function (host) {
+    host.innerHTML = '<p class="soc-small">読み込んでいます…</p>';
+    var r = await api('/api/video-publish');
+    var d = r.data || {};
+    if (!d.ok) { host.innerHTML = '<p class="msg show">' + esc(d.message || '読み込めませんでした。') + '</p>'; return; }
+    var items = (d.items || []).map(function (u) { return Object.assign({ kind: kindOf(u) }, u); }).filter(function (u) { return u.kind; });
+    var counts = {};
+    items.forEach(function (u) { counts[u.kind] = (counts[u.kind] || 0) + 1; });
+    var f = S.todoFilter || '';
+    var shown = items.filter(function (u) { return !f || u.kind === f; }).sort(function (a, b) {
+      var ord = ['failed', 'stuck', 'inbox', 'today', 'scheduled'];
+      return ord.indexOf(a.kind) - ord.indexOf(b.kind) || String(a.scheduled_for || a.updated_at).localeCompare(String(b.scheduled_for || b.updated_at));
+    });
+    var btn = function (k) {
+      var n = counts[k] || 0;
+      return '<button type="button" data-vfil="' + k + '"' + (n && k !== 'scheduled' ? ' class="hot"' : '') + (f === k ? ' aria-pressed="true"' : '') + '><b>' + n + '</b><span>' + TODO_KIND[k] + '</span></button>';
+    };
+    host.innerHTML =
+      '<p class="soc-small" style="margin:0 0 10px">全プロジェクトの、人の手が要る投稿と、これからの予約です。数字を押すと絞り込みます。</p>' +
+      '<div class="bk-sum vid-sum">' + ['failed', 'stuck', 'inbox', 'today', 'scheduled'].map(btn).join('') + '</div>' +
+      (f ? '<p class="soc-small"><button type="button" class="linkish" data-vfil="">すべて表示に戻す</button></p>' : '') +
+      (shown.length ? shown.map(function (u) {
+        var acts = '<button type="button" class="linkish" data-vopen="' + esc(u.project) + ':' + esc(u.id) + '">プロジェクトで開く</button>';
+        if (u.kind === 'inbox') acts += '<button type="button" class="linkish" data-vdone="' + esc(u.project) + ':' + esc(u.id) + '">TikTok で公開した</button>';
+        return '<div class="soc-post"><div class="when"><span class="vid-tag ' + (u.kind === 'failed' || u.kind === 'stuck' ? 'ng' : u.kind === 'scheduled' ? '' : 'warn') + '">' + esc(TODO_KIND[u.kind]) + '</span>　' +
+          esc(NET_LABEL[u.platform] || u.platform) + '　' + esc(u.project_name || '') + (u.scheduled_for ? '　予約: ' + esc(u.scheduled_for) : '') + '</div>' +
+          '<div class="body">' + esc(u.title ? u.title + '\n' : '') + esc(String(u.caption || '').slice(0, 120)) + '</div>' +
+          (u.error ? '<div class="mx" style="color:#b42318">' + esc(u.error) + '</div>' : '') +
+          (u.kind === 'failed' && !u.has_video ? '<div class="mx">動画が付いていません。「プロジェクトで開く」から「直す」で動画を付けてください。</div>' : '') +
+          '<div class="vid-links">' + acts + '</div></div>';
+      }).join('') : '<p class="soc-small">' + (f ? 'この条件の投稿はありません。' : '対応が要る投稿も、これからの予約もありません。') + '</p>');
+    host.querySelectorAll('[data-vfil]').forEach(function (b) {
+      b.addEventListener('click', function () { S.todoFilter = b.getAttribute('data-vfil'); R.todo(host); });
+    });
+    host.querySelectorAll('[data-vopen]').forEach(function (b) {
+      b.addEventListener('click', function () { var k = b.getAttribute('data-vopen').split(':'); openPub(k[0], k[1]); });
+    });
+    host.querySelectorAll('[data-vdone]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var k = b.getAttribute('data-vdone').split(':');
+        b.disabled = true;
+        var x = await api('/api/video-publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'tiktok.done', project: k[0], pub: k[1] }) });
+        b.disabled = false;
+        say((x.data && x.data.message) || '記録できませんでした。', !!(x.data && x.data.ok));
+        if (x.data && x.data.ok) { R.todo(host); window.lumVideoBadge(); }
+      });
+    });
+  };
+  /* そのプロジェクトの「投稿」を開き、その投稿まで動かします。 */
+  async function openPub(pid, id) {
+    if (pid && pid !== S.pid) await pick(pid, true);
+    S.focusPub = id || '';
+    go('publish');
+  }
+
+  /* タブの横の「要対応」の数（共通の部品 admin-badge.js）。 */
+  window.lumVideoBadge = async function () {
+    if (!window.lumNavBadge) return;
+    var r = await api('/api/video-publish?view=badge');
+    var d = r.data;
+    if (!d || !d.ok) return;
+    var parts = [];
+    if (d.failed) parts.push('失敗 ' + d.failed + '件');
+    if (d.stuck) parts.push('準備中のまま ' + d.stuck + '件');
+    if (d.inbox) parts.push('TikTok 受信箱で公開待ち ' + d.inbox + '件');
+    if (d.today) parts.push('今日の予約 ' + d.today + '件');
+    window.lumNavBadge('video-admin', d.total || 0, parts);
+    S.attention = d;
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumVideoBadge(); });
+
+  /* どこでも検索（admin-finder.js）から1件を開く。 */
+  window.lumVideoOpen = function (pid, id) {
+    if (window.lumShowTab) window.lumShowTab('video-admin');
+    var run = function () { openPub(pid, id); };
+    if (S.started && S.projects) run(); else S.pendingOpen = run;
+  };
+  (window.lumFinderSources = window.lumFinderSources || []).push({
+    group: 'SNS動画', tab: 'video-admin',
+    load: function (api) { return api('/api/video-publish'); },
+    match: function (words, data, hit) {
+      return (data.items || []).filter(function (u) { return hit([u.title, u.caption, NET_LABEL[u.platform], u.project_name, STATUS_LABEL[u.status]].join(' '), words); }).slice(0, 8).map(function (u) {
+        return { k: STATUS_LABEL[u.status] || '動画', t: (u.title || String(u.caption || '').slice(0, 30) || '（無題）'), s: [NET_LABEL[u.platform], u.project_name, u.scheduled_for ? '予約 ' + u.scheduled_for : ''].filter(Boolean).join('　'),
+          run: function () { window.lumVideoOpen(u.project, u.id); } };
+      });
+    }
+  });
+
   /* ---------------- 開始 ---------------- */
 
   window.lumVideoInit = async function () {
@@ -1775,6 +1948,10 @@
     try { S.sec = sessionStorage.getItem('lum_video_sec') || 'project'; } catch (_) {}
     if (!SECTIONS.some(function (s) { return s[0] === S.sec; })) S.sec = 'project';
     await loadList();
+    // 対応が要る投稿があれば、まずそれを見せます。
+    if (!S.attention) await window.lumVideoBadge();
+    if (S.attention && S.attention.total) S.sec = 'todo';
+    if (S.pendingOpen) { var run = S.pendingOpen; S.pendingOpen = null; run(); return; }
     go(S.sec);
   };
 })();

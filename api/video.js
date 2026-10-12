@@ -16,7 +16,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import {
   VK, NO_STORE, videoStore, listProjects, getProject, saveProject, deleteProject, listItems, putItems,
-  deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS,
+  deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS, getItem, mergePubEdit,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
 import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance } from './_video-core.js'
@@ -102,6 +102,14 @@ export async function POST(req) {
       return json(r.ok ? { ok: true, added: r.items.length } : r, r.ok ? 200 : 400)
     }
     if (a === 'ig.discover') return json(await discover(req, cfg, pid, b.username))
+    // 下書き・失敗した投稿を直す（あとから動画を付ける）。状態・数字・SNS側のIDはそのまま。
+    if (a === 'pub.update') {
+      const prev = await getItem(cfg, pid, 'pubs', b.id)
+      const r = mergePubEdit(prev, b.patch || {})
+      if (!r.ok) return json(r, 400)
+      const w = await putItems(cfg, pid, 'pubs', [r.pub])
+      return json(w.ok ? { ok: true, item: w.items[0], message: '投稿を直しました。' } : w, w.ok ? 200 : 400)
+    }
     for (const kind of KINDS) {
       const one = { posts: 'post', scripts: 'script', pubs: 'pub', pdca: 'pdca' }[kind]
       if (a === `${one}.save`) {

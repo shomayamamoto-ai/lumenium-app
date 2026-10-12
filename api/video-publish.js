@@ -1,6 +1,7 @@
 // SNS（動画）の投稿と数字の取得（管理者のみ）。
 //
-//   GET  /api/video-publish                    予約の一覧と、24時間の投稿数
+//   GET  /api/video-publish                    予約の一覧と、24時間の投稿数、全プロジェクトの投稿（軽い形）と要対応の数
+//   GET  /api/video-publish?view=badge         管理画面のタブの横に出す「要対応」の数だけ
 //   POST /api/video-publish {action, project, pub, …}
 //     instagram.start   リールの準備を始める（Meta が Blob の動画を取りに来る）
 //     instagram.status  準備の状況を確かめ、終わっていれば公開する（画面が数秒おきに呼ぶ）
@@ -10,6 +11,7 @@
 //     tiktok.status     TikTok 側の状況
 //     metrics           その投稿の数字を取りに行き、記録する
 //     schedule / unschedule  Instagram の予約（その日の朝9時ごろ、毎朝の自動処理が送ります）
+//     tiktok.done       TikTok アプリで公開したことを手で記録する（受信箱待ちを終える）
 //
 // Node の関数（最大60秒、vercel.json）にしているのは、TikTok へ動画を流す
 // 処理のためです。Instagram の「準備中」を1つの関数で待ち続けることは
@@ -18,19 +20,44 @@
 import { requireAdmin, json } from './_admin-auth.js'
 import { pipeline, jstDate, storeConfig } from './_analytics-store.js'
 import { scheduleReady } from './_social-queue.js'
-import { VK, NO_STORE, videoStore, getProject, getItem, putItems, capLeft, capRecord, validId } from './_video-store.js'
-import { fitCaption, PLATFORMS, RULES } from './_video-core.js'
+import { VK, NO_STORE, videoStore, getProject, getItem, putItems, capLeft, capRecord, validId, allPubs, slimPub } from './_video-store.js'
+import { fitCaption, PLATFORMS, RULES, videoAttention } from './_video-core.js'
 import { igStartReel, igAdvance, igInsights, ytAccess, ytStats, ttInboxUpload, ttStatus, ttStats, readiness } from './_video-platforms.js'
 
 const BUDGET_MS = 52000
 const MAX_QUEUE = 50
+const MAX_ITEMS = 200
+const ZERO = { total: 0, failed: 0, stuck: 0, inbox: 0, today: 0 }
+
+/** 全プロジェクトの投稿を軽い形にし、要対応の数と一緒に返します。 */
+async function overview(cfg) {
+  const rows = await allPubs(cfg)
+  const items = rows.map((r) => slimPub(r.pub, r.project))
+  const { keys, ...counts } = videoAttention(items)
+  const need = new Set([].concat(keys.failed, keys.stuck, keys.inbox, keys.today))
+  // 要対応と予約は全部、ほかは新しい順に上限まで（検索と「最近」の一覧用）。
+  const t = (u) => u.updated_at || u.created_at || ''
+  items.sort((a, b) => (t(a) < t(b) ? 1 : -1))
+  const keep = items.filter((u) => need.has(u.key) || u.status === 'scheduled')
+  const rest = items.filter((u) => !(need.has(u.key) || u.status === 'scheduled')).slice(0, Math.max(0, MAX_ITEMS - keep.length))
+  return { attention: counts, items: keep.concat(rest) }
+}
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
   const cfg = await videoStore(req)
+  if (new URL(req.url).searchParams.get('view') === 'badge') {
+    if (!cfg) return json({ ok: true, ...ZERO, stored: false })
+    try {
+      const { keys, ...counts } = videoAttention((await allPubs(cfg)).map((r) => ({ ...r.pub, project: r.project.id })))
+      return json({ ok: true, ...counts, stored: true })
+    } catch (e) {
+      return json({ ok: false, message: '数を読めませんでした。' }, 503)
+    }
+  }
   const ready = await readiness(req)
-  if (!cfg) return json({ ...NO_STORE, ok: true, ready, queue: [], caps: {} })
+  if (!cfg) return json({ ...NO_STORE, ok: true, ready, queue: [], caps: {}, items: [], attention: ZERO })
   const [flat] = await pipeline(cfg, [['HGETALL', VK.queue]])
   const queue = []
   for (let i = 0; i + 1 < (flat || []).length; i += 2) { try { queue.push(JSON.parse(flat[i + 1])) } catch (_) {} }
@@ -39,7 +66,9 @@ export async function GET(req) {
   const [last] = await pipeline(cfg, [['GET', `${VK.queue}:last`]])
   let cron = null
   try { cron = last ? JSON.parse(last) : null } catch (_) {}
-  return json({ ok: true, ready, queue: queue.sort((a, b) => (a.date < b.date ? -1 : 1)), caps, cron, jstHour: 9 })
+  let ov = { attention: ZERO, items: [] }
+  try { ov = await overview(cfg) } catch (_) {}
+  return json({ ok: true, ready, queue: queue.sort((a, b) => (a.date < b.date ? -1 : 1)), caps, cron, jstHour: 9, ...ov })
 }
 
 /** 投稿先ごとの本文。ハッシュタグを守るために本文を削るのは25%まで。 */
@@ -122,6 +151,11 @@ export async function POST(req) {
       if (r.status === 'PUBLISH_COMPLETE') saved = await savePub(cfg, pid, { ...pub, status: 'published', published_at: pub.published_at || new Date().toISOString(), external_id: pub.external_id || String(r.videoIds[0] || '') })
       if (r.status === 'FAILED') saved = await savePub(cfg, pid, { ...pub, status: 'failed', error: r.label })
       return json({ ok: true, pub: saved, label: r.label })
+    }
+    if (a === 'tiktok.done') {
+      if (pub.status !== 'inbox') return json({ ok: false, message: 'TikTok の受信箱に送った投稿ではありません。' }, 400)
+      const saved = await savePub(cfg, pid, { ...pub, status: 'published', published_at: pub.published_at || new Date().toISOString(), error: '' })
+      return json({ ok: true, pub: saved, message: '公開済みにしました。' })
     }
     if (a === 'metrics') {
       if (!pub.external_id) return json({ ok: false, message: 'まだ公開されていない（または動画のIDが分からない）ため、数字を取れません。' }, 400)

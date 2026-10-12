@@ -749,3 +749,22 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   font-size: 11px; font-weight: 700; line-height: 1; vertical-align: 1px;
 }
 .ui-nav-item .nav-count { margin-left: 0; }
+
+/* ---- 押すと絞り込む「数字」の列（予約・動画・見積書などで共通） ---- */
+#shell .bk-sum > button {
+  all: unset; box-sizing: border-box; display: block; cursor: pointer;
+  background: var(--ui-surface); border-radius: var(--ui-r-lg); padding: var(--ui-s3) var(--ui-s4);
+  border: 1px solid transparent;
+}
+#shell .bk-sum > button b { display: block; }
+#shell .bk-sum > button span { display: block; }
+#shell .bk-sum > button:hover, #shell .bk-sum > button:focus-visible { border-color: var(--ui-accent); }
+#shell .bk-sum > button.hot b { color: var(--ui-ng, #b42318); }
+#shell .bk-sum > button[aria-pressed="true"] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
+/* 検索などから開いた1件 */
+#shell .soc-post.is-focus { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+/* 動画の項目は、狭い画面では1行で横に流す（3段に折り返さない） */
+@media (max-width: 640px) {
+  #shell .vid-secs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  #shell .vid-secs .nq-chip { flex: none; }
+}
