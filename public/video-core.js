@@ -581,6 +581,72 @@ function latestSnapshot(pub) {
   return best
 }
 
+/* ---------------- 要対応（タブの横の数と「要対応・予定」） ----------------
+   全プロジェクトの投稿から、人の手が要るものを数えます。
+     failed … 送れなかった（もう一度送るか、直して送る）
+     stuck  … 準備中・アップロード中のまま1時間以上（Instagram の変換が止まった等）、
+              または予約日を過ぎても予約のまま（毎朝の自動処理で送れなかった）
+     inbox  … TikTok の受信箱に送ったまま（アプリで公開するのを待っている）
+     today  … 今日（日本時間）送る予約で、まだ送っていないもの（Instagram は朝9時ごろ）
+   1件は1つにしか数えません。key は「プロジェクトID:投稿ID」（全プロジェクトで重ならない）。 */
+const ATTENTION = { STUCK_MS: 60 * 60000 }
+
+function jstDay(ms) {
+  return new Date((Number(ms) || 0) + 9 * 3600000).toISOString().slice(0, 10)
+}
+
+function attentionKind(pub, nowMs = Date.now()) {
+  if (!pub || !pub.id) return ''
+  const st = pub.status
+  if (st === 'failed') return 'failed'
+  if (st === 'inbox') return 'inbox'
+  if (st === 'processing' || st === 'uploading') {
+    const at = Date.parse(pub.updated_at || pub.created_at || '') || 0
+    return at && nowMs - at >= ATTENTION.STUCK_MS ? 'stuck' : ''
+  }
+  if (st === 'scheduled') {
+    const day = String(pub.scheduled_for || '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return ''
+    const today = jstDay(nowMs)
+    // YouTube の予約公開は YouTube に送り済み（あとは YouTube が出す）なので数えません。
+    if (pub.platform === 'youtube') return ''
+    if (day < today) return 'stuck'
+    if (day === today) return 'today'
+  }
+  return ''
+}
+
+function attentionKey(pub) {
+  return (pub && pub.project ? pub.project + ':' : '') + String((pub && pub.id) || '')
+}
+
+function videoAttention(items, nowMs = Date.now()) {
+  const out = { total: 0, failed: 0, stuck: 0, inbox: 0, today: 0, keys: { failed: [], stuck: [], inbox: [], today: [] } }
+  const seen = new Set()
+  for (const pub of Array.isArray(items) ? items : []) {
+    const k = attentionKind(pub, nowMs)
+    if (!k) continue
+    const key = attentionKey(pub)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out[k]++
+    out.keys[k].push(key)
+  }
+  out.total = seen.size
+  return out
+}
+
+/** 要対応の内訳の文（タブの数の読み上げ・説明用）。 */
+function attentionParts(a) {
+  const x = a || {}
+  return [
+    x.failed ? `失敗 ${x.failed}件` : '',
+    x.stuck ? `準備中のまま ${x.stuck}件` : '',
+    x.inbox ? `TikTok 受信箱で公開待ち ${x.inbox}件` : '',
+    x.today ? `今日の予約 ${x.today}件` : '',
+  ].filter(Boolean)
+}
+
 /** PDCA の判定。紐づけた投稿の値の平均の区間が、基準値の上か下か。 */
 function pdcaVerdict(cycle, pubs) {
   const metric = cycle && cycle.target && cycle.target.metric
@@ -1741,5 +1807,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, ATTENTION, jstDay, attentionKind, attentionKey, videoAttention, attentionParts, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();

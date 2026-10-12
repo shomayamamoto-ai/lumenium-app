@@ -1561,10 +1561,11 @@
       ['instagram', 'published', 'question', 22, 5, 7, 15400, 990, 300, 8.9, 0.55],
       ['youtube', 'published', 'story', 40, 4, 12, 3200, 140, null, null, null],
       ['instagram', 'processing', 'number', 30, 0, 0, null],
-      ['tiktok', 'inbox', 'statement', 20, 1, 0, null]
+      ['tiktok', 'inbox', 'statement', 20, 1, 0, null],
+      ['instagram', 'failed', 'question', 0, 0, 0, null]
     ];
     return specs.map(function (x, i) {
-      var u = { id: 'demo-pub-' + i, platform: x[0], status: x[1], script_id: i === 0 ? 'demo-script' : '', title: ['カンパーニュの穴のひみつ', '朝4時の仕込み', '粉で味はどう変わる？', 'パン屋の1日', '人気ランキング', '新作の試作'][i],
+      var u = { id: 'demo-pub-' + i, platform: x[0], status: x[1], script_id: i === 0 ? 'demo-script' : '', title: ['カンパーニュの穴のひみつ', '朝4時の仕込み', '粉で味はどう変わる？', 'パン屋の1日', '人気ランキング', '新作の試作', '週末限定パンのお知らせ'][i],
         caption: '架空のデモ投稿です。', hashtags: ['パン屋'], hook_type: x[2], duration_sec: x[3], published_at: x[4] ? new Date(Date.now() - x[4] * DAY + (x[5] - new Date().getHours()) * 3600000).toISOString() : '',
         external_id: x[6] != null ? 'demo' + i : '', external_url: '', error: '', snapshots: [] };
       if (x[6] != null) u.snapshots.push({ captured_at: ago(DAY / 2), views: x[6], likes: x[7], comments: Math.round(x[7] / 30), shares: Math.round(x[7] / 20), saves: x[8], avg_watch_sec: x[9], retention_rate: x[10], reach: Math.round(x[6] * 0.8), source: 'demo' });
@@ -1575,6 +1576,8 @@
           .map(function (p) { return { t: p[0], r: p[1] / 100 }; });
       }
       if (i === 2) u.snapshots[0].hold_3s = 0.79;
+      // 7本目は、動画を付けずに保存した下書きを送ろうとして失敗した例（「直す」で動画を付ける）。
+      if (x[1] === 'failed') { u.error = '動画ファイルが付いていません。'; u.created_at = ago(DAY); u.updated_at = ago(DAY); }
       return u;
     });
   }
@@ -1593,8 +1596,28 @@
         publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) }]
     };
   }
-  function videoPublishInfo() {
-    return { ok: true, ready: videoReady(), queue: [], caps: { instagram: { ok: true, cap: 25, used: 1 }, tiktok: { ok: true, cap: 25, used: 1 } }, cron: { at: ago(DAY / 3), started: 1, published: 1, failed: 0, waiting: 0 }, jstHour: 9 };
+  /* 全プロジェクトの投稿（軽い形）と要対応の数（api/video-publish.js の overview と同じ形）。 */
+  function videoOverview() {
+    var t = Date.now();
+    var today = new Date(t + 9 * 3600000).toISOString().slice(0, 10);
+    var items = videoPubs().map(function (u) {
+      return { key: VIDEO_PROJECT.id + ':' + u.id, id: u.id, project: VIDEO_PROJECT.id, project_name: VIDEO_PROJECT.name || '',
+        platform: u.platform, status: u.status, title: u.title || '', caption: String(u.caption || '').slice(0, 160),
+        scheduled_for: u.scheduled_for || '', published_at: u.published_at || '', created_at: u.created_at || '', updated_at: u.updated_at || '',
+        error: u.error || '', external_url: u.external_url || '', has_video: !!u.video_url };
+    });
+    var a = { total: 0, failed: 0, stuck: 0, inbox: 0, today: 0 };
+    items.forEach(function (u) {
+      var k = u.status === 'failed' ? 'failed' : u.status === 'inbox' ? 'inbox'
+        : u.status === 'scheduled' && u.platform !== 'youtube' && String(u.scheduled_for).slice(0, 10) === today ? 'today' : '';
+      if (k) { a[k]++; a.total++; }
+    });
+    return { attention: a, items: items };
+  }
+  function videoPublishInfo(q) {
+    var ov = videoOverview();
+    if (q && q.get('view') === 'badge') return Object.assign({ ok: true, stored: true }, ov.attention);
+    return Object.assign({ ok: true, ready: videoReady(), queue: [], caps: { instagram: { ok: true, cap: 25, used: 1 }, tiktok: { ok: true, cap: 25, used: 1 } }, cron: { at: ago(DAY / 3), started: 1, published: 1, failed: 0, waiting: 0 }, jstHour: 9 }, ov);
   }
 
   /* ---- 設定状況のテスト (shape: api/settings-test.js POST) ---- */
@@ -1698,7 +1721,7 @@
         notice(MSG);
         return reply(blocked());
       case '/api/video': return reply(q.get('project') ? videoProject() : videoList());
-      case '/api/video-publish': return reply(videoPublishInfo());
+      case '/api/video-publish': return reply(videoPublishInfo(q));
     }
     return reply(blocked());
   }

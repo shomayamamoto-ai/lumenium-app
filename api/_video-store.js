@@ -220,6 +220,44 @@ export function cleanPub(u) {
   }
 }
 
+/* 下書きを直す（あとから動画を付ける）。
+   直せるのは、まだ出していない投稿（下書き・失敗）だけです。予約中は先に取り消します。
+   変えるのは中身（投稿先・台本・タイトル・本文・タグ・公開範囲・動画）だけで、状態・数字・
+   SNS 側の ID・作った日時はそのまま残します。失敗したものを直したら、下書きに戻します
+   （直したのにタブの「失敗」の数が残らないように）。動画は、送られてきたときだけ差し替えます。 */
+export const PUB_EDITABLE = ['draft', 'failed']
+const PUB_EDIT_FIELDS = ['platform', 'script_id', 'title', 'caption', 'hashtags', 'privacy', 'hook_type']
+const PUB_VIDEO_FIELDS = ['video_url', 'video_size', 'duration_sec']
+
+export function mergePubEdit(prev, patch) {
+  if (!prev || !prev.id) return { ok: false, message: '投稿が見つかりませんでした（削除されたかもしれません）。' }
+  if (PUB_EDITABLE.indexOf(prev.status) < 0) {
+    return { ok: false, message: prev.status === 'scheduled'
+      ? '予約中の投稿は直せません。先に「予約を取り消す」を押してから直してください。'
+      : 'すでに送った投稿は直せません（SNS 側で直してください）。' }
+  }
+  const p = patch && typeof patch === 'object' ? patch : {}
+  const next = { ...prev }
+  for (const k of PUB_EDIT_FIELDS) if (p[k] !== undefined) next[k] = p[k]
+  if (p.video_url) for (const k of PUB_VIDEO_FIELDS) if (p[k] !== undefined) next[k] = p[k]
+  if (prev.status === 'failed') { next.status = 'draft'; next.error = '' }
+  const pub = cleanPub(next)
+  if (p.video_url && !pub.video_url) return { ok: false, message: '動画の置き場所の URL が正しくありません。もう一度アップロードしてください。' }
+  pub.id = prev.id
+  pub.created_at = prev.created_at || pub.created_at
+  return { ok: true, pub }
+}
+
+/** 一覧・検索用の軽い形（数字の記録や長い本文は持たせません）。 */
+export function slimPub(u, project) {
+  return {
+    key: `${project.id}:${u.id}`, id: u.id, project: project.id, project_name: project.name || '',
+    platform: u.platform, status: u.status, title: str(u.title, 100), caption: str(u.caption, 160),
+    scheduled_for: u.scheduled_for || '', published_at: u.published_at || '', created_at: u.created_at || '', updated_at: u.updated_at || '',
+    error: str(u.error, 400), external_url: u.external_url || '', has_video: !!u.video_url,
+  }
+}
+
 export function cleanPdca(c) {
   const t = (c && c.target) || {}
   return {
@@ -293,6 +331,16 @@ export async function deleteProject(cfg, pid) {
 export async function listItems(cfg, pid, kind) {
   const [flat] = await pipeline(cfg, [['HGETALL', VK.items(pid, kind)]])
   return parseAll(flat)
+}
+
+/** 全プロジェクトの投稿（1回の問い合わせ）。要対応の数と「要対応・予定」の一覧に使います。 */
+export async function allPubs(cfg) {
+  const projects = await listProjects(cfg)
+  if (!projects.length) return []
+  const res = await pipeline(cfg, projects.map((p) => ['HGETALL', VK.items(p.id, 'pubs')]))
+  const out = []
+  projects.forEach((p, i) => { for (const u of parseAll(res[i])) out.push({ project: p, pub: u }) })
+  return out
 }
 
 export async function getItem(cfg, pid, kind, id) {

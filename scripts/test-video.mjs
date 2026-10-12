@@ -577,4 +577,44 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('画面用の public/video-core.js が元と一致')
 }
 
+/* ---------------- 要対応の数と、下書きを直す ---------------- */
+{
+  const now = Date.parse('2026-10-12T03:00:00Z') // 日本時間 12:00
+  const pubs = [
+    { id: 'a', project: 'p1', status: 'failed' },
+    { id: 'b', project: 'p1', status: 'inbox', platform: 'tiktok' },
+    { id: 'c', project: 'p1', status: 'processing', updated_at: new Date(now - 2 * 3600e3).toISOString() },
+    { id: 'd', project: 'p1', status: 'processing', updated_at: new Date(now - 10 * 60e3).toISOString() },
+    { id: 'e', project: 'p2', status: 'scheduled', platform: 'instagram', scheduled_for: '2026-10-12' },
+    { id: 'f', project: 'p2', status: 'scheduled', platform: 'instagram', scheduled_for: '2026-10-10' },
+    { id: 'g', project: 'p2', status: 'scheduled', platform: 'youtube', scheduled_for: '2026-10-12' },
+    { id: 'a', project: 'p1', status: 'failed' },
+    { id: 'h', project: 'p2', status: 'published' },
+  ]
+  const a = V.videoAttention(pubs, now)
+  assert.equal(a.failed, 1)
+  assert.equal(a.inbox, 1)
+  assert.equal(a.stuck, 2) // 1時間を超えた準備中と、日付を過ぎた予約
+  assert.equal(a.today, 1) // YouTube の予約は YouTube が出すので数えない
+  assert.equal(a.total, 5) // 同じ投稿は1件
+  assert.deepEqual(V.attentionParts(a), ['失敗 1件', '準備中のまま 2件', 'TikTok 受信箱で公開待ち 1件', '今日の予約 1件'])
+  ok('要対応の数（失敗・準備中のまま・受信箱・今日、重なりは1件）')
+}
+{
+  const S = await import('../api/_video-store.js')
+  const prev = S.cleanPub({ id: 'pub_1', platform: 'instagram', status: 'failed', title: '古い', caption: 'x', error: '動画が無い', created_at: '2026-10-01T00:00:00Z' })
+  const r = S.mergePubEdit(prev, { title: '新しい', video_url: 'https://example.public.blob.vercel-storage.com/v.mp4', video_size: 1000, status: 'published' })
+  assert.equal(r.ok, true)
+  assert.equal(r.pub.id, 'pub_1')
+  assert.equal(r.pub.title, '新しい')
+  assert.equal(r.pub.status, 'draft') // 失敗を直したら下書きへ。状態は送られてきても変えない
+  assert.equal(r.pub.error, '')
+  assert.equal(Date.parse(r.pub.created_at), Date.parse('2026-10-01T00:00:00Z'))
+  const sch = S.mergePubEdit(Object.assign({}, prev, { status: 'scheduled' }), { title: 'y' })
+  assert.equal(sch.ok, false)
+  assert.match(sch.message, /予約を取り消す/)
+  assert.equal(S.mergePubEdit(null, {}).ok, false)
+  ok('下書き・失敗だけ直せる（状態・作った日時は残し、失敗は下書きへ）')
+}
+
 console.log(`\n動画まわり ${n} 件すべて通りました。`)
