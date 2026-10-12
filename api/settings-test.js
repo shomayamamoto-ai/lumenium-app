@@ -30,6 +30,7 @@ async function resendTest(req) {
   const key = await setting('RESEND_API_KEY', '', req)
   if (!key) return { state: 'error', message: 'RESEND_API_KEY が入っていません。resend.com › API Keys で発行して「キーの入力」に貼ってください。' }
   const to = (await setting('CONTACT_TO_EMAIL', '', req)) || BRAND.owner
+  if (!to) return { state: 'error', message: '通知の宛先（問い合わせの宛先）が入っていません。「キーの入力」で受け取りたいメールアドレスを入れてください。' }
   const sender = senderInfo(BRAND.from)
   const out = { state: 'ok', items: [] }
 
@@ -80,6 +81,7 @@ async function resendTest(req) {
 async function githubTest(req) {
   const token = await setting('GITHUB_TOKEN', '', req)
   if (!token) return { state: 'error', message: 'GITHUB_TOKEN が入っていません。github.com › Settings › Developer settings › Personal access tokens で発行して貼ってください。' }
+  if (!BRAND.repo) return { state: 'error', message: '保存先のリポジトリ（GITHUB_REPO）が未設定です。Vercel の環境変数に「owner/repo」の形で設定してください。' }
   const res = await fetch(`https://api.github.com/repos/${BRAND.repo}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': `${BRAND.slug}-admin` },
   }).catch(() => null)

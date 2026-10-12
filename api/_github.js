@@ -16,6 +16,8 @@
 import { BRAND } from './_brand.js'
 
 const enc = new TextEncoder()
+// GITHUB_REPO が無いときに gh() が返す状態コード（GitHub は返さない値）。
+const NO_REPO = 428
 
 export function b64encodeUtf8(str) {
   const bytes = enc.encode(str)
@@ -36,6 +38,9 @@ export function repoName() {
 }
 
 export function gh(token, repo, path, init = {}) {
+  // 社名を変えたサイトで GITHUB_REPO が未設定のとき。別の会社（既定の
+  // リポジトリ）へ書き込まないよう、GitHub には問い合わせずに断ります。
+  if (!repo) return Promise.resolve(new Response(JSON.stringify({ message: 'GITHUB_REPO is not set' }), { status: NO_REPO, headers: { 'content-type': 'application/json' } }))
   return fetch(`https://api.github.com/repos/${repo}/${path}`, {
     ...init,
     headers: {
@@ -53,6 +58,7 @@ export function ghFile(token, repo, path, init) {
 
 /** A human message for a GitHub status, so every caller says the same thing. */
 export function ghDetail(status) {
+  if (status === NO_REPO) return '保存先のリポジトリ（GITHUB_REPO）が未設定です。Vercel の環境変数に「owner/repo」の形で設定してください。'
   return status === 401 || status === 403
     ? 'トークンの権限を確認してください。'
     : `GitHub応答: ${status}`

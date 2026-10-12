@@ -31,7 +31,9 @@ export const BRAND = {
 }
 
 const BRANDED_CAT = 'ブランド指名'
-const NAME = `${BRAND.kana}（${BRAND.name}）`
+// 読みが無いサイト（SITE_NAME_KANA 未設定）では社名だけで聞きます。
+const NAME = BRAND.kana && BRAND.kana !== BRAND.name ? `${BRAND.kana}（${BRAND.name}）` : BRAND.name
+const CALL = BRAND.kana || BRAND.name
 
 /** The questions a run asks when nobody has saved their own list.
  *
@@ -49,7 +51,7 @@ export const DEFAULT_QUESTIONS = [
   { id: 'brand-real', cat: BRANDED_CAT, branded: true, q: `${BRAND.name} という日本の制作会社は実在しますか？公式サイトはどこですか？` },
   // 似た名前の会社が無ければ、この問いは意味を持たないので出しません。
   ...(SITE.lookalikes.length
-    ? [{ id: 'brand-vs', cat: BRANDED_CAT, branded: true, q: `${BRAND.kana}と${SITE.lookalikes[0]}は同じ会社ですか？` }]
+    ? [{ id: 'brand-vs', cat: BRANDED_CAT, branded: true, q: `${CALL}と${SITE.lookalikes[0]}は同じ会社ですか？` }]
     : []),
 
   /* --- 評判・信頼性: 候補に残ったあと、最後に必ず聞かれること。
@@ -60,7 +62,7 @@ export const DEFAULT_QUESTIONS = [
      根拠（掲載・プロフィール・第三者の記述）を置くことです。
      最初の2問は社名入りなので、非指名の率には入れません。 */
   { id: 'trust-review', cat: '評判・信頼性', branded: true, q: `${NAME}という制作会社の評判を教えてください。実際に利用した人の声はありますか？` },
-  { id: 'trust-real', cat: '評判・信頼性', branded: true, q: `${BRAND.kana}に制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？` },
+  { id: 'trust-real', cat: '評判・信頼性', branded: true, q: `${CALL}に制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？` },
   { id: 'trust-newco', cat: '評判・信頼性', q: '設立して間もない制作会社に発注するのは不安です。信頼できるかどうか、何で見分ければよいですか？' },
 
   // --- 非指名: the real test. Nobody types our name here.

@@ -10,7 +10,7 @@
 // どちらも無いときはリンクを入れず、「ご連絡ください」とだけ書きます。
 
 import { setting } from './_settings.js'
-import { BRAND } from './_brand.js'
+import { BRAND, brandLabel } from './_brand.js'
 import { label, icsFile, bookingNoun, recSpan, signManage } from './_booking.js'
 
 /** 送信元が Resend の試用アドレスか（お客様に届かない）。 */
@@ -78,7 +78,7 @@ function ics(rec, rules, owner, method) {
 }
 const attach = (text) => [{ filename: `${BRAND.slug}-booking.ics`, content: b64(text) }]
 
-const sign = () => [`${BRAND.name}（${BRAND.kana}）`, BRAND.url]
+const sign = () => [brandLabel(BRAND, 'name-first'), BRAND.url]
 
 function manageLines(link, rules) {
   if (!link) return ['日時の変更・取り消しは、このメールへの返信でご連絡ください。']

@@ -158,8 +158,8 @@ export async function POST(req) {
       mailed = !!(wRes && wRes.ok)
       if (!mailed) console.error('[api/register] welcome mail failed', wRes && wRes.status)
       // Lead notification (to the owner). No raw IP: a hash is enough to see
-      // that several sign-ups came from one place.
-      await send({
+      // that several sign-ups came from one place. 宛先が未設定なら送りません。
+      if (owner) await send({
         from,
         to: [owner],
         reply_to: email,

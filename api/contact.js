@@ -165,7 +165,11 @@ export async function POST(req) {
     rec ? `管理画面で開く: ${BRAND.url}/admin-members.html#inq=${rec.id}` : null,
   ].filter((l) => l !== null).join('\n')
 
-  const sent = await sendMail(apiKey, { from, to: [to], reply_to: email, subject, text })
+  // 宛先が無い（社名を変えたサイトで CONTACT_TO_EMAIL も OWNER_EMAIL も未設定）
+  // ときは送らずに失敗として残します。設定状況とアクセス解析の「要対応」に出ます。
+  const sent = to
+    ? await sendMail(apiKey, { from, to: [to], reply_to: email, subject, text })
+    : { ok: false, reason: '通知の宛先（CONTACT_TO_EMAIL）が未設定' }
   if (!sent.ok) {
     console.error('[api/contact] owner mail failed', sent.reason)
     await record(false, sent.reason)
@@ -202,7 +206,7 @@ async function autoReply(st, rec, { apiKey, from, to }, mark) {
   if (looksLikeLink(rec.name) || looksLikeLink(rec.company)) return mark('auto', 'skipped', 'お名前か会社名にURLのようなものがあるため')
   const vars = { name: rec.name, company: rec.company, brand: BRAND.name, reply_hours: st.replyHours, topics: rec.topics.join('、') }
   const r = await sendMail(apiKey, {
-    from, to: [rec.email], reply_to: to,
+    from, to: [rec.email], reply_to: to || undefined,
     subject: fillTemplate(st.autoReply.subject, vars).replace(/\s+/g, ' ').slice(0, 150),
     text: fillTemplate(st.autoReply.body, vars),
   })
