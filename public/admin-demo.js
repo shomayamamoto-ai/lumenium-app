@@ -280,10 +280,18 @@
     };
   }
 
-  function analytics(daysIn) {
+  /* アクセス解析の要対応（shape: api/analytics.js ?view=badge）。見本の404のうち上の2つを「新しく出た」ことにします。 */
+  var statsSeen = false;
+  function statsBadge() {
+    if (statsSeen) return { ok: true, total: 0, notFound: [], formFail: 0, lastError: null, seenAt: Date.now() };
+    var nf = (analytics('7').notFound || []).slice(0, 2).map(function (x) { return { path: x.name, count: Math.max(1, Math.round(x.count / 3)) }; });
+    return { ok: true, total: nf.length, notFound: nf, formFail: 0, lastError: null, seenAt: Date.now() - 3 * DAY };
+  }
+  function analytics(daysIn, endIn) {
     var days = Math.min(Math.max(parseInt(daysIn || '30', 10) || 30, 1), 365);
-    var dates = lastDays(days);
-    var prevDates = datesEnding(days, days);
+    var end = Math.min(Math.max(parseInt(endIn || '0', 10) || 0, 0), Math.max(0, 400 - days * 2));
+    var dates = datesEnding(days, end);
+    var prevDates = datesEnding(days, end + days);
     var rows = dates.map(dayStats);
     var r = prng(hash('range:' + days + ':' + jstDate(0)));
     var cur = summarize(rows);
@@ -372,7 +380,7 @@
       generatedAt: new Date().toISOString(),
       keepDays: 400,
       storeFrom: 'env',
-      range: { days: days, from: dates[0], to: dates[dates.length - 1] },
+      range: { days: days, end: end, from: dates[0], to: dates[dates.length - 1] },
       previous: { from: prevDates[0], to: prevDates[prevDates.length - 1], partial: days * 2 > 400 },
       sessionsFrom: dates[0],
       summary: { cur: cur, prev: prev },
@@ -1673,6 +1681,8 @@
       // a refused post would blank the sample log.
       if (p === '/api/social') return reply(socialPost(body));
       if (p === '/api/social-write') return reply(socialWrite(body));
+      // 「確認しました」は、デモの中だけで覚えます（このページを開いている間）。
+      if (p === '/api/analytics') { statsSeen = true; return reply(statsBadge()); }
       // 設定状況の「テスト」。実際には何も確かめず、結果の見え方だけを見せます。
       if (p === '/api/settings-test') return reply(liveTest(body));
       // お知らせの保存。保存はしませんが、保存のあとに出る「反映中→反映済み」の
@@ -1712,7 +1722,7 @@
             if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
             return reply({ ok: true, overrides: o, commit: commit(6, '文章を更新') });
           });
-      case '/api/analytics': return reply(analytics(q.get('days')));
+      case '/api/analytics': return reply(q.get('view') === 'badge' ? statsBadge() : analytics(q.get('days'), q.get('end')));
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());

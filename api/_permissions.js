@@ -83,7 +83,8 @@ export const TABLE = {
   video: { area: 'video', read: 'viewer', write: 'manager' },
   'video-publish': { area: 'video', read: 'viewer', write: 'manager' },
   'video-upload': { area: 'video', write: 'manager' },
-  analytics: { area: 'analytics', read: 'viewer' },
+  // 「確認しました」（要対応の404・送信失敗を外す）は、見られる人なら誰でも。
+  analytics: { area: 'analytics', read: 'viewer', write: 'manager', actions: { seen: 'viewer' } },
   'weekly-report': { area: 'analytics', read: 'viewer', write: 'manager' },
   'search-console': { area: 'seo', read: 'viewer' },
   crawlers: { area: 'seo', read: 'viewer' },

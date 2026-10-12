@@ -757,12 +757,12 @@
 @media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
 details.utm { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
 details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
-.utm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.utm-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
 .utm-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: var(--sub); }
-.utm-grid select { padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 13px; }
+.utm-grid select { min-width: 0; width: 100%; max-width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 13px; }
 .utm-out { display: flex; gap: 8px; }
 .utm-out input { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--border); background: #fff; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
-@media (max-width: 560px) { .utm-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .utm-grid { grid-template-columns: minmax(0, 1fr); } }
 .nq { background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 14px; margin-bottom: 16px; }
 .nq-label { font-size: 12px; font-weight: 700; color: var(--sub); margin: 0 0 8px; }
 .nq-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
@@ -1494,6 +1494,8 @@ input, select, textarea { color: var(--text); }
           <option value="180">過去180日</option>
           <option value="365">過去1年（365日）</option>
         </select>
+        <button class="ghost" id="stats-prev" type="button" aria-label="ひとつ前の期間を見る" title="ひとつ前の期間">◀ 前</button>
+        <button class="ghost" id="stats-next" type="button" aria-label="ひとつ後の期間を見る" title="ひとつ後の期間" disabled>次 ▶</button>
         <span id="stats-updated"></span>
         <button class="ghost" id="stats-reload" type="button">更新</button>
         <button class="ghost" id="stats-csv" type="button" disabled>CSVで保存</button>
@@ -1522,15 +1524,12 @@ input, select, textarea { color: var(--text); }
           <label>開くページ
             <select id="utm-dest">
               <option value="/">トップページ</option>
-              <option value="/services/web.html">Web制作・システム開発</option>
-              <option value="/services/ai.html">AI研修・AI導入支援</option>
-              <option value="/works.html">実績</option>
-              <option value="/pricing.html">料金</option>
-              <option value="/blog/index.html">ブログ</option>
-              <option value="/#contact">お問い合わせ</option>
             </select>
           </label>
         </div>
+        <label style="display:block;margin:8px 0 0;font-size:12px;color:var(--sub)">キャンペーンの名前（任意・半角英数字。例: autumn-sale）
+          <input type="text" id="utm-camp" maxlength="40" placeholder="autumn-sale" style="display:block;width:100%;max-width:320px;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:#faf9f6;font:inherit;font-size:13px">
+        </label>
         <div class="utm-out">
           <input type="text" id="utm-url" readonly aria-label="計測用リンク">
           <button type="button" id="utm-copy">コピー</button>
@@ -1538,6 +1537,7 @@ input, select, textarea { color: var(--text); }
       </details>
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
       <div id="stats-body" style="display:none">
+        <div id="stats-todo"></div>
         <div id="stats-note"></div>
         <div id="stats-self"></div>
         <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px"></div>
@@ -1606,8 +1606,12 @@ input, select, textarea { color: var(--text); }
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">検索キーワード</h3>
-          <p class="share-note" style="margin-bottom:10px">何と検索して来たか。Google Search Console から取ります。</p>
+          <p class="share-note" style="margin-bottom:10px">何と検索して来たか。Google Search Console から取ります（Google の決まりで、上で選んだ期間にかかわらず<b>直近28日</b>の数です。詳しくは「SEO / AIO 分析」の「Google検索」）。</p>
           <div id="stats-queries"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-bottom:22px">
+          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">流入元</h3><div id="stats-refs"></div></div>
+          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">デバイス</h3><div id="stats-devices"></div></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:22px">
           <div>
@@ -1626,10 +1630,8 @@ input, select, textarea { color: var(--text); }
           <p class="share-note" style="margin-bottom:10px">訪問したうち何人がどこまで進んだか。数字が落ちている段が、いちばん改善の効くところです。</p>
           <div id="stats-funnel"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px">
-          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">よく見られたページ</h3><div id="stats-paths"></div></div>
-          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">流入元</h3><div id="stats-refs"></div></div>
-          <div><h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">デバイス</h3><div id="stats-devices"></div></div>
+        <div style="margin-bottom:22px">
+          <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:8px">よく見られたページ</h3><div id="stats-paths"></div>
         </div>
         <div style="margin-top:24px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">週次メール</h3>
@@ -4438,12 +4440,28 @@ window.lumAdmin = {
     var src = document.getElementById('utm-src'), dest = document.getElementById('utm-dest');
     var out = document.getElementById('utm-url'), copy = document.getElementById('utm-copy');
     if (!src || !dest || !out) return;
+    var camp = document.getElementById('utm-camp');
     function make() {
       var d = dest.value, hash = '';
       var i = d.indexOf('#'); if (i >= 0) { hash = d.slice(i); d = d.slice(0, i); }
-      out.value = location.origin + (d || '/') + '?ref=' + encodeURIComponent(src.value) + hash;
+      var c = camp ? camp.value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) : '';
+      out.value = location.origin + (d || '/') + '?ref=' + encodeURIComponent(src.value) + (c ? '&utm_campaign=' + encodeURIComponent(c) : '') + hash;
     }
-    src.addEventListener('change', make); dest.addEventListener('change', make); make();
+    src.addEventListener('change', make); dest.addEventListener('change', make);
+    if (camp) camp.addEventListener('input', make);
+    make();
+    /* 開くページは、このサイトにある実際のページから選びます（ビルドが作る /seo-pages.json）。
+       決め打ちの一覧だと、ページの違うサイトでは開かないリンクができてしまうためです。 */
+    fetch('/seo-pages.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      var pages = (j && j.pages) || {};
+      Object.keys(pages).filter(function (p) { return !/^\/(404|sitemap)\b/.test(p); }).sort().forEach(function (p) {
+        var lb = String(pages[p].label || pages[p].title || p).split(/[|｜]/)[0].trim();
+        var o = document.createElement('option');
+        o.value = p;
+        o.textContent = lb.length > 28 ? lb.slice(0, 27) + '…' : lb;
+        dest.appendChild(o);
+      });
+    }).catch(function () {});
     copy.addEventListener('click', function () {
       out.select();
       var done = function () { copy.textContent = 'コピーしました'; setTimeout(function () { copy.textContent = 'コピー'; }, 1600); };
@@ -4757,7 +4775,7 @@ window.lumAdmin = {
       rows.map(function (r) {
         return '<tr>' +
           '<td style="padding:5px 0;width:100%;max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b45309">' +
-            esc(r.name) + '</td>' +
+            (todoPaths[r.name] ? '<span class="st-new">新着</span>' : '') + esc(r.name) + '</td>' +
           '<td style="padding:5px 0;text-align:right;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums">' +
             r.count + '回</td>' +
         '</tr>';
@@ -4768,26 +4786,27 @@ window.lumAdmin = {
   /* 検索キーワード。SEO/AIO の画面と同じ窓口から取ります。つながって
      いないときは、何をすれば出るのかをその場に書きます——空欄のまま
      置くと「データが無い」のか「設定がまだ」なのか分かりません。 */
+  // 「更新」で読み直すまで、1回だけ読みます（Search Console は直近28日で、期間を変えても同じ数のため）。
   var queriesDone = false;
-  async function queries(key) {
+  async function queries() {
     var host = el('stats-queries');
     if (!host || queriesDone) return;
     queriesDone = true;
     host.innerHTML = '<p class="share-note">確認しています…</p>';
     var d;
     try {
-      var r = await fetch('/api/search-console', { headers: { Authorization: 'Bearer ' + key }, cache: 'no-store' });
-      d = await r.json();
+      d = (await window.lumAdmin.fetch('/api/search-console')).data;
     } catch (_) {
-      host.innerHTML = '<p class="share-note">取得できませんでした。</p>';
+      queriesDone = false;
+      host.innerHTML = '<p class="share-note">取得できませんでした。「更新」でもう一度読みます。</p>';
       return;
     }
-    if (!d || d.ok !== true) { host.innerHTML = '<p class="share-note">取得できませんでした。</p>'; return; }
+    if (!d || d.ok !== true) { queriesDone = false; host.innerHTML = '<p class="share-note">' + esc((d && d.message) || '取得できませんでした。「更新」でもう一度読みます。') + '</p>'; return; }
     if (!d.connected || !d.authorised || !d.registered) {
-      host.innerHTML = '<p class="share-note">' +
-        (!d.connected ? 'Googleカレンダーの接続がまだです。「設定状況」の商談予約の欄から接続すると、検索キーワードも同時に読めるようになります（同じGoogleアカウントの権限で取ります）。'
+      host.innerHTML = '<p class="share-note">' + esc(d.message ||
+        (!d.connected ? 'Google と接続していません。「予約管理 › つながり・お知らせ」から Google に接続すると、検索キーワードも読めるようになります。'
           : !d.authorised ? 'Google の接続はできていますが、Search Console を読む権限がありません。接続し直してください。'
-          : 'このサイトが Search Console に登録されていません。「設定状況」の検索エンジン登録の欄に確認用ファイル名を貼ると、登録できます。') +
+          : 'このサイトが Search Console に登録されていません。')) +
         '</p>';
       return;
     }
@@ -4799,7 +4818,7 @@ window.lumAdmin = {
     if (!list.length) { host.innerHTML = '<p class="share-note">まだ検索での表示がありません。登録してから数日かかります。</p>'; return; }
     host.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
       '<tr style="color:var(--sub);font-size:11px"><td style="padding:3px 0">キーワード</td>' +
-        '<td style="padding:3px 0;text-align:right">表示</td><td style="padding:3px 0 3px 10px;text-align:right">click</td>' +
+        '<td style="padding:3px 0;text-align:right">表示</td><td style="padding:3px 0 3px 10px;text-align:right">クリック</td>' +
         '<td style="padding:3px 0 3px 10px;text-align:right">掲載順位</td></tr>' +
       list.map(function (row) {
         var q = row.q;
@@ -4825,7 +4844,7 @@ window.lumAdmin = {
     var days = el('stats-range').value;
     var res, data;
     try {
-      res = await window.lumAdmin.tap(await fetch('/api/analytics?days=' + encodeURIComponent(days), {
+      res = await window.lumAdmin.tap(await fetch('/api/analytics?days=' + encodeURIComponent(days) + (endOffset ? '&end=' + endOffset : ''), {
         headers: { Authorization: 'Bearer ' + key }, cache: 'no-store',
       }));
       data = await res.json();
@@ -4858,15 +4877,79 @@ window.lumAdmin = {
     links(data.links || [], data.funnel || {});
     exits(data.exits || []);
     notFound(data.notFound || []);
-    queries(key);
+    queries();
     funnelBars(data.funnel || []);
     bars('stats-paths', data.topPaths, { link: true });
     bars('stats-refs', data.topReferrers);
     bars('stats-devices', data.devices);
     bodyEl.style.display = 'block';
-    el('stats-updated').textContent = data.range.from + ' 〜 ' + data.range.to;
+    endOffset = (data.range && data.range.end) || 0;
+    el('stats-updated').textContent = md(data.range.from) + '〜' + md(data.range.to) +
+      (data.previous ? '（前の期間 ' + md(data.previous.from) + '〜' + md(data.previous.to) + ' と比べています）' : '');
+    el('stats-next').disabled = !endOffset;
+    el('stats-prev').disabled = (data.keepDays || 400) < endOffset + Number(days) * 3;
     say('', true);
+    todo();
   }
+  function md(ymd) { var m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(ymd || ''); return m ? Number(m[2]) + '/' + Number(m[3]) : (ymd || ''); }
+
+  /* ---- 要対応: 新しい404・問い合わせフォームの送信の失敗（api/_analytics-attention.js） ----
+     「確認しました」を押すまで、タブの横に数が出ます。 */
+  var todoPaths = {};
+  var endOffset = 0;
+  async function todo() {
+    var host = el('stats-todo');
+    if (!host) return;
+    var r = await window.lumAdmin.fetch('/api/analytics?view=badge').catch(function () { return null; });
+    var d = r && r.data;
+    if (!d || !d.ok) return;
+    paintTodo(d);
+  }
+  function paintTodo(d) {
+    var host = el('stats-todo');
+    todoPaths = {};
+    (d.notFound || []).forEach(function (x) { todoPaths[x.path] = 1; });
+    if (lastData) notFound(lastData.notFound || []);
+    if (window.lumNavBadge) window.lumNavBadge('stats-admin', d.total || 0, partsOf(d));
+    if (!host) return;
+    if (!d.total) { host.innerHTML = ''; return; }
+    var rows = '';
+    if (d.formFail) {
+      rows += '<div class="st-box red"><b>問い合わせフォームの送信が ' + d.formFail + '回 失敗しました。</b>' +
+        (d.lastError ? '<br>最後の理由: ' + esc(d.lastError.reason) + '（' + esc(new Date(d.lastError.at).toLocaleString('ja-JP')) + '）' : '') +
+        '<br>お客様の問い合わせが届いていない可能性があります。「設定状況」でメールの設定を確かめてください。' +
+        ' <button type="button" class="ghost" data-stgo="health-admin" style="font-size:12px;padding:6px 10px;margin-top:6px">設定状況を開く</button></div>';
+    }
+    if ((d.notFound || []).length) {
+      rows += '<div class="st-box"><b>新しく「ページが見つかりません」になったURL ' + d.notFound.length + '件</b>' +
+        '<ul style="margin:6px 0 0;padding-left:18px">' + d.notFound.slice(0, 8).map(function (x) {
+          return '<li style="overflow-wrap:anywhere">' + esc(x.path) + '（' + x.count + '回）</li>';
+        }).join('') + (d.notFound.length > 8 ? '<li>ほか ' + (d.notFound.length - 8) + '件</li>' : '') + '</ul>' +
+        '<span style="font-size:12px;color:var(--sub)">リンク切れや、消したページへの古いリンクです。正しいページへのリンクに直すか、文章編集でページを戻してください。</span></div>';
+    }
+    host.innerHTML = rows + '<div style="margin:0 0 14px"><button type="button" id="stats-seen">確認しました（数を0に戻す）</button></div>';
+    host.querySelectorAll('[data-stgo]').forEach(function (b) {
+      b.addEventListener('click', function () { if (window.lumShowTab) window.lumShowTab(b.getAttribute('data-stgo')); });
+    });
+    el('stats-seen').addEventListener('click', async function () {
+      this.disabled = true;
+      var r = await window.lumAdmin.fetch('/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'seen' }) }).catch(function () { return null; });
+      if (r && r.data && r.data.ok) paintTodo(r.data);
+      else { this.disabled = false; say((r && r.data && r.data.message) || '保存できませんでした。'); }
+    });
+  }
+  function partsOf(d) {
+    var nf = (d.notFound || []).length;
+    return [d.formFail ? '問い合わせフォームの送信の失敗 ' + d.formFail + '回' : '', nf ? '新しく見つからなかったURL ' + nf + '件' : ''].filter(Boolean);
+  }
+  /* タブの横の数。画面を開いていなくても、軽い問い合わせで数えます。 */
+  window.lumStatsBadge = async function () {
+    if (!window.lumNavBadge) return;
+    var r = await window.lumAdmin.fetch('/api/analytics?view=badge').catch(function () { return null; });
+    var d = r && r.data;
+    if (d && d.ok) window.lumNavBadge('stats-admin', d.total || 0, partsOf(d));
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumStatsBadge(); });
 
   /* The funnel, in people rather than in times.
      Two things were wrong here. Every bar was drawn against the first row,
@@ -4936,8 +5019,10 @@ window.lumAdmin = {
     host.innerHTML = out;
   }
 
-  el('stats-range').addEventListener('change', load);
-  el('stats-reload').addEventListener('click', load);
+  el('stats-range').addEventListener('change', function () { endOffset = 0; load(); });
+  el('stats-reload').addEventListener('click', function () { queriesDone = false; load(); });
+  el('stats-prev').addEventListener('click', function () { endOffset += Number(el('stats-range').value) || 30; load(); });
+  el('stats-next').addEventListener('click', function () { endOffset = Math.max(0, endOffset - (Number(el('stats-range').value) || 30)); load(); });
   el('stats-csv').addEventListener('click', downloadCsv);
 
   window.lumStatsInit = function () {

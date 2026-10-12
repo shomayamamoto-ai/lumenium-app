@@ -262,6 +262,48 @@ const off = await weekly.GET(new Request('https://lumenium.net/api/weekly-report
 check('止めてあれば送らない', (await off.json()).skipped === 'off' && sent.length === 1)
 delete process.env.CRON_SECRET
 
+/* ---- 要対応（新しい404・送信の失敗） ---- */
+{
+  const A = await import(new URL('../api/_analytics-attention.js', import.meta.url))
+  const day = (date, nf, ct) => ({ date, notFound: nf || {}, contact: ct || {} })
+  const seen = { at: Date.parse('2026-10-10T03:00:00Z'), day: '2026-10-10', nf: { '/old': 2 }, cf: 1 }
+  const a = A.analyticsAttention([
+    day('2026-10-08', { '/older': 5 }, { fail: 3 }),
+    day('2026-10-10', { '/old': 3, '/new-same-day': 1 }, { ok: 4, fail: 2, blocked: 9 }),
+    day('2026-10-11', { '/later': 2, '/old': 0 }, { 'resend-error': 1 }),
+  ], seen, { at: '2026-10-11T01:00:00Z', reason: 'RESEND_API_KEY が未設定' })
+  check('要対応: 押す前の日は数えない', !a.notFound.some((x) => x.path === '/older'))
+  check('要対応: 押した日の、押す前の分は引く', a.notFound.find((x) => x.path === '/old').count === 1)
+  check('要対応: 新しいURLは多い順', a.notFound.map((x) => x.path).join() === '/later,/new-same-day,/old', a.notFound.map((x) => x.path).join())
+  check('要対応: 送信の失敗は blocked を除き、押す前の分を引く', a.formFail === 2, a.formFail)
+  check('要対応: 押したあとのエラーの理由を出す', a.lastError && /RESEND/.test(a.lastError.reason))
+  check('要対応: 合計はURLの数＋失敗の回数', a.total === 5, a.total)
+  check('要対応: 確認する前（記録なし）は0', A.analyticsAttention([day('2026-10-11', { '/x': 1 })], null).total === 0)
+  const snap = A.seenSnapshot(123, '2026-10-11', day('2026-10-11', { '/x': 4 }, { fail: 2, ok: 1 }))
+  check('控え: その日の404と失敗を覚える', snap.nf['/x'] === 4 && snap.cf === 2 && snap.day === '2026-10-11')
+  check('内訳の文', A.analyticsParts(a).join('・') === '問い合わせフォームの送信の失敗 2回・新しく見つからなかったURL 3件')
+
+  // 本物の handler で: 初回は0、確認後に増えた分だけ数える
+  const auth = { Authorization: 'Bearer test-admin-key', 'x-forwarded-for': '192.0.2.9' }
+  const today = jstDate()
+  hashes.delete(K.dayEventPaths(today, 'not_found'))
+  hashes.delete(K.dayContact(today))
+  str.delete(K.analyticsSeen)
+  hash(K.dayEventPaths(today, 'not_found')).set('/before', '1')
+  const b1 = await (await analytics.GET(new Request('https://lumenium.net/api/analytics?view=badge', { headers: auth }))).json()
+  check('badge: 初めては0（昔の404を要対応にしない）', b1.ok && b1.total === 0, JSON.stringify(b1))
+  hash(K.dayEventPaths(today, 'not_found')).set('/broken', '2')
+  hash(K.dayContact(today)).set('fail', '1')
+  const b2 = await (await analytics.GET(new Request('https://lumenium.net/api/analytics?view=badge', { headers: auth }))).json()
+  check('badge: そのあとの404と失敗を数える', b2.total === 2 && b2.notFound[0].path === '/broken' && b2.formFail === 1, JSON.stringify(b2))
+  const p = await (await analytics.POST(new Request('https://lumenium.net/api/analytics', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'seen' }) }))).json()
+  check('確認しました: 0に戻る', p.ok && p.total === 0, JSON.stringify(p))
+  const b3 = await (await analytics.GET(new Request('https://lumenium.net/api/analytics?view=badge', { headers: auth }))).json()
+  check('確認しました: 読み直しても0', b3.total === 0)
+  const r = await (await analytics.GET(new Request('https://lumenium.net/api/analytics?days=7&end=7', { headers: auth }))).json()
+  check('期間: end で前の期間を読み、範囲を返す', r.ok && r.range.end === 7 && r.range.to === jstDate(7) && r.range.from === jstDate(13) && r.previous.to === jstDate(14), JSON.stringify(r.range))
+}
+
 if (failed) {
   console.error(`\nアクセス解析のテスト: ${failed} 件失敗（${passed} 件成功）`)
   process.exit(1)

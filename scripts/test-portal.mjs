@@ -336,6 +336,10 @@ test('口コミ・見積書・動画: 内訳と開く先', () => {
   const zero = build({ reviews: ok({ ok: true, total: 0, low: 0 }), quotes: ok({ ok: true, total: 0 }), video: ok({ ok: true, total: 0 }) }, NOW)
   assert.equal(zero.rows.length, 0)
   assert.ok(!zero.failed.includes('口コミ'))
+  const an = build({ statsTodo: ok({ ok: true, total: 2, notFound: [{ path: '/old-page', count: 3 }, { path: '/x', count: 1 }], formFail: 0 }) }, NOW).rows
+  assert.equal(an[0].id, 'an-404')
+  assert.equal(an[0].count, 2)
+  assert.match(an[0].why, /「\/old-page」ほか/)
   const off = build({ video: { state: 'off', data: { ok: true, stored: false } } }, NOW)
   assert.ok(off.off.includes('SNS動画'))
 })

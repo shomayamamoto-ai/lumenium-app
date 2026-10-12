@@ -164,6 +164,8 @@ export const K = {
   // Enquiry outcomes, so a form that has stopped working is visible.
   dayContact: (d) => `${KV}ct:d:${d}`,
   contactLastError: `${KV}ct:lasterr`,
+  // アクセス解析で「確認しました」を押した時刻と、その日の404・送信失敗の数（_analytics-attention.js）。
+  analyticsSeen: `${KV}an:seen`,
   expire: TTL,
 
   /* ---- 訪問（セッション）。書くのは _visit.js、読むのは _analytics-report.js ----

@@ -333,6 +333,17 @@
     return out;
   }
 
+  /* アクセス解析の要対応（api/analytics.js ?view=badge）。送信の失敗は「設定状況」の行に出るので、ここでは404だけ。 */
+  function statsRows(s) {
+    if (!ok(s)) return [];
+    var nf = s.data.notFound || [];
+    if (!nf.length) return [];
+    return [{ id: 'an-404', level: 'action', tab: 'stats-admin', count: nf.length, unit: '件',
+      title: '新しく「ページが見つかりません」になったURL',
+      why: '「' + nf[0].path + '」' + (nf.length > 1 ? 'ほか' : '') + '。リンク切れや古いリンクです。見たら「確認しました」を押してください。',
+      go: { label: 'アクセス解析を開く' } }];
+  }
+
   var SOURCE_NAMES = {
     inquiries: '問い合わせ', booking: '予約', social: 'SNS', members: '会員', news: 'お知らせ',
     health: '設定状況', deploy: 'サイトの更新状況', analytics: 'アクセス解析',
@@ -346,7 +357,7 @@
     now = now || Date.now();
     var rows = [].concat(
       healthRows(src.health), deployRows(src.deploy), inquiryRows(src.inquiries),
-      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now),
+      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now), statsRows(src.statsTodo),
       memberRows(src.members, now), advisorRows(src.advisor), analyticsRows(src.analytics)
     );
     rows = rows.map(function (r, i) { r.order = i; return r; }).sort(function (a, b) {
@@ -513,6 +524,7 @@
 
     if (by['news-stale']) put('news-admin', by['news-stale'].count ? by['news-stale'].count + '日 更新なし' : 'まだありません', 'action');
     if (by['mem-new']) put('list-view', '今週 +' + by['mem-new'].count + '人', 'fyi');
+    if (by['an-404']) put('stats-admin', '新しい404 ' + by['an-404'].count, 'action');
     if (by['analytics-week']) put('stats-admin', '7日で ' + by['analytics-week'].count + '回', 'fyi');
 
     var bad = (by['health-error'] ? by['health-error'].count : 0) + (by['deploy-failed'] ? 1 : 0);
@@ -663,7 +675,8 @@
     ['advisor', '/api/advisor-store?view=todos'],
     ['reviews', '/api/reviews?view=badge'],
     ['quotes', '/api/quotes?view=badge'],
-    ['video', '/api/video-publish?view=badge']
+    ['video', '/api/video-publish?view=badge'],
+    ['statsTodo', '/api/analytics?view=badge']
   ];
 
   function within(p, ms) {

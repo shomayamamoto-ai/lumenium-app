@@ -785,3 +785,8 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   #shell #members-tbl td.nil { display: none; }
   #shell #members-tbl td[data-label]::before { content: attr(data-label) "："; color: var(--ui-text-3, #75757f); font-size: 12px; }
 }
+
+/* アクセス解析の「要対応」の帯と、404 の「新着」。 */
+#shell .st-box { border: 1px solid var(--ui-border); border-left: 4px solid #b45309; border-radius: 10px; padding: 9px 12px; margin: 0 0 8px; font-size: 12.5px; line-height: 1.75; background: #fffdf7; overflow-wrap: anywhere; }
+#shell .st-box.red { border-left-color: #b42318; background: #fff8f7; }
+#shell .st-new { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(16,185,129,.16); color: #047857; margin-right: 6px; vertical-align: 1px; }
