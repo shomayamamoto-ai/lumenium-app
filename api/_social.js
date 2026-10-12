@@ -23,6 +23,7 @@ import { RULES, compose, check, isBlobUrl, cleanCampaign, ALT_MAX, THREADABLE } 
 import { fieldFor } from './_social-insights.js'
 import { GBP_ACTIONS } from './_social-text.js'
 import { postGbp, postBluesky, testGbp, testBluesky, blueskyMetrics } from './_social-more.js'
+import { payloadForLog } from './_social-attention.js'
 
 
 /* API の版は1か所に。Meta は版ごとに約2年で使えなくなり、LinkedIn は
@@ -688,7 +689,10 @@ export async function sendPost(payload, req, opts = {}) {
     results,
   }
   if (opts.scheduledFor) entry.scheduledFor = opts.scheduledFor
+  if (opts.retryOf) entry.retryOf = opts.retryOf // 送り直し（元の投稿の id）
   if (payload.pillar) entry.pillar = payload.pillar // 運用プランの柱（api/social.js が付けたときだけ）
+  // 送り直し・「もう一度使う」のために、送った中身を残します（大きすぎるときは SNS ごとの本文を外します）。
+  entry.payload = payloadForLog(payload)
   const kept = await logPosts(entry, req)
   return { entry, results, kept }
 }

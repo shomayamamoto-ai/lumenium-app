@@ -892,6 +892,7 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-badge.js"></script>
 <script src="/admin-aio-auto.js"></script>
 <script src="/social-text.js"></script>
+<script src="/social-attention.js"></script>
 <script src="/video-core.js"></script>
 <script src="/admin-video.js"></script>
 <script src="/admin-booking.js"></script>
@@ -1170,6 +1171,8 @@ input, select, textarea { color: var(--text); }
 
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
       <div id="social-plan-root"></div><!-- 「投稿する／運用プラン」の切り替え。中身は /admin-social-plan.js -->
+      <!-- 対応が要るもの（送れなかった・結果不明・承認済み未送信・差し戻し・今日の予約）。押すとその場所へ。 -->
+      <div id="social-todo" class="bk-sum" style="display:none"></div>
       <p class="share-note ui-intro">
         ここから X・Facebook・Instagram・Threads・LinkedIn・LINE公式アカウント・Googleビジネスプロフィール・Bluesky に直接投稿します。送信結果は各SNSからの返答をそのまま表示します。
         投稿した記録は「SEO / AIO 分析」の発信量と AIアドバイザーにも渡されます。
@@ -1285,6 +1288,7 @@ input, select, textarea { color: var(--text); }
       </div>
       <div id="social-results" style="margin-bottom:18px"></div>
       <h3 class="soc-h">予約中の投稿</h3>
+      <p class="soc-small" id="social-cron" style="margin:-4px 0 8px"></p>
       <div id="social-queue" style="margin-bottom:18px"></div>
       <h3 class="soc-h">承認の流れ（承認待ち・承認済み・差し戻し）</h3>
       <div id="social-approvals" style="margin-bottom:18px"></div>
@@ -7027,6 +7031,7 @@ window.lumAdmin = {
   var crop = null;
   var busy = false;
   var started = false;
+  var focusPost = '';   // どこでも検索から開く1件（読み込み前に押されたとき）
   var restoring = false;
   var S = blank();
 
@@ -8364,6 +8369,7 @@ window.lumAdmin = {
     items.forEach(function (it) {
       var d = document.createElement('div');
       d.className = 'soc-q';
+      if (it.id) d.id = 'sq-' + it.id;
       var b = document.createElement('div');
       b.className = 'body';
       var labels = (it.targets || []).map(function (id) { var n = netById(id); return n ? n.label : id; }).join('・');
@@ -8373,6 +8379,39 @@ window.lumAdmin = {
         '<span class="soc-small">' + esc(labels) +
         (it.images ? '・画像' + it.images + '枚' : '') + '</span><br>' + esc(it.text || '（本文なし）');
       d.appendChild(b);
+      // 日付を変える（新しい日付で入れてから元を消すので、失敗しても予約は残ります）。
+      var acts = document.createElement('div');
+      acts.className = 'soc-q-acts';
+      acts.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px';
+      var dt = document.createElement('input');
+      dt.type = 'date'; dt.value = it.date; dt.setAttribute('aria-label', it.date + ' の予約の新しい日付');
+      var mv = document.createElement('button');
+      mv.type = 'button'; mv.className = 'ghost'; mv.textContent = '日付を変える';
+      mv.addEventListener('click', async function () {
+        if (!dt.value || dt.value === it.date) { say('新しい日付を選んでから押してください。'); dt.focus(); return; }
+        mv.disabled = true;
+        var r = await postJson('/api/social', { action: 'reschedule', id: it.id, date: dt.value });
+        var dd = r.data || {};
+        if (dd.items) { info.schedule.items = dd.items; renderQueue(dd.items); }
+        say(dd.message || (dd.ok ? '日付を変えました。' : '変えられませんでした。'), !!dd.ok);
+        mv.disabled = false;
+        if (window.lumSocialBadge) window.lumSocialBadge();
+      });
+      var ed = document.createElement('button');
+      ed.type = 'button'; ed.className = 'ghost'; ed.textContent = '内容を直す';
+      ed.addEventListener('click', async function () {
+        ed.disabled = true;
+        var r = await postJson('/api/social', { action: 'queue-item', id: it.id });
+        var dd = r.data || {};
+        ed.disabled = false;
+        if (!dd.ok || !dd.item) { say(dd.message || '予約の中身を読めませんでした。'); return; }
+        loadIntoComposer(dd.item.payload || {});
+        S.when = 'date'; S.date = dd.item.date; S.replaceId = dd.item.id;
+        changed(false);
+        say(dd.item.date + ' の予約を、上の欄に戻しました。直して「予約する」を押すと、元の予約と入れ替わります（押すまでは元の予約のままです）。', true);
+      });
+      acts.appendChild(dt); acts.appendChild(mv); acts.appendChild(ed);
+      b.appendChild(acts);
       var x = document.createElement('button');
       x.type = 'button'; x.className = 'ghost'; x.textContent = '取り消す';
       x.addEventListener('click', async function () {
@@ -8438,7 +8477,8 @@ window.lumAdmin = {
 
     list.forEach(function (p) {
       var d = document.createElement('div');
-      d.className = 'soc-post';
+      d.className = 'soc-post' + (focusPost && focusPost === p.id ? ' is-focus' : '');
+      if (p.id) d.id = 'sp-' + p.id;
       var w = document.createElement('div');
       w.className = 'when';
       w.textContent = new Date(p.at).toLocaleString('ja-JP') + (p.scheduledFor ? '（予約投稿）' : '') + (p.campaign ? '　キャンペーン: ' + p.campaign : '');
@@ -8484,6 +8524,39 @@ window.lumAdmin = {
           say(dd.ok ? (errs.length ? '取れなかったもの：' + errs.join(' / ') : '反応を取得しました。') : (dd.message || '取得できませんでした。'), dd.ok && !errs.length);
         });
         tags.appendChild(mb);
+      }
+      // 送り直す（失敗したSNSだけ）・もう一度使う（作る欄に戻す）。中身を残している記録だけ。
+      if (p.payload) {
+        var failedNets = (p.results || []).filter(function (r) { return !r.ok && !r.unknown; });
+        var retried = lastLog.some(function (q) { return q.retryOf && q.retryOf === (p.id || p.at); });
+        if (failedNets.length && !retried) {
+          var rb = document.createElement('button');
+          rb.type = 'button'; rb.className = 'linkish';
+          rb.style.cssText = 'font-size:11px;margin-left:4px';
+          rb.textContent = '失敗分を送り直す（' + failedNets.map(function (r) { return r.label; }).join('・') + '）';
+          rb.addEventListener('click', async function () {
+            if (!confirm(failedNets.map(function (r) { return r.label; }).join('・') + ' にだけ、同じ内容を送り直します（成功したSNSには送りません）。よろしいですか？')) return;
+            rb.disabled = true; rb.textContent = '送り直しています…';
+            var r = await postJson('/api/social', { action: 'retry', id: p.id || p.at });
+            var dd = r.data || {};
+            if (dd.recent) renderLog(dd.recent, true);
+            else { rb.disabled = false; rb.textContent = '失敗分を送り直す'; }
+            say(dd.message || '送り直せませんでした。', !!dd.ok);
+            if (window.lumSocialBadge) window.lumSocialBadge();
+          });
+          tags.appendChild(rb);
+        } else if (retried && failedNets.length) {
+          var rd = document.createElement('span');
+          rd.className = 'soc-small'; rd.style.marginLeft = '6px'; rd.textContent = '（送り直し済み）';
+          tags.appendChild(rd);
+        }
+        var ub = document.createElement('button');
+        ub.type = 'button'; ub.className = 'linkish';
+        ub.style.cssText = 'font-size:11px;margin-left:4px';
+        ub.textContent = 'もう一度使う';
+        ub.title = 'この投稿の本文・画像・投稿先を、上の「作る」欄に戻します（送るのは確かめてから）';
+        ub.addEventListener('click', function () { S.replaceId = ''; loadIntoComposer(p.payload); say('この投稿の中身を、上の欄に戻しました。直してから送ってください。', true); });
+        tags.appendChild(ub);
       }
       d.appendChild(tags);
       if (withMx.length) {
@@ -9108,11 +9181,49 @@ window.lumAdmin = {
     renderQueue(info.schedule.items);
 
     renderLog(d.recent, d.stored);
+    renderCron(d.cron);
+    renderTodo(d);
     say('', true);
     loadInsights();
     loadQuotas();
 
     loadNews();
+  }
+
+  /* 今朝の自動処理（予約投稿）の結果。「今朝の予約は出たか」をここで答えます。 */
+  /* 形は api/social-cron.js の summary: { at, sent: [{ id, date, ok, total, kept }], left } */
+  function renderCron(c) {
+    var host = el('social-cron');
+    if (!host) return;
+    if (!c || !c.at) { host.textContent = ''; return; }
+    var t = new Date(c.at);
+    var sent = Array.isArray(c.sent) ? c.sent : [];
+    var partial = sent.filter(function (s) { return s && s.total && s.ok < s.total; }).length;
+    var parts = [];
+    parts.push(sent.length ? '予約投稿 ' + sent.length + '件を送信' : '送る予約はありませんでした');
+    if (partial) parts.push('うち一部のSNSで失敗 ' + partial + '件（下の記録で「送り直す」）');
+    if (c.left) parts.push('時間切れで翌朝に回した分 ' + c.left + '件');
+    host.textContent = '前回の自動処理：' + t.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '　' + parts.join('・');
+  }
+
+  /* 画面の上の「対応が要るもの」。数字を押すと、その場所へ動きます。 */
+  function renderTodo(d) {
+    var host = el('social-todo');
+    if (!host || !window.lumSocialAttention) return;
+    var a = window.lumSocialAttention(d);
+    if (window.lumNavBadge) window.lumNavBadge('social-admin', a.total, window.lumSocialAttn.socialParts(a));
+    var rows = [
+      ['failed', '送れなかった投稿', 'social-log'], ['unknown', '結果が分からない投稿', 'social-log'],
+      ['approved', '承認済み・未送信', 'social-approvals'], ['returned', '差し戻し', 'social-approvals'], ['today', '今日の予約が残っている', 'social-queue']
+    ].filter(function (r) { return a[r[0]]; });
+    if (!rows.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+    host.style.display = '';
+    host.innerHTML = rows.map(function (r) {
+      return '<button type="button" class="hot" data-sgo="' + r[2] + '"><b>' + a[r[0]] + '</b><span>' + r[1] + '</span></button>';
+    }).join('');
+    host.querySelectorAll('[data-sgo]').forEach(function (b) {
+      b.addEventListener('click', function () { var t = el(b.getAttribute('data-sgo')); if (t) t.scrollIntoView({ block: 'start' }); });
+    });
   }
 
   async function loadQuotas() {
@@ -9244,12 +9355,15 @@ window.lumAdmin = {
       var body = payload();
       body.action = sched ? 'schedule' : 'post';
       if (sched) body.date = S.date;
+      // 「内容を直す」から作り直した予約なら、元の予約と入れ替えます。
+      if (sched && S.replaceId) body.replaceId = S.replaceId;
       var r = await postJson('/api/social', body);
       var d = r.data || {};
       if (sched) {
         if (d.items) { info.schedule.items = d.items; renderQueue(d.items); }
         say(d.message || (d.ok ? '予約しました。' : '予約できませんでした。'), !!d.ok);
-        if (d.ok) { clearComposer(); el('social-restore').innerHTML = ''; }
+        if (d.ok) { S.replaceId = ''; clearComposer(); el('social-restore').innerHTML = ''; }
+        if (window.lumSocialBadge) window.lumSocialBadge();
         return;
       }
       if (!d.results) { say(d.message || '投稿できませんでした。'); return; }
@@ -9351,8 +9465,61 @@ window.lumAdmin = {
     if (started) return;
     if (!TX) { say('画面の部品（social-text.js）を読み込めませんでした。再読み込みしてください。'); return; }
     started = true;
-    load();
+    load().then(function () { if (focusPost) showPost(focusPost); });
   };
+
+  /* 「要対応」の数。決まりはサーバーと同じ1ファイル（api/_social-attention.js → /social-attention.js）。 */
+  window.lumSocialAttention = function (d) {
+    var A = window.lumSocialAttn;
+    if (!A) return { total: 0 };
+    var sch = (d && d.schedule) || {};
+    return A.socialAttention({ recent: d && d.recent, items: sch.items, approvals: d && d.approvals, jstHour: sch.jstHour, ready: sch.ready !== false });
+  };
+  /* タブの横の数。画面を開いていなくても、軽い問い合わせ（?view=badge）で数えます。 */
+  window.lumSocialBadge = async function () {
+    if (!window.lumNavBadge) return;
+    var r = await api('/api/social?view=badge');
+    var d = r.data || {};
+    if (!d.ok) return;
+    window.lumNavBadge('social-admin', d.total || 0, window.lumSocialAttn ? window.lumSocialAttn.socialParts(d) : []);
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumSocialBadge(); });
+
+  /* どこでも検索から、記録の1件・予約の1件を開きます。 */
+  function showPost(id) {
+    var node = el('sp-' + id) || el('sq-' + id);
+    if (!node) return;
+    focusPost = '';
+    node.classList.add('is-focus');
+    node.scrollIntoView({ block: 'center' });
+    setTimeout(function () { node.classList.remove('is-focus'); }, 4000);
+  }
+  window.lumSocialOpen = function (id) {
+    if (window.lumShowTab) window.lumShowTab('social-admin');
+    if (started) setTimeout(function () { showPost(id); }, 50);
+    else focusPost = id;
+  };
+  (window.lumFinderSources = window.lumFinderSources || []).push({
+    group: 'SNS投稿', tab: 'social-admin',
+    load: function (fetchApi) { return fetchApi('/api/social'); },
+    match: function (words, data, hit) {
+      var out = [];
+      ((data.schedule && data.schedule.items) || []).forEach(function (q) {
+        if (!hit([q.text, q.date, '予約'].join(' '), words)) return;
+        out.push({ k: '予約 ' + q.date, t: String(q.text || '（SNSごとの本文）').replace(/\s+/g, ' ').slice(0, 40), s: (q.targets || []).join('・'),
+          run: function () { window.lumSocialOpen(q.id); } });
+      });
+      (data.recent || []).forEach(function (p) {
+        var rs = p.results || [];
+        var st = rs.some(function (r) { return !r.ok && !r.unknown; }) ? '一部失敗' : rs.some(function (r) { return r.unknown; }) ? '結果不明' : '';
+        if (!hit([p.text, p.campaign, st || '送信済み'].join(' '), words)) return;
+        out.push({ k: (st ? st + '・' : '') + String(p.at || '').slice(0, 10), t: String(p.text || '（SNSごとの本文）').replace(/\s+/g, ' ').slice(0, 40),
+          s: (p.results || []).map(function (r) { return r.label + (r.ok ? '' : r.unknown ? '？' : '×'); }).join('・'),
+          run: function () { window.lumSocialOpen(p.id); } });
+      });
+      return out.slice(0, 8);
+    }
+  });
 })();
 </script>
 </body>

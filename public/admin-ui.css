@@ -762,7 +762,7 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .bk-sum > button.hot b { color: var(--ui-ng, #b42318); }
 #shell .bk-sum > button[aria-pressed="true"] { border-color: var(--ui-accent); box-shadow: inset 0 0 0 1px var(--ui-accent); }
 /* 検索などから開いた1件 */
-#shell .soc-post.is-focus { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+#shell .soc-post.is-focus, #shell .soc-q.is-focus { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
 /* 動画の項目は、狭い画面では1行で横に流す（3段に折り返さない） */
 /* 項目の切り替え（タブの列）は、狭い画面では折り返さず1行で横に流します。
    折り返すと3段になり、本文が画面の下に押し出されるためです（全ツール共通）。 */

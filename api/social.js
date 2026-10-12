@@ -36,7 +36,7 @@ import {
   NETWORKS, socialStatus, readPayload, precheck, sendPost, recentPosts, socialActivity,
   historyStored, socialQuotas, testNetwork, refreshThreadsToken, fetchMetrics, threadsTokenInfo, repeatBuilder,
 } from './_social.js'
-import { SCHEDULE, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize, planRepeats } from './_social-queue.js'
+import { SCHEDULE, CRON_LAST, scheduleReady, addScheduled, listScheduled, cancelScheduled, summarize, planRepeats } from './_social-queue.js'
 import { setting, saveSetting } from './_settings.js'
 import { BRAND } from './_brand.js'
 import { readStyle, saveStyle, readPrefs, savePrefs, readTemplates, saveTemplates, readLinks, saveLinks } from './_social-store.js'
@@ -44,6 +44,8 @@ import { gbpLocations, LOCATION_RE } from './_social-more.js'
 import { socialInsights } from './_social-insights.js'
 import { createApproval, listApprovals, getApproval, markApproval, removeApproval, approvalUrl, APPROVE_DAYS } from './_social-approve.js'
 import { readInbox, replyComment, hideComment } from './_social-inbox.js'
+import { socialAttention, retryTargets } from './_social-attention.js'
+import { storeConfig, pipeline } from './_analytics-store.js'
 
 async function state(req) {
   const ready = scheduleReady()
@@ -66,7 +68,15 @@ async function state(req) {
     templates: await readTemplates(req),
     links: await readLinks(req),
     approvals: await listApprovals(),
+    // 毎朝の自動処理（予約投稿）の前回の結果。「今朝の予約は出たか」を画面で答えるためです。
+    cron: await cronLast(),
   }
+}
+
+async function cronLast() {
+  const cfg = storeConfig()
+  if (!cfg) return null
+  try { const [raw] = await pipeline(cfg, [['GET', CRON_LAST]]); return raw ? JSON.parse(raw) : null } catch (_) { return null }
 }
 
 export async function GET(req) {
@@ -78,6 +88,14 @@ export async function GET(req) {
   // 投稿ごとの成果（と、いつ出すと良いか）。履歴より重いので別に読みます。
   if (new URL(req.url).searchParams.get('insights')) {
     return json(await socialInsights(await recentPosts(200, req), req))
+  }
+  // タブの横の「要対応」の数だけ（軽く済むよう、状態の全部は読みません）。
+  if (new URL(req.url).searchParams.get('view') === 'badge') {
+    const ready = scheduleReady()
+    const [recent, items, approvals] = await Promise.all([
+      recentPosts(40, req), ready.ok ? listScheduled() : Promise.resolve([]), listApprovals(),
+    ])
+    return json({ ok: true, ...socialAttention({ recent, items, approvals, jstHour: SCHEDULE.jstHour, ready: ready.ok }) })
   }
   return json({ ok: true, ...(await state(req)) })
 }
@@ -209,6 +227,39 @@ export async function POST(req) {
     const r = await cancelScheduled(body.id)
     return json({ ...r, items: (await listScheduled()).map(summarize) }, r.ok ? 200 : 404)
   }
+  // 予約の中身（「内容を直す」で、作る欄に戻すため）。
+  if (action === 'queue-item') {
+    const it = (await listScheduled()).find((x) => x.id === String(body.id || ''))
+    return it ? json({ ok: true, item: { id: it.id, date: it.date, payload: it.payload } }) : json({ ok: false, message: 'その予約は見つかりませんでした（もう送られたか、取り消し済みです）。' }, 404)
+  }
+  // 予約の日付だけを変える。新しい日付で入れてから元を消すので、途中で失敗しても予約は残ります。
+  if (action === 'reschedule') {
+    const it = (await listScheduled()).find((x) => x.id === String(body.id || ''))
+    if (!it) return json({ ok: false, message: 'その予約は見つかりませんでした（もう送られたか、取り消し済みです）。' }, 404)
+    const extra = it.repeatOf ? { repeatOf: it.repeatOf } : undefined
+    const r = await addScheduled(String(body.date || ''), it.payload, extra)
+    if (!r.ok) return json(r, 400)
+    await cancelScheduled(it.id)
+    return json({ ok: true, items: (await listScheduled()).map(summarize), message: `予約を ${r.item.date} に変えました。` })
+  }
+  // 失敗したSNSだけに送り直す（成功したSNSと、結果が分からないSNSには送りません）。
+  if (action === 'retry') {
+    const entry = (await recentPosts(200, req)).find((p) => (p.id || p.at) === String(body.id || ''))
+    if (!entry) return json({ ok: false, message: 'その投稿の記録が見つかりませんでした。' }, 404)
+    if (!entry.payload) return json({ ok: false, message: 'この投稿は、中身を残していない以前の記録のため、送り直せません。「作る」で同じ内容を入れて送ってください。' }, 400)
+    const targets = retryTargets(entry)
+    if (!targets.length) return json({ ok: false, message: '送り直す先がありません（失敗したSNSはありません）。' }, 400)
+    const rd = readPayload({ ...entry.payload, targets })
+    if (!rd.ok) return json(rd, 400)
+    const problems = precheck(rd.payload)
+    if (problems.length) return json({ ok: false, code: 'CHECK', problems, message: '送る前の確認で止めました（どこにも送っていません）：' + problems.join(' / ') }, 400)
+    const { results } = await sendPost(rd.payload, req, { retryOf: entry.id || entry.at })
+    const okCount = results.filter((r) => r.ok).length
+    return json({
+      ok: okCount > 0, posted: okCount, total: results.length, results,
+      recent: await recentPosts(20, req), activity: await socialActivity(30, req), message: '送り直し：' + outcome(results),
+    }, okCount ? 200 : 502)
+  }
 
   const read = readPayload(body)
   if (!read.ok) return json(read, 400)
@@ -240,6 +291,8 @@ export async function POST(req) {
     }
     const r = await addScheduled(String(body.date || ''), payload)
     if (!r.ok) return json(r, 400)
+    // 「内容を直す」から作り直した予約なら、元の予約を消して入れ替えます（新しい方が入ってから消します）。
+    if (body.replaceId) await cancelScheduled(String(body.replaceId))
     return json({
       ok: true, scheduled: summarize(r.item), items: (await listScheduled()).map(summarize),
       message: `${r.item.date} の朝${SCHEDULE.jstHour}時ごろに投稿するよう予約しました。`,

@@ -119,12 +119,14 @@
   function socialRows(s, now) {
     if (!ok(s)) return [];
     var d = s.data, out = [], since = now - 7 * DAY, failed = 0, unknown = 0;
+    // 数え方は SNS の画面のタブの数と同じ（1投稿は1つ・送り直した投稿は数えない。api/_social-attention.js）。
+    var retried = {};
+    (d.recent || []).forEach(function (p) { if (p && p.retryOf) retried[p.retryOf] = 1; });
     (d.recent || []).forEach(function (p) {
-      if (!(Date.parse(p.at) >= since)) return;
-      (p.results || []).forEach(function (r) {
-        if (r.ok) return;
-        if (r.unknown) unknown++; else failed++;
-      });
+      if (!p || !(Date.parse(p.at) >= since) || retried[p.id]) return;
+      var rs = p.results || [];
+      if (rs.some(function (r) { return r && !r.ok && !r.unknown; })) failed++;
+      else if (rs.some(function (r) { return r && r.unknown; })) unknown++;
     });
     if (failed) {
       out.push({ id: 'sns-failed', level: 'urgent', tab: 'social-admin', count: failed, unit: '件',

@@ -1278,6 +1278,8 @@
         { id: 'demo-tpl-2', title: '新メニューのお知らせ', text: '（定型文の例）新メニュー「〇〇」を始めました。〇月〇日までの期間限定です。', nets: ['instagram', 'threads', 'facebook'], campaign: 'new-menu', link: 'https://' + DEMO_HOST + '/menu' }
       ],
       approvals: socialApprovals(),
+      // 今朝の自動処理の結果（shape: api/social-cron.js の summary）。
+      cron: { at: ago(3 * 3600000), date: jstDate(0), sent: [{ id: 'demo-sent', date: jstDate(0), ok: 2, total: 2, kept: 0 }], left: 0 },
       links: {
         title: '', note: '（サンプル）ご予約・メニュー・アクセスはこちらから', latest: 3,
         items: [
@@ -1288,6 +1290,12 @@
         ]
       }
     };
+  }
+  /* タブの横の数（shape: api/social.js GET ?view=badge）。数え方は画面と同じ /social-attention.js。 */
+  function socialBadge() {
+    var d = social(), A = window.lumSocialAttn;
+    var a = A ? A.socialAttention({ recent: d.recent, items: d.schedule.items, approvals: d.approvals, jstHour: d.schedule.jstHour, ready: true }) : { total: 0 };
+    return Object.assign({ ok: true }, a);
   }
   /* コメントの受信箱（shape: _social-inbox.js readInbox）。 */
   function socialInbox() {
@@ -1714,7 +1722,7 @@
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });
       case '/api/booking': return reply(q.get('recent') ? bookingRecent() : { ok: true, enabled: false, mode: 'off', slots: [] });
       case '/api/settings': return reply(settings());
-      case '/api/social': return reply(q.get('quota') ? socialQuotas() : q.get('insights') ? socialInsights() : social());
+      case '/api/social': return reply(q.get('quota') ? socialQuotas() : q.get('insights') ? socialInsights() : q.get('view') === 'badge' ? socialBadge() : social());
 
       case '/api/google-oauth':
       case '/api/video-oauth':

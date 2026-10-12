@@ -54,8 +54,12 @@ const FULL = {
   social: ok({
     ok: true,
     recent: [
-      { at: iso(NOW - DAY), results: [{ ok: true }, { ok: false }, { ok: false, unknown: true }] },
-      { at: iso(NOW - 20 * DAY), results: [{ ok: false }] },
+      // 1投稿は1つにだけ数えます（失敗と結果不明の両方なら「失敗」）。送り直した投稿は数えません。
+      { id: 'p1', at: iso(NOW - DAY), results: [{ ok: true }, { ok: false }, { ok: false, unknown: true }] },
+      { id: 'p2', at: iso(NOW - 2 * DAY), results: [{ ok: true }, { ok: false, unknown: true }] },
+      { id: 'p3', at: iso(NOW - 3 * DAY), results: [{ ok: false }] },
+      { id: 'p4', at: iso(NOW - 2 * 3600000), retryOf: 'p3', results: [{ ok: true }] },
+      { id: 'p5', at: iso(NOW - 20 * DAY), results: [{ ok: false }] },
     ],
     schedule: { ready: true, jstHour: 9, items: [{ id: 's1', date: '2026-10-05' }, { id: 's2', date: '2026-10-07' }] },
     approvals: [

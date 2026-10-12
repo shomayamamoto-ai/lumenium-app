@@ -335,6 +335,11 @@ await test('画面用の social-text.js が元と同じ', async () => {
   assert.equal(readFileSync(new URL('../public/social-text.js', import.meta.url), 'utf8'), build(),
     'public/social-text.js が古いままです。node scripts/build-social-text.mjs を実行してください。')
 })
+await test('画面用の social-attention.js が元と同じ', async () => {
+  const { buildAttention } = await import('./build-social-text.mjs')
+  assert.equal(readFileSync(new URL('../public/social-attention.js', import.meta.url), 'utf8'), buildAttention(),
+    'public/social-attention.js が古いままです。node scripts/build-social-text.mjs を実行してください。')
+})
 await test('毎朝の時刻が vercel.json と同じ', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
   const c = (v.crons || []).find((x) => x.path === Q.SCHEDULE.path)
@@ -1267,6 +1272,44 @@ await test('定型文の保存：繰り返しと画像を確かめて残す', as
   assert.equal(templates[0].images[0].alt, '写真')
   assert.equal(templates[1].repeat, null)
 })
+
+console.log('要対応・送り直し')
+{
+  const A = await import('../api/_social-attention.js')
+  await test('要対応: 失敗・結果不明・承認・差し戻し・今日の予約（送り直した投稿は数えない）', () => {
+    const now = Date.parse('2026-10-12T02:00:00Z') // 日本時間 11時（9時の自動処理のあと）
+    const at = (h) => new Date(now - h * 3600e3).toISOString()
+    const recent = [
+      { id: 'p1', at: at(5), results: [{ net: 'x', ok: false }, { net: 'bluesky', ok: true }] },        // 失敗
+      { id: 'p2', at: at(6), results: [{ net: 'threads', ok: false, unknown: true }] },                 // 結果不明
+      { id: 'p3', at: at(30), results: [{ net: 'x', ok: false }] },                                      // 失敗 → 送り直し済み
+      { id: 'p4', at: at(2), retryOf: 'p3', results: [{ net: 'x', ok: true }] },
+      { id: 'p5', at: at(24 * 9), results: [{ net: 'x', ok: false }] },                                 // 7日より前
+    ]
+    const approvals = [{ status: 'approved' }, { status: 'approved', scheduledId: 'q' }, { status: 'returned' }, { status: 'returned', expired: true }]
+    const items = [{ date: '2026-10-12' }, { date: '2026-10-13' }]
+    const a = A.socialAttention({ recent, approvals, items, jstHour: 9, ready: true }, now)
+    assert.deepEqual([a.failed, a.unknown, a.approved, a.returned, a.today, a.total], [1, 1, 1, 1, 1, 5])
+    // 9時より前なら、今日の予約はまだ要対応ではない
+    assert.equal(A.socialAttention({ items, jstHour: 9, ready: true }, Date.parse('2026-10-11T23:00:00Z')).today, 0)
+    // 送れない設定なら、時刻にかかわらず要対応
+    assert.equal(A.socialAttention({ items, jstHour: 9, ready: false }, Date.parse('2026-10-11T23:00:00Z')).today, 1)
+    assert.equal(A.socialParts(a)[0], '送れなかった投稿 1件')
+  })
+  await test('送り直す先は失敗したSNSだけ（成功・結果不明には二重に出さない）', () => {
+    const e = { results: [{ net: 'x', ok: false }, { net: 'bluesky', ok: true }, { net: 'threads', ok: false, unknown: true }, { net: 'x', ok: false }] }
+    assert.deepEqual(A.retryTargets(e), ['x'])
+    assert.deepEqual(A.retryTargets({}), [])
+  })
+  await test('記録に残す中身は、大きすぎると SNS ごとの本文を外す', () => {
+    const small = A.payloadForLog(base({ text: 'こんにちは', targets: ['x'], variants: { x: { text: 'X用', noLink: false } } }))
+    assert.equal(small.variants.x.text, 'X用')
+    assert.deepEqual(small.targets, ['x'])
+    const big = A.payloadForLog(base({ text: 'a', targets: ['x'], variants: { x: { text: 'あ'.repeat(5000) }, threads: { text: 'い'.repeat(5000) }, bluesky: { text: 'う'.repeat(5000) }, facebook: { text: 'え'.repeat(5000) }, linkedin: { text: 'お'.repeat(5000) } } }))
+    assert.deepEqual(big.variants, {})
+    assert.equal(big.text, 'a')
+  })
+}
 
 console.log(`\n${passed} 件成功、${failed} 件失敗`)
 
