@@ -185,8 +185,12 @@ export async function requireAdmin(req, opts) {
       who, area: areaOf(endpoint), endpoint, method: req.method, ip: await ipHash(ip, adminKey), result, ...(extra || {}),
     }), cfg)
   }
+  // ログイン画面の「入る」から来たときだけ（開き直すたびの確認は記録しません）。
+  const signingIn = endpoint === 'admin-ping' && req.headers.get('x-lum-login') === '1'
   const wrong = async (staffId) => {
     await recordFail(ip, cfg)
+    // だれのものでもないキーでのログイン失敗も残します（名前は分からないので「不明なキー」）。
+    if (signingIn && !staffId) await audit({ id: 'unknown', name: '不明なキー', role: '' }, 'failed')
     if (staffId) await recordUserFail(staffId, cfg)
     const left = MAX_FAILS - (state.count + 1)
     return fail({
@@ -200,6 +204,7 @@ export async function requireAdmin(req, opts) {
   let who = null
   if (submitted && (await keyMatches(submitted, adminKey))) {
     who = { ...OWNER, via: 'owner' }
+    if (signingIn) await audit(who, 'login')
   } else if (isSessionToken(submitted) || isStaffKey(submitted)) {
     if (!cfg) {
       return fail({

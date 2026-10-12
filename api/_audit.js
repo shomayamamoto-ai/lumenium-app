@@ -21,6 +21,32 @@ export const AUDIT_KEY = `${KV}audit`
 export const AUDIT_MAX = 5000
 export const AUDIT_DAYS = 180
 export const RESULT_LABEL = { ok: '通した', denied: '断った', failed: 'ログイン失敗', login: 'ログイン' }
+
+/* 操作（本文の action）の呼び名。記録には英字の名前で残し、画面と CSV でこの言葉にします。
+   ここに無い名前は、そのまま出します。 */
+export const ACTION_LABEL = {
+  post: '投稿', add: '追加', create: '作成', save: '保存', update: '更新', edit: '修正', delete: '削除', remove: '削除',
+  send: '送信', reply: '返信', 'reply-delete': '返信を削除', draft: 'AIの下書き', 'draft-save': '下書きを保存', 'draft-delete': '下書きを削除',
+  duplicate: '複製', invoice: '請求書を作成', 'from-inquiry': '問い合わせから作成', catalog: 'よく使う品目', settings: '設定',
+  status: '状態を変更', memo: 'メモ', move: '日時を変更', cancel: '取り消し', confirmed: '確定', open: '開封の記録',
+  sync: 'Googleから読み直し', prefs: '設定', locations: '店舗の一覧', 'request-send': '口コミのお願いを送信',
+  schedule: '予約投稿', reschedule: '予約の日付を変更', 'queue-item': '予約を直すために読み込み', retry: '送り直し',
+  'approval-create': '承認をお願い', 'approval-send': '承認の連絡を送信', 'approval-schedule': '承認済みを予約', 'approval-delete': '承認の依頼を削除',
+  inbox: 'コメントを読み込み', 'inbox-reply': 'コメントに返信', 'inbox-hide': 'コメントを非表示', metrics: '反応を取得',
+  'refresh-threads': 'Threadsのトークンを延長', 'gbp-locations': 'Googleの店舗一覧', 'gbp-pick': '投稿する店舗を選択',
+  link: 'つなぐ', unsubscribe: '配信を停止', test: 'テスト送信', toggle: '切り替え', enable: '有効にする', disable: '止める',
+  revoke: '取り消し', reset: '作り直し', kill: '止める', revert: 'この時点に戻す',
+  start: '計測を開始', probe: '質問を送信', judge: '回答を判定', finalize: '集計', finish: '終了', check: '確認', ask: '相談',
+  'domain.block': '迷惑ドメインを止める', 'mail.cancel': 'お知らせメールの予約を取り消し', 'mail.count': '送る人数を確認',
+  'mail.preview': 'お知らせメールの見本', 'mail.send': 'お知らせメールを送信', 'mail.test': 'お知らせメールのテスト送信',
+  'segment.create': 'グループを作成', 'segment.delete': 'グループを削除', 'segment.join': 'グループに入れる', 'segment.leave': 'グループから外す',
+  'settings.save': '設定を保存', 'template.save': '定型文を保存', 'template.delete': '定型文を削除',
+  'todo.add': 'ToDoを追加', 'todo.done': 'ToDoを済みに', 'todo.undo': 'ToDoを戻す', 'todo.delete': 'ToDoを削除', 'conv.delete': '相談を削除',
+  'exp.start': '試しを開始', 'exp.stop': '試しを止める', 'exp.adopt': '試しを採用', 'exp.revert': '試しを元に戻す', 'log.undo': '変更を取り消し',
+  'proposal.add': '提案を追加', 'proposal.adopt': '提案を採用', 'proposal.dismiss': '提案を見送り',
+  'auto-now': '自動改善を今すぐ実行', 'auto-save': '自動改善の設定', handoff: '引き継ぎ', 'handoff-apply': '引き継ぎを反映', string: '文字の設定',
+}
+export function actionLabel(act) { return act ? ACTION_LABEL[act] || act : '' }
 const DAY = 86400000
 
 const enc = new TextEncoder()
@@ -138,7 +164,7 @@ export function toCsv(list) {
   const head = ['日時（日本時間）', '名前', '役割', '画面', '窓口', 'やり方', '操作', '対象', '接続元（ハッシュ）', '結果']
   const rows = list.map((e) => [
     new Date(Date.parse(e.at) + 9 * 3600000).toISOString().slice(0, 19).replace('T', ' '),
-    e.name, ROLE_LABEL[e.role] || e.role, AREA_LABEL[e.area] || e.area, e.ep, e.m, e.act, e.target, e.ip,
+    e.name, ROLE_LABEL[e.role] || e.role, AREA_LABEL[e.area] || e.area, e.ep, e.m, actionLabel(e.act), e.target, e.ip,
     RESULT_LABEL[e.result] || e.result,
   ])
   return '﻿' + [head, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n'

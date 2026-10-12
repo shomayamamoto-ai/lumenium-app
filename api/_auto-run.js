@@ -28,6 +28,14 @@ import {
   AK, readSettings, readProps, writeProps, saveProp, readExps, saveExp, publishLive, readCounts, addLog, markLog,
 } from './_auto-store.js'
 import { gatherSignals, defaultReaders, saveSnapshot } from './_auto-signals.js'
+import { whoOf } from './_admin-auth.js'
+
+/** 手で操作した人の名前（記録の「だれが」）。自動の操作では空です。 */
+function actor(ctx, by) {
+  if (by === 'auto') return ''
+  const w = ctx && ctx.req ? whoOf(ctx.req) : null
+  return w ? String(w.name || w.id || '').slice(0, 40) : ''
+}
 import { writeDrafts, needsDraft, DAILY_CALLS } from './_auto-ai.js'
 
 const FILE_PATH = 'public/content.json'
@@ -136,7 +144,7 @@ export async function startExperiment(ctx, { key, a, b, proposalId, by, evidence
     if (props[proposalId]) await saveProp(cfg, pipeline, { ...props[proposalId], status: 'testing', expId: exp.id, decidedAt: new Date(now).toISOString() })
   }
   await addLog(cfg, pipeline, {
-    kind: 'exp_start', by: exp.by, title: `実験を始めました：${exp.label}`, key, before: exp.a, after: exp.b,
+    kind: 'exp_start', by: exp.by, who: actor(ctx, exp.by), title: `実験を始めました：${exp.label}`, key, before: exp.a, after: exp.b,
     evidence: evidence || [], undo: { type: 'exp_stop', id: exp.id },
   }, now)
   return { ok: true, exp }
@@ -161,7 +169,7 @@ export async function stopExperiment(ctx, id, { by = 'owner', reason = '' } = {}
   await saveExp(cfg, pipeline, next)
   await publishLive(cfg, pipeline, exps.map((e) => (e.id === id ? next : e)), await readSettings(cfg, pipeline))
   await finishProposal(cfg, pipeline, exp, 'done', now)
-  await addLog(cfg, pipeline, { kind: 'exp_stop', by, title: `実験を終えました（元の文章のまま）：${exp.label}`, key: exp.key, before: exp.b, after: exp.a, evidence: [result.text], reason }, now)
+  await addLog(cfg, pipeline, { kind: 'exp_stop', by, who: actor(ctx, by), title: `実験を終えました（元の文章のまま）：${exp.label}`, key: exp.key, before: exp.b, after: exp.a, evidence: [result.text], reason }, now)
   return { ok: true, exp: next }
 }
 
@@ -189,7 +197,7 @@ export async function adoptExperiment(ctx, id, { by = 'owner' } = {}) {
   await publishLive(cfg, pipeline, exps.map((e) => (e.id === id ? next : e)), await readSettings(cfg, pipeline))
   await finishProposal(cfg, pipeline, exp, 'adopted', now)
   await addLog(cfg, pipeline, {
-    kind: 'adopt', by, title: `新しい案を採用しました：${exp.label}`, key: exp.key, before: exp.a, after: exp.b,
+    kind: 'adopt', by, who: actor(ctx, by), title: `新しい案を採用しました：${exp.label}`, key: exp.key, before: exp.a, after: exp.b,
     evidence: [result.text, `A ${pctTxt(result.a)}・B ${pctTxt(result.b)}`],
     note: `このあと${MIN.watchDays}日間、下がっていないかを見張ります。サイトへの反映は約1〜2分後です。`,
     undo: { type: 'revert', id },
@@ -213,7 +221,7 @@ export async function revertExperiment(ctx, id, { by = 'owner', reason = '' } = 
   const next = { ...exp, phase: 'reverted', revertedAt: new Date(now).toISOString(), revertReason: reason }
   await saveExp(cfg, pipeline, next)
   await publishLive(cfg, pipeline, exps.map((e) => (e.id === id ? next : e)), await readSettings(cfg, pipeline))
-  await addLog(cfg, pipeline, { kind: 'revert', by, title: `元の文章に戻しました：${exp.label}`, key: exp.key, before: exp.b, after: exp.a, evidence: reason ? [reason] : [] }, now)
+  await addLog(cfg, pipeline, { kind: 'revert', by, who: actor(ctx, by), title: `元の文章に戻しました：${exp.label}`, key: exp.key, before: exp.b, after: exp.a, evidence: reason ? [reason] : [] }, now)
   return { ok: true, exp: next }
 }
 
@@ -233,14 +241,14 @@ export async function adoptProposal(ctx, id, { b } = {}) {
     const r = await setAutoReply(cfg, true)
     if (!r.ok) return r
     await saveProp(cfg, pipeline, { ...p, status: 'adopted', decidedAt: new Date(now).toISOString() })
-    await addLog(cfg, pipeline, { kind: 'setting', by: 'owner', title: '受付確認メール（自動返信）を入れました', before: 'なし', after: 'あり', evidence: p.evidence.map((e) => e.text), undo: { type: 'setting', setting: 'inquiry.autoReply', value: false } }, now)
+    await addLog(cfg, pipeline, { kind: 'setting', by: 'owner', who: actor(ctx), title: '受付確認メール（自動返信）を入れました', before: 'なし', after: 'あり', evidence: p.evidence.map((e) => e.text), undo: { type: 'setting', setting: 'inquiry.autoReply', value: false } }, now)
     return { ok: true }
   }
   if (act.type === 'sns' && p.draft && p.draft.text) {
     const q = await queueSns(req, p)
     if (!q.ok) return q
     await saveProp(cfg, pipeline, { ...p, status: 'adopted', decidedAt: new Date(now).toISOString(), draft: { ...p.draft, queued: true } })
-    await addLog(cfg, pipeline, { kind: 'sns', by: 'owner', title: 'SNSの下書きを承認待ちに入れました', after: p.draft.text, evidence: p.evidence.map((e) => e.text) }, now)
+    await addLog(cfg, pipeline, { kind: 'sns', by: 'owner', who: actor(ctx), title: 'SNSの下書きを承認待ちに入れました', after: p.draft.text, evidence: p.evidence.map((e) => e.text) }, now)
     return { ok: true, message: '承認待ちに入れました。「SNS（文章）」の承認の画面から確かめて出してください。' }
   }
   // 直し方を見るだけのもの・お知らせの下書き: 「済んだ」の印を付けます。
@@ -281,7 +289,7 @@ export async function undoLog(ctx, logId, entry) {
   else if (u.type === 'revert') r = await revertExperiment(ctx, u.id, { by: 'owner', reason: '記録から元に戻しました' })
   else if (u.type === 'setting' && u.setting === 'inquiry.autoReply') {
     r = await setAutoReply(cfg, u.value)
-    if (r.ok) await addLog(cfg, pipeline, { kind: 'setting', by: 'owner', title: u.value ? '受付確認メールを入れ直しました' : '受付確認メールを切りました（元に戻す）', before: u.value ? 'なし' : 'あり', after: u.value ? 'あり' : 'なし' }, now)
+    if (r.ok) await addLog(cfg, pipeline, { kind: 'setting', by: 'owner', who: actor(ctx), title: u.value ? '受付確認メールを入れ直しました' : '受付確認メールを切りました（元に戻す）', before: u.value ? 'なし' : 'あり', after: u.value ? 'あり' : 'なし' }, now)
   } else return { ok: false, message: 'この記録は元に戻せません。' }
   if (!r.ok) return r
   await markLog(cfg, pipeline, logId, { undone: new Date(now).toISOString() })

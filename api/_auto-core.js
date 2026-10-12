@@ -513,3 +513,32 @@ export function countFor(live, tag, ev) {
   if ((e.goal || []).includes(ev)) return { id: e.id, variant: v, kind: 'c' }
   return null
 }
+
+/* ---- 要対応（タブの横の数） ----
+   open     … まだ決めていない提案（「試す」か「見送る」か）
+   won      … 実験で新しい案が良さそうだと出たもの（採用は手で）
+   warn     … 採用した案で数字が下がっているもの（戻すかは手で）。ここ14日・まだ戻していないもの */
+export function autoAttention(src, now = Date.now()) {
+  const s = src || {}
+  const props = Array.isArray(s.proposals) ? s.proposals : Object.values(s.proposals || {})
+  const exps = Array.isArray(s.exps) ? s.exps : []
+  const log = Array.isArray(s.log) ? s.log : []
+  const phaseOf = Object.fromEntries(exps.map((e) => [e.id, e.phase]))
+  const runningKeys = new Set(exps.filter((e) => e.phase === 'running').map((e) => e.key))
+  const since = now - 14 * 86400000
+  const out = { total: 0, open: 0, won: 0, warn: 0 }
+  out.open = props.filter((p) => p && p.status === 'open').length
+  out.won = new Set(log.filter((e) => e && e.kind === 'won' && runningKeys.has(e.key)).map((e) => e.key)).size
+  out.warn = log.filter((e) => e && e.kind === 'warn' && !e.undone && Date.parse(e.at) >= since &&
+    !(e.undo && phaseOf[e.undo.id] === 'reverted')).length
+  out.total = out.open + out.won + out.warn
+  return out
+}
+export function autoParts(a) {
+  const x = a || {}
+  return [
+    x.warn ? `採用した案で数字が下がっている ${x.warn}件` : '',
+    x.won ? `新しい案が良さそうな実験 ${x.won}件` : '',
+    x.open ? `まだ決めていない提案 ${x.open}件` : '',
+  ].filter(Boolean)
+}

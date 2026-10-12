@@ -416,7 +416,7 @@
       return;
     }
     list.innerHTML = items.map(function (e) {
-      var what = (AREA[e.area] || e.area) + '：' + (e.act || METHOD[e.m] || e.m || '');
+      var what = e.result === 'login' ? 'ログイン' : e.result === 'failed' ? 'ログインに失敗' : (AREA[e.area] || e.area) + '：' + (e.actLabel || e.act || METHOD[e.m] || e.m || '');
       var tag = e.result === 'denied' || e.result === 'failed' ? 'off' : e.result === 'login' ? '' : 'ok';
       return '<li><time>' + esc(when(e.at)) + '</time>' +
         '<span class="what">' + esc(e.name || e.by) + ' <small>' + esc(LABEL[e.role] || e.role) + '</small><br>' + esc(what) +

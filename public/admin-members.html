@@ -2880,10 +2880,13 @@ window.lumAdmin = {
   /* Signing in checks the key against /api/admin-ping, which needs ADMIN_KEY
      and nothing else. It used to go through the member list, so a missing or
      unreachable Resend refused the login with a message about the key. */
-  async function load(key) {
+  async function load(key, signingIn) {
     var res, data;
     try {
-      res = await fetch('/api/admin-ping', { headers: { Authorization: 'Bearer ' + key } });
+      // 「入る」を押したときだけ、操作の記録に「ログイン」を残すよう知らせます。
+      var h = { Authorization: 'Bearer ' + key };
+      if (signingIn) h['x-lum-login'] = '1';
+      res = await fetch('/api/admin-ping', { headers: h });
       data = await res.json();
     } catch (_) {
       showMsg('通信に失敗しました。時間をおいて再度お試しください。');
@@ -3316,7 +3319,7 @@ window.lumAdmin = {
     keyMsg.classList.remove('show');
     keyBtn.disabled = true;
     // trim: pasted keys often carry an invisible trailing space/newline
-    await load(document.getElementById('admin-key').value.trim());
+    await load(document.getElementById('admin-key').value.trim(), true);
     keyBtn.disabled = false;
   });
 

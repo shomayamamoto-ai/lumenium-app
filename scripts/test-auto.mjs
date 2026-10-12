@@ -546,4 +546,22 @@ await t('週次メールの一節', async () => {
 
 globalThis.fetch = realFetch
 
+await t('要対応: 決めていない提案・良さそうな実験・下がっている採用', () => {
+  const now = Date.parse('2026-10-12T00:00:00Z')
+  const a = C.autoAttention({
+    proposals: [{ id: 'p1', status: 'open' }, { id: 'p2', status: 'testing' }, { id: 'p3', status: 'open' }],
+    exps: [{ id: 'e1', key: 'hero', phase: 'running' }, { id: 'e2', key: 'cta', phase: 'stopped' }, { id: 'e3', key: 'faq', phase: 'watch' }, { id: 'e4', key: 'x', phase: 'reverted' }],
+    log: [
+      { kind: 'won', key: 'hero', at: '2026-10-11T00:00:00Z' }, { kind: 'won', key: 'hero', at: '2026-10-10T00:00:00Z' },
+      { kind: 'won', key: 'cta', at: '2026-10-10T00:00:00Z' },
+      { kind: 'warn', at: '2026-10-11T00:00:00Z', undo: { type: 'revert', id: 'e3' } },
+      { kind: 'warn', at: '2026-10-11T00:00:00Z', undo: { type: 'revert', id: 'e4' } },
+      { kind: 'warn', at: '2026-09-01T00:00:00Z', undo: { type: 'revert', id: 'e3' } },
+      { kind: 'warn', at: '2026-10-11T00:00:00Z', undone: true },
+    ],
+  }, now)
+  assert.deepEqual(a, { total: 4, open: 2, won: 1, warn: 1 })
+  assert.equal(C.autoParts(a).length, 3)
+})
+
 console.log(`✓ test-auto: ${n} 件`)

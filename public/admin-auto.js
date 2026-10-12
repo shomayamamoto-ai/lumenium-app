@@ -129,6 +129,7 @@
     }
     S.data = d;
     head();
+    if (window.lumAutoBadge) window.lumAutoBadge();
     return true;
   }
 
@@ -262,7 +263,7 @@
     var list = S.data.log;
     if (!list.length) return '<p class="empty">まだ記録はありません。自動でしたこと・手でしたことは、ここに残ります。</p>';
     return '<div class="au-list">' + list.map(function (e) {
-      return '<div class="au-card"><span class="au-tag' + (e.by === 'auto' ? ' au-tag--warn' : '') + '">' + (e.by === 'auto' ? '自動' : '手動') + '</span><span class="soc-small">' + when(e.at) + '</span>' +
+      return '<div class="au-card"><span class="au-tag' + (e.by === 'auto' ? ' au-tag--warn' : '') + '">' + (e.by === 'auto' ? '自動' : '手動') + '</span><span class="soc-small">' + when(e.at) + (e.who ? '　' + esc(e.who) : '') + '</span>' +
         (e.undone ? '<span class="au-tag">元に戻し済み</span>' : '') +
         '<h3>' + esc(e.title) + '</h3>' +
         (e.before != null || e.after != null ? '<dl class="au-ab">' + (e.before != null ? '<dt>前</dt><dd>' + esc(e.before) + '</dd>' : '') + (e.after != null ? '<dt>後</dt><dd>' + esc(e.after) + '</dd>' : '') + '</dl>' : '') +
@@ -361,6 +362,15 @@
       act({ action: 'settings.save', settings: next }, '設定を保存しました。');
     });
   }
+
+  /* タブの横の数（api/auto.js ?view=badge。決めていない提案・良さそうな実験・下がっている採用）。 */
+  window.lumAutoBadge = async function () {
+    if (!window.lumNavBadge) return;
+    var r = await api('/api/auto?view=badge');
+    var d = r.data || {};
+    if (d.ok) window.lumNavBadge('auto-admin', d.total || 0, d.parts || []);
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumAutoBadge(); });
 
   /* ---------------- 開始 ---------------- */
 

@@ -17,10 +17,10 @@ export const config = { runtime: 'edge' }
 //
 // Admin key only, by the header only.
 
-import { requireAdmin, json } from './_admin-auth.js'
+import { requireAdmin, json, whoOf } from './_admin-auth.js'
 import { storeFor, pipeline, jstDate } from './_analytics-store.js'
 import { setting } from './_settings.js'
-import { DEFAULT_SETTINGS, cleanSettings, evaluate, decideWatch, EXP_KEYS, SWITCH_LABELS, AREA_LABELS, MIN, GOAL_LABELS } from './_auto-core.js'
+import { DEFAULT_SETTINGS, cleanSettings, evaluate, decideWatch, EXP_KEYS, SWITCH_LABELS, AREA_LABELS, MIN, GOAL_LABELS, autoAttention, autoParts } from './_auto-core.js'
 import { AK, readSettings, saveSettings, readProps, readExps, publishLive, readCounts, readLog } from './_auto-store.js'
 import { readSnapshots } from './_auto-signals.js'
 import { monthUsage } from './_ai-pricing.js'
@@ -55,6 +55,12 @@ export async function GET(req) {
   const cfg = await storeFor(req)
   if (!cfg) return json(NO_STORE, 503)
   const url = new URL(req.url)
+  // タブの横の数（_auto-core.js の autoAttention）。
+  if (url.searchParams.get('view') === 'badge') {
+    const [props, exps, log] = await Promise.all([readProps(cfg, pipeline), readExps(cfg, pipeline), readLog(cfg, pipeline, 50)])
+    const a = autoAttention({ proposals: props, exps, log })
+    return json({ ok: true, ...a, parts: autoParts(a) })
+  }
   if (url.searchParams.get('view') === 'snapshots') {
     const days = Math.max(1, Math.min(120, Number(url.searchParams.get('days')) || 30))
     return json({ ok: true, snapshots: await readSnapshots(cfg, pipeline, datesBack(days)) })
@@ -112,7 +118,8 @@ export async function POST(req) {
       // 実験の配布もすぐ止めます（訪問者は1分ほどで全員が元の文章に）。
       await publishLive(cfg, pipeline, await readExps(cfg, pipeline), next)
       const { addLog } = await import('./_auto-store.js')
-      await addLog(cfg, pipeline, { kind: action, by: 'owner', title: action === 'kill' ? 'すべて止めました' : '自動改善を再開しました' })
+      const me = whoOf(req)
+      await addLog(cfg, pipeline, { kind: action, by: 'owner', who: me ? String(me.name || me.id || '') : '', title: action === 'kill' ? 'すべて止めました' : '自動改善を再開しました' })
       return json({ ok: true, settings: next, message: action === 'kill' ? 'すべて止めました。実験中の文章も、1分ほどで全員が元の文章に戻ります。' : '再開しました。' })
     }
     case 'proposal.adopt': r = await adoptProposal(ctx, id, { b: typeof body.b === 'string' ? body.b.slice(0, 400) : undefined }); break

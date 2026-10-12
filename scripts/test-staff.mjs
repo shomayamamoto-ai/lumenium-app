@@ -198,6 +198,10 @@ await test('CSV は式として読まれない', () => {
   assert.ok(csv.startsWith('﻿日時'))
   assert.ok(csv.includes("'=cmd"))
   assert.ok(csv.includes('担当者') && csv.includes('断った'))
+  assert.ok(csv.includes('承認をお願い'), '操作は日本語の呼び名で書き出す')
+  assert.equal(A.actionLabel('reply-delete'), '返信を削除')
+  assert.equal(A.actionLabel('unknown-thing'), 'unknown-thing', '知らない名前はそのまま')
+  assert.equal(A.actionLabel(''), '')
 })
 
 /* ---- requireAdmin を通して ---- */
@@ -351,6 +355,24 @@ await test('見積書: 担当者は作る・送る、削除と設定は管理者
   assert.equal(P.quietBody({ id: 'x', read: true }), true)
   assert.equal(P.quietBody({ id: 'x', read: true, status: 'done' }), false)
   assert.equal(P.quietBody({ id: 'x', action: 'confirmed' }), false)
+})
+
+await test('ログイン画面から入ったときだけ、オーナーのログインと不明なキーの失敗を記録する', async () => {
+  const before = (await call(auditApi, 'GET', 'audit', 'test-owner-key')).data.total || 0
+  await call(ping, 'GET', 'admin-ping', 'test-owner-key', undefined, '192.0.2.120')   // 開き直し（記録しない）
+  const login = async (token, ip) => {
+    const res = await ping.GET(new Request('https://example.test/api/admin-ping', { headers: { ...H(token, ip), 'x-lum-login': '1' } }))
+    return res.status
+  }
+  assert.equal(await login('test-owner-key', '192.0.2.121'), 200)
+  assert.equal(await login('not-a-key', '192.0.2.122'), 401)
+  const a = (await call(auditApi, 'GET', 'audit', 'test-owner-key')).data
+  assert.equal(a.total, before + 2, '開き直しは数えず、ログインと失敗の2件だけ')
+  const [fail, ok] = a.items
+  assert.equal(fail.result, 'failed')
+  assert.equal(fail.name, '不明なキー')
+  assert.equal(ok.result, 'login')
+  assert.equal(ok.by, 'owner')
 })
 
 console.log(`test-staff: ${n} 件 OK`)

@@ -2473,6 +2473,13 @@
     // 書き込みはすべて断ります。「下書きを作る」もデモでは呼びません（料金がかかるため）。
     if (method !== 'GET') return { ok: false, demo: true, message: MSG };
     if (u.searchParams.get('view') === 'snapshots') return { ok: true, snapshots: SNAPS };
+    // タブの横の数（本物は _auto-core.js の autoAttention。見本では提案と「下がっている」の記録だけ数えます）。
+    if (u.searchParams.get('view') === 'badge') {
+      var open = PROPS.filter(function (p) { return p.status === 'open'; }).length;
+      var warn = LOG.filter(function (e) { return e.kind === 'warn' && !e.undone; }).length;
+      return { ok: true, total: open + warn, open: open, won: 0, warn: warn,
+        parts: [warn ? '採用した案で数字が下がっている ' + warn + '件' : '', open ? 'まだ決めていない提案 ' + open + '件' : ''].filter(Boolean) };
+    }
     return {
       ok: true, settings: SETTINGS, defaults: SETTINGS,
       switches: { drafts: '提案と下書きを作る', autoStart: '自動で実験を始める', autoAdopt: '勝った案を自動で採用', autoRevert: '自動で戻す', snsToQueue: 'SNSの下書きを承認待ちに入れる' },
@@ -3182,10 +3189,12 @@
     [200, 'owner', 'share', 'share-links', 'POST', 'create', '', 'ok'],
     [480, 'owner', 'staff', 'staff', 'POST', 'create', 'demo-tanaka', 'ok']
   ];
+  // 操作の呼び名（本物は api/_audit.js の ACTION_LABEL。見本に出てくる分だけ）。
+  var DEMO_ACT = { post: '投稿', 'approval-send': '承認の連絡を送信', reset: '作り直し', create: '作成', reply: '返信', 'approval-create': '承認をお願い', 'segment.create': 'グループを作成', save: '保存', send: '送信', confirmed: '確定', status: '状態を変更' };
   var IPS = { owner: '3f9a1c0be274', sato: '81d0c4a9e6f2', suzuki: 'c27e5b19a0d4', tanaka: '5a04e8f3b1c9' };
   var ITEMS = ROWS.map(function (r) {
     var p = P[r[1]];
-    return { at: ago(r[0] * H), by: p.id, name: p.name, role: p.role, area: r[2], ep: r[3], m: r[4], act: r[5], target: r[6], ip: IPS[r[1]], result: r[7] };
+    return { at: ago(r[0] * H), by: p.id, name: p.name, role: p.role, area: r[2], ep: r[3], m: r[4], act: r[5], actLabel: DEMO_ACT[r[5]] || r[5], target: r[6], ip: IPS[r[1]], result: r[7] };
   });
 
   function jst(iso) { return new Date(Date.parse(iso) + 9 * H).toISOString().slice(0, 10); }
@@ -3204,7 +3213,7 @@
     var head = ['日時（日本時間）', '名前', '役割', '画面', '窓口', 'やり方', '操作', '対象', '接続元（ハッシュ）', '結果'];
     var RES = { ok: '通した', denied: '断った', failed: 'ログイン失敗', login: 'ログイン' };
     var rows = list.map(function (e) {
-      return [new Date(Date.parse(e.at) + 9 * H).toISOString().slice(0, 19).replace('T', ' '), e.name, LABEL[e.role], e.area, e.ep, e.m, e.act, e.target, e.ip, RES[e.result]];
+      return [new Date(Date.parse(e.at) + 9 * H).toISOString().slice(0, 19).replace('T', ' '), e.name, LABEL[e.role], e.area, e.ep, e.m, e.actLabel || e.act, e.target, e.ip, RES[e.result]];
     });
     return '﻿' + [head].concat(rows).map(function (r) { return r.map(cell).join(','); }).join('\r\n') + '\r\n';
   }

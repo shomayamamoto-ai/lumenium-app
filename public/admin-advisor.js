@@ -543,7 +543,7 @@
         var d = r.data || {};
         if (!d.ok) { result(card, d.message || '入れられませんでした。', false); btn.disabled = false; return; }
         if (a.kind === 'todo') {
-          if (S.state) S.state.todos = d.todos || S.state.todos;
+          if (S.state) { S.state.todos = d.todos || S.state.todos; todoBadge(S.state.todos); }
           counts();
           result(card, d.message || 'ToDo に入れました。', true, openButtonView('todo', 'ToDoを見る'));
         } else {
@@ -696,7 +696,7 @@
         var r = await post({ action: c.checked ? 'todo.done' : 'todo.undo', id: c.getAttribute('data-done') });
         var d = r.data || {};
         if (!d.ok) { say(d.message || '変えられませんでした。'); c.checked = !c.checked; c.disabled = false; return; }
-        S.state.todos = d.todos || [];
+        S.state.todos = d.todos || []; todoBadge(S.state.todos);
         counts();
         renderTodos();
       });
@@ -708,7 +708,7 @@
         var r = await post({ action: 'todo.delete', id: b.getAttribute('data-tdel') });
         var d = r.data || {};
         if (!d.ok) { say(d.message || '消せませんでした。'); b.disabled = false; return; }
-        S.state.todos = d.todos || [];
+        S.state.todos = d.todos || []; todoBadge(S.state.todos);
         counts();
         renderTodos();
       });
@@ -729,6 +729,7 @@
       say(d.message || '数字を読み込めませんでした。相談はできます。');
     } else {
       S.state = d;
+      todoBadge(d.todos || []);
     }
     renderBar();
     counts();
@@ -755,6 +756,19 @@
     await load();
     if (!S.busy) go(S.view); // 読み込みの間に質問を送っていたら、その表示を壊さない
   };
+  /* タブの横の数: まだ済んでいない ToDo の数。 */
+  function todoBadge(list) {
+    if (!window.lumNavBadge || !Array.isArray(list)) return;
+    var n = list.filter(function (t) { return t && !t.done; }).length;
+    window.lumNavBadge('advisor-admin', n, n ? ['まだ済んでいない ToDo ' + n + '件'] : []);
+  }
+  window.lumAdvisorBadge = async function () {
+    var r = null;
+    try { r = await window.lumAdmin.fetch('/api/advisor-store?view=todos'); } catch (_) { r = null; }
+    if (r && r.data && r.data.ok) todoBadge(r.data.todos || []);
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumAdvisorBadge(); });
+
   window.lumAdvisorView = function (view) {
     try { sessionStorage.removeItem('lum_advisor_view'); } catch (_) {}
     if (S.started && el('adv-body')) go(view);

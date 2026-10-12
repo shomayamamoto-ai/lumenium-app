@@ -10,7 +10,7 @@ export const config = { runtime: 'edge' }
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
 import { AREA_LABEL, ROLE_LABEL } from './_permissions.js'
-import { readAll, filter, toCsv, RESULT_LABEL, AUDIT_DAYS, AUDIT_MAX } from './_audit.js'
+import { readAll, filter, toCsv, RESULT_LABEL, AUDIT_DAYS, AUDIT_MAX, actionLabel } from './_audit.js'
 
 const SHOW = 500
 const day = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : '')
@@ -49,7 +49,7 @@ export async function GET(req) {
   const people = new Map()
   for (const e of all) if (e.by && !people.has(e.by)) people.set(e.by, { id: e.by, name: e.name, role: e.role })
   return json({
-    ok: true, stored: true, items: hit.slice(0, SHOW), total: hit.length, shown: Math.min(SHOW, hit.length),
+    ok: true, stored: true, items: hit.slice(0, SHOW).map((e) => (e.act ? { ...e, actLabel: actionLabel(e.act) } : e)), total: hit.length, shown: Math.min(SHOW, hit.length),
     people: [...people.values()], areas: AREA_LABEL, roles: ROLE_LABEL, results: RESULT_LABEL,
     keepDays: AUDIT_DAYS, max: AUDIT_MAX,
   })
