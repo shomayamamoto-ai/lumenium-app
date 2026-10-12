@@ -14,12 +14,13 @@
 // 一覧が出ても、新しい問い合わせは貯まらないためです。
 
 import { requireAdmin, json } from './_admin-auth.js'
-import { storeConfig } from './_analytics-store.js'
+import { storeConfig, pipeline } from './_analytics-store.js'
 import { BRAND } from './_brand.js'
 import { setting } from './_settings.js'
 import {
   NO_STORE_MSG, SANDBOX_MSG, CAPS, STATUS_LABEL, PROMISED_H, WARN_H, TEMPLATE_VARS, idOk,
   allSummaries, prune, metrics, stats, overdue, replyHours, getRecord, getRecords, putRecord, applyPatch, summary,
+  inquiryAttention, needsReply, IK,
   loadSettings, saveSettings, loadTemplates, saveTemplates, cleanTemplate, toCsv, isSandboxSender, str,
 } from './_inquiries.js'
 
@@ -30,17 +31,27 @@ const NO_STORE = { ok: true, stored: false, message: NO_STORE_MSG }
 const fail = (e) => json({ ok: false, message: `保存先から読めませんでした（${String((e && e.message) || e).slice(0, 100)}）。少し待ってから開き直してください。` }, 503)
 
 /** 一覧の行に、画面がそのまま出せる数字を足す。 */
-function row(s, now) {
+function row(s, now, promised) {
   const h = replyHours(s)
   return Object.assign({}, s, {
-    overdue: overdue(s, now),
+    overdue: overdue(s, now, promised),
     ageH: Math.round(((now - Date.parse(s.receivedAt)) / H) * 10) / 10,
     replyH: h == null ? null : Math.round(h * 10) / 10,
   })
 }
 
-function matches(s, status, q) {
-  if (status === 'spam') { if (!s.spam) return false }
+async function readSeen(cfg) {
+  try { const [raw] = await pipeline(cfg, [['GET', IK.seen]]); return Number(raw) || 0 } catch (_) { return 0 }
+}
+async function writeSeen(cfg, ms) {
+  try { await pipeline(cfg, [['SET', IK.seen, String(ms)]]) } catch (_) { /* 次に開いたときに書きます */ }
+}
+
+function matches(s, status, q, now, promised) {
+  // 「要対応」: まだ返信していないもの。「期限」: 約束の時間の半分を超えて未返信のもの。
+  if (status === 'todo') { if (!needsReply(s)) return false }
+  else if (status === 'overdue') { if (!overdue(s, now, promised)) return false }
+  else if (status === 'spam') { if (!s.spam) return false }
   else if (s.spam) { if (status !== 'all') return false }
   else if (STATUS_LABEL[status] && s.status !== status) return false
   if (!q) return true
@@ -69,7 +80,8 @@ export async function GET(req) {
     if (id) {
       const rec = await getRecord(cfg, id)
       if (!rec) return json({ ok: false, message: 'その問い合わせは見つかりませんでした（保存期間を過ぎて消えたか、削除されたかもしれません）。' }, 404)
-      return json({ ok: true, stored: true, item: Object.assign(rec, { overdue: overdue(rec, now), replyH: replyHours(rec) }), sender: await sender() })
+      const st = await loadSettings(cfg)
+      return json({ ok: true, stored: true, item: Object.assign(rec, { overdue: overdue(rec, now, st.replyHours), replyH: replyHours(rec) }), promised: st.replyHours, sender: await sender() })
     }
     if (view === 'settings') {
       const [settings, templates] = await Promise.all([loadSettings(cfg), loadTemplates(cfg)])
@@ -85,8 +97,11 @@ export async function GET(req) {
       list = list.filter((s) => Date.parse(s.receivedAt) >= c).slice(0, CAPS.records)
     }
     if (view === 'badge') {
-      const m = metrics(list, now)
-      return json({ ok: true, stored: true, unread: m.counts.unread, late: m.late })
+      const m = metrics(list, now, settings.replyHours)
+      let seen = await readSeen(cfg)
+      // 初めて数えるとき: いまを「見た時刻」にして、昔の問い合わせを新着にしない。
+      if (!seen) { seen = now; await writeSeen(cfg, seen) }
+      return json(Object.assign({ ok: true, stored: true, unread: m.counts.unread }, inquiryAttention(list, seen, now, settings.replyHours)))
     }
     if (view === 'stats') {
       const days = u.searchParams.get('days') === '90' ? 90 : 30
@@ -94,7 +109,7 @@ export async function GET(req) {
     }
     const status = u.searchParams.get('status') || 'new'
     const q = str(u.searchParams.get('q'), 80).toLowerCase().trim()
-    const hits = list.filter((s) => matches(s, status, q))
+    const hits = list.filter((s) => matches(s, status, q, now, settings.replyHours))
     if (view === 'export') {
       const recs = []
       const ids = hits.map((s) => s.id)
@@ -110,8 +125,10 @@ export async function GET(req) {
     const page = Math.min(pages, Math.max(1, parseInt(u.searchParams.get('page'), 10) || 1))
     return json({
       ok: true, stored: true, status, q, total: hits.length, page, pages, per: PAGE,
-      items: hits.slice((page - 1) * PAGE, page * PAGE).map((s) => row(s, now)),
-      metrics: metrics(list, now), promised: PROMISED_H, warnH: WARN_H,
+      items: hits.slice((page - 1) * PAGE, page * PAGE).map((s) => row(s, now, settings.replyHours)),
+      metrics: metrics(list, now, settings.replyHours), promised: settings.replyHours, warnH: settings.replyHours / 2,
+      // 前回受信箱を開いた時刻。これより後に届いたものに「新着」の印を付けます。
+      seenAt: await readSeen(cfg),
       retentionDays: settings.retentionDays, autoReply: settings.autoReply.on, lineOn: settings.lineOn,
       removed, sender: await sender(),
     })
@@ -131,6 +148,12 @@ export async function PATCH(req) {
   if (!cfg) return json({ ok: false, message: NO_STORE_MSG }, 503)
   const b = await body(req)
   if (!b) return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400)
+  // 受信箱を開いた（新着を見た）。
+  if (b.action === 'seen') {
+    const at = Date.now()
+    await writeSeen(cfg, at)
+    return json({ ok: true, seenAt: at })
+  }
   const ids = [...new Set((Array.isArray(b.ids) ? b.ids : [b.id]).filter(idOk))]
   if (!ids.length) return json({ ok: false, message: 'どの問い合わせを変えるかが分かりませんでした。' }, 400)
   if (ids.length > CAPS.bulk) return json({ ok: false, message: `一度に変えられるのは${CAPS.bulk}件までです。` }, 400)
@@ -150,7 +173,8 @@ export async function PATCH(req) {
     if (ids.length === 1) {
       const one = out[0]
       if (!one) return json({ ok: false, message: 'その問い合わせは見つかりませんでした。' }, 404)
-      return json({ ok: true, item: Object.assign(one, { overdue: overdue(one, now), replyH: replyHours(one) }) })
+      const st = await loadSettings(cfg)
+      return json({ ok: true, item: Object.assign(one, { overdue: overdue(one, now, st.replyHours), replyH: replyHours(one) }) })
     }
     return json({ ok: true, count: out.length, items: out.map(summary) })
   } catch (e) {

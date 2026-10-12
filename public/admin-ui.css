@@ -426,7 +426,7 @@ body:not(.is-in) .ui-top-menu, body:not(.is-in) .ui-top-help, body:not(.is-in) #
 .ui-nav-ic { display: inline-flex; flex: none; color: var(--ui-text-2); }
 .ui-nav-item[aria-current="page"] .ui-nav-ic { color: var(--ui-accent); }
 .ui-nav-lbl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
-.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge {
+.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge, .ui-nav-item .nav-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px; margin: 0;
   border-radius: var(--ui-r-pill); background: var(--ui-badge); color: #fff;
@@ -740,3 +740,12 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .aio-sum-title { font-size: var(--ui-fs-14); font-weight: 700; margin-bottom: var(--ui-s2); }
 #shell .aio-sum ul { margin: 0 0 0 18px; font-size: var(--ui-fs-13); line-height: var(--ui-lh); }
 #shell .aio-sum li + li { margin-top: 6px; }
+
+/* ---- 「要対応」の数（admin-badge.js の lumNavBadge）。メニューの外（ホームのボタン）でも同じ見た目に ---- */
+.nav-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px;
+  border-radius: var(--ui-r-pill, 999px); background: var(--ui-badge, #b42318); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 1; vertical-align: 1px;
+}
+.ui-nav-item .nav-count { margin-left: 0; }

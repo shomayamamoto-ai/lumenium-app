@@ -370,17 +370,21 @@
 
   /* ---------------- ブラウザのタブに件数 ---------------- */
 
-  var BADGES = '.inq-badge, .bk-badge, .rev-badge';
+  /* 数える印: 共通の .nav-count（admin-badge.js）と、以前からの各ツールの印。
+     「はじめての設定」の残り（.ui-badge）は、お客様対応ではないので足しません。 */
+  var BADGES = '.nav-count, .inq-badge, .bk-badge, .rev-badge';
   function badgeTotal() {
     var n = 0;
-    document.querySelectorAll('#shell-nav ' + BADGES.split(', ').join(', #shell-nav ')).forEach(function (b) {
-      var v = parseInt(b.textContent, 10);
+    document.querySelectorAll('#shell-nav .shell-tab').forEach(function (tab) {
+      var b = tab.querySelector(BADGES);
+      var v = b ? parseInt(b.textContent, 10) : 0;
       if (isFinite(v)) n += v;
     });
     return n;
   }
-  function countOf(sel) {
-    var b = document.querySelector('#shell-nav ' + sel);
+  function countOf(tabId) {
+    var tab = el('tab-' + tabId);
+    var b = tab && tab.querySelector(BADGES);
     var v = b ? parseInt(b.textContent, 10) : 0;
     return isFinite(v) ? v : 0;
   }
@@ -403,18 +407,25 @@
 
   /* ---------------- 新着の通知 ---------------- */
 
-  var last = { inq: null, bk: null };
+  /* 増えたら知らせるタブと、その言い方。 */
+  var WATCH = [
+    ['inquiries-admin', '新しい問い合わせがあります'],
+    ['booking-admin', '予約に動きがあります'],
+    ['reviews-admin', '新しい口コミがあります'],
+    ['social-admin', 'SNSの投稿に対応が要ります'],
+    ['video-admin', '動画の投稿に対応が要ります'],
+  ];
+  var last = {};
   var bornAt = 0;
   function checkNew() {
-    var inq = countOf('.inq-badge');
-    var bk = countOf('.bk-badge');
     // ログイン直後は、最初の数が出そろうまで（20秒）比べません。0→2 を「新着」と誤らないため。
-    if (bornAt && Date.now() - bornAt > 20000 && notifyOn() && window.Notification && Notification.permission === 'granted') {
-      if (last.inq != null && inq > last.inq) note('新しい問い合わせがあります', '未読 ' + inq + '件', 'inquiries-admin');
-      else if (last.bk != null && bk > last.bk) note('予約に動きがあります', '要対応 ' + bk + '件', 'booking-admin');
-    }
-    last.inq = inq;
-    last.bk = bk;
+    var ready = bornAt && Date.now() - bornAt > 20000 && notifyOn() && window.Notification && Notification.permission === 'granted';
+    var told = false;
+    WATCH.forEach(function (w) {
+      var n = countOf(w[0]);
+      if (ready && !told && last[w[0]] != null && n > last[w[0]]) { note(w[1], '要対応 ' + n + '件', w[0]); told = true; }
+      last[w[0]] = n;
+    });
   }
   function note(title, body, tab) {
     try {

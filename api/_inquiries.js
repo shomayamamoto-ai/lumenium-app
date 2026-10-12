@@ -33,6 +33,8 @@ export const IK = {
   rec: (id) => `${KV}inq:r:${id}`,
   settings: `${KV}inq:settings`,
   tpl: `${KV}inq:tpl`,
+  // 管理画面で受信箱を最後に開いた時刻（ミリ秒）。これより後に届いたものが「新着」です。
+  seen: `${KV}inq:seen`,
 }
 
 export const STATUS_LABEL = { new: '未対応', doing: '対応中', done: '完了' }
@@ -255,12 +257,45 @@ export function replyHours(r) {
   return isFinite(h) && h >= 0 ? h : null
 }
 
-/** 返信がまだで、24時間を超えたら 'warn'、48時間を超えたら 'late'。
- *  迷惑・完了・返信済みは数えません。 */
-export function overdue(r, now = Date.now()) {
+/** 返信がまだで、約束の時間（設定の replyHours。既定48時間）の半分を超えたら 'warn'、
+ *  約束の時間を超えたら 'late'。迷惑・完了・返信済みは数えません。 */
+export function overdue(r, now = Date.now(), promised = PROMISED_H) {
   if (!r || r.spam || r.status === 'done' || r.repliedAt) return ''
+  const p = promised > 0 ? promised : PROMISED_H
   const h = (now - Date.parse(r.receivedAt)) / H
-  return h > PROMISED_H ? 'late' : h > WARN_H ? 'warn' : ''
+  return h > p ? 'late' : h > p / 2 ? 'warn' : ''
+}
+
+/** メールでの通知が届いていない（送れなかった・途中で止まった）か。 */
+export function mailStuck(r) {
+  const v = r && (r.mailOwner || (r.mail && r.mail.owner))
+  return v === 'failed' || v === 'pending'
+}
+
+/** 「要対応」＝まだ返信していない問い合わせ（迷惑・完了を除く）。 */
+export function needsReply(r) {
+  return !!r && !r.spam && r.status !== 'done' && !r.repliedAt
+}
+
+/** 管理画面のタブの横に出す数と、その内訳。
+ *   total     … 要対応（返信がまだ）＋ 通知メールが届いていないもの（重なりは1件）
+ *   fresh     … 前回受信箱を開いたあとに届いたもの（seenMs が 0 なら数えない）
+ *   warn/late … 約束の時間の半分を超えた／約束の時間を超えた
+ *   mailFailed… 通知メールが送れなかった・途中で止まった */
+export function inquiryAttention(list, seenMs = 0, now = Date.now(), promised = PROMISED_H) {
+  const ids = new Set()
+  let fresh = 0, warn = 0, late = 0, mailFailed = 0, open = 0
+  for (const r of Array.isArray(list) ? list : []) {
+    if (!r || r.spam) continue
+    const at = Date.parse(r.receivedAt) || 0
+    if (needsReply(r)) { open++; ids.add(r.id) }
+    if (mailStuck(r) && r.status !== 'done') { mailFailed++; ids.add(r.id) }
+    if (seenMs && at > seenMs) fresh++
+    const o = overdue(r, now, promised)
+    if (o === 'late') late++
+    else if (o === 'warn') warn++
+  }
+  return { total: ids.size, open, fresh, warn, late, mailFailed }
 }
 
 export function median(xs) {
@@ -272,7 +307,7 @@ export function median(xs) {
 
 /** 一覧の上に出す数字。返信までの時間は、ここ30日に受けて返信済みの
  *  ものの中央値です（平均だと、1件の放置が全体を大きく見せます）。 */
-export function metrics(list, now = Date.now()) {
+export function metrics(list, now = Date.now(), promised = PROMISED_H) {
   const from = now - 30 * 24 * H
   const counts = { new: 0, doing: 0, done: 0, spam: 0, unread: 0, mailFailed: 0 }
   const hours = []
@@ -281,8 +316,9 @@ export function metrics(list, now = Date.now()) {
     if (r.spam) { counts.spam++; continue }
     counts[r.status] = (counts[r.status] || 0) + 1
     if (r.status === 'new' && !r.readAt) counts.unread++
-    if (r.mailOwner === 'failed' || (r.mail && r.mail.owner === 'failed')) counts.mailFailed++
-    const o = overdue(r, now)
+    if (mailStuck(r)) counts.mailFailed++
+    if (needsReply(r)) counts.todo = (counts.todo || 0) + 1
+    const o = overdue(r, now, promised)
     if (o === 'late') late++
     else if (o === 'warn') warn++
     if (Date.parse(r.receivedAt) >= from) {
@@ -295,8 +331,8 @@ export function metrics(list, now = Date.now()) {
   return {
     counts, warn, late, replied30: hours.length, open30,
     median30: med == null ? null : Math.round(med * 10) / 10,
-    within: hours.filter((h) => h <= PROMISED_H).length,
-    promised: PROMISED_H,
+    within: hours.filter((h) => h <= promised).length,
+    promised,
   }
 }
 
