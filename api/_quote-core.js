@@ -349,6 +349,43 @@ export function effectiveStatus(q, today) {
   if ((s === 'draft' || s === 'sent') && validYmd(q.validUntil) && today > q.validUntil) return 'expired'
   return s
 }
+/* ---------------------------------------------------- 要対応 -- */
+
+/** 手を打つ時期が来た見積書・請求書の理由（なければ ''）。summary（quoteSummary）でも使えます。
+ *   expiring … 送付済みで、有効期限まで3日以内（決めていただく連絡を）
+ *   expired  … 有効期限を過ぎた（延ばすか、失注にする）
+ *   overdue  … 請求書の支払期限を過ぎて、入金済みになっていない
+ *   opened   … お客様が開いてから3日以上、返事がない（追いかける頃合い）
+ *   stale    … 下書きのまま3日以上 */
+export const ATTN_LABEL = { expiring: '期限が近い', expired: '期限切れ', overdue: '支払期限切れ', opened: '開いたまま返事なし', stale: '下書きのまま' }
+export function quoteAttentionKind(q, today) {
+  if (!q || !validYmd(today)) return ''
+  if ((q.kind || 'quote') === 'invoice') {
+    return q.status === 'sent' && validYmd(q.dueDate) && today > q.dueDate ? 'overdue' : ''
+  }
+  const s = effectiveStatus(q, today)
+  if (s === 'expired') return q.status === 'sent' ? 'expired' : ''
+  if (s === 'sent') {
+    if (validYmd(q.validUntil) && daysBetween(today, q.validUntil) <= 3) return 'expiring'
+    const opened = String(q.openedAt || '').slice(0, 10)
+    if (validYmd(opened) && daysBetween(opened, today) >= 3) return 'opened'
+    return ''
+  }
+  if (s === 'draft' && validYmd(q.date) && daysBetween(q.date, today) >= 3) return 'stale'
+  return ''
+}
+/** タブの横の数と内訳。 */
+export function quoteAttention(list, today) {
+  const out = { total: 0, expiring: 0, expired: 0, overdue: 0, opened: 0, stale: 0 }
+  for (const q of Array.isArray(list) ? list : []) {
+    const k = quoteAttentionKind(q, today)
+    if (!k) continue
+    out[k]++
+    out.total++
+  }
+  return out
+}
+
 export function statusLabel(q, today) {
   const s = effectiveStatus(q, today)
   return (q.kind === 'invoice' ? INVOICE_STATUS : QUOTE_STATUS)[s]

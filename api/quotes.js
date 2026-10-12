@@ -22,7 +22,7 @@ import {
   loadQuoteSettings, saveQuoteSettings, loadCatalog, saveCatalog, getQuote, saveQuote, allQuoteSummaries, setQuoteStatus,
   deleteQuote, viewLink, sendQuote, mailState,
 } from './_quotes.js'
-import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo } from './_quote-core.js'
+import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention } from './_quote-core.js'
 
 const NO_STORE = '保存先（Upstash Redis）が無いため、見積書を保存できません。「設定状況」で保存先をつないでください。'
 
@@ -45,6 +45,9 @@ export async function GET(req) {
     if (id) {
       const q = await getQuote(cfg, id)
       return q ? json({ ok: true, quote: q }) : json({ ok: false, message: 'その見積書は見つかりませんでした（消されたかもしれません）。' }, 404)
+    }
+    if (u.searchParams.get('view') === 'badge') {
+      return json(Object.assign({ ok: true }, quoteAttention(await allQuoteSummaries(cfg), jstToday())))
     }
     if (u.searchParams.get('view') === 'inquiries') {
       const { allSummaries } = await import('./_inquiries.js')

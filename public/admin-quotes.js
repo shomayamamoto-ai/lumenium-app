@@ -19,11 +19,11 @@
   var TAB = 'quotes-admin';
   var el = function (id) { return document.getElementById(id); };
   var S = {
-    started: false, sec: 'list', filter: 'all', q: '', data: null,
+    started: false, sec: 'list', filter: '', q: '', data: null,
     open: '', cur: null, dirty: false, pick: false, inq: null, panel: ''
   };
   var SECTIONS = [['list', '見積書'], ['stats', '数字'], ['catalog', 'よく使う品目'], ['settings', '設定']];
-  var FILTERS = [['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ'], ['invoice', '請求書']];
+  var FILTERS = [['todo', '要対応'], ['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ'], ['invoice', '請求書']];
   var core = function () { return window.lumQuoteCore; };
 
   function esc(t) {
@@ -77,6 +77,9 @@
     '#quotes-admin button{transition:none}#quotes-admin .qt-acts button,#quotes-admin .qt-bar button{font-size:12px;padding:8px 13px}' +
     '.qt-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px}' +
     '.qt-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:0}' +
+    'button.qt-card-btn{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}button.qt-card-btn:hover{border-color:var(--ui-border-strong,#b9b4a8)}' +
+    'button.qt-card-btn.on{outline:2px solid var(--ui-accent,#3d3fbf);outline-offset:-2px}button.qt-card-btn.hot .v{color:#b42318}' +
+    '.qt-tag.attn{background:rgba(180,35,24,.1);color:#b42318}' +
     '.qt-card .k{font-size:11px;font-weight:700;color:var(--sub)}.qt-card .v{font-size:20px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}' +
     '.qt-card .n{font-size:11px;color:var(--sub);line-height:1.6}' +
     '.qt-note{border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.75;background:#fffdf7}' +
@@ -207,9 +210,11 @@
     var s = statusOf(x);
     return '<span class="qt-tag ' + s + '">' + esc(core().QUOTE_STATUS[s]) + '</span>';
   }
+  function attn(x) { return core().quoteAttentionKind(x, S.data.today); }
   function matches(x) {
     var kind = x.kind || 'quote';
-    if (S.filter === 'invoice') { if (kind !== 'invoice') return false; }
+    if (S.filter === 'todo') { if (!attn(x)) return false; }
+    else if (S.filter === 'invoice') { if (kind !== 'invoice') return false; }
     else if (S.filter !== 'all') { if (kind !== 'quote' || statusOf(x) !== S.filter) return false; }
     if (!S.q) return true;
     var hay = [x.number, x.to, x.subject, x.source].join(' ').toLowerCase();
@@ -219,7 +224,11 @@
   function listView(body) {
     var C = core();
     var st = C.quoteStats(S.data.list, S.data.today);
-    var counts = {};
+    var at = C.quoteAttention(S.data.list, S.data.today);
+    // 最初に開いたとき、手を打つ時期の見積書があれば、それだけを先に見せます。
+    if (!S.filter) S.filter = at.total ? 'todo' : 'all';
+    paintBadge(at);
+    var counts = { todo: at.total };
     S.data.list.forEach(function (x) {
       var k = (x.kind || 'quote') === 'invoice' ? 'invoice' : statusOf(x);
       counts[k] = (counts[k] || 0) + 1;
@@ -228,10 +237,10 @@
     body.innerHTML =
       (settingsMissing() ? '<div class="qt-note">はじめに「設定」で、見積書に載せる会社名・住所・連絡先を入れてください（登録番号があれば、それも）。入れるまでは、見積書の発行元が空のままです。 <button type="button" class="ghost" id="qt-goset" style="font-size:12px;padding:6px 12px;margin-left:4px">設定を開く</button></div>' : '') +
       '<div class="qt-top">' +
-        card('今月の見積書', st.monthCount + '件', '合計 ' + yen(st.monthAmount)) +
-        card('返事待ち', st.waiting + '件', '合計 ' + yen(st.waitingAmount) + '（送付済み・期限内）') +
+        card('要対応', at.total + '件', at.total ? attnText(at) : '手を打つ時期の見積書はありません', 'todo', at.total ? ' hot' : '') +
+        card('返事待ち', st.waiting + '件', '合計 ' + yen(st.waitingAmount) + '（送付済み・期限内）', 'sent') +
         card('受注率', st.winRate == null ? '—' : Math.round(st.winRate * 100) + '%', st.decided ? st.decided + '件中 ' + st.won + '件' + (st.few ? '（まだ少ないので参考程度）' : '') : 'まだ決まった見積書がありません') +
-        card('期限切れ', st.expired + '件', '有効期限を過ぎて、返事がないもの') +
+        card('今月の見積書', st.monthCount + '件', '合計 ' + yen(st.monthAmount) + (st.monthWonAmount ? '・受注 ' + yen(st.monthWonAmount) : '')) +
       '</div>' +
       '<div class="qt-bar"><button type="button" id="qt-new">＋ 新しい見積書</button><button type="button" class="ghost" id="qt-frominq">問い合わせから作る</button></div>' +
       '<div class="nq-row" role="group" aria-label="絞り込み">' + FILTERS.map(function (f) {
@@ -247,15 +256,19 @@
         if (x.openedAt) meta.push('お客様が開いた ' + md(x.openedAt));
         else if (x.sentAt && statusOf(x) === 'sent') meta.push('まだ開かれていません');
         if (x.inquiryId) meta.push('問い合わせから');
-        return '<li><button type="button" class="qt-open" data-qid="' + esc(x.id) + '"><div class="l1"><span class="who">' + tagOf(x) + esc(x.to) + '</span><span class="amt">' + yen(x.total) + '</span></div>' +
+        var ak = attn(x);
+        return '<li><button type="button" class="qt-open" data-qid="' + esc(x.id) + '"><div class="l1"><span class="who">' + (ak ? '<span class="qt-tag attn">' + esc(C.ATTN_LABEL[ak]) + '</span>' : '') + tagOf(x) + esc(x.to) + '</span><span class="amt">' + yen(x.total) + '</span></div>' +
           '<div class="meta">' + esc(x.subject || '（件名なし）') + '</div><div class="meta">' + esc(meta.join('・')) + '</div></button></li>';
       }).join('') + '</ul>'
-        : '<p class="soc-small">' + (S.data.list.length ? '当てはまる見積書はありません。' : 'まだ見積書がありません。「＋ 新しい見積書」か「問い合わせから作る」で始めてください。') + '</p>');
+        : '<p class="soc-small">' + (S.filter === 'todo' && S.data.list.length ? '手を打つ時期の見積書・請求書はありません。見落としはありません。' : S.data.list.length ? '当てはまる見積書はありません。' : 'まだ見積書がありません。「＋ 新しい見積書」か「問い合わせから作る」で始めてください。') + '</p>');
     if (el('qt-goset')) el('qt-goset').addEventListener('click', function () { go('settings'); });
     el('qt-new').addEventListener('click', function () { openNew(); });
     el('qt-frominq').addEventListener('click', function () { S.pick = true; go('list'); });
     body.querySelectorAll('[data-qf]').forEach(function (b) {
       b.addEventListener('click', function () { S.filter = b.getAttribute('data-qf'); listView(body); });
+    });
+    body.querySelectorAll('[data-qjump]').forEach(function (b) {
+      b.addEventListener('click', function () { S.filter = b.getAttribute('data-qjump'); listView(body); });
     });
     var q = el('qt-q');
     q.addEventListener('input', function () {
@@ -268,9 +281,34 @@
       b.addEventListener('click', function () { openQuote(b.getAttribute('data-qid')); });
     });
   }
-  function card(k, v, n) {
-    return '<div class="qt-card"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div></div>';
+  /* 上の数字。filter があるものは押すと、その条件で一覧を絞り込みます。 */
+  function card(k, v, n, filter, cls) {
+    var inner = '<div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div>';
+    return filter
+      ? '<button type="button" class="qt-card qt-card-btn' + (cls || '') + (S.filter === filter ? ' on' : '') + '" data-qjump="' + filter + '">' + inner + '</button>'
+      : '<div class="qt-card">' + inner + '</div>';
   }
+  function attnText(at) {
+    var C = core();
+    return ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return at[k]; }).map(function (k) { return C.ATTN_LABEL[k] + ' ' + at[k]; }).join('・');
+  }
+  /* タブの横の「要対応」の数（共通の部品 admin-badge.js）。 */
+  function paintBadge(at) {
+    if (!window.lumNavBadge || !at) return;
+    var C = window.lumQuoteCore;
+    var parts = ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return at[k]; }).map(function (k) { return (C ? C.ATTN_LABEL[k] : k) + ' ' + at[k] + '件'; });
+    window.lumNavBadge(TAB, at.total, parts);
+  }
+  window.lumQuoteBadge = async function () {
+    try { await loadCore(); } catch (_) {}
+    var r = await api('/api/quotes?view=badge');
+    var d = r.data;
+    if (!d || !d.ok) return;
+    var LBL = { expiring: '期限が近い', expired: '期限切れ', overdue: '支払期限切れ', opened: '開いたまま返事なし', stale: '下書きのまま' };
+    var parts = ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return d[k]; }).map(function (k) { return LBL[k] + ' ' + d[k] + '件'; });
+    if (window.lumNavBadge) window.lumNavBadge(TAB, d.total || 0, parts);
+  };
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumQuoteBadge(); });
 
   /* ---------------- 問い合わせから作る ---------------- */
 
@@ -382,6 +420,7 @@
     var hist = (q.history || []).slice().reverse();
     body.innerHTML =
       '<div class="qt-bar"><button type="button" class="ghost" id="qt-back">← 一覧へ</button>' +
+        (q.toEmail && window.lumCustomer ? '<button type="button" class="ghost" id="qt-karte" style="font-size:12px;padding:6px 12px">このお客様の記録</button>' : '') +
         '<b style="font-size:14px">' + esc(saved ? noun + ' ' + q.number : '新しい' + noun + '（まだ保存していません）') + '</b>' +
         (saved ? '<span>' + tagOf(q) + '</span>' : '') + '</div>' +
       (q.inquiryId ? '<div class="qt-note blue">問い合わせから作った' + noun + 'です' + (q.source ? '（' + esc(q.source) + '）' : '') + '。 <button type="button" class="ghost" id="qt-inqback" style="font-size:12px;padding:6px 12px">元の問い合わせを開く</button></div>' : '') +
@@ -447,6 +486,7 @@
       '</div>' : '');
 
     el('qt-back').addEventListener('click', function () { if (!leaveOk()) return; S.cur = null; go('list'); });
+    if (el('qt-karte')) el('qt-karte').addEventListener('click', function () { window.lumCustomer.open({ email: q.toEmail, name: q.toPerson, company: q.toCompany }); });
     if (el('qt-inqback')) el('qt-inqback').addEventListener('click', function () {
       if (!leaveOk()) return;
       if (window.lumInqOpen) window.lumInqOpen(q.inquiryId); else say('問い合わせ管理を開けませんでした。');
@@ -621,8 +661,10 @@
   function upsert(sum) {
     if (!sum) return;
     var list = S.data.list;
-    for (var i = 0; i < list.length; i++) { if (list[i].id === sum.id) { list[i] = sum; return; } }
-    list.unshift(sum);
+    var done = false;
+    for (var i = 0; i < list.length; i++) { if (list[i].id === sum.id) { list[i] = sum; done = true; break; } }
+    if (!done) list.unshift(sum);
+    paintBadge(core().quoteAttention(list, S.data.today));
   }
 
   async function changeStatus() {

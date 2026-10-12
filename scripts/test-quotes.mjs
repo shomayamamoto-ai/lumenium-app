@@ -551,4 +551,25 @@ await test('ひな形: 4つの既定があり、分割は100%', () => {
   assert.equal(C.scheduleAmounts(100, C.parseSchedule(C.CLAUSE_TEMPLATES.defSchedule)).ok, true)
 })
 
+await test('要対応: 期限が近い・期限切れ・支払期限切れ・開いたまま・下書きのまま', () => {
+  const today = '2026-10-12'
+  const L = [
+    { id: 'a', kind: 'quote', status: 'sent', date: '2026-10-01', validUntil: '2026-10-14' },              // 2日後 → 期限が近い
+    { id: 'b', kind: 'quote', status: 'sent', date: '2026-09-01', validUntil: '2026-10-01' },              // 期限切れ
+    { id: 'c', kind: 'invoice', status: 'sent', date: '2026-09-01', dueDate: '2026-10-10' },               // 支払期限切れ
+    { id: 'd', kind: 'invoice', status: 'paid', date: '2026-09-01', dueDate: '2026-10-10' },               // 入金済みは数えない
+    { id: 'e', kind: 'quote', status: 'sent', date: '2026-10-01', validUntil: '2026-11-01', openedAt: '2026-10-08T10:00:00Z' }, // 開いて4日
+    { id: 'f', kind: 'quote', status: 'sent', date: '2026-10-10', validUntil: '2026-11-01', openedAt: '2026-10-11T10:00:00Z' }, // 開いて1日
+    { id: 'g', kind: 'quote', status: 'draft', date: '2026-10-05', validUntil: '2026-11-05' },             // 下書き7日
+    { id: 'h', kind: 'quote', status: 'won', date: '2026-09-01', validUntil: '2026-10-01' },               // 受注は数えない
+    { id: 'i', kind: 'quote', status: 'draft', date: '2026-09-01', validUntil: '2026-10-01' },             // 送っていない期限切れの下書き
+  ]
+  const k = (x) => C.quoteAttentionKind(x, today)
+  assert.deepEqual(L.map(k), ['expiring', 'expired', 'overdue', '', 'opened', '', 'stale', '', ''])
+  const a = C.quoteAttention(L, today)
+  assert.equal(a.total, 5)
+  assert.equal(a.expired, 1)
+  assert.equal(C.ATTN_LABEL.overdue, '支払期限切れ')
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)

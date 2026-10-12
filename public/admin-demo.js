@@ -3020,6 +3020,10 @@
         var q = QUOTES.filter(function (x) { return x.id === id; })[0];
         return q ? { ok: true, quote: q } : { ok: false, message: 'その見積書は見つかりませんでした。' };
       }
+      if (u.searchParams.get('view') === 'badge') {
+        var Cq = core();
+        return Object.assign({ ok: true }, Cq.quoteAttention(QUOTES.map(function (q) { return Cq.quoteSummary(q, SETTINGS.rounding); }), ymd(0)));
+      }
       if (u.searchParams.get('view') === 'inquiries') {
         var r = await (await ask('/api/inquiries?status=all')).json();
         return { ok: true, items: (r.items || []).filter(function (s) { return !s.spam; }).map(function (s) {
