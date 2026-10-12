@@ -1108,7 +1108,7 @@ input, select, textarea { color: var(--text); }
 
     <div class="panel" id="news-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイトの「お知らせ」欄に掲載されます。保存すると自動デプロイが走り、<strong>約1〜2分後に公開</strong>されます。反映できたか（失敗していないか）は、保存のあと一覧の上に表示します。</p>
-      <form id="news-form">
+      <form id="news-form" novalidate>
         <!-- よく使うお知らせは、押すだけで下の欄が埋まります。（ ）の中だけ
              書き換えれば投稿できます。日付とリンクも選ぶだけです。 -->
         <div class="nq">
@@ -3097,14 +3097,14 @@ window.lumAdmin = {
     });
   }
   function newsPost(payload, btn) {
-    var key = sessionStorage.getItem('lum_admin_key') || '';
     if (btn) btn.disabled = true;
     newsMsg.classList.remove('show');
-    fetch('/api/news-post', {
+    // 管理画面共通の通信（鍵が切れたらログインに戻す）を通します。
+    window.lumAdmin.fetch('/api/news-post', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { r: r, d: d }; }); })
+    }).then(function (x) { return { r: x.res, d: x.data || {} }; })
       .then(function (x) {
         if (x.r.ok && x.d.ok === true) {
           newsSay(x.d.message || '保存しました。', true);
@@ -3134,7 +3134,10 @@ window.lumAdmin = {
     document.getElementById('news-body').value = n.body || '';
     document.getElementById('news-link').value = n.link || '';
     syncLinkPick();
-    if (n.date) { dateInput.value = n.date; markDay(); }
+    // 予約中のお知らせの日付（未来）は「日付」の欄に入れません（その欄は今日までで、
+    // 予約の日付は「予約」の欄で扱います）。入れると保存が止まっていました。
+    if (n.date && n.date <= ymd(new Date())) { dateInput.value = n.date; markDay(); }
+    else setDay(0);
     document.getElementById('news-btn').textContent = 'この内容で更新';
     document.getElementById('news-cancel').style.display = 'inline-block';
     if (window.lumNews) window.lumNews.edit(n);
@@ -3229,9 +3232,11 @@ window.lumAdmin = {
   document.getElementById('news-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var title = document.getElementById('news-title').value.trim();
-    if (!title) { newsSay('タイトルを入力してください。'); return; }
+    // 下書きはタイトル無し・書きかけの（ ）のままでも保存できます（admin-news.js が確かめます）。
+    var draft = !!(window.lumNews && window.lumNews.mode && window.lumNews.mode() === 'draft');
+    if (!title && !draft) { newsSay('タイトルを入力してください。'); document.getElementById('news-title').focus(); return; }
     var all = title + document.getElementById('news-body').value;
-    if (/（[^）]*）/.test(all) && /（(更新した内容|サービス名|業種・内容|記事の題名|期間|再開日|媒体名|イベント名|日時|テーマ)）/.test(all)) {
+    if (!draft && /（[^）]*）/.test(all) && /（(更新した内容|サービス名|業種・内容|記事の題名|期間|再開日|媒体名|イベント名|日時|テーマ)）/.test(all)) {
       newsSay('まだ書き換えていない（ ）があります。中身を入れてから投稿してください。'); return;
     }
     var payload = {

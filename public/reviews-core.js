@@ -86,12 +86,47 @@ function needMore(page, sinceIso) {
 /* ------------------------------------------------------ 絞り込み・検索 -- */
 
 const FILTERS = [
-  ['all', 'すべて'], ['unreplied', '未返信'], ['replied', '返信済み'],
+  ['todo', '要対応'], ['all', 'すべて'], ['unreplied', '未返信'], ['replied', '返信済み'],
   ['low', '星1〜2'], ['mid', '星3'], ['high', '星4〜5'],
 ]
+
+/* 「要対応」＝返信がまだで、次のどちらか。
+     ・星1〜3（低い評価は、早い返信が見ている人の印象を大きく変えます）
+     ・文章つきで、30日以内のもの（具体的に書いてくれた人には、早めにお礼を）
+   星だけの古い高評価は、返信しなくても困らないので数えません。 */
+const RECENT_DAYS = 30
+function needsAction(r, now = Date.now()) {
+  if (!r || r.reply) return false
+  if (r.stars >= 1 && r.stars <= 3) return true
+  const at = Date.parse(r.createdAt || '')
+  return !!String(r.comment || '').trim() && isFinite(at) && now - at <= RECENT_DAYS * 86400000
+}
+/** タブの横の数と内訳。fresh は seenMs（前回見た時刻）より後に届いたもの（0 なら数えない）。 */
+function reviewAttention(list, seenMs = 0, now = Date.now()) {
+  const out = { total: 0, low: 0, recent: 0, fresh: 0 }
+  const ids = new Set()
+  for (const r of list || []) {
+    if (!r) continue
+    const at = Date.parse(r.createdAt || '') || 0
+    if (needsAction(r, now)) {
+      ids.add(r.id)
+      if (r.stars >= 1 && r.stars <= 3) out.low++
+      else out.recent++
+    }
+    if (seenMs && at > seenMs) { out.fresh++; if (!r.reply) ids.add(r.id) }
+  }
+  out.total = ids.size
+  return out
+}
+/** 数えるのに要る分だけの軽い形（同期のたびに meta に残し、タブの数はこれから出します）。 */
+function attentionDigest(list) {
+  return (list || []).filter((r) => r && !r.reply).slice(0, 500)
+    .map((r) => ({ id: r.id, stars: r.stars, createdAt: r.createdAt, comment: r.comment ? 1 : 0 }))
+}
 const SORTS = [['new', '新しい順'], ['old', '古い順'], ['low', '星の少ない順'], ['high', '星の多い順']]
 
-function matchesFilter(r, f) {
+function matchesFilter(r, f, now) {
+  if (f === 'todo') return needsAction(r, now || Date.now())
   if (f === 'unreplied') return !r.reply
   if (f === 'replied') return !!r.reply
   if (f === 'low') return r.stars >= 1 && r.stars <= 2
@@ -624,5 +659,5 @@ function qrSvg(qr, opt) {
     '<rect width="' + n + '" height="' + n + '" fill="#fff"/><path fill="#000" d="' + d + '"/></svg>'
 }
 
-window.lumReviewsCore = { STARS, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS, REPLY_MAX_BYTES, COMMENT_KEEP, normalizeReview, mergeReviews, mergePages, needMore, FILTERS, SORTS, matchesFilter, filterReviews, filterCounts, median, replyStats, starCounts, jstMonthOf, monthlyTrend, comparePeriods, keywords, reviewStats, reviewLink, REQUEST_REASONS, requestEligibility, requestMail, TONES, replyPrompt, byteLength, qrEncode, qrSvg };
+window.lumReviewsCore = { STARS, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS, REPLY_MAX_BYTES, COMMENT_KEEP, normalizeReview, mergeReviews, mergePages, needMore, FILTERS, RECENT_DAYS, needsAction, reviewAttention, attentionDigest, SORTS, matchesFilter, filterReviews, filterCounts, median, replyStats, starCounts, jstMonthOf, monthlyTrend, comparePeriods, keywords, reviewStats, reviewLink, REQUEST_REASONS, requestEligibility, requestMail, TONES, replyPrompt, byteLength, qrEncode, qrSvg };
 })();

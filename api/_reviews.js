@@ -35,7 +35,7 @@ import { digest } from './_ratelimit.js'
 import { bookingsBetween, recSpan, recStatus } from './_booking.js'
 import { manageSecret, sandboxFrom, ownerAddress } from './_booking-mail.js'
 import {
-  normalizeReview, mergeReviews, needMore, filterCounts, replyPrompt, byteLength, REPLY_MAX_BYTES,
+  normalizeReview, mergeReviews, needMore, filterCounts, attentionDigest, reviewAttention, replyPrompt, byteLength, REPLY_MAX_BYTES,
   reviewLink, requestEligibility, requestMail, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS, TONES,
 } from './_reviews-core.js'
 import { createWithFallback } from './_ai-create.js'
@@ -54,6 +54,8 @@ const DAY = 86400000
 export const RK = {
   prefs: `${KV}rev:prefs`,
   meta: `${KV}rev:meta`,
+  // 管理画面で口コミを最後に開いた時刻（ミリ秒）。これより後に届いたものが「新着」です。
+  seen: `${KV}rev:seen`,
   log: `${KV}rev:log`,
   lock: `${KV}rev:lock`,
   items: (loc) => `${KV}rev:items:${String(loc).replace(/[^0-9a-z]+/gi, '_')}`,
@@ -96,6 +98,25 @@ export async function savePrefs(input, cfg = storeConfig()) {
   const p = normalizePrefs(input, await readPrefs(cfg))
   await pipeline(cfg, [['SET', RK.prefs, JSON.stringify(p)]])
   return { ok: true, prefs: p }
+}
+
+/** 前回見た時刻と、タブの横の数（同期のたびに残した軽い形から出します）。 */
+export async function readSeen(cfg = storeConfig()) {
+  if (!cfg) return 0
+  try { const [raw] = await pipeline(cfg, [['GET', RK.seen]]); return Number(raw) || 0 } catch (_) { return 0 }
+}
+export async function writeSeen(cfg, ms) {
+  if (!cfg) return
+  try { await pipeline(cfg, [['SET', RK.seen, String(ms)]]) } catch (_) {}
+}
+export async function reviewBadge(cfg = storeConfig(), now = Date.now()) {
+  const meta = await readMeta(cfg)
+  let seen = await readSeen(cfg)
+  if (cfg && !seen) { seen = now; await writeSeen(cfg, seen) }
+  const digest = Array.isArray(meta.digest) ? meta.digest : null
+  // 以前の同期（digest が無い）なら、未返信の数をそのまま出します（次の同期で正しくなります）。
+  if (!digest) return { total: meta.unreplied || 0, low: 0, recent: 0, fresh: 0, unreplied: meta.unreplied || 0, lastSync: meta.lastSync || '' }
+  return Object.assign(reviewAttention(digest.map((d) => ({ ...d, comment: d.comment ? 'x' : '' })), seen, now), { unreplied: meta.unreplied || 0, lastSync: meta.lastSync || '' })
 }
 
 export async function readMeta(cfg = storeConfig()) {
@@ -256,6 +277,7 @@ export async function syncReviews(req, opts = {}) {
     meta.lastSync = new Date().toISOString()
     if (full) meta.lastFull = meta.lastSync
     meta.unreplied = filterCounts(all).unreplied
+    meta.digest = attentionDigest(all)
     await saveMeta(cfg, meta)
     return { ok: true, added, message: added ? `新しい口コミが ${added} 件ありました。` : '新しい口コミはありませんでした。' }
   } finally {
@@ -277,7 +299,9 @@ async function findItem(cfg, prefs, req, id) {
 
 async function recount(cfg, prefs, req) {
   const meta = await readMeta(cfg)
-  meta.unreplied = filterCounts(await readItems(cfg, await locationsFor(prefs, req))).unreplied
+  const all = await readItems(cfg, await locationsFor(prefs, req))
+  meta.unreplied = filterCounts(all).unreplied
+  meta.digest = attentionDigest(all)
   await saveMeta(cfg, meta)
   return meta.unreplied
 }

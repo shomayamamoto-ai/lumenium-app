@@ -2700,7 +2700,11 @@
   }
   function answer(u, method, body) {
     if (method === 'GET') {
-      if (u.searchParams.get('view') === 'badge') return { ok: true, unreplied: REVIEWS.filter(function (r) { return !r.reply; }).length };
+      if (u.searchParams.get('view') === 'badge') {
+        var RC = window.lumReviewsCore;
+        var un = REVIEWS.filter(function (r) { return !r.reply; }).length;
+        return RC ? Object.assign({ ok: true, unreplied: un }, RC.reviewAttention(REVIEWS, 0, Date.now())) : { ok: true, unreplied: un, total: un };
+      }
       return state();
     }
     var b = {};

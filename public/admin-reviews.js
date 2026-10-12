@@ -16,7 +16,7 @@
   var TAB = 'reviews-admin';
   var el = function (id) { return document.getElementById(id); };
   var S = {
-    started: false, sec: 'inbox', filter: 'unreplied', q: '', sort: 'new', loc: '', open: '',
+    started: false, sec: 'inbox', filter: '', q: '', sort: 'new', loc: '', open: '', seenAt: 0, pendingOpen: '',
     data: null, draft: {}, locList: null, busy: false
   };
   var SECTIONS = [['inbox', '口コミ'], ['stats', '数字'], ['ask', 'お願い・QR'], ['settings', '設定']];
@@ -99,6 +99,7 @@
     '.rev-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--border)}' +
     '.rev-list li{border-bottom:1px solid var(--border)}' +
     '.rev-open{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 2px;color:var(--text);font:inherit;font-weight:400;cursor:pointer;letter-spacing:0}' +
+    'button.rev-card-btn{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}button.rev-card-btn:hover{border-color:var(--ui-border-strong,#b9b4a8)}button.rev-card-btn.on{outline:2px solid var(--ui-accent,#3d3fbf);outline-offset:-2px}' +
     '.rev-open:hover{filter:none;background:#faf9f6}.rev-open:focus-visible{outline:2px solid #3d3fbf;outline-offset:2px;border-radius:4px}' +
     '.rev-open .who{font-size:13.5px;font-weight:700;overflow-wrap:anywhere}.rev-open .meta{font-size:11.5px;color:var(--sub);line-height:1.7}' +
     '.rev-open .snip{font-size:12.5px;line-height:1.7;color:#33333b;overflow-wrap:anywhere;margin-top:2px}' +
@@ -138,41 +139,27 @@
 
   /* ---------------- タブとポータルの「未返信」の印 ---------------- */
 
-  function setBadge(n) {
-    ['tab-' + TAB, 'pnode-' + TAB].forEach(function (id) {
-      var host = el(id);
-      if (!host) return;
-      var target = host.querySelector(id.indexOf('tab-') === 0 ? 'span' : '.pn-name') || host;
-      var b = target.querySelector('.rev-badge');
-      if (!n) { if (b) b.remove(); return; }
-      if (!b) { b = document.createElement('span'); b.className = 'rev-badge'; target.appendChild(b); }
-      b.textContent = n > 99 ? '99+' : String(n);
-      b.setAttribute('aria-label', '未返信 ' + n + '件');
-    });
+  /* タブとホームの「要対応」の数（共通の部品 admin-badge.js）。返信がまだで、星1〜3か、
+     30日以内の文章つきのもの＋前回見たあとに届いたもの（_reviews-core.js の reviewAttention）。 */
+  function parts(a) {
+    var p = [];
+    if (a.low) p.push('低い評価で未返信 ' + a.low + '件');
+    if (a.recent) p.push('最近の未返信 ' + a.recent + '件');
+    if (a.fresh) p.push('新しい口コミ ' + a.fresh + '件');
+    return p;
+  }
+  function setBadge() {
+    if (!window.lumNavBadge || !S.data || !window.lumReviewsCore) return;
+    var a = core().reviewAttention(S.data.reviews, S.seenAt, Date.now());
+    window.lumNavBadge(TAB, a.total, parts(a));
   }
   window.lumRevBadge = async function () {
-    addCss();
+    try { await loadCore(); } catch (_) {}
     var r = await api('/api/reviews?view=badge');
-    setBadge(r.data && r.data.ok ? r.data.unreplied || 0 : 0);
+    var d = r.data;
+    if (!d || !d.ok || !window.lumNavBadge) return;
+    window.lumNavBadge(TAB, d.total != null ? d.total : (d.unreplied || 0), parts(d));
   };
-  /* タブはログインのあとに作られます。管理画面の本体には手を入れず、タブが
-     現れたところで1回だけ印を取りに行きます。 */
-  (function watchTabs() {
-    var done = false;
-    function check() {
-      if (done || !el('tab-' + TAB) || !window.lumAdmin) return;
-      done = true;
-      if (obs) obs.disconnect();
-      window.lumRevBadge();
-    }
-    var obs = window.MutationObserver ? new MutationObserver(check) : null;
-    function go() {
-      if (obs) obs.observe(document.body, { childList: true, subtree: true });
-      check();
-    }
-    if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
-  })();
-
   /* ---------------- 骨組み ---------------- */
 
   function shell() {
@@ -212,7 +199,13 @@
       return false;
     }
     S.data = r.data;
-    setBadge(core().filterCounts(S.data.reviews).unreplied);
+    // 前回見た時刻は、この画面を開いているあいだ最初の値を使います（新着の印を保つため）。
+    if (!S.seenOnce) {
+      S.seenOnce = true;
+      S.seenAt = Number(r.data.seenAt) || 0;
+      if (!demo() && r.data.stored) send({ action: 'seen' });
+    }
+    setBadge();
     return true;
   }
 
@@ -253,7 +246,8 @@
   }
 
   function topCards(d) {
-    var list = d.reviews;
+    // 店舗を選んでいるときは、その店舗の分だけで数えます（下の絞り込みの数と合わせるため）。
+    var list = S.loc ? d.reviews.filter(function (r) { return r.location === S.loc; }) : d.reviews;
     var c = core().filterCounts(list);
     var rs = core().replyStats(list);
     var g = (d.locations || []).filter(function (l) { return l.avg != null; });
@@ -262,13 +256,18 @@
     return '<div class="rev-top">' +
       card('平均の星', gAvg != null ? avgText(gAvg) : avgText(core().reviewStats(list).avg),
         gAvg != null ? 'Google に出ている値（' + gTotal + '件）' : 'ここにある' + list.length + '件から', '') +
-      card('未返信', c.unreplied + '件', c.unreplied ? '返信がまだの口コミ' : 'すべて返信済みです', c.unreplied ? ' warn' : '') +
+      card('要対応', c.todo + '件', c.todo ? '低い評価・最近の文章つきで、返信がまだ' : '急いで返信が要る口コミはありません', c.todo ? ' warn' : '', 'todo') +
+      card('未返信', c.unreplied + '件', c.unreplied ? '返信がまだの口コミ（すべて）' : 'すべて返信済みです', '', 'unreplied') +
       card('返信した割合', pct(rs.rate), rs.replied + ' / ' + rs.total + '件', '') +
       card('最後の同期', d.lastSync ? when(d.lastSync) : '—', d.lastSync ? '毎朝9時ごろにも自動で' : 'まだ一度も読んでいません', '') +
       '</div>';
   }
-  function card(k, v, n, cls) {
-    return '<div class="rev-card' + cls + '"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div></div>';
+  /* 上の数字。filter があるものは押すと、その条件で一覧を絞り込みます。 */
+  function card(k, v, n, cls, filter) {
+    var inner = '<div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div><div class="n">' + esc(n) + '</div>';
+    return filter
+      ? '<button type="button" class="rev-card rev-card-btn' + cls + (S.filter === filter ? ' on' : '') + '" data-rjump="' + filter + '">' + inner + '</button>'
+      : '<div class="rev-card' + cls + '">' + inner + '</div>';
   }
 
   async function sync(full) {
@@ -278,8 +277,8 @@
     var r = await send({ action: 'sync', full: !!full });
     S.busy = false;
     var d = r.data || {};
-    if (d.reviews) S.data = d;
-    if (d.reviews) setBadge(core().filterCounts(d.reviews).unreplied);
+    if (d.reviews) { d.seenAt = S.seenAt; S.data = d; }
+    setBadge();
     go(S.sec);
     say(d.message || (d.ok ? '読み直しました。' : '読み直せませんでした。'), !!d.ok);
   }
@@ -290,6 +289,8 @@
     var d = S.data;
     var C = core();
     var counts = C.filterCounts(S.loc ? d.reviews.filter(function (r) { return r.location === S.loc; }) : d.reviews);
+    // 最初に開いたとき、急いで返信が要る口コミがあれば、それだけを先に見せます。
+    if (!S.filter) S.filter = counts.todo ? 'todo' : 'all';
     var locs = d.locations || [];
     body.innerHTML = connectNote(d) + topCards(d) +
       '<div class="nq-row" aria-label="絞り込み">' + C.FILTERS.map(function (f) {
@@ -306,8 +307,8 @@
       '</div>' +
       '<ul class="rev-list" id="rev-list"></ul>';
     bindConnect();
-    body.querySelectorAll('[data-rfil]').forEach(function (b) {
-      b.addEventListener('click', function () { S.filter = b.getAttribute('data-rfil'); inbox(body); });
+    body.querySelectorAll('[data-rfil], [data-rjump]').forEach(function (b) {
+      b.addEventListener('click', function () { S.filter = b.getAttribute('data-rfil') || b.getAttribute('data-rjump'); inbox(body); });
     });
     el('rev-q').addEventListener('input', function () { S.q = this.value; renderList(); });
     el('rev-sort').addEventListener('change', function () { S.sort = this.value; renderList(); });
@@ -322,7 +323,7 @@
     var list = core().filterReviews(S.data.reviews, { filter: S.filter, q: S.q, sort: S.sort, location: S.loc });
     if (!list.length) {
       host.innerHTML = '<li class="soc-small" style="padding:14px 2px">' + (S.data.reviews.length
-        ? (S.filter === 'unreplied' && !S.q ? '未返信の口コミはありません。' : '当てはまる口コミはありません。')
+        ? (S.filter === 'todo' && !S.q ? '急いで返信が要る口コミはありません。見落としはありません。' : S.filter === 'unreplied' && !S.q ? '未返信の口コミはありません。' : '当てはまる口コミはありません。')
         : 'まだ口コミがありません（連携して「今すぐ同期」を押すと、ここに出ます）。') + '</li>';
       return;
     }
@@ -330,7 +331,7 @@
       var snip = r.comment ? r.comment.replace(/\s+/g, ' ').slice(0, 110) + (r.comment.length > 110 ? '…' : '') : '（本文なし・星だけ）';
       return '<li><button type="button" class="rev-open" data-rid="' + esc(r.id) + '">' +
         '<div class="who">' + stars(r.stars) + ' ' + esc(r.author || 'Google ユーザー') + '</div>' +
-        '<div class="meta">' + day(r.createdAt) + ' ' + (r.reply ? '<span class="rev-tag ok">返信済み</span>' : '<span class="rev-tag new">未返信</span>') + '</div>' +
+        '<div class="meta">' + day(r.createdAt) + ' ' + (S.seenAt && Date.parse(r.createdAt) > S.seenAt ? '<span class="rev-tag new">新着</span>' : '') + (r.reply ? '<span class="rev-tag ok">返信済み</span>' : '<span class="rev-tag new">未返信</span>') + '</div>' +
         '<div class="snip">' + esc(snip) + '</div></button></li>';
     }).join('') + (list.length > 300 ? '<li class="soc-small" style="padding:10px 2px">ほか ' + (list.length - 300) + ' 件。絞り込みや検索で探してください。</li>' : '');
     host.querySelectorAll('[data-rid]').forEach(function (b) {
@@ -399,7 +400,7 @@
     if (!d.ok) { say(d.message || '出せませんでした。'); return; }
     replaceItem(d.item);
     delete S.draft[r.id];
-    setBadge(d.unreplied != null ? d.unreplied : core().filterCounts(S.data.reviews).unreplied);
+    setBadge();
     detail(el('rev-body'), r.id);
     say(d.message, true);
   }
@@ -410,7 +411,7 @@
     var d = x.data || {};
     if (!d.ok) { say(d.message || '消せませんでした。'); return; }
     replaceItem(d.item);
-    setBadge(d.unreplied != null ? d.unreplied : core().filterCounts(S.data.reviews).unreplied);
+    setBadge();
     detail(el('rev-body'), r.id);
     say(d.message, true);
   }
@@ -670,6 +671,32 @@
       el('rev-body').innerHTML = '<div class="rev-note red">画面の部品（/reviews-core.js）を読み込めませんでした。再読み込みしてください。</div>';
       return;
     }
-    if (await load()) go(S.sec);
+    if (await load()) {
+      if (S.pendingOpen) { S.open = S.pendingOpen; S.pendingOpen = ''; S.sec = 'inbox'; }
+      go(S.sec);
+      // 最後の同期から1時間以上たっていたら、開いたついでに1回だけ読み直します（新しい口コミを待たせないため）。
+      var d = S.data;
+      var age = d.lastSync ? Date.now() - Date.parse(d.lastSync) : Infinity;
+      if (!demo() && d.connection && d.connection.ok && age > 3600000) sync(false);
+    }
   };
+
+  /* どこでも検索（admin-finder.js）から1件を開く。読み込み前なら、読み込んだあとで開きます。 */
+  window.lumRevOpen = function (id) {
+    if (window.lumShowTab) window.lumShowTab(TAB);
+    if (S.data) { S.open = id; go('inbox'); } else S.pendingOpen = id;
+  };
+  (window.lumFinderSources = window.lumFinderSources || []).push({
+    group: '口コミ', tab: TAB,
+    load: function (api) { return api('/api/reviews'); },
+    match: function (words, data, hit) {
+      return (data.reviews || []).filter(function (r) {
+        return hit([r.author, r.comment, r.reply ? r.reply.text : '', '★' + r.stars, r.reply ? '返信済み' : '未返信'].join(' '), words);
+      }).slice(0, 8).map(function (r) {
+        return { k: '★' + r.stars + (r.reply ? '' : '・未返信'), t: r.author || 'Google ユーザー', s: String(r.comment || '（星だけ）').replace(/\s+/g, ' ').slice(0, 60),
+          run: function () { window.lumRevOpen(r.id); } };
+      });
+    }
+  });
+  if (window.lumNavPoll) window.lumNavPoll(function () { window.lumRevBadge(); });
 })();

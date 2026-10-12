@@ -445,6 +445,7 @@
 
   /* ---- admin-members.html から呼ばれる入口 ---- */
   window.lumNews = {
+    mode: function () { return S.mode; },
     extra: function (payload) {
       build();
       if (S.image && !String(S.image.alt || '').trim()) {

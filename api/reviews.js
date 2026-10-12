@@ -21,7 +21,7 @@ import { setting } from './_settings.js'
 import { BRAND } from './_brand.js'
 import { sandboxFrom, manageSecret } from './_booking-mail.js'
 import {
-  readPrefs, savePrefs, readMeta, readItems, locationsFor, connection, syncReviews, setReply, draftReply, aiStatus,
+  readPrefs, savePrefs, readMeta, readItems, readSeen, writeSeen, reviewBadge, locationsFor, connection, syncReviews, setReply, draftReply, aiStatus,
   requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub,
 } from './_reviews.js'
 import { REPLY_MAX_BYTES, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS } from './_reviews-core.js'
@@ -52,6 +52,8 @@ async function state(req) {
     connection: conn,
     locations: locs.map((l) => ({ name: l, ...(meta.locs[l] || {}) })),
     lastSync: meta.lastSync || '',
+    // 前回この画面を開いた時刻（これより後に届いた口コミに「新着」の印）。
+    seenAt: await readSeen(cfg),
     reviews,
     prefs,
     ai,
@@ -83,8 +85,7 @@ export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
   if (url.searchParams.get('view') === 'badge') {
-    const meta = await readMeta()
-    return json({ ok: true, unreplied: meta.unreplied || 0 })
+    return json(Object.assign({ ok: true }, await reviewBadge()))
   }
   return json(await state(req))
 }
@@ -96,6 +97,12 @@ export async function POST(req) {
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
   const action = String((body && body.action) || '')
   if (!storeConfig() && action !== 'locations') return json({ ok: false, message: '保存先（Upstash Redis）が無いため使えません。「設定状況」で保存先をつないでください。' }, 503)
+  // 口コミの画面を開いた（新着を見た）。
+  if (action === 'seen') {
+    const at = Date.now()
+    await writeSeen(storeConfig(), at)
+    return json({ ok: true, seenAt: at })
+  }
 
   if (action === 'sync') {
     const r = await syncReviews(req, { full: !!body.full })

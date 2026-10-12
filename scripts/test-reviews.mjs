@@ -100,7 +100,7 @@ await test('filter: 未返信・返信済み・星1〜2・星3・星4〜5', () =
   assert.deepEqual(ids('low'), ['2', '5'])
   assert.deepEqual(ids('mid'), ['3'])
   assert.deepEqual(ids('high'), ['1', '4'])
-  assert.deepEqual(C.filterCounts(LIST), { all: 5, unreplied: 2, replied: 3, low: 2, mid: 1, high: 2 })
+  assert.deepEqual(C.filterCounts(LIST), { todo: 1, all: 5, unreplied: 2, replied: 3, low: 2, mid: 1, high: 2 })
 })
 await test('search: 全角半角・大文字小文字をそろえ、返信の文も探す', () => {
   assert.deepEqual(C.filterReviews(LIST, { q: 'tanaka' }).map((r) => r.id), ['2'])
@@ -428,4 +428,29 @@ await test('認証: 管理キーなしでは読めない', async () => {
   assert.equal((await get('', {})).status, 401)
 })
 
+
+/* ---- 要対応（タブの数・最初の一覧） ---- */
+{
+  const now = Date.parse('2026-10-12T00:00:00Z')
+  const day = 86400000
+  const iso = (d) => new Date(now - d * day).toISOString()
+  const L = [
+    { id: 'a', stars: 2, comment: '', createdAt: iso(200), reply: null },            // 低い評価・未返信 → 要対応
+    { id: 'b', stars: 5, comment: 'とても良い', createdAt: iso(3), reply: null },     // 文章つき・30日以内 → 要対応
+    { id: 'c', stars: 5, comment: '', createdAt: iso(3), reply: null },               // 星だけの高評価 → 数えない
+    { id: 'd', stars: 5, comment: '良い', createdAt: iso(60), reply: null },          // 文章つきでも古い → 数えない
+    { id: 'e', stars: 1, comment: 'ひどい', createdAt: iso(1), reply: { text: 'x', at: iso(0) } }, // 返信済み
+  ]
+  assert.deepEqual(L.map((r) => C.needsAction(r, now)), [true, true, false, false, false])
+  const a = C.reviewAttention(L, now - 5 * day, now)
+  assert.equal(a.low, 1)
+  assert.equal(a.recent, 1)
+  assert.equal(a.fresh, 3)        // 5日以内に届いた b・c・e
+  assert.equal(a.total, 3)        // a・b に、新着で未返信の c を足す（返信済みの e は数えない）
+  assert.equal(C.reviewAttention(L, 0, now).fresh, 0)
+  const dg = C.attentionDigest(L)
+  assert.equal(dg.length, 4)      // 未返信だけ
+  assert.deepEqual(Object.keys(dg[0]).sort(), ['comment', 'createdAt', 'id', 'stars'])
+  passed++
+}
 console.log(`  口コミ管理: ${passed} 件のテストが通りました`)
