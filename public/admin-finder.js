@@ -122,17 +122,30 @@
   /* ---------------- データ（開いたときに読み、2分は使い回す） ---------------- */
 
   var C = { at: 0, bookings: null, quotes: null, members: null, loading: null };
+  /* ほかのツールが足す検索の対象（各ツールのファイルが自分で登録します。このファイルは触りません）。
+       window.lumFinderSources.push({
+         group: '口コミ',            // 見出し
+         tab: 'reviews-admin',       // この画面が見える役割のときだけ読む
+         load: function (api) { return api('/api/reviews'); },   // 1回読んで2分使い回す
+         match: function (words, data, hit) { return [{ k, t, s, run }] }   // hit(文字列, words) で当たり判定
+       }) */
+  var SOURCES = window.lumFinderSources = window.lumFinderSources || [];
   function load() {
     if (C.loading) return C.loading;
     if (Date.now() - C.at < CACHE_MS && (C.bookings || C.quotes || C.members)) return Promise.resolve();
+    var extra = SOURCES.map(function (src) {
+      if (src.tab && !visibleTab(src.tab)) return null;
+      try { return Promise.resolve(src.load(api)).catch(function () { return null; }); } catch (_) { return null; }
+    });
     C.loading = Promise.all([
       visibleTab('booking-admin') ? api('/api/booking?recent=all') : null,
       visibleTab('quotes-admin') ? quoteCore().then(function () { return api('/api/quotes'); }) : null,
       visibleTab('list-view') ? api('/api/members-list') : null,
-    ]).then(function (r) {
+    ].concat(extra)).then(function (r) {
       C.bookings = r[0] && r[0].bookings || [];
       C.quotes = r[1] && r[1].list || [];
       C.members = r[2] && r[2].members || [];
+      C.extra = r.slice(3);
       C.at = Date.now();
       C.loading = null;
     }, function () { C.loading = null; });
@@ -241,6 +254,14 @@
       return { k: '会員', t: m.name || m.email, s: [m.company, m.email].filter(Boolean).join('　'), run: function () { go('list-view', function () { filterMembers(m.email); }); } };
     });
     if (mb.length) groups.push(['会員', mb]);
+    SOURCES.forEach(function (src, i) {
+      var data = C.extra && C.extra[i];
+      if (!data) return;
+      var found = [];
+      try { found = (src.match(words, data, hit) || []).slice(0, 8); } catch (_) { found = []; }
+      found.forEach(function (it) { var run = it.run; it.run = function () { close(); if (run) run(); }; });
+      if (found.length) groups.push([src.group, found]);
+    });
     if (acts.length) groups.push(['操作', acts]);
     return groups;
   }
