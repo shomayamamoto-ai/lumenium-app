@@ -62,13 +62,14 @@ export async function GET(req) {
       state: 'warn',
       note: SANDBOX_NOTE + ' ' + DNS_STEPS,
     }] : []),
-    {
-      id: 'contactTo', label: '問い合わせの宛先', env: 'CONTACT_TO_EMAIL',
-      state: has('CONTACT_TO_EMAIL') ? 'ok' : 'warn',
-      note: has('CONTACT_TO_EMAIL')
-        ? '指定のアドレスに届きます。'
-        : `未設定のため既定の ${BRAND.owner} に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。`,
-    },
+    contactToCheck(has('CONTACT_TO_EMAIL'), BRAND),
+    // 社名を変えたのに公開URLが未設定だと、メールのリンク・サイト点検・
+    // 計測の「自社サイト」の判定が、仮のURLのままになります。
+    ...(BRAND.urlSet ? [] : [{
+      id: 'siteUrl', label: 'サイトのURL', env: 'SITE_URL',
+      state: 'error',
+      note: '未設定です。メールのリンクやサイト点検が正しく動きません。Vercel の環境変数 SITE_URL に公開URL（例: https://example.co.jp）を設定してください。',
+    }]),
     {
       // Two different kinds of "connected": in the environment it serves
       // everybody, including the visitor whose pageview is being counted; held
@@ -95,10 +96,12 @@ export async function GET(req) {
     },
     {
       id: 'github', label: 'お知らせ投稿・文章編集の保存', env: 'GITHUB_TOKEN',
-      state: has('GITHUB_TOKEN') ? 'ok' : 'warn',
-      note: has('GITHUB_TOKEN')
-        ? '保存すると自動デプロイが走ります。'
-        : '未設定のため、お知らせの投稿とサイト文章の保存ができません。',
+      state: has('GITHUB_TOKEN') && BRAND.repo ? 'ok' : 'warn',
+      note: !BRAND.repo
+        ? '保存先のリポジトリ（GITHUB_REPO）が未設定のため、お知らせの投稿とサイト文章の保存ができません。Vercel の環境変数 GITHUB_REPO に「owner/repo」の形で設定してください。'
+        : has('GITHUB_TOKEN')
+          ? '保存すると自動デプロイが走ります。'
+          : '未設定のため、お知らせの投稿とサイト文章の保存ができません。',
     },
     // The two that fail open. Both fall back to a value anyone can read in the
     // public repository, so "unset" here does not mean "off" — it means the
@@ -249,6 +252,25 @@ export async function GET(req) {
     checks,
     contact,
     deploy: deployInfo(),
+  })
+}
+
+/** 問い合わせの通知先の行。
+ *  ・CONTACT_TO_EMAIL があれば ok
+ *  ・無くても既定の宛先（Lumenium 自身なら既定、ほかは OWNER_EMAIL）があれば warn
+ *  ・どちらも無ければ error（お問い合わせの通知がどこにも届きません） */
+export function contactToCheck(hasContactTo, brand = BRAND) {
+  const row = { id: 'contactTo', label: '問い合わせの宛先', env: 'CONTACT_TO_EMAIL' }
+  if (hasContactTo) return Object.assign(row, { state: 'ok', note: '指定のアドレスに届きます。' })
+  if (brand.owner) {
+    return Object.assign(row, {
+      state: 'warn',
+      note: `未設定のため既定の ${brand.owner} に送られます。別の宛先にする場合は CONTACT_TO_EMAIL を設定してください。`,
+    })
+  }
+  return Object.assign(row, {
+    env: 'CONTACT_TO_EMAIL, OWNER_EMAIL', state: 'error',
+    note: '通知の宛先が未設定です。お問い合わせ・予約・会員登録の知らせがどこにも届きません。下の「キーの入力」で「問い合わせの宛先」を入れるか、Vercel の環境変数 OWNER_EMAIL を設定してください。',
   })
 }
 

@@ -316,7 +316,7 @@ export async function sendQuote(req, cfg, input, now = Date.now()) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: BRAND.from, to: [to], reply_to: replyTo, subject, text }),
+      body: JSON.stringify({ from: BRAND.from, to: [to], reply_to: replyTo || undefined, subject, text }),
     })
     ok = res.ok
     if (!ok) err = `Resend が ${res.status} を返しました`

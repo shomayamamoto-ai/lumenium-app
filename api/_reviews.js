@@ -441,7 +441,7 @@ async function sendOne(req, c, prefs, meta) {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKeyMail}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: BRAND.from, to: [c._rec.email], reply_to: await ownerAddress(req), subject: mail.subject, text: mail.text,
+        from: BRAND.from, to: [c._rec.email], reply_to: (await ownerAddress(req)) || undefined, subject: mail.subject, text: mail.text,
         headers: { 'List-Unsubscribe': `<${optout}>` },
       }),
     })

@@ -81,7 +81,7 @@ export const SETTINGS = [
   {
     name: 'CONTACT_TO_EMAIL', label: '問い合わせの宛先', kind: 'text', group: 'site', device: false,
     where: '受け取りたいメールアドレス',
-    why: `未設定のときは ${BRAND.owner} に届きます。`,
+    why: BRAND.owner ? `未設定のときは ${BRAND.owner} に届きます。` : '未設定のあいだは、お問い合わせ・予約の知らせがどこにも届きません。必ず入れてください。',
   },
   {
     name: 'ANTHROPIC_API_KEY', label: 'AI（SEO/AIO分析・アドバイザー）', kind: 'secret', group: 'site',

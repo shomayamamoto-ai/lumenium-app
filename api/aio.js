@@ -313,7 +313,7 @@ export async function analyseBatch(client, items) {
     },
   }
 
-  const us = `「${BRAND.kana} / ${BRAND.name}（${BRAND.domain}）」`
+  const us = `「${BRAND.names.join(' / ')}（${BRAND.domain}）」`
   const lookalikes = SITE.lookalikes.length
     ? `名前の似た別会社（${SITE.lookalikes.join('、')}）の話しかしていなければ other_company です。`
     : '同じ名前の別の会社の話しかしていなければ other_company です。'

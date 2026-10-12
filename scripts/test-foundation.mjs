@@ -337,4 +337,57 @@ await t('deploy-status: GitHub に聞いて答える・権限が無ければそ�
   assert.equal((await GET(req('deploy-status?sha=../x'))).status, 400)
 })
 
+/* ==== 社名を変えたサイトに Lumenium の既定値が残らないこと ==== */
+await t('brand: Lumenium の既定値は Lumenium のときだけ', async () => {
+  const { makeBrand, brandLabel } = await import('../api/_brand.js')
+  const from = (o) => (n) => o[n] || ''
+  // 何も設定しない＝Lumenium 自身。これまでどおりの値。
+  const lum = makeBrand(from({}))
+  assert.equal(lum.isLumenium, true)
+  assert.equal(lum.kana, 'ルメニウム')
+  assert.equal(lum.owner, 'shoma.yamamoto@lumenium.net')
+  assert.equal(lum.repo, 'shomayamamoto-ai/lumenium-app')
+  assert.equal(lum.url, 'https://lumenium.net')
+  assert.equal(lum.urlSet, true)
+  assert.deepEqual(lum.lookalikes, ['Lumentum', 'Lumenium LLC', 'ルメンタム'])
+  assert.equal(brandLabel(lum), 'ルメニウム（Lumenium）')
+  // 社名だけ変えた: 読み・通知先・リポジトリ・代表者名は空、URL は仮。
+  const other = makeBrand(from({ SITE_NAME: 'Acme' }))
+  assert.equal(other.isLumenium, false)
+  for (const k of ['kana', 'owner', 'repo', 'ownerName', 'area', 'founded', 'description']) assert.equal(other[k], '', k)
+  assert.deepEqual(other.lookalikes, [])
+  assert.equal(other.urlSet, false)
+  assert.ok(!/lumenium/i.test(JSON.stringify(Object.values(other))), 'Lumenium の値が残っていない')
+  assert.equal(brandLabel(other), 'Acme', '読みが無ければ社名だけ（「（）」を出さない）')
+  // 設定すればその値。
+  const set = makeBrand(from({ SITE_NAME: 'Acme', SITE_NAME_KANA: 'アクメ', OWNER_EMAIL: 'a@acme.example', SITE_URL: 'https://acme.example/' }))
+  assert.equal(set.kana, 'アクメ')
+  assert.equal(set.owner, 'a@acme.example')
+  assert.equal(set.url, 'https://acme.example')
+  assert.equal(brandLabel(set, 'name-first'), 'Acme（アクメ）')
+})
+
+await t('health: 通知の宛先が無いのは、Lumenium 以外では「要対応」', async () => {
+  const { contactToCheck } = await import('../api/health.js')
+  const { makeBrand } = await import('../api/_brand.js')
+  const from = (o) => (n) => o[n] || ''
+  assert.equal(contactToCheck(true, makeBrand(from({ SITE_NAME: 'Acme' }))).state, 'ok')
+  const none = contactToCheck(false, makeBrand(from({ SITE_NAME: 'Acme' })))
+  assert.equal(none.state, 'error')
+  assert.match(none.note, /どこにも届きません/)
+  assert.equal(contactToCheck(false, makeBrand(from({ SITE_NAME: 'Acme', OWNER_EMAIL: 'a@acme.example' }))).state, 'warn')
+  // Lumenium 自身はこれまでどおり（既定の宛先に届くので注意だけ）。
+  const lum = contactToCheck(false, makeBrand(from({})))
+  assert.equal(lum.state, 'warn')
+  assert.match(lum.note, /shoma\.yamamoto@lumenium\.net/)
+})
+
+await t('github: リポジトリ未設定なら GitHub に問い合わせずに断る', async () => {
+  on([])
+  const { gh, ghDetail } = await import('../api/_github.js')
+  const r = await gh('tok', '', 'contents/x')
+  assert.equal(calls.length, 0)
+  assert.match(ghDetail(r.status), /GITHUB_REPO/)
+})
+
 console.log(`test-foundation: ${passed} passed`)
