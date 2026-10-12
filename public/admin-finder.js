@@ -251,7 +251,7 @@
     });
     if (qt.length) groups.push(['見積書・請求書', qt]);
     var mb = (C.members || []).filter(function (m) { return hit([m.name, m.company, m.email].join(' '), words); }).slice(0, 6).map(function (m) {
-      return { k: '会員', t: m.name || m.email, s: [m.company, m.email].filter(Boolean).join('　'), run: function () { go('list-view', function () { filterMembers(m.email); }); } };
+      return { k: '会員', t: m.name || m.email, s: [m.company, m.email].filter(Boolean).join('　'), run: function () { go('list-view', function () { if (window.lumMemberOpen) window.lumMemberOpen(m.id || m.email); else filterMembers(m.email); }); } };
     });
     if (mb.length) groups.push(['会員', mb]);
     SOURCES.forEach(function (src, i) {

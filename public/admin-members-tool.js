@@ -19,8 +19,12 @@
   var el = function (id) { return document.getElementById(id); };
   var S = {
     sec: 'list', seg: '', members: [], segments: [], mode: 'segments', truncated: false, loaded: false,
-    open: '', detail: null, ask: ''
+    open: '', detail: null, ask: '',
+    quick: '',    // 上の数字で絞る: '' | 'fresh'（前回見たあとの新規） | 'new'（30日） | 'active' | 'unsub'
+    seenAt: 0     // この端末で前回この一覧を見た時刻（これより後の登録に「新着」）
   };
+  var NEW_DAYS = 30;
+  var SEEN_KEY = 'lum_mem_seen';
   var SECTIONS = [['list', '会員一覧'], ['groups', 'グループ'], ['mail', 'お知らせメール'], ['growth', '増え方']];
   var REASONS = [['request', '本人から削除の依頼があった'], ['duplicate', '重複・テストの登録'], ['other', 'その他']];
 
@@ -171,11 +175,45 @@
 
   /* ---------------- 会員一覧（詳しく見る） ---------------- */
 
+  function createdMs(m) { return Date.parse(m && (m.created || m.created_at) || '') || 0; }
+  function isFresh(m) { return !!S.seenAt && createdMs(m) > S.seenAt; }
+  function quickKeep(m, q) {
+    if (q === 'fresh') return isFresh(m);
+    if (q === 'new') return createdMs(m) >= Date.now() - NEW_DAYS * 86400000;
+    if (q === 'active') return !m.unsubscribed;
+    if (q === 'unsub') return !!m.unsubscribed;
+    return true;
+  }
+  /* 上の数字。押すと表がその人たちだけになります（もう一度押すと全員に戻ります）。 */
+  function sumHtml() {
+    if (!S.loaded || !S.members.length) return '';
+    var n = function (q) { return S.members.filter(function (m) { return quickKeep(m, q); }).length; };
+    var cards = [['', S.members.length, '全員'], ['new', n('new'), 'ここ' + NEW_DAYS + '日の新規'],
+      ['active', n('active'), 'お知らせを受け取る'], ['unsub', n('unsub'), '配信停止']];
+    var fresh = n('fresh');
+    if (fresh) cards.splice(1, 0, ['fresh', fresh, '前回見たあとの新規']);
+    return '<div class="bk-sum" id="mt-sum" style="margin:0 0 12px">' + cards.map(function (c) {
+      return '<button type="button" data-mq="' + c[0] + '" aria-pressed="' + (S.quick === c[0] ? 'true' : 'false') + '"' +
+        (c[0] === 'fresh' ? ' class="hot"' : '') + '><b>' + c[1] + '</b><span>' + c[2] + '</span></button>';
+    }).join('') + '</div>';
+  }
+  function wireSum(body) {
+    body.querySelectorAll('[data-mq]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var q = b.getAttribute('data-mq');
+        S.quick = S.quick === q ? '' : q;
+        body.querySelectorAll('[data-mq]').forEach(function (x) { x.setAttribute('aria-pressed', x.getAttribute('data-mq') === S.quick ? 'true' : 'false'); });
+        redraw();
+      });
+    });
+  }
+
   function drawList(body) {
-    var html = '';
+    var html = sumHtml();
     if (S.truncated) html += '<div class="mt-box">会員が多いため、最初の5,000人だけを表示しています。</div>';
-    if (!S.open) { body.innerHTML = html + '<p class="mt-note" style="margin:0 0 10px">お名前を押すと、その人の詳しい内容（同意の記録・配信の状態・グループ・削除）が開きます。</p>'; return; }
+    if (!S.open) { body.innerHTML = html + '<p class="mt-note" style="margin:0 0 10px">お名前を押すと、その人の詳しい内容（同意の記録・配信の状態・グループ・削除）が開きます。</p>'; wireSum(body); return; }
     body.innerHTML = html + '<div class="mt-card" id="mt-detail"><p class="mt-note">読み込み中…</p></div>';
+    wireSum(body);
     if (S.detail && S.detail.member.id === S.open) return drawDetail();
     loadDetail(S.open);
   }
@@ -235,7 +273,9 @@
         '<div class="mt-acts"><button type="button" class="ghost" data-mt="delete">この会員を削除する…</button></div>';
     d.innerHTML =
       '<div class="mt-head"><h3>' + esc(m.name || '（名前なし）') + ' 様</h3>' +
-      '<button type="button" class="ghost" data-mt="close" style="font-size:12px;padding:7px 12px">閉じる</button></div>' +
+      '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
+      (window.lumCustomer ? '<button type="button" class="ghost" data-mt="karte" style="font-size:12px;padding:7px 12px">このお客様の記録</button>' : '') +
+      '<button type="button" class="ghost" data-mt="close" style="font-size:12px;padding:7px 12px">閉じる</button></span></div>' +
       '<dl class="mt-dl"><dt>メールアドレス</dt><dd>' + esc(m.email) + '</dd><dt>登録日時</dt><dd>' + esc(when(m.created)) + '</dd></dl>' +
       '<p class="mt-note">メールアドレスはここでは変えられません（Resend が連絡先をアドレスで見分けているため）。変わったときは、新しいアドレスで登録し直してもらい、古い方を削除してください。</p>' +
       '<div class="mt-sec"><h4>お名前と会社名</h4><div class="mt-grid">' +
@@ -266,6 +306,7 @@
     if (what === 'cancel') { S.ask = ''; return drawDetail(); }
     if (what === 'unsub' || what === 'delete') { S.ask = what; return drawDetail(); }
     if (!m) return;
+    if (what === 'karte') { if (window.lumCustomer) window.lumCustomer.open({ email: m.email, name: m.name, company: m.company }); return; }
     btn.disabled = true;
     var r;
     if (what === 'save') {
@@ -362,6 +403,21 @@
     });
   }
 
+  function openMember(id) {
+    S.open = id; S.detail = null; S.ask = '';
+    if (S.sec !== 'list') go('list'); else draw();
+    var d = el('members-tool');
+    if (d) d.scrollIntoView({ block: 'start' });
+  }
+  /* どこでも検索・お客様カルテから、会員1人を開きます（id かメールアドレス）。 */
+  window.lumMemberOpen = function (key) {
+    if (window.lumShowTab) window.lumShowTab(HOST);
+    if (!S.loaded) { S.pendingOpen = key; return; }
+    var k = String(key || '').toLowerCase();
+    var m = S.members.filter(function (x) { return x.id === key || String(x.email || '').toLowerCase() === k; })[0];
+    if (m) openMember(m.id);
+  };
+
   /* ---------------- admin-members.html から呼ばれるところ ---------------- */
 
   window.lumMembersTool = {
@@ -373,28 +429,45 @@
       S.segments = (data && data.segments) || [];
       S.mode = (data && data.mode) || 'segments';
       S.truncated = !!(data && data.truncated);
+      // 「新着」の基準は、この端末で前回一覧を開いた時刻。初めてのときは印を付けません。
+      if (!S.seenRead) {
+        S.seenRead = true;
+        var prev = 0;
+        try { prev = Number(localStorage.getItem(SEEN_KEY)) || 0; localStorage.setItem(SEEN_KEY, String(Date.now())); } catch (_) {}
+        S.seenAt = prev;
+      }
       segOptions();
-      if (S.sec !== 'list') draw();
+      draw();
+      if (S.pendingOpen) { var id = S.pendingOpen; S.pendingOpen = ''; window.lumMemberOpen(id); }
     },
     /** 表に出すか（グループの絞り込み）。 */
     keep: function (m) {
+      if (!quickKeep(m, S.quick)) return false;
       if (!S.seg) return true;
       var s = m.segments || [];
       return S.seg === 'none' ? s.length === 0 : s.indexOf(S.seg) !== -1;
     },
+    /** 絞り込みの説明（書き出しのファイル名・ボタン用）。何も絞っていなければ ''。 */
+    filterText: function () {
+      var t = [];
+      if (S.quick) t.push({ fresh: '新着', 'new': 'ここ' + NEW_DAYS + '日の新規', active: '受け取る人', unsub: '配信停止' }[S.quick]);
+      if (S.seg) t.push(S.seg === 'none' ? 'グループなし' : 'グループ「' + segName(S.seg) + '」');
+      return t.join('・');
+    },
+    /** その人のグループ名（書き出し用）。 */
+    groupsText: function (m) { return (m.segments || []).map(segName).filter(Boolean).join('・'); },
     /** 表のお名前の欄。押すと詳しい内容が開きます。 */
     nameCell: function (m) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'mt-name';
       b.textContent = m.name || '（名前なし）';
-      b.addEventListener('click', function () {
-        S.open = m.id; S.detail = null; S.ask = '';
-        if (S.sec !== 'list') go('list'); else draw();
-        var d = el('members-tool');
-        if (d) d.scrollIntoView({ block: 'start' });
-      });
-      return b;
+      b.addEventListener('click', function () { openMember(m.id); });
+      if (!isFresh(m)) return b;
+      var w = document.createElement('span');
+      w.appendChild(b);
+      w.insertAdjacentHTML('beforeend', ' <span class="mt-tag ok">新着</span>');
+      return w;
     },
     state: function () { return S; },
     say: say, esc: esc, when: when, api: api, post: post, segName: segName, demo: demo, reload: reload

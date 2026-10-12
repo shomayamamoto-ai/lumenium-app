@@ -186,7 +186,8 @@
     });
     if (d.mb) {
       var mAt = Date.parse(d.mb.created || d.mb.created_at || d.mb.createdAt || '') || 0;
-      items.push({ at: mAt, k: 'mb', tag: '会員', t: '会員登録' + (d.mb.unsubscribed ? '（配信停止中）' : ''), p: '', run: null });
+      items.push({ at: mAt, k: 'mb', tag: '会員', t: '会員登録' + (d.mb.unsubscribed ? '（配信停止中）' : ''), p: '',
+        run: function () { go('list-view', function () { if (window.lumMemberOpen) window.lumMemberOpen(d.mb.id || d.mb.email); }); } });
     }
     items.sort(function (a, b) { return b.at - a.at; });
 

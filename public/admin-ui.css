@@ -773,3 +773,15 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   #shell .nq-row[role="tablist"]::-webkit-scrollbar, #shell .spl-tabs::-webkit-scrollbar { display: none; }
   #shell .nq-row[role="tablist"] .nq-chip, #shell .spl-tabs button { flex: none; white-space: nowrap; }
 }
+
+/* 会員リストの表は、スマホでは1人1枚のカードにします（横にスクロールしないで読めるように）。 */
+@media (max-width: 640px) {
+  #shell #members-tbl { overflow: visible; }
+  #shell #members-tbl :is(table, tbody, tr, td) { display: block; width: auto; }
+  #shell #members-tbl thead { display: none; }
+  #shell #members-tbl tr { border: 1px solid var(--ui-border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--ui-surface); }
+  #shell #members-tbl td { border: 0; padding: 1px 0; font-size: 13px; overflow-wrap: anywhere; white-space: normal; }
+  #shell #members-tbl td.nm { font-size: 15px; margin-bottom: 2px; }
+  #shell #members-tbl td.nil { display: none; }
+  #shell #members-tbl td[data-label]::before { content: attr(data-label) "："; color: var(--ui-text-3, #75757f); font-size: 12px; }
+}

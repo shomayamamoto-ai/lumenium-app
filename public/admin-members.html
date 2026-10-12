@@ -879,7 +879,8 @@ input, select, textarea { color: var(--text); }
 .share-toggle:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 3px; border-radius: 6px; }
 .share-toggle .share-tg::after { content: '開く'; font-size: 12px; color: #3d3fbf; font-weight: 700; margin-left: auto; }
 .share-block.open .share-toggle .share-tg::after { content: 'たたむ'; }
-.share-toggle .share-tg { margin-left: auto; }
+.share-toggle .share-tg { margin-left: auto; flex: none; }
+.share-toggle .share-label { flex: 1 1 auto; min-width: 0; }
 .share-block:not(.open) > #share-inner { display: none; }
 </style>
 <!-- 色・余白・部品の決まり。上の <style> より後に読み、同じ強さの指定ならこちらが勝ちます。 -->
@@ -1098,7 +1099,7 @@ input, select, textarea { color: var(--text); }
         <button class="ghost" id="reload-btn" type="button">更新</button>
       </div>
       <p class="msg" id="members-state" role="status"></p>
-      <div class="tbl">
+      <div class="tbl" id="members-tbl">
         <table>
           <thead><tr><th>お名前</th><th>会社名・所属</th><th>メールアドレス</th><th>登録日時</th><th></th></tr></thead>
           <tbody id="rows"></tbody>
@@ -1811,6 +1812,7 @@ window.lumAdmin = {
   var countEl = document.getElementById('count');
   var searchEl = document.getElementById('search');
   var members = [];
+  var shownMembers = [];   // いま表に出ている人（Excel・CSV はこの人たちを書き出します）
 
   function showMsg(text, isInfo) {
     keyMsg.textContent = text;
@@ -3274,23 +3276,38 @@ window.lumAdmin = {
         (m.company || '').toLowerCase().indexOf(q) !== -1;
     });
     rowsEl.textContent = '';
+    shownMembers = shown;
     shown.forEach(function (m) {
       var tr = document.createElement('tr');
       var tdN = document.createElement('td');
+      tdN.className = 'nm';
       // The name opens the member's detail (/admin-members-tool.js).
       if (window.lumMembersTool && m.id) tdN.appendChild(window.lumMembersTool.nameCell(m));
       else tdN.textContent = m.name || '—';
-      var tdC = document.createElement('td'); tdC.textContent = m.company || '—';
-      var tdE = document.createElement('td'); tdE.className = 'email'; tdE.textContent = m.email;
-      var tdD = document.createElement('td'); tdD.textContent = fmtDate(m.created);
+      // data-label は、スマホで表をカードにしたときの見出しです。
+      var tdC = document.createElement('td'); tdC.textContent = m.company || '—'; tdC.setAttribute('data-label', '会社名・所属');
+      var tdE = document.createElement('td'); tdE.className = 'email'; tdE.textContent = m.email; tdE.setAttribute('data-label', 'メール');
+      var tdD = document.createElement('td'); tdD.textContent = fmtDate(m.created); tdD.setAttribute('data-label', '登録日時');
       var tdU = document.createElement('td');
       if (m.unsubscribed) { tdU.textContent = '配信停止'; tdU.className = 'unsub'; }
+      else tdU.className = 'nil';
       tr.appendChild(tdN); tr.appendChild(tdC); tr.appendChild(tdE); tr.appendChild(tdD); tr.appendChild(tdU);
       rowsEl.appendChild(tr);
     });
     emptyEl.style.display = shown.length ? 'none' : 'block';
     countEl.textContent = shown.length + ' / ' + members.length + ' 件';
+    // 絞り込んでいるときは、書き出すのが「表に出ている人だけ」だと分かるようにします。
+    var part = shown.length !== members.length;
+    document.getElementById('xlsx-btn').textContent = part ? 'Excel（' + shown.length + '件）' : 'Excel';
+    document.getElementById('csv-btn').textContent = part ? 'CSV（' + shown.length + '件）' : 'CSV';
   }
+  function exportName(ext) {
+    var f = window.lumMembersTool && window.lumMembersTool.filterText ? window.lumMembersTool.filterText() : '';
+    var q = (searchEl.value || '').trim();
+    var tail = [f, q ? '検索「' + q + '」' : ''].filter(Boolean).join('_').replace(/[\\/:*?"<>|\s]+/g, '-').slice(0, 40);
+    return window.lumSite.slug + '-members' + (tail ? '-' + tail : '') + '.' + ext;
+  }
+  function groupsOf(m) { return window.lumMembersTool && window.lumMembersTool.groupsText ? window.lumMembersTool.groupsText(m) : ''; }
 
   keyForm.addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -3310,8 +3327,8 @@ window.lumAdmin = {
   });
 
   document.getElementById('csv-btn').addEventListener('click', function () {
-    var lines = ['name,company,email,created,unsubscribed'];
-    members.forEach(function (m) {
+    var lines = ['お名前,会社名・所属,メールアドレス,登録日時,配信状態,グループ'];
+    shownMembers.forEach(function (m) {
       // A cell starting with = + - @ is run as a formula by Excel. Names are
       // typed by the public, so they are written as plain text.
       var esc = function (v) {
@@ -3319,28 +3336,29 @@ window.lumAdmin = {
         if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
         return '"' + v.replace(/"/g, '""') + '"';
       };
-      lines.push([esc(m.name), esc(m.company), esc(m.email), esc(m.created), m.unsubscribed ? '1' : '0'].join(','));
+      lines.push([esc(m.name), esc(m.company), esc(m.email), esc(fmtDate(m.created)), m.unsubscribed ? '配信停止' : '受け取る', esc(groupsOf(m))].join(','));
     });
     var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = window.lumSite.slug + '-members.csv';
+    a.download = exportName('csv');
     a.click();
-    URL.revokeObjectURL(a.href);
+    // すぐに消すと、ブラウザによってはファイル名が付かないため、少し待ってから消します。
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
   document.getElementById('xlsx-btn').addEventListener('click', function () {
-    var rows = [['お名前', '会社名・所属', 'メールアドレス', '登録日時', '配信状態']];
-    members.forEach(function (m) {
-      rows.push([m.name || '', m.company || '', m.email || '', fmtDate(m.created), m.unsubscribed ? '配信停止' : '']);
+    var rows = [['お名前', '会社名・所属', 'メールアドレス', '登録日時', '配信状態', 'グループ']];
+    shownMembers.forEach(function (m) {
+      rows.push([m.name || '', m.company || '', m.email || '', fmtDate(m.created), m.unsubscribed ? '配信停止' : '受け取る', groupsOf(m)]);
     });
     var xlsx = buildXlsx(rows);
     var blob = new Blob([xlsx], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = window.lumSite.slug + '-members.xlsx';
+    a.download = exportName('xlsx');
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
   function wireCopy(btnId, inputId) {
