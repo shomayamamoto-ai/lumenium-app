@@ -5,6 +5,10 @@
  * そこだけ安っぽく見えました。ここのアイコンは 24×24 の枠に 1.5 の線、
  * 角は丸め、色は文字と同じ（currentColor）。どこに置いても同じ太さ・
  * 同じ調子で並びます。
+ *
+ * 面のあるアイコンには、同じ色をごく薄く敷いた「面」を一枚重ねます
+ * （二色調・duotone）。線だけより奥行きが出て、小さくても形が読めます。
+ * 面は線と同じ currentColor なので、色を変えても調子はそろったままです。
  */
 const PATHS = {
   // 動画: カメラ
@@ -37,9 +41,27 @@ const PATHS = {
   book: 'M4 5.5c2.5-1 5.5-1 8 .8 2.5-1.8 5.5-1.8 8-.8v13c-2.5-1-5.5-1-8 .8-2.5-1.8-5.5-1.8-8-.8v-13Z M12 6.3v13.3',
 }
 
+// 薄く敷く面。線のない（面を持たない）アイコンは何も重ねません。
+const FILLS = {
+  video: 'M3.5 7.5h11a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 2 15V9a1.5 1.5 0 0 1 1.5-1.5Z',
+  ai: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z',
+  sns: 'M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9l-4.5 3.5v-3.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z',
+  web: 'M3 8.5h18V16H3z',
+  cast: 'M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M5 20.5c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5Z',
+  creative: 'M4 20l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z',
+  chip: 'M7 7h10v10H7z',
+  cup: 'M4 9h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V9Z',
+  megaphone: 'M4 10v4h3l7 4V6L7 10H4Z',
+  chart: 'M4 4v16h16V4Z',
+  search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z',
+  users: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5Z',
+  book: 'M4 5.5c2.5-1 5.5-1 8 .8 2.5-1.8 5.5-1.8 8-.8v13c-2.5-1-5.5-1-8 .8-2.5-1.8-5.5-1.8-8-.8v-13Z',
+}
+
 export default function LineIcon({ name, size = 22, className = '' }) {
   const d = PATHS[name]
   if (!d) return null
+  const fill = FILLS[name]
   return (
     <svg
       className={`line-icon ${className}`}
@@ -54,6 +76,7 @@ export default function LineIcon({ name, size = 22, className = '' }) {
       aria-hidden="true"
       focusable="false"
     >
+      {fill && <path className="line-icon-fill" d={fill} fill="currentColor" stroke="none" />}
       <path d={d} />
     </svg>
   )

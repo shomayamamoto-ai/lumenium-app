@@ -11333,3 +11333,107 @@ body { color: var(--lp-ink); }
 .lp-next a { font-size: 15px; font-weight: 700; color: var(--lp-accent) !important; text-decoration: none; }
 .lp-next a:hover { text-decoration: underline; }
 @media (max-width: 560px) { .lp-next { flex-direction: column; align-items: flex-start; } .lp-main-foot { flex-wrap: wrap; } .lp-main-go.lp-btn { width: 100%; } }
+
+/* ===== 上質さの仕上げ（Material 3 / Human Interface Guidelines の考え方） =====
+   ・自分から動くものは足さない。動くのは、触れた（hover・押した・フォーカス）
+     ときに返す小さな反応だけ。動きを減らす設定ではそれも止めます。
+   ・奥行きは影を二層（近くの濃い影＋遠くの柔らかい影）で。紙の上に
+     カードが少し浮く程度にとどめます。
+   ・動きの速さは M3 の標準（すっと出て、ゆっくり止まる）にそろえます。 */
+.lp {
+  --lp-ease: cubic-bezier(.2, 0, 0, 1);
+  --lp-e1: 0 1px 2px rgba(23, 23, 28, .05), 0 1px 1px rgba(23, 23, 28, .03);
+  --lp-e2: 0 2px 4px rgba(23, 23, 28, .05), 0 12px 28px -8px rgba(23, 23, 28, .14);
+  --lp-ring: 0 0 0 3px rgba(61, 63, 191, .22);
+  font-feature-settings: "palt" 1;
+  -webkit-font-smoothing: antialiased;
+}
+.lp ::selection { background: rgba(61, 63, 191, .16); color: inherit; }
+.lp-h1, .lp-h2, .lp-main-name, .lp-sys-name, .lp-case-title { text-wrap: balance; }
+.lp-lead, .lp-sec-lead, .lp-main-desc, .lp-sys-desc, .lp-case-desc, .lp-admin-lead { text-wrap: pretty; }
+.lp-svc-price, .lp-main-price, .lp-sys-acts { font-variant-numeric: tabular-nums; }
+
+/* アイコン：二色調。面はごく薄く、触れると少し濃く。 */
+.line-icon-fill { opacity: .14; transition: opacity .25s var(--lp-ease, ease); }
+.lp-svc-icon, .lp-admin-icon {
+  position: relative;
+  border-radius: 12px;
+  transition: transform .25s var(--lp-ease), box-shadow .25s var(--lp-ease), border-color .25s var(--lp-ease);
+}
+.lp-svc-icon {
+  background: linear-gradient(160deg, #fff 0%, #f1f1fb 100%);
+  border-color: rgba(61, 63, 191, .16);
+  box-shadow: inset 0 1px 0 #fff, var(--lp-e1);
+}
+.lp-admin-icon {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.lp-admin-icon .line-icon-fill { opacity: .22; }
+
+/* カード：普段は紙に近く、触れたときだけ少し浮く。 */
+.lp-main-card, .lp-sys-card, .lp-case, .lp-next {
+  box-shadow: var(--lp-e1);
+  transition: transform .3s var(--lp-ease), box-shadow .3s var(--lp-ease), border-color .3s var(--lp-ease);
+}
+.lp-main-card, .lp-sys-card, .lp-case { border-radius: 14px; }
+.lp-next { border-radius: 14px; }
+@media (hover: hover) {
+  .lp-main-card:hover, .lp-sys-card:hover, .lp-case:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--lp-e2);
+    border-color: rgba(23, 23, 28, .2);
+  }
+  .lp-main-card:hover .line-icon-fill, .lp-svc-row:hover .line-icon-fill, .lp-admin-list li:hover .line-icon-fill { opacity: .28; }
+  .lp-svc-row:hover .lp-svc-icon { transform: translateY(-1px); box-shadow: inset 0 1px 0 #fff, var(--lp-e2); border-color: rgba(61, 63, 191, .32); }
+}
+
+/* ボタン：押せるものだと分かる、ごく薄い立体感。 */
+.lp-btn {
+  border-radius: 12px;
+  transition: background-color .2s var(--lp-ease), color .2s, border-color .2s, box-shadow .25s var(--lp-ease), transform .2s var(--lp-ease);
+}
+.lp-btn--primary {
+  background: linear-gradient(180deg, #4a4ccb 0%, var(--lp-accent) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 2px rgba(23, 23, 28, .12), 0 6px 16px -6px rgba(61, 63, 191, .55);
+}
+.lp-btn--primary:hover {
+  background: linear-gradient(180deg, #3f41c4 0%, var(--lp-accent-2) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 4px rgba(23, 23, 28, .12), 0 10px 24px -8px rgba(61, 63, 191, .6);
+}
+.lp-btn--ghost { background: rgba(255, 255, 255, .55); }
+.lp-btn--ghost:hover { background: #fff; box-shadow: var(--lp-e1); }
+.lp-btn:active, .lp-btn.is-pressing { transform: scale(.98); transition-duration: .1s; }
+.lp-sys-ask { border-radius: 10px; min-height: 40px; display: inline-flex; align-items: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16); }
+
+/* リンク：下線が左から伸びる（触れたときだけ）。 */
+.lp-next a, .lp-svc-more {
+  text-decoration: none !important;
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+  transition: background-size .3s var(--lp-ease), color .2s;
+  padding-bottom: 2px;
+}
+.lp-next a:hover, .lp-svc-more:hover { background-size: 100% 1px; }
+
+/* フォーカス：キーボードで動かす人に、はっきり見える輪。 */
+.lp a:focus-visible, .lp button:focus-visible, .lp summary:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* 指で押すものは 44px 以上（HIG）。 */
+@media (pointer: coarse) {
+  .lp-svc-more, .lp-next a, .lp-sys-more, .lp-link { display: inline-flex; align-items: center; min-height: 44px; }
+  .lp-sys-ask { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-main-card, .lp-sys-card, .lp-case, .lp-next, .lp-btn, .lp-svc-icon, .lp-admin-icon, .line-icon-fill,
+  .lp-next a, .lp-svc-more { transition: none !important; }
+  .lp-main-card:hover, .lp-sys-card:hover, .lp-case:hover, .lp-svc-row:hover .lp-svc-icon, .lp-btn:active, .lp-btn.is-pressing { transform: none !important; }
+}
+@media (forced-colors: active) {
+  .line-icon-fill { display: none; }
+  .lp-btn--primary { background: ButtonText; }
+}
