@@ -16,6 +16,8 @@
 <meta name="twitter:image" content="https://lumenium.net/api/og?title=PHOTON+SHOOTER&subtitle=Illuminate+the+Shadows.">
 <link rel="icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.min.js","three/addons/":"/vendor/jsm/"}}</script>
+<script type="module" src="/games3d/shooter3d.js"></script>
 <style>
 *,::after,::before{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -50,6 +52,8 @@ body{
 .game-wrapper{display:flex;flex-direction:column;align-items:center;gap:28px}
 .game-canvas-container{position:relative;overflow:hidden;border:1px solid rgba(79,70,229,.25);box-shadow:0 0 60px rgba(79,70,229,.12),0 20px 60px rgba(0,0,0,.5);background:#000}
 .game-canvas-container canvas{display:block;touch-action:none}
+#game{position:relative;z-index:1}
+#game3d{position:absolute;left:0;top:0;z-index:0;display:none;pointer-events:none}
 .game-canvas-container::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse 130% 105% at 50% 42%,transparent 52%,rgba(3,5,12,.22) 78%,rgba(2,3,8,.5) 100%);box-shadow:inset 0 0 90px rgba(3,5,12,.55),inset 0 0 22px rgba(79,70,229,.16),inset 0 1px 0 rgba(248,250,252,.07),inset 0 -1px 0 rgba(6,182,212,.1)}
 .game-overlay{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;pointer-events:none;z-index:10}
 .game-screen{pointer-events:auto;text-align:center;padding:40px;background:radial-gradient(ellipse at center,rgba(10,14,26,.88) 0,rgba(10,14,26,.96) 100%);backdrop-filter:blur(6px);position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -122,6 +126,7 @@ body{
   </div>
   <div class="fade-up delay-1 game-wrapper">
     <div class="game-canvas-container">
+      <canvas id="game3d" aria-hidden="true"></canvas>
       <canvas height="800" id="game" width="600"></canvas>
       <button class="ctl-btn" id="mute-btn" type="button" aria-label="サウンド切替">🔊</button>
       <button class="ctl-btn" id="pause-btn" type="button" aria-label="ポーズ">II</button>
@@ -472,6 +477,8 @@ function canvasPos(e) {
 function setTouchTarget(e) {
   var p = canvasPos(e);
   var offsetY = e.pointerType === 'mouse' ? 0 : 70; // finger doesn't cover the ship
+  /* 3D 表示のときは、指の位置（画面）を、傾いた盤面の上の位置に直します */
+  if (window.SHOOTER3D && SHOOTER3D.ok) { p = SHOOTER3D.toGame(p.x, p.y - offsetY); offsetY = 0; }
   touchTarget = {
     x: Math.max(20, Math.min(W - 20, p.x)),
     y: Math.max(40, Math.min(H - 20, p.y - offsetY))
@@ -1064,7 +1071,64 @@ function pushEnemyBullet(x, y, vx, vy, size, color) {
 }
 
 /* ---------- Draw ---------- */
+/* 3D 表示（/games3d/shooter3d.js）が動いているときは、機体・弾・背景は 3D が描き、
+   このキャンバスには文字と計器だけを重ねます。3D が使えない端末では下の 2D のまま。 */
+function drawOverlay3D() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  try { SHOOTER3D.render(); }
+  catch (err) { SHOOTER3D.ok = false; document.getElementById('game3d').style.display = 'none'; return; }
+  if (state === 'playing' || state === 'paused' || state === 'gameover') {
+    enemies.forEach(function (e) {
+      if (!e.active || e.type !== 'tank') return;
+      var s = SHOOTER3D.toScreen(e.x, e.y, 0.75);
+      ctx.fillStyle = 'rgba(10,14,30,0.8)';
+      ctx.fillRect(s.x - 18, s.y - 3, 36, 5);
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(s.x - 18, s.y - 3, 36 * (e.hp / e.maxHp), 5);
+    });
+    if (player.shield > 0 && state !== 'gameover') {
+      var sp = SHOOTER3D.toScreen(player.x, player.y, 1.0);
+      ctx.fillStyle = '#22d3ee';
+      ctx.font = '700 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('×' + player.shield, sp.x, sp.y - 6);
+    }
+    popups.forEach(function (p) {
+      var t = p.life / p.maxLife, s = SHOOTER3D.toScreen(p.x, p.y, 0.5);
+      ctx.globalAlpha = Math.min(1, t * 2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 4;
+      ctx.font = '800 ' + Math.round(13 + 5 * t) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, s.x, s.y);
+    });
+    ctx.globalAlpha = 1;
+    // 明るい 3D の上でも読めるよう、計器の文字に薄い影を付けます。
+    ctx.shadowColor = 'rgba(0,0,0,0.75)';
+    ctx.shadowBlur = 5;
+    drawHUD();
+    ctx.shadowBlur = 0;
+  }
+  if (flashTimer > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.35 * flashTimer / 10) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (state === 'paused') {
+    ctx.fillStyle = 'rgba(10,14,26,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#e8eaff';
+    ctx.font = '800 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', W / 2, H / 2);
+    ctx.font = '400 15px sans-serif';
+    ctx.fillStyle = '#8a93b8';
+    ctx.fillText('P / ESC で再開', W / 2, H / 2 + 36);
+  }
+}
 function draw() {
+  if (window.SHOOTER3D && SHOOTER3D.ok) { drawOverlay3D(); return; }
   ctx.save();
   if (shakeFrames > 0) {
     ctx.translate((Math.random() - 0.5) * shakeMag * 2, (Math.random() - 0.5) * shakeMag * 2);
