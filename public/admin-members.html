@@ -885,6 +885,8 @@ input, select, textarea { color: var(--text); }
 </style>
 <!-- 色・余白・部品の決まり。上の <style> より後に読み、同じ強さの指定ならこちらが勝ちます。 -->
 <link rel="stylesheet" href="/admin-ui.css">
+<!-- 新しい見た目（濃紺のメニュー・白いカード）。admin-ui.css の後に読みます。 -->
+<link rel="stylesheet" href="/admin-skin.css">
 </head>
 <body>
 <script src="/admin-demo.js"></script>
@@ -921,6 +923,8 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-finder.js"></script>
 <!-- お客様カルテ（1人の問い合わせ・予約・見積書・会員登録を1つの時系列に）。 -->
 <script src="/admin-customer.js"></script>
+<!-- 上の帯（検索・お知らせ・ログイン中の人）と、ホームのダッシュボード。 -->
+<script src="/admin-dash.js"></script>
   <div class="wrap">
     <!-- 上の帯。左はお客様の会社のロゴと名前（設定の ADMIN_BRAND_NAME / ADMIN_LOGO_URL。
          無ければ SITE_NAME）。右はログイン中の人・ヘルプ・サイト・ログアウト。 -->

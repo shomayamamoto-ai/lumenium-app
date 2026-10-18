@@ -46,6 +46,19 @@
     dot: 'M12 13.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z'
   };
 
+  /* 面を敷くアイコン。1 は線と同じ形、文字列はその形（線が開いている物は、面だけ別に描きます）。 */
+  var DUO = {
+    video: 1, chat: 1, pen: 1, megaphone: 1, users: 1, bell: 1, mail: 1, inbox: 1, star: 1, file: 1, shield: 1, sparkle: 1,
+    info: 1, help: 1, alert: 1, clock: 1, key: 1,
+    web: 'M3 5h18v11H3z',
+    calendar: 'M4 6h16v14H4z',
+    home: 'M5.5 9.5 12 4.2l6.5 5.3V20h-13Z',
+    search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z',
+    chart: 'M7 12h2v4H7z M11 8h2v8h-2z M15 10h2v6h-2z',
+    settings: 'M15 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z M9 14.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z',
+    list: 'M8 4.5h13v4H8z M8 10h13v4H8z M8 15.5h13v4H8z'
+  };
+
   function sprite() {
     if (document.getElementById('ui-icons')) return;
     var ns = 'http://www.w3.org/2000/svg';
@@ -57,6 +70,14 @@
       var s = document.createElementNS(ns, 'symbol');
       s.setAttribute('id', 'ui-i-' + k);
       s.setAttribute('viewBox', '0 0 24 24');
+      // 二色（線＋うすい塗り）。閉じた形のアイコンだけ、線の下に同じ形の淡い面を敷きます。
+      // 選ばれているときは面が濃くなります（色は admin-skin.css の .duo）。
+      if (DUO[k]) {
+        var f = document.createElementNS(ns, 'path');
+        f.setAttribute('d', DUO[k] === 1 ? P[k] : DUO[k]);
+        f.setAttribute('class', 'duo');
+        s.appendChild(f);
+      }
       var p = document.createElementNS(ns, 'path');
       p.setAttribute('d', P[k]);
       s.appendChild(p);

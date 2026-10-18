@@ -723,6 +723,8 @@
     P.at = Date.now();
     P.loading = false;
     paint();
+    // ホームのダッシュボード（admin-dash.js）と運営マップ（admin-opsmap.js）も同じ読み込み結果を使います。
+    try { window.dispatchEvent(new CustomEvent('lum:portal', { detail: src })); } catch (_) {}
   }
 
   /* ---- 開く ---- */
@@ -847,7 +849,8 @@
     if (t.failed.length) notes.push('読み込めなかったもの: ' + t.failed.join('・') + '（通信の失敗か、まだ準備中です。「再読込」でもう一度読みます）');
     if (t.off.length) notes.push('未設定のため見ていないもの: ' + t.off.join('・'));
     if (notes.length) body += '<div class="lp-notes" id="lp-notes">' + notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('') + '</div>';
-    host.innerHTML = kpiHtml(K) + head + body;
+    // 数字のカードは、ホームのダッシュボード（admin-dash.js）があればそちらに出します。
+    host.innerHTML = (window.lumDash ? '' : kpiHtml(K)) + head + body;
     bindHead();
     host.querySelectorAll('[data-kpi]').forEach(function (b) {
       b.addEventListener('click', function () { var k = K[Number(b.getAttribute('data-kpi'))]; if (k && window.lumShowTab) window.lumShowTab(k.tab); });
@@ -1061,4 +1064,5 @@
   }
   root.lumPortalData = function () { return P.data; };
   root.lumPortalReload = load;
+  root.lumPortalOpen = open;
 })(typeof window !== 'undefined' ? window : globalThis);
