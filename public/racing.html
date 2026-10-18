@@ -90,7 +90,35 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 .tw-btn{padding:6px 9px;font-size:10px}
 .how{grid-template-columns:1fr}
 }
-@media(max-width:640px){.game-switch{max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}.game-switch::-webkit-scrollbar{display:none}}</style>
+@media(max-width:640px){.game-switch{max-width:calc(100vw - 20px);overflow-x:auto;scrollbar-width:none}.game-switch::-webkit-scrollbar{display:none}}
+/* スマホは横向きで遊ぶ（/games-landscape.js が html に is-phone / is-landscape を付けます）。
+   盤を左いっぱいの高さに、操作ボタンは右の列にまとめて、その列だけスクロール。
+   スタート・結果の画面は盤の中ではなく画面全体に出すので、START が隠れません。 */
+.side{display:contents}
+html.is-phone.is-landscape,html.is-phone.is-landscape body{height:100%;overflow:hidden}
+html.is-phone.is-landscape body{min-height:0}
+.is-phone.is-landscape .pg{height:100%;min-height:0;padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));align-items:stretch}
+.is-phone.is-landscape .hd,.is-phone.is-landscape .bk{display:none}
+.is-phone.is-landscape .gw{flex-direction:row;align-items:flex-start;gap:8px;height:100%;min-height:0}
+.is-phone.is-landscape .cb{flex:none}
+.is-phone.is-landscape .side{display:flex;flex-direction:column;gap:6px;flex:1 1 0;min-width:0;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:40px 0 8px}
+.is-phone.is-landscape .ctl,.is-phone.is-landscape .tw-bar{justify-content:flex-start;gap:5px}
+.is-phone.is-landscape .ctl-btn{padding:8px 10px;font-size:11px;min-height:36px}
+.is-phone.is-landscape .tw-btn{padding:5px 7px;font-size:10px;min-height:40px;line-height:1.35}
+.is-phone.is-landscape .tw-btn .cost{font-size:9px}
+.is-phone.is-landscape .rp{max-width:none;padding:10px}
+.is-phone.is-landscape .back-link{top:8px;right:max(10px,env(safe-area-inset-right))}
+.is-phone.is-landscape .lgm-btn{top:8px;left:auto;right:calc(max(10px,env(safe-area-inset-right)) + 92px);transform:none;padding:7px 11px}
+.is-phone.is-landscape .sc,.is-phone.is-landscape .nm{position:fixed;inset:0;z-index:60}
+.is-phone.is-landscape #ss{padding:12px 24px;overflow-y:auto;justify-content:center}
+.is-phone.is-landscape #ss .sub:first-child{display:none}
+.is-phone.is-landscape .sc h1{font-size:30px;margin-bottom:4px}
+.is-phone.is-landscape .sc .sub{margin-bottom:4px;font-size:10px}
+.is-phone.is-landscape .how{grid-template-columns:1fr 1fr;margin:4px 0 8px}
+.is-phone.is-landscape .how span:nth-child(n+3){display:none}
+.is-phone.is-landscape #ss .map-btn{padding:8px 12px;min-height:38px}
+.is-phone.is-landscape .bt{padding:14px 40px;min-height:48px}
+</style>
 </head>
 <body>
 <a href="/" class="back-link">← EXIT</a>
@@ -143,6 +171,7 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 </div>
 </div>
 </div>
+<div class="side">
 <div class="ctl">
 <button class="ctl-btn" id="pauseBtn" onclick="togglePause()">⏸ 一時停止</button>
 <button class="ctl-btn" id="ffBtn" onclick="toggleSpeed()">⏩ 1x</button>
@@ -171,6 +200,7 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 <ol class="rp-l" id="rl"><li class="rp-i"><span class="rp-r">-</span><span class="rp-n">記録なし</span><span class="rp-s"></span></li></ol>
 </div>
 <a href="/" class="bk">← トップページに戻る</a>
+</div>
 </div>
 </section>
 <script>
@@ -1410,12 +1440,15 @@ function loop(){
   requestAnimationFrame(loop);
 }
 function resize(){
-  var mh=window.innerHeight-200,mw=Math.min(window.innerWidth-24,1100),ar=W/H,h=mh,w=h*ar;
+  var land=document.documentElement.classList.contains('is-phone')&&window.innerWidth>window.innerHeight;
+  /* スマホ横向き: 盤は画面の高さいっぱい、右に操作の列（最低 200px）を残す */
+  var mh=land?window.innerHeight-12:window.innerHeight-200,mw=land?window.innerWidth-216:Math.min(window.innerWidth-24,1100),ar=W/H,h=mh,w=h*ar;
   if(w>mw){w=mw;h=w/ar;}
   cv.style.width=w+'px';
   cv.style.height=h+'px';
 }
 window.addEventListener('resize',resize);
+window.addEventListener('lum:orient',resize);
 var ni=document.getElementById('ni');
 ni.addEventListener('keydown',function(e){if(e.key==='Enter')subN();});
 (function boot(){
@@ -1428,6 +1461,7 @@ ni.addEventListener('keydown',function(e){if(e.key==='Enter')subN();});
   loop();
 })();
 </script>
+<script src="/games-landscape.js" defer></script>
 <script src="/games.js" data-game="defense" data-corner="top-center" defer></script>
 </body>
 </html>
