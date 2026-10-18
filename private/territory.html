@@ -6,6 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>LUMEN TERRITORY | Lumenium 会員限定</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.min.js","three/addons/":"/vendor/jsm/"}}</script>
+<script type="module" src="/games3d/territory3d.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { height:100%; }
@@ -15,7 +17,7 @@
     -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
   }
   #wrap { position:fixed; inset:0; }
-  #cv { display:block; width:100%; height:100%; touch-action:none; }
+  #cv { display:block; width:100%; height:100%; touch-action:none; position:relative; z-index:1; }
 
   .top {
     /* Above the overlays, not under them. The start screen and the result
@@ -1001,7 +1003,80 @@
     return { x: p.cx + d[0] * p.t, y: p.cy + d[1] * p.t }
   }
 
+  /* 3D 表示（/games3d/territory3d.js）が読む、いまの盤とコマ。 */
+  window.TERRITORY = { get: function () {
+    return { owner: owner, trail: trail, W: W, H: H, players: players, me: me, items: items, flash: flash,
+      shakeUntil: shakeUntil, danger: danger, COLORS: COLORS, ITEMS: ITEMS, DIRS: DIRS, headPos: headPos }
+  } }
+
+  /* 3D 表示のときは、地形とコマは 3D が描くので、ここでは名前・得点の数字・
+     画面外の敵の矢印・危険の赤い縁・小さな地図だけを重ねます。 */
+  function drawOverlay3D() {
+    var now = performance.now()
+    ctx.clearRect(0, 0, vw, vh)
+    var lead = leader(), p, pi
+    ctx.textAlign = 'center'
+    for (pi = 0; pi < players.length; pi++) {
+      p = players[pi]
+      if (!p.alive) continue
+      var hp = headPos(p), s = TERRITORY3D.toScreen(hp.x, hp.y, 1.25)
+      if (s.behind || s.x < -60 || s.y < -60 || s.x > vw + 60 || s.y > vh + 60) continue
+      ctx.font = '700 13px inherit'
+      ctx.lineWidth = 3
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)'
+      ctx.fillStyle = '#fff'
+      var label = (lead === p ? '♛ ' : '') + p.name
+      ctx.strokeText(label, s.x, s.y - 6)
+      ctx.fillText(label, s.x, s.y - 6)
+    }
+    for (pi = 0; pi < players.length; pi++) {
+      p = players[pi]
+      if (p === me || !p.alive) continue
+      var pp = headPos(p), sp = TERRITORY3D.toScreen(pp.x, pp.y, 0.4)
+      if (!sp.behind && sp.x > 16 && sp.x < vw - 16 && sp.y > 16 && sp.y < vh - 16) continue
+      var ang = Math.atan2(sp.y - vh / 2, sp.x - vw / 2)
+      if (sp.behind) ang += Math.PI
+      var rr = Math.min(vw, vh) / 2 - 34
+      var cells = Math.abs(p.cx - me.cx) + Math.abs(p.cy - me.cy)
+      ctx.save()
+      ctx.translate(vw / 2 + Math.cos(ang) * rr, vh / 2 + Math.sin(ang) * rr); ctx.rotate(ang)
+      ctx.globalAlpha = Math.max(0.28, 1 - cells / 60)
+      ctx.fillStyle = COLORS[p.id].base
+      ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-7, 7); ctx.lineTo(-7, -7); ctx.closePath(); ctx.fill()
+      ctx.restore()
+    }
+    for (pi = pops.length - 1; pi >= 0; pi--) {
+      var pop = pops[pi], age = (now - pop.at) / 1100
+      if (age >= 1) { pops.splice(pi, 1); continue }
+      var ps = TERRITORY3D.toScreen(pop.x, pop.y, 1)
+      ctx.save()
+      ctx.globalAlpha = 1 - age * age
+      ctx.font = '800 ' + (pop.big ? 26 : 19) + 'px system-ui, sans-serif'
+      ctx.lineWidth = 4
+      ctx.strokeStyle = 'rgba(7,10,22,0.85)'
+      ctx.strokeText(pop.text, ps.x, ps.y - age * 42)
+      ctx.fillStyle = pop.big ? '#fde68a' : '#67e8f9'
+      ctx.fillText(pop.text, ps.x, ps.y - age * 42)
+      ctx.restore()
+    }
+    if (danger > 0.02) {
+      var gkey = vw + 'x' + vh
+      if (dangerKey !== gkey) {
+        dangerKey = gkey
+        dangerGrad = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.max(vw, vh) * 0.62)
+        dangerGrad.addColorStop(0, 'rgba(244,63,94,0)')
+        dangerGrad.addColorStop(1, 'rgba(244,63,94,0.42)')
+      }
+      ctx.globalAlpha = danger
+      ctx.fillStyle = dangerGrad
+      ctx.fillRect(0, 0, vw, vh)
+      ctx.globalAlpha = 1
+    }
+    if (now - miniAt > 125) { miniAt = now; drawMini(Math.max(11, Math.min(vw, vh) / 30)) }
+  }
+
   function draw() {
+    if (window.TERRITORY3D && TERRITORY3D.ok) { drawOverlay3D(); return }
     // About thirty cells across the short side. At twenty-three you could not
     // see the edge of your own ground, let alone anyone else's, which is the
     // one thing the view has to show.
