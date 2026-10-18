@@ -206,7 +206,13 @@ export function createPoints(max, { additive = true, sizeScale = 1 } = {}) {
     add(x, y, z, color, s, a) {
       if (n >= max) return
       pos[n * 3] = x; pos[n * 3 + 1] = y; pos[n * 3 + 2] = z
-      tmp.set(color)
+      // 'rgba(r,g,b,a)' は色と明るさに分けて受けます（Three.js の色は透明度を持たないため）
+      const m = typeof color === 'string' && color.charCodeAt(0) === 114 ? /rgba?\(([^)]+)\)/.exec(color) : null
+      if (m) {
+        const c = m[1].split(',').map(Number)
+        tmp.setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace)
+        if (c.length > 3 && isFinite(c[3])) a *= c[3]
+      } else tmp.set(color)
       col[n * 3] = tmp.r; col[n * 3 + 1] = tmp.g; col[n * 3 + 2] = tmp.b
       size[n] = s; alpha[n] = a
       n++
