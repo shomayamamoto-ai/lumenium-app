@@ -16,6 +16,8 @@
 <meta name="twitter:image" content="https://lumenium.net/api/og?title=LUMEN+CODE&subtitle=Crack+the+Light.">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="theme-color" content="#020212">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.min.js","three/addons/":"/vendor/jsm/"}}</script>
+<script type="module" src="/games3d/hitblow3d.js"></script>
 <style>
 :root{color-scheme:dark;--bg:#020212;--fg:#f8fafc;--indigo:#4f46e5;--indigo-light:#818cf8;--cyan:#06b6d4;--cyan-light:#22d3ee;--amber:#fbbf24;--green:#22c55e;--red:#ef4444;--muted:rgba(248,250,252,.42)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -269,6 +271,7 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
 </head>
 <body>
 <canvas id="stars" aria-hidden="true"></canvas>
+<canvas id="vault3d" aria-hidden="true" style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:none"></canvas>
 <div id="stage">
   <a class="back-link" href="/">← EXIT</a>
 
@@ -395,6 +398,9 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   let lastScore = 0
   let history = []            // every answered guess, for the candidate count
   let marks = {}              // 0-9 -> '' | 'in' | 'out'
+
+  /* 3D の金庫（/games3d/hitblow3d.js）へ、入力・判定・結果を知らせます。 */
+  const emit = (name, detail) => { try { window.dispatchEvent(new CustomEvent(name, { detail: detail })) } catch (_) {} }
 
   /* ---- storage helpers (private mode can throw) ---- */
   const load = (k, fb) => { try { const v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v) } catch (_) { return fb } }
@@ -602,6 +608,7 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     flashKey(d)
     const t = currentRow().querySelectorAll('.tile')[guess.length - 1]
     t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop')
+    emit('hb:digit', { n: guess.length, len: cfg.len, d: d })
     note('')
     paintGuess()
   }
@@ -609,6 +616,7 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
   function popDigit() {
     if (!playing || !guess.length) return
     guess.pop()
+    emit('hb:digit', { n: guess.length, len: cfg.len, d: null })
     note('')
     paintGuess()
   }
@@ -656,6 +664,7 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     pills[1].innerHTML = blow + ' <small>BLOW</small>'
 
     history.push({ g: gs, hit: hit, blow: blow })
+    emit('hb:result', { hit: hit, blow: blow, len: cfg.len, turn: turn + 1, turns: cfg.turns })
     updateRuledOut(gs, hit, blow)
     autoMark(gs, hit, blow)
     paintNotes()
@@ -718,10 +727,12 @@ h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1;letter-spacing:.
     note('')
     el.ovStart.classList.add('hide')
     el.ovEnd.classList.add('hide')
+    emit('hb:start', { len: cfg.len, turns: cfg.turns })
   }
 
   function finish(won) {
     playing = false
+    emit('hb:end', { won: !!won })
     clearInterval(timerId)
     const elapsed = Date.now() - startedAt
     const used = turn
