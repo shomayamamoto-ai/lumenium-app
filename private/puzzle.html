@@ -627,6 +627,9 @@ function invalidFeedback() {
   boardEl.classList.remove('shake');
   void boardEl.offsetWidth;
   boardEl.classList.add('shake');
+  // 揺れが終わったら印を外します（付けたままだと、3D 表示が揺れ続けてしまうため）
+  clearTimeout(invalidFeedback.t);
+  invalidFeedback.t = setTimeout(function () { boardEl.classList.remove('shake'); }, 320);
   moveHintEl.classList.add('show');
   clearTimeout(hintTimer);
   hintTimer = setTimeout(function () { moveHintEl.classList.remove('show'); }, 1300);

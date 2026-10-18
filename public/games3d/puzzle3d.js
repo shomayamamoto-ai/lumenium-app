@@ -182,14 +182,24 @@ function start() {
 
   const t0 = performance.now()
   let shakeT = 0, glowT = 0
+  // 「揺れ」「光」は、印が付いた瞬間に1回だけ起こします。
+  // 印が付いたままでも毎フレーム揺らし直さないように（以前はこれで画面がガタガタし続けました）。
+  let hadShake = false, hadGlow = false
+  new MutationObserver(() => {
+    const sh = boardEl.classList.contains('shake'), gl = boardEl.classList.contains('glow')
+    if (sh && !hadShake) shakeT = 1
+    if (gl && !hadGlow) glowT = 1
+    hadShake = sh; hadGlow = gl
+  }).observe(boardEl, { attributes: true, attributeFilter: ['class'] })
   function render() {
     const now = performance.now()
     const t = (now - t0) / 1000
-    if (boardEl.classList.contains('shake')) shakeT = 1
-    if (boardEl.classList.contains('glow')) glowT = 1
-    shakeT *= 0.85; glowT *= 0.93
+    // 時間で減らす（端末のコマ数に関係なく、揺れは約0.3秒・光は約0.8秒で消える）
+    const dtS = Math.min(0.1, (now - (render.last || now)) / 1000); render.last = now
+    shakeT *= Math.exp(-dtS * 12); glowT *= Math.exp(-dtS * 4)
+    if (shakeT < 0.02) shakeT = 0
     camera.position.copy(base)
-    if (shakeT > 0.05) camera.position.x += (Math.random() - 0.5) * 0.25 * shakeT
+    if (shakeT > 0) camera.position.x += Math.sin(now / 18) * 0.12 * shakeT
     camera.lookAt(target)
 
     const bw = boardEl.clientWidth || 1
@@ -246,7 +256,7 @@ function start() {
     try { render() } catch (e) { boardEl.classList.remove('is3d'); canvas3d.remove(); console.warn('3D 表示を止めました（2D で続けます）', e); return }
     requestAnimationFrame(loop)
   })()
-  window.PUZZLE3D = { ok: true }
+  window.PUZZLE3D = { ok: true, camera: () => camera.position.toArray() }
 }
 
 function roundRect(w, h, r) {
