@@ -15,6 +15,8 @@
 <meta content="LUMEN DEFENSE — Lumenium" name="twitter:title">
 <meta content="https://lumenium.net/api/og?title=LUMEN+DEFENSE&subtitle=Build+towers+of+light." name="twitter:image">
 <link href="/favicon.ico" rel="icon">
+<script type="importmap">{"imports":{"three":"/vendor/three.module.min.js","three/addons/":"/vendor/jsm/"}}</script>
+<script type="module" src="/games3d/defense3d.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#020212;--card:#0a0e25;--border:rgba(248,250,252,.1);--pri:#4f46e5;--pri2:#818cf8;--cyan:#06b6d4;--cyan2:#22d3ee;--text:#f8fafc;--mut:rgba(248,250,252,.55)}
@@ -28,6 +30,8 @@ body{font-family:'Hiragino Sans','Yu Gothic UI','Segoe UI',system-ui,-apple-syst
 .cb{position:relative;overflow:hidden;border:1px solid rgba(99,102,241,.25);box-shadow:0 0 60px rgba(79,70,229,.12),0 20px 60px rgba(0,0,0,.5);background:#000}
 .cb::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 46px rgba(0,0,0,.5),inset 0 0 110px rgba(2,2,18,.3),inset 0 1px 0 rgba(255,255,255,.06),inset 0 -2px 0 rgba(0,0,0,.55)}
 canvas{display:block;cursor:crosshair;touch-action:manipulation}
+#c{position:relative;z-index:1}
+#c3d{position:absolute;left:0;top:0;z-index:0;display:none;pointer-events:none}
 .ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10}
 .sc{pointer-events:auto;text-align:center;padding:24px;background:radial-gradient(ellipse at center,rgba(2,2,18,.9) 0,rgba(2,2,18,.97) 100%);backdrop-filter:blur(6px);position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .sc h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:.02em;line-height:.95;margin-bottom:10px;background:linear-gradient(135deg,#fff 0,var(--pri2) 50%,var(--cyan2) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -98,6 +102,7 @@ canvas{display:block;cursor:crosshair;touch-action:manipulation}
 </div>
 <div class="gw">
 <div class="cb">
+<canvas id="c3d" aria-hidden="true"></canvas>
 <canvas height="420" id="c" width="560"></canvas>
 <div class="ov">
 <div class="sc" id="ss" style="max-width:none">
@@ -1155,7 +1160,56 @@ function drawBanner(){
   cx.fillText('あと '+Math.max(1,Math.ceil(waveTimer/60))+'秒 — タップ / Nキーで即開始 (+'+(10+wave)+'G)',W/2,by+70);
   bannerRect={x:bx,y:by,w:bw,h:88};
 }
+/* 3D 表示（/games3d/defense3d.js）が動いているときは、盤・タワー・敵は 3D が描き、
+   このキャンバスには文字・計器・バナーだけを重ねます。3D が使えない端末では下の 2D のまま。 */
+function drawOverlay3D(){
+  cx.setTransform(1,0,0,1,0,0);
+  cx.clearRect(0,0,W,H);
+  if(shakeT>0){shakeT--;if(shakeT===0)shakeMag=0;}
+  try{DEFENSE3D.render();}
+  catch(err){DEFENSE3D.ok=false;document.getElementById('c3d').style.display='none';return;}
+  enemies.forEach(function(e){
+    if(!e.alive)return;
+    var r=enemyR[e.type]||10,s=DEFENSE3D.toScreen(e.x,e.y,r/14+0.55),bw=2*r+4;
+    cx.fillStyle='rgba(15,23,42,0.85)';
+    cx.fillRect(s.x-bw/2,s.y-2,bw,4);
+    cx.fillStyle=e.hp/e.maxHp>0.5?'#34d399':'#ef4444';
+    cx.fillRect(s.x-bw/2,s.y-2,bw*Math.max(0,e.hp/e.maxHp),4);
+  });
+  texts.forEach(function(t){
+    var s=DEFENSE3D.toScreen(t.x,t.y,0.6);
+    cx.globalAlpha=Math.min(1,t.life/15);
+    cx.fillStyle=t.col;
+    cx.shadowColor='rgba(0,0,0,0.7)';cx.shadowBlur=4;
+    cx.font='bold '+t.size+'px system-ui';
+    cx.textAlign='center';
+    cx.fillText(t.txt,s.x,s.y);
+  });
+  cx.shadowBlur=0;
+  cx.globalAlpha=1;
+  if(redFlash>0){
+    redFlash--;
+    cx.fillStyle='rgba(239,68,68,'+(0.28*redFlash/20)+')';
+    cx.fillRect(0,0,W,H);
+  }
+  if(st==='play'){
+    drawHUD();
+    drawBanner();
+    if(paused){
+      cx.fillStyle='rgba(2,6,23,0.62)';
+      cx.fillRect(0,0,W,H);
+      cx.textAlign='center';
+      cx.fillStyle='#e2e8f0';
+      cx.font='bold 26px system-ui';
+      cx.fillText('⏸ PAUSED',W/2,H/2-6);
+      cx.fillStyle='#94a3b8';
+      cx.font='12px system-ui';
+      cx.fillText('P / ESC / ボタンで再開',W/2,H/2+20);
+    }
+  }
+}
 function draw(){
+  if(window.DEFENSE3D&&DEFENSE3D.ok){drawOverlay3D();return;}
   cx.save();
   if(shakeT>0){
     shakeT--;
@@ -1278,6 +1332,8 @@ cv.addEventListener('pointerdown',function(ev){
     callEarly();
     return;
   }
+  /* 3D 表示のときは、指の位置（画面）を、傾いた盤の上の位置に直します */
+  if(window.DEFENSE3D&&DEFENSE3D.ok){var q=DEFENSE3D.toBoard(x,y);x=q.x;y=q.y;}
   var gx=Math.floor(x/TILE),gy=Math.floor(y/TILE);
   if(gx<0||gx>=COLS||gy<0||gy>=ROWS)return;
   var twr=towers.find(function(t){return t.gx===gx&&t.gy===gy;});
