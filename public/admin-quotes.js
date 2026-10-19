@@ -629,7 +629,7 @@
     if (demo()) { say('デモ版のため書き出せません（実際の画面では、見積書・請求書の一覧が Excel で保存されます）。'); return; }
     say('Excel を作っています…', true);
     var res;
-    try { res = await window.lumAdmin.tap(await fetch('/api/quotes?export=xlsx', { headers: { Authorization: 'Bearer ' + window.lumAdmin.key() } })); }
+    try { res = await window.lumAdmin.tap(await fetch('/api/quotes?view=xlsx', { headers: { Authorization: 'Bearer ' + window.lumAdmin.key() } })); }
     catch (_) { say('通信できませんでした。'); return; }
     if (!res.ok) { say('書き出せませんでした。'); return; }
     var blob = await res.blob();

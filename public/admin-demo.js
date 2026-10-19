@@ -2092,6 +2092,18 @@
       return { ok: true, stored: true, unread: m.counts.unread, total: tot, open: open, fresh: 0, warn: m.warn, late: m.late, mailFailed: m.counts.mailFailed, follow: fol };
     }
     if (view === 'stats') return { ok: true, stored: true, stats: stats(q.get('days') === '90' ? 90 : 30), retentionDays: 365 };
+    if (view === 'people') {
+      var by = {};
+      RECS.forEach(function (r) {
+        if (r.spam || !r.email) return;
+        var k = r.email.toLowerCase();
+        var p = by[k] || (by[k] = { email: k, name: r.name, company: r.company, count: 0, last: r.receivedAt, first: r.receivedAt, open: 0, ids: [] });
+        p.count++; if (r.receivedAt > p.last) p.last = r.receivedAt;
+        if (r.status !== 'done' && !r.repliedAt) p.open++;
+        p.ids.push(r.id);
+      });
+      return { ok: true, stored: true, people: Object.keys(by).map(function (k) { return by[k]; }) };
+    }
     if (view === 'settings') return { ok: true, stored: true, settings: SETTINGS, templates: TEMPLATES, vars: ['name', 'company', 'brand', 'reply_hours', 'topics'], sender: SENDER, lineToken: true, brand: 'Lumenium' };
     var status = q.get('status') || 'new';
     var hits = RECS.filter(function (x) { return match(x, status, (q.get('q') || '').trim()); });
@@ -3158,6 +3170,35 @@
       return answer(u, String((init && init.method) || 'GET').toUpperCase(), init && init.body, ask);
     }).then(function (res) {
       return new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
+
+/* ---- デモ：お客様ごとのメモ・タグ・次に連絡する日（shape: api/customers.js） ----
+   架空のお客様（問い合わせ・予約の見本と同じアドレス）に付けたメモの見本。保存は断ります。 */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  function day(n) { return new Date(Date.now() + 9 * 3600000 + n * 86400000).toISOString().slice(0, 10); }
+  var ITEMS = [
+    { email: 'yumi@example.jp', name: '中村 由美', tags: ['常連', 'LINE'], note: 'LINE公式の運用もご相談あり。月初は忙しいので中旬に連絡。', followUpAt: day(0), updatedAt: new Date().toISOString() },
+    { email: 'makoto@example.com', name: '小林 誠', tags: ['法人', '受注'], note: '予約管理システム。来月から着手。', followUpAt: day(12), updatedAt: new Date().toISOString() },
+    { email: 'aoki@example.com', name: '青木 みどり', tags: ['常連'], note: 'カラーは明るめが好み（サンプル）。', followUpAt: '', updatedAt: new Date().toISOString() }
+  ];
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/customers') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    var body = method !== 'GET' ? { ok: false, demo: true, message: 'デモ版のため保存・送信はされません。' }
+      : u.searchParams.get('view') === 'badge' ? { ok: true, total: ITEMS.filter(function (p) { return p.followUpAt && p.followUpAt <= day(0); }).length }
+      : { ok: true, stored: true, today: day(0), items: ITEMS };
+    return new Promise(function (ok) { setTimeout(ok, 100); }).then(function () {
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
   };
 })();

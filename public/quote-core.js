@@ -484,7 +484,7 @@ function quoteSummary(q, rounding) {
     total: t.total, status: q.status, validUntil: q.validUntil, dueDate: q.dueDate || '',
     sentAt: q.sentAt || '', openedAt: q.openedAt || '', views: q.views || 0, decidedAt: q.decidedAt || '',
     inquiryId: q.inquiryId || '', source: q.source || '', sourceKind: q.sourceKind || '',
-    fromQuote: q.fromQuote || '', createdAt: q.createdAt || '',
+    fromQuote: q.fromQuote || '', createdAt: q.createdAt || '', email: q.toEmail || '',
     paid: paidTotal(q), balance: Math.max(0, t.total - paidTotal(q)), version: q.version || 1, acceptedAt: q.acceptedAt || '',
   }
 }

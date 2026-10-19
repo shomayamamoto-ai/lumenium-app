@@ -17,7 +17,7 @@ export const config = { runtime: 'edge' }
 //   POST { action:'catalog', items }         -> よく使う品目
 //   POST { action:'payment.add', id, date, amount, note } / { action:'payment.remove', id, index } -> 請求書の入金
 //   GET ?id=<id>&version=<n>         -> 訂正する前の版（第 n 版）
-//   GET ?export=xlsx                 -> 見積書・請求書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
+//   GET ?view=xlsx                   -> 見積書・請求書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
@@ -52,7 +52,7 @@ export async function GET(req) {
       const v = await getVersion(cfg, id, ver)
       return v ? json({ ok: true, quote: v }) : json({ ok: false, message: 'その版は見つかりませんでした。' }, 404)
     }
-    if (u.searchParams.get('export') === 'xlsx') {
+    if (u.searchParams.get('view') === 'xlsx') {
       const list = await allQuoteSummaries(cfg)
       const today = jstToday()
       const rows = [['種類', '番号', '発行日', '取引先', '件名', '合計（税込）', '状態', '有効期限', '支払期限', '入金済み', '残り', '版', '送った日', '決まった日']]

@@ -281,6 +281,14 @@
   }
 
   /* 見積書・請求書（api/quotes.js ?view=badge。数え方は _quote-core.js の quoteAttention）。 */
+  /* お客様ごとの「次に連絡する日」（会員リストの「お客様（全員）」・お客様カルテで決めたもの）。 */
+  function customerRows(s) {
+    if (!ok(s) || !num(s.data.total)) return [];
+    return [{ id: 'cust-follow', level: 'action', tab: 'list-view', count: s.data.total, unit: '人',
+      title: '連絡する日が来たお客様',
+      why: 'お客様カルテで「次に連絡する日」を決めた方です。ひと声かけたら、次の日を決め直すか外してください。',
+      go: { label: 'お客様の一覧を見る' } }];
+  }
   function quoteRows(s) {
     if (!ok(s)) return [];
     var d = s.data, out = [];
@@ -366,7 +374,7 @@
     now = now || Date.now();
     var rows = [].concat(
       healthRows(src.health), deployRows(src.deploy), inquiryRows(src.inquiries),
-      bookingRows(src.booking, now), quoteRows(src.quotes), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now), statsRows(src.statsTodo), seoRows(src.seoAudit),
+      bookingRows(src.booking, now), quoteRows(src.quotes), customerRows(src.customers), reviewRows(src.reviews), socialRows(src.social, now), videoRows(src.video), newsRows(src.news, now), statsRows(src.statsTodo), seoRows(src.seoAudit),
       memberRows(src.members, now), advisorRows(src.advisor), analyticsRows(src.analytics)
     );
     rows = rows.map(function (r, i) { r.order = i; return r; }).sort(function (a, b) {
@@ -688,7 +696,8 @@
     ['quotes', '/api/quotes?view=badge'],
     ['video', '/api/video-publish?view=badge'],
     ['statsTodo', '/api/analytics?view=badge'],
-    ['seoAudit', '/api/site-audit?view=badge']
+    ['seoAudit', '/api/site-audit?view=badge'],
+    ['customers', '/api/customers?view=badge']
   ];
 
   function within(p, ms) {
@@ -751,6 +760,10 @@
     var g = row.go || {};
     if (g.href) { window.open(g.href, '_blank', 'noopener'); return; }
     if (g.inq != null && window.lumInqOpen) { window.lumInqOpen(g.inq); return; }
+    if (row.id === 'cust-follow') {
+      try { sessionStorage.setItem('lum_mem_sec', 'people'); sessionStorage.setItem('lum_cp_quick', 'due'); } catch (_) {}
+      if (window.lumMembersSection) window.lumMembersSection('people');
+    }
     if (g.sec && row.tab === 'booking-admin') {
       try { sessionStorage.setItem('lum_booking_sec', g.sec); } catch (_) {}
     }

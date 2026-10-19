@@ -98,7 +98,9 @@ export const TABLE = {
   'advisor-store': { area: 'advisor', read: 'viewer', write: 'staff' },
   auto: { area: 'auto', read: 'viewer', write: 'manager' },
   // 見積書: 作る・直す・送る・請求書にするのは担当者から。消す・発行元の設定・よく使う品目は管理者から。
-  quotes: { area: 'quotes', read: 'viewer', write: 'staff', actions: { delete: 'manager', settings: 'manager', catalog: 'manager' } },
+  quotes: { area: 'quotes', read: 'viewer', write: 'staff', actions: { delete: 'manager', settings: 'manager', catalog: 'manager' }, views: { xlsx: 'manager' } },
+  // お客様ごとのメモ・タグ・次に連絡する日（会員リストの「お客様（全員）」とお客様カルテ）
+  customers: { area: 'members', read: 'viewer', write: 'staff' },
 }
 
 /** 記録しない操作: 「見た」「開いた（既読）」の印だけを付けるもの。毎回記録すると、

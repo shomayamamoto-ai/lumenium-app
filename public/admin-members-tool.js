@@ -25,7 +25,7 @@
   };
   var NEW_DAYS = 30;
   var SEEN_KEY = 'lum_mem_seen';
-  var SECTIONS = [['list', '会員一覧'], ['groups', 'グループ'], ['mail', 'お知らせメール'], ['growth', '増え方']];
+  var SECTIONS = [['list', '会員一覧'], ['people', 'お客様（全員）'], ['groups', 'グループ'], ['mail', 'お知らせメール'], ['growth', '増え方']];
   var REASONS = [['request', '本人から削除の依頼があった'], ['duplicate', '重複・テストの登録'], ['other', 'その他']];
 
   function esc(t) {
@@ -152,10 +152,14 @@
     draw();
   }
 
+  // ホームの「今日やること」から、決まった項目を開くため。
+  window.lumMembersSection = function (sec) { if (el('mt-body')) go(sec); };
+
   function draw() {
     var body = el('mt-body');
     if (!body) return;
     if (S.sec === 'list') return drawList(body);
+    if (S.sec === 'people') return window.lumCustomersView ? window.lumCustomersView(body) : (body.innerHTML = '');
     if (S.sec === 'groups') return drawGroups(body);
     if (S.sec === 'mail') return window.lumMembersMail ? window.lumMembersMail(body) : (body.innerHTML = '');
     if (S.sec === 'growth') return window.lumMembersGrowth ? window.lumMembersGrowth(body) : (body.innerHTML = '');

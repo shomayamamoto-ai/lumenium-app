@@ -4,6 +4,7 @@
 //   GET   /api/inquiries?id=<id>            1件の全部（本文・メモ・履歴・メールの結果）
 //   GET   /api/inquiries?view=badge         未読の数（タブとポータルの印）
 //   GET   /api/inquiries?view=stats&days=30 集計（状態・ジャンル・どこから・キャンペーン）
+//   GET   /api/inquiries?view=people        人ごとのまとめ（お客様（全員）の一覧用）
 //   GET   /api/inquiries?view=settings      設定と返信の文例
 //   GET   /api/inquiries?view=export        CSV（?status= で絞れます）
 //   PATCH /api/inquiries {ids|id, status?, spam?, note?, replied?, assignee?, read?, labels?, followUpAt?}
@@ -103,6 +104,22 @@ export async function GET(req) {
       // 初めて数えるとき: いまを「見た時刻」にして、昔の問い合わせを新着にしない。
       if (!seen) { seen = now; await writeSeen(cfg, seen) }
       return json(Object.assign({ ok: true, stored: true, unread: m.counts.unread }, inquiryAttention(list, seen, now, settings.replyHours)))
+    }
+    // お客様（全員）の一覧のための、人ごとのまとめ（メールアドレスで1人に）。
+    if (view === 'people') {
+      const by = new Map()
+      for (const x of list) {
+        if (x.spam || !x.email) continue
+        const k = String(x.email).trim().toLowerCase()
+        const cur = by.get(k) || { email: k, name: x.name, company: x.company, count: 0, last: x.receivedAt, first: x.receivedAt, open: 0, ids: [] }
+        cur.count++
+        if (x.receivedAt > cur.last) { cur.last = x.receivedAt; cur.name = x.name || cur.name; cur.company = x.company || cur.company }
+        if (x.receivedAt < cur.first) cur.first = x.receivedAt
+        if (needsReply(x)) cur.open++
+        if (cur.ids.length < 20) cur.ids.push(x.id)
+        by.set(k, cur)
+      }
+      return json({ ok: true, stored: true, people: [...by.values()] })
     }
     if (view === 'stats') {
       const days = u.searchParams.get('days') === '90' ? 90 : 30
