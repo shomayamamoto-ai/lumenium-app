@@ -45,6 +45,23 @@ export const STATUSES = Object.keys(STATUS_LABEL)
 export const CAPS = {
   records: 3000, notes: 50, note: 1000, history: 80, templates: 20,
   tplName: 40, tplSubject: 120, tplBody: 3000, assignee: 40, domains: 100, bulk: 100,
+  labels: 5, label: 12, sent: 10, sentSubject: 150, sentText: 4000,
+}
+
+/** 今日の日付（日本時間の YYYY-MM-DD）。「次に連絡する日」と比べます。 */
+export function jstDay(now = Date.now()) {
+  return new Date(now + 9 * 3600 * 1000).toISOString().slice(0, 10)
+}
+
+/** 「次に連絡する日」が今日か過ぎたもの。完了・迷惑は数えません。 */
+export function followUpDue(r, now = Date.now()) {
+  return !!r && !r.spam && r.status !== 'done' && /^\d{4}-\d{2}-\d{2}$/.test(r.followUpAt || '') && r.followUpAt <= jstDay(now)
+}
+
+/** 分類のラベル。前後の空白を除き、同じものは1つに、5つまで。 */
+export function cleanLabels(v) {
+  const list = (Array.isArray(v) ? v : String(v || '').split(/[,、，]/)).map((x) => one(x, CAPS.label)).filter(Boolean)
+  return [...new Set(list)].slice(0, CAPS.labels)
 }
 
 /* 「48時間以内に返信」はサイトに書いてある約束です。24時間で黄色、
@@ -171,6 +188,9 @@ export function newRecord(input, now = Date.now()) {
     readAt: '',
     repliedAt: '',
     assignee: '',
+    labels: [],
+    followUpAt: '',
+    sent: [],
     notes: [],
     history: [{ at: new Date(now).toISOString(), what: 'received', text: i.spam ? '受信（ブロックするドメインのため迷惑に分類）' : '受信' }],
     mail: { owner: 'pending', ownerError: '', auto: 'off', autoError: '', line: 'off', lineError: '' },
@@ -186,6 +206,7 @@ export function summary(r) {
     source: r.source ? r.source.short : '', kind: r.source ? r.source.kind : 'direct',
     campaign: r.source ? r.source.c : '', estimate: !!r.estimate,
     mailOwner: r.mail ? r.mail.owner : '', notes: (r.notes || []).length,
+    labels: r.labels || [], followUpAt: r.followUpAt || '', sentCount: (r.sent || []).length,
   }
 }
 
@@ -230,6 +251,23 @@ export function applyPatch(rec, patch, now = Date.now()) {
     if (a !== r.assignee) {
       log('assignee', a ? `担当: ${a}` : '担当を外す')
       r.assignee = a
+      changed = true
+    }
+  }
+  if (p.labels !== undefined) {
+    const l = cleanLabels(p.labels)
+    if (l.join('\n') !== (r.labels || []).join('\n')) {
+      log('labels', l.length ? `分類: ${l.join('・')}` : '分類を外す')
+      r.labels = l
+      changed = true
+    }
+  }
+  if (p.followUpAt !== undefined) {
+    const d = String(p.followUpAt || '')
+    if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) return { ok: false, message: '「次に連絡する日」の日付が正しくありません。' }
+    if (d !== (r.followUpAt || '')) {
+      log('followup', d ? `次に連絡する日: ${d.replace(/-/g, '/')}` : '「次に連絡する日」を外す')
+      r.followUpAt = d
       changed = true
     }
   }
@@ -284,18 +322,19 @@ export function needsReply(r) {
  *   mailFailed… 通知メールが送れなかった・途中で止まった */
 export function inquiryAttention(list, seenMs = 0, now = Date.now(), promised = PROMISED_H) {
   const ids = new Set()
-  let fresh = 0, warn = 0, late = 0, mailFailed = 0, open = 0
+  let fresh = 0, warn = 0, late = 0, mailFailed = 0, open = 0, follow = 0
   for (const r of Array.isArray(list) ? list : []) {
     if (!r || r.spam) continue
     const at = Date.parse(r.receivedAt) || 0
     if (needsReply(r)) { open++; ids.add(r.id) }
+    if (followUpDue(r, now)) { follow++; ids.add(r.id) }
     if (mailStuck(r) && r.status !== 'done') { mailFailed++; ids.add(r.id) }
     if (seenMs && at > seenMs) fresh++
     const o = overdue(r, now, promised)
     if (o === 'late') late++
     else if (o === 'warn') warn++
   }
-  return { total: ids.size, open, fresh, warn, late, mailFailed }
+  return { total: ids.size, open, fresh, warn, late, mailFailed, follow }
 }
 
 export function median(xs) {
@@ -317,7 +356,8 @@ export function metrics(list, now = Date.now(), promised = PROMISED_H) {
     counts[r.status] = (counts[r.status] || 0) + 1
     if (r.status === 'new' && !r.readAt) counts.unread++
     if (mailStuck(r)) counts.mailFailed++
-    if (needsReply(r)) counts.todo = (counts.todo || 0) + 1
+    if (needsReply(r) || followUpDue(r, now)) counts.todo = (counts.todo || 0) + 1
+    if (followUpDue(r, now)) counts.follow = (counts.follow || 0) + 1
     const o = overdue(r, now, promised)
     if (o === 'late') late++
     else if (o === 'warn') warn++
@@ -459,7 +499,8 @@ export const CSV_COLUMNS = [
   ['どこから', (r) => (r.source ? r.source.label : '')], ['キャンペーン', (r) => (r.source ? r.source.c : '')],
   ['送られたページ', (r) => r.page], ['見積り付き', (r) => (r.estimate ? 'はい' : '')],
   ['返信した日時', (r) => jst(r.repliedAt)], ['返信までの時間', (r) => { const h = replyHours(r); return h == null ? '' : h.toFixed(1) }],
-  ['担当', (r) => r.assignee], ['メモ', (r) => (r.notes || []).map((n) => n.text).join(' / ')],
+  ['担当', (r) => r.assignee], ['分類', (r) => (r.labels || []).join('・')],
+  ['次に連絡する日', (r) => (r.followUpAt || '').replace(/-/g, '/')], ['画面から送った返信', (r) => (r.sent || []).length || ''], ['メモ', (r) => (r.notes || []).map((n) => n.text).join(' / ')],
   ['メール通知', (r) => ({ sent: '送信済み', failed: '未送信', skipped: '送らず', pending: '未送信' }[r.mail && r.mail.owner] || '')],
 ]
 

@@ -1978,6 +1978,16 @@
     };
   }
   var RECS = ROWS.map(rec);
+  function day(n) { return new Date(now + 9 * H + n * 24 * H).toISOString().slice(0, 10); }
+  // 分類・次に連絡する日・この画面から送った返信の見本。
+  RECS[2].labels = ['見積り待ち']; RECS[3].labels = ['日程調整中'];
+  RECS[5].labels = ['見積り待ち', '至急']; RECS[5].followUpAt = day(0);
+  RECS[4].followUpAt = day(3); RECS[0].labels = ['紹介'];
+  RECS[6].labels = ['再問い合わせ'];
+  RECS[6].sent = [{ at: RECS[6].repliedAt, subject: '【Lumenium】LINE公式アカウントの設定について', text: '中村 由美 様\n\nLumenium です。お問い合わせありがとうございます。\nLINE公式アカウントの最初の設定から、お手伝いできます。\n\nオンラインで30分ほど、お店のご様子をうかがえる日時の候補をいくつかお知らせください。\n\nどうぞよろしくお願いいたします。' }];
+  RECS[6].history.push({ at: RECS[6].repliedAt, what: 'sent', text: 'この画面から返信を送信「【Lumenium】LINE公式アカウントの設定について」' });
+  RECS.forEach(function (r) { r.labels = r.labels || []; r.followUpAt = r.followUpAt || ''; r.sent = r.sent || []; });
+  function followDue(r) { return !r.spam && r.status !== 'done' && !!r.followUpAt && r.followUpAt <= day(0); }
   function replyH(r) { return r.repliedAt ? (Date.parse(r.repliedAt) - Date.parse(r.receivedAt)) / H : null; }
   function round(h) { return h == null ? null : Math.round(h * 10) / 10; }
   function overdue(r) {
@@ -1991,6 +2001,7 @@
       snippet: r.message.slice(0, 160), status: r.status, spam: r.spam, readAt: r.readAt, repliedAt: r.repliedAt,
       assignee: r.assignee, source: r.source.short, kind: r.source.kind, campaign: r.source.c, estimate: r.estimate,
       mailOwner: r.mail.owner, notes: r.notes.length, overdue: overdue(r),
+      labels: r.labels, followUpAt: r.followUpAt, sentCount: r.sent.length,
       ageH: round((now - Date.parse(r.receivedAt)) / H), replyH: round(replyH(r))
     };
   }
@@ -2002,7 +2013,8 @@
       c[r.status]++;
       if (r.status === 'new' && !r.readAt) c.unread++;
       if (r.mail.owner === 'failed' || r.mail.owner === 'pending') c.mailFailed++;
-      if (r.status !== 'done' && !r.repliedAt) c.todo = (c.todo || 0) + 1;
+      if ((r.status !== 'done' && !r.repliedAt) || followDue(r)) c.todo = (c.todo || 0) + 1;
+      if (followDue(r)) c.follow = (c.follow || 0) + 1;
       var o = overdue(r);
       if (o === 'late') late++; else if (o === 'warn') warn++;
       var h = replyH(r);
@@ -2016,13 +2028,13 @@
     };
   }
   function match(r, status, q) {
-    if (status === 'todo') { if (r.spam || r.status === 'done' || r.repliedAt) return false; }
+    if (status === 'todo') { if ((r.spam || r.status === 'done' || r.repliedAt) && !followDue(r)) return false; }
     else if (status === 'overdue') { if (r.spam || !overdue(r)) return false; }
     else if (status === 'spam') { if (!r.spam) return false; }
     else if (r.spam) { if (status !== 'all') return false; }
     else if (STATUS[status] && r.status !== status) return false;
     if (!q) return true;
-    var hay = [r.name, r.company, r.email, r.message, r.source.short, r.assignee, r.topics.join(' ')].join(' ').toLowerCase();
+    var hay = [r.name, r.company, r.email, r.message, r.source.short, r.assignee, r.topics.join(' '), r.labels.join(' ')].join(' ').toLowerCase();
     return q.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) >= 0; });
   }
   function rank(o) { return Object.keys(o).map(function (k) { return [k, o[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); }
@@ -2038,10 +2050,8 @@
     });
     return { days: days, total: total, byStatus: bs, byTopic: rank(bt), bySource: rank(bsrc), byCampaign: rank(bc) };
   }
-  var SENDER = {
-    from: 'Lumenium <onboarding@resend.dev>', sandbox: true,
-    sandboxNote: '送信元がResendの試用アドレス（onboarding@resend.dev）のため、お客様への受付確認メールは送っていません。試用アドレスからは、Resendに登録した自分のアドレスにしか届かないためです。自社のドメインをResendで認証し、送信元（CONTACT_FROM_EMAIL）をそのアドレスにすると送れるようになります。'
-  };
+  // 送信元は自社ドメインの例（この画面から返信を送る流れを見せるため）。
+  var SENDER = { from: 'Lumenium <info@example.com>', sandbox: false, sandboxNote: '' };
   var SETTINGS = {
     retentionDays: 365, replyHours: 48,
     autoReply: { on: true, subject: '【{brand}】お問い合わせを受け付けました', body: '{company} {name} 様\n\n{brand} です。お問い合わせありがとうございます。\n内容を確かめて、{reply_hours}時間以内に担当からご返信いたします。\n\nお急ぎの場合や、内容を書き足したい場合は、このメールにそのまま返信してください。\n\n※このメールは送信と同時に自動でお送りしています。\n　お心当たりが無い場合は、お手数ですがこのメールを破棄してください。' },
@@ -2077,7 +2087,9 @@
     if (view === 'badge') {
       var m = metrics();
       var open = RECS.filter(function (x) { return !x.spam && x.status !== 'done' && !x.repliedAt; }).length;
-      return { ok: true, stored: true, unread: m.counts.unread, total: open, open: open, fresh: 0, warn: m.warn, late: m.late, mailFailed: m.counts.mailFailed };
+      var fol = RECS.filter(followDue).length;
+      var tot = RECS.filter(function (x) { return (!x.spam && x.status !== 'done' && !x.repliedAt) || followDue(x); }).length;
+      return { ok: true, stored: true, unread: m.counts.unread, total: tot, open: open, fresh: 0, warn: m.warn, late: m.late, mailFailed: m.counts.mailFailed, follow: fol };
     }
     if (view === 'stats') return { ok: true, stored: true, stats: stats(q.get('days') === '90' ? 90 : 30), retentionDays: 365 };
     if (view === 'settings') return { ok: true, stored: true, settings: SETTINGS, templates: TEMPLATES, vars: ['name', 'company', 'brand', 'reply_hours', 'topics'], sender: SENDER, lineToken: true, brand: 'Lumenium' };

@@ -74,6 +74,18 @@
     if (h < 48) return (Math.round(h * 10) / 10) + '時間';
     return (Math.round(h / 24 * 10) / 10) + '日';
   }
+  // 日本時間の今日（YYYY-MM-DD）と、n 日後。
+  function today(n) { return new Date(Date.now() + 9 * 3600000 + (n || 0) * 86400000).toISOString().slice(0, 10); }
+  function md(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? (+m[2]) + '/' + (+m[3]) : d; }
+  // これまでに使われた分類（一覧に出ているもの）。入力の候補に出します。
+  function knownLabels() {
+    var seen = {}, out = [];
+    ((S.list && S.list.items) || []).concat(S.item ? [S.item] : []).forEach(function (it) {
+      (it.labels || []).forEach(function (l) { if (!seen[l]) { seen[l] = 1; out.push(l); } });
+    });
+    ['見積り待ち', '日程調整中', '至急', '紹介', '再問い合わせ'].forEach(function (l) { if (!seen[l]) { seen[l] = 1; out.push(l); } });
+    return out;
+  }
   function fill(text, r) {
     var v = {
       name: r.name || '', company: r.company || '', brand: S.brand || (window.lumSite && window.lumSite.name) || '',
@@ -130,6 +142,12 @@
     '.inq-check input{width:18px;height:18px;margin-top:2px;flex:none}' +
     '.inq-steps{margin:6px 0 0 1.3em;padding:0;font-size:12.5px;line-height:1.8}' +
     '.inq-badge{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:999px;background:#b42318;color:#fff;font-size:10.5px;font-weight:800;line-height:18px;text-align:center;vertical-align:1px}' +
+    '.inq-tag.lbl{background:rgba(124,58,237,.12);color:#6d28d9}.inq-tag.fu{background:rgba(14,165,233,.14);color:#0369a1}' +
+    '.inq-sent{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-top:8px;background:#faf9f6}' +
+    '.inq-sent summary{cursor:pointer;font-size:12.5px;font-weight:700;list-style:none}.inq-sent summary::-webkit-details-marker{display:none}' +
+    '.inq-sent pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:12.5px;line-height:1.75;margin:8px 0 0}' +
+    '.inq-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px;margin-top:10px}' +
+    '#inquiries-admin input[type=date].inq-in{width:auto;min-width:150px}' +
     '@media (max-width:560px){#inquiries-admin .inq-top{grid-template-columns:1fr 1fr}.inq-dl{grid-template-columns:1fr}.inq-dl dt{margin-top:4px}.inq-card .v{font-size:18px}}';
 
   function addCss() {
@@ -297,6 +315,12 @@
         if (it.mailOwner === 'failed' || it.mailOwner === 'pending') tags += '<span class="inq-tag ng">メール未送信</span>';
         if (it.replyH != null) tags += '<span class="inq-tag ok">返信まで ' + hours(it.replyH) + '</span>';
         if (it.estimate) tags += '<span class="inq-tag">見積り付き</span>';
+        if (it.followUpAt && !it.spam && it.status !== 'done') {
+          var due = it.followUpAt <= today();
+          tags += '<span class="inq-tag ' + (due ? 'late' : 'fu') + '">' + (due ? '連絡する日です（' : '次に連絡 ') + esc(md(it.followUpAt)) + (due ? '）' : '') + '</span>';
+        }
+        (it.labels || []).forEach(function (l) { tags += '<span class="inq-tag lbl">' + esc(l) + '</span>'; });
+        if (it.sentCount) tags += '<span class="inq-tag ok">画面から返信 ' + it.sentCount + '通</span>';
         return '<li class="' + (it.status === 'new' && !it.readAt ? 'unread' : '') + '">' +
           '<input type="checkbox" data-isel="' + esc(it.id) + '"' + (S.sel[it.id] ? ' checked' : '') + ' aria-label="' + esc(it.name) + 'さんの問い合わせを選ぶ">' +
           '<button type="button" class="inq-open" data-iopen="' + esc(it.id) + '">' +
@@ -460,7 +484,18 @@
       '</div>' +
       '<label class="soc-lab" for="inq-assignee">担当（だれが返すか・自由に書けます）</label>' +
       '<div class="inq-acts"><input class="inq-in" id="inq-assignee" maxlength="40" style="flex:1 1 180px;width:auto" value="' + esc(it.assignee) + '" placeholder="例：山本">' +
-      '<button type="button" class="ghost" id="inq-assign">担当を保存</button></div></div>' +
+      '<button type="button" class="ghost" id="inq-assign">担当を保存</button></div>' +
+      '<div class="inq-two"><div>' +
+        '<label class="soc-lab" for="inq-labels">分類（「、」で区切って5つまで）</label>' +
+        '<div class="inq-acts"><input class="inq-in" id="inq-labels" list="inq-labels-list" maxlength="80" style="flex:1 1 160px;width:auto" value="' + esc((it.labels || []).join('、')) + '" placeholder="例：見積り待ち、至急">' +
+        '<datalist id="inq-labels-list">' + knownLabels().map(function (l) { return '<option value="' + esc(l) + '">'; }).join('') + '</datalist>' +
+        '<button type="button" class="ghost" id="inq-labels-save">分類を保存</button></div>' +
+      '</div><div>' +
+        '<label class="soc-lab" for="inq-fu">次に連絡する日（その日になると「要対応」に戻ります）</label>' +
+        '<div class="inq-acts"><input type="date" class="inq-in" id="inq-fu" value="' + esc(it.followUpAt || '') + '" min="' + today() + '">' +
+        '<button type="button" class="ghost" data-fu="1">明日</button><button type="button" class="ghost" data-fu="3">3日後</button><button type="button" class="ghost" data-fu="7">1週間後</button>' +
+        (it.followUpAt ? '<button type="button" class="ghost" data-fu="">外す</button>' : '') + '</div>' +
+      '</div></div></div>' +
 
       '<div class="inq-sec"><h4>問い合わせの内容</h4><div class="inq-body">' + esc(it.message) + '</div></div>' +
 
@@ -481,18 +516,25 @@
       '</div>' +
 
       '<div class="inq-sec"><h4>返信する</h4>' +
-        '<p class="soc-small" style="margin-bottom:6px">文例を選ぶと、お名前などを差し込んだ文が入ります。直してから「メールソフトで返信」を押すか、「コピー」して貼り付けてください。送ったら「返信した」を押します。</p>' +
+        '<p class="soc-small" style="margin-bottom:6px">文例を選ぶと、お名前などを差し込んだ文が入ります。直してから「この画面から送る」を押すと、お客様にそのまま届き、「返信した」も自動で付きます。お客様からの返事は、いつものメールボックスに届きます。</p>' +
+        (S.sender && S.sender.sandbox ? '<div class="inq-note">送信元がまだ試用アドレスのため、この画面からは送れません。「メールソフトで返信」か「コピー」を使ってください（「設定状況」で自社のアドレスにすると送れるようになります）。</div>' : '') +
         '<label class="soc-lab" for="inq-tpl">文例</label>' +
         '<select id="inq-tpl"><option value="">（文例を使わない）</option>' + tpls.map(function (t) {
           return '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>';
         }).join('') + '</select>' +
         '<label class="soc-lab" for="inq-rsub">件名</label><input class="inq-in" id="inq-rsub" maxlength="150">' +
         '<label class="soc-lab" for="inq-rbody">本文</label><textarea id="inq-rbody" rows="9"></textarea>' +
+        '<label class="inq-check"><input type="checkbox" id="inq-copyme" checked><span>自分にも控えを送る（BCC）</span></label>' +
         '<div class="inq-acts" style="margin-top:8px">' +
-          '<button type="button" id="inq-mailto">メールソフトで返信</button>' +
+          '<button type="button" id="inq-send"' + (S.sender && S.sender.sandbox ? ' disabled' : '') + '>この画面から送る</button>' +
+          '<button type="button" class="ghost" id="inq-mailto">メールソフトで返信</button>' +
           '<button type="button" class="ghost" id="inq-copy">コピー</button>' +
           '<span class="soc-small" id="inq-rstate" role="status"></span>' +
-        '</div></div>' +
+        '</div>' +
+        ((it.sent || []).length ? '<h4 style="margin-top:14px">この画面から送った返信</h4>' + it.sent.slice().reverse().map(function (m) {
+          return '<details class="inq-sent"><summary>' + when(m.at) + '　' + esc(m.subject) + '</summary><pre>' + esc(m.text) + '</pre></details>';
+        }).join('') : '') +
+        '</div>' +
 
       '<div class="inq-sec"><h4>メモ（社内用・お客様には見えません）</h4>' +
         (it.notes && it.notes.length ? '<ul class="inq-hist">' + it.notes.slice().reverse().map(function (n) {
@@ -514,6 +556,25 @@
     el('inq-replied').addEventListener('click', function () { patch({ replied: !it.repliedAt }, this); });
     el('inq-spam').addEventListener('click', function () { patch({ spam: !it.spam }, this); });
     el('inq-assign').addEventListener('click', function () { patch({ assignee: el('inq-assignee').value }, this); });
+    el('inq-labels-save').addEventListener('click', function () { patch({ labels: el('inq-labels').value }, this); });
+    el('inq-fu').addEventListener('change', function () { if (this.value) patch({ followUpAt: this.value }, this); });
+    body.querySelectorAll('[data-fu]').forEach(function (b) {
+      b.addEventListener('click', function () { var n = b.getAttribute('data-fu'); patch({ followUpAt: n === '' ? '' : today(+n) }, b); });
+    });
+    el('inq-send').addEventListener('click', async function () {
+      var sub = el('inq-rsub').value.trim(), txt = el('inq-rbody').value.trim();
+      if (!txt) { el('inq-rstate').textContent = '本文が空です。文例を選ぶか、書いてから送ってください。'; el('inq-rbody').focus(); return; }
+      if (!confirm((it.company ? it.company + ' ' : '') + it.name + ' 様（' + it.email + '）に、このメールを送ります。よろしいですか？')) return;
+      var btn = this;
+      btn.disabled = true; el('inq-rstate').textContent = '送っています…';
+      var r = await send('POST', { action: 'reply.send', id: it.id, subject: sub, text: txt, copyMe: el('inq-copyme').checked });
+      btn.disabled = false;
+      if (!r.data.ok) { el('inq-rstate').textContent = r.data.message || '送れませんでした。'; return; }
+      S.item = r.data.item;
+      drawDetail();
+      say('送りました。「返信した」も記録しました。', true);
+      window.lumInqBadge();
+    });
     el('inq-addnote').addEventListener('click', function () {
       var t = el('inq-note').value.trim();
       if (!t) { say('メモが空です。'); return; }
@@ -564,7 +625,9 @@
     S.item = r.data.item;
     drawDetail();
     if (keep.body != null) { el('inq-tpl').value = keep.tpl; el('inq-rsub').value = keep.sub; el('inq-rbody').value = keep.body; }
-    say(p.note ? 'メモを保存しました。' : p.replied ? '返信した時刻を記録しました。' : '変更しました。', true);
+    say(p.note ? 'メモを保存しました。' : p.replied ? '返信した時刻を記録しました。'
+      : p.followUpAt !== undefined ? (p.followUpAt ? md(p.followUpAt) + ' に「要対応」に戻します。' : '「次に連絡する日」を外しました。')
+      : p.labels !== undefined ? '分類を保存しました。' : '変更しました。', true);
     window.lumInqBadge();
   }
 

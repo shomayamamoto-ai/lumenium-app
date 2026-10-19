@@ -6,8 +6,9 @@
 //   GET   /api/inquiries?view=stats&days=30 集計（状態・ジャンル・どこから・キャンペーン）
 //   GET   /api/inquiries?view=settings      設定と返信の文例
 //   GET   /api/inquiries?view=export        CSV（?status= で絞れます）
-//   PATCH /api/inquiries {ids|id, status?, spam?, note?, replied?, assignee?, read?}
+//   PATCH /api/inquiries {ids|id, status?, spam?, note?, replied?, assignee?, read?, labels?, followUpAt?}
 //   POST  /api/inquiries {action: settings.save | template.save | template.delete | domain.block}
+//   POST  /api/inquiries {action: 'reply.send', id, subject, text, copyMe?}  この画面からお客様へ返信を送る
 //
 // 保存の形と計算は _inquiries.js にあります。保存先は環境変数のものだけを
 // 見ます。フォームは訪問者の側で動くので、管理画面にだけ入れたキーで
@@ -20,7 +21,7 @@ import { setting } from './_settings.js'
 import {
   NO_STORE_MSG, SANDBOX_MSG, CAPS, STATUS_LABEL, PROMISED_H, WARN_H, TEMPLATE_VARS, idOk,
   allSummaries, prune, metrics, stats, overdue, replyHours, getRecord, getRecords, putRecord, applyPatch, summary,
-  inquiryAttention, needsReply, IK,
+  inquiryAttention, needsReply, followUpDue, IK,
   loadSettings, saveSettings, loadTemplates, saveTemplates, cleanTemplate, toCsv, isSandboxSender, str,
 } from './_inquiries.js'
 
@@ -49,13 +50,13 @@ async function writeSeen(cfg, ms) {
 
 function matches(s, status, q, now, promised) {
   // 「要対応」: まだ返信していないもの。「期限」: 約束の時間の半分を超えて未返信のもの。
-  if (status === 'todo') { if (!needsReply(s)) return false }
+  if (status === 'todo') { if (!needsReply(s) && !followUpDue(s, now)) return false }
   else if (status === 'overdue') { if (!overdue(s, now, promised)) return false }
   else if (status === 'spam') { if (!s.spam) return false }
   else if (s.spam) { if (status !== 'all') return false }
   else if (STATUS_LABEL[status] && s.status !== status) return false
   if (!q) return true
-  const hay = [s.name, s.company, s.email, s.snippet, s.source, s.campaign, s.assignee, (s.topics || []).join(' ')].join(' ').toLowerCase()
+  const hay = [s.name, s.company, s.email, s.snippet, s.source, s.campaign, s.assignee, (s.topics || []).join(' '), (s.labels || []).join(' ')].join(' ').toLowerCase()
   return q.split(/\s+/).every((w) => hay.includes(w))
 }
 
@@ -158,7 +159,7 @@ export async function PATCH(req) {
   if (!ids.length) return json({ ok: false, message: 'どの問い合わせを変えるかが分かりませんでした。' }, 400)
   if (ids.length > CAPS.bulk) return json({ ok: false, message: `一度に変えられるのは${CAPS.bulk}件までです。` }, 400)
   const patch = {}
-  ;['status', 'spam', 'note', 'replied', 'repliedAt', 'assignee', 'read'].forEach((k) => { if (b[k] !== undefined) patch[k] = b[k] })
+  ;['status', 'spam', 'note', 'replied', 'repliedAt', 'assignee', 'read', 'labels', 'followUpAt'].forEach((k) => { if (b[k] !== undefined) patch[k] = b[k] })
   if (!Object.keys(patch).length) return json({ ok: false, message: '変える内容がありません。' }, 400)
   try {
     const recs = await getRecords(cfg, ids)
@@ -201,6 +202,7 @@ export async function POST(req) {
       if (r.ok && r.settings.blockedDomains.indexOf(d) < 0) return json({ ok: false, message: 'ドメインの形になっていません。' }, 400)
       return json(r, r.ok ? 200 : 400)
     }
+    if (b.action === 'reply.send') return await sendReply(cfg, b, req)
     if (b.action === 'template.save' || b.action === 'template.delete') {
       let list = await loadTemplates(cfg)
       if (b.action === 'template.delete') {
@@ -220,4 +222,52 @@ export async function POST(req) {
   } catch (e) {
     return fail(e)
   }
+}
+
+/** この画面からお客様へ返信を1通送ります（Resend）。
+ *  返信先（reply_to）は通知の宛先（CONTACT_TO_EMAIL）にするので、お客様が
+ *  そのまま返信すると、ふだんのメールボックスに届きます。送った文は記録に残し、
+ *  「返信した」も自動で付けます（返信までの時間がそのまま数字になります）。 */
+async function sendReply(cfg, b, req) {
+  if (!idOk(b.id)) return json({ ok: false, message: 'どの問い合わせに返すかが分かりませんでした。' }, 400)
+  const rec = await getRecord(cfg, b.id)
+  if (!rec) return json({ ok: false, message: 'その問い合わせは見つかりませんでした。' }, 404)
+  if (!rec.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rec.email)) return json({ ok: false, message: 'この問い合わせにはメールアドレスがありません。' }, 400)
+  if (rec.spam) return json({ ok: false, message: '迷惑に分類した問い合わせには送れません。送るなら、先に「迷惑から戻す」を押してください。' }, 400)
+  const subject = str(b.subject, CAPS.sentSubject).replace(/\s+/g, ' ').trim() || 'Re: お問い合わせの件'
+  const text = str(b.text, CAPS.sentText).trim()
+  if (!text) return json({ ok: false, message: '本文が空です。' }, 400)
+  const from = BRAND.from
+  if (isSandboxSender(from)) return json({ ok: false, message: SANDBOX_MSG + ' それまでは「メールソフトで返信」を使ってください。' }, 400)
+  const apiKey = await setting('RESEND_API_KEY', '', req)
+  if (!apiKey) return json({ ok: false, message: 'メールを送る設定（RESEND_API_KEY）がありません。「設定状況」を見てください。それまでは「メールソフトで返信」を使ってください。' }, 400)
+  const owner = await setting('CONTACT_TO_EMAIL', BRAND.owner, req)
+  const mail = { from, to: [rec.email], subject, text }
+  if (owner) mail.reply_to = owner
+  if (owner && b.copyMe) mail.bcc = [owner]
+  let res
+  try {
+    res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(mail),
+    })
+  } catch (_) {
+    return json({ ok: false, message: 'メールの送信先（Resend）に届きませんでした。少し待ってからもう一度押してください。' }, 502)
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    console.error('[api/inquiries] resend answered', res.status, detail.slice(0, 200))
+    return json({ ok: false, message: `送れませんでした（Resend が ${res.status} を返しました）。宛先のアドレスと「設定状況」を確かめてください。` }, 502)
+  }
+  const now = Date.now()
+  const r = applyPatch(rec, { replied: true }, now)
+  const out = r.rec
+  const at = new Date(now).toISOString()
+  out.sent = (out.sent || []).concat([{ at, subject, text }]).slice(-CAPS.sent)
+  out.history.push({ at, what: 'sent', text: `この画面から返信を送信「${subject.slice(0, 60)}」` })
+  out.history = out.history.slice(-CAPS.history)
+  await putRecord(cfg, out)
+  const st = await loadSettings(cfg)
+  return json({ ok: true, item: Object.assign(out, { overdue: overdue(out, now, st.replyHours), replyH: replyHours(out) }) })
 }
