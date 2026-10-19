@@ -836,3 +836,12 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .mk-ftext { flex: 1 1 220px; min-width: 0; }
 #shell .mk-form input { padding: 8px 10px; border: 1px solid var(--ui-border); border-radius: 9px; background: #fff; font: inherit; font-size: 13px; min-width: 0; }
 #shell .mk-form button { padding: 8px 14px; font-size: 12.5px; }
+
+/* ---- アクセス解析: 計測用リンクの QR コード ---- */
+#shell .utm-qr { display: flex; gap: 14px; align-items: flex-start; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ui-border); }
+#shell .utm-qr-img { flex: none; width: 132px; height: 132px; background: #fff; border: 1px solid var(--ui-border); border-radius: 8px; overflow: hidden; }
+#shell .utm-qr-img svg { display: block; width: 100%; height: 100%; }
+#shell .utm-qr-side { flex: 1 1 200px; min-width: 0; }
+#shell .utm-qr-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#shell .utm-qr-acts button { font-size: 12px; padding: 6px 12px; }
+@media (max-width: 480px) { #shell .utm-qr { flex-direction: column; } }

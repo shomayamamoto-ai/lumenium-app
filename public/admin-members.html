@@ -1531,6 +1531,18 @@ input, select, textarea { color: var(--text); }
           <input type="text" id="utm-url" readonly aria-label="計測用リンク">
           <button type="button" id="utm-copy">コピー</button>
         </div>
+        <!-- 名刺・チラシに載せる QR コード。このブラウザの中で作ります（外のサービスには送りません）。 -->
+        <div class="utm-qr">
+          <div id="utm-qr-img" class="utm-qr-img" role="img" aria-label="計測用リンクのQRコード"></div>
+          <div class="utm-qr-side">
+            <p class="share-note" style="margin:0 0 8px">名刺・チラシ・店頭のポップに載せる QR コードです。読み取ると上のリンクが開き、下の「流入元」にこの印で出ます。印刷するときは <b>2cm 角以上</b>にして、周りの白い余白は切らずに残してください。</p>
+            <div class="utm-qr-acts">
+              <button type="button" class="ghost" id="utm-qr-png">PNGで保存（印刷用）</button>
+              <button type="button" class="ghost" id="utm-qr-svg">SVGで保存（拡大してもきれい）</button>
+            </div>
+            <p class="share-note" id="utm-qr-msg" role="status" style="margin:6px 0 0"></p>
+          </div>
+        </div>
       </details>
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
       <!-- いまサイトにいる人。画面が見えている間だけ、15秒ごとに読み直します。 -->
@@ -4696,6 +4708,75 @@ window.lumAdmin = {
     src.addEventListener('change', make); dest.addEventListener('change', make);
     if (camp) camp.addEventListener('input', make);
     make();
+
+    /* ---- QR コード ----
+       作り方は口コミ管理・予約ページと同じ部品（/reviews-core.js）。開いたときに
+       だけ読み込みます。リンクが変わるたびに作り直し、保存はこのブラウザの中で
+       PNG（印刷用に大きめ）か SVG にします。 */
+    var box = document.getElementById('utm-box');
+    var qrHost = document.getElementById('utm-qr-img'), qrMsg = document.getElementById('utm-qr-msg');
+    var qrWait = null, qrNow = null;
+    function qrCore() {
+      if (window.lumReviewsCore) return Promise.resolve(window.lumReviewsCore);
+      if (qrWait) return qrWait;
+      qrWait = new Promise(function (ok, ng) {
+        var s = document.createElement('script');
+        s.src = '/reviews-core.js';
+        s.onload = function () { window.lumReviewsCore ? ok(window.lumReviewsCore) : ng(new Error('core')); };
+        s.onerror = function () { qrWait = null; ng(new Error('core')); };
+        document.head.appendChild(s);
+      });
+      return qrWait;
+    }
+    function fileBase() {
+      var c = camp ? camp.value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) : '';
+      return 'qr-' + src.value + (c ? '-' + c : '');
+    }
+    function drawQr() {
+      if (!qrHost || !box || !box.open) return;
+      qrCore().then(function (core) {
+        try {
+          qrNow = core.qrEncode(out.value);
+          qrHost.innerHTML = core.qrSvg(qrNow, { label: '計測用リンクのQRコード' });
+          if (qrMsg) qrMsg.textContent = '';
+        } catch (e) {
+          qrNow = null;
+          qrHost.innerHTML = '';
+          if (qrMsg) qrMsg.textContent = (e && e.message) || 'QR コードを作れませんでした。';
+        }
+      }).catch(function () { if (qrMsg) qrMsg.textContent = 'QR コードの部品を読み込めませんでした。再読み込みしてください。'; });
+    }
+    function save(blob, name) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    }
+    if (box) box.addEventListener('toggle', drawQr);
+    [src, dest].forEach(function (x) { x.addEventListener('change', drawQr); });
+    if (camp) camp.addEventListener('input', drawQr);
+    var pngBtn = document.getElementById('utm-qr-png'), svgBtn = document.getElementById('utm-qr-svg');
+    if (svgBtn) svgBtn.addEventListener('click', function () {
+      var svg = qrHost && qrHost.querySelector('svg');
+      if (!svg) return;
+      save(new Blob([svg.outerHTML], { type: 'image/svg+xml' }), fileBase() + '.svg');
+    });
+    if (pngBtn) pngBtn.addEventListener('click', function () {
+      if (!qrNow) return;
+      // 印刷で粗くならないよう、1辺がおよそ1200px になる大きさで描きます。
+      var margin = 4, n = qrNow.size + margin * 2, cell = Math.max(8, Math.floor(1200 / n));
+      var cv = document.createElement('canvas');
+      cv.width = cv.height = n * cell;
+      var g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+      g.fillStyle = '#000';
+      for (var y = 0; y < qrNow.size; y++) for (var x = 0; x < qrNow.size; x++) {
+        if (qrNow.modules[y][x]) g.fillRect((x + margin) * cell, (y + margin) * cell, cell, cell);
+      }
+      cv.toBlob(function (b) { if (b) save(b, fileBase() + '.png'); }, 'image/png');
+    });
     /* 開くページは、このサイトにある実際のページから選びます（ビルドが作る /seo-pages.json）。
        決め打ちの一覧だと、ページの違うサイトでは開かないリンクができてしまうためです。 */
     fetch('/seo-pages.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
