@@ -5929,7 +5929,10 @@ window.lumAdmin = {
       }).join('');
   }
 
+  // 印刷用のまとめ（lumSeoPrint）が使う、いま画面に出している結果。
+  var printSrc = { aio: null, gsc: null, crawl: null, audit: null };
   function draw(data) {
+    printSrc.aio = data;
     var run = data.latest;
     socialBlock(data.social, run && run.summary);
     if (run && !run.summary && (run.results || []).length) {
@@ -6615,6 +6618,7 @@ window.lumAdmin = {
   }
 
   function renderAudit(data) {
+    printSrc.audit = data;
     var btn = el('audit-run');
     btn.textContent = 'もう一度点検';
     el('audit-note').textContent = data.total + 'ページを点検しました（' + new Date(data.checkedAt).toLocaleString('ja-JP') + '）' +
@@ -6837,6 +6841,7 @@ window.lumAdmin = {
       return;
     }
     var c = d.crawlers || { total: 0, agents: [], groups: [], missing: [], tokens: [] };
+    printSrc.crawl = c;
     var when = function (iso) {
       if (!iso) return '—';
       var t = new Date(iso);
@@ -6988,6 +6993,7 @@ window.lumAdmin = {
         '<div style="font-size:20px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">' + v + '</div>' +
         (foot ? '<div style="font-size:11px;line-height:1.6;margin-top:2px">' + foot + '</div>' : '') + '</div>';
     };
+    printSrc.gsc = d;
     var t = d.total, ch = d.change;
     var cards = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px">' +
       card('検索結果に出た回数', n(t.impressions) + '回', diff(ch && ch.impressions, '回')) +
@@ -7086,6 +7092,91 @@ window.lumAdmin = {
       true);
     bind();
   }
+
+  /* ---- 渡せるレポート（印刷・PDF） ----
+     いま画面に出ている結果から、A4 1枚のまとめを作って印刷の画面を開きます。
+     ブラウザの印刷で「PDFに保存」を選べば、そのままメールに付けて渡せます。
+     まだ読み込んでいない欄は「未取得」と書き、空欄のまま渡さないようにします。 */
+  window.lumSeoPrint = function () {
+    var A = printSrc.aio, run = A && A.latest && A.latest.summary ? A.latest : null, sm = run && run.summary;
+    var P = function (r) { return r && r.n ? Math.round(r.p * 100) + '%<small>（' + Math.round(r.lo * 100) + '〜' + Math.round(r.hi * 100) + '%）</small>' : '—'; };
+    var D = function (iso) { var t = new Date(iso); return isNaN(t) ? '' : t.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }); };
+    var N = function (x) { return Number(x || 0).toLocaleString('ja-JP'); };
+    var sec = function (title, body) { return '<section class="pr-sec"><h2>' + title + '</h2>' + body + '</section>'; };
+    var none = '<p class="pr-none">未取得（画面で読み込んでから印刷してください）</p>';
+
+    // 1. AIごとの率
+    var aio = none;
+    if (sm) {
+      var rows = (sm.engines && sm.engines.length ? sm.engines : [{ label: '全体', stats: sm.stats || {} }]).map(function (e) {
+        var st = e.stats || {};
+        return '<tr><th>' + esc(e.label || engineName(e.id)) + '</th><td>' + P(st.recommend) + '</td><td>' + P(st.openMention) + '</td><td>' + P(st.cite) + '</td></tr>';
+      }).join('');
+      aio = '<p class="pr-lead">' + esc(D(run.finishedAt)) + ' の計測（' + (sm.questions || '') + '問 × ' + (sm.samples || 1) + '回・数えた回答 ' + sm.asked + '回）。社名の入っていない質問への回答で数えています。</p>' +
+        '<table class="pr-tbl"><tr><th>AI</th><th>候補として挙がった</th><th>名前が出た</th><th>答えの出典になった</th></tr>' + rows + '</table>' +
+        '<p class="pr-small">かっこ内は「本当の率はおそらくこの間にある」という幅です（AIは聞くたびに少し違う答えを返すため）。</p>';
+    }
+    // 2. 推移
+    var hist = (A && A.history || []).filter(function (r) { return r.asked !== 0; }).slice(0, 6).reverse();
+    var trend = hist.length < 2 ? '<p class="pr-none">比べられる計測が2回以上になると出ます。</p>' :
+      '<table class="pr-tbl pr-trend"><tr><th>計測日</th><th>名前が出た</th><th></th></tr>' + hist.map(function (r) {
+        var p = Math.round((r.openMentionRate || 0) * 100);
+        return '<tr><th>' + esc(D(r.finishedAt)) + '</th><td>' + p + '%</td><td class="pr-barcell"><span class="pr-bar" style="width:' + Math.max(1, p) + '%"></span></td></tr>';
+      }).join('') + '</table>' +
+      (A.prev && A.prev.comparable && A.prev.compare && A.prev.compare.openMention
+        ? '<p class="pr-small">前回との差: ' + ({ up: '上がりました（誤差を超える差）', down: '下がりました（誤差を超える差）', same: '誤差の範囲', na: '比べられません' }[A.prev.compare.openMention.change] || '') + '</p>' : '');
+    // 3. Google検索
+    var g = printSrc.gsc, gsc = none;
+    if (g && g.ok && g.total) {
+      var ch = g.change || {};
+      var dd = function (v, unit, lower) { if (v === null || v === undefined) return ''; if (!v) return '<small>（前と同じ）</small>'; return '<small>（前の' + (g.days || 28) + '日より ' + (lower ? (v < 0 ? Math.abs(v) + '位上' : v + '位下') : (v > 0 ? '+' : '−') + N(Math.abs(v)) + unit) + '）</small>'; };
+      gsc = '<table class="pr-tbl"><tr><th>検索結果に出た回数</th><td>' + N(g.total.impressions) + '回' + dd(ch.impressions, '回') + '</td></tr>' +
+        '<tr><th>クリックされた回数</th><td>' + N(g.total.clicks) + '回' + dd(ch.clicks, '回') + '</td></tr>' +
+        '<tr><th>クリック率</th><td>' + g.total.ctr + '%</td></tr>' +
+        '<tr><th>平均の掲載順位</th><td>' + (g.total.position ? g.total.position + '位' : '—') + dd(ch.position, '', true) + '</td></tr>' +
+        (g.open ? '<tr><th>社名以外の語での表示</th><td>' + N(g.open.impressions) + '回</td></tr>' : '') + '</table>' +
+        (g.range ? '<p class="pr-small">直近' + (g.days || 28) + '日（' + esc(g.range.startDate) + '〜' + esc(g.range.endDate) + '）。Google Search Console の数字です。</p>' : '');
+    } else if (g && g.message) gsc = '<p class="pr-none">' + esc(g.message) + '</p>';
+    // 4. クローラー
+    var c = printSrc.crawl, crawl = none;
+    if (c) {
+      var grp = function (k) { var x = (c.groups || []).filter(function (y) { return y.key === k; })[0]; return x ? x.hits || 0 : 0; };
+      crawl = '<table class="pr-tbl"><tr><th>合計（直近' + (c.days || 30) + '日）</th><td>' + N(c.total) + '回</td></tr>' +
+        '<tr><th>AI検索のための読み取り</th><td>' + N(grp('ai-search')) + '回</td></tr>' +
+        '<tr><th>AIの学習用</th><td>' + N(grp('ai-train')) + '回</td></tr>' +
+        '<tr><th>検索エンジン</th><td>' + N(grp('search')) + '回</td></tr></table>' +
+        ((c.agents || []).length ? '<p class="pr-small">多く来たもの: ' + c.agents.slice(0, 5).map(function (a) { return esc(a.id) + ' ' + a.hits + '回'; }).join('・') + '（名乗っているアクセス数）</p>' : '');
+    }
+    // 5. サイトの点検
+    var au = printSrc.audit, audit = none;
+    if (au && au.counts) {
+      var probs = [];
+      (au.findings || []).forEach(function (f) { if (f.level === 'must' && probs.indexOf(f.problem) < 0) probs.push(f.problem); });
+      audit = '<p class="pr-big"><b>必ず直す ' + au.counts.must + '件</b>・直すと良い ' + au.counts.should + '件・問題なし ' + au.counts.ok + '項目</p>' +
+        (probs.length ? '<ul class="pr-list">' + probs.slice(0, 4).map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' : '') +
+        '<p class="pr-small">' + esc(D(au.checkedAt)) + ' の点検</p>';
+    }
+    // 6. 変化のお知らせ
+    var al = (alertsData && alertsData.alerts) || [];
+    var alerts = al.length ? '<ul class="pr-list">' + al.map(function (a) { return '<li>' + esc(a.title) + '</li>'; }).join('') + '</ul>'
+      : '<p class="pr-none">気になる変化はありません。</p>';
+
+    var box = document.getElementById('seo-print');
+    if (!box) { box = document.createElement('div'); box.id = 'seo-print'; document.body.appendChild(box); }
+    box.innerHTML =
+      '<header class="pr-head"><h1>' + esc((window.lumBrand && window.lumBrand.name) || window.lumSite.name) + '　検索とAIでの見え方 まとめ</h1>' +
+        '<p>' + esc(window.lumSite.host) + '　作成 ' + esc(new Date().toLocaleDateString('ja-JP')) + '</p></header>' +
+      '<div class="pr-grid">' +
+        sec('AIの回答での出方', aio) + sec('推移（名前が出た割合）', trend) +
+        sec('Google検索', gsc) + sec('AI・検索エンジンのクローラー', crawl) +
+        sec('サイトの点検', audit) + sec('変化のお知らせ', alerts) +
+      '</div>' +
+      '<footer class="pr-foot">AIの回答は、ウェブ検索を使うAIに同じ質問を何回か聞いて数えています（Googleの AI Overview そのものではありません）。クローラーの数は bot が名乗った名前で数えたもので、本物かどうかまでは確かめていません。</footer>';
+    document.body.classList.add('lum-printing');
+    var done = function () { document.body.classList.remove('lum-printing'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    window.print();
+  };
 
   window.lumSeoInit = function () {
     if (loaded) return; loaded = true; load();
