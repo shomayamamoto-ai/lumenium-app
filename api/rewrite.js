@@ -40,6 +40,57 @@ export const WAYS = {
     note: '意味はそのままに、読みやすく直します。',
     rule: '意味と長さはできるだけ変えず、読点の位置、語順、重複した言い回しだけを直してください。新しい情報を足さないこと。',
   },
+  /* 誤字・表記ゆれ。ほかの4つと違い、言い回しは変えません。直したところを
+     一つずつ返すので、案を採る前に「何が直ったか」を読めます。このサイトで
+     決めた書き方（SNS（文章）の「このサイトの決まり」の表記の統一）は、
+     AIに頼らず先にそのまま当てます。 */
+  proof: {
+    label: '誤字・表記ゆれ',
+    note: '誤字・脱字・表記のゆれだけを直します（言い回しは変えません）。',
+    rule: [
+      '誤字・脱字、変換の間違い、表記のゆれ（同じ言葉の書き方が文中でそろっていない。例: 下さい／ください、全角と半角の数字の混在）、句読点の重複だけを直してください。',
+      '言い回し・語順・長さは変えないこと。直すところが無ければ、元の文をそのまま返すこと。',
+      '出力は JSON 1つだけにすること（前置きや ``` は付けない）: {"text":"直した全文","changes":[{"from":"元の部分","to":"直した部分","why":"誤字|脱字|表記ゆれ|句読点|変換ミス"}]}',
+    ].join('\n'),
+    json: true,
+  },
+}
+
+const boldCount = (t) => (String(t).match(/\*\*/g) || []).length
+
+/** 誤字・表記ゆれの答え（JSON）を読む。読めない・書き換えすぎ・太字の印が
+ *  崩れたものは null（案として出しません）。 */
+export function parseProof(raw, original) {
+  const m = String(raw || '').match(/\{[\s\S]*\}/)
+  if (!m) return null
+  let o
+  try { o = JSON.parse(m[0]) } catch (_) { return null }
+  const text = typeof (o && o.text) === 'string' ? o.text.trim() : ''
+  if (!text) return null
+  // 直すのは文字の間違いだけ。長さが大きく変わったなら、書き直されています。
+  if (Math.abs(text.length - original.length) > Math.max(12, original.length * 0.15)) return null
+  if (boldCount(text) !== boldCount(original)) return null
+  if (text === original) return { text, changes: [] }
+  const changes = (Array.isArray(o.changes) ? o.changes : [])
+    .filter((c) => c && typeof c.from === 'string' && typeof c.to === 'string' && c.from !== c.to)
+    .slice(0, 12)
+    .map((c) => ({ from: c.from.slice(0, 40), to: c.to.slice(0, 40), why: String(c.why || '').slice(0, 20) }))
+  return { text, changes }
+}
+
+/** このサイトで決めた書き方を当てる（AIを使いません）。例外の言葉の中、
+ *  すでに直した形の中、URL の中は変えません（notationHits と同じ決まり）。 */
+export function applyNotation(text, rules, hitsOf) {
+  let out = String(text || '')
+  const changes = []
+  for (const r of Array.isArray(rules) ? rules : []) {
+    if (!r || !r.from || !r.to || r.from === r.to) continue
+    const hits = hitsOf(out, r)
+    if (!hits.length) continue
+    for (let i = hits.length - 1; i >= 0; i--) out = out.slice(0, hits[i]) + r.to + out.slice(hits[i] + r.from.length)
+    changes.push({ from: r.from, to: r.to, why: 'このサイトの表記の決まり' + (hits.length > 1 ? `（${hits.length}か所）` : '') })
+  }
+  return { text: out, changes }
 }
 
 const SYSTEM = [
@@ -49,7 +100,7 @@ const SYSTEM = [
   '渡されるのは、サイトのどこかに実際に出ている一文または数行です。',
   '',
   '守ること。',
-  '書き直した文章だけを返すこと。前置き、説明、かぎかっこ、「案1」のような見出しは付けない。',
+  '書き直した文章だけを返すこと（直し方で返す形を指定したときは、その形で）。前置き、説明、かぎかっこ、「案1」のような見出しは付けない。',
   '元の文に無い事実（金額・実績・社名・年数・人数）を足さない。これがいちばん大事です。',
   '元の改行の数と位置は、意味が壊れない限りそのまま残す。',
   '**で囲まれた部分は太字の指定です。囲みは残したまま、中身だけを直す。',
@@ -62,11 +113,6 @@ export async function POST(req) {
   if (denied) return denied
 
   const key = await apiKey(req)
-  if (!key) return json(NO_AI, 503)
-
-  // 1日の回数の上限。押すのが手軽なぶん、気づかないうちに増えます。
-  const guard = await spendGuard('rewrite', 200)
-  if (guard) return guard
 
   let body
   try {
@@ -83,6 +129,26 @@ export async function POST(req) {
   }
   if (!way) return json({ ok: false, message: '書き直し方が選ばれていません。' }, 400)
 
+  // 誤字・表記ゆれは、このサイトの決まりだけならAIのキーが無くても直せます。
+  let local = null
+  if (way === 'proof') {
+    try {
+      const [{ readStyle }, { notationHits }] = await Promise.all([import('./_social-store.js'), import('./_social-text.js')])
+      const style = await readStyle(req)
+      local = applyNotation(text, style && style.notation, notationHits)
+    } catch (_) { local = { text, changes: [] } }
+    if (!key) {
+      return json({ ok: true, way, label: WAYS.proof.label, text: local.text, changes: local.changes,
+        note: 'AIのキーが未設定のため、このサイトで決めた表記（SNS（文章）の「このサイトの決まり」）だけで直しました。' })
+    }
+  }
+  if (!key) return json(NO_AI, 503)
+
+  // 1日の回数の上限。押すのが手軽なぶん、気づかないうちに増えます。
+  const guard = await spendGuard('rewrite', 200)
+  if (guard) return guard
+  const input = local ? local.text : text
+
   // どこに出ている文章か。見出しを本文のように直されると困るので、
   // 分かる範囲で伝えます。
   const where = String((body && body.where) || '').slice(0, 80)
@@ -92,7 +158,8 @@ export async function POST(req) {
   try {
     out = await client.messages.create({
       model: MODEL,
-      max_tokens: 900,
+      // 誤字・表記ゆれは全文と直したところの一覧を返すので、長めに。
+      max_tokens: way === 'proof' ? 2400 : 900,
       system: SYSTEM,
       messages: [{
         role: 'user',
@@ -101,7 +168,7 @@ export async function POST(req) {
           `直し方: ${WAYS[way].rule}`,
           '',
           '元の文章:',
-          text,
+          input,
         ].filter(Boolean).join('\n'),
       }],
     }, { signal: AbortSignal.timeout(TIMEOUT_MS) })
@@ -126,6 +193,12 @@ export async function POST(req) {
     .trim()
 
   if (!got) return json({ ok: false, message: '書き直しの結果が空でした。' }, 502)
+
+  if (way === 'proof') {
+    const p = parseProof(got, input)
+    if (!p) return json({ ok: false, message: '直した結果を読み取れませんでした。もう一度お試しください。' }, 502)
+    return json({ ok: true, text: p.text, way, label: WAYS.proof.label, changes: [...local.changes, ...p.changes] })
+  }
 
   return json({ ok: true, text: got, way, label: WAYS[way].label })
 }

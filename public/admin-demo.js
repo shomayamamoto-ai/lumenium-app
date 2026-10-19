@@ -1553,7 +1553,26 @@
     concrete: ['具体的に', 'ホームページ制作（30万円〜・約6週間）から公開後の更新まで、1社でお受けします。'],
     polish: ['整える', 'ホームページの制作から公開後の運用まで、一貫してお任せいただけます。']
   };
+  /* 誤字・表記ゆれ（shape: api/rewrite.js way:'proof'）。AIは呼ばず、よくある
+     直しを決まった規則で当てます。直すところが無ければ、元の文のまま返します。 */
+  var PROOF = [
+    [/下さい/g, '下さい', 'ください', '表記ゆれ'], [/出来る/g, '出来る', 'できる', '表記ゆれ'], [/致します/g, '致します', 'いたします', '表記ゆれ'],
+    [/頂/g, '頂', 'いただ', '表記ゆれ'], [/。。/g, '。。', '。', '句読点'], [/、、/g, '、、', '、', '句読点'],
+    [/[０-９]/g, '全角の数字', '半角の数字', '表記ゆれ'], [/お客様/g, 'お客様', 'お客さま', 'このサイトの表記の決まり（見本）']
+  ];
+  function proof(body) {
+    var t = String((body && body.text) || ''), changes = [];
+    PROOF.forEach(function (r) {
+      if (!r[0].test(t)) return;
+      r[0].lastIndex = 0;
+      t = t.replace(r[0], function (m) { return r[2] === '半角の数字' ? String.fromCharCode(m.charCodeAt(0) - 0xFEE0) : r[2]; });
+      changes.push({ from: r[1], to: r[2], why: r[3] });
+    });
+    return { ok: true, way: 'proof', label: '誤字・表記ゆれ', text: t, changes: changes,
+      note: 'デモ版のため、AIは使わず決まった規則で直しています。実際は、AIが誤字・脱字・表記のゆれを探します。' };
+  }
   function rewrite(body) {
+    if (body && body.way === 'proof') return proof(body);
     var w = WAYS[body && body.way] ? body.way : 'polish';
     return { ok: true, text: WAYS[w][1] + '（デモ用の書き直し例）', way: w, label: WAYS[w][0] };
   }

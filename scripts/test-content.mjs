@@ -503,4 +503,38 @@ await t('text-diff: 変えたところだけを印にする（画面と同じフ
   assert.equal(h.after, '&lt;b&gt;<ins>後</ins>&lt;/b&gt;')
 })
 
+/* ==== 文章編集：誤字・表記ゆれ ==== */
+await t('proof: AIの答え（JSON）を読む・書き換えすぎや太字の崩れは採らない', async () => {
+  const { parseProof } = await import('../api/rewrite.js')
+  const orig = 'お問い合わせ下さい。**無料**で相談できます。。'
+  const ok = parseProof('{"text":"お問い合わせください。**無料**で相談できます。","changes":[{"from":"下さい","to":"ください","why":"表記ゆれ"},{"from":"。。","to":"。","why":"句読点"},{"from":"x","to":"x"}]}', orig)
+  assert.equal(ok.text, 'お問い合わせください。**無料**で相談できます。')
+  assert.deepEqual(ok.changes.map((c) => c.to), ['ください', '。'], '同じものどうしの「直し」は落とす')
+  assert.equal(parseProof('```json\n{"text":"' + orig + '","changes":[{"from":"a","to":"b"}]}\n```', orig).changes.length, 0, '直っていなければ一覧は空')
+  assert.equal(parseProof('{"text":"お問い合わせください。無料で相談できます。"}', orig), null, '太字の印が消えたら採らない')
+  assert.equal(parseProof('{"text":"' + 'まったく別の長い文章に書き換えました。'.repeat(3) + '"}', orig), null, '書き換えすぎは採らない')
+  assert.equal(parseProof('読めない', orig), null)
+})
+
+await t('proof: このサイトの表記の決まりは、AIのキーが無くても当てる', async () => {
+  const { applyNotation, POST } = await import('../api/rewrite.js')
+  const { notationHits } = await import('../api/_social-text.js')
+  const rules = [{ from: 'お客様', to: 'お客さま', except: ['お客様各位'] }]
+  const r = applyNotation('お客様へ。お客様各位。お客様の声', rules, notationHits)
+  assert.equal(r.text, 'お客さまへ。お客様各位。お客さまの声', '例外の言葉の中は変えない')
+  assert.match(r.changes[0].why, /2か所/)
+  const { KV } = await import('../api/_brand.js')
+  store.set(`${KV}social:style`, JSON.stringify({ ng: [], notation: rules }))
+  on([])
+  const res = await POST(req('rewrite', 'POST', { text: 'お客様の声を集めました。', way: 'proof' }))
+  const d = await res.json()
+  assert.equal(res.status, 200, JSON.stringify(d))
+  assert.equal(d.text, 'お客さまの声を集めました。')
+  assert.equal(d.changes[0].from, 'お客様')
+  assert.match(d.note, /AIのキーが未設定/)
+  // ほかの書き直し方は、キーが無ければ今までどおり断る
+  assert.equal((await POST(req('rewrite', 'POST', { text: 'お客様の声', way: 'short' }))).status, 503)
+  store.delete(`${KV}social:style`)
+})
+
 console.log(`test-content: ${passed} passed`)

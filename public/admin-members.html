@@ -3736,6 +3736,8 @@ window.lumAdmin = {
     plain: ['やさしく', '専門語を減らし、高校生でも分かる言葉にします'],
     concrete: ['具体的に', '曖昧な言い方を、元の文にある事実で具体化します'],
     polish: ['整える', '意味はそのままに、読みやすく直します'],
+    // 誤字・表記ゆれは「書き直し」ではなく点検なので、ほかの4つと離して置きます。
+    proof: ['誤字・表記ゆれ', '誤字・脱字・表記のゆれだけを直します（言い回しは変えません）。このサイトで決めた書き方にもそろえます'],
   };
 
   function esc(t) {
@@ -3870,12 +3872,41 @@ window.lumAdmin = {
   /* 書き直しの案。置き換えるかどうかは人が決めます。
      押した瞬間に本文が変わる作りにすると、元の文が分からなくなり、
      気に入らなかったときに戻せません。 */
-  function offer(wrap, ta, before, after, label, done) {
+  function offer(wrap, ta, before, after, label, done, extra) {
     var old = wrap.querySelector('.cp-offer');
     if (old) old.remove();
     var box = document.createElement('div');
     box.className = 'cp-offer';
     box.style.cssText = 'margin-top:8px;background:rgba(20,184,166,.08);border:1px solid #14b8a6;border-radius:9px;padding:10px 13px';
+    /* 誤字・表記ゆれ: 直したところを一つずつ。何も無ければ、そう言って終わります
+       （同じ文を「案」として出すと、何が変わったのか探させることになるため）。 */
+    if (extra && extra.proof) {
+      var list = extra.changes || [];
+      var D = window.lumTextDiff;
+      if (after === before) {
+        box.innerHTML = '<div style="font-size:12.5px;line-height:1.8"><b>直すところは見つかりませんでした。</b>' +
+          (extra.note ? '<div style="font-size:11.5px;color:var(--sub)">' + esc(extra.note) + '</div>' : '') +
+          '</div><button type="button" class="ghost cp-drop" style="font-size:11.5px;padding:5px 12px;margin-top:6px">閉じる</button>';
+        wrap.appendChild(box);
+        box.querySelector('.cp-drop').addEventListener('click', function () { box.remove(); });
+        return;
+      }
+      box.innerHTML =
+        '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#0e7490;margin-bottom:6px">' + esc(label) + 'の案（まだ反映していません）</div>' +
+        (list.length ? '<ul style="margin:0 0 8px 18px;padding:0;font-size:12.5px;line-height:1.85">' + list.map(function (c) {
+          return '<li>「' + esc(c.from) + '」→「<b>' + esc(c.to) + '</b>」' + (c.why ? '<span style="color:var(--sub);font-size:11.5px">　' + esc(c.why) + '</span>' : '') + '</li>';
+        }).join('') + '</ul>' : '') +
+        '<div class="cp-hd" style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;margin-bottom:6px">' + (D ? D.html(before, after).after : asSite(after)) + '</div>' +
+        (extra.note ? '<div style="font-size:11.5px;color:var(--sub);margin-bottom:8px">' + esc(extra.note) + '</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+          '<button type="button" class="cp-take" style="font-size:11.5px;padding:5px 12px">この直しを使う</button>' +
+          '<button type="button" class="ghost cp-drop" style="font-size:11.5px;padding:5px 12px">使わない</button>' +
+        '</div>';
+      wrap.appendChild(box);
+      box.querySelector('.cp-take').addEventListener('click', function () { ta.value = after; box.remove(); done(); ta.focus(); });
+      box.querySelector('.cp-drop').addEventListener('click', function () { box.remove(); });
+      return;
+    }
     box.innerHTML =
       '<div style="font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#0e7490;margin-bottom:6px">' +
         esc(label) + 'した案（まだ反映していません）</div>' +
@@ -3976,7 +4007,8 @@ window.lumAdmin = {
         '<span style="width:9px"></span>' +
         '<span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>' +
         Object.keys(WAYS).map(function (k) {
-          return '<button type="button" class="ghost cp-way" data-way="' + k + '" title="' + esc(WAYS[k][1]) +
+          return (k === 'proof' ? '<span style="width:9px"></span><span style="font-size:10.5px;color:var(--sub)">点検:</span>' : '') +
+            '<button type="button" class="ghost cp-way" data-way="' + k + '" title="' + esc(WAYS[k][1]) +
             '" style="font-size:11px;padding:4px 10px">' + esc(WAYS[k][0]) + '</button>';
         }).join('') +
         '<span class="cp-busy" style="font-size:11px;color:var(--sub);display:none">書き直しています…</span>';
@@ -4036,6 +4068,7 @@ window.lumAdmin = {
           var busy = tools.querySelector('.cp-busy');
           var before = ta.value;
           Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (x) { x.disabled = true; });
+          busy.textContent = b.dataset.way === 'proof' ? '点検しています…' : '書き直しています…';
           busy.style.display = 'inline';
           var d = null;
           try {
@@ -4050,7 +4083,8 @@ window.lumAdmin = {
           Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (x) { x.disabled = false; });
           if (!d || d.ok !== true) { say((d && d.message) || '書き直せませんでした。'); return; }
           /* 黙って置き換えない。案として出し、採るかどうかは人が決めます。 */
-          offer(wrap, ta, before, d.text, d.label, function () { mark(); paint(); });
+          offer(wrap, ta, before, d.text, d.label, function () { mark(); paint(); },
+            d.way === 'proof' ? { proof: true, changes: d.changes, note: d.note } : null);
         });
       });
 
