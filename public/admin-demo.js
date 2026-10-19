@@ -2645,24 +2645,33 @@
   function items() {
     return [
       { id: 'demo-n5', date: jst(-6), title: '秋の無料相談会のお知らせ（サンプル）', body: 'これは予約投稿の見本です。公開日の朝に自動でサイトに出ます（架空のお知らせです）。',
-        link: '/#/info/contact-form', status: 'scheduled', publishAt: jst(-6) },
+        link: '/#/info/contact-form', status: 'scheduled', publishAt: jst(-6), category: 'campaign', unpublishAt: jst(-20) },
       { id: 'demo-n4', date: jst(3), title: '年末年始の営業についてのお知らせ（サンプル）', body: 'これはデモ用のサンプル記事です。実際のお知らせではありません。', link: '',
-        image: { url: IMG, alt: '事務所の入口の写真（サンプル）' } },
+        image: { url: IMG, alt: '事務所の入口の写真（サンプル）' }, category: 'hours', pinned: true },
+      { id: 'demo-n6', date: jst(8), title: '秋の新メニューを始めました（サンプル）', body: '期間限定のメニューの見本です。掲載を終える日を決めてあります（架空のお知らせです）。', link: '',
+        category: 'menu', unpublishAt: jst(-25) },
       { id: 'demo-n3', date: jst(12), title: '実績を追加しました（サンプル）', body: '飲食店のホームページ制作の事例を追加しました（架空の事例です）。', link: '/works.html' },
+      { id: 'demo-n7', date: jst(20), title: '夏のキャンペーンは終了しました（サンプル）', body: '掲載を終えたお知らせの見本です。サイトにはもう出ていません。', link: '',
+        category: 'campaign', unpublishAt: jst(14), ended: true },
       { id: 'demo-n2', date: jst(26), title: 'ブログを更新しました（サンプル）', body: '「AIを社内で使い始めるときの3つの決まりごと」を公開しました（デモ表示）。', link: '/blog/index.html' },
       { id: 'demo-n1', date: jst(41), title: '新しいサービスを始めました（サンプル）', body: '「SNS運用サポート」の提供を始めました（デモ表示）。', link: '/#services' }
     ];
   }
+  // サイトに出ている分（src/lib/news.js の liveNews と同じ：予約・掲載終了を外し、固定を先に）。
   function visible() {
     var today = jst(0);
-    return items().filter(function (n) { return n.status !== 'scheduled' || n.publishAt <= today; });
+    var live = items().filter(function (n) {
+      if (n.ended || (n.unpublishAt && n.unpublishAt < today)) return false;
+      return n.status !== 'scheduled' || n.publishAt <= today;
+    });
+    return live.filter(function (n) { return n.pinned; }).concat(live.filter(function (n) { return !n.pinned; }));
   }
   var drafts = [
-    { id: 'd-demo-1', title: '冬季休業のお知らせ（下書き・サンプル）', body: '（期間）は休業いたします。', link: '', image: null, publishAt: '', savedAt: ago(2 * DAY + 3600000) },
+    { id: 'd-demo-1', title: '冬季休業のお知らせ（下書き・サンプル）', body: '（期間）は休業いたします。', link: '', image: null, publishAt: '', category: 'hours', unpublishAt: jst(-75), savedAt: ago(2 * DAY + 3600000) },
     { id: 'd-demo-2', title: '新しい料金表（下書き・サンプル）', body: '新しい料金表の案。まだ書きかけです（サンプル）。', link: '/pricing.html', image: { url: IMG, alt: '料金表の画面（サンプル）' }, publishAt: '', savedAt: ago(5 * 3600000) }
   ];
   function history() {
-    var msgs = ['news: 秋の無料相談会のお知らせ（サンプル）', 'news: edit 年末年始の営業についてのお知らせ（サンプル）',
+    var msgs = ['news: 秋の無料相談会のお知らせ（サンプル）', 'news: 掲載の終了 (1件)', 'news: edit 年末年始の営業についてのお知らせ（サンプル）',
       'news: 実績を追加しました（サンプル）', 'news: remove demo-n0', 'news: ブログを更新しました（サンプル）', 'news: 新しいサービスを始めました（サンプル）'];
     return msgs.map(function (m, i) {
       return { sha: ('d' + i + 'e0000000000000000000000000000000000000').slice(0, 40), at: ago((i * 6 + 1) * DAY + i * 3600000), message: m };

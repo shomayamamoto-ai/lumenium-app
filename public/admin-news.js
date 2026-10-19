@@ -1,5 +1,6 @@
 /* お知らせ投稿の追加の機能（管理画面 admin-members.html の「お知らせ投稿」）。
-   下書き・予約・画像・「SNSにも出す」・保存の履歴と「この時点に戻す」。
+   下書き・予約・画像・カテゴリ・固定表示・掲載を終える日・公開前のプレビュー・
+   「SNSにも出す」・保存の履歴と「この時点に戻す」。
 
    投稿のフォームと一覧は admin-members.html の中にあります。ここは
    window.lumNews として、その途中から呼ばれる小さな入口だけを持ちます:
@@ -21,8 +22,27 @@
     draftId: '',        // 下書きの続きを書いているとき
     drafts: null,       // null = 保存先が無い
     editing: false,
+    category: 'info',   // CATS の id
     built: false
   };
+
+  /* カテゴリ（src/lib/news.js の NEWS_CATEGORIES と同じ並び・同じ id）。 */
+  var CATS = [
+    { id: 'info', label: 'お知らせ' },
+    { id: 'hours', label: '営業日・休業' },
+    { id: 'menu', label: '新メニュー・サービス' },
+    { id: 'campaign', label: 'キャンペーン' },
+    { id: 'media', label: 'メディア掲載' }
+  ];
+  function catLabel(id) {
+    for (var i = 0; i < CATS.length; i++) if (CATS[i].id === id) return CATS[i].label;
+    return CATS[0].label;
+  }
+  // 「よく使うお知らせ」を押したら、合いそうなカテゴリも選んでおきます（あとで変えられます）。
+  var TPL_CAT = { '休業のお知らせ': 'hours', '新サービス': 'menu', '料金改定': 'menu', 'メディア掲載': 'media' };
+  var PIN_MAX = 3;
+  // サイトのページの題名の後ろに付く名前（scripts/build-content-pages.mjs の shell と同じ）。
+  var SITE_TAIL = ' | お知らせ | Lumenium（ルメニウム）';
 
   function $(id) { return document.getElementById(id); }
   function esc(t) {
@@ -47,11 +67,20 @@
   }
   function md(day) { return String(day || '').slice(5).replace('-', '/'); }
 
-  /* ---- 予約の判断（src/lib/news.js と同じ） ---- */
+  /* ---- 予約・掲載終了の判断（src/lib/news.js と同じ） ---- */
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  function isExpired(n, today) {
+    return !!(n && DAY_RE.test(n.unpublishAt || '') && n.unpublishAt < today);
+  }
   function isLive(n, today) {
     if (!n || !n.title) return false;
-    if (n.status === 'scheduled') return /^\d{4}-\d{2}-\d{2}$/.test(n.publishAt || '') && n.publishAt <= today;
+    if (n.ended || isExpired(n, today)) return false;
+    if (n.status === 'scheduled') return DAY_RE.test(n.publishAt || '') && n.publishAt <= today;
     return true;
+  }
+  // サイトの並び（固定を先に）。反映済みかを比べるとき、並びも同じにしておきます。
+  function pinnedFirst(list) {
+    return list.filter(function (n) { return n && n.pinned; }).concat(list.filter(function (n) { return !(n && n.pinned); }));
   }
 
   /* ---- 画面の部品 ---- */
@@ -64,6 +93,36 @@
     '.nw-badge.sch{background:rgba(180,83,9,.1);color:#92400e;border:1px solid rgba(180,83,9,.35)}' +
     '.nw-badge.due{background:rgba(4,120,87,.1);color:#065f46;border:1px solid rgba(4,120,87,.35)}' +
     '.nw-badge.img{background:#f3f1ec;color:var(--sub);border:1px solid var(--border)}' +
+    '.nw-badge.pin{background:#eeeefb;color:#3d3fbf;border:1px solid #c9c9f1}' +
+    '.nw-badge.cat{background:#fff;color:var(--sub);border:1px solid var(--border)}' +
+    '.nw-badge.end{background:#f3f1ec;color:#6b6457;border:1px dashed #b9b4a8}' +
+    '.nw-check{display:flex;gap:10px;align-items:center;min-height:44px;font-size:13px;cursor:pointer}' +
+    '.nw-check input{width:20px;height:20px;flex-shrink:0;margin:0}' +
+    '.nw-end{display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
+    '.nw-end .nw-in{max-width:220px}' +
+    /* 公開前のプレビュー（検索結果・SNSのカード）。本物の見た目に寄せた見本です。 */
+    '#nw-pv summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--sub);min-height:44px;display:flex;align-items:center}' +
+    '.nw-pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px}' +
+    '@media (max-width:720px){.nw-pv-grid{grid-template-columns:1fr}}' +
+    '.nw-pv-cap{font-size:11.5px;font-weight:700;color:var(--sub);margin:0 0 6px}' +
+    '.nw-g{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-family:Arial,"Hiragino Sans","Noto Sans JP",sans-serif;min-width:0}' +
+    '.nw-g-site{display:flex;gap:8px;align-items:center;font-size:12px;color:#202124;margin-bottom:6px;min-width:0}' +
+    '.nw-g-fav{width:22px;height:22px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#3d3fbf;flex-shrink:0}' +
+    '.nw-g-url{display:block;color:#4d5156;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.nw-g-t{font-size:18px;line-height:1.35;color:#1a0dab;margin:0 0 4px;overflow-wrap:anywhere}' +
+    '.nw-g-d{font-size:13px;line-height:1.6;color:#4d5156;margin:0;overflow-wrap:anywhere}' +
+    '.nw-g-d b{color:#70757a;font-weight:400}' +
+    '.nw-og{background:#fff;border:1px solid #cfd9de;border-radius:14px;overflow:hidden;min-width:0;max-width:440px}' +
+    '.nw-og-img{aspect-ratio:1.91/1;background:#f3f1ec;display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:12px;text-align:center;padding:10px}' +
+    '.nw-og-img.has{padding:0}' +
+    '.nw-og-img img{width:100%;height:100%;object-fit:cover;display:block}' +
+    '.nw-og-b{padding:10px 12px;border-top:1px solid #cfd9de}' +
+    '.nw-og-host{font-size:11.5px;color:#536471}' +
+    '.nw-og-t{font-size:14px;font-weight:700;color:#0f1419;margin:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.nw-og-d{font-size:12.5px;color:#536471;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '.nw-pv-tips{list-style:none;margin:10px 0 0;padding:0;font-size:12px;line-height:1.7;color:var(--sub)}' +
+    '.nw-pv-tips li::before{content:"・"}' +
+    '.nw-pv-tips li.warn{color:#92400e}' +
     '.nw-list{list-style:none;margin:0;padding:0}' +
     '.nw-list li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}' +
     '.nw-list .t{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}' +
@@ -75,7 +134,10 @@
     '#nw-history summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--sub);padding:6px 0}' +
     '#news-items li img.nw-th{width:44px;height:30px;object-fit:cover;border-radius:5px;flex-shrink:0;align-self:center}' +
     // スマホでは題名に幅を残し、ボタンは次の行へ（題名が1文字ずつ折り返さないように）。
-    '@media (max-width:480px){#news-items li{flex-wrap:wrap}#news-items li .nw-t{flex:1 1 55%;min-width:0}}';
+    // 題名の欄には一覧の側（admin-members.html）で flex:1 が直接付いているので、!important で上書きします。
+    // ボタンはいつも次の行にまとめます（::after を改行の代わりにして、ボタンをその後ろへ）。
+    '@media (max-width:480px){#news-items li{flex-wrap:wrap}#news-items li .nw-t{flex:1 1 0 !important;min-width:0}' +
+      '#news-items li::after{content:"";flex-basis:100%;height:0;order:1}#news-items li>button{order:2}}';
 
   function build() {
     if (S.built) return;
@@ -104,6 +166,16 @@
       '</div>';
     form.insertBefore(img, btn);
 
+    /* カテゴリ（決まった中から1つ）。サイトの一覧に札が付き、絞り込みに使われます。 */
+    var cat = document.createElement('div');
+    cat.className = 'nq';
+    cat.innerHTML =
+      '<p class="nq-label">カテゴリ（サイトで種類ごとに絞り込めます）</p>' +
+      '<div class="nq-row" role="group" aria-label="カテゴリ">' +
+        CATS.map(function (c) { return '<button type="button" class="nq-chip" data-nw-cat="' + c.id + '">' + esc(c.label) + '</button>'; }).join('') +
+      '</div>';
+    form.insertBefore(cat, img);
+
     /* 公開のしかた */
     var how = document.createElement('div');
     how.className = 'nq';
@@ -119,8 +191,29 @@
         '<label for="nw-publish-at" style="display:block;font-size:12.5px;font-weight:700;margin-bottom:6px">公開する日</label>' +
         '<input type="date" id="nw-publish-at" class="nw-in" style="max-width:220px">' +
       '</div>' +
-      '<p class="share-note" id="nw-how-note" style="margin:8px 0 0"></p>';
+      '<p class="share-note" id="nw-how-note" style="margin:8px 0 0"></p>' +
+      '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px">' +
+        '<label class="nw-check"><input type="checkbox" id="nw-pinned"> 一覧のいちばん上に固定する（' + PIN_MAX + '件まで）</label>' +
+        '<label for="nw-unpublish-at" style="display:block;font-size:12.5px;font-weight:700;margin:6px 0 6px">掲載を終える日（任意）</label>' +
+        '<div class="nw-end"><input type="date" id="nw-unpublish-at" class="nw-in">' +
+          '<button type="button" class="ghost" id="nw-unpublish-clear" style="font-size:12px;padding:8px 12px;min-height:40px">終える日を決めない</button></div>' +
+        '<p class="share-note" style="margin:6px 0 0">キャンペーンや休業のお知らせなど、期限のあるものに。選んだ日まで載せて、次の日の朝に自動でサイトから外します。空のままなら、ずっと載せます。</p>' +
+      '</div>';
     form.insertBefore(how, btn);
+
+    /* 公開前のプレビュー（検索結果と、SNSでリンクを貼ったときのカード） */
+    var pv = document.createElement('details');
+    pv.id = 'nw-pv';
+    pv.className = 'nw-sec';
+    pv.open = !window.matchMedia || window.matchMedia('(min-width: 721px)').matches;
+    pv.innerHTML =
+      '<summary>公開前のプレビュー（検索結果とSNSでの見え方）</summary>' +
+      '<div class="nw-pv-grid">' +
+        '<div style="min-width:0"><p class="nw-pv-cap">Googleなどの検索結果</p><div class="nw-g" id="nw-pv-g"></div></div>' +
+        '<div style="min-width:0"><p class="nw-pv-cap">SNSやLINEでリンクを貼ったとき</p><div class="nw-og" id="nw-pv-og"></div></div>' +
+      '</div>' +
+      '<ul class="nw-pv-tips" id="nw-pv-tips"></ul>';
+    form.insertBefore(pv, btn);
 
     /* 保存のあとに出す案内（SNSにも出す） */
     var after = document.createElement('div');
@@ -157,8 +250,84 @@
     $('nw-img-file').addEventListener('change', onFile);
     $('nw-img-drop').addEventListener('click', function () { setImage(null); });
     $('nw-img-alt').addEventListener('input', function () { if (S.image) S.image.alt = this.value; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nw-cat]'), function (b) {
+      b.addEventListener('click', function () { setCategory(b.getAttribute('data-nw-cat')); });
+    });
+    var tpl = $('news-templates');
+    if (tpl) tpl.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('button');
+      if (b) setCategory(TPL_CAT[b.textContent] || 'info');
+    });
+    var ua = $('nw-unpublish-at');
+    ua.min = jstDay(0);
+    ua.max = jstDay(730);
+    $('nw-unpublish-clear').addEventListener('click', function () { ua.value = ''; renderPreview(); });
+    // 打つたびにプレビューを作り直します（題名・本文・日付・予約日のどれが変わっても）。
+    form.addEventListener('input', renderPreview);
+    form.addEventListener('change', renderPreview);
+    form.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.nq-chip')) setTimeout(renderPreview, 0); });
+    setCategory('info');
     setMode('now');
     renderDrafts();
+  }
+
+  function setCategory(id) {
+    S.category = CATS.some(function (c) { return c.id === id; }) ? id : 'info';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nw-cat]'), function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-nw-cat') === S.category));
+    });
+  }
+
+  /* 掲載の設定（固定・終える日・カテゴリ）をフォームに入れる／空にする。 */
+  function setSettings(n) {
+    n = n || {};
+    setCategory(n.category || 'info');
+    $('nw-pinned').checked = !!n.pinned;
+    $('nw-unpublish-at').value = DAY_RE.test(n.unpublishAt || '') ? n.unpublishAt : '';
+  }
+
+  /* ---- 公開前のプレビュー ----
+     サイトのページ（scripts/build-content-pages.mjs）と同じ作り方で、題名・説明を
+     組み立てます。説明は本文の最初の150文字、本文が無ければ「◯◯ のお知らせ」。
+     画像が無いときに出るサイトの標準の画像は、ここでは枠だけにします（/api/og を
+     読みに行かないように）。 */
+  function cut(t, n) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+  function previewDay() {
+    if (S.mode === 'scheduled') return $('nw-publish-at').value || jstDay(1);
+    var d = $('news-date');
+    return (d && d.value) || jstDay(0);
+  }
+  function renderPreview() {
+    var g = $('nw-pv-g'), og = $('nw-pv-og');
+    if (!g || !og) return;
+    var v = formValues();
+    var day = previewDay();
+    var title = v.title || '（タイトルを入れるとここに出ます）';
+    var full = title + SITE_TAIL;
+    var plain = v.body.replace(/\s+/g, ' ').trim();
+    var desc = (plain || day + ' のお知らせ「' + title + '」です。').slice(0, 150);
+    var host = location.host || 'lumenium.net';
+    g.innerHTML =
+      '<div class="nw-g-site"><span class="nw-g-fav" aria-hidden="true">L</span>' +
+        '<span style="min-width:0"><span style="display:block">Lumenium</span><span class="nw-g-url">https://' + esc(host) + ' › news</span></span></div>' +
+      '<p class="nw-g-t">' + esc(cut(full, 34)) + '</p>' +
+      '<p class="nw-g-d"><b>' + esc(day.replace(/-/g, '/')) + ' — </b>' + esc(cut(desc, 90)) + '</p>';
+    og.innerHTML =
+      (S.image && S.image.url
+        ? '<div class="nw-og-img has"><img src="' + esc(S.image.url) + '" alt=""></div>'
+        : '<div class="nw-og-img"><span>画像を付けないときは、サイトの標準の画像が出ます</span></div>') +
+      '<div class="nw-og-b"><div class="nw-og-host">' + esc(host) + '</div>' +
+        '<p class="nw-og-t">' + esc(full) + '</p><p class="nw-og-d">' + esc(desc) + '</p></div>';
+    var tips = [];
+    if (!v.title) tips.push(['warn', 'タイトルを入れてください。検索結果でもSNSでも、いちばん大きく出るところです。']);
+    else if (full.length > 34) tips.push(['warn', 'タイトルが長いので、検索結果では後ろが「…」で切れます。大事な言葉は前のほうに。']);
+    if (!plain) tips.push(['warn', '本文が空なので、説明は決まった文（「◯◯ のお知らせ」）になります。1〜2文あると、押してもらいやすくなります。']);
+    else tips.push(['', '本文の最初の文が、検索結果やSNSの説明として出ます。']);
+    if (!S.image) tips.push(['', '画像を付けると、SNSで目に入りやすいカードになります。']);
+    var end = $('nw-unpublish-at').value;
+    if (end) tips.push(['', end.replace(/-/g, '/') + ' まで載せて、次の日の朝にサイトから外れます。']);
+    if ($('nw-pinned').checked) tips.push(['', '固定するので、サイトのお知らせ一覧のいちばん上に出ます。']);
+    $('nw-pv-tips').innerHTML = tips.map(function (t) { return '<li class="' + t[0] + '">' + esc(t[1]) + '</li>'; }).join('');
   }
 
   /* 日付の欄（admin-members.html の「日付」）は、予約のときは使いません。 */
@@ -198,6 +367,7 @@
     b.textContent = mode === 'draft' ? '下書きを保存'
       : mode === 'scheduled' ? (S.editing ? 'この内容で予約を更新' : '予約する')
       : (S.editing ? 'この内容で更新' : '投稿する');
+    renderPreview();
   }
 
   /* ---- 画像 ---- */
@@ -209,6 +379,7 @@
     $('nw-img-pick').textContent = S.image ? '別の画像にする' : '画像を選ぶ';
     $('nw-alt-row').style.display = S.image ? 'block' : 'none';
     $('nw-img-alt').value = S.image ? S.image.alt : '';
+    renderPreview();
   }
 
   var MAX_UP = Math.floor(4.4 * 1048576);
@@ -287,7 +458,8 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'draft-save', id: S.draftId || undefined, title: v.title, body: v.body, link: v.link,
-        image: S.image, publishAt: $('nw-publish-at').value || '' })
+        image: S.image, publishAt: $('nw-publish-at').value || '',
+        unpublishAt: $('nw-unpublish-at').value || '', pinned: $('nw-pinned').checked, category: S.category })
     }).catch(function () { return null; });
     btn.disabled = false;
     if (r && r.res.ok && r.data.ok) {
@@ -305,6 +477,7 @@
     $('news-body').value = d.body || '';
     setLink(d.link || '');
     setImage(d.image || null);
+    setSettings(d);
     S.draftId = d.id;
     if (d.publishAt && d.publishAt > jstDay(0)) $('nw-publish-at').value = d.publishAt;
     setMode('draft');
@@ -361,7 +534,7 @@
     if ((x = /^news: edit (.*)$/.exec(m))) return '編集：' + x[1];
     if ((x = /^news: remove (.*)$/.exec(m))) return '削除（' + x[1] + '）';
     if ((x = /^news: (\w{7}) の時点に戻す$/.exec(m))) return '元に戻す（' + x[1] + ' の時点へ）';
-    if (/^news: 予約の公開日/.test(m)) return '予約の公開（自動）';
+    if (/^news: (予約の公開日|掲載の終了)/.test(m)) return m.replace(/^news: /, '').replace(/ \((\d+)件\)/g, '（$1件）') + '（自動）';
     if ((x = /^news: (.*)$/.exec(m))) return '投稿：' + x[1];
     return m;
   }
@@ -462,6 +635,18 @@
         payload.publishAt = day;
         delete payload.date;
       }
+      var end = $('nw-unpublish-at').value;
+      var from = S.mode === 'scheduled' ? payload.publishAt : jstDay(0);
+      if (end && end < from) {
+        say(S.mode === 'scheduled'
+          ? '掲載を終える日は、公開日（' + from.replace(/-/g, '/') + '）以降にしてください。'
+          : '掲載を終える日が過ぎています。今日以降の日付にするか、「終える日を決めない」を押してください。');
+        $('nw-unpublish-at').focus();
+        return null;
+      }
+      payload.unpublishAt = end || '';
+      payload.pinned = $('nw-pinned').checked;
+      payload.category = S.category;
       if (S.draftId) payload.fromDraft = S.draftId;
       return payload;
     },
@@ -479,6 +664,7 @@
       }
       S.draftId = '';
       setImage(null);
+      setSettings(null);
       setMode('now');
       var h = $('nw-history');
       if (h && h.open) loadHistory();
@@ -488,7 +674,29 @@
       var t = li.children[1];
       if (!t) return;
       t.classList.add('nw-t');
-      if (n.status === 'scheduled') {
+      var ended = n.ended || isExpired(n, today);
+      if (ended) {
+        var eb = document.createElement('span');
+        eb.className = 'nw-badge end';
+        eb.textContent = n.ended ? '掲載終了（サイトから外しました）' : '掲載終了（次の作り直しで外れます）';
+        t.insertBefore(eb, t.firstChild);
+      } else if (n.unpublishAt) {
+        var ub = document.createElement('span');
+        ub.className = 'nw-badge sch';
+        ub.textContent = md(n.unpublishAt) + ' まで';
+        t.insertBefore(ub, t.firstChild);
+      }
+      var cb = document.createElement('span');
+      cb.className = 'nw-badge cat';
+      cb.textContent = catLabel(n.category || 'info');
+      t.insertBefore(cb, t.firstChild);
+      if (n.pinned && !ended) {
+        var pb = document.createElement('span');
+        pb.className = 'nw-badge pin';
+        pb.textContent = '固定';
+        t.insertBefore(pb, t.firstChild);
+      }
+      if (n.status === 'scheduled' && !ended) {
         var due = n.publishAt && n.publishAt <= today;
         var b = document.createElement('span');
         b.className = 'nw-badge ' + (due ? 'due' : 'sch');
@@ -518,14 +726,22 @@
       S.editing = true;
       S.draftId = '';
       setImage(n.image || null);
+      setSettings(n);
       if (n.status === 'scheduled' && n.publishAt) $('nw-publish-at').value = n.publishAt;
       setMode(n.status === 'scheduled' ? 'scheduled' : 'now');
+      if (n.ended || isExpired(n, jstDay(0))) {
+        // admin-members.html の「編集しています」の案内のあとに出す。
+        setTimeout(function () {
+          say('このお知らせは掲載を終えています。また載せるときは「掲載を終える日」を先の日付にするか、「終える日を決めない」を押してから保存してください。', true);
+        }, 0);
+      }
     },
     reset: function () {
       build();
       S.editing = false;
       S.draftId = '';
       setImage(null);
+      setSettings(null);
       setMode('now');
     },
     load: function (data) {
@@ -538,7 +754,7 @@
     },
     visible: function (items) {
       var today = jstDay(0);
-      return (items || []).filter(function (n) { return isLive(n, today); });
+      return pinnedFirst((items || []).filter(function (n) { return isLive(n, today); }));
     }
   };
 
