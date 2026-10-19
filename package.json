@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs",
+    "build": "vite build && node scripts/prerender.mjs && node scripts/build-admin-assets.mjs",
     "preview": "vite preview",
     "deploy": "vercel",
     "deploy:prod": "vercel --prod",

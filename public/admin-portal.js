@@ -376,6 +376,7 @@
     Object.keys(SOURCE_NAMES).forEach(function (k) {
       var s = src[k];
       if (s && s.state === 'off') off.push(SOURCE_NAMES[k]);
+      else if (s && s.state === 'loading') return;
       else if (!s || s.state !== 'ok') failed.push(SOURCE_NAMES[k]);
     });
     return {
@@ -716,15 +717,33 @@
     P.loading = true;
     var btn = el('lp-reload');
     if (btn) { btn.disabled = true; btn.textContent = '読み込み中…'; }
-    var got = await Promise.all(SOURCES.map(readOne));
+    /* 届いたものから順に描きます。全部を待つと、いちばん遅い1つ（メール配信の会員一覧など）に
+       ホーム全体が待たされていました。最初の1回は、全部そろうか1.2秒たったときのどちらか早い方。
+       そのあとは届くたびに（まとめて0.3秒ごとに）描き直します。まだ届いていないものは
+       state: 'loading' で、「読めなかった」には数えません。 */
     var src = {};
-    SOURCES.forEach(function (s, i) { src[s[0]] = got[i]; });
-    P.data = src;
-    P.at = Date.now();
+    SOURCES.forEach(function (s) { src[s[0]] = { state: 'loading', data: null }; });
+    var left = SOURCES.length, first = false, timer = null;
+    function publish() {
+      timer = null;
+      first = true;
+      P.data = src;
+      P.at = Date.now();
+      paint();
+      // ホームのダッシュボード（admin-dash.js）と運営マップ（admin-opsmap.js）も同じ読み込み結果を使います。
+      try { window.dispatchEvent(new CustomEvent('lum:portal', { detail: src })); } catch (_) {}
+    }
+    function soon(ms) { if (!timer) timer = setTimeout(publish, ms); }
+    var gate = setTimeout(function () { if (!first) publish(); }, 1200);
+    await Promise.all(SOURCES.map(function (s) {
+      return readOne(s).then(function (r) {
+        src[s[0]] = r;
+        left--;
+        if (!left) { clearTimeout(gate); clearTimeout(timer); timer = null; P.loading = false; publish(); }
+        else if (first) soon(300);
+      });
+    }));
     P.loading = false;
-    paint();
-    // ホームのダッシュボード（admin-dash.js）と運営マップ（admin-opsmap.js）も同じ読み込み結果を使います。
-    try { window.dispatchEvent(new CustomEvent('lum:portal', { detail: src })); } catch (_) {}
   }
 
   /* ---- 開く ---- */
@@ -833,12 +852,14 @@
         go: { label: '設定を続ける' } });
     }
     var all = t.todo.concat(t.fyi);
+    var pending = Object.keys(P.data).filter(function (k) { return P.data[k] && P.data[k].state === 'loading'; }).length;
     var K = kpis(P.data, Date.now());
     var shown = todoAll ? t.todo : t.todo.slice(0, TODO_FIRST);
     var more = t.todo.length - shown.length;
     var body = t.todo.length
       ? '<ol class="lp-rows" id="lp-todo">' + shown.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join('') + '</ol>' +
         (more > 0 ? '<button type="button" class="lp-more" id="lp-more">ほか ' + more + '件を表示</button>' : '')
+      : pending ? '<p class="lp-notes">各機能の状態を読み込んでいます…（残り ' + pending + '）</p>'
       : '<p class="lp-empty" id="lp-empty">今日やることはありません' +
         '<small>' + (t.failed.length ? 'ただし、読み込めなかったものがあります（下に書いています）。' : '急ぎのものも、今日の予定も見つかりませんでした。') + '</small></p>';
     if (t.fyi.length) {
@@ -846,6 +867,7 @@
         t.fyi.map(function (r) { return rowHtml(r, all.indexOf(r)); }).join('') + '</ol>';
     }
     var notes = [];
+    if (pending && t.todo.length) notes.push('まだ読み込み中のものがあります（残り ' + pending + '）。届きしだい、ここに足します。');
     if (t.failed.length) notes.push('読み込めなかったもの: ' + t.failed.join('・') + '（通信の失敗か、まだ準備中です。「再読込」でもう一度読みます）');
     if (t.off.length) notes.push('未設定のため見ていないもの: ' + t.off.join('・'));
     if (notes.length) body += '<div class="lp-notes" id="lp-notes">' + notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('') + '</div>';

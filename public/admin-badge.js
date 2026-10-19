@@ -39,7 +39,9 @@
     function begin() {
       if (started || !window.lumAdmin || !document.querySelector('#shell-nav .shell-tab')) return false;
       started = true;
-      try { fn(); } catch (_) {}
+      // 最初の1回は少しだけ後に。ログイン直後はホームの数字を先に取りに行かせたいので、
+      // 各ツールの「要対応」の数がいっせいに通信を始めないようにします。
+      setTimeout(function () { try { fn(); } catch (_) {} }, 1200);
       setInterval(function () { if (!document.hidden) { try { fn(); } catch (_) {} } }, every);
       document.addEventListener('visibilitychange', function () { if (!document.hidden) { try { fn(); } catch (_) {} } });
       return true;

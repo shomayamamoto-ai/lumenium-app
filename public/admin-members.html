@@ -11,8 +11,29 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap" rel="stylesheet">
-<script src="/admin-icons.js"></script>
+<!-- 文字の形（Noto Sans JP）は待たずに描きます。届いたら差し替わります（display=swap）。 -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap" rel="stylesheet"></noscript>
+<script>
+/* 起動の合図。このタブにログインしたキーが残っていれば、ログインの画面は出さずに
+   管理画面の骨組みを先に描きます（中身は読み込みしだい入ります）。 */
+try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.classList.add('lum-boot'); } catch (_) {}
+</script>
+<style>
+.boot-skel{display:none}
+.lum-boot #key-panel{display:none}
+.lum-boot .boot-skel{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - 64px)}
+.boot-skel .bs-side{background:#0f1a33}
+.boot-skel .bs-main{padding:28px 32px;display:flex;flex-direction:column;gap:16px}
+.boot-skel i{display:block;border-radius:14px;background:linear-gradient(90deg,#e9edf3 0,#f4f6f9 50%,#e9edf3 100%);background-size:200% 100%;animation:bsk 1.2s linear infinite}
+.boot-skel .bs-h{height:28px;width:40%}
+.boot-skel .bs-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.boot-skel .bs-cards i{height:96px}
+.boot-skel .bs-big{height:260px}
+@keyframes bsk{to{background-position:-200% 0}}
+@media (max-width:1023px){.lum-boot .boot-skel{grid-template-columns:minmax(0,1fr)}.boot-skel .bs-side{display:none}.boot-skel .bs-main{padding:16px}}
+@media (prefers-reduced-motion:reduce){.boot-skel i{animation:none}}
+</style>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -894,43 +915,6 @@ input, select, textarea { color: var(--text); }
 <link rel="stylesheet" href="/admin-skin.css">
 </head>
 <body>
-<script src="/admin-demo.js"></script>
-<script src="/admin-subtabs.js"></script>
-<!-- 「要対応」の数（全ツール共通の部品）。 -->
-<script src="/admin-badge.js"></script>
-<script src="/admin-aio-auto.js"></script>
-<script src="/social-text.js"></script>
-<script src="/social-attention.js"></script>
-<script src="/video-core.js"></script>
-<script src="/admin-video.js"></script>
-<script src="/admin-booking.js"></script>
-<script src="/admin-social-plan.js"></script>
-<script src="/admin-inquiries.js"></script>
-<!-- 口コミ管理（Googleレビュー）。計算は /reviews-core.js（開いたときに読みます）。 -->
-<script src="/admin-reviews.js"></script>
-<!-- 見積書（と請求書）。計算と紙の形は /quote-core.js（開いたときに読みます）。 -->
-<script src="/admin-quotes.js"></script>
-<!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
-<script src="/admin-members-tool.js"></script>
-<!-- ポータルの「今日やること」と「はじめての設定」。 -->
-<script src="/admin-portal.js"></script>
-<!-- 自動改善（観測・提案・文章の実験・自動適用）。 -->
-<script src="/admin-auto.js"></script>
-<!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
-<script src="/admin-news.js"></script>
-<!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
-<script src="/admin-copy.js"></script>
-<!-- AIアドバイザー（相談・実行ボタン・保存した相談・ToDo・料金の目安）。 -->
-<script src="/admin-advisor.js"></script>
-<!-- 担当者と権限・操作の記録・ログイン中の人と役割（役割で使えないタブは出しません）。 -->
-<script src="/admin-staff.js"></script>
-<!-- どこでも検索（⌘K / Ctrl+K）・ブラウザのタブに件数・新着のデスクトップ通知。 -->
-<script src="/admin-finder.js"></script>
-<!-- お客様カルテ（1人の問い合わせ・予約・見積書・会員登録を1つの時系列に）。 -->
-<script src="/admin-customer.js"></script>
-<!-- 上の帯（検索・お知らせ・ログイン中の人）と、ホームのダッシュボード。 -->
-<script src="/admin-opsmap.js"></script>
-<script src="/admin-dash.js"></script>
   <div class="wrap">
     <!-- 上の帯。左はお客様の会社のロゴと名前（設定の ADMIN_BRAND_NAME / ADMIN_LOGO_URL。
          無ければ SITE_NAME）。右はログイン中の人・ヘルプ・サイト・ログアウト。 -->
@@ -942,6 +926,9 @@ input, select, textarea { color: var(--text); }
       <a class="ui-top-link" id="site-link" href="/" target="_blank" rel="noopener">サイトを見る<span class="ui-sr">（新しいタブ）</span></a>
       <button type="button" class="ui-top-link" id="sign-out" style="display:none">ログアウト</button>
     </header>
+
+    <!-- ログイン済みのときに、中身が届くまで出す骨組み（lum-boot のときだけ見えます）。 -->
+    <div class="boot-skel" id="boot-skel" aria-hidden="true"><div class="bs-side"></div><div class="bs-main"><i class="bs-h"></i><div class="bs-cards"><i></i><i></i><i></i><i></i></div><i class="bs-big"></i></div></div>
 
     <div class="panel ui-login" id="key-panel">
       <h1 class="ui-login-title">管理画面にログイン</h1>
@@ -1654,6 +1641,54 @@ input, select, textarea { color: var(--text); }
     </div><!-- /shell -->
   </div>
 
+<!-- 部品のスクリプトは、画面の骨組み（上の HTML）の後に置いています。先に骨組みを描けるので、
+     読み込みの途中でも画面がすぐ出ます。実行の順番（部品 → 本体）は前と同じです。 -->
+<script src="/admin-icons.js"></script>
+<script>
+/* デモ表示（?demo=1 か、このタブがデモ中）のときだけ、架空のデータを返す部品を読みます。
+   ふだんの管理画面では読みません（約24万字あり、開くたびの待ち時間になっていたため）。 */
+(function () {
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1' || /[?&]demo=1(&|$)/.test(location.search); } catch (_) {}
+  if (on) document.write('<script src="/admin-demo.js"><\/script>');
+})();
+</script>
+<script src="/admin-subtabs.js"></script>
+<!-- 「要対応」の数（全ツール共通の部品）。 -->
+<script src="/admin-badge.js"></script>
+<script src="/admin-aio-auto.js"></script>
+<script src="/social-text.js"></script>
+<script src="/social-attention.js"></script>
+<script src="/video-core.js"></script>
+<script src="/admin-video.js"></script>
+<script src="/admin-booking.js"></script>
+<script src="/admin-social-plan.js"></script>
+<script src="/admin-inquiries.js"></script>
+<!-- 口コミ管理（Googleレビュー）。計算は /reviews-core.js（開いたときに読みます）。 -->
+<script src="/admin-reviews.js"></script>
+<!-- 見積書（と請求書）。計算と紙の形は /quote-core.js（開いたときに読みます）。 -->
+<script src="/admin-quotes.js"></script>
+<!-- 会員リストの「詳しく見る・グループ・お知らせメール・増え方」。 -->
+<script src="/admin-members-tool.js"></script>
+<!-- ポータルの「今日やること」と「はじめての設定」。 -->
+<script src="/admin-portal.js"></script>
+<!-- 自動改善（観測・提案・文章の実験・自動適用）。 -->
+<script src="/admin-auto.js"></script>
+<!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
+<script src="/admin-news.js"></script>
+<!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
+<script src="/admin-copy.js"></script>
+<!-- AIアドバイザー（相談・実行ボタン・保存した相談・ToDo・料金の目安）。 -->
+<script src="/admin-advisor.js"></script>
+<!-- 担当者と権限・操作の記録・ログイン中の人と役割（役割で使えないタブは出しません）。 -->
+<script src="/admin-staff.js"></script>
+<!-- どこでも検索（⌘K / Ctrl+K）・ブラウザのタブに件数・新着のデスクトップ通知。 -->
+<script src="/admin-finder.js"></script>
+<!-- お客様カルテ（1人の問い合わせ・予約・見積書・会員登録を1つの時系列に）。 -->
+<script src="/admin-customer.js"></script>
+<!-- 上の帯（検索・お知らせ・ログイン中の人）と、ホームのダッシュボード。 -->
+<script src="/admin-opsmap.js"></script>
+<script src="/admin-dash.js"></script>
 <script>
 // Dependency-free .xlsx writer (real Excel file: ZIP/STORE + SpreadsheetML
 // with inline strings). Kept DOM-free so it can be unit-tested in Node.
@@ -1775,7 +1810,8 @@ window.lumSafeHref = function (u) {
 window.lumAdmin = {
   key: function () { try { return sessionStorage.getItem('lum_admin_key') || ''; } catch (_) { return ''; } },
   signOut: function (reason) {
-    try { sessionStorage.removeItem('lum_admin_key'); } catch (_) {}
+    try { sessionStorage.removeItem('lum_admin_key'); sessionStorage.removeItem('lum_admin_ping'); } catch (_) {}
+    document.documentElement.classList.remove('lum-boot');
     if (window.lumStaff) window.lumStaff.signedOut();
     document.body.classList.remove('is-in');
     var shell = document.getElementById('shell');
@@ -1827,6 +1863,8 @@ window.lumAdmin = {
   var shownMembers = [];   // いま表に出ている人（Excel・CSV はこの人たちを書き出します）
 
   function showMsg(text, isInfo) {
+    // ログインの画面に戻るときは、骨組みをやめてログインの欄を見せます。
+    document.documentElement.classList.remove('lum-boot');
     keyMsg.textContent = text;
     keyMsg.classList.add('show');
     keyMsg.classList.toggle('info', !!isInfo);
@@ -2890,7 +2928,46 @@ window.lumAdmin = {
   /* Signing in checks the key against /api/admin-ping, which needs ADMIN_KEY
      and nothing else. It used to go through the member list, so a missing or
      unreachable Resend refused the login with a message about the key. */
-  async function load(key, signingIn) {
+  /* ログインできたあとの画面づくり。/api/admin-ping の返事（役割・会社名）を使います。 */
+  function enter(key, data) {
+    sessionStorage.setItem('lum_admin_key', data.session || key);
+    try { sessionStorage.setItem('lum_admin_ping', JSON.stringify({ who: data.who || null, staff: data.staff, brand: data.brand || null })); } catch (_) {}
+    applyBrand(data.brand || null);
+    if (window.lumStaff && window.lumStaff.signedIn(data)) {
+      // Signed back in as a different role: the tabs were built for the old one.
+      location.reload();
+      return true;
+    }
+    if (entered) return true;
+    entered = true;
+    if (!window.lumStaff || window.lumStaff.isOwner()) loadShare();
+    keyPanel.style.display = 'none';
+    document.documentElement.classList.remove('lum-boot');
+    document.body.classList.add('is-in');
+    document.getElementById('sign-out').style.display = 'inline-block';
+    document.getElementById('shell').style.display = 'grid';
+    buildTabs();
+    loadNews();
+    // 会員リストは、メール配信のサービス（Resend）に聞きに行くので時間がかかります。
+    // ホームの数字を先に出したいので、会員リストのタブを開いていなければ少し後で読みます。
+    var onList = false;
+    try { onList = sessionStorage.getItem('lum_admin_tab') === 'list-view'; } catch (_) {}
+    if (onList) loadMembers(); else setTimeout(loadMembers, 2500);
+    return true;
+  }
+  var entered = false;
+
+  /* 同じタブで開き直したとき。前回の確認の結果（役割・会社名）が残っていれば、それで
+     先に画面を出し、キーがまだ有効かは裏で確かめます（無効なら、そこでログアウト）。
+     サーバーの確認を待たないぶん、開いてすぐ使えます。 */
+  function resume(key) {
+    var cached = null;
+    try { cached = JSON.parse(sessionStorage.getItem('lum_admin_ping') || 'null'); } catch (_) { cached = null; }
+    if (cached) enter(key, Object.assign({ ok: true }, cached));
+    load(key, false, !!cached);
+  }
+
+  async function load(key, signingIn, quiet) {
     var res, data;
     try {
       // 「入る」を押したときだけ、操作の記録に「ログイン」を残すよう知らせます。
@@ -2899,9 +2976,16 @@ window.lumAdmin = {
       res = await fetch('/api/admin-ping', { headers: h });
       data = await res.json();
     } catch (_) {
+      // すでに画面を出している（前回の確認で入った）なら、通信の失敗では追い出しません。
+      if (quiet) return true;
       showMsg('通信に失敗しました。時間をおいて再度お試しください。');
       return false;
     }
+    if (quiet && (res.status === 401 || res.status === 403)) {
+      window.lumAdmin.signOut('ログインの有効期限が切れました。もう一度ログインしてください。');
+      return false;
+    }
+    if (quiet && !res.ok) return true;
     if (res.status === 503) {
       showMsg(data.message || '未設定です。Vercel の環境変数に ADMIN_KEY を設定し、再デプロイしてください。', true);
       return false;
@@ -2918,22 +3002,7 @@ window.lumAdmin = {
     }
     // A staff key comes back as a 12-hour session, which is kept in its
     // place: the key itself is not sent again. The owner's key is kept as is.
-    sessionStorage.setItem('lum_admin_key', data.session || key);
-    applyBrand(data.brand || null);
-    if (window.lumStaff && window.lumStaff.signedIn(data)) {
-      // Signed back in as a different role: the tabs were built for the old one.
-      location.reload();
-      return true;
-    }
-    if (!window.lumStaff || window.lumStaff.isOwner()) loadShare();
-    keyPanel.style.display = 'none';
-    document.body.classList.add('is-in');
-    document.getElementById('sign-out').style.display = 'inline-block';
-    document.getElementById('shell').style.display = 'grid';
-    buildTabs();
-    loadNews();
-    loadMembers();
-    return true;
+    return enter(key, data);
   }
 
   /* The member list on its own. When Resend is not set up, or does not answer,
@@ -3558,7 +3627,7 @@ window.lumAdmin = {
 
   // Auto-restore within the same tab session
   var saved = sessionStorage.getItem('lum_admin_key');
-  if (saved) load(saved);
+  if (saved) resume(saved);
 })();
 </script>
 
