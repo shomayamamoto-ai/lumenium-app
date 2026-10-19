@@ -3332,7 +3332,8 @@
     ['notes', 'ほかに伝えておきたいこと', '例：来年春に2号店を出す予定', 300]
   ].map(function (f) { return { key: f[0], label: f[1], hint: f[2], max: f[3] }; });
   var P = { kind: '美容室（サンプル）', area: '〇〇駅 東口から徒歩3分', customers: '30〜50代の女性。平日昼の主婦の方と、土日のお勤めの方', strengths: '完全予約制で待ち時間なし。白髪ぼかしのカラーが得意',
-    price: 'カット 4,400円〜（地域では中くらい）', hours: '10〜19時・月曜定休', goals: '平日の昼の予約を増やしたい。Google の口コミを月5件', avoid: '「激安」「No.1」は使わない。他店と比べない', notes: '', updatedAt: new Date(Date.now() - 5 * 86400000).toISOString() };
+    price: 'カット 4,400円〜（地域では中くらい）', hours: '10〜19時・月曜定休', goals: '平日の昼の予約を増やしたい。Google の口コミを月5件', avoid: '「激安」「No.1」は使わない。他店と比べない', notes: '', goalInquiries: 15, goalBookings: 40, goalSales: 1500000, updatedAt: new Date(Date.now() - 5 * 86400000).toISOString() };
+  var GL = [{ key: 'goalInquiries', label: '月の問い合わせの目標', unit: '件' }, { key: 'goalBookings', label: '月の予約の目標', unit: '件' }, { key: 'goalSales', label: '月の受注額の目標', unit: '円' }];
   var inner = window.fetch;
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : (input && input.url) || String(input);
@@ -3340,7 +3341,7 @@
     try { u = new URL(url, location.href); } catch (_) {}
     if (!u || u.pathname.replace(/\/+$/, '') !== '/api/shop-profile') return inner(input, init);
     var method = String((init && init.method) || 'GET').toUpperCase();
-    var body = method !== 'GET' ? { ok: false, demo: true, message: 'デモ版のため保存・送信はされません。' } : { ok: true, stored: true, profile: P, fields: F, filled: true };
+    var body = method !== 'GET' ? { ok: false, demo: true, message: 'デモ版のため保存・送信はされません。' } : { ok: true, stored: true, profile: P, fields: F, goals: GL, filled: true };
     return new Promise(function (ok) { setTimeout(ok, 100); }).then(function () {
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });

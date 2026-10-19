@@ -6,16 +6,17 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
-import { PROFILE_FIELDS, readProfile, saveProfile, profileFilled } from './_shop-profile.js'
+import { PROFILE_FIELDS, GOAL_FIELDS, readProfile, saveProfile, profileFilled } from './_shop-profile.js'
 
 const FIELDS = PROFILE_FIELDS.map(([key, label, hint, max]) => ({ key, label, hint, max }))
+const GOALS = GOAL_FIELDS.map(([key, label, unit]) => ({ key, label, unit }))
 
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
   const cfg = storeConfig()
   const profile = await readProfile(cfg)
-  return json({ ok: true, stored: !!cfg, profile, fields: FIELDS, filled: profileFilled(profile) })
+  return json({ ok: true, stored: !!cfg, profile, fields: FIELDS, goals: GOALS, filled: profileFilled(profile) })
 }
 
 export async function POST(req) {

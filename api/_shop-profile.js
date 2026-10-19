@@ -23,23 +23,35 @@ export const PROFILE_FIELDS = [
   ['notes', 'ほかに伝えておきたいこと', '例：来年春に2号店を出す予定（まだ公表しない）', 300],
 ]
 
+/** 月の目標（数）。ホームの数字のカードに進み具合として出し、AIアドバイザーにも渡します。 */
+export const GOAL_FIELDS = [
+  ['goalInquiries', '月の問い合わせの目標', '件', 10000],
+  ['goalBookings', '月の予約の目標', '件', 10000],
+  ['goalSales', '月の受注額の目標', '円', 1000000000],
+]
+
 const clip = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, n)
 
 export function cleanProfile(input) {
   const x = input && typeof input === 'object' ? input : {}
   const out = {}
   for (const [k, , , n] of PROFILE_FIELDS) out[k] = clip(x[k], n)
+  for (const [k, , , max] of GOAL_FIELDS) {
+    const v = Math.round(Number(String(x[k] == null ? '' : x[k]).replace(/[^\d.]/g, '')))
+    out[k] = isFinite(v) && v > 0 ? Math.min(max, v) : 0
+  }
   return out
 }
 
 export function profileFilled(p) {
-  return !!p && PROFILE_FIELDS.some(([k]) => p[k])
+  return !!p && (PROFILE_FIELDS.some(([k]) => p[k]) || GOAL_FIELDS.some(([k]) => p[k]))
 }
 
 /** AIへ渡す文。空の欄は書きません。 */
 export function profileText(p) {
   if (!profileFilled(p)) return ''
-  return PROFILE_FIELDS.filter(([k]) => p[k]).map(([k, label]) => `${label}: ${p[k]}`).join('\n')
+  const goals = GOAL_FIELDS.filter(([k]) => p[k]).map(([k, label, unit]) => `${label}: ${Number(p[k]).toLocaleString('ja-JP')}${unit}`)
+  return PROFILE_FIELDS.filter(([k]) => p[k]).map(([k, label]) => `${label}: ${p[k]}`).concat(goals).join('\n')
 }
 
 export async function readProfile(cfg) {

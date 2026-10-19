@@ -689,18 +689,29 @@
           (long ? '<textarea id="sp-' + esc(f.key) + '" rows="3" maxlength="' + f.max + '" placeholder="' + esc(f.hint) + '" style="width:100%;min-height:76px;line-height:1.6">' + esc(p[f.key] || '') + '</textarea>'
             : '<input type="text" id="sp-' + esc(f.key) + '" maxlength="' + f.max + '" placeholder="' + esc(f.hint) + '" value="' + esc(p[f.key] || '') + '" style="width:100%">');
       }).join('') +
+      '<p class="soc-lab" style="margin-top:16px;display:block;font-weight:700">月の目標（ホームの数字のカードに進み具合が出ます）</p>' +
+      '<div class="adv-row">' + (d.goals || []).map(function (g) {
+        return '<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;flex:1 1 150px">' + esc(g.label) +
+          '<input type="text" inputmode="numeric" id="sp-' + esc(g.key) + '" value="' + (p[g.key] ? esc(Number(p[g.key]).toLocaleString('ja-JP')) : '') + '" placeholder="例：' + (g.unit === '円' ? '1,000,000' : '30') + '" style="width:100%"></label>';
+      }).join('') + '</div>' +
       '<div class="adv-row" style="margin-top:12px"><button type="button" id="sp-save">保存する</button>' +
       (p.updatedAt ? '<span class="soc-small">最後に保存: ' + esc(new Date(p.updatedAt).toLocaleString('ja-JP')) + '</span>' : '') + '</div></div>';
     el('sp-save').addEventListener('click', async function () {
       var out = {};
-      (d.fields || []).forEach(function (f) { var x = el('sp-' + f.key); out[f.key] = x ? x.value : ''; });
+      (d.fields || []).concat(d.goals || []).forEach(function (f) { var x = el('sp-' + f.key); out[f.key] = x ? x.value : ''; });
       this.disabled = true;
       var x = await api('/api/shop-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: out }) });
       this.disabled = false;
       var dd = (x && x.data) || {};
       say(dd.message || (dd.ok ? '保存しました。' : '保存できませんでした。'), !!dd.ok);
+      if (dd.ok && window.lumDashGoals) window.lumDashGoals(dd.profile);
     });
   }
+  // ホームの「目標を決める」から、このページを開くため。
+  window.lumAdvisorProfile = function () {
+    if (S.started && el('adv-body')) { go('profile'); return; }
+    try { sessionStorage.setItem('lum_advisor_view', 'profile'); } catch (_) {}
+  };
 
   function renderTodos() {
     var st = S.state || {};
@@ -785,7 +796,7 @@
     // ポータルの「AIアドバイザーのToDo」から来たときは、ToDo を開きます。
     var want = '';
     try { want = sessionStorage.getItem('lum_advisor_view') || ''; sessionStorage.removeItem('lum_advisor_view'); } catch (_) {}
-    go(want === 'todo' ? 'todo' : 'chat');
+    go(want === 'todo' || want === 'profile' ? want : 'chat');
     await load();
     if (!S.busy) go(S.view); // 読み込みの間に質問を送っていたら、その表示を壊さない
   };

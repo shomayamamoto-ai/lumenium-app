@@ -145,8 +145,10 @@
     if (D.loading) return;
     D.loading = true;
     var r = await Promise.all([api('/api/analytics?days=30'), api('/api/analytics?days=180'), api('/api/quotes'),
-      fetch('/seo-pages.json', { cache: 'no-store' }).then(function (x) { return x.ok ? x.json() : null; }).catch(function () { return null; })]);
+      fetch('/seo-pages.json', { cache: 'no-store' }).then(function (x) { return x.ok ? x.json() : null; }).catch(function () { return null; }),
+      api('/api/shop-profile')]);
     D.a30 = r[0]; D.a180 = r[1]; D.quotes = r[2] && Array.isArray(r[2].list) ? r[2].list : null; D.pages = (r[3] && r[3].pages) || {};
+    D.profile = (r[4] && r[4].profile) || null;
     D.loading = false;
     paint();
   }
@@ -162,7 +164,9 @@
     var s = D.a30 && D.a30.summary, c = s && s.cur, p = s && s.prev;
     var vk = c && Number(c.visits) ? 'visits' : 'views';
     out.push({ icon: 'visit', tone: '#2563eb', label: 'サイトの訪問', value: c ? num(c[vk]) : '—', d: c && p ? pct(c[vk], p[vk]) : null, cmp: '前の30日比', tab: 'stats-admin' });
-    out.push({ icon: 'mail', tone: '#16a34a', label: '問い合わせ（30日）', value: c ? num(c.submits) : '—', d: c && p ? pct(c.submits, p.submits) : null, cmp: '前の30日比', tab: 'inquiries-admin' });
+    var G = D.profile || {};
+    out.push({ icon: 'mail', tone: '#16a34a', label: '問い合わせ（30日）', value: c ? num(c.submits) : '—', d: c && p ? pct(c.submits, p.submits) : null, cmp: '前の30日比', tab: 'inquiries-admin',
+      goal: G.goalInquiries && c ? { target: G.goalInquiries, cur: Number(c.submits) || 0, unit: '件' } : null });
     var bk = D.src && D.src.booking && D.src.booking.state === 'ok' ? (D.src.booking.data.bookings || []) : null;
     var bThis = 0, bLast = 0;
     if (bk) bk.forEach(function (b) {
@@ -173,9 +177,11 @@
       var k = monthKey(t);
       if (k === thisM) bThis++; else if (k === lastM) bLast++;
     });
-    out.push({ icon: 'cal', tone: '#2563eb', label: '今月の予約', value: bk ? num(bThis) + '件' : '—', d: bk ? pct(bThis, bLast) : null, cmp: '前月比', tab: 'booking-admin' });
+    out.push({ icon: 'cal', tone: '#2563eb', label: '今月の予約', value: bk ? num(bThis) + '件' : '—', d: bk ? pct(bThis, bLast) : null, cmp: '前月比', tab: 'booking-admin',
+      goal: G.goalBookings && bk ? { target: G.goalBookings, cur: bThis, unit: '件' } : null });
     var won = wonByMonth();
-    out.push({ icon: 'yen', tone: '#f97316', label: '今月の受注額', value: won ? yen(won[thisM] || 0) : '—', d: won ? pct(won[thisM] || 0, won[lastM] || 0) : null, cmp: '前月比', tab: 'quotes-admin' });
+    out.push({ icon: 'yen', tone: '#f97316', label: '今月の受注額', value: won ? yen(won[thisM] || 0) : '—', d: won ? pct(won[thisM] || 0, won[lastM] || 0) : null, cmp: '前月比', tab: 'quotes-admin',
+      goal: G.goalSales && won ? { target: G.goalSales, cur: won[thisM] || 0, unit: '円' } : null });
     var mb = D.src && D.src.members && D.src.members.state === 'ok' ? (D.src.members.data.members || []) : null;
     var mThis = 0, mLast = 0;
     if (mb) mb.forEach(function (m) { var t = Date.parse(m.created || ''); if (!t) return; var k = monthKey(t); if (k === thisM) mThis++; else if (k === lastM) mLast++; });
@@ -203,8 +209,56 @@
       return '<button type="button" class="dk-kpi" data-go="' + k.tab + '" aria-label="' + esc(k.label + ' ' + k.value + (d == null ? '' : '、' + k.cmp + (d > 0 ? '+' : '') + d + '%') + '。押すと開きます') + '">' +
         '<span class="dk-kpi-h"><i class="dk-ic" style="--tone:' + k.tone + '">' + ICON[k.icon] + '</i>' + esc(k.label) + '</span>' +
         '<b class="dk-kpi-v' + (String(k.value).length > 8 ? ' is-long' : '') + '">' + esc(k.value) + '</b>' + (k.extra ? '<span class="dk-kpi-x">' + esc(k.extra) + '</span>' : '') +
-        delta + '<small>' + esc(k.cmp) + '</small></button>';
+        delta + '<small>' + esc(k.cmp) + '</small>' + goalHtml(k.goal) + '</button>';
     }).join('') + '</div>';
+  }
+
+  /* 月の目標の進み具合（お店のプロフィールで決めた数）。月の日数の進みと比べて、遅れていれば色を変えます。 */
+  function goalHtml(g) {
+    if (!g || !g.target) return '';
+    var r = Math.min(1, g.cur / g.target), p = Math.round(g.cur / g.target * 100);
+    var d = new Date(Date.now() + JST), days = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    var pace = d.getUTCDate() / days;
+    var cls = r >= 1 ? ' done' : r + 0.05 < pace ? ' behind' : '';
+    var t = g.unit === '円' ? yen(g.target) : num(g.target) + g.unit;
+    return '<span class="dk-goal' + cls + '" aria-hidden="true"><i style="width:' + Math.round(r * 100) + '%"></i><em style="left:' + Math.round(pace * 100) + '%"></em></span>' +
+      '<small class="dk-goal-t">目標 ' + esc(t) + ' の ' + p + '%' + (r >= 1 ? '（達成）' : r + 0.05 < pace ? '（月の進みより遅れ）' : '') + '</small>';
+  }
+  window.lumDashGoals = function (prof) { D.profile = prof || null; paint(); };
+
+  /* ---- 月のレポート（印刷・PDF） ----
+     家族・税理士さん・金融機関に渡せる1枚。画面にある数字だけで作ります（取りに行きません）。 */
+  function printReport() {
+    var k = kpis(), b = barsData(), parts = donutParts(), pages = topPages(), now = Date.now();
+    var brand = (window.lumSite && window.lumSite.name) || '';
+    var t = function (x) { return esc(x); };
+    var rows = k.map(function (x) {
+      return '<tr><th>' + t(x.label) + '</th><td class="n">' + t(x.value) + '</td><td>' + (x.d == null ? '—' : (x.d > 0 ? '+' : '') + x.d + '%（' + t(x.cmp) + '）') + '</td><td>' +
+        (x.goal ? '目標 ' + t(x.goal.unit === '円' ? yen(x.goal.target) : num(x.goal.target) + x.goal.unit) + ' の ' + Math.round(x.goal.cur / x.goal.target * 100) + '%' : '') + '</td></tr>';
+    }).join('');
+    var html = '<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>月のレポート ' + t(ymd(now).slice(0, 7)) + '</title><style>' +
+      'body{font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;color:#0f172a;margin:0;background:#f3f5f9}main{max-width:190mm;margin:12px auto;background:#fff;padding:14mm 14mm 12mm}' +
+      'h1{font-size:20px;margin:0}h2{font-size:14px;margin:18px 0 6px;border-left:4px solid #2563eb;padding-left:8px}.sub{color:#64748b;font-size:12px;margin:4px 0 0}' +
+      'table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}td.n{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+      '.bar{display:inline-block;height:8px;background:#2563eb;border-radius:4px;vertical-align:middle;margin-right:6px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}' +
+      '.tool{max-width:190mm;margin:12px auto 0;display:flex;gap:8px;align-items:center;font-size:13px}.tool button{font:inherit;font-weight:700;padding:9px 16px;border-radius:10px;border:0;background:#0f172a;color:#fff;cursor:pointer}' +
+      '@media print{body{background:#fff}main{margin:0;padding:0}.tool{display:none}}</style></head><body>' +
+      '<div class="tool"><button onclick="print()">印刷・PDFで保存</button><span>PDFにするときは、印刷の画面で「PDFに保存」を選んでください。</span></div>' +
+      '<main><h1>月のレポート' + (brand ? '（' + t(brand) + '）' : '') + '</h1><p class="sub">' + t(ymd(now).replace(/-/g, '/')) + ' 時点。訪問と問い合わせは直近30日、予約と受注額は今月の数字です。</p>' +
+      '<h2>主な数字</h2><table><tr><th>項目</th><th>数</th><th>前と比べて</th><th>月の目標</th></tr>' + rows + '</table>' +
+      (b ? '<h2>' + t(b.title) + '（月別）</h2><table>' + b.items.map(function (x) {
+        var max = Math.max.apply(null, b.items.map(function (y) { return y.v; })) || 1;
+        return '<tr><th>' + t(x.label) + '</th><td><span class="bar" style="width:' + Math.round(x.v / max * 220) + 'px"></span>' + t(b.unit === 'yen' ? yen(x.v) : num(x.v) + '件') + '</td></tr>';
+      }).join('') + '</table>' : '') +
+      '<div class="two">' +
+        (parts ? '<div><h2>どこから来たか（30日）</h2><table>' + parts.map(function (x) { return '<tr><th>' + t(x.label) + '</th><td class="n">' + num(x.v) + '</td></tr>'; }).join('') + '</table></div>' : '<div></div>') +
+        (pages ? '<div><h2>よく見られたページ（30日）</h2><table>' + pages.map(function (x) { return '<tr><th>' + x.i + '. ' + t(x.title) + '</th><td class="n">' + num(x.v) + '</td></tr>'; }).join('') + '</table></div>' : '<div></div>') +
+      '</div>' +
+      '<p class="sub" style="margin-top:14px">この管理画面の記録から作ったレポートです。訪問者の名前やメールアドレスは含みません。</p></main></body></html>';
+    var url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    var w = window.open(url, '_blank');
+    setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+    return !!w;
   }
 
   /* ---- 訪問の推移（線＋面） ---- */
@@ -380,7 +434,10 @@
     var html =
       '<header class="dk-hello"><div><h1 tabindex="-1" id="dk-h1">おかえりなさい' + (name ? '、' + esc(name) + 'さん' : '') + '</h1>' +
         '<p>あなたのサイトは、今日もどこかで見られています。</p></div>' +
-        '<span class="dk-range" title="数字のカードとグラフの期間">' + esc(ymd(now - 29 * DAY).replace(/-/g, '/')) + ' – ' + esc(ymd(now).replace(/-/g, '/')) + '</span></header>' +
+        '<span class="dk-hello-acts">' +
+          (!(D.profile && (D.profile.goalInquiries || D.profile.goalBookings || D.profile.goalSales)) ? '<button type="button" class="dk-mini" id="dk-goalset">月の目標を決める</button>' : '') +
+          '<button type="button" class="dk-mini" id="dk-report">月のレポートを印刷</button>' +
+          '<span class="dk-range" title="数字のカードとグラフの期間">' + esc(ymd(now - 29 * DAY).replace(/-/g, '/')) + ' – ' + esc(ymd(now).replace(/-/g, '/')) + '</span></span></header>' +
       '<div class="dk-hero">' +
         '<section class="dk-card dk-first">' +
           (todo && todo.top
@@ -437,6 +494,11 @@
     else if (slot && window.lumOpsMapMount) window.lumOpsMapMount(slot);
     host.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { if (window.lumShowTab) window.lumShowTab(b.getAttribute('data-go')); }); });
     host.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { D.mode = b.getAttribute('data-mode'); paint(); }); });
+    if (el('dk-report')) el('dk-report').addEventListener('click', function () { if (!printReport()) alert('新しい窓を開けませんでした。ポップアップを許可してください。'); });
+    if (el('dk-goalset')) el('dk-goalset').addEventListener('click', function () {
+      if (window.lumAdvisorProfile) window.lumAdvisorProfile();
+      if (window.lumShowTab) window.lumShowTab('advisor-admin');
+    });
     var go = el('dk-first-go');
     if (go && todo && todo.top) go.addEventListener('click', function () { if (window.lumPortalOpen) window.lumPortalOpen(todo.top); else if (window.lumShowTab) window.lumShowTab(todo.top.tab); });
     var all = el('dk-first-all');
@@ -456,6 +518,13 @@
       '.dk-hello h1{font-size:26px;font-weight:800;letter-spacing:.01em;margin:0;color:#0f172a}' +
       '.dk-hello h1:focus{outline:none}' +
       '.dk-hello p{margin:4px 0 0;color:#64748b;font-size:14px}' +
+      '.dk-hello-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}' +
+      '.dk-mini{height:40px;padding:0 14px;border:1px solid var(--ui-border);border-radius:12px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:#1f2937;cursor:pointer}' +
+      '.dk-mini:hover{border-color:#bfd3fb}' +
+      '.dk-goal{position:relative;display:block;width:100%;height:6px;border-radius:3px;background:#e8edf5;margin-top:10px;overflow:visible}' +
+      '.dk-goal i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#2563eb}.dk-goal.done i{background:#16a34a}.dk-goal.behind i{background:#f59e0b}' +
+      '.dk-goal em{position:absolute;top:-3px;width:2px;height:12px;background:#94a3b8;border-radius:1px}' +
+      '.dk-goal-t{display:block;margin-top:4px}' +
       '.dk-range{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--ui-border);border-radius:12px;background:#fff;font-size:14px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}' +
       '.dk-card{background:#fff;border:1px solid var(--ui-border);border-radius:16px;box-shadow:var(--ui-shadow);padding:18px 20px;min-width:0}' +
       '.dk-card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}' +
