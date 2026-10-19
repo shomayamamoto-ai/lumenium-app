@@ -857,3 +857,15 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell button.sa-go { font-size: 11.5px; padding: 4px 10px; margin-top: 6px; min-height: 0; width: auto; }
 #shell .sa-foot { margin: 2px 0 0; }
 #shell .sa-foot button { font-size: 12px; padding: 7px 13px; }
+
+/* ---- SEO / AIO: 質問の候補 ---- */
+#shell .qs-box { margin-top: 10px; border: 1px dashed var(--ui-border-strong); border-radius: 10px; padding: 9px 11px; background: var(--ui-surface-2); }
+#shell .qs-h { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; }
+#shell .qs-h span { font-weight: 400; font-size: 11px; color: var(--ui-text-3); margin-left: 8px; }
+#shell .qs-list { list-style: none; margin: 0; padding: 0; }
+#shell .qs-list li { padding: 7px 0; border-top: 1px solid rgba(23,23,28,.06); }
+#shell .qs-q { font-size: 12.5px; line-height: 1.7; overflow-wrap: anywhere; }
+#shell .qs-why { font-size: 11px; color: var(--ui-text-3); line-height: 1.7; margin: 2px 0 4px; overflow-wrap: anywhere; }
+#shell .qs-from { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: var(--ui-info-bg); color: var(--ui-info); margin-right: 6px; }
+#shell button.qs-add { font-size: 11.5px; padding: 4px 10px; min-height: 0; width: auto; }
+#shell .qs-done { font-size: 11.5px; color: var(--ui-ok); font-weight: 700; }

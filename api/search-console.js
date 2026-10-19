@@ -36,6 +36,8 @@ import { BRAND, KV } from './_brand.js'
 const API = 'https://www.googleapis.com/webmasters/v3'
 const DAYS = 28
 const CACHE_KEY = `${KV}gsc:v2`
+// AIO計測の「質問の候補」（api/aio.js ?view=suggest）も、保存したこの結果だけを読みます。
+export const GSC_CACHE_KEY = CACHE_KEY
 const CACHE_TTL = 6 * 60 * 60
 // 「あと少しで1ページ目」に入れる最低の表示回数。28日で10回未満の語は、
 // 順位が上がっても増える人数がほとんどなく、手を入れる順番の判断に使えません。

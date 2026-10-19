@@ -247,5 +247,39 @@ await test('alerts: weekly mail lines', () => {
   assert.equal(l[1], '・AIのクローラーが…')
 })
 
+/* ---- 質問の候補（_aio-suggest.js） ---- */
+const SG = await import(new URL('../api/_aio-suggest.js', import.meta.url))
+
+await test('suggest: search words and enquiry topics, not what is already asked', () => {
+  const existing = [
+    { cat: '動画制作', q: '東京で採用動画の制作を依頼できる会社を教えてください。' },
+    { cat: 'Web制作', q: '企業のホームページ制作を依頼できる会社を東京で探しています。' },
+  ]
+  const queries = [
+    { query: '採用動画 制作 東京', impressions: 50, position: 9.2 },   // 既にある質問とほぼ同じ → 出さない
+    { query: 'LINE公式 構築 代行', impressions: 30, position: 12 },
+    { query: '会社紹介動画 費用', impressions: 20 },
+    { query: 'ほぼ出ていない語', impressions: 1 },                     // 表示が少なすぎる → 出さない
+    { query: 'lumenium', impressions: 99, branded: true },              // 社名 → 出さない
+  ]
+  const topics = [['SNS運用', 3], ['（選択なし）', 9], ['動画制作', 2]]
+  const out = SG.suggestQuestions({ queries, topics, existing, area: '東京' })
+  const texts = out.map((x) => x.q)
+  assert.ok(!texts.some((t) => /採用動画 制作 東京|ほぼ出ていない|lumenium/.test(t)), texts.join(' / '))
+  assert.ok(texts.includes('「LINE公式 構築 代行」で探しています。おすすめの会社を教えてください。'))
+  assert.ok(texts.includes('「会社紹介動画 費用」が気になっています。費用の目安と、相談できる会社を教えてください。'))
+  assert.ok(texts.includes('東京でSNS運用を頼める会社を教えてください。'))
+  assert.equal(out.find((x) => /会社紹介動画/.test(x.q)).cat, '動画制作', 'いちばん近い既存の分野に入れる')
+  assert.match(out.find((x) => x.from === 'inquiry').why, /問い合わせ/)
+  assert.equal(out[0].from, 'search')
+  assert.equal(out[1].from, 'inquiry', '検索と問い合わせを交互に並べる')
+  assert.ok(out.every((x) => x.q.length <= 200 && x.cat.length <= 30))
+})
+
+await test('suggest: nothing to go on gives nothing', () => {
+  assert.deepEqual(SG.suggestQuestions({}), [])
+  assert.ok(SG.similarity('ホームページ制作', 'ホームページ 制作') === 1)
+})
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

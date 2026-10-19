@@ -30,6 +30,7 @@ export const config = { runtime: 'edge' }
 //   POST {action:'probe', index, engine}     -> one answer, nothing stored
 //   GET  ?view=alerts[&fresh=1]              -> 変化のお知らせ（_seo-alerts.js）
 //   POST {action:'alerts-seen', ids}         -> そのお知らせを「確認しました」に
+//   GET  ?view=suggest                       -> 質問の候補（検索の語・問い合わせの内容から）
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, NO_AI, spendGuard } from './_admin-auth.js'
@@ -46,6 +47,7 @@ import { KV, BRAND as SITE } from './_brand.js'
 import { CHAT_RUNS } from './_aio-chat-runs.js'
 import { seoAlerts, markSeen, AUDIT_FRESH_KEY, ALERTS_SEEN_KEY, ALERTS_CACHE_KEY, ALERTS_CACHE_TTL } from './_seo-alerts.js'
 import { crawlerLastSeen } from './_crawlers.js'
+import { suggestQuestions } from './_aio-suggest.js'
 
 /* 1回の回答にかけてよい時間。
    エッジ関数は最初の応答までに使える時間が決まっていて、そこを越えると
@@ -927,11 +929,42 @@ export async function seoAlertsFor(cfg, { fresh = false } = {}) {
   return { stored: true, ...base, alerts, unseen: alerts.filter((a) => a.fresh).length }
 }
 
+/* ---- 質問の候補 ----
+   保存してある Search Console の結果（社名を含まない語）と、直近90日の
+   問い合わせで選ばれた「ご相談の内容」から（_aio-suggest.js）。どちらも、
+   ここで新しく外へ問い合わせることはしません。 */
+export async function suggestFor(cfg) {
+  const { list } = await loadQuestions(cfg)
+  let queries = null, topics = null
+  if (cfg) {
+    try {
+      const { GSC_CACHE_KEY } = await import('./search-console.js')
+      const [raw] = await pipeline(cfg, [['GET', GSC_CACHE_KEY]])
+      const d = raw ? JSON.parse(raw) : null
+      queries = d && Array.isArray(d.topOpen) ? d.topOpen : null
+    } catch (_) { queries = null }
+    try {
+      const I = await import('./_inquiries.js')
+      topics = I.stats(await I.allSummaries(cfg), 90).byTopic
+    } catch (_) { topics = null }
+  }
+  return {
+    suggestions: suggestQuestions({ queries, topics, existing: list, area: SITE.area }),
+    sources: { search: !!queries, inquiries: Array.isArray(topics) ? topics.reduce((n, t) => n + (Number(t[1]) || 0), 0) : null },
+    limit: LIMITS.questions, questions: list.length,
+  }
+}
+
 export async function GET(req) {
   const denied = await requireAdmin(req)
   if (denied) return denied
 
   const cfg = await storeFor(req)
+  if (new URL(req.url).searchParams.get('view') === 'suggest') {
+    try { return json({ ok: true, ...(await suggestFor(cfg)) }) } catch (_) {
+      return json({ ok: false, message: '質問の候補を作れませんでした。' }, 502)
+    }
+  }
   if (new URL(req.url).searchParams.get('view') === 'alerts') {
     try {
       return json({ ok: true, ...(await seoAlertsFor(cfg, { fresh: new URL(req.url).searchParams.get('fresh') === '1' })) })

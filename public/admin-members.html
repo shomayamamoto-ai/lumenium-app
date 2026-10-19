@@ -6106,6 +6106,7 @@ window.lumAdmin = {
           '<textarea class="qe-q" maxlength="' + lim.q + '" rows="2" placeholder="例: 東京で採用動画を頼める会社を教えてください。" aria-label="質問文" style="' + input + ';resize:vertical">' + esc(r.q) + '</textarea>' +
         '</div>';
       }).join('') +
+      '<div id="qe-suggest" class="qs-box"></div>' +
       '<div class="toolbar" style="margin-top:8px">' +
         '<button type="button" class="ghost" id="qe-add" style="font-size:12px;padding:6px 12px">質問を追加</button>' +
         '<button type="button" id="qe-save" style="font-size:12px;padding:6px 14px">保存</button>' +
@@ -6113,6 +6114,44 @@ window.lumAdmin = {
         '<button type="button" class="ghost" id="qe-close" style="font-size:12px;padding:6px 12px">閉じる</button>' +
         '<span id="qe-note" class="share-note" style="margin:0"></span>' +
       '</div>';
+    paintSuggest();
+  }
+  /* ---- 質問の候補 ----
+     Google 検索で実際に表示された語（社名を含まないもの）と、問い合わせで
+     選ばれた「ご相談の内容」から。いまある質問と同じ話は出しません
+     （api/_aio-suggest.js）。足すと下書きに入り、「保存」で次の計測から使います。 */
+  var qsug = null, qsugBusy = false;
+  async function loadSuggest() {
+    if (qsugBusy) return;
+    qsugBusy = true;
+    var r = null;
+    try { r = await window.lumAdmin.fetch('/api/aio?view=suggest'); } catch (_) { r = null; }
+    qsugBusy = false;
+    var d = r && r.data;
+    qsug = d && d.ok ? d : { failed: true, suggestions: [] };
+    paintSuggest();
+  }
+  function paintSuggest() {
+    var host = el('qe-suggest');
+    if (!host || !qdraft) return;
+    if (!qsug) { host.innerHTML = '<div class="qs-h">質問の候補</div><p class="share-note" style="margin:0">探しています…</p>'; return; }
+    var have = qdraft.map(function (r) { return String(r.q).trim(); });
+    var list = (qsug.suggestions || []).filter(function (x) { return have.indexOf(x.q) < 0 || x.added; });
+    var src = qsug.sources || {};
+    var note = qsug.failed ? '候補を読み込めませんでした。'
+      : !list.length
+        ? (src.search ? 'いまの質問で、検索の語と問い合わせの内容はおおむね押さえられています。' : '') +
+          (!src.search ? '「Google検索」のタブを一度開くと、検索で表示された語から候補が出ます。' : '')
+        : '';
+    host.innerHTML = '<div class="qs-h">質問の候補<span>検索で表示された語・問い合わせの内容から</span></div>' +
+      (list.length ? '<ul class="qs-list">' + list.map(function (x) {
+        var i = qsug.suggestions.indexOf(x);
+        return '<li><div class="qs-q">' + esc(x.q) + '</div>' +
+          '<div class="qs-why"><span class="qs-from">' + (x.from === 'search' ? '検索' : '問い合わせ') + '</span>' + esc(x.why) + '　カテゴリ: ' + esc(x.cat) + '</div>' +
+          (x.added ? '<span class="qs-done">足しました（「保存」で次の計測から使います）</span>'
+            : '<button type="button" class="ghost qs-add" data-s="' + i + '">この質問を足す</button>') + '</li>';
+      }).join('') + '</ul>' : '') +
+      (note ? '<p class="share-note" style="margin:4px 0 0">' + esc(note) + '</p>' : '');
   }
   function readEditor() {
     var rowsEl = el('seo-qedit').querySelectorAll('[data-i]');
@@ -6148,13 +6187,26 @@ window.lumAdmin = {
     qdraft = ((meta.questionSet && meta.questionSet.list) || []).map(function (r) {
       return { id: r.id, cat: r.cat, q: r.q, branded: !!r.branded };
     });
+    qsug = null;
     drawEditor();
     host.style.display = 'block';
+    loadSuggest();
   });
   el('seo-qedit').addEventListener('click', function (ev) {
     var t = ev.target;
     if (!qdraft || !t || t.tagName !== 'BUTTON') return;
     readEditor();
+    if (t.classList.contains('qs-add')) {
+      var sg = qsug && qsug.suggestions[Number(t.getAttribute('data-s'))];
+      var cap = (meta.limits && meta.limits.questions) || 60;
+      if (!sg) return;
+      if (qdraft.length >= cap) { el('qe-note').textContent = '質問は' + cap + '問までです。どれかを消してから足してください。'; return; }
+      qdraft.push({ id: '', cat: sg.cat, q: sg.q, branded: false });
+      sg.added = true;
+      drawEditor();
+      el('qe-note').textContent = '候補を足しました。「保存」を押すと、次の計測から使います。';
+      return;
+    }
     if (t.classList.contains('qe-del')) {
       var row = t.closest('[data-i]');
       qdraft.splice(Number(row.getAttribute('data-i')), 1);

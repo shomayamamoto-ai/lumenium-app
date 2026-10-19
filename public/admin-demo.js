@@ -1053,6 +1053,20 @@
       alerts: alerts, unseen: aioAlertsSeen ? 0 : alerts.length };
   }
 
+  /* 質問の候補（shape: api/aio.js ?view=suggest → api/_aio-suggest.js）。
+     検索の語は「Google検索」の見本と同じもの、問い合わせの内容は架空です。 */
+  function aioSuggest() {
+    var g = function (q, cat, why, from) { return { q: q, cat: cat, why: why, from: from }; };
+    return { ok: true, sources: { search: true, inquiries: 14 }, limit: 60, questions: SAMPLE_QS.length,
+      suggestions: [
+        g('「ホームページ リニューアル 相談」で探しています。おすすめの会社を教えてください。', 'Web制作・システム開発', 'Google検索で直近28日に 76回表示（平均21.3位）', 'search'),
+        g('東京で採用サイト制作を頼める会社を教えてください。', 'Web制作・システム開発', '直近90日の問い合わせで「採用サイト制作」が 3件', 'inquiry'),
+        g('「SNS運用代行 相場」が気になっています。費用の目安と、相談できる会社を教えてください。', 'SNS・LINE', 'Google検索で直近28日に 54回表示（平均27.9位）', 'search'),
+        g('東京でドローン撮影を頼める会社を教えてください。', '動画制作', '直近90日の問い合わせで「ドローン撮影」が 2件', 'inquiry'),
+        g('「会社紹介動画 費用」が気になっています。費用の目安と、相談できる会社を教えてください。', '動画制作', 'Google検索で直近28日に 41回表示（平均16位）', 'search')
+      ] };
+  }
+
   /* A measurement can be "run" in demo: a handful of the sample questions,
      answered at once, and the same report at the end. stored:true keeps the
      panel from copying the run into this browser's real AIO history. */
@@ -1802,7 +1816,7 @@
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());
-      case '/api/aio': return reply(q.get('view') === 'alerts' ? aioAlerts() : aioGet(q.get('run')));
+      case '/api/aio': return reply(q.get('view') === 'alerts' ? aioAlerts() : q.get('view') === 'suggest' ? aioSuggest() : aioGet(q.get('run')));
       case '/api/site-audit': return reply(q.get('view') === 'badge' ? auditBadge() : q.get('view') === 'last' ? auditLast() : siteAudit());
       case '/api/indexnow':
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });

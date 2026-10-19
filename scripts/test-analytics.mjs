@@ -396,6 +396,23 @@ console.log('変化のお知らせ（週次メールと、保存先から作る�
   check('週次メールに一節が入る', mail.text.includes('■ 検索・AIでの見え方の変化\n・テストのお知らせ'))
 }
 
+console.log('質問の候補（保存した検索の結果と、問い合わせの内容から）')
+{
+  reset()
+  const { KV } = await import(new URL('../api/_brand.js', import.meta.url))
+  const A = await import(new URL('../api/aio.js', import.meta.url))
+  const auth = { Authorization: 'Bearer test-admin-key', 'x-forwarded-for': '192.0.2.13' }
+  const get = async () => (await A.GET(new Request('https://lumenium.net/api/aio?view=suggest', { headers: auth }))).json()
+  const none = await get()
+  check('材料が無ければ候補なし（外へは問い合わせない）', none.ok && none.suggestions.length === 0 && none.sources.search === false, none)
+  str.set(`${KV}gsc:v2`, JSON.stringify({ topOpen: [{ query: '社内報 作成 代行', impressions: 30, position: 12 }] }))
+  const at = new Date(Date.now() - 5 * 86400000).toISOString()
+  hash(`${KV}inq:list`).set('i1', JSON.stringify({ id: 'i1', receivedAt: at, topics: ['ドローン撮影'], status: 'new', snippet: '本文は使わない' }))
+  const d = await get()
+  check('検索の語と問い合わせの内容から候補が出る', d.ok && d.suggestions.some((x) => x.from === 'search' && /社内報/.test(x.q)) && d.suggestions.some((x) => x.from === 'inquiry' && /ドローン撮影/.test(x.q)), d)
+  check('問い合わせの本文は候補に入らない', !JSON.stringify(d).includes('本文は使わない'))
+}
+
 if (failed) {
   console.error(`\nアクセス解析のテスト: ${failed} 件失敗（${passed} 件成功）`)
   process.exit(1)
