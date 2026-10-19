@@ -964,5 +964,10 @@
   else hook();
 
   // テスト・ほかの部品から使う入り口。
-  window.lumSocialPlanUI = { load: load, setView: setView, state: function () { return { S: S, D: D }; } };
+  // toCompose: 「投稿する」の表示に切り替える（カレンダー・成果のタブから作る欄に戻すとき）。
+  function toCompose() {
+    if (T && T.current() !== 'compose') T.select('compose');
+    else if (S.view === 'plan') setView('compose');
+  }
+  window.lumSocialPlanUI = { load: load, setView: setView, toCompose: toCompose, state: function () { return { S: S, D: D }; } };
 })();

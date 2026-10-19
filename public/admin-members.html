@@ -717,9 +717,33 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-cal .d.today { border-color: #0f766e; }
   .soc-cal .d.sel { box-shadow: inset 0 0 0 2px #14b8a6; }
   .soc-cal .d .num { font-weight: 700; font-size: 11px; display: block; }
+  .soc-cal .d:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 1px; }
+  /* 行事（季節のネタ帳）と、ドラッグで日付を変えられる予約 */
+  .soc-cal .d .ev { display: block; font-size: 10px; line-height: 1.35; color: #92400e; font-weight: 700; margin: 1px 0; }
+  .soc-cal .d .qi { display: inline-block; cursor: grab; border-radius: 5px; }
+  .soc-cal .d .qi:active { cursor: grabbing; }
+  .soc-cal .d.drop { background: rgba(20,184,166,0.12); border-color: #14b8a6; border-style: dashed; }
+  .soc-cal .d .mk { display: none; gap: 3px; margin-top: 2px; }
+  .soc-cal .d .mk i { display: block; width: 6px; height: 6px; border-radius: 50%; }
+  .soc-cal .d .mk i.q { background: #0f766e; } .soc-cal .d .mk i.p { background: #8a8578; } .soc-cal .d .mk i.e { background: #d97706; }
   .soc-cal-list { display: none; }
+  .soc-cal-day .acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+  .soc-cal-day .acts input[type=date] { width: auto; min-height: 40px; font-size: 13px; }
+  .soc-cal-day .acts button { min-height: 40px; font-size: 12px; padding: 6px 12px; }
+  .soc-cal-ev { padding: 7px 10px; margin-bottom: 5px; background: rgba(251,191,36,0.1); border: 1px solid rgba(217,119,6,0.3); border-radius: 9px; font-size: 12px; line-height: 1.7; }
+  .soc-near { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .soc-near .it { border: 1px solid rgba(217,119,6,0.3); background: rgba(251,191,36,0.07); border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.7; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .soc-near .it button { align-self: flex-start; min-height: 40px; font-size: 12px; padding: 6px 12px; }
+  .soc-top { list-style: none; margin: 0 0 12px; padding: 0; }
+  .soc-top li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: 12.5px; line-height: 1.7; }
+  .soc-top li:first-child { border-top: 0; }
+  .soc-top .tx { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+  .soc-top button { min-height: 40px; font-size: 12px; padding: 6px 12px; }
   @media (max-width: 560px) {
-    .soc-cal, .soc-cal-nav .wk { display: none; }
+    /* スマホでは、表の中の札を点に変えて、日付を押すと下に中身を出します。 */
+    .soc-cal .d { min-height: 46px; padding: 3px; align-items: center; }
+    .soc-cal .d .cs, .soc-cal .d .ev, .soc-cal-nav .wk { display: none; }
+    .soc-cal .d .mk { display: flex; }
     .soc-cal-list { display: block; }
   }
   .soc-cal-item { padding: 7px 10px; margin-bottom: 5px; background: #fff; border: 1px solid var(--border); border-radius: 9px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
@@ -1676,6 +1700,7 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-badge.js"></script>
 <script src="/admin-aio-auto.js"></script>
 <script src="/social-text.js"></script>
+<script src="/social-season.js"></script>
 <script src="/social-attention.js"></script>
 <script src="/video-core.js"></script>
 <script src="/admin-video.js"></script>
@@ -7835,6 +7860,9 @@ window.lumAdmin = {
 (function () {
   var el = function (id) { return document.getElementById(id); };
   var TX = window.lumSocialText;
+  // 季節のネタ帳と「反応の良かった投稿」の並べ方（api/_social-season.js から作るファイル）。
+  // 読めなかったときは、その部分を出さないだけにします。
+  var SE = window.lumSocialSeason || null;
   var DRAFT_KEY = 'lum_social_draft_v1';
   var nets = [];
   var brand = { host: location.hostname.replace(/^www\./, ''), name: (window.lumSite && window.lumSite.name) || '' };
@@ -9212,12 +9240,8 @@ window.lumAdmin = {
       mv.addEventListener('click', async function () {
         if (!dt.value || dt.value === it.date) { say('新しい日付を選んでから押してください。'); dt.focus(); return; }
         mv.disabled = true;
-        var r = await postJson('/api/social', { action: 'reschedule', id: it.id, date: dt.value });
-        var dd = r.data || {};
-        if (dd.items) { info.schedule.items = dd.items; renderQueue(dd.items); }
-        say(dd.message || (dd.ok ? '日付を変えました。' : '変えられませんでした。'), !!dd.ok);
+        await reschedule(it.id, dt.value);
         mv.disabled = false;
-        if (window.lumSocialBadge) window.lumSocialBadge();
       });
       var ed = document.createElement('button');
       ed.type = 'button'; ed.className = 'ghost'; ed.textContent = '内容を直す';
@@ -9248,6 +9272,19 @@ window.lumAdmin = {
       d.appendChild(x);
       host.appendChild(d);
     });
+  }
+
+  /* 予約の日付を変える。予約の一覧の「日付を変える」と、カレンダー（ドラッグ・
+     日付を押したときの「日付を変える」）の両方から使います。 */
+  async function reschedule(id, date) {
+    var r = await postJson('/api/social', { action: 'reschedule', id: id, date: date });
+    var dd = r.data || {};
+    if (dd.items) { info.schedule.items = dd.items; renderQueue(dd.items); }
+    var msg = dd.message || (dd.ok ? '日付を変えました。' : '変えられませんでした。');
+    say(msg, !!dd.ok);
+    calSay(msg, !!dd.ok);
+    if (window.lumSocialBadge) window.lumSocialBadge();
+    return !!dd.ok;
   }
 
   function metricsText(m) {
@@ -9297,6 +9334,9 @@ window.lumAdmin = {
       return;
     }
 
+    // 反応の良かった投稿（上位3件）には札を付けます（並べ方は social-season.js の topPosts）。
+    var topIds = {};
+    if (SE) SE.topPosts(list, insights && insights.results, 3).forEach(function (x) { topIds[x.post.id || x.post.at] = true; });
     list.forEach(function (p) {
       var d = document.createElement('div');
       d.className = 'soc-post' + (focusPost && focusPost === p.id ? ' is-focus' : '');
@@ -9375,7 +9415,7 @@ window.lumAdmin = {
         var ub = document.createElement('button');
         ub.type = 'button'; ub.className = 'linkish';
         ub.style.cssText = 'font-size:11px;margin-left:4px';
-        ub.textContent = 'もう一度使う';
+        ub.textContent = topIds[p.id || p.at] ? 'これをもとに作る' : 'もう一度使う';
         ub.title = 'この投稿の本文・画像・投稿先を、上の「作る」欄に戻します（送るのは確かめてから）';
         ub.addEventListener('click', function () { S.replaceId = ''; loadIntoComposer(p.payload); say('この投稿の中身を、上の欄に戻しました。直してから送ってください。', true); });
         tags.appendChild(ub);
@@ -9386,6 +9426,13 @@ window.lumAdmin = {
         mx.className = 'mx';
         mx.textContent = withMx.join('　/　');
         d.appendChild(mx);
+      }
+      if (topIds[p.id || p.at]) {
+        var tb = document.createElement('span');
+        tb.className = 'soc-chip q';
+        tb.style.marginLeft = '6px';
+        tb.textContent = '反応が良かった投稿';
+        w.appendChild(tb);
       }
       var got = insights && insights.results && insights.results[p.id || p.at];
       if (got) {
@@ -9451,7 +9498,7 @@ window.lumAdmin = {
           '<td class="n">' + (g.untagged ? '—' : g.visits) + '</td><td class="n">' + (g.untagged ? '—' : g.inquiries) + '</td><td class="soc-small">' + esc(memo.join('。')) + '</td></tr>');
       });
     });
-    host.innerHTML =
+    host.innerHTML = topHtml() +
       '<div class="soc-box">' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">' +
           '<b style="font-size:12.5px">SNSごとのまとめ</b>' +
@@ -9473,18 +9520,110 @@ window.lumAdmin = {
     Array.prototype.forEach.call(host.querySelectorAll('button[data-days]'), function (b) {
       b.addEventListener('click', function () { outcomeDays = Number(b.dataset.days); renderOutcome(); });
     });
+    Array.prototype.forEach.call(host.querySelectorAll('button[data-top]'), function (b) {
+      b.addEventListener('click', function () {
+        var p = lastLog.filter(function (x) { return (x.id || x.at) === b.dataset.top; })[0];
+        if (!p || !p.payload) return;
+        S.replaceId = '';
+        S.when = 'now'; S.date = '';
+        loadIntoComposer(p.payload);
+        say('反応の良かった投稿（' + shortDate(p.at) + '）の中身を、上の欄に入れました。日付やお知らせの中身を今の内容に直してから送ってください。', true);
+      });
+    });
+  }
+
+  /* ---- 反応の良かった投稿 ----
+     問い合わせ・サイトへの訪問・SNSの中の反応から、上位3件を出します
+     （数え方は social-season.js の topPosts）。「これをもとに作る」で、本文・
+     画像・投稿先を作る欄に入れます。うまくいった型をもう一度使うためです。 */
+  function topHtml() {
+    if (!SE) return '';
+    var top = SE.topPosts(lastLog, insights && insights.results, 3);
+    if (!top.length) return '';
+    return '<div class="soc-box"><b style="font-size:12.5px">反応の良かった投稿</b>' +
+      '<div class="soc-small" style="margin-bottom:4px">問い合わせ・サイトへの訪問・いいね などが多かった順です（問い合わせをいちばん重く数えます）。うまくいった投稿の型を、もう一度使ってみましょう。</div>' +
+      '<ol class="soc-top">' + top.map(function (x, i) {
+        var p = x.post;
+        return '<li><b>' + (i + 1) + '</b><span class="tx"><span class="soc-small">' + esc(shortDate(p.at)) + '・' + esc(x.why) + '</span><br>' +
+          esc(String(p.text || (p.payload && p.payload.text) || '').slice(0, 70)) + '</span>' +
+          '<button type="button" class="ghost" data-top="' + esc(p.id || p.at) + '">これをもとに作る</button></li>';
+      }).join('') + '</ol></div>';
   }
 
   /* ---- カレンダー ----
-     予約（これから）と、この画面から出した投稿（これまで）を、日ごとに並べます。
-     幅の狭い画面では、表ではなく日付の一覧で出します（CSS で切り替え）。 */
+     予約（これから）と、この画面から出した投稿（これまで）と、季節の行事を、
+     日ごとに並べます。
+       ・予約の札はドラッグで別の日に動かせます（パソコン）。日付を押すと下に
+         その日の中身が出て、「日付を変える」でも動かせます（スマホはこちら）。
+       ・明日から先の日を押すと「この日に投稿を作る」で、その日の予約として
+         作る欄を開きます。
+       ・行事の日を押すと「このネタで書く」で、AIの下書き欄にメモを入れます。
+     幅の狭い画面では、表の中の札を点にして、下に日付の一覧も出します（CSS）。 */
+  var calMsg = { text: '', ok: false };
+  function calSay(t, ok) {
+    calMsg = { text: t || '', ok: !!ok };
+    var m = el('soc-cal-msg');
+    if (!m) return;
+    m.textContent = calMsg.text;
+    m.classList.toggle('show', !!calMsg.text);
+    m.classList.toggle('info', calMsg.ok);
+  }
+  function maxQueueDay() { return new Date(Date.now() + 9 * 3600000 + 90 * 86400000).toISOString().slice(0, 10); }
+  function canQueueOn(day) { return !!(info.schedule || {}).ready && day >= tomorrowJst() && day <= maxQueueDay(); }
+  function mdText(day) { return Number(day.slice(5, 7)) + '/' + Number(day.slice(8)); }
+
+  /* 「この日に投稿を作る」：作る欄を開いて、その日の予約にしておきます（送るのは確かめてから）。 */
+  function composeOn(day) {
+    S.when = 'date'; S.date = day;
+    changed(false);
+    toCompose();
+    var top = el('social-compose');
+    if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start' });
+    var ta = el('social-text');
+    if (ta) try { ta.focus({ preventScroll: true }); } catch (_) { ta.focus(); }
+    say(mdText(day) + ' の朝' + ((info.schedule || {}).jstHour || 9) + '時ごろに出す予約として、作る欄を開きました。本文を書いて、5 の「選んだSNSに予約する」を押してください。', true);
+  }
+  /* 「このネタで書く」：行事のメモを AI の下書き欄に入れ、投稿の目安の日を予約日にしておきます。 */
+  function writeSeason(id, day) {
+    var ev = SE && SE.SEASON_EVENTS.filter(function (x) { return x.id === id; })[0];
+    if (!ev) return;
+    var postBy = SE.postDayFor(ev, day, jstDayOf(new Date().toISOString()));
+    var tp = el('social-ai-topic');
+    tp.value = SE.seasonTopic(ev, day);
+    save();
+    if (postBy && canQueueOn(postBy)) { S.when = 'date'; S.date = postBy; } else { S.when = 'now'; S.date = ''; }
+    changed(false);
+    toCompose();
+    var det = el('social-ai');
+    if (det) { det.open = true; if (det.scrollIntoView) det.scrollIntoView({ block: 'start' }); }
+    var st = el('social-ai-state');
+    if (st) st.textContent = '';
+    say('「' + ev.name + '」のメモを、AIの下書き欄に入れました。（ ）の中をお店のことに書き換えて「選んだSNSの下書きを作る」を押すと、下書きができます。' +
+      (S.when === 'date' ? '予約日は投稿の目安の ' + mdText(postBy) + ' にしてあります（変えられます）。' : ''), true);
+    try { tp.focus({ preventScroll: true }); var m = /（商品[^）]*）/.exec(tp.value); if (m) tp.setSelectionRange(m.index, m.index + m[0].length); } catch (_) {}
+  }
+
+  /* 近づいている行事（書き始めるとよい時期に入ったもの）。 */
+  function nearHtml() {
+    if (!SE) return '';
+    var up = SE.upcomingEvents(jstDayOf(new Date().toISOString()), 60).slice(0, 4);
+    if (!up.length) return '';
+    return '<b style="font-size:12.5px">近づいている行事（季節のネタ帳）</b>' +
+      '<div class="soc-small" style="margin-bottom:6px">お客様の気持ちが動く時期です。少し前に出すと、準備や予約をしてもらえます。</div>' +
+      '<div class="soc-near">' + up.map(function (x) {
+        return '<div class="it"><span><b>' + esc(mdText(x.day)) + ' ' + esc(x.name) + '</b>　<span class="soc-small">' +
+          (x.daysLeft === 0 ? '今日' : 'あと' + x.daysLeft + '日') + (x.postBy ? '・出す目安 ' + esc(mdText(x.postBy)) : '・今日のうちに') + '</span></span>' +
+          '<span class="soc-small">' + esc(x.idea) + '</span>' +
+          '<button type="button" class="ghost" data-season="' + esc(x.id) + '" data-day="' + esc(x.day) + '">このネタで書く</button></div>';
+      }).join('') + '</div>';
+  }
   var SHORT = { x: 'X', facebook: 'FB', instagram: 'IG', threads: 'TH', linkedin: 'in', line: 'LINE', gbp: 'G', bluesky: 'BS' };
   function jstDayOf(iso) { return new Date(Date.parse(iso) + 9 * 3600000).toISOString().slice(0, 10); }
   function calItems() {
     var by = {};
     var add = function (day, it) { (by[day] = by[day] || []).push(it); };
     ((info.schedule || {}).items || []).forEach(function (q) {
-      add(q.date, { kind: 'q', nets: q.targets || [], text: q.text || '', label: '予約' });
+      add(q.date, { kind: 'q', id: q.id, nets: q.targets || [], text: q.text || '', label: '予約' });
     });
     lastLog.forEach(function (p) {
       if (!p.at) return;
@@ -9500,10 +9639,28 @@ window.lumAdmin = {
       return '<span class="soc-chip' + (it.kind === 'q' ? ' q' : bad ? ' ng' : '') + '" title="' + esc((nn ? nn.label : id) + (bad ? '（失敗・結果不明）' : '')) + '">' + esc(SHORT[id] || id) + '</span>';
     }).join('');
   }
-  function itemHtml(day, it) {
-    return '<div class="soc-cal-item"><b>' + esc(Number(day.slice(5, 7)) + '/' + Number(day.slice(8))) + '</b> ' +
+  /* acts: その日の中身を出すとき、予約に「日付を変える」を付ける。 */
+  function itemHtml(day, it, acts) {
+    var move = acts && it.kind === 'q' && it.id && (info.schedule || {}).ready
+      ? '<div class="acts"><input type="date" class="soc-mv-day" value="' + esc(day) + '" min="' + tomorrowJst() + '" max="' + maxQueueDay() + '" aria-label="' + esc(mdText(day)) + ' の予約の新しい日付">' +
+        '<button type="button" class="ghost soc-mv" data-qid="' + esc(it.id) + '" data-from="' + esc(day) + '">日付を変える</button></div>'
+      : '';
+    return '<div class="soc-cal-item"><b>' + esc(mdText(day)) + '</b> ' +
       '<span class="soc-small">' + esc(it.kind === 'q' ? '予約（朝' + ((info.schedule || {}).jstHour || 9) + '時ごろ）' : it.label) + '</span> ' + chips(it) +
-      '<br>' + esc(String(it.text || '（本文なし）').slice(0, 80)) + '</div>';
+      '<br>' + esc(String(it.text || '（本文なし）').slice(0, 80)) + move + '</div>';
+  }
+  function dayDetail(day, by, season) {
+    var its = by[day] || [];
+    var evs = season[day] || [];
+    var past = day < jstDayOf(new Date().toISOString());
+    var h = evs.map(function (ev) {
+      return '<div class="soc-cal-ev"><b>' + esc(mdText(day)) + ' ' + esc(ev.name) + '</b>　<span class="soc-small">' + esc(ev.idea) + '</span>' +
+        (past ? '' : '<div class="acts"><button type="button" class="ghost" data-season="' + esc(ev.id) + '" data-day="' + esc(day) + '">このネタで書く</button></div>') + '</div>';
+    }).join('') + its.map(function (it) { return itemHtml(day, it, true); }).join('');
+    if (!its.length && !evs.length) h += '<p class="share-note" style="margin:0 0 6px">' + esc(mdText(day)) + ' の予約・投稿はありません。</p>';
+    if (canQueueOn(day)) h += '<div class="acts"><button type="button" class="soc-new-on" data-day="' + esc(day) + '">この日に投稿を作る</button></div>';
+    else if (day >= tomorrowJst() && !(info.schedule || {}).ready) h += '<p class="soc-small">予約は使えない設定のため、この日に出す投稿は作れません。</p>';
+    return h;
   }
   function renderCal() {
     var host = el('social-cal');
@@ -9513,33 +9670,99 @@ window.lumAdmin = {
     var first = new Date(Date.UTC(y, m - 1, 1));
     var days = new Date(Date.UTC(y, m, 0)).getUTCDate();
     var by = calItems();
+    var season = SE ? SE.seasonInMonth(calMonth) : {};
     var cells = ['日', '月', '火', '水', '木', '金', '土'].map(function (w) { return '<div class="hd">' + w + '</div>'; });
     for (var i = 0; i < first.getUTCDay(); i++) cells.push('<div class="d out" aria-hidden="true"></div>');
     var list = [];
     for (var d = 1; d <= days; d++) {
       var day = calMonth + '-' + (d < 10 ? '0' : '') + d;
       var its = by[day] || [];
-      cells.push('<button type="button" class="d' + (day === today ? ' today' : '') + (day === calSel ? ' sel' : '') + '" data-day="' + day + '"' +
-        ' aria-label="' + m + '月' + d + '日 ' + its.length + '件"><span class="num">' + d + '</span><span class="cs">' + its.map(chips).join('') + '</span></button>');
+      var evs = season[day] || [];
+      // 予約の札は、ドラッグで別の日に動かせます（中身の見た目は今までと同じ札）。
+      var cs = its.map(function (it) {
+        return it.kind === 'q' && it.id && (info.schedule || {}).ready
+          ? '<span class="qi" draggable="true" data-qid="' + esc(it.id) + '" data-from="' + day + '" title="ドラッグすると、別の日に動かせます">' + chips(it) + '</span>'
+          : chips(it);
+      }).join('');
+      var hasQ = its.some(function (it) { return it.kind === 'q'; }), hasP = its.some(function (it) { return it.kind !== 'q'; });
+      // 押せる日付のマス。中にドラッグできる札を入れるため、button ではなく role="button" にしています。
+      cells.push('<div role="button" tabindex="0" class="d' + (day === today ? ' today' : '') + (day === calSel ? ' sel' : '') + (canQueueOn(day) ? ' fut' : '') + '" data-day="' + day + '"' +
+        ' aria-label="' + m + '月' + d + '日 ' + its.length + '件' + (evs.length ? '・' + esc(evs.map(function (e) { return e.name; }).join('・')) : '') + '">' +
+        '<span class="num">' + d + '</span>' +
+        evs.map(function (e) { return '<span class="ev">' + esc(e.name) + '</span>'; }).join('') +
+        '<span class="cs">' + cs + '</span>' +
+        '<span class="mk" aria-hidden="true">' + (hasQ ? '<i class="q"></i>' : '') + (hasP ? '<i class="p"></i>' : '') + (evs.length ? '<i class="e"></i>' : '') + '</span></div>');
       its.forEach(function (it) { list.push(itemHtml(day, it)); });
     }
-    var sel = calSel && by[calSel] ? by[calSel].map(function (it) { return itemHtml(calSel, it); }).join('') : '';
     host.innerHTML =
-      '<div class="soc-cal-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
-        '<button type="button" class="ghost" id="soc-cal-prev" style="font-size:11.5px;padding:4px 10px">‹ 前の月</button>' +
-        '<b style="font-size:13px">' + y + '年' + m + '月</b>' +
-        '<button type="button" class="ghost" id="soc-cal-next" style="font-size:11.5px;padding:4px 10px">次の月 ›</button>' +
-        '<span class="soc-small wk"><span class="soc-chip q">予約</span><span class="soc-chip">投稿済み</span><span class="soc-chip ng">失敗</span></span>' +
-      '</div>' +
-      '<div class="soc-cal">' + cells.join('') + '</div>' +
-      '<div class="soc-cal-list">' + (list.length ? list.join('') : '<p class="share-note">この月の予約・投稿はありません。</p>') + '</div>' +
-      '<div id="soc-cal-day" class="soc-cal-day" style="margin-top:8px">' + (calSel ? (sel || '<p class="share-note">' + esc(calSel) + ' の予約・投稿はありません。</p>') : '') + '</div>';
-    el('soc-cal-prev').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
-    el('soc-cal-next').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7); calSel = ''; renderCal(); });
+      '<div class="soc-box" style="margin-bottom:12px">' + nearHtml() +
+        '<div class="soc-cal-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+          '<button type="button" class="ghost" id="soc-cal-prev" style="font-size:12px;padding:8px 12px">‹ 前の月</button>' +
+          '<b style="font-size:13px">' + y + '年' + m + '月</b>' +
+          '<button type="button" class="ghost" id="soc-cal-next" style="font-size:12px;padding:8px 12px">次の月 ›</button>' +
+          '<span class="soc-small wk"><span class="soc-chip q">予約</span><span class="soc-chip">投稿済み</span><span class="soc-chip ng">失敗</span>' +
+            '<span style="color:#92400e;font-weight:700;margin-left:4px">行事</span></span>' +
+        '</div>' +
+        '<p class="soc-small" style="margin:0 0 6px">日付を押すと、その日の中身が下に出ます。' +
+          ((info.schedule || {}).ready ? '予約は、札をほかの日にドラッグするか、日付を押して「日付を変える」で動かせます。明日から先の日を押すと「この日に投稿を作る」が出ます。' : '') + '</p>' +
+        '<p class="msg" id="soc-cal-msg" style="margin:0 0 6px"></p>' +
+        '<div class="soc-cal">' + cells.join('') + '</div>' +
+        '<div id="soc-cal-day" class="soc-cal-day" style="margin-top:8px">' + (calSel ? dayDetail(calSel, by, season) : '') + '</div>' +
+        '<div class="soc-cal-list" style="margin-top:8px"><p class="soc-small" style="margin:10px 0 4px;font-weight:700">この月の予約と投稿</p>' + (list.length ? list.join('') : '<p class="share-note">この月の予約・投稿はありません。</p>') + '</div>' +
+      '</div>';
+    if (calMsg.text) calSay(calMsg.text, calMsg.ok);
+    el('soc-cal-prev').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7); calSel = ''; calMsg.text = ''; renderCal(); });
+    el('soc-cal-next').addEventListener('click', function () { calMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7); calSel = ''; calMsg.text = ''; renderCal(); });
     Array.prototype.forEach.call(host.querySelectorAll('.soc-cal .d[data-day]'), function (b) {
-      b.addEventListener('click', function () { calSel = b.dataset.day; renderCal(); });
+      var pick = function () { calSel = b.dataset.day; calMsg.text = ''; renderCal(); var dd = el('soc-cal-day'); if (dd && dd.scrollIntoView && window.innerWidth <= 560) dd.scrollIntoView({ block: 'nearest' }); };
+      b.addEventListener('click', function (e) { if (!e.target.closest('.qi') || !dragging) pick(); });
+      b.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      // ドラッグで日付を変える（明日から90日先までの日だけ受けます）。
+      b.addEventListener('dragover', function (e) {
+        if (!dragging || !b.classList.contains('fut') || b.dataset.day === dragging.from) return;
+        e.preventDefault();
+        b.classList.add('drop');
+      });
+      b.addEventListener('dragleave', function () { b.classList.remove('drop'); });
+      b.addEventListener('drop', async function (e) {
+        e.preventDefault();
+        b.classList.remove('drop');
+        var dg = dragging;
+        dragging = null;
+        if (!dg || !b.classList.contains('fut') || b.dataset.day === dg.from) return;
+        calSay(mdText(dg.from) + ' の予約を ' + mdText(b.dataset.day) + ' に動かしています…', true);
+        await reschedule(dg.id, b.dataset.day);
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.qi[draggable]'), function (q) {
+      q.addEventListener('dragstart', function (e) {
+        dragging = { id: q.dataset.qid, from: q.dataset.from };
+        try { e.dataTransfer.setData('text/plain', q.dataset.qid); e.dataTransfer.effectAllowed = 'move'; } catch (_) {}
+      });
+      q.addEventListener('dragend', function () {
+        setTimeout(function () { dragging = null; }, 0);
+        Array.prototype.forEach.call(host.querySelectorAll('.d.drop'), function (x) { x.classList.remove('drop'); });
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-mv'), function (b) {
+      b.addEventListener('click', async function () {
+        var inp = b.parentNode.querySelector('.soc-mv-day');
+        var to = inp && inp.value;
+        if (!to || to === b.dataset.from) { calSay('新しい日付を選んでから押してください。'); if (inp) inp.focus(); return; }
+        if (!canQueueOn(to)) { calSay('予約できるのは、明日から90日先までの日です。'); return; }
+        b.disabled = true;
+        if (await reschedule(b.dataset.qid, to)) { calSel = to; calMonth = to.slice(0, 7); renderCal(); }
+        else b.disabled = false;
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.soc-new-on'), function (b) {
+      b.addEventListener('click', function () { composeOn(b.dataset.day); });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-season]'), function (b) {
+      b.addEventListener('click', function () { writeSeason(b.dataset.season, b.dataset.day); });
     });
   }
+  var dragging = null;
 
   /* ---- 承認の流れ（担当者 → 責任者） ----
      「承認をお願いする」で、いまの内容を承認待ちとして保存し、1回きりの
@@ -9594,8 +9817,14 @@ window.lumAdmin = {
     renderNets();
     renderImages();
     changed(true);
+    toCompose();
     var top = el('social-compose');
     if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start' });
+  }
+  /* 「投稿する」の表示に切り替えます（カレンダー・成果などのタブから作る欄に戻すとき。
+     切り替えは admin-social-plan.js のタブが持っています）。 */
+  function toCompose() {
+    if (window.lumSocialPlanUI && window.lumSocialPlanUI.toCompose) window.lumSocialPlanUI.toCompose();
   }
   function renderApprovals() {
     var host = el('social-approvals');

@@ -378,4 +378,78 @@ t('monthlyReview: 少ないときは「判断できません」とだけ言う',
   assert.equal(rv.reliability.label, '判断できません')
 })
 
+/* ---- 季節のネタ帳・反応の良かった投稿（api/_social-season.js） ---- */
+const SE = await import('../api/_social-season.js')
+const { buildSeason } = await import('./build-social-text.mjs')
+const ev = (id) => SE.SEASON_EVENTS.find((e) => e.id === id)
+
+t('public/social-season.js は元から作り直したものと同じ', () => {
+  assert.equal(readFileSync(new URL('../public/social-season.js', import.meta.url), 'utf8'), buildSeason(),
+    'node scripts/build-social-text.mjs を実行してください')
+})
+
+t('season: 毎年同じ日・第何何曜日・最後の金曜・土用の丑の日', () => {
+  assert.equal(SE.eventDate(ev('hinamatsuri'), 2027), '2027-03-03')
+  assert.equal(SE.eventDate(ev('seijin'), 2026), '2026-01-12', '1月の第2月曜')
+  assert.equal(SE.eventDate(ev('seijin'), 2027), '2027-01-11')
+  assert.equal(SE.eventDate(ev('hahanohi'), 2026), '2026-05-10', '5月の第2日曜')
+  assert.equal(SE.eventDate(ev('hahanohi'), 2027), '2027-05-09')
+  assert.equal(SE.eventDate(ev('chichinohi'), 2026), '2026-06-21', '6月の第3日曜')
+  assert.equal(SE.eventDate(ev('keiro'), 2026), '2026-09-21', '9月の第3月曜')
+  assert.equal(SE.eventDate(ev('blackfriday'), 2026), '2026-11-27', '11月の最後の金曜')
+  assert.equal(SE.eventDate(ev('blackfriday'), 2025), '2025-11-28')
+  // 土用の丑の日（実際の暦と合わせる）
+  assert.equal(SE.eventDate(ev('doyo'), 2024), '2024-07-24')
+  assert.equal(SE.eventDate(ev('doyo'), 2025), '2025-07-19')
+  assert.equal(SE.eventDate(ev('doyo'), 2026), '2026-07-26')
+  assert.equal(SE.eventDate(ev('doyo'), 2027), '2027-07-21')
+  assert.ok(SE.isUshiDay('2025-07-31') && !SE.isUshiDay('2025-07-30'))
+  // ひと通りの行事に日付が出る
+  for (const e of SE.SEASON_EVENTS) assert.match(SE.eventDate(e, 2026), /^2026-\d\d-\d\d$/, e.id)
+  for (const id of ['shogatsu', 'valentine', 'whiteday', 'gw', 'tsuyu', 'tanabata', 'obon', 'halloween', 'shichigosan', 'iifufu', 'christmas', 'nenmatsu', 'kessan', 'bonus-summer', 'bonus-winter', 'sotsugyo', 'nyugaku']) {
+    assert.ok(ev(id), id)
+  }
+})
+
+t('season: 月ごとの行事（カレンダー用）', () => {
+  const m = SE.seasonInMonth('2026-11')
+  assert.deepEqual(Object.keys(m).sort(), ['2026-11-15', '2026-11-22', '2026-11-27'])
+  assert.equal(m['2026-11-27'][0].id, 'blackfriday')
+  assert.deepEqual(Object.keys(SE.seasonInMonth('2026-08')), ['2026-08-13'])
+})
+
+t('season: 近づいている行事は「書き始める目安」に入ったものだけ、近い順・年をまたぐ', () => {
+  const up = SE.upcomingEvents('2026-10-19', 60)
+  assert.deepEqual(up.map((x) => x.id), ['halloween', 'shichigosan'])
+  const hw = up.find((x) => x.id === 'halloween')
+  assert.deepEqual([hw.day, hw.daysLeft, hw.postBy], ['2026-10-31', 12, '2026-10-24'])
+  assert.ok(!up.some((x) => x.id === 'iifufu'), 'いい夫婦の日（34日先・目安14日）はまだ出さない')
+  // 年をまたぐ：12/20 にはお正月が出る
+  const dec = SE.upcomingEvents('2026-12-20', 60)
+  assert.ok(dec.some((x) => x.id === 'shogatsu' && x.day === '2027-01-01'))
+  // 目安の日が過ぎていれば明日、当日の行事は '' （今すぐ出す）
+  const xmas = SE.upcomingEvents('2026-12-20', 60).find((x) => x.id === 'christmas')
+  assert.equal(xmas.postBy, '2026-12-21')
+  assert.equal(SE.upcomingEvents('2026-10-31', 60).find((x) => x.id === 'halloween').postBy, '')
+  assert.ok(SE.seasonTopic(ev('halloween'), '2026-10-31').startsWith('ハロウィン（10/31）にちなんだ投稿。'))
+})
+
+t('topPosts: 問い合わせ＞訪問＞SNSの反応の順に重く、中身の無い記録と0点は出さない', () => {
+  const posts = [
+    { id: 'a', payload: { text: 'a' }, results: [{ net: 'x', metrics: { ok: true, likes: 30 } }] },
+    { id: 'b', payload: { text: 'b' }, results: [{ net: 'instagram', metrics: { ok: true, likes: 2, comments: 1 } }] },
+    { id: 'c', results: [{ net: 'x', metrics: { ok: true, likes: 99 } }] },
+    { id: 'd', payload: { text: 'd' }, results: [{ net: 'x', metrics: { ok: false } }] },
+    { id: 'e', payload: { text: 'e' }, results: [] },
+  ]
+  const ins = { b: { instagram: { visits: 3, inquiries: 1 } }, e: { x: { untagged: true, visits: 50 } } }
+  const top = SE.topPosts(posts, ins, 3)
+  // 問い合わせ1件のある b が、いいね30の a より上
+  assert.deepEqual(top.map((x) => x.post.id), ['b', 'a'])
+  assert.equal(top[0].score, 20 + 6 + 2 + 3)
+  assert.equal(top[1].score, 30)
+  assert.equal(top[0].why, '問い合わせ1・訪問3・いいね2・コメント1')
+  assert.equal(SE.topPosts(posts, ins, 1).length, 1)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)

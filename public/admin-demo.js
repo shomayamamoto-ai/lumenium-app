@@ -1323,8 +1323,13 @@
       return { net: net, label: label, ok: ok, unknown: !!unknown, id: ok ? 'demo-' + net : '', url: '',
         message: ok ? '' : unknown ? 'デモ表示：結果が分からなかった例です。' : 'デモ表示：サンプルの失敗例です。', metrics: metrics || undefined };
     };
+    // 送ったときの中身（「もう一度使う」「これをもとに作る」で作る欄に戻すもの）。
+    var pl = function (text, link, campaign, targets) {
+      return { text: text, link: link, campaign: campaign || '', targets: targets, images: [], variants: {} };
+    };
     return [
       { id: 'demo-p1', at: ago(2 * DAY + 4 * 3600000), text: '（サンプル投稿）飲食店さまのホームページを公開しました。予約ボタンをいちばん上に置いています。', link: 'https://' + DEMO_HOST + '/works', campaign: 'works-autumn', images: [],
+        payload: pl('（サンプル投稿）飲食店さまのホームページを公開しました。予約ボタンをいちばん上に置いています。', 'https://' + DEMO_HOST + '/works', 'works-autumn', ['x', 'threads', 'facebook', 'line']),
         results: [
           res('x', 'X', true, { ok: true, likes: 12, comments: 2, shares: 3, impressions: 840, at: ago(DAY) }),
           res('threads', 'Threads', true, { ok: true, likes: 9, comments: 1, shares: 0, impressions: 310, at: ago(DAY) }),
@@ -1332,8 +1337,10 @@
           res('line', 'LINE公式アカウント', true, { ok: true, reach: 186, impressions: 121, clicks: 34, at: ago(DAY) })
         ] },
       { id: 'demo-p2', at: ago(6 * DAY + 2 * 3600000), scheduledFor: jstDate(6), text: '（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', link: 'https://' + DEMO_HOST + '/works', campaign: 'works-autumn', images: [],
+        payload: pl('（サンプル投稿）社内向け生成AI研修、今月は2社で実施しました。', 'https://' + DEMO_HOST + '/works', 'works-autumn', ['x', 'threads', 'instagram']),
         results: [res('x', 'X', true), res('threads', 'Threads', true), res('instagram', 'Instagram', false, null, true)] },
       { id: 'demo-p3', at: ago(17 * DAY), text: '（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', link: 'https://' + DEMO_HOST + '/blog', images: [],
+        payload: pl('（サンプル投稿）ブログを更新しました。「ホームページの直し方、どこから？」', 'https://' + DEMO_HOST + '/blog', '', ['x', 'facebook']),
         results: [res('x', 'X', true), res('facebook', 'Facebook', false)] }
     ];
   }
@@ -1515,7 +1522,7 @@
     if (a === 'inbox') return socialInbox();
     notice(MSG);
     if (/^approval-/.test(a)) return blocked({ approvals: socialApprovals() });
-    if (a === 'cancel') return blocked({ items: socialQueue() });
+    if (a === 'cancel' || a === 'reschedule') return blocked({ items: socialQueue() });
     if (a === 'schedule') return blocked({ items: socialQueue() });
     return blocked({ results: [], recent: socialRecent(), posted: 0, total: 0 });
   }

@@ -1,5 +1,6 @@
 // api/_social-text.js を、管理画面がそのまま読める形（public/social-text.js）にします。
-// 同じやり方で、api/_social-attention.js（「要対応」の数え方）も public/social-attention.js にします。
+// 同じやり方で、api/_social-attention.js（「要対応」の数え方）も public/social-attention.js に、
+// api/_social-season.js（季節のネタ帳・反応の良かった投稿）も public/social-season.js にします。
 //
 // 文字数の数え方（X は日本語1文字=2、URL=23）と、計測用リンクの付け方は、
 // 画面とサーバーで1つでなければなりません。2つあると、画面で「送れます」と
@@ -15,6 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const FILES = [
   { src: '_social-text.js', out: 'social-text.js', global: 'lumSocialText' },
   { src: '_social-attention.js', out: 'social-attention.js', global: 'lumSocialAttn' },
+  { src: '_social-season.js', out: 'social-season.js', global: 'lumSocialSeason' },
 ]
 
 function one(f) {
@@ -33,6 +35,8 @@ function one(f) {
 export function build() { return one(FILES[0]) }
 /** public/social-attention.js の中身。 */
 export function buildAttention() { return one(FILES[1]) }
+/** public/social-season.js の中身（季節のネタ帳・反応の良かった投稿）。 */
+export function buildSeason() { return one(FILES[2]) }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   for (const f of FILES) {
