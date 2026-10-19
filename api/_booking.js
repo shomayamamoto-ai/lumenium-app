@@ -50,6 +50,8 @@ export const DEFAULT_RULES = {
   remind: true,
   // オーナーの LINE ユーザーID（毎朝の予定一覧を送る先。空なら送らない）。
   lineUserId: '',
+  // 新しい予約が入るたびに、その LINE にも1通送るか（ID があるときだけ）。
+  lineEach: true,
   services: [{ id: 'default', name: 'オンライン相談', minutes: 60, desc: '', price: '', active: true }],
 }
 
@@ -176,6 +178,7 @@ export function normalizeRules(input) {
   const line = String(src.lineUserId ?? '').trim()
   r.lineUserId = /^U[0-9a-f]{32}$/.test(line) ? line : ''
   if (line && !r.lineUserId) problems.push('LINE のユーザーIDは「U」で始まる33文字です。読めなかったので空にしました。')
+  r.lineEach = src.lineEach === undefined ? D.lineEach : !!src.lineEach
 
   const seen = new Set()
   r.services = []
@@ -556,7 +559,7 @@ export function dueReminders(list, now = Date.now()) {
   return list.filter((r) => {
     const st = recStatus(r)
     const { start } = recSpan(r)
-    return (st === 'confirmed' || st === 'tentative') && !r.reminded && start >= t0 && start <= t1
+    return (st === 'confirmed' || st === 'tentative') && !!r.email && !r.reminded && start >= t0 && start <= t1
   })
 }
 

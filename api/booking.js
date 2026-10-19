@@ -5,6 +5,9 @@ export const config = { runtime: 'edge' }
 //   GET  /api/booking            → いま押せる枠（Googleの空きを見た結果）
 //   POST /api/booking {key,…}    → その枠で確定。Meet付きの予定を作る
 //   GET  /api/booking?recent=1   → 管理画面用の予約一覧（要 ADMIN_KEY）
+//   PATCH /api/booking {action:'create', key, service, name, email?, phone?, note?, mail?}
+//                                → 電話・来店で受けた予約を、管理画面から入れる（要 ADMIN_KEY）
+//   予約ページ（/book.html）も、この GET と POST だけで動きます。
 //
 // 夜間・休日も動くのは、これが人ではなくサーバーだからです。相手が動ける
 // うちに次の一手を出せることが、この仕組みの全部です。
@@ -32,10 +35,12 @@ import {
   readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
-import { mailBooked, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
+import { mailBooked, mailConfirmed, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
 import { cancelBooking, moveBooking, markBooking } from './_booking-ops.js'
 
 const LIMITS = { name: 50, email: 100, message: 500 }
+/** 電話番号。数字と + - ( ) と空白だけを残し、20文字まで（空でもよい）。 */
+const cleanPhone = (v) => String(v ?? '').replace(/[^\d+\-() ]/g, '').trim().slice(0, 20)
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const BURST = { max: 4, windowS: 15 * 60 }
 const SLOT_CACHE = `${KV}bk:cache`
@@ -172,6 +177,9 @@ export async function GET(req) {
     services: activeServices(rules).map(({ id, name, minutes, desc, price }) => ({ id, name, minutes, desc, price })),
     wording: rules.wording,
     online: rules.online,
+    // 予約ページ（/book.html）の見出しと案内に使います。
+    brand: BRAND.name,
+    place: rules.place,
     total: total || 0,
     slots: slots.slice(0, wanted).map(toWire),
   })
@@ -194,6 +202,7 @@ export async function POST(req) {
   // 分かった状態で始められます。
   const company = String(body?.company ?? '').trim().slice(0, 80)
   const topics = pickTopics(body?.topics)
+  const phone = cleanPhone(body?.phone)
 
   if (!name || name.length > LIMITS.name) return json({ error: 'invalid_name' }, 400)
   if (!email || !EMAIL_RE.test(email) || email.length > LIMITS.email) return json({ error: 'invalid_email' }, 400)
@@ -253,7 +262,7 @@ export async function POST(req) {
     id, key, when, start: slot.start, end: slot.end,
     service: { id: svc.id, name: svc.name, minutes: svc.minutes }, wording: rules.wording,
     status: mode === 'google' ? 'confirmed' : 'tentative', cells: [cells[0], cells[cells.length - 1]],
-    name, email, company, topics, note, page, mode, meet, eventId,
+    name, email, company, topics, note, page, mode, meet, eventId, phone,
     // 簡易接続・未接続のときに、管理画面とメールから1回でカレンダーに入れる
     addUrl: mode === 'google' ? '' : gcalAddUrl({ startMs: slot.start, endMs: slot.end, summary, description }),
     at: new Date().toISOString(),
@@ -261,6 +270,7 @@ export async function POST(req) {
   await saveBooking(store, pipeline, rec)
   await invalidateSlots(store)
   await mailBooked(req, rec, rules)
+  await lineNewBooking(req, rec, rules)
 
   return json({
     ok: true,
@@ -341,6 +351,7 @@ export async function PATCH(req) {
   if (!store) return json({ ok: false, message: '保存先（Upstash Redis）が無いため、予約を変えられません。' }, 503)
   let body
   try { body = await req.json() } catch (_) { return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400) }
+  if (body?.action === 'create') return createByOwner(req, store, body)
   // 一覧を開いた（新しい予約を見た）。タブの横の数から「新しい予約」が消えます。
   if (body?.action === 'seen') {
     const at = Date.now()
@@ -376,4 +387,84 @@ export async function PATCH(req) {
     return json({ ok: true, booking: r.rec, message: action === 'memo' ? 'メモを保存しました。' : `「${STATUS[action]}」にしました。` + (action === 'confirmed' ? mailNote(r.mail) || 'お客様に確定のメールを送りました。' : '') })
   }
   return json({ ok: false, message: '知らない操作です。' }, 400)
+}
+
+/** 新しい予約を、オーナーの LINE に1通（毎朝の一覧と同じ宛先）。
+ *  お客様の要望の本文は送らず、日時・メニュー・お名前と管理画面へのリンクだけ。
+ *  失敗しても予約は成り立っているので、黙って記録だけ残します。 */
+async function lineNewBooking(req, rec, rules) {
+  if (!rules.lineUserId || !rules.lineEach) return
+  const token = await setting('LINE_CHANNEL_TOKEN', '', req)
+  if (!token) return
+  const text = [
+    `新しい${rules.wording || '予約'}が入りました${rec.status === 'tentative' ? '（仮予約・確定の連絡が要ります）' : ''}。`,
+    rec.when,
+    `${rec.service && rec.service.name ? rec.service.name + '・' : ''}${rec.company ? rec.company + ' ' : ''}${rec.name}様`,
+    `${BRAND.url}/admin-members.html#booking-admin`,
+  ].join('\n')
+  try {
+    const res = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: rules.lineUserId, messages: [{ type: 'text', text }] }),
+    })
+    if (!res.ok) console.error('[api/booking] LINE answered', res.status)
+  } catch (e) {
+    console.error('[api/booking] LINE failed', String((e && e.message) || e).slice(0, 120))
+  }
+}
+
+/** 電話・来店で受けた予約を、管理画面から入れる。
+ *  お客様のフォームと同じ道（空きの作り直し → 15分の区切りを取る → 保存）を通るので、
+ *  サイトからの予約とぶつかることはありません。こちらで受けたものなので「確定」にします。
+ *  メールはアドレスがあり「お客様に確定のメールを送る」を選んだときだけ送ります。 */
+async function createByOwner(req, store, body) {
+  const name = String(body?.name ?? '').trim()
+  const email = String(body?.email ?? '').trim()
+  const phone = cleanPhone(body?.phone)
+  const note = String(body?.note ?? '').trim().slice(0, LIMITS.message)
+  if (!name || name.length > LIMITS.name) return json({ ok: false, message: 'お名前を入れてください（50文字まで）。' }, 400)
+  if (email && (!EMAIL_RE.test(email) || email.length > LIMITS.email)) return json({ ok: false, message: 'メールアドレスの形が正しくありません（空でもかまいません）。' }, 400)
+  const rules = await readRules(store, pipeline)
+  const svc = pickService(rules, String(body?.service ?? ''))
+  const { mode, slots } = await openSlots(req, 500, rules, svc)
+  const slot = slots.find((s) => new Date(s.start).toISOString() === String(body?.key || ''))
+  if (!slot) return json({ ok: false, message: 'その日時は空いていません（先に埋まったか、受付時間の外です）。別の日時を選んでください。' }, 409)
+  const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`
+  const cells = cellsFor(slot.start, slot.end, rules.bufferMin)
+  if (!(await takeCells(store, pipeline, cells, id, slot.end))) return json({ ok: false, message: 'その日時は先に埋まりました。別の日時を選んでください。' }, 409)
+  const draft = { id, start: slot.start, end: slot.end, service: { id: svc.id, name: svc.name, minutes: svc.minutes }, wording: rules.wording, name, email, phone, company: '', topics: [], note, page: '' }
+  const summary = summaryOf(draft, rules)
+  const description = descriptionOf(draft)
+  let meet = '', eventId = ''
+  if (mode === 'google') {
+    try {
+      const c = await creds(req)
+      // 招待はメールを送ると選んだときだけ（電話で受けた方に、突然カレンダーの招待が届かないように）。
+      const ev = await createEvent(c, {
+        startMs: slot.start, endMs: slot.end, summary, description,
+        attendee: body?.mail && email ? email : '', attendeeName: name, online: rules.online,
+      })
+      meet = ev.meet
+      eventId = ev.id
+    } catch (_) {
+      await releaseCells(store, pipeline, cells, id)
+      return json({ ok: false, message: 'Googleカレンダーに予定を作れませんでした。少しおいてからもう一度お試しください。' }, 502)
+    }
+  }
+  const rec = {
+    id, key: new Date(slot.start).toISOString(), when: label(slot.start, slot.end), start: slot.start, end: slot.end,
+    service: draft.service, wording: rules.wording, status: 'confirmed', cells: [cells[0], cells[cells.length - 1]],
+    name, email, phone, company: '', topics: [], note, page: '', mode, meet, eventId, source: 'owner',
+    addUrl: mode === 'google' ? '' : gcalAddUrl({ startMs: slot.start, endMs: slot.end, summary, description }),
+    at: new Date().toISOString(),
+  }
+  await saveBooking(store, pipeline, rec)
+  await invalidateSlots(store)
+  let mailed = false
+  if (body?.mail && email) mailed = !!(await mailConfirmed(req, rec, rules))
+  return json({
+    ok: true, booking: rec,
+    message: `${rec.when} で入れました。` + (body?.mail && email ? (mailed ? 'お客様に確定のメールを送りました。' : 'お客様へのメールは送れませんでした（メールの設定をご確認ください）。') : ''),
+  })
 }

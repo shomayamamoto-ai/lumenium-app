@@ -260,6 +260,8 @@
       return '<button type="button" data-jump="' + key + '"' + (hot && n ? ' class="hot"' : '') + '><b>' + n + '</b><span>' + label + '</span></button>';
     };
     body.innerHTML = mailWarn() +
+      '<div class="vid-acts" style="margin:0 0 10px"><button type="button" id="bk-add">＋ 電話・来店の予約を入れる</button></div>' +
+      '<div id="bk-addbox"></div>' +
       '<div class="bk-sum">' +
         sumBtn('fresh', fresh.length, '新しい予約（前回見たあと）', true) +
         sumBtn('tentative', tent.length, '仮予約（確定の連絡待ち）', true) +
@@ -294,8 +296,49 @@
       });
     });
     el('bk-st').addEventListener('change', function () { S.status = this.value; draw(); });
+    el('bk-add').addEventListener('click', function () { addForm(el('bk-addbox')); });
     bindCards(body);
   };
+
+  /* 電話・来店で受けた予約を入れる。候補はサイトの予約欄と同じ決まりで作った空きなので、
+     サイトからの予約と同じ時間に重なることはありません。こちらで受けたものなので「確定」で入ります。 */
+  async function addForm(host, service) {
+    var svcs = ((S.data.rules && S.data.rules.services) || []).filter(function (x) { return x.active !== false; });
+    var sid = service || (svcs[0] && svcs[0].id) || '';
+    host.innerHTML = '<div class="bk-conn"><p class="soc-small">空いている日時を探しています…</p></div>';
+    var r = await api('/api/booking?all=1&service=' + encodeURIComponent(sid));
+    var slots = (r.data && r.data.slots) || [];
+    host.innerHTML = '<div class="bk-conn"><b>電話・来店の予約を入れる</b>' +
+      '<p class="soc-small">サイトの予約欄と同じ空きから選びます。入れた予約は「確定」になり、サイトのほうではその時間が埋まります。</p>' +
+      (svcs.length > 1 ? fld('メニュー', '<select id="bk-a-svc">' + svcs.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === sid ? ' selected' : '') + '>' + esc(x.name) + '（' + esc(x.minutes) + '分）</option>'; }).join('') + '</select>') : '') +
+      (slots.length
+        ? fld('日時', '<select id="bk-a-key">' + slots.map(function (x) { return '<option value="' + esc(x.key) + '">' + esc(x.label) + '</option>'; }).join('') + '</select>')
+        : '<p class="soc-small" style="margin:8px 0">いま入れられる空きがありません（受付時間・休みの日・すでに入った予約をご確認ください）。</p>') +
+      fld('お名前', '<input type="text" id="bk-a-name" class="vid-in" maxlength="50" autocomplete="off" placeholder="例：山田 花子">') +
+      fld('電話番号（任意）', '<input type="tel" id="bk-a-phone" class="vid-in" maxlength="20" autocomplete="off">') +
+      fld('メールアドレス（任意）', '<input type="email" id="bk-a-email" class="vid-in" maxlength="100" autocomplete="off">', 'あると、前日のお知らせと、来店後の口コミのお願いを送れます。') +
+      fld('メモ（任意）', '<input type="text" id="bk-a-note" class="vid-in" maxlength="500" autocomplete="off" placeholder="例：電話で受付。初めての方。">') +
+      '<label class="bk-check"><input type="checkbox" id="bk-a-mail"> お客様に確定のメールを送る（メールアドレスがあるとき）</label>' +
+      '<div class="vid-acts"><button type="button" id="bk-a-go"' + (slots.length ? '' : ' disabled') + '>この内容で入れる</button><button type="button" class="ghost" id="bk-a-cancel">やめる</button></div></div>';
+    if (el('bk-a-svc')) el('bk-a-svc').addEventListener('change', function () { addForm(host, this.value); });
+    el('bk-a-cancel').addEventListener('click', function () { host.innerHTML = ''; });
+    el('bk-a-email').addEventListener('input', function () { el('bk-a-mail').checked = !!this.value.trim(); });
+    el('bk-a-go').addEventListener('click', async function () {
+      var name = el('bk-a-name').value.trim();
+      if (!name) { say('お名前を入れてください。'); el('bk-a-name').focus(); return; }
+      this.disabled = true;
+      var res = await send('PATCH', {
+        action: 'create', service: el('bk-a-svc') ? el('bk-a-svc').value : sid, key: el('bk-a-key').value, name: name,
+        phone: el('bk-a-phone').value.trim(), email: el('bk-a-email').value.trim(), note: el('bk-a-note').value.trim(), mail: el('bk-a-mail').checked
+      });
+      this.disabled = false;
+      if (!res.data || !res.data.ok) { say((res.data && res.data.message) || '入れられませんでした。'); return; }
+      S.data.bookings.push(res.data.booking);
+      host.innerHTML = '';
+      draw();
+      say(res.data.message, true);
+    });
+  }
 
   function card(b) {
     var st = status(b), open = S.open === b.id, sp = span(b);
@@ -316,10 +359,11 @@
     var rows = [
       ['メニュー', b.service ? b.service.name + '（' + b.service.minutes + '分）' : '—'],
       ['メール', b.email ? '<a class="linkish" href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : '—', true],
+      ['電話', b.phone ? '<a class="linkish" href="tel:' + esc(b.phone.replace(/[^\d+]/g, '')) + '">' + esc(b.phone) + '</a>' : '', true],
       ['会社名', b.company || ''],
       ['ご相談の内容', (b.topics || []).join('、')],
       ['ご要望', b.note || ''],
-      ['受付', (b.at ? new Date(b.at).toLocaleString('ja-JP') : '') + (b.page ? '・' + (b.page === '/' ? 'トップページ' : b.page) + 'から' : '')],
+      ['受付', (b.at ? new Date(b.at).toLocaleString('ja-JP') : '') + (b.source === 'owner' ? '・管理画面から入力（電話・来店）' : b.page ? '・' + (b.page === '/' ? 'トップページ' : /^\/book\.html/.test(b.page) ? '予約ページ' : b.page) + 'から' : '')],
       ['カレンダー', b.mode === 'google' ? 'Googleカレンダーに登録済み' + (b.meet ? '・Meet: ' + b.meet : '')
         : '自動登録なし' + (b.addUrl && live ? '　<a class="linkish" href="' + esc(b.addUrl) + '" target="_blank" rel="noopener">Googleカレンダーに追加</a>' : ''), true],
       ['お知らせ', b.reminded ? '前日のお知らせを送りました' : '']
@@ -594,6 +638,21 @@
 
   /* ---------------- つながり・お知らせ ---------------- */
 
+  /* QR コードは口コミ管理と同じ部品（/reviews-core.js）で作ります。外のサービスには頼りません。 */
+  var qrWait = null;
+  function qrCore() {
+    if (window.lumReviewsCore) return Promise.resolve(window.lumReviewsCore);
+    if (qrWait) return qrWait;
+    qrWait = new Promise(function (ok, ng) {
+      var s = document.createElement('script');
+      s.src = '/reviews-core.js';
+      s.onload = function () { window.lumReviewsCore ? ok(window.lumReviewsCore) : ng(new Error('core')); };
+      s.onerror = function () { qrWait = null; ng(new Error('core')); };
+      document.head.appendChild(s);
+    });
+    return qrWait;
+  }
+
   R.conn = function (body) {
     var d = S.data, m = d.mail || {}, cron = d.cron || {}, line = d.line || {};
     /* いまどの段にいるか。3段あって、できることが違います。
@@ -619,8 +678,23 @@
       return '<div class="bk-conn"><b>' + (ok === true ? '✓ ' : ok === false ? '✗ ' : '△ ') + title + '</b><p>' + text + '</p></div>';
     }
     var last = cron.last;
+    var page = location.origin + '/book.html';
+    var embedCode = '<iframe src="' + page + '?embed=1" title="ご予約" style="width:100%;max-width:640px;height:760px;border:0" loading="lazy"></iframe>';
     body.innerHTML =
-      '<h3 class="soc-h">カレンダー</h3>' +
+      '<h3 class="soc-h">予約ページ（共有・QR・埋め込み）</h3>' +
+      '<div class="bk-conn"><b>予約だけの1ページ</b>' +
+        '<p>Instagram のプロフィール、LINE、名刺、Googleビジネスプロフィールの「予約」ボタンなどに、このアドレスを貼ってください。サイトの予約欄と同じ空きから、そのまま予約できます。</p>' +
+        '<div class="vid-row" style="margin-top:6px"><input type="text" class="vid-in" id="bk-page" readonly value="' + esc(page) + '" style="flex:1 1 240px">' +
+          '<button type="button" class="ghost" id="bk-page-copy">コピー</button><a class="ghost bk-linkbtn" href="' + esc(page) + '" target="_blank" rel="noopener">開いて確かめる</a></div>' +
+        '<div class="bk-qr-row"><div id="bk-qr" class="bk-qr" aria-label="予約ページのQRコード"></div><div>' +
+          '<p class="soc-small">店頭やチラシに置くための QR コードです。スマートフォンのカメラで読み取ると、予約ページが開きます。</p>' +
+          '<div class="vid-acts"><button type="button" class="ghost" id="bk-qr-print">印刷する</button><button type="button" class="ghost" id="bk-qr-dl">画像（SVG）を保存</button></div></div></div>' +
+        '<p style="margin-top:10px"><b style="font-size:13px">ほかのサイトに埋め込む</b></p>' +
+        '<p class="soc-small">ホームページ作成サービス（Wix・STUDIO・WordPress など）の「HTML を埋め込む」部品に貼ってください。</p>' +
+        '<textarea class="vid-in" id="bk-embed" rows="3" readonly style="font-family:ui-monospace,monospace;font-size:12px">' + esc(embedCode) + '</textarea>' +
+        '<div class="vid-acts"><button type="button" class="ghost" id="bk-embed-copy">埋め込みのコードをコピー</button></div>' +
+      '</div>' +
+      '<h3 class="soc-h" style="margin-top:18px">カレンダー</h3>' +
       '<div class="bk-conn"><b style="color:' + (level === 3 ? '#0e7490' : level === 2 ? '#b45309' : 'var(--sub)') + '">' + levelText + '</b><p>' + fix + '</p>' +
         '<div class="vid-acts" style="margin-top:6px">' +
           '<button type="button" id="bk-gconnect" class="ghost">' + (d.connected ? '接続し直す' : 'Googleカレンダーに接続') + '</button>' +
@@ -642,6 +716,7 @@
           ((last.reminders || {}).failed ? '・送れなかったもの ' + esc(last.reminders.failed) + '通' : '') : '')) +
       '<h3 class="soc-h" style="margin-top:18px">LINE（あなたあて・任意）</h3>' +
       '<p class="soc-small" style="margin-bottom:6px">毎朝、今日の予約の一覧をあなたの LINE に送ります。予約の無い日は送りません（LINE公式アカウントの無料の通数を使います）。</p>' +
+      '<label class="bk-check"><input type="checkbox" id="bk-lineeach"' + (S.data.rules.lineEach !== false ? ' checked' : '') + '> 新しい予約が入るたびにも、LINE で1通知らせる（お客様の名前と日時だけ）</label>' +
       fld('あなたの LINE ユーザーID（U で始まる33文字）', '<input type="text" id="bk-lineid" class="vid-in" maxlength="40" autocomplete="off" value="' + esc(S.data.rules.lineUserId || '') + '">',
         'LINE Developers › あなたのチャネル › 「チャネル基本設定」の一番下「あなたのユーザーID」にあります。') +
       row(!!line.token, 'LINE のチャネルアクセストークン', line.token ? '設定済みです（SNS 投稿の LINE と同じものを使います）。' : '未設定です。設定状況の「LINE チャネルアクセストークン（長期）」を入れると送れるようになります。') +
@@ -653,10 +728,39 @@
       setTimeout(function () { var h = el('set-list'); if (h) h.scrollIntoView({ block: 'start' }); }, 90);
     });
     el('bk-gconnect').addEventListener('click', connectGoogle);
+    var copy = async function (text, btn) {
+      var ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (_) {}
+      say(ok ? 'コピーしました。' : 'コピーできませんでした。選んでコピーしてください。', ok);
+      if (btn) btn.blur();
+    };
+    el('bk-page-copy').addEventListener('click', function () { copy(page, this); });
+    el('bk-embed-copy').addEventListener('click', function () { copy(embedCode, this); });
+    qrCore().then(function (core) {
+      var svg = core.qrSvg(core.qrEncode(page), { label: '予約ページのQRコード' });
+      el('bk-qr').innerHTML = svg;
+      el('bk-qr-dl').addEventListener('click', function () {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+        a.download = 'booking-qr.svg';
+        document.body.appendChild(a); a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      });
+      el('bk-qr-print').addEventListener('click', function () {
+        var w = window.open('', '_blank');
+        if (!w) { say('印刷用の画面を開けませんでした（ポップアップを許可してください）。'); return; }
+        w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>ご予約のQRコード</title><style>' +
+          'body{font-family:system-ui,sans-serif;text-align:center;margin:40px 16px;color:#111}svg{width:60mm;height:60mm}h1{font-size:22px;margin:0 0 6px}p{font-size:14px;line-height:1.8;margin:8px 0}' +
+          '@media print{button{display:none}}</style></head><body><h1>ご予約はこちらから</h1><p>空いている日時を選んで、そのままご予約いただけます。</p>' +
+          svg + '<p style="font-size:11px;color:#555">スマートフォンのカメラで読み取ってください</p><button onclick="print()">印刷する</button></body></html>');
+        w.document.close();
+      });
+    }).catch(function () { el('bk-qr').innerHTML = '<p class="soc-small">QR コードを作れませんでした。再読み込みしてください。</p>'; });
     el('bk-csave').addEventListener('click', async function () {
       var next = JSON.parse(JSON.stringify(S.data.rules));
       next.remind = el('bk-remind').checked;
       next.lineUserId = el('bk-lineid').value.trim();
+      next.lineEach = el('bk-lineeach').checked;
       if (next.lineUserId && !/^U[0-9a-f]{32}$/.test(next.lineUserId)) { say('LINE のユーザーIDは「U」で始まる33文字（数字と a〜f）です。もう一度お確かめください。'); return; }
       await saveRules(this, next);
     });

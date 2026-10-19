@@ -2147,7 +2147,7 @@
     week: [[[600, 1080]], [], [[600, 1140]], [[600, 720], [780, 1140]], [[600, 1140]], [[600, 1140]], [[600, 1080]]],
     holidays: false, closed: [new Date(t0 + 10 * DAY + JST).toISOString().slice(0, 10)],
     leadHours: 3, horizonDays: 14, bufferMin: 15, stepMin: 30, cutoffHours: 24,
-    online: false, place: '〇〇駅 東口から徒歩3分（サンプル）', remind: true, lineUserId: '',
+    online: false, place: '〇〇駅 東口から徒歩3分（サンプル）', remind: true, lineUserId: 'U0123456789abcdef0123456789abcdef', lineEach: true,
     services: SERVICES
   };
   function svc(id) { return SERVICES.filter(function (s) { return s.id === id; })[0]; }
@@ -2184,7 +2184,9 @@
         name: r[3] + '（サンプル）', email: ROMA[i] + '@example.com', company: '', topics: [], note: i === 8 ? '肩より少し上くらいにしたいです（サンプル）' : '',
         page: '/', mode: 'ics', meet: '', eventId: '', addUrl: '', memo: r[5],
         reminded: r[0] <= 1 && r[4] !== 'cancelled' ? new Date(start - DAY).toISOString() : false,
-        at: new Date(start - (3 + i % 4) * DAY).toISOString(), history: hist
+        at: new Date(start - (3 + i % 4) * DAY).toISOString(), history: hist,
+        // 電話で受けて管理画面から入れた予約の見本（予約ページ経由の見本も1件）。
+        phone: i === 9 || i === 13 ? '090-0000-00' + (10 + i) : '', source: i === 9 || i === 13 ? 'owner' : '',
       };
     });
   }
@@ -2230,7 +2232,7 @@
     var all = q.get('all');
     return { ok: true, enabled: true, mode: 'ics', reason: null, warn: null, tz: 'Asia/Tokyo', minutes: s.minutes, service: s.id,
       services: SERVICES.map(function (x) { return { id: x.id, name: x.name, minutes: x.minutes, desc: x.desc, price: x.price }; }),
-      wording: '来店', online: false, total: out.length, slots: all ? out : out.slice(0, 6) };
+      wording: '来店', online: false, brand: 'サンプル美容室', place: RULES.place, total: out.length, slots: all ? out : out.slice(0, 6) };
   }
   var inner = window.fetch;
   window.fetch = function (input, init) {

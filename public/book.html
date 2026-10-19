@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ご予約</title>
+<meta name="robots" content="noindex">
+<meta name="description" content="空いている日時から、そのままご予約いただけます。">
+<link href="/favicon.svg" rel="icon" type="image/svg+xml">
+<meta content="#f6f4ef" name="theme-color">
+<!--
+  予約ページ。Instagram のプロフィール・LINE・名刺の QR・Googleビジネスプロフィールの
+  「予約」ボタンなど、サイトの外から直接開いてもらうための1枚です。
+  ?embed=1 を付けると見出しを省き、ほかのサイトに枠（iframe）で埋め込めます。
+  空きの計算と予約の確定は /api/booking（サイトの予約欄と同じもの）がすべて行い、
+  ここは選んだものを送るだけです。
+-->
+<style>
+:root{--ink:#17171c;--ink2:#4a4a55;--ink3:#77778a;--paper:#f6f4ef;--card:#fff;--line:rgba(23,23,28,.12);--accent:#3d3fbf;--accent2:#2f31a3;--ok:#047857;--ng:#b42318}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Hiragino Sans','Yu Gothic UI','Noto Sans JP',system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;font-feature-settings:"palt" 1;-webkit-font-smoothing:antialiased}
+.wrap{max-width:640px;margin:0 auto;padding:28px 16px 48px}
+.embed .wrap{padding:12px 12px 20px}
+header{margin-bottom:18px}
+.brand{font-size:13px;letter-spacing:.08em;color:var(--ink3)}
+h1{font-size:24px;font-weight:800;letter-spacing:.02em;margin-top:2px}
+.lead{font-size:14px;color:var(--ink2);margin-top:6px}
+.embed header{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;box-shadow:0 1px 2px rgba(23,23,28,.05);margin-bottom:14px}
+.step{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:800;margin-bottom:12px}
+.step i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;flex:none}
+.step.done i{background:var(--ok)}
+.svcs{display:grid;gap:8px}
+.svc{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;color:inherit;cursor:pointer;min-height:56px}
+.svc b{font-size:15px}.svc small{display:block;font-size:12.5px;color:var(--ink3)}
+.svc .p{font-size:13px;font-weight:700;white-space:nowrap;color:var(--ink2)}
+.svc[aria-pressed=true]{border-color:var(--accent);background:#eef0ff;box-shadow:0 0 0 1px var(--accent) inset}
+.days{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:thin}
+.day{flex:none;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);cursor:pointer;min-height:40px}
+.day[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.time{padding:12px 8px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;min-height:48px;font-variant-numeric:tabular-nums}
+.time:hover{border-color:var(--ink)}
+.time[aria-pressed=true]{border-color:var(--accent);background:#eef0ff;color:var(--accent2);box-shadow:0 0 0 1px var(--accent) inset}
+.picked{font-size:14px;font-weight:700;margin-bottom:12px;padding:10px 12px;border-radius:10px;background:#eef0ff;color:var(--accent2)}
+label{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin:12px 0 6px}
+label span{font-weight:400;color:var(--ink3)}
+input,textarea,select{width:100%;padding:12px 13px;border:1px solid rgba(23,23,28,.22);border-radius:10px;background:#fff;font:inherit;font-size:16px;color:var(--ink)}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+textarea{resize:vertical;min-height:84px}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:16px;border:0;border-radius:12px;background:linear-gradient(180deg,#4a4ccb,var(--accent));color:#fff;font:inherit;font-size:16px;font-weight:800;letter-spacing:.04em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 16px -6px rgba(61,63,191,.55)}
+.btn:disabled{opacity:.6;cursor:default}
+.ghost{background:none;border:0;color:var(--accent);font:inherit;font-size:14px;font-weight:700;text-decoration:underline;cursor:pointer;padding:10px 0;min-height:44px}
+.msg{font-size:14px;line-height:1.8;padding:12px 14px;border-radius:10px;margin-top:12px}
+.msg.ng{background:#fff4f2;color:var(--ng);border:1px solid rgba(180,35,24,.25)}
+.done h2{font-size:20px;font-weight:800;margin-bottom:8px;color:var(--ok)}
+.done p{font-size:14.5px;color:var(--ink2);margin-top:6px}
+.done .when{font-size:18px;font-weight:800;color:var(--ink);margin-top:8px}
+.note{font-size:12.5px;color:var(--ink3);margin-top:10px}
+.empty{font-size:14px;color:var(--ink2)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.skel{height:48px;border-radius:12px;background:linear-gradient(90deg,#eee 0,#f6f6f6 50%,#eee 100%);background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="brand" id="brand"></p>
+    <h1 id="title">ご予約</h1>
+    <p class="lead">空いている日時から、そのままご予約いただけます。</p>
+  </header>
+  <main id="app" aria-live="polite">
+    <div class="card"><div class="skel"></div><div class="skel" style="margin-top:8px"></div></div>
+  </main>
+</div>
+<script>
+(function () {
+  'use strict';
+  var embed = /[?&]embed=1\b/.test(location.search);
+  if (embed) document.documentElement.classList.add('embed');
+  var app = document.getElementById('app');
+  var S = { info: null, service: '', slots: [], day: '', slot: null, sending: false };
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function noun() { return (S.info && S.info.wording) || 'ご予約'; }
+
+  // 埋め込み先のページに、自分の高さを知らせます（枠の高さを合わせてもらうため）。
+  function tellHeight() {
+    if (!embed || window.parent === window) return;
+    try { window.parent.postMessage({ type: 'lum-book-height', height: document.documentElement.scrollHeight }, '*'); } catch (_) {}
+  }
+
+  async function load(service) {
+    var q = new URLSearchParams({ all: '1' });
+    if (service) q.set('service', service);
+    try {
+      var r = await fetch('/api/booking?' + q.toString(), { headers: { accept: 'application/json' } });
+      var d = await r.json();
+      if (!d.ok || !d.enabled) return off();
+      S.info = d; S.service = d.service; S.slots = d.slots || [];
+      S.day = S.slots.length ? S.slots[0].day : ''; S.slot = null;
+      if (d.brand) { document.getElementById('brand').textContent = d.brand; document.title = noun() + '｜' + d.brand; }
+      document.getElementById('title').textContent = noun() + 'のお申し込み';
+      draw();
+    } catch (_) { off(true); }
+  }
+  function off(net) {
+    app.innerHTML = '<div class="card"><p class="empty">' + (net
+      ? '読み込めませんでした。通信の状態をお確かめのうえ、ページを開き直してください。'
+      : 'ただいま、こちらからのご予約を受け付けていません。お手数ですが、お電話かお問い合わせフォームからご連絡ください。') + '</p></div>';
+    tellHeight();
+  }
+
+  function draw() {
+    var info = S.info, svcs = info.services || [];
+    var html = '';
+    var n = 1;
+    if (svcs.length > 1) {
+      html += '<section class="card"><p class="step' + (S.service ? ' done' : '') + '"><i>' + (n++) + '</i>メニューを選ぶ</p><div class="svcs">' + svcs.map(function (s) {
+        return '<button type="button" class="svc" data-svc="' + esc(s.id) + '" aria-pressed="' + (s.id === S.service) + '"><span><b>' + esc(s.name) + '</b><small>' + esc(s.minutes) + '分' + (s.desc ? '・' + esc(s.desc) : '') + '</small></span>' + (s.price ? '<span class="p">' + esc(s.price) + '</span>' : '') + '</button>';
+      }).join('') + '</div></section>';
+    }
+    var days = [];
+    S.slots.forEach(function (s) { if (days.indexOf(s.day) < 0) days.push(s.day); });
+    html += '<section class="card"><p class="step' + (S.slot ? ' done' : '') + '"><i>' + (n++) + '</i>日時を選ぶ<span style="font-weight:400;font-size:12.5px;color:var(--ink3)">（' + esc(info.minutes) + '分）</span></p>';
+    if (!S.slots.length) {
+      html += '<p class="empty">いまご案内できる空きがありません。' + (svcs.length > 1 ? 'ほかのメニューもお試しください。' : 'お手数ですが、お問い合わせフォームからご相談ください。') + '</p>';
+    } else {
+      html += '<div class="days" role="group" aria-label="日にち">' + days.map(function (d) {
+        return '<button type="button" class="day" data-day="' + esc(d) + '" aria-pressed="' + (d === S.day) + '">' + esc(d) + '</button>';
+      }).join('') + '</div><div class="times" role="group" aria-label="時刻">' + S.slots.filter(function (s) { return s.day === S.day; }).map(function (s) {
+        return '<button type="button" class="time" data-key="' + esc(s.key) + '" aria-pressed="' + (!!S.slot && S.slot.key === s.key) + '">' + esc(s.time.split(/[〜~]/)[0]) + '</button>';
+      }).join('') + '</div>';
+    }
+    html += '</section>';
+    if (S.slot) {
+      html += '<section class="card" id="form"><p class="step"><i>' + n + '</i>お客様の情報</p>' +
+        '<p class="picked">' + esc(S.slot.label) + '</p>' +
+        '<form id="f" novalidate>' +
+        '<label for="nm">お名前</label><input id="nm" name="name" autocomplete="name" maxlength="50" required>' +
+        '<label for="em">メールアドレス <span>（確認のメールをお送りします）</span></label><input id="em" name="email" type="email" inputmode="email" autocomplete="email" maxlength="100" required>' +
+        '<label for="ph">電話番号 <span>（任意）</span></label><input id="ph" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20">' +
+        '<label for="ms">ご要望 <span>（任意）</span></label><textarea id="ms" name="message" maxlength="500" rows="3"></textarea>' +
+        '<div class="hp" aria-hidden="true"><label for="ws">website</label><input id="ws" name="website" tabindex="-1" autocomplete="off"></div>' +
+        '<div id="err"></div>' +
+        '<button type="submit" class="btn" id="go">この日時で予約する</button>' +
+        '<p class="note">ご入力いただいた内容は、このご予約のご連絡のためにだけ使います。</p>' +
+        '</form></section>';
+    }
+    app.innerHTML = html;
+    app.querySelectorAll('[data-svc]').forEach(function (b) {
+      b.addEventListener('click', function () { app.innerHTML = '<div class="card"><div class="skel"></div></div>'; load(b.getAttribute('data-svc')); });
+    });
+    app.querySelectorAll('[data-day]').forEach(function (b) {
+      b.addEventListener('click', function () { S.day = b.getAttribute('data-day'); S.slot = null; draw(); });
+    });
+    app.querySelectorAll('[data-key]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-key');
+        S.slot = S.slots.filter(function (s) { return s.key === k; })[0] || null;
+        draw();
+        var f = document.getElementById('form');
+        if (f) { f.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); setTimeout(function () { var x = document.getElementById('nm'); if (x) x.focus({ preventScroll: true }); }, 300); }
+      });
+    });
+    var f = document.getElementById('f');
+    if (f) f.addEventListener('submit', submit);
+    tellHeight();
+  }
+
+  function fail(t) { var e = document.getElementById('err'); if (e) e.innerHTML = '<p class="msg ng" role="alert">' + esc(t) + '</p>'; tellHeight(); }
+
+  async function submit(ev) {
+    ev.preventDefault();
+    if (S.sending) return;
+    var name = document.getElementById('nm').value.trim();
+    var email = document.getElementById('em').value.trim();
+    if (!name) { fail('お名前を入れてください。'); document.getElementById('nm').focus(); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { fail('メールアドレスをお確かめください。'); document.getElementById('em').focus(); return; }
+    S.sending = true;
+    var go = document.getElementById('go');
+    go.disabled = true; go.textContent = '送っています…';
+    try {
+      var r = await fetch('/api/booking', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: S.slot.key, service: S.service, name: name, email: email,
+          phone: document.getElementById('ph').value.trim(), message: document.getElementById('ms').value.trim(),
+          website: document.getElementById('ws').value, page: '/book.html' + (embed ? '（埋め込み）' : '')
+        })
+      });
+      var d = await r.json().catch(function () { return {}; });
+      if (r.ok && d.ok) return done(d);
+      if (r.status === 409) { fail(d.message || 'その日時は先に埋まりました。別の日時をお選びください。'); S.sending = false; setTimeout(function () { load(S.service); }, 1600); return; }
+      fail(d.message || (d.error === 'invalid_email' ? 'メールアドレスをお確かめください。' : d.error === 'invalid_name' ? 'お名前をお確かめください。' : '受け付けられませんでした。少し時間をおいてからお試しください。'));
+    } catch (_) {
+      fail('送れませんでした。通信の状態をお確かめのうえ、もう一度お試しください。');
+    }
+    S.sending = false;
+    go.disabled = false; go.textContent = 'この日時で予約する';
+  }
+
+  function done(d) {
+    var tentative = d.mode !== 'google';
+    app.innerHTML = '<section class="card done"><h2>' + (tentative ? '仮のご予約を承りました' : 'ご予約を承りました') + '</h2>' +
+      '<p class="when">' + esc(d.when || (S.slot && S.slot.label)) + '</p>' +
+      (d.duplicate ? '<p>同じ内容のお申し込みを、すでにお受けしています。</p>' : '') +
+      '<p>' + (tentative ? '担当より、確定のご連絡を差し上げます。' : '確認のメールをお送りしました。') + 'メールが見当たらないときは、迷惑メールのフォルダもご確認ください。</p>' +
+      (d.meet ? '<p>当日はこちらからご参加ください：<br><a href="' + esc(d.meet) + '" rel="noopener" target="_blank">' + esc(d.meet) + '</a></p>' : '') +
+      (S.info && S.info.place ? '<p>場所：' + esc(S.info.place) + '</p>' : '') +
+      '<p class="note">日時の変更・取り消しは、お送りしたメールのリンクからできます。</p></section>';
+    tellHeight();
+    window.scrollTo(0, 0);
+  }
+
+  window.addEventListener('resize', tellHeight);
+  load('');
+})();
+</script>
+</body>
+</html>

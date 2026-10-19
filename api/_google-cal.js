@@ -138,7 +138,8 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
     description,
     start: { dateTime: new Date(startMs).toISOString(), timeZone: 'Asia/Tokyo' },
     end: { dateTime: new Date(endMs).toISOString(), timeZone: 'Asia/Tokyo' },
-    attendees: [{ email: attendee, displayName: attendeeName || undefined }],
+    // 招待する相手がいないとき（電話で受けた予約でメールを送らない場合）は、自分の予定だけ作ります。
+    attendees: attendee ? [{ email: attendee, displayName: attendeeName || undefined }] : [],
     // Meet のURLはここで発行されます。requestId は同じ値で再送すると同じ
     // 会議が返る冪等キーなので、枠の時刻から作ります。
     // 来店型（online: false）のときは会議URLを付けません。
