@@ -790,3 +790,21 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .st-box { border: 1px solid var(--ui-border); border-left: 4px solid #b45309; border-radius: 10px; padding: 9px 12px; margin: 0 0 8px; font-size: 12.5px; line-height: 1.75; background: #fffdf7; overflow-wrap: anywhere; }
 #shell .st-box.red { border-left-color: #b42318; background: #fff8f7; }
 #shell .st-new { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(16,185,129,.16); color: #047857; margin-right: 6px; vertical-align: 1px; }
+
+/* ---- アクセス解析: いまサイトにいる人 ---- */
+#shell .lv { border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-surface); padding: 10px 13px; margin: 0 0 14px; }
+#shell .lv-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+#shell .lv-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ui-border-strong); align-self: center; flex: none; }
+#shell .lv-dot.on { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.18); animation: lv-pulse 2s ease-in-out infinite; }
+@keyframes lv-pulse { 50% { box-shadow: 0 0 0 6px rgba(16,185,129,.05); } }
+@media (prefers-reduced-motion: reduce) { #shell .lv-dot.on { animation: none; } }
+#shell .lv-label { font-size: 12.5px; font-weight: 700; }
+#shell .lv-count { font-size: 13px; }
+#shell .lv-count b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-right: 2px; }
+#shell .lv-when { font-size: 11px; color: var(--ui-text-3); margin-left: auto; }
+#shell .lv-sub { font-size: 11.5px; color: var(--ui-text-2); margin-top: 6px; }
+#shell .lv-pages { list-style: none; margin: 3px 0 0; padding: 0; font-size: 12.5px; }
+#shell .lv-pages li { display: flex; gap: 10px; justify-content: space-between; padding: 2px 0; }
+#shell .lv-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#shell .lv-n { flex: none; color: var(--ui-text-3); font-variant-numeric: tabular-nums; }
+#shell .lv-note { font-size: 10.5px; color: var(--ui-text-3); margin-top: 6px; line-height: 1.7; }

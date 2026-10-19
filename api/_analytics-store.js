@@ -191,6 +191,14 @@ export const K = {
   // 計測リンクの名前（ref）× 訪問が始まった時（JST）→ 訪問数。SNS（文章）の
   // 「いつ出すと良いか」が読みます。書くのは _visit.js。
   dayRefHours: (d) => `${KV}cp:h:${d}`,
+  /* ---- いまサイトにいる人（_analytics-live.js） ----
+     1分ごとの入れ物を2つ。人数は HyperLogLog（数えるだけで、中身は
+     取り出せません）、ページはその1分に開かれた回数。10分で消えるので、
+     「いま」以外の役には立たず、誰かを追うこともできません。 */
+  liveVisitors: (m) => `${KV}lv:u:${m}`,
+  livePaths: (m) => `${KV}lv:p:${m}`,
+  // アクセス解析のグラフに付けた自分のメモ（_analytics-marks.js）。
+  notes: `${KV}an:notes`,
   // 週次メール。止めたときの印と、最後に送った結果。
   weeklyOff: `${KV}wr:off`,
   weeklyLast: `${KV}wr:last`,

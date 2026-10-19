@@ -287,6 +287,17 @@
     var nf = (analytics('7').notFound || []).slice(0, 2).map(function (x) { return { path: x.name, count: Math.max(1, Math.round(x.count / 3)) }; });
     return { ok: true, total: nf.length, notFound: nf, formFail: 0, lastError: null, seenAt: Date.now() - 3 * DAY };
   }
+  /* いまサイトにいる人（shape: api/analytics.js ?view=live）。15秒ごとに少しずつ動くように、
+     時刻の区切りで決まる数にします（同じ15秒の間は何度読んでも同じ）。 */
+  function statsLive() {
+    var slot = Math.floor(Date.now() / 15000);
+    var r = prng(hash('live:' + slot));
+    var hour = new Date(Date.now() + JST).getUTCHours();
+    var count = Math.max(0, Math.round(HOURS[hour] / 3 * (0.6 + 0.8 * r())));
+    var views = count ? alloc(count + Math.round(count * 0.6 * r()), PATHS.slice(0, 6).map(function (p) { return p[1] * (0.5 + r()); })) : [];
+    return { ok: true, at: new Date().toISOString(), storeFrom: 'env', count: count, minutes: 5,
+      pages: pairs(PATHS.slice(0, 6).map(function (p) { return p[0]; }), views).slice(0, 5).map(function (x) { return { name: x.name, views: x.count }; }) };
+  }
   function analytics(daysIn, endIn) {
     var days = Math.min(Math.max(parseInt(daysIn || '30', 10) || 30, 1), 365);
     var end = Math.min(Math.max(parseInt(endIn || '0', 10) || 0, 0), Math.max(0, 400 - days * 2));
@@ -1736,7 +1747,7 @@
             if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
             return reply({ ok: true, overrides: o, commit: commit(6, '文章を更新') });
           });
-      case '/api/analytics': return reply(q.get('view') === 'badge' ? statsBadge() : analytics(q.get('days'), q.get('end')));
+      case '/api/analytics': return reply(q.get('view') === 'badge' ? statsBadge() : q.get('view') === 'live' ? statsLive() : analytics(q.get('days'), q.get('end')));
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());

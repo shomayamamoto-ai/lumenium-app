@@ -1533,6 +1533,8 @@ input, select, textarea { color: var(--text); }
         </div>
       </details>
       <p class="msg" id="stats-msg" style="margin-bottom:12px"></p>
+      <!-- いまサイトにいる人。画面が見えている間だけ、15秒ごとに読み直します。 -->
+      <div id="stats-live" class="lv" hidden aria-live="polite"></div>
       <div id="stats-body" style="display:none">
         <div id="stats-todo"></div>
         <div id="stats-note"></div>
@@ -5154,10 +5156,61 @@ window.lumAdmin = {
   el('stats-next').addEventListener('click', function () { endOffset = Math.max(0, endOffset - (Number(el('stats-range').value) || 30)); load(); });
   el('stats-csv').addEventListener('click', downloadCsv);
 
+  /* ---- いまサイトにいる人（最近5分） ----
+     人数と、いま開かれているページだけです。誰がどのページにいるかは、
+     記録にも無いので出せません（api/_analytics-live.js）。
+     この画面が見えている間だけ15秒ごとに読み直し、別のタブや別の画面に
+     移ったら止めます——開きっぱなしの管理画面が、見てもいない数字を
+     読み続けないように。 */
+  var LIVE_MS = 15000, liveTimer = 0, liveBusy = false;
+  function liveShown() {
+    var p = el('stats-admin');
+    return !document.hidden && !!p && p.offsetParent !== null;
+  }
+  async function liveTick() {
+    if (liveBusy || !liveShown()) return;
+    liveBusy = true;
+    var r = await window.lumAdmin.fetch('/api/analytics?view=live').catch(function () { return null; });
+    liveBusy = false;
+    var host = el('stats-live');
+    var d = r && r.data;
+    if (!host) return;
+    if (!d || !d.ok) { if (!host.hidden) host.querySelector('.lv-when').textContent = '読み直せませんでした（次の更新でもう一度試します）'; return; }
+    var at = new Date(d.at || Date.now());
+    var hm = ('0' + at.getHours()).slice(-2) + ':' + ('0' + at.getMinutes()).slice(-2) + ':' + ('0' + at.getSeconds()).slice(-2);
+    var pages = (d.pages || []).map(function (p) {
+      return '<li><span class="lv-path">' + pageLink(p.name) + '</span><span class="lv-n">' + n(p.views) + '回</span></li>';
+    }).join('');
+    host.innerHTML =
+      '<div class="lv-head">' +
+        '<span class="lv-dot' + (d.count ? ' on' : '') + '" aria-hidden="true"></span>' +
+        '<span class="lv-label">いまサイトにいる人</span>' +
+        '<span class="lv-count"><b>' + n(d.count) + '</b>人</span>' +
+        '<span class="lv-when">最近' + (d.minutes || 5) + '分・' + hm + ' 更新</span>' +
+      '</div>' +
+      (pages
+        ? '<div class="lv-sub">いま見られているページ</div><ul class="lv-pages">' + pages + '</ul>'
+        : '<div class="lv-sub">' + (d.count ? 'ページを開いたあと、読み進めている人です。' : 'いまは誰もいません。見に来た人がいると、15秒ほどでここに出ます。') + '</div>') +
+      '<div class="lv-note">人数だけを数えています（Cookie・IPアドレスは使いません）。' +
+        (d.storeFrom === 'device' ? '保存先を環境変数に入れるまで、この数は増えません。' : '') + '</div>';
+    host.hidden = false;
+  }
+  function liveStart() {
+    if (!liveTimer) liveTimer = setInterval(liveTick, LIVE_MS);
+    liveTick();
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && loaded) liveTick(); });
+  // 別の画面からこの画面に戻ったときも、15秒待たずにすぐ読み直します。
+  var statsPanel = el('stats-admin');
+  if (statsPanel && window.MutationObserver) {
+    new MutationObserver(function () { if (loaded && liveShown()) liveTick(); }).observe(statsPanel, { attributes: true, attributeFilter: ['style', 'hidden', 'class'] });
+  }
+
   window.lumStatsInit = function () {
     if (loaded) return;
     loaded = true;
     load();
+    liveStart();
   };
 })();
 </script>

@@ -10,9 +10,11 @@ import { requireAdmin } from './_admin-auth.js'
 import { storeFor, storeConfig, KEEP_DAYS, K, pipeline, jstDate, lastDays } from './_analytics-store.js'
 import { buildReport, MAX_RANGE, toPairs } from './_analytics-report.js'
 import { analyticsAttention, seenSnapshot, LOOKBACK_DAYS } from './_analytics-attention.js'
+import { liveReadCommands, liveSummary } from './_analytics-live.js'
 
 //   GET ?days=30&end=0   -> その期間の数字（end は「何日前で終わる期間か」。◀▶ で前の期間を見るため）
 //   GET ?view=badge      -> 要対応の数（新しい404・問い合わせフォームの送信の失敗）
+//   GET ?view=live       -> いまサイトにいる人（最近5分の人数と、見られているページ）
 //   POST { action:'seen' } -> 「確認しました」（ここまでの404と失敗を、要対応から外す）
 
 const asObj = (flat) => Object.fromEntries(toPairs(flat).map((p) => [p.name, p.count]))
@@ -57,6 +59,14 @@ export async function GET(req) {
   }
 
   const url = new URL(req.url)
+  if (url.searchParams.get('view') === 'live') {
+    try {
+      const raw = await pipeline(cfg, liveReadCommands(K, Date.now()))
+      return json({ ok: true, at: new Date().toISOString(), storeFrom: storeConfig() ? 'env' : 'device', ...liveSummary(raw) })
+    } catch (_) {
+      return json({ ok: false, message: 'いまの人数を読めませんでした。' }, 502)
+    }
+  }
   if (url.searchParams.get('view') === 'badge') {
     try { return json({ ok: true, ...(await badge(cfg)) }) } catch (_) {
       return json({ ok: false, message: '要対応の数を読めませんでした。' }, 502)

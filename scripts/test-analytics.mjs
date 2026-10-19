@@ -304,6 +304,34 @@ delete process.env.CRON_SECRET
   check('期間: end で前の期間を読み、範囲を返す', r.ok && r.range.end === 7 && r.range.to === jstDate(7) && r.range.from === jstDate(13) && r.previous.to === jstDate(14), JSON.stringify(r.range))
 }
 
+console.log('いまサイトにいる人（最近5分）')
+{
+  const L = await import(new URL('../api/_analytics-live.js', import.meta.url))
+  // 純粋な部分: 5分ぶんの読み、ページの合計、並び。
+  const cmds = L.liveReadCommands(K, 10 * 60000)
+  check('読み: 人数1つ＋5分ぶんのページ', cmds.length === 6 && cmds[0][0] === 'PFCOUNT' && cmds[0].length === 6 && cmds[0][1] === K.liveVisitors(10) && cmds[0][5] === K.liveVisitors(6), cmds[0])
+  const sum = L.liveSummary([3, ['/', '2', '/a', '1'], { '/': '1' }, null, [], []])
+  check('まとめ: ページは5分ぶん足して多い順', sum.count === 3 && sum.pages[0].name === '/' && sum.pages[0].views === 3 && sum.pages[1].name === '/a', sum)
+  check('書き: 符号が無ければ何も書かない', L.liveCommands(K, 0, '', '/').length === 0)
+  check('書き: 10分で消える', L.liveCommands(K, 0, 'x', '/').filter((c) => c[0] === 'EXPIRE').every((c) => c[2] === L.LIVE_TTL))
+  reset()
+  const auth = { Authorization: 'Bearer test-admin-key', 'x-forwarded-for': '192.0.2.10' }
+  const live = async () => (await analytics.GET(new Request('https://lumenium.net/api/analytics?view=live', { headers: auth }))).json()
+  check('だれも来ていなければ 0人', (await live()).count === 0)
+  await hit({ p: '/', n: 0 })
+  await hit({ p: '/services/web.html', n: 0 })
+  const a = await live()
+  check('2人が開くと 2人・ページも出る', a.ok && a.count === 2 && a.pages.length === 2 && a.minutes === 5, a)
+  const before = a.count
+  await hit({ p: '/', e: 'exit' })
+  check('帰った合図（exit）は人数を増やさない', (await live()).count === before)
+  await hit({ p: '/', e: 'read_half' })
+  check('読み進めた合図は人数に入る（ページの回数は増えない）', (await live()).count === before + 1 && (await live()).pages.reduce((n, p) => n + p.views, 0) === 2)
+  // 何も特定できないこと: 書いた鍵は人数（HyperLogLog）とページの回数だけ。
+  const liveKeys = [...hashes.keys(), ...hll.keys(), ...str.keys()].filter((k) => /lv:/.test(k))
+  check('残るのは人数の入れ物とページの回数だけ', liveKeys.every((k) => /lv:(u|p):\d+$/.test(k)) && [...(hashes.get(K.livePaths(L.minuteOf(Date.now()))) || new Map()).keys()].every((k) => k.startsWith('/')), liveKeys)
+}
+
 if (failed) {
   console.error(`\nアクセス解析のテスト: ${failed} 件失敗（${passed} 件成功）`)
   process.exit(1)

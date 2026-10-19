@@ -13,6 +13,7 @@ import { storeConfig, pipeline, jstDate, jstHour, K } from './_analytics-store.j
 import { visitPlan, fromOurPages, selfReferrer } from './_visit.js'
 import { sourceKey } from './_referrers.js'
 import { countCommands } from './_auto-store.js'
+import { liveCommands } from './_analytics-live.js'
 
 const enc = new TextEncoder()
 
@@ -206,7 +207,8 @@ export async function POST(req) {
   if (ev === 'page_time') {
     const g = await guard(cfg, rateKey, plan.slots)
     if (!g) return ok()
-    try { await pipeline(cfg, plan.commands(g)) } catch (_) { /* best-effort */ }
+    // 次のページへ移ったところなので、「いまいる人」にも数えます（人数だけ）。
+    try { await pipeline(cfg, [...plan.commands(g), ...liveCommands(K, Date.now(), vid, null)]) } catch (_) { /* best-effort */ }
     return ok()
   }
 
@@ -254,6 +256,8 @@ export async function POST(req) {
         ] : []),
         ...plan.commands(visitFields),
         ...expCmds,
+        // 読み進めた・押したなどは「いまいる人」の印になります。帰った合図（exit）は除きます。
+        ...(ev === 'exit' ? [] : liveCommands(K, Date.now(), vid, null)),
       ])
     } catch (_) { /* a beacon must never surface an error */ }
     return ok()
@@ -280,6 +284,8 @@ export async function POST(req) {
       ['EXPIRE', K.dayDevices(date), K.expire],
       ['HINCRBY', K.dayHours(date), String(jstHour()), 1],
       ['EXPIRE', K.dayHours(date), K.expire],
+      // いまサイトにいる人（最近5分）。人数と、開かれたページの回数だけ。
+      ...liveCommands(K, Date.now(), vid, pvPath),
     ])
   } catch {
     /* counting is best-effort; never surface a store outage to a visitor */
