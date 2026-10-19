@@ -5,7 +5,7 @@ import { setting } from './_settings.js'
 import { ghFile, b64encodeUtf8, b64decodeUtf8, repoName, ghDetail, lastCommit, fileHistory, fileAt } from './_github.js'
 import { storeFor, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { jstToday, realDay, checkImage } from '../src/lib/news.js'
+import { jstToday, realDay, checkImage, NEWS_CATEGORIES, PIN_MAX } from '../src/lib/news.js'
 
 // Admin news publishing: commits public/news.json to the GitHub repo via
 // the Contents API. Vercel's GitHub integration then redeploys, so a post
@@ -17,7 +17,9 @@ import { jstToday, realDay, checkImage } from '../src/lib/news.js'
 //
 // 予約（status: 'scheduled' と publishAt）はコミットしますが、サイトを作る
 // ときに公開日まで外します（src/lib/news.js の isLive）。公開日の朝の
-// 自動処理（api/_news-cron.js）がサイトを作り直させます。
+// 自動処理（api/_news-cron.js）がサイトを作り直させます。掲載を終える日
+// （unpublishAt）も同じで、終える日の翌朝に作り直させてサイトから外します。
+// 固定表示（pinned）は PIN_MAX 件まで、カテゴリ（category）は決まった中から。
 //
 //   GET                 → { items, commit, drafts }
 //   GET ?history=1      → { history: [{ sha, at, message }] }（最近20回）
@@ -114,6 +116,8 @@ export async function POST(req) {
   const delId = String(payload?.id ?? '').trim()
   const image = checkImage(payload?.image).image
   const todayJst = jstToday()
+  const pinned = payload?.pinned === true
+  const category = cleanCategory(payload?.category)
 
   /* ---- 下書き（コミットしない） ---- */
   if (action === 'draft-save' || action === 'draft-delete') {
@@ -129,7 +133,8 @@ export async function POST(req) {
       if (!title && !body) return bad('タイトルか本文のどちらかを書いてから保存してください。')
       const id = /^d-[a-z0-9-]{4,40}$/.test(delId) ? delId : `d-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`
       const publishAt = realDay(payload?.publishAt) ? payload.publishAt : ''
-      const draft = { id, title, body, link, image, publishAt, savedAt: new Date().toISOString() }
+      const unpublishAt = realDay(payload?.unpublishAt) ? payload.unpublishAt : ''
+      const draft = { id, title, body, link, image, publishAt, unpublishAt, pinned, category, savedAt: new Date().toISOString() }
       next = [draft, ...drafts.filter((d) => d && d.id !== id)]
       if (next.length > DRAFTS_MAX) return bad(`下書きは${DRAFTS_MAX}件までです。使わない下書きを消してから保存してください。`)
     }
@@ -183,6 +188,19 @@ export async function POST(req) {
   }
   if (scheduled) date = publishAt
 
+  // 掲載を終える日（任意）。公開する日（予約なら公開日、すぐ公開なら今日）より
+  // 前は選べません。その日まではサイトに出て、翌朝の作り直しで外れます。
+  const unpublishAt = String(payload?.unpublishAt || '').trim()
+  if (unpublishAt && (action === 'add' || action === 'edit')) {
+    const from = scheduled ? publishAt : todayJst
+    const limit = jstToday(Date.now() + 2 * 366 * 86400000)
+    if (!realDay(unpublishAt) || unpublishAt < from || unpublishAt > limit) {
+      return bad(scheduled
+        ? '掲載を終える日は、公開日から2年先までの日付を選んでください。'
+        : '掲載を終える日は、今日から2年先までの日付を選んでください。')
+    }
+  }
+
   if (action === 'add' || action === 'edit') {
     const why = checkPost({ title, body, link, image: payload?.image })
     if (why) return bad(why)
@@ -195,7 +213,7 @@ export async function POST(req) {
 
   const fromDraft = String(payload?.fromDraft || '')
   const res = await commitItems(token, repo,
-    (items) => applyNews(items, { action, title, body, link, delId, image, publishAt, date: date || todayJst, keepDate: date }),
+    (items) => applyNews(items, { action, title, body, link, delId, image, publishAt, unpublishAt, pinned, category, date: date || todayJst, keepDate: date }),
     scheduled
       ? `予約しました。${publishAt} の朝（9時ごろ）にサイトに出ます。それまではサイトには出ません。`
       : '保存しました。サイトへの反映（約1〜2分）を下に表示します。')
@@ -271,34 +289,57 @@ export function revertItems(text) {
 const byDate = (items) => items.map((n, i) => [n, i])
   .sort((a, b) => String(b[0].date).localeCompare(String(a[0].date)) || a[1] - b[1]).map((x) => x[0])
 
+/** カテゴリは決まった中だけ。「お知らせ」（info）と知らないものは空（＝保存しない）。 */
+export function cleanCategory(c) {
+  c = String(c || '').trim()
+  return c !== 'info' && NEWS_CATEGORIES.some((x) => x.id === c) ? c : ''
+}
+
 /** One stored post. Optional fields are left out rather than saved empty, so
- *  a post made the old way and one made now look the same in the file. */
-function shape({ id, date, title, body, link, image, publishAt }) {
+ *  a post made the old way and one made now look the same in the file.
+ *  掲載終了の印（ended）は持ち越しません。終えたお知らせを、終える日を
+ *  延ばして保存し直せば、またサイトに出ます。 */
+function shape({ id, date, title, body, link, image, publishAt, unpublishAt, pinned, category }) {
   const n = { id, date, title, body, link }
   if (image) n.image = image
   if (publishAt) { n.status = 'scheduled'; n.publishAt = publishAt }
+  if (unpublishAt) n.unpublishAt = unpublishAt
+  if (pinned) n.pinned = true
+  if (category) n.category = category
   return n
+}
+
+/** 固定表示の数の上限。掲載を終えたものは数えません。 */
+function tooManyPins(items, exceptId) {
+  const today = jstToday()
+  const n = items.filter((x) => x && x.pinned && x.id !== exceptId && !x.ended && !(realDay(x.unpublishAt) && x.unpublishAt < today)).length
+  return n >= PIN_MAX
+    ? { error: { ok: false, code: 'BAD_REQUEST', message: `固定表示できるのは${PIN_MAX}件までです。ほかのお知らせの「固定」を外してから保存してください。` }, status: 400 }
+    : null
 }
 
 /** The change itself, separate from reading and writing so it can be
  *  re-applied after a conflict. Every post is kept: the list used to be cut
  *  at 50, silently dropping the oldest. The site page shows the newest and
  *  folds the rest (scripts/build-content-pages.mjs). */
-export function applyNews(items, { action, title, body, link, delId, date, keepDate, image = null, publishAt = '' }) {
+export function applyNews(items, { action, title, body, link, delId, date, keepDate, image = null, publishAt = '', unpublishAt = '', pinned = false, category = '' }) {
+  const extra = { unpublishAt, pinned, category: cleanCategory(category) }
   if (action === 'add') {
+    if (pinned) { const over = tooManyPins(items, null); if (over) return over }
     const id = `n-${date.replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`
     // 過去の日付で書いたものも、日付の順に並ぶように（同じ日なら新しいものが上）
-    return { id, items: byDate([shape({ id, date, title, body, link, image, publishAt }), ...items]), message: `news: ${title}` }
+    return { id, items: byDate([shape({ id, date, title, body, link, image, publishAt, ...extra }), ...items]), message: `news: ${title}` }
   }
   if (action === 'edit') {
     // The id and the date stay. Fixing a typo by deleting and retyping moved
     // the post to today and to the top of the list, which is not a correction.
     const at = items.findIndex((n) => n && n.id === delId)
     if (at < 0) return { error: { ok: false, code: 'NOT_FOUND', message: '該当のお知らせが見つかりません。' }, status: 404 }
+    if (pinned && !items[at].pinned) { const over = tooManyPins(items, delId); if (over) return over }
     const out = items.slice()
     // 予約をやめて「すぐ公開」にしたとき、先の日付のまま残さない。
     const was = String(items[at].date || '')
-    out[at] = shape({ id: items[at].id, date: keepDate || (was > date ? date : was), title, body, link, image, publishAt })
+    out[at] = shape({ id: items[at].id, date: keepDate || (was > date ? date : was), title, body, link, image, publishAt, ...extra })
     return { id: items[at].id, items: byDate(out), message: `news: edit ${title}` }
   }
   const out = items.filter((n) => n && n.id !== delId)

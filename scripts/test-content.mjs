@@ -92,6 +92,64 @@ await t('news: 予約は公開日（日本時間）まで出さない・公開�
   assert.equal(news.jstToday(Date.parse('2026-10-09T14:59:59Z')), '2026-10-09')
 })
 
+await t('news: 掲載を終える日の当日までは出し、翌日（日本時間）から外す', () => {
+  const items = [
+    { id: 'n-1', date: '2026-10-01', title: '期間限定', unpublishAt: '2026-10-10' },
+    { id: 'n-2', date: '2026-10-01', title: '終了の印あり', ended: true },
+    { id: 'n-3', date: '2026-10-01', title: 'ずっと' },
+    { id: 'n-4', date: '2026-10-12', title: '予約・すぐ終わる', status: 'scheduled', publishAt: '2026-10-12', unpublishAt: '2026-10-12' },
+  ]
+  assert.deepEqual(news.liveNews(items, '2026-10-10').map((n) => n.id), ['n-1', 'n-3'])
+  assert.deepEqual(news.liveNews(items, '2026-10-11').map((n) => n.id), ['n-3'])
+  assert.deepEqual(news.dueEnded(items, '2026-10-10').map((n) => n.id), [], '当日はまだ外さない')
+  assert.deepEqual(news.dueEnded(items, '2026-10-11').map((n) => n.id), ['n-1'], '印の付いたものは数えない')
+  assert.deepEqual(news.liveNews(items, '2026-10-12').map((n) => n.id), ['n-3', 'n-4'])
+  assert.deepEqual(news.dueScheduled(items, '2026-10-13').map((n) => n.id), [], '公開日のあとに終える日も過ぎた予約は、公開させない')
+  assert.equal(news.isExpired({ unpublishAt: '2026-02-30' }, '2027-01-01'), false, '壊れた日付は無視')
+})
+
+await t('news: 固定表示は先頭に（固定どうしの順は保つ）・カテゴリは決まった中から', () => {
+  const items = [
+    { id: 'a', date: '2026-10-05', title: 'A' },
+    { id: 'b', date: '2026-10-04', title: 'B', pinned: true },
+    { id: 'c', date: '2026-10-03', title: 'C' },
+    { id: 'd', date: '2026-10-02', title: 'D', pinned: true },
+  ]
+  assert.deepEqual(news.liveNews(items, '2026-10-10').map((n) => n.id), ['b', 'd', 'a', 'c'])
+  assert.equal(news.newsCategory({ category: 'hours' }), 'hours')
+  assert.equal(news.newsCategory({ category: 'xxx' }), 'info')
+  assert.equal(news.newsCategory({}), 'info')
+  assert.equal(news.categoryLabel('campaign'), 'キャンペーン')
+  assert.equal(news.categoryLabel('nope'), 'お知らせ')
+})
+
+await t('news: 保存のとき、固定は3件まで・カテゴリは知らないものを捨てる・終える日を持ち越す', async () => {
+  const { applyNews, cleanCategory } = await import('../api/news-post.js')
+  assert.equal(cleanCategory('menu'), 'menu')
+  assert.equal(cleanCategory('info'), '', '「お知らせ」は保存しない（既定）')
+  assert.equal(cleanCategory('<b>'), '')
+  let items = []
+  for (let i = 0; i < news.PIN_MAX; i++) {
+    items = applyNews(items, { action: 'add', title: 't' + i, body: '', link: '', date: '2026-10-0' + (i + 1), pinned: true, category: 'menu', unpublishAt: '2026-12-31' }).items
+  }
+  assert.ok(items.every((n) => n.pinned === true && n.category === 'menu' && n.unpublishAt === '2026-12-31'))
+  const over = applyNews(items, { action: 'add', title: 'もう1件', body: '', link: '', date: '2026-10-09', pinned: true })
+  assert.equal(over.status, 400)
+  assert.match(over.error.message, /3件まで/)
+  // すでに固定のものを直すのは上限に当たらない。固定を外すと印も消える。
+  const keep = applyNews(items, { action: 'edit', delId: items[0].id, title: '直した', body: '', link: '', date: items[0].date, keepDate: items[0].date, pinned: true })
+  assert.equal(keep.error, undefined)
+  const off = applyNews(items, { action: 'edit', delId: items[0].id, title: '直した', body: '', link: '', date: items[0].date, keepDate: items[0].date })
+  const edited = off.items.find((n) => n.id === items[0].id)
+  assert.equal(edited.pinned, undefined)
+  assert.equal(edited.category, undefined)
+  // 掲載を終えた印は、保存し直すと消える（終える日を延ばせばまた出る）
+  const ended = [{ id: 'n-x', date: '2026-10-01', title: '終了', unpublishAt: '2026-10-02', ended: true }]
+  const back = applyNews(ended, { action: 'edit', delId: 'n-x', title: '終了', body: '', link: '', date: '2026-10-01', keepDate: '2026-10-01', unpublishAt: '2026-11-30' })
+  assert.equal(back.items[0].ended, undefined)
+  assert.equal(back.items[0].unpublishAt, '2026-11-30')
+})
+
 await t('slug: 英小文字・数字・ハイフンだけ、端はハイフン不可、連続ハイフン不可、64文字まで', () => {
   for (const ok of ['n-20260928-01', 'ai-guide', 'a', 'x1', 'a'.repeat(64)]) assert.ok(news.validSlug(ok), ok)
   for (const bad of ['', '-a', 'a-', 'A-b', 'a--b', 'a_b', 'お知らせ', 'a b', 'a/b', '../x', 'a'.repeat(65)]) assert.ok(!news.validSlug(bad), bad)
@@ -161,6 +219,23 @@ await t('news: 予約の日付は明日から1年先まで・画像の説明が�
   assert.equal(repo.puts.length, 1)
 })
 
+await t('news: 掲載を終える日は公開する日以降・2年先まで（固定・カテゴリも保存される）', async () => {
+  const repo = fakeRepo([])
+  on([repo.handler])
+  const { POST } = await import('../api/news-post.js')
+  const day = (n) => news.jstToday(Date.now() + n * 86400000)
+  let r = await POST(req('news-post', 'POST', { action: 'add', title: 'x', unpublishAt: day(-1) }))
+  assert.equal(r.status, 400, '昨日で終わるものは出せない')
+  r = await POST(req('news-post', 'POST', { action: 'add', title: 'x', status: 'scheduled', publishAt: day(5), unpublishAt: day(3) }))
+  assert.equal(r.status, 400, '公開日より前に終わる予約は断る')
+  r = await POST(req('news-post', 'POST', { action: 'add', title: 'x', unpublishAt: day(800) }))
+  assert.equal(r.status, 400)
+  assert.equal(repo.puts.length, 0)
+  r = await POST(req('news-post', 'POST', { action: 'add', title: '期間限定', unpublishAt: day(0), pinned: true, category: 'campaign' }))
+  assert.equal(r.status, 200, '今日で終わるものは出せる')
+  assert.deepEqual([repo.content[0].unpublishAt, repo.content[0].pinned, repo.content[0].category], [day(0), true, 'campaign'])
+})
+
 await t('news: 「この時点に戻す」はその時点の中身を新しいコミットで書き戻す', async () => {
   const { revertItems, POST } = await import('../api/news-post.js')
   assert.equal(revertItems('{"a":1}'), null)
@@ -220,6 +295,36 @@ await t('news-cron: フックが無ければ「公開済み」にするコミッ
   assert.equal(repo.content[1].status, 'scheduled', '先の予約はそのまま')
   await runNewsCron(null, '2026-10-10')
   assert.equal(repo.puts.length, 1, '2回目は何もしない')
+})
+
+await t('news-cron: 掲載を終える日の翌朝、印を付けるコミット（またはフック1回）で作り直させる', async () => {
+  const { runNewsCron, RELEASED_KEY } = await import('../api/_news-cron.js')
+  const repo = fakeRepo([
+    { id: 'n-1', date: '2026-10-01', title: '期間限定', unpublishAt: '2026-10-10' },
+    { id: 'n-2', date: '2026-10-01', title: 'ずっと' },
+  ])
+  on([repo.handler])
+  assert.equal((await runNewsCron(null, '2026-10-10')).ended, 0, '終える日の当日は何もしない')
+  assert.equal(repo.puts.length, 0)
+  const r = await runNewsCron(null, '2026-10-11')
+  assert.equal(r.via, 'commit')
+  assert.equal(r.ended, 1)
+  assert.equal(repo.content[0].ended, true)
+  assert.equal(repo.content[1].ended, undefined)
+  assert.match(repo.puts[0].message, /掲載の終了/)
+  await runNewsCron(null, '2026-10-12')
+  assert.equal(repo.puts.length, 1, '印が付いたら二度と数えない')
+
+  const repo2 = fakeRepo([{ id: 'n-9', date: '2026-10-01', title: '期間限定', unpublishAt: '2026-10-10' }])
+  let hooks = 0
+  on([repo2.handler, ['api.vercel.com/v1/integrations/deploy/', () => { hooks++; return res({ job: {} }) }]])
+  process.env.DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/prj_abc123/XyZ987'
+  store.delete(RELEASED_KEY)
+  await runNewsCron(null, '2026-10-11')
+  await runNewsCron(null, '2026-10-12')
+  assert.equal(hooks, 1, '同じ掲載終了で2回呼ばない')
+  assert.deepEqual(JSON.parse(store.get(RELEASED_KEY)), ['end:n-9'])
+  delete process.env.DEPLOY_HOOK_URL
 })
 
 /* ==== 文章編集：id の住所 ==== */

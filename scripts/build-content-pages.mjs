@@ -13,7 +13,7 @@
 //                          last changed — see _lastmod.mjs)
 // Run via `npm run build` (prebuild) or directly.
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs'
-import { liveNews, newsSlug } from '../src/lib/news.js'
+import { liveNews, newsSlug, newsCategory, categoryLabel, NEWS_CATEGORIES } from '../src/lib/news.js'
 import { BEACON } from './_beacon.mjs'
 import { framePage } from './_page-frame.mjs'
 import { articles } from '../src/data/articles.js'
@@ -209,7 +209,24 @@ const CONTACT_STRIP = `
     <p class="note">東京都を拠点に、打ち合わせはオンラインで全国対応／動画1本・LP1枚から、最低発注額はありません。</p>
   </section>`
 
-function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website', ogImage = `${SITE}/api/og` }) {
+/* お知らせの一覧だけで使う見た目（カテゴリと「固定」の札、カテゴリでの絞り込み）。
+   全ページ共通の STYLE に入れると、使わないページまで中身が変わって
+   「更新日」が動くので、お知らせの一覧にだけ付けます。絞り込みは CSS だけ
+   （:has）で動きます。対応していないブラウザでは、全部がそのまま並びます。 */
+const NEWS_STYLE = `
+.list .cat, .list .pin { display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px;
+  margin:0 6px 4px 0; vertical-align:1px; border:1px solid var(--border); color:var(--sub); }
+.list .pin { border-color:#818cf8; color:inherit; }
+.nf { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+.nf input { position:absolute; opacity:0; width:1px; height:1px; }
+.nf label { display:inline-flex; align-items:center; min-height:44px; padding:0 16px; border-radius:999px; border:1px solid var(--border);
+  font-size:13px; color:var(--sub); cursor:pointer; }
+.nf input:checked + label { background:rgba(165,180,252,.16); border-color:#a5b4fc; color:var(--text); font-weight:700; }
+.nf input:focus-visible + label { outline:2px solid #a5b4fc; outline-offset:2px; }
+${NEWS_CATEGORIES.map((c) => `body:has(#nf-${c.id}:checked) .list li:not([data-cat="${c.id}"])`).join(',\n')} { display:none; }
+`
+
+function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website', ogImage = `${SITE}/api/og`, style = '' }) {
   return framePage(`<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -231,7 +248,7 @@ function shell({ title, desc, canonical, ld, eyebrow, body, ogType = 'website', 
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400..900&family=Noto+Sans+JP:wght@400..900&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script type="application/ld+json">${ldJson(withOrg(ld, canonical, title))}</script>
-<style>${STYLE}</style>
+<style>${STYLE}${style}</style>
 <link rel="stylesheet" href="/brand.css">
 </head>
 <body>
@@ -439,12 +456,25 @@ ${md(a.content)}
   const pageOf = (n) => (newsSlug(n) ? `/news/${newsSlug(n)}.html` : '')
   /* 題名は1件ずつのページへ。以前は題名がそのまま n.link に飛んでいて、
      お知らせそのものの住所がありませんでした（共有も検索もできない）。 */
+  /* カテゴリの札と絞り込みは、使われているカテゴリが2つ以上のときだけ出します
+     （全部「お知らせ」なのに札や「絞り込む」ボタンがあっても意味がありません）。
+     固定（pinned）の札は、固定したものがあるときだけ。どちらも無ければ、
+     一覧のページは以前とまったく同じ中身です。 */
+  const usedCats = NEWS_CATEGORIES.filter((c) => news.some((n) => newsCategory(n) === c.id))
+  const showCats = usedCats.length >= 2
   const newsItem = (n) => {
     const href = pageOf(n) || n.link
     const img = n.image && n.image.url
       ? `<img class="thumb" src="${esc(n.image.url)}" alt="${esc(n.image.alt)}" width="96" height="64" loading="lazy" decoding="async">` : ''
-    return `<li>${img}<time datetime="${esc(n.date)}">${esc(n.date)}</time>${href ? `<a href="${esc(href)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`
+    const cat = newsCategory(n)
+    const marks = (n.pinned ? '<span class="pin">固定</span>' : '') + (showCats ? `<span class="cat">${esc(categoryLabel(cat))}</span>` : '')
+    return `<li${showCats ? ` data-cat="${cat}"` : ''}>${img}<time datetime="${esc(n.date)}">${esc(n.date)}</time>${marks}${href ? `<a href="${esc(href)}">${esc(n.title)}</a>` : `<span style="font-weight:600;font-size:15px">${esc(n.title)}</span>`}${n.body ? `<p>${esc(n.body)}</p>` : ''}</li>`
   }
+  const filter = !showCats ? '' : `
+  <div class="nf" role="radiogroup" aria-label="カテゴリで絞り込む">
+    <input type="radio" name="nf" id="nf-all" checked><label for="nf-all">すべて</label>
+    ${usedCats.map((c) => `<input type="radio" name="nf" id="nf-${c.id}"><label for="nf-${c.id}">${esc(c.label)}</label>`).join('\n    ')}
+  </div>`
   const url = `${SITE}/news.html`
   const ld = {
     '@context': 'https://schema.org',
@@ -486,7 +516,7 @@ ${md(a.content)}
     const linkLabel = /^https?:\/\//.test(n.link || '') ? '関連するページを開く（外部サイト）' : '関連するページを見る'
     const body = `
   <h1>${esc(n.title)}</h1>
-  <p class="meta"><time datetime="${esc(n.date)}">${esc(n.date)}</time> ・ お知らせ</p>
+  <p class="meta"><time datetime="${esc(n.date)}">${esc(n.date)}</time> ・ ${esc(categoryLabel(newsCategory(n)))}</p>
   <article>
   ${img ? `<figure class="news-img"><img src="${esc(img.url)}" alt="${esc(img.alt)}" loading="eager" decoding="async"></figure>` : ''}
   ${String(n.body || '').split(/\n{2,}/).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('\n  ')}
@@ -504,14 +534,14 @@ ${md(a.content)}
       body,
       ogType: 'article',
       ...(img ? { ogImage: img.url } : {}),
-    }), { initial: n.date, source: JSON.stringify([n.title, n.body, n.link, n.date, img]) })
+    }), { initial: n.date, source: JSON.stringify([n.title, n.body, n.link, n.date, img].concat(n.category ? [n.category] : [])) })
   }
   for (const f of readdirSync('public/news')) {
     if (f.endsWith('.html') && !made.has(`/news/${f}`)) rmSync(`public/news/${f}`)
   }
   const body = `
   <h1>お知らせ</h1>
-  <p class="meta">Lumeniumからの最新のお知らせです。</p>
+  <p class="meta">Lumeniumからの最新のお知らせです。</p>${filter}
   <ul class="list">
     ${news.slice(0, NEWS_SHOWN).map(newsItem).join('\n    ')}
   </ul>${news.length > NEWS_SHOWN ? `
@@ -527,6 +557,7 @@ ${md(a.content)}
     ld,
     eyebrow: 'お知らせ',
     body,
+    style: showCats || news.some((n) => n.pinned) ? NEWS_STYLE : '',
   }), { initial: news[0]?.date })
 }
 

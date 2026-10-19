@@ -10,6 +10,10 @@
 //   { id, date, title, body, link,
 //     status?: 'published' | 'scheduled',   無ければ公開済み（以前の投稿）
 //     publishAt?: 'YYYY-MM-DD',              予約のときの公開日（日本時間）
+//     unpublishAt?: 'YYYY-MM-DD',            掲載を終える日。この日までは出し、翌日から外す
+//     ended?: true,                          掲載を終えた印（毎朝の自動処理が付けます）
+//     pinned?: true,                         固定表示（一覧のいちばん上に出す）
+//     category?: 'hours' | 'menu' | …        カテゴリ（NEWS_CATEGORIES の id。無ければ「お知らせ」）
 //     image?: { url, alt } }                 画像（alt は必須）
 // 下書きは news.json には入りません（保存先の Redis にだけ置きます）。
 //
@@ -33,22 +37,67 @@ export function newsStatus(n) {
   return n && n.status === 'scheduled' ? 'scheduled' : 'published'
 }
 
-/** サイトに出してよいか。予約は、公開日（日本時間）になってから。 */
+/** 掲載を終える日が過ぎたか。終える日の当日までは出し、翌日（日本時間）から外します。 */
+export function isExpired(n, today = jstToday()) {
+  return !!(n && realDay(n.unpublishAt) && n.unpublishAt < today)
+}
+
+/** サイトに出してよいか。予約は、公開日（日本時間）になってから。
+ *  掲載を終える日を過ぎたものは、印（ended）が付く前でも出しません。 */
 export function isLive(n, today = jstToday()) {
   if (!n || typeof n !== 'object' || !n.title) return false
+  if (n.ended || isExpired(n, today)) return false
   if (newsStatus(n) === 'scheduled') return realDay(n.publishAt) && n.publishAt <= today
   return true
 }
 
-/** サイトに出す分だけ。並び順はそのまま（保存のときに日付順にしてあります）。 */
+/** サイトに出す分だけ。固定表示のものを先に、あとは保存のときの並び（日付順）のまま。 */
 export function liveNews(items, today = jstToday()) {
-  return (Array.isArray(items) ? items : []).filter((n) => isLive(n, today))
+  return pinnedFirst((Array.isArray(items) ? items : []).filter((n) => isLive(n, today)))
 }
 
-/** 予約のうち、公開日が来たもの（毎朝の自動処理が、サイトを作り直すきっかけにします）。 */
+/** 固定表示（pinned）を上に。固定どうし・それ以外どうしの順は変えません。 */
+export function pinnedFirst(items) {
+  const list = Array.isArray(items) ? items : []
+  return list.filter((n) => n && n.pinned).concat(list.filter((n) => !(n && n.pinned)))
+}
+
+/** 固定表示できる数。いくつも固定すると、新しいお知らせが下に埋もれます。 */
+export const PIN_MAX = 3
+
+/* カテゴリは決まった中から選びます（自由に作れると、似た名前が増えて
+   絞り込みが役に立たなくなります）。id はサイトの絞り込みと保存に使う
+   英字、label は画面とサイトに出す名前。 */
+export const NEWS_CATEGORIES = [
+  { id: 'info', label: 'お知らせ' },
+  { id: 'hours', label: '営業日・休業' },
+  { id: 'menu', label: '新メニュー・サービス' },
+  { id: 'campaign', label: 'キャンペーン' },
+  { id: 'media', label: 'メディア掲載' },
+]
+
+/** カテゴリの id（知らないもの・空は「お知らせ」）。 */
+export function newsCategory(n) {
+  const c = String((n && n.category) || '')
+  return NEWS_CATEGORIES.some((x) => x.id === c) ? c : 'info'
+}
+
+export function categoryLabel(id) {
+  const c = NEWS_CATEGORIES.find((x) => x.id === id)
+  return c ? c.label : NEWS_CATEGORIES[0].label
+}
+
+/** 予約のうち、公開日が来たもの（毎朝の自動処理が、サイトを作り直すきっかけにします）。
+ *  公開日が来たときにはもう掲載を終える日も過ぎていたものは、出さないので数えません。 */
 export function dueScheduled(items, today = jstToday()) {
   return (Array.isArray(items) ? items : [])
-    .filter((n) => n && newsStatus(n) === 'scheduled' && realDay(n.publishAt) && n.publishAt <= today)
+    .filter((n) => n && newsStatus(n) === 'scheduled' && realDay(n.publishAt) && n.publishAt <= today && !isExpired(n, today) && !n.ended)
+}
+
+/** 掲載を終える日が過ぎ、まだ印（ended）の付いていないもの。サイトを作り直さないと
+ *  ページが残り続けるので、毎朝の自動処理がこれを見て作り直させます。 */
+export function dueEnded(items, today = jstToday()) {
+  return (Array.isArray(items) ? items : []).filter((n) => n && !n.ended && isExpired(n, today))
 }
 
 // 1件ずつのページの住所（/news/<slug>.html）に使える形。英小文字・数字・
