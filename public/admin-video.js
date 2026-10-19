@@ -1261,8 +1261,13 @@
       '</div>' +
       '<p class="soc-small" id="vp-caps"></p>' +
       '<details class="soc-ai" open><summary>新しい投稿</summary><div class="soc-ai-body">' +
+        // 投稿先は複数選べます。選んだ順ではなく、上から順に1つずつ送り、結果を1つずつ出します。
+        '<fieldset class="vn-nets"><legend class="soc-lab">投稿先（いくつでも選べます）</legend>' +
+          Object.keys(NET_LABEL).map(function (n, i) {
+            return '<label class="vn-net"><input type="checkbox" data-net="' + n + '"' + ((S.pubNets ? S.pubNets.indexOf(n) !== -1 : i === 0) ? ' checked' : '') + '> ' + NET_LABEL[n] + '</label>';
+          }).join('') +
+        '</fieldset>' +
         '<div class="soc-fields">' +
-          fld('投稿先', '<select id="vn-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '">' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
           fld('元にする台本（本文とタグを入れます）', '<select id="vn-script"><option value="">台本を使わない</option>' + d.scripts.map(function (s) { return '<option value="' + esc(s.id) + '"' + (s.id === S.scriptId ? ' selected' : '') + '>' + esc(s.title || '（無題）') + '</option>'; }).join('') + '</select>') +
         '</div>' +
         fld('タイトル（YouTube は必須・100文字まで）', '<input type="text" id="vn-title" class="vid-in" maxlength="100">') +
@@ -1276,6 +1281,7 @@
         '</div>' +
         '<div class="vid-row" style="margin-top:8px" id="vn-ig-opts"><input type="date" id="vn-date" aria-label="予約日（Instagram）"><span class="soc-small">予約する場合だけ日付を選んでください（明日以降）。</span></div>' +
         '<div class="vid-acts"><button type="button" id="vn-go">投稿する</button><button type="button" class="ghost" id="vn-draft">下書きとして保存</button><span class="soc-small" id="vn-state" aria-live="polite"></span></div>' +
+        '<div id="vn-results">' + resultsHtml() + '</div>' +
       '</div></details>' +
       '<h3 class="soc-step">投稿の一覧</h3><div id="vp-list"></div>';
 
@@ -1285,27 +1291,33 @@
       el('vn-title').value = s.title || '';
       el('vn-caption').value = [s.hook, s.body, s.cta].filter(Boolean).join('\n\n');
       el('vn-tags').value = (s.hashtags || []).join(' ');
-      if (s.platform) el('vn-net').value = s.platform;
+      // 台本の投稿先は、まだ何も選んでいないときだけ選びます（選んだものは外しません）。
+      var box = s.platform && document.querySelector('.vn-nets input[data-net="' + s.platform + '"]');
+      if (box && !pubNets().length) box.checked = true;
       opts(); fit();
     }
     function opts() {
-      var net = el('vn-net').value;
-      el('vn-yt-opts').style.display = net === 'youtube' ? '' : 'none';
-      el('vn-ig-opts').style.display = net === 'instagram' ? '' : 'none';
+      var list = pubNets();
+      S.pubNets = list;
+      el('vn-yt-opts').style.display = list.indexOf('youtube') !== -1 ? '' : 'none';
+      el('vn-ig-opts').style.display = list.indexOf('instagram') !== -1 ? '' : 'none';
+      el('vn-go').textContent = list.length > 1 ? list.length + 'つのSNSに投稿する' : '投稿する';
     }
     function tags() { return el('vn-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean); }
     function fit() {
-      var net = el('vn-net').value;
-      var P = V.PLATFORMS[net];
-      var f = V.fitCaption(el('vn-caption').value, tags(), P.caption);
-      var msg = '送る本文は ' + V.charLen(f.text) + ' / ' + P.caption + ' 文字。';
-      if (f.trimmed) msg += 'ハッシュタグを残すため、本文の最後を ' + f.trimmed + ' 文字削ります（削るのは本文の25%まで）。';
-      if (f.dropped.length) msg += '入りきらないため、ハッシュタグ ' + f.dropped.map(function (t) { return '#' + t; }).join(' ') + ' を外します。';
-      if (tags().length > 5) msg += 'ハッシュタグは5個までがおすすめです。';
-      el('vn-fit').textContent = msg;
+      var list = pubNets();
+      if (!list.length) { el('vn-fit').textContent = '投稿先を1つ以上選んでください。'; return; }
+      el('vn-fit').textContent = list.map(function (net) {
+        var P = V.PLATFORMS[net];
+        var f = V.fitCaption(el('vn-caption').value, tags(), P.caption);
+        var msg = (list.length > 1 ? NET_LABEL[net] + '：' : '') + '送る本文は ' + V.charLen(f.text) + ' / ' + P.caption + ' 文字。';
+        if (f.trimmed) msg += 'ハッシュタグを残すため、本文の最後を ' + f.trimmed + ' 文字削ります（削るのは本文の25%まで）。';
+        if (f.dropped.length) msg += '入りきらないため、ハッシュタグ ' + f.dropped.map(function (t) { return '#' + t; }).join(' ') + ' を外します。';
+        return msg;
+      }).join('\n') + (tags().length > 5 ? '\nハッシュタグは5個までがおすすめです。' : '');
     }
     el('vn-script').addEventListener('change', fillFromScript);
-    el('vn-net').addEventListener('change', function () { opts(); fit(); });
+    document.querySelectorAll('.vn-nets input[data-net]').forEach(function (b) { b.addEventListener('change', function () { opts(); fit(); }); });
     el('vn-caption').addEventListener('input', fit);
     el('vn-tags').addEventListener('input', fit);
     opts();
@@ -1463,79 +1475,132 @@
     return out.url;
   }
 
+  /* 選んだ投稿先（上から順）。 */
+  function pubNets() {
+    return Array.prototype.filter.call(document.querySelectorAll('.vn-nets input[data-net]'), function (b) { return b.checked; })
+      .map(function (b) { return b.getAttribute('data-net'); });
+  }
+  /* まとめて出したときの、SNSごとの結果（画面を描き直しても残します）。 */
+  function resultsHtml() {
+    var list = S.pubResults || [];
+    if (!list.length) return '';
+    return '<div class="vn-results"><b>SNSごとの結果</b>' + list.map(function (x) {
+      return '<div class="soc-res ' + (x.ok ? 'ok' : 'ng') + '"><b>' + esc(NET_LABEL[x.net] || x.net) + '</b><span>' + (x.ok ? '◯ ' : '△ ') + esc(x.text || '') + '</span></div>';
+    }).join('') + '</div>';
+  }
+
   async function createPub(now) {
     var st = el('vn-state');
-    var net = el('vn-net').value;
+    var list = pubNets();
     var file = el('vn-file').files[0] || null;
     var tags = el('vn-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
-    var item = {
-      platform: net, script_id: el('vn-script').value, title: el('vn-title').value, caption: el('vn-caption').value, hashtags: tags,
+    var base = {
+      script_id: el('vn-script').value, title: el('vn-title').value, caption: el('vn-caption').value, hashtags: tags,
       privacy: el('vn-privacy').value, status: 'draft'
     };
-    var s = S.data.scripts.filter(function (x) { return x.id === item.script_id; })[0];
+    if (!list.length) { say('投稿先を1つ以上選んでください。'); return; }
+    var s = S.data.scripts.filter(function (x) { return x.id === base.script_id; })[0];
     if (s) {
-      item.hook_type = s.hook_type || '';
+      base.hook_type = s.hook_type || '';
       var chk = V.checkScript(s, project().brand, sources());
       if (chk.banned.length) { say('元の台本に禁止ワード（' + chk.banned.map(function (b) { return b.word; }).join('・') + '）が入っています。台本を直してから投稿してください。'); return; }
     }
-    var cap = V.findBanned([item.title, item.caption], (project().brand || {}).banned_words);
+    var cap = V.findBanned([base.title, base.caption], (project().brand || {}).banned_words);
     if (cap.length) { say('本文に禁止ワード（' + cap.map(function (b) { return b.word; }).join('・') + '）が入っています。'); return; }
-    if (net === 'youtube' && !item.title.trim()) { say('YouTube はタイトルが必要です。'); return; }
+    if (list.indexOf('youtube') !== -1 && !base.title.trim()) { say('YouTube はタイトルが必要です。'); return; }
     if (now && !file) { say('動画ファイルを選んでください。'); return; }
     if (file) {
       var meta = await videoMeta(URL.createObjectURL(file));
-      item.duration_sec = meta.duration || null;
-      item.video_size = file.size;
-      var P = V.PLATFORMS[net];
-      if (meta.duration && (meta.duration < P.minSec || meta.duration > P.maxSec) && !confirm(P.label + ' の長さの範囲（' + P.minSec + '〜' + P.maxSec + '秒）から外れています（' + Math.round(meta.duration) + '秒）。このまま進めますか？')) return;
+      base.duration_sec = meta.duration || null;
+      base.video_size = file.size;
+      // 長さの範囲から外れるSNSを、まとめて1回だけ確かめます。
+      var off = list.filter(function (net) { var P = V.PLATFORMS[net]; return meta.duration && (meta.duration < P.minSec || meta.duration > P.maxSec); });
+      if (off.length && !confirm(off.map(function (net) { var P = V.PLATFORMS[net]; return P.label + '（' + P.minSec + '〜' + P.maxSec + '秒）'; }).join('・') +
+        ' の長さの範囲から外れています（' + Math.round(meta.duration) + '秒）。このまま進めますか？')) return;
     }
     var btns = [el('vn-go'), el('vn-draft')];
     btns.forEach(function (b) { b.disabled = true; });
+    var results = [];
+    var polls = [];
+    var many = list.length > 1;
+    var order = list.slice();
     try {
-      if (file && net !== 'youtube') {
-        item.video_url = await uploadToBlob(file, function (t) { st.textContent = t; });
-      }
-      st.textContent = '記録しています…';
-      var r = await post({ action: 'pub.save', item: item });
-      if (!r.data.ok) throw new Error(r.data.message || '保存できませんでした。');
-      var pub = r.data.item;
-      if (now) {
-        var date = net === 'instagram' ? el('vn-date').value : '';
-        if (date) {
-          var r2 = await pubApi({ action: 'schedule', pub: pub.id, date: date });
-          if (!r2.data.ok) throw new Error(r2.data.message);
-          say(r2.data.message, true);
-        } else {
-          await sendPub(pub, file, function (t) { st.textContent = t; });
+      // 動画の置き場所へは1回だけ送り、Instagram と TikTok で同じものを使います。
+      var url = '';
+      if (file && list.some(function (n) { return n !== 'youtube'; })) {
+        try { url = await uploadToBlob(file, function (t) { st.textContent = t; }); }
+        catch (e) {
+          list.filter(function (n) { return n !== 'youtube'; }).forEach(function (n) { results.push({ net: n, ok: false, text: String((e && e.message) || e) }); });
+          list = list.filter(function (n) { return n === 'youtube'; });
         }
-      } else say('下書きとして保存しました。', true);
+      }
+      for (var i = 0; i < list.length; i++) {
+        var net = list[i];
+        var lab = NET_LABEL[net];
+        var progress = function (t) { st.textContent = (many ? lab + '（' + (i + 1) + '/' + list.length + '）：' : '') + t; };
+        try {
+          progress('記録しています…');
+          var item = Object.assign({}, base, { platform: net });
+          if (url && net !== 'youtube') item.video_url = url;
+          var r = await post({ action: 'pub.save', item: item });
+          if (!r.data.ok) throw new Error(r.data.message || '保存できませんでした。');
+          var pub = r.data.item;
+          if (!now) { results.push({ net: net, ok: true, text: '下書きとして保存しました。' }); continue; }
+          var date = net === 'instagram' ? el('vn-date').value : '';
+          if (date) {
+            var r2 = await pubApi({ action: 'schedule', pub: pub.id, date: date });
+            if (!r2.data.ok) throw new Error(r2.data.message);
+            results.push({ net: net, ok: true, text: r2.data.message });
+          } else {
+            // まとめて出すときは、Instagram の準備待ちを最後に回します（ほかのSNSを待たせないため）。
+            var out = await sendPub(pub, file, progress, { noPoll: many });
+            if (out.poll) polls.push(out.poll);
+            results.push({ net: net, ok: out.ok, text: out.text });
+          }
+        } catch (e) {
+          results.push({ net: net, ok: false, text: String((e && e.message) || e) });
+        }
+      }
+      results.sort(function (x, y) { return order.indexOf(x.net) - order.indexOf(y.net); });
+      var okN = results.filter(function (x) { return x.ok; }).length;
+      S.pubResults = many || results.some(function (x) { return !x.ok; }) ? results : [];
+      // 描き直すと案内が消えるので、描き直してから出します。
       await reload();
-    } catch (e) {
-      say(String((e && e.message) || e));
+      if (many) say(results.length + 'つのうち ' + okN + 'つが' + (now ? '送れました' : '保存できました') + '。SNSごとの結果を下に出しています。', okN === results.length);
+      else if (results[0]) say(results[0].text, results[0].ok);
     } finally {
       st.textContent = '';
       btns.forEach(function (b) { if (b) b.disabled = false; });
     }
+    polls.forEach(function (id) { pollInstagram(id, 60); });
   }
 
-  async function sendPub(pub, file, progress) {
+  /* 1件を送ります。結果は { ok, text }（Instagram の準備待ちを後に回したときは poll に id）。
+     noPoll: まとめて出すとき、Instagram の準備待ち（最大5分）をここで待たない。 */
+  async function sendPub(pub, file, progress, opt) {
     progress = progress || function (t) { say(t, true); };
+    opt = opt || {};
+    var out = { ok: false, text: '送れませんでした。' };
     if (pub.platform === 'instagram') {
       progress('Instagram に送っています…');
       var r = await pubApi({ action: 'instagram.start', pub: pub.id });
-      if (!r.data.ok) { say(r.data.message || '送れませんでした。'); await reload(); return; }
-      say(r.data.message, true);
+      if (!r.data.ok) { out = { ok: false, text: r.data.message || '送れませんでした。' }; say(out.text); await reload(); return out; }
+      out = { ok: true, text: r.data.message || 'Instagram に送りました。準備ができると公開されます。' };
+      say(out.text, true);
+      if (opt.noPoll) { out.poll = pub.id; return out; }
       await reload();
       await pollInstagram(pub.id, 60);
     } else if (pub.platform === 'tiktok') {
       progress('TikTok に送っています（大きな動画は1分ほどかかります）…');
       var r3 = await pubApi({ action: 'tiktok.send', pub: pub.id });
-      say(r3.data.ok ? r3.data.message : (r3.data.message || '送れませんでした。'), r3.data.ok);
-      await reload();
+      out = { ok: !!r3.data.ok, text: r3.data.ok ? r3.data.message : (r3.data.message || '送れませんでした。') };
+      say(out.text, out.ok);
+      if (!opt.noPoll) await reload();
     } else if (pub.platform === 'youtube') {
-      await uploadYouTube(pub, file, progress);
-      await reload();
+      out = await uploadYouTube(pub, file, progress);
+      if (!opt.noPoll) await reload();
     }
+    return out;
   }
 
   /** Instagram の準備ができるまで、5秒おきに短く聞きます（1回の問い合わせは数秒）。 */
@@ -1561,11 +1626,13 @@
   }
 
   /** YouTube へはブラウザから直接、8MB ずつ送ります（途中で切れても続きから）。 */
+  /* 結果は { ok, text }（まとめて出したとき、SNSごとの結果に使います）。 */
   async function uploadYouTube(pub, file, progress) {
-    if (demo()) { say('デモ版のため、アップロードはされません。'); return; }
-    if (!file) { say('動画ファイルを選んでください。'); return; }
+    var fail = function (text) { say(text); return { ok: false, text: text }; };
+    if (demo()) return fail('デモ版のため、アップロードはされません。');
+    if (!file) return fail('動画ファイルを選んでください。');
     var t = await pubApi({ action: 'youtube.token' });
-    if (!t.data.ok) { say(t.data.message || 'YouTube の鍵を作れませんでした。'); return; }
+    if (!t.data.ok) return fail(t.data.message || 'YouTube の鍵を作れませんでした。');
     var at = el('vn-at') && el('vn-at').value ? new Date(el('vn-at').value).toISOString() : '';
     var f = V.fitCaption(pub.caption, pub.hashtags, V.PLATFORMS.youtube.caption);
     var meta = {
@@ -1583,9 +1650,9 @@
     if (!loc) {
       var why = '';
       try { why = ((await init.json()).error || {}).message || ''; } catch (_) {}
-      say('YouTube に受け付けてもらえませんでした' + (why ? '（' + why + '）' : '') + '。YouTube Data API v3 が有効か、連携し直しが要らないか確かめてください。');
+      var nope = fail('YouTube に受け付けてもらえませんでした' + (why ? '（' + why + '）' : '') + '。YouTube Data API v3 が有効か、連携し直しが要らないか確かめてください。');
       await post({ action: 'pub.save', item: Object.assign({}, pub, { status: 'failed', error: 'YouTube の受け口を作れませんでした' + (why ? '（' + why + '）' : '') }) });
-      return;
+      return nope;
     }
     var CH = 8 * 1024 * 1024;
     var sent = 0, tries = 0, done = null;
@@ -1599,7 +1666,11 @@
         tries = 0;
       } else {
         // 切れたら、どこまで届いたかを聞いて続きから送ります（3回まで）。
-        if (++tries > 3) { say('YouTube への送信が途中で止まりました。ネットの接続を確かめて、もう一度送ってください。'); await post({ action: 'pub.save', item: Object.assign({}, pub, { status: 'failed', error: 'YouTube への送信が途中で止まりました' }) }); return; }
+        if (++tries > 3) {
+          var stop = fail('YouTube への送信が途中で止まりました。ネットの接続を確かめて、もう一度送ってください。');
+          await post({ action: 'pub.save', item: Object.assign({}, pub, { status: 'failed', error: 'YouTube への送信が途中で止まりました' }) });
+          return stop;
+        }
         await new Promise(function (ok) { setTimeout(ok, 2000 * tries); });
         var q = await fetch(loc, { method: 'PUT', headers: { 'Content-Range': 'bytes */' + file.size } }).catch(function () { return null; });
         if (q && q.status === 308) { var rg2 = q.headers.get('Range'); sent = rg2 ? Number(rg2.split('-')[1]) + 1 : 0; }
@@ -1608,7 +1679,9 @@
       progress('YouTube に送っています… ' + Math.round((sent / file.size) * 100) + '%');
     }
     var r = await pubApi({ action: 'youtube.done', pub: pub.id, videoId: done.id, publishAt: at });
-    say(r.data.ok ? (at ? 'YouTube に予約公開で送りました（' + new Date(at).toLocaleString('ja-JP') + '）。' : 'YouTube に送りました。') + 'Google の審査前のプロジェクトからは「非公開」になります。YouTube Studio で確かめてください。' : (r.data.message || '記録できませんでした。'), r.data.ok);
+    var text = r.data.ok ? (at ? 'YouTube に予約公開で送りました（' + new Date(at).toLocaleString('ja-JP') + '）。' : 'YouTube に送りました。') + 'Google の審査前のプロジェクトからは「非公開」になります。YouTube Studio で確かめてください。' : (r.data.message || '記録できませんでした。');
+    say(text, r.data.ok);
+    return { ok: !!r.data.ok, text: text };
   }
 
   async function fetchMetrics(id) {

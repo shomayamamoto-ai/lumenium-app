@@ -521,6 +521,12 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .vid-tap-list li .tx { min-width: 0; overflow-wrap: anywhere; }
   .vid-tap-list li.next { box-shadow: inset 3px 0 0 #0f766e; background: rgba(20,184,166,0.07); }
   .vid-tap-list li.on .tx { font-weight: 700; }
+  /* 1本を複数のSNSにまとめて出す（admin-video.js の投稿） */
+  .vn-nets { border: 0; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .vn-nets legend { padding: 0; margin-bottom: 4px; }
+  .vn-net { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; cursor: pointer; }
+  .vn-net input { width: 20px; height: 20px; margin: 0; }
+  .vn-results { margin-top: 10px; display: grid; gap: 4px; font-size: 12.5px; }
   .vid-checks { display: grid; gap: 4px; font-size: 12px; max-height: 180px; overflow: auto; }
   .vid-sub { font-size: 12.5px; margin: 14px 0 6px; color: var(--sub); }
   .vid-pack-h { display: block; font-size: 13px; margin-bottom: 2px; }
