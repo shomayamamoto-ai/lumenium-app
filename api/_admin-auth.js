@@ -124,6 +124,19 @@ async function peekBody(req) {
  *  hands back a 12-hour session), and that session (lss.…). Whoever it is,
  *  the permission table then decides; every write is recorded in the audit
  *  log (api/_audit.js), refused ones included. */
+/** 個人の情報をまとめて持ち出す読み取り（書き出し・共有リンク）。操作の記録に「書き出し」として残します。
+ *  ふだんの「見る」は記録しません（数が多すぎて、大事な記録が上限から押し出されるため）。
+ *  個人情報保護法・プライバシーマークで問われる「誰がいつ持ち出したか」に答えられるように。 */
+export function exportOf(endpoint, url) {
+  const q = url.searchParams
+  if (endpoint === 'inquiries' && q.get('view') === 'export') return 'inquiries-csv'
+  if (endpoint === 'members-xlsx') return 'members-xlsx'
+  if (endpoint === 'members-view') return 'members-view'
+  if (endpoint === 'quotes' && q.get('view') === 'xlsx') return 'quotes-xlsx'
+  if (endpoint === 'audit' && q.get('format') === 'csv') return 'audit-csv'
+  return ''
+}
+
 export async function requireAdmin(req, opts) {
   const asText = opts && opts.as === 'text'
   const shareScope = (opts && opts.share) || null
@@ -164,7 +177,13 @@ export async function requireAdmin(req, opts) {
       // anyone holding a link could guess the admin key four times, open
       // the link once, and guess again — forever.
       if (await useShare(token, shareScope)) {
-        WHO.set(req, { id: 'share', name: '共有リンク', role: 'share', via: 'share' })
+        const sw = { id: 'share', name: '共有リンク', role: 'share', via: 'share' }
+        WHO.set(req, sw)
+        // 共有リンクで開かれたことも「書き出し」として残します（だれに渡したリンクかは、共有リンクの一覧で分かります）。
+        const ep = (opts && opts.perm) || endpointOf(url.pathname)
+        if (cfg) {
+          try { await record(entry({ who: sw, area: areaOf(ep), endpoint: ep, method: req.method, action: 'export', target: exportOf(ep, url) || ep, ip: await ipHash(ip, adminKey), result: 'ok' }), cfg) } catch (_) {}
+        }
         return null
       }
       await recordFail(ip, cfg)
@@ -272,6 +291,10 @@ export async function requireAdmin(req, opts) {
     return fail({ ok: false, code: 'FORBIDDEN', need: d.need, message: d.message }, 403)
   }
   if (!isRead(req.method) && !d.quiet && !quietBody(body)) await audit(who, 'ok', { action, target: targetOf(endpoint, body, url) })
+  else if (isRead(req.method)) {
+    const ex = exportOf(endpoint, url)
+    if (ex) await audit(who, 'ok', { action: 'export', target: ex })
+  }
   WHO.set(req, who)
   return null
 }

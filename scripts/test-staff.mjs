@@ -375,4 +375,15 @@ await test('ログイン画面から入ったときだけ、オーナーのロ�
   assert.equal(ok.by, 'owner')
 })
 
+await test('個人の情報の書き出しは、操作の記録に残す対象になる', async () => {
+  const { exportOf } = await import('../api/_admin-auth.js')
+  const u = (p) => new URL('https://x.test' + p)
+  assert.equal(exportOf('inquiries', u('/api/inquiries?view=export')), 'inquiries-csv')
+  assert.equal(exportOf('inquiries', u('/api/inquiries?status=all')), '')
+  assert.equal(exportOf('members-xlsx', u('/api/members-xlsx')), 'members-xlsx')
+  assert.equal(exportOf('quotes', u('/api/quotes?view=xlsx')), 'quotes-xlsx')
+  assert.equal(exportOf('audit', u('/api/audit?format=csv')), 'audit-csv')
+  assert.equal(exportOf('analytics', u('/api/analytics?days=30')), '')
+})
+
 console.log(`test-staff: ${n} 件 OK`)

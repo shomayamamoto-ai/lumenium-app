@@ -44,6 +44,7 @@ export const ACTION_LABEL = {
   'todo.add': 'ToDoを追加', 'todo.done': 'ToDoを済みに', 'todo.undo': 'ToDoを戻す', 'todo.delete': 'ToDoを削除', 'conv.delete': '相談を削除',
   'exp.start': '試しを開始', 'exp.stop': '試しを止める', 'exp.adopt': '試しを採用', 'exp.revert': '試しを元に戻す', 'log.undo': '変更を取り消し',
   'proposal.add': '提案を追加', 'proposal.adopt': '提案を採用', 'proposal.dismiss': '提案を見送り',
+  export: '書き出し（個人の情報）', 'payment.add': '入金を記録', 'payment.remove': '入金の記録を取り消し', 'reply.send': '返信を送信',
   'auto-now': '自動改善を今すぐ実行', 'auto-save': '自動改善の設定', handoff: '引き継ぎ', 'handoff-apply': '引き継ぎを反映', string: '文字の設定',
 }
 export function actionLabel(act) { return act ? ACTION_LABEL[act] || act : '' }
