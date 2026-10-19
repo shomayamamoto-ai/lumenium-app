@@ -440,7 +440,21 @@
       go: { tab: 'social-admin' } },
     { id: 'brand', title: 'サイトの名前を設定する（SITE_NAME・SITE_URL）', where: 'Vercel の環境変数 SITE_NAME・SITE_URL',
       why: 'メールや画面に出る社名です。設定しないと、元の会社（Lumenium）の名前のままになります。',
-      go: {} }
+      go: {} },
+    /* ここからは「お店の準備」。キーの設定が済んだあと、実際に使い始めるための手順です。
+       どれも記録から自動で「済み」になります（押して確かめる必要はありません）。 */
+    { id: 'profile', title: 'お店のプロフィールを書く（業種・強み・お客様像）',
+      why: 'AIアドバイザーが、このお店に合った答えを出すための前提です。業種・地域・強み・使わない言葉などを書きます。',
+      go: { tab: 'advisor-admin', view: 'profile' } },
+    { id: 'goals', title: '月の目標を決める（問い合わせ・予約・受注額）', optional: true,
+      why: 'ホームの数字のカードに、目標に対する進み具合が出るようになります。',
+      go: { tab: 'advisor-admin', view: 'profile' } },
+    { id: 'menu', title: '予約のメニューと受付時間を決める', optional: true,
+      why: 'サイトの予約欄と予約ページ（/book.html）に出るメニュー・長さ・料金です。最初は「オンライン相談」1つだけになっています。',
+      go: { tab: 'booking-admin' } },
+    { id: 'firstInquiry', title: '自分あてに問い合わせを1通送ってみる', optional: true,
+      why: 'サイトの問い合わせフォームから送って、メールと LINE の知らせが届くか、この管理画面に入るかを確かめます。',
+      go: { href: '/#contact' } }
   ];
 
   /* src: { health, settings, booking, social }（どれも {state, data}）
@@ -487,6 +501,29 @@
       },
       cron: function () { return hOk ? [isOk('cron') ? 'done' : 'todo', ''] : null; },
       social: function () { return hOk ? [isOk('social') ? 'done' : 'todo', isOk('social') ? note('social') : ''] : null; },
+      profile: function () {
+        if (!src.profile || src.profile.state === 'loading') return null;
+        if (!ok(src.profile)) return null;
+        var p = src.profile.data.profile || {};
+        return ['kind', 'strengths', 'customers'].every(function (k) { return p[k]; }) ? ['done', ''] : ['todo', p.kind ? '業種のほかに、強みとお客様像も書いてください。' : ''];
+      },
+      goals: function () {
+        if (!ok(src.profile)) return null;
+        var p = src.profile.data.profile || {};
+        return p.goalInquiries || p.goalBookings || p.goalSales ? ['done', ''] : ['todo', ''];
+      },
+      menu: function () {
+        var b = ok(src.booking) ? src.booking.data : null;
+        if (!b || !b.rules) return null;
+        var svc = b.rules.services || [];
+        return svc.some(function (x) { return x.id !== 'default'; }) ? ['done', ''] : ['todo', ''];
+      },
+      firstInquiry: function () {
+        if (!ok(src.inquiries)) return null;
+        var d = src.inquiries.data;
+        var n = (d.metrics && d.metrics.counts) ? (d.metrics.counts.new || 0) + (d.metrics.counts.doing || 0) + (d.metrics.counts.done || 0) : (d.items || []).length;
+        return n > 0 ? ['done', ''] : ['todo', ''];
+      },
       brand: function () {
         var br = ok(src.social) && src.social.data.brand;
         if (!br || !br.name) return null;
@@ -697,7 +734,8 @@
     ['video', '/api/video-publish?view=badge'],
     ['statsTodo', '/api/analytics?view=badge'],
     ['seoAudit', '/api/site-audit?view=badge'],
-    ['customers', '/api/customers?view=badge']
+    ['customers', '/api/customers?view=badge'],
+    ['profile', '/api/shop-profile']
   ];
 
   function within(p, ms) {
@@ -982,7 +1020,10 @@
   function goSetting(st) {
     if (!st || !window.lumShowTab) return;
     var g = st.go || {};
+    if (g.href) { window.open(g.href, '_blank', 'noopener'); return; }
+    if (g.view === 'profile') { try { sessionStorage.setItem('lum_advisor_view', 'profile'); } catch (_) {} }
     if (window.lumShowTab(g.tab || 'health-admin') === false) return;
+    if (g.view === 'profile' && window.lumAdvisorProfile) window.lumAdvisorProfile();
     if (g.tab) { window.scrollTo(0, 0); return; }
     var label = '';
     var set = P.data && ok(P.data.settings) ? P.data.settings.data.settings || [] : [];

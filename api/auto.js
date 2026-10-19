@@ -20,7 +20,7 @@ export const config = { runtime: 'edge' }
 import { requireAdmin, json, whoOf } from './_admin-auth.js'
 import { storeFor, pipeline, jstDate } from './_analytics-store.js'
 import { setting } from './_settings.js'
-import { DEFAULT_SETTINGS, cleanSettings, evaluate, decideWatch, EXP_KEYS, SWITCH_LABELS, AREA_LABELS, MIN, GOAL_LABELS, autoAttention, autoParts } from './_auto-core.js'
+import { DEFAULT_SETTINGS, cleanSettings, evaluate, decideWatch, EXP_KEYS, SWITCH_LABELS, AREA_LABELS, MIN, GOAL_LABELS, autoAttention, autoParts, adoptedImpact } from './_auto-core.js'
 import { AK, readSettings, saveSettings, readProps, readExps, publishLive, readCounts, readLog } from './_auto-store.js'
 import { readSnapshots } from './_auto-signals.js'
 import { monthUsage } from './_ai-pricing.js'
@@ -83,6 +83,7 @@ export async function GET(req) {
     min: MIN,
     proposals: Object.values(props).sort((a, b) => (order[a.status] - order[b.status]) || String(b.updatedAt).localeCompare(String(a.updatedAt))),
     experiments: exps,
+    impact: adoptedImpact(exps),
     log,
     snapshots: snaps,
     last,

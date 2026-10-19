@@ -2615,6 +2615,14 @@
       keys: { 'text.contact.desc': { label: '問い合わせ欄の説明文', goal: '問い合わせの送信' }, 'text.lp.ctaPrimary': { label: 'トップのボタン（無料で相談する）', goal: '問い合わせ・予約・電話・LINE・メール' } },
       min: { exposures: 200, conversions: 10, days: 7, maxDays: 42, probability: 0.95, watchDays: 14, watchMin: 100 },
       proposals: PROPS, experiments: EXPS, log: LOG, snapshots: SNAPS,
+      // 採用した案の成果の目安（api/_auto-core.js の adoptedImpact と同じ数え方）
+      impact: (function () {
+        var items = EXPS.filter(function (e) { return e.adoptedAt && e.result && (e.phase === 'watch' || e.phase === 'adopted' || e.phase === 'done') && e.result.b.p > e.result.a.p; }).map(function (e) {
+          var r = e.result, perDay = (r.a.n + r.b.n) / Math.max(1, r.days || 1), d = Math.min(90, Math.floor((now - Date.parse(e.adoptedAt)) / 86400000));
+          return { id: e.id, label: e.label, days: d, lift: r.b.p - r.a.p, extra: Math.round((r.b.p - r.a.p) * perDay * d * 10) / 10 };
+        });
+        return { total: Math.round(items.reduce(function (a, x) { return a + x.extra; }, 0)), count: items.length, items: items };
+      })(),
       last: { at: new Date(now - 3 * 3600000).toISOString(), steps: [] },
       usage: { yen: 38, calls: 9, month: day(0).slice(0, 7), cap: 300 },
       ready: { github: true, ai: true, cron: true }

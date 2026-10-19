@@ -564,4 +564,21 @@ await t('要対応: 決めていない提案・良さそうな実験・下がっ
   assert.equal(C.autoParts(a).length, 3)
 })
 
+await t('採用した案の成果の目安: 上がった案だけ・1日あたりの人数×差×日数・90日まで', () => {
+  const now = Date.parse('2026-10-19T00:00:00Z')
+  const exps = [
+    { id: 'up', label: '見出し', phase: 'watch', adoptedAt: '2026-09-19T00:00:00Z', result: { days: 20, a: { n: 1000, p: 0.02 }, b: { n: 1000, p: 0.03 } } },
+    { id: 'down', phase: 'watch', adoptedAt: '2026-10-01T00:00:00Z', result: { days: 10, a: { n: 300, p: 0.05 }, b: { n: 300, p: 0.04 } } },
+    { id: 'old', phase: 'done', adoptedAt: '2026-01-01T00:00:00Z', result: { days: 10, a: { n: 100, p: 0.01 }, b: { n: 100, p: 0.02 } } },
+    { id: 'run', phase: 'running', result: { days: 10, a: { n: 100, p: 0.01 }, b: { n: 100, p: 0.05 } } },
+  ]
+  const r = C.adoptedImpact(exps, now)
+  assert.equal(r.count, 2)
+  assert.equal(r.items[0].id, 'up')
+  assert.equal(r.items[0].extra, 30)            // 100人/日 × 1% × 30日
+  assert.equal(r.items[1].days, 90, '古い採用は90日で打ち切り')
+  assert.equal(r.total, 48)                     // 30 + 20人/日 × 1% × 90日
+  assert.deepEqual(C.adoptedImpact([], now), { total: 0, count: 0, items: [] })
+})
+
 console.log(`✓ test-auto: ${n} 件`)

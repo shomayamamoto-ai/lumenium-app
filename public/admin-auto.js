@@ -76,6 +76,9 @@
       '#auto-admin button { padding: 9px 14px; font-size: 12.5px; }' +
       '.au-head { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; align-items: start; background: #f3f1ec; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }' +
       '.au-head p { font-size: 12.5px; line-height: 1.8; margin: 0; overflow-wrap: anywhere; }' +
+      '.au-impact { border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }' +
+      '.au-impact b { font-size: 13px; color: #166534; margin-right: 10px; }.au-impact-n { font-size: 20px; font-weight: 800; color: #14532d; font-variant-numeric: tabular-nums; }' +
+      '.au-impact p { margin: 4px 0 0; }' +
       '.au-head .au-acts { display: flex; flex-direction: column; gap: 6px; }' +
       '.au-stop { background: #b42318 !important; }' +
       '.au-paused { border-color: rgba(180,35,24,0.45); background: rgba(180,35,24,0.06); }' +
@@ -143,7 +146,11 @@
     if (!d.ready.cron) warn.push('CRON_SECRET が未設定のため、毎朝の処理が動きません（「いま1回動かす」は使えます）。');
     if (!d.ready.github) warn.push('GITHUB_TOKEN が未設定のため、勝った案を採用（サイトの文章を書き換え）できません。');
     if (!d.ready.ai) warn.push('AIのキーが未設定のため、下書きは作りません（提案はルールだけで出ます）。');
+    var im = d.impact || { total: 0, count: 0, items: [] };
     el('au-head').innerHTML =
+      (im.count ? '<div class="au-impact"><b>採用した案の成果（目安）</b><span class="au-impact-n">成果 約 +' + esc(im.total) + '件</span>' +
+        '<p class="soc-small">' + esc(im.count) + '件の採用から。実験のときの差（新しい案の率 − 元の率）と、そのときの1日あたりの見た人の数から、採用した日から今日まで（最長90日）に増えた分を見積もった数です。確かな数ではなく目安です。' +
+        (im.items[0] ? '　いちばん効いたもの：「' + esc(im.items[0].label) + '」（約 +' + esc(Math.round(im.items[0].extra)) + '件・' + esc(im.items[0].days) + '日間）' : '') + '</p></div>' : '') +
       '<div class="au-head' + (s.paused ? ' au-paused' : '') + '"><div>' +
       (s.paused
         ? '<p><b>すべて止めています。</b>毎朝は数字を読むだけで、実験も自動の変更もしません。実験中の文章も、全員が元の文章に戻っています。</p>'

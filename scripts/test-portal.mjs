@@ -225,11 +225,14 @@ test('設定: 全部済みなら 100%', () => {
     health: ok({ ok: true, checks: ALL_OK.concat([chk('google', 'ok')]) }),
     settings: ok({ ok: true, settings: [] }),
     social: ok({ ok: true, brand: { name: 'Sample Salon', host: 'sample.example' } }),
+    profile: ok({ ok: true, profile: { kind: '美容室', strengths: '予約制', customers: '30代', goalBookings: 40 } }),
+    booking: ok({ ok: true, connected: true, rules: { services: [{ id: 'cut', name: 'カット' }] } }),
+    inquiries: ok({ ok: true, metrics: { counts: { new: 0, doing: 1, done: 3 } } }),
   }, { host: 'www.sample.example' })
-  assert.equal(r.total, 12)
-  assert.equal(r.done, 12)
+  assert.equal(r.total, 16)
+  assert.equal(r.done, 16)
   assert.equal(r.pct, 100)
-  assert.deepEqual(r.steps.map((x) => x.n), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], '順番つき')
+  assert.deepEqual(r.steps.map((x) => x.n), Array.from({ length: 16 }, (_, i) => i + 1), '順番つき')
 })
 
 test('設定: 一部まだ・試用の送信元・使わない', () => {
@@ -254,7 +257,7 @@ test('設定: 一部まだ・試用の送信元・使わない', () => {
   assert.equal(st(r, 'resend').test, 'resend')
   // まだ: admin, sender, member, cron, brand → 済み 7 / 12
   assert.equal(r.done, 7)
-  assert.equal(r.pct, 58)
+  assert.equal(r.pct, 44, 'お店の準備（4つ）は読めていないので、済みに数えない')
 })
 
 test('設定: メールが無いと送信元も「まだ」、Google のテストはつないでから', () => {
@@ -275,6 +278,21 @@ test('設定: 本家のドメインなら社名は既定のままで済み', () 
   assert.equal(st(r, 'brand').state, 'done')
   const evil = setup({ social: ok({ ok: true, brand: { name: 'Lumenium', host: 'lumenium.net' } }) }, { host: 'notlumenium.net' })
   assert.equal(st(evil, 'brand').state, 'todo')
+})
+
+test('設定: お店の準備（プロフィール・目標・メニュー・試しの問い合わせ）は記録から決まる', () => {
+  const r = setup({
+    profile: ok({ ok: true, profile: { kind: '整体院', strengths: '', customers: '' } }),
+    booking: ok({ ok: true, rules: { services: [{ id: 'default', name: 'オンライン相談' }] } }),
+    inquiries: ok({ ok: true, metrics: { counts: { new: 0, doing: 0, done: 0 } } }),
+  }, {})
+  assert.equal(st(r, 'profile').state, 'todo')
+  assert.match(st(r, 'profile').note, /強み/)
+  assert.equal(st(r, 'goals').state, 'todo')
+  assert.equal(st(r, 'goals').optional, true)
+  assert.equal(st(r, 'menu').state, 'todo', '既定の「オンライン相談」のままなら、まだ')
+  assert.equal(st(r, 'firstInquiry').state, 'todo')
+  assert.equal(setup({ profile: { state: 'loading', data: null } }, {}).steps.find((x) => x.id === 'profile').state, 'unknown')
 })
 
 test('設定: 何も読めなければ % は出さない', () => {

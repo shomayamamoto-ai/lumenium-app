@@ -542,3 +542,24 @@ export function autoParts(a) {
     x.open ? `まだ決めていない提案 ${x.open}件` : '',
   ].filter(Boolean)
 }
+
+/** 採用した案の成果の目安。「この仕組みで、問い合わせなどが何件増えたか」を、実験中の差
+ *  （B の率 − A の率）と、実験のときの1日あたりの見た人の数から出します。採用した日から今日まで
+ *  （長くても90日）に同じだけ人が来たとしたら、という目安で、確かな数ではありません。
+ *  差がはっきりしなかった・下がった案は数えません。 */
+export function adoptedImpact(exps, now = Date.now()) {
+  const items = []
+  for (const e of Array.isArray(exps) ? exps : []) {
+    const r = e && e.result
+    if (!e || !e.adoptedAt || !r || !r.a || !r.b) continue
+    if (e.phase !== 'watch' && e.phase !== 'adopted' && e.phase !== 'done') continue
+    const lift = (Number(r.b.p) || 0) - (Number(r.a.p) || 0)
+    if (!(lift > 0)) continue
+    const perDay = ((Number(r.a.n) || 0) + (Number(r.b.n) || 0)) / Math.max(1, Number(r.days) || 1)
+    const days = Math.min(90, Math.max(0, Math.floor((now - Date.parse(e.adoptedAt)) / DAY)))
+    const extra = lift * perDay * days
+    items.push({ id: e.id, label: e.label || e.key, days, lift, extra: Math.round(extra * 10) / 10 })
+  }
+  const total = Math.round(items.reduce((a, x) => a + x.extra, 0))
+  return { total, count: items.length, items: items.sort((a, b) => b.extra - a.extra) }
+}
