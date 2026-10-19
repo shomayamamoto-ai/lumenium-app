@@ -113,6 +113,9 @@
     '.rev-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}' +
     '#reviews-admin textarea,#reviews-admin .rev-in,#reviews-admin .rev-sel{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:13px;line-height:1.6}' +
     '#reviews-admin textarea{resize:vertical}#reviews-admin .rev-in.num{width:120px}' +
+    '.rev-ph{border:1px solid var(--border);border-radius:10px;padding:8px;margin-bottom:8px;background:#fff}' +
+    '.rev-ph-top{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}#reviews-admin .rev-ph-top .rev-in{flex:1 1 160px;width:auto;min-width:0}#reviews-admin .rev-ph-top .rev-sel{width:auto;flex:0 0 auto}' +
+    'a.rev-linkbtn{display:inline-flex;align-items:center;font-size:12px;padding:8px 13px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:inherit;background:#fff}' +
     '.rev-count{font-size:11px;color:var(--sub);margin:4px 0 8px}.rev-count.over{color:#b42318;font-weight:700}' +
     '.rev-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}' +
     '.rev-tbl{width:100%;border-collapse:collapse;font-size:12.5px}.rev-tbl td,.rev-tbl th{padding:6px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}' +
@@ -361,6 +364,12 @@
         'お客様の来店日や内容など、個人のことには触れないでください。</div>' : '') +
       '<div class="rev-sec"><h4>' + (r.reply ? '返信を直す' : '返信を書く') + '</h4>' +
         '<label for="rev-text" style="position:absolute;left:-9999px">返信</label>' +
+        (function () {
+          var ph = core().phrasesFor((S.data.prefs && S.data.prefs.phrases) || [], r.stars);
+          return ph.length ? '<div class="rev-field" style="margin-bottom:8px"><label for="rev-phrase">定型の返信文から入れる</label><select class="rev-sel" id="rev-phrase"><option value="">（選ぶと下の欄に入ります）</option>' +
+            ph.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('') + '</select></div>'
+            : '<p class="soc-small" style="margin-bottom:8px">よく使う返信は「設定」の「定型の返信文」に登録しておくと、ここから選んで入れられます。</p>';
+        })() +
         '<textarea id="rev-text" rows="7" placeholder="ご来店ありがとうございました。…">' + esc(text) + '</textarea>' +
         '<div class="rev-count" id="rev-count"></div>' +
         '<div class="rev-acts">' +
@@ -384,6 +393,14 @@
     };
     ta.addEventListener('input', function () { S.draft[id] = ta.value; count(); });
     count();
+    if (el('rev-phrase')) el('rev-phrase').addEventListener('change', function () {
+      var p = ((S.data.prefs && S.data.prefs.phrases) || []).filter(function (x) { return x.id === el('rev-phrase').value; })[0];
+      if (!p) return;
+      if (ta.value.trim() && !confirm('いま書いてある文を、この定型文で置き換えます。よろしいですか？')) { el('rev-phrase').value = ''; return; }
+      var sig = S.data.prefs && S.data.prefs.signature;
+      ta.value = core().fillPhrase(p.body, r, S.data.prefs && S.data.prefs.shopName) + (sig && p.body.indexOf(sig) < 0 ? '\n' + sig : '');
+      S.draft[id] = ta.value; count(); ta.focus();
+    });
     el('rev-post').addEventListener('click', function () { postReply(r); });
     el('rev-ai').addEventListener('click', function () { aiDraft(r); });
     if (el('rev-del')) el('rev-del').addEventListener('click', function () { deleteReply(r); });
@@ -618,6 +635,21 @@
           'ふつうは空のままで構いません（同期したときに Google から取ります）。取れないときだけ、Google の「Place ID Finder」で調べて入れてください。') +
       '</div></div>' +
       '<div class="rev-acts" style="margin-top:12px"><button type="button" id="rev-save">保存する</button></div>' +
+      phrasesHtml(p) +
+      '<div class="rev-grid2">' +
+      '<div class="rev-sec"><h4>低い評価のお知らせ（LINE）</h4>' +
+        '<label class="rev-loc"><input type="checkbox" id="rev-low"' + (p.lowAlert !== false ? ' checked' : '') + '><span>星1〜2の口コミが届いたら、毎朝の同期のときにあなたの LINE に知らせる</span></label>' +
+        '<p class="soc-small" style="margin-top:6px">宛先は、問い合わせ管理か予約管理に入れた「あなたの LINE ユーザーID」です。早めの丁寧な返信は、これから来るお客様からの印象も良くします。</p>' +
+      '</div>' +
+      '<div class="rev-sec"><h4>サイトに口コミを載せる</h4>' +
+        '<label class="rev-loc"><input type="checkbox" id="rev-wg"' + (p.widget ? ' checked' : '') + '><span>Google の口コミを、自分のサイトに載せる</span></label>' +
+        field('rev-wgmin', '載せる口コミ', '<select class="rev-sel" id="rev-wgmin"><option value="4"' + (p.widgetMin !== 5 ? ' selected' : '') + '>星4以上で文章のあるもの</option><option value="5"' + (p.widgetMin === 5 ? ' selected' : '') + '>星5で文章のあるもの</option></select>',
+          '新しい順に6件まで。こちらで1件ずつ選ぶことはしません（決まりに合うものが機械的に並びます）。お名前は表示名の最初の部分だけ出します。') +
+        '<p class="soc-small" style="margin-top:6px">サイトやホームページ作成サービスの「HTML を埋め込む」部品に、次のコードを貼ってください。</p>' +
+        '<textarea id="rev-wgcode" rows="3" readonly style="font-family:ui-monospace,monospace;font-size:12px">' + esc('<iframe src="' + location.origin + '/reviews-widget.html" title="お客様の声" style="width:100%;height:420px;border:0" loading="lazy"></iframe>') + '</textarea>' +
+        '<div class="rev-acts" style="margin-top:6px"><button type="button" class="ghost" id="rev-wgcopy">コードをコピー</button><a class="ghost rev-linkbtn" href="/reviews-widget.html" target="_blank" rel="noopener">表示を確かめる</a></div>' +
+      '</div></div>' +
+      '<div class="rev-acts" style="margin-top:12px"><button type="button" id="rev-save2">この内容で保存する</button></div>' +
       '<div class="rev-sec"><h4>口コミを見る店舗</h4>' +
         (locs.length ? locs.map(function (l) { return '<div class="soc-small">' + esc(l.title || '') + ' <span style="color:var(--sub)">' + esc(l.name) + '</span>' + (l.syncedAt ? '・' + when(l.syncedAt) + ' に同期' : '') + '</div>'; }).join('')
           : '<p class="soc-small">まだ選ばれていません。</p>') +
@@ -633,8 +665,49 @@
         monthlyYen: el('rev-yen').value, contact: el('rev-contact').value, placeId: el('rev-place').value
       });
     });
+    var saveMore = function () {
+      savePrefs({ phrases: readPhrases(), lowAlert: el('rev-low').checked, widget: el('rev-wg').checked, widgetMin: Number(el('rev-wgmin').value) });
+    };
+    el('rev-save2').addEventListener('click', saveMore);
+    el('rev-ph-save').addEventListener('click', saveMore);
+    el('rev-ph-add').addEventListener('click', function () {
+      var list = readPhrases();
+      if (list.length >= 15) { say('定型文は15件までです。'); return; }
+      list.push({ id: '', name: '', stars: 'high', body: '' });
+      el('rev-ph-list').innerHTML = list.map(phraseRow).join('');
+    });
+    el('rev-ph-list').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ph-del]');
+      if (b) b.closest('.rev-ph').remove();
+    });
+    el('rev-wgcopy').addEventListener('click', async function () {
+      var ok = false;
+      try { await navigator.clipboard.writeText(el('rev-wgcode').value); ok = true; } catch (_) {}
+      say(ok ? 'コピーしました。' : 'コピーできませんでした。選んでコピーしてください。', ok);
+    });
     el('rev-locs').addEventListener('click', pickLocations);
     el('rev-full').addEventListener('click', function () { if (confirm('すべての口コミを Google から読み直します（件数が多いと30秒ほどかかります）。')) sync(true); });
+  }
+  /* 定型の返信文。{name} はお名前（無ければ「お客様」）、{shop} は店名に置き換わります。 */
+  var PH_STARS = { all: 'すべての星', high: '星4〜5', mid: '星3', low: '星1〜2' };
+  function phraseRow(x) {
+    return '<div class="rev-ph" data-ph="' + esc(x.id || '') + '">' +
+      '<div class="rev-ph-top"><input class="rev-in" data-ph-name maxlength="40" placeholder="名前（例：初めてのお客様へ）" value="' + esc(x.name || '') + '">' +
+      '<select class="rev-sel" data-ph-stars>' + Object.keys(PH_STARS).map(function (k) { return '<option value="' + k + '"' + (x.stars === k ? ' selected' : '') + '>' + PH_STARS[k] + '</option>'; }).join('') + '</select>' +
+      '<button type="button" class="ghost" data-ph-del>消す</button></div>' +
+      '<textarea data-ph-body rows="3" maxlength="1500" placeholder="{name}、ご来店ありがとうございました。…">' + esc(x.body || '') + '</textarea></div>';
+  }
+  function phrasesHtml(p) {
+    var list = p.phrases || [];
+    return '<div class="rev-sec"><h4>定型の返信文（AI がなくても使えます）</h4>' +
+      '<p class="soc-small" style="margin-bottom:8px">返信を書く画面で、口コミの星の数に合うものを選んで入れられます。<b>{name}</b> はお名前（無ければ「お客様」）、<b>{shop}</b> は店名に置き換わります。入れたあとで直してから出してください。</p>' +
+      '<div id="rev-ph-list">' + list.map(phraseRow).join('') + '</div>' +
+      '<div class="rev-acts" style="margin-top:6px"><button type="button" class="ghost" id="rev-ph-add">＋ 定型文を足す</button><button type="button" id="rev-ph-save">定型文を保存する</button></div></div>';
+  }
+  function readPhrases() {
+    return [].slice.call(document.querySelectorAll('#rev-ph-list .rev-ph')).map(function (row) {
+      return { id: row.getAttribute('data-ph') || '', name: row.querySelector('[data-ph-name]').value, stars: row.querySelector('[data-ph-stars]').value, body: row.querySelector('[data-ph-body]').value };
+    }).filter(function (x) { return x.body.trim(); });
   }
   function field(id, lb, input, hint) {
     return '<div class="rev-field"><label for="' + id + '">' + esc(lb) + '</label>' + input + (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';

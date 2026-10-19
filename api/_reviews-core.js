@@ -408,6 +408,79 @@ export function replyPrompt(review, prefs) {
 }
 
 /** 返信の長さを UTF-8 のバイトで数えます。 */
+/* ---------------------------------------------------------- 定型の返信文 --
+   AI の下書きとは別に、お店の言葉で書いた返信文をいくつか持っておけます。
+   AI のキーが無くても使え、毎回同じ言い回しで返せます。{name} は口コミを書いた方の
+   お名前（無ければ「お客様」）、{shop} は店名に置き換わります。 */
+export const PHRASE_STARS = { all: 'すべての星', high: '星4〜5', mid: '星3', low: '星1〜2' }
+export const MAX_PHRASES = 15
+
+export function cleanPhrases(list) {
+  const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n)
+  const out = []
+  const seen = {}
+  for (const x of Array.isArray(list) ? list : []) {
+    if (!x || typeof x !== 'object') continue
+    const body = String(x.body == null ? '' : x.body).replace(/\r\n?/g, '\n').slice(0, 1500).trim()
+    if (!body) continue
+    let id = /^[a-z0-9]{4,16}$/.test(String(x.id || '')) ? String(x.id) : Math.random().toString(36).slice(2, 10)
+    if (seen[id]) id = id + out.length
+    seen[id] = 1
+    out.push({ id, name: str(x.name, 40) || body.slice(0, 20), stars: PHRASE_STARS[x.stars] ? x.stars : 'all', body })
+    if (out.length >= MAX_PHRASES) break
+  }
+  return out
+}
+
+/** その星の数に合う定型文（「すべての星」のものも含む）。 */
+export function phrasesFor(list, stars) {
+  const band = stars >= 4 ? 'high' : stars === 3 ? 'mid' : stars >= 1 ? 'low' : ''
+  return (Array.isArray(list) ? list : []).filter((p) => p.stars === 'all' || p.stars === band)
+}
+
+export function fillPhrase(body, review, shop) {
+  const name = String((review && review.author) || '').trim()
+  return String(body || '').replace(/\{name\}/g, name ? name + ' 様' : 'お客様').replace(/\{shop\}/g, String(shop || ''))
+}
+
+/* ------------------------------------------------- サイトに載せる口コミ --
+   星4以上（または5だけ）で文章のあるものを、新しい順に。お名前は Google に
+   出ている表示名の最初の区切りまでにして「様」を付けます（匿名の方は「Google のお客様」）。
+   載せる口コミを選びはしません。決まりに合うものは、良くても悪くても機械的に並びます。 */
+export function shortAuthor(name) {
+  const n = String(name || '').trim()
+  if (!n) return 'Google のお客様'
+  return n.split(/[\s　]+/)[0].slice(0, 12) + ' 様'
+}
+
+export function widgetItems(reviews, opt) {
+  const o = opt || {}
+  const min = o.min === 5 ? 5 : 4
+  const max = Math.max(1, Math.min(12, o.max || 6))
+  return (Array.isArray(reviews) ? reviews : [])
+    .filter((r) => r && r.stars >= min && String(r.comment || '').trim().length >= 8)
+    .slice().sort(byNew).slice(0, max)
+    .map((r) => ({ stars: r.stars, author: shortAuthor(r.author), text: String(r.comment).trim().slice(0, 240), date: String(r.createdAt || '').slice(0, 10) }))
+}
+
+/* -------------------------------------------- 低い評価の口コミのお知らせ --
+   新しく届いた口コミのうち、星が max 以下のもの。同じ日のうちに返信できるように、
+   毎朝の同期で見つけたらオーナーの LINE に知らせます。 */
+export function lowStarNew(items, max) {
+  const m = max || 2
+  return (Array.isArray(items) ? items : []).filter((r) => r && r.stars >= 1 && r.stars <= m)
+}
+
+export function lowStarText(list, shop, url) {
+  if (!list.length) return ''
+  return [
+    `${shop ? shop + ' に' : ''}低い評価の口コミが ${list.length} 件届きました。`,
+    ...list.slice(0, 3).map((r) => `★${r.stars}　${shortAuthor(r.author)}${r.comment ? '「' + String(r.comment).replace(/\s+/g, ' ').slice(0, 40) + (String(r.comment).length > 40 ? '…' : '') + '」' : '（本文なし）'}`),
+    '早めの丁寧な返信は、ほかの方からの印象も良くします。',
+    url,
+  ].filter(Boolean).join('\n')
+}
+
 export function byteLength(s) {
   return new TextEncoder().encode(String(s || '')).length
 }

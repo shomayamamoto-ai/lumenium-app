@@ -37,6 +37,7 @@ import { manageSecret, sandboxFrom, ownerAddress } from './_booking-mail.js'
 import {
   normalizeReview, mergeReviews, needMore, filterCounts, attentionDigest, reviewAttention, replyPrompt, byteLength, REPLY_MAX_BYTES,
   reviewLink, requestEligibility, requestMail, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS, TONES,
+  cleanPhrases, widgetItems, lowStarNew, lowStarText,
 } from './_reviews-core.js'
 import { createWithFallback } from './_ai-create.js'
 
@@ -83,10 +84,18 @@ export function normalizePrefs(input, base) {
   if ('contact' in x) p.contact = str(x.contact, 120)
   if ('monthlyYen' in x) { const n = Math.floor(Number(x.monthlyYen)); p.monthlyYen = n > 0 && n <= 100000 ? n : DEFAULT_MONTHLY_YEN }
   if ('locations' in x) p.locations = (Array.isArray(x.locations) ? x.locations : []).map(String).filter((l) => LOCATION_RE.test(l)).slice(0, MAX_LOCATIONS)
+  if ('phrases' in x) p.phrases = cleanPhrases(x.phrases)
+  if ('lowAlert' in x) p.lowAlert = !!x.lowAlert
+  if ('widget' in x) p.widget = !!x.widget
+  if ('widgetMin' in x) p.widgetMin = Number(x.widgetMin) === 5 ? 5 : 4
   return p
 }
 export function defaultPrefs() {
-  return { shopName: BRAND.name, tone: 'polite', signature: '', notes: '', placeId: '', requests: 'off', contact: '', monthlyYen: DEFAULT_MONTHLY_YEN, locations: [] }
+  return {
+    shopName: BRAND.name, tone: 'polite', signature: '', notes: '', placeId: '', requests: 'off', contact: '', monthlyYen: DEFAULT_MONTHLY_YEN, locations: [],
+    // 定型の返信文・低い評価のお知らせ（LINE）・サイトに載せる口コミ（既定は載せない）
+    phrases: [], lowAlert: true, widget: false, widgetMin: 4,
+  }
 }
 
 export async function readPrefs(cfg = storeConfig()) {
@@ -230,6 +239,7 @@ export async function syncReviews(req, opts = {}) {
     }
     const auth = { headers: { Authorization: `Bearer ${t.token}` } }
     let added = 0
+    const addedItems = []
     let fail = null
     const writes = []
     const all = []
@@ -254,7 +264,9 @@ export async function syncReviews(req, opts = {}) {
       if (fail) break
       const fresh = pages.flatMap((p) => (p.reviews || []).map((x) => normalizeReview(x, loc)))
       const ids = new Set(old.map((x) => x.id))
-      added += fresh.filter((x) => !ids.has(x.id)).length
+      const news = fresh.filter((x) => !ids.has(x.id))
+      added += news.length
+      addedItems.push(...news)
       // 最後まで読めた full のときだけ、返ってこなかったもの（消された口コミ）を落とします。
       const merged = (full && complete ? mergeReviews([], fresh) : mergeReviews(old, fresh)).slice(0, KEEP)
       lm.high = merged.reduce((m, x) => (x.updatedAt > m ? x.updatedAt : m), lm.high || '')
@@ -279,7 +291,7 @@ export async function syncReviews(req, opts = {}) {
     meta.unreplied = filterCounts(all).unreplied
     meta.digest = attentionDigest(all)
     await saveMeta(cfg, meta)
-    return { ok: true, added, message: added ? `新しい口コミが ${added} 件ありました。` : '新しい口コミはありませんでした。' }
+    return { ok: true, added, addedItems, message: added ? `新しい口コミが ${added} 件ありました。` : '新しい口コミはありませんでした。' }
   } finally {
     try { await pipeline(cfg, [['DEL', RK.lock]]) } catch (_) {}
   }
@@ -516,6 +528,11 @@ export async function runReviewsCron(req, budget = 6000) {
     try { sync = await syncReviews(req, { maxPages: 2, budget: Math.max(2000, budget - 2500) }) }
     catch (e) { sync = { ok: false, message: errText(e) } }
   }
+  let lowAlert = null
+  if (sync && sync.ok && prefs.lowAlert) {
+    const low = lowStarNew(sync.addedItems, 2)
+    if (low.length) lowAlert = await pushLow(req, cfg, low, prefs)
+  }
   let sent = 0
   if (prefs.requests === 'auto' && Date.now() - started < budget - 1500) {
     try {
@@ -526,7 +543,49 @@ export async function runReviewsCron(req, budget = 6000) {
       }
     } catch (_) {}
   }
-  return { ok: !sync || sync.ok, sync: sync && { ok: sync.ok, added: sync.added, code: sync.code }, sent }
+  return { ok: !sync || sync.ok, sync: sync && { ok: sync.ok, added: sync.added, code: sync.code }, sent, lowAlert }
+}
+
+/** 低い評価の口コミを、オーナーの LINE に1通。宛先は問い合わせ管理か予約管理で
+ *  入れた「あなたの LINE ユーザーID」（どちらか入っている方）です。 */
+async function pushLow(req, cfg, low, prefs) {
+  const token = await setting('LINE_CHANNEL_TOKEN', '', req)
+  if (!token) return { ok: false, message: 'LINE_CHANNEL_TOKEN がありません。' }
+  let to = ''
+  try {
+    const [inq, bk] = await pipeline(cfg, [['GET', `${KV}inq:settings`], ['GET', `${KV}bk:rules`]])
+    const a = parse(inq, {}), b = parse(bk, {})
+    to = (a.lineOn && a.lineUserId) || b.lineUserId || ''
+  } catch (_) {}
+  if (!/^U[0-9a-f]{32}$/.test(to)) return { ok: false, message: 'LINE のユーザーIDがありません。' }
+  try {
+    const res = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, messages: [{ type: 'text', text: lowStarText(low, prefs.shopName, `${BRAND.url}/admin-members.html#reviews-admin`) }] }),
+    })
+    return { ok: res.ok, count: low.length }
+  } catch (e) {
+    return { ok: false, message: errText(e) }
+  }
+}
+
+/** サイトに載せる口コミ（設定で「載せる」にしたときだけ）。管理キーは要りません。 */
+export async function widgetData(req) {
+  const cfg = storeConfig()
+  const prefs = await readPrefs(cfg)
+  if (!cfg || !prefs.widget) return { ok: true, enabled: false, items: [] }
+  const meta = await readMeta(cfg)
+  const locs = await locationsFor(prefs, req)
+  const all = await readItems(cfg, locs)
+  let sum = 0, n = 0
+  for (const l of locs) { const m = meta.locs[l] || {}; if (m.avg && m.total) { sum += m.avg * m.total; n += m.total } }
+  return {
+    ok: true, enabled: true, shop: prefs.shopName,
+    avg: n ? Math.round((sum / n) * 10) / 10 : null, total: n,
+    link: linkFor(prefs, meta),
+    items: widgetItems(all, { min: prefs.widgetMin, max: 6 }),
+  }
 }
 
 export { gbpLocations, pub }

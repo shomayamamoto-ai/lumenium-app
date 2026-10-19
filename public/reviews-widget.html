@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>お客様の声</title>
+<meta name="robots" content="noindex">
+<!--
+  サイトに載せる Google の口コミ（管理画面の 口コミ管理 › 設定 で「載せる」にしたときだけ中身が出ます）。
+  ほかのサイトにも枠（iframe）で埋め込めます。載せる口コミは /api/reviews?view=widget が決まりで選び、
+  ここはそれを並べるだけです。星の評価の構造化データ（検索結果の星）は付けません。
+  自分の店の口コミを自分のページに載せても、Google はそれを星として表示しないためです。
+-->
+<style>
+:root{--ink:#17171c;--ink2:#4a4a55;--ink3:#77778a;--line:rgba(23,23,28,.12);--star:#f5a524}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Yu Gothic UI','Noto Sans JP',system-ui,-apple-system,sans-serif;color:var(--ink);background:transparent;line-height:1.7;font-feature-settings:"palt" 1;-webkit-font-smoothing:antialiased;padding:4px}
+.head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.head h2{font-size:17px;font-weight:800}
+.avg{font-size:14px;color:var(--ink2)}.avg b{font-size:18px;color:var(--ink)}
+.stars{color:var(--star);letter-spacing:1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:10px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(23,23,28,.05)}
+.card p{font-size:14px;color:var(--ink2);margin:6px 0 8px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.who{font-size:12.5px;color:var(--ink3)}
+.foot{margin-top:12px;font-size:12.5px;color:var(--ink3);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.foot a{color:#3d3fbf;font-weight:700}
+.empty{font-size:13px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<div id="app" aria-live="polite"></div>
+<script>
+(function () {
+  'use strict';
+  var app = document.getElementById('app');
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function stars(n) { var s = ''; for (var i = 1; i <= 5; i++) s += i <= n ? '★' : '☆'; return '<span class="stars" aria-label="星' + n + 'つ">' + s + '</span>'; }
+  function day(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? m[1] + '年' + (+m[2]) + '月' : ''; }
+  function tell() { try { if (window.parent !== window) window.parent.postMessage({ type: 'lum-reviews-height', height: document.documentElement.scrollHeight }, '*'); } catch (_) {} }
+  fetch('/api/reviews?view=widget').then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || !d.ok || !d.enabled || !d.items || !d.items.length) { app.innerHTML = ''; tell(); return; }
+    app.innerHTML = '<div class="head"><h2>お客様の声</h2>' +
+      (d.avg ? '<span class="avg">' + stars(Math.round(d.avg)) + ' <b>' + esc(d.avg.toFixed(1)) + '</b>（Google の口コミ ' + esc(d.total) + '件）</span>' : '') + '</div>' +
+      '<div class="grid">' + d.items.map(function (x) {
+        return '<article class="card">' + stars(x.stars) + '<p>' + esc(x.text) + '</p><div class="who">' + esc(x.author) + (x.date ? '・' + esc(day(x.date)) : '') + '</div></article>';
+      }).join('') + '</div>' +
+      '<div class="foot"><span>Google の口コミから、新しい順に載せています。</span>' + (d.link ? '<a href="' + esc(d.link) + '" target="_blank" rel="noopener">Google で口コミを書く</a>' : '') + '</div>';
+    tell();
+  }).catch(function () { app.innerHTML = ''; tell(); });
+  window.addEventListener('resize', tell);
+})();
+</script>
+</body>
+</html>

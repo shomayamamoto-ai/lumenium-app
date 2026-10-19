@@ -22,7 +22,7 @@ import { BRAND } from './_brand.js'
 import { sandboxFrom, manageSecret } from './_booking-mail.js'
 import {
   readPrefs, savePrefs, readMeta, readItems, readSeen, writeSeen, reviewBadge, locationsFor, connection, syncReviews, setReply, draftReply, aiStatus,
-  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub,
+  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData,
 } from './_reviews.js'
 import { REPLY_MAX_BYTES, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS } from './_reviews-core.js'
 
@@ -81,6 +81,13 @@ export async function GET(req) {
     return ok
       ? page('配信を停止しました', '今後、口コミのお願いのメールはお送りしません。ご利用ありがとうございました。')
       : page('いま停止できませんでした', '時間をおいてもう一度開くか、店舗まで直接ご連絡ください。', 503)
+  }
+  // サイトに載せる口コミ（お店が「載せる」にしたときだけ中身を返します）。管理キーは要りません。
+  if (url.searchParams.get('view') === 'widget') {
+    const d = await widgetData(req)
+    return new Response(JSON.stringify(d), {
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=300, s-maxage=3600', 'access-control-allow-origin': '*' },
+    })
   }
   const denied = await requireAdmin(req)
   if (denied) return denied
