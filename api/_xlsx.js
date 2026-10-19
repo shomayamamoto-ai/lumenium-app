@@ -2,7 +2,7 @@
 // Pure Web APIs (TextEncoder/Uint8Array) — runs in edge functions and
 // browsers alike. Same generator as the admin page, server-side.
 
-export function buildXlsx(rows) {
+export function buildXlsx(rows, sheetName = '会員リスト') {
   const enc = new TextEncoder()
   const esc = (s) =>
     String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -36,7 +36,7 @@ export function buildXlsx(rows) {
     ['xl/workbook.xml',
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-      '<sheets><sheet name="会員リスト" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+      '<sheets><sheet name="' + esc(sheetName).slice(0, 31) + '" sheetId="1" r:id="rId1"/></sheets></workbook>'],
     ['xl/_rels/workbook.xml.rels',
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +

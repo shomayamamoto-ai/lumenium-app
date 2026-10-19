@@ -15,14 +15,19 @@ export const config = { runtime: 'edge' }
 //   POST { action:'send', id, to, subject, body } -> リンク入りのメールを送り、送付済みにする
 //   POST { action:'settings', settings }     -> 発行元・端数処理・メールの文など
 //   POST { action:'catalog', items }         -> よく使う品目
+//   POST { action:'payment.add', id, date, amount, note } / { action:'payment.remove', id, index } -> 請求書の入金
+//   GET ?id=<id>&version=<n>         -> 訂正する前の版（第 n 版）
+//   GET ?export=xlsx                 -> 見積書・請求書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
 import {
   loadQuoteSettings, saveQuoteSettings, loadCatalog, saveCatalog, getQuote, saveQuote, allQuoteSummaries, setQuoteStatus,
-  deleteQuote, viewLink, sendQuote, mailState,
+  deleteQuote, viewLink, sendQuote, mailState, getVersion, paymentQuote,
 } from './_quotes.js'
-import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention } from './_quote-core.js'
+import { buildXlsx } from './_xlsx.js'
+import { BRAND } from './_brand.js'
+import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention, statusLabel, QUOTE_STATUS, INVOICE_STATUS } from './_quote-core.js'
 
 const NO_STORE = '保存先（Upstash Redis）が無いため、見積書を保存できません。「設定状況」で保存先をつないでください。'
 
@@ -42,6 +47,29 @@ export async function GET(req) {
   const u = new URL(req.url)
   try {
     const id = u.searchParams.get('id')
+    const ver = Number(u.searchParams.get('version'))
+    if (id && ver) {
+      const v = await getVersion(cfg, id, ver)
+      return v ? json({ ok: true, quote: v }) : json({ ok: false, message: 'その版は見つかりませんでした。' }, 404)
+    }
+    if (u.searchParams.get('export') === 'xlsx') {
+      const list = await allQuoteSummaries(cfg)
+      const today = jstToday()
+      const rows = [['種類', '番号', '発行日', '取引先', '件名', '合計（税込）', '状態', '有効期限', '支払期限', '入金済み', '残り', '版', '送った日', '決まった日']]
+      for (const s of list.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))) {
+        const inv = (s.kind || 'quote') === 'invoice'
+        rows.push([inv ? '請求書' : '見積書', s.number, s.date, s.to, s.subject, s.total, statusLabel(s, today) || (inv ? INVOICE_STATUS : QUOTE_STATUS)[s.status] || '',
+          s.validUntil || '', s.dueDate || '', inv ? (s.paid || 0) : '', inv ? (s.balance != null ? s.balance : '') : '', s.version || 1,
+          String(s.sentAt || '').slice(0, 10), String(s.decidedAt || '').slice(0, 10)])
+      }
+      return new Response(buildXlsx(rows, '見積書・請求書'), {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${BRAND.slug}-quotes-${today}.xlsx"`,
+          'Cache-Control': 'no-store, private',
+        },
+      })
+    }
     if (id) {
       const q = await getQuote(cfg, id)
       return q ? json({ ok: true, quote: q }) : json({ ok: false, message: 'その見積書は見つかりませんでした（消されたかもしれません）。' }, 404)
@@ -107,6 +135,7 @@ export async function POST(req) {
       const r = await saveQuoteSettings(cfg, b.settings || {})
       return reply(r.ok ? { ok: true, settings: r.settings, regNo: checkRegNo(r.settings.regNo), message: '設定を保存しました。' } : r)
     }
+    if (action === 'payment.add' || action === 'payment.remove') return reply(await paymentQuote(cfg, id, b, action === 'payment.remove'))
     if (action === 'catalog') return reply({ ok: true, catalog: await saveCatalog(cfg, b.items), message: 'よく使う品目を保存しました。' })
   } catch (e) {
     return json({ ok: false, message: 'うまくいきませんでした（' + String((e && e.message) || e).slice(0, 100) + '）。時間をおいてもう一度お試しください。' }, 502)

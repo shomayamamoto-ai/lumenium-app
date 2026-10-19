@@ -572,4 +572,46 @@ await test('要対応: 期限が近い・期限切れ・支払期限切れ・開
   assert.equal(C.ATTN_LABEL.overdue, '支払期限切れ')
 })
 
+await test('入金: 一部入金→残り・全額で入金済み・取り消しで送付済みに戻る', () => {
+  const q = { kind: 'invoice', status: 'sent', taxMode: 'excl', items: [{ kind: 'item', name: 'a', qty: 1, price: 10000, rate: 10 }] }
+  let r = C.addPayment(q, { amount: 5000, date: '2026-10-01' }, 'floor', '2026-10-02T00:00:00Z')
+  assert.equal(r.left, 6000)
+  assert.equal(r.quote.status, 'sent')
+  assert.equal(C.quoteSummary(r.quote, 'floor').balance, 6000)
+  r = C.addPayment(r.quote, { amount: 6000 }, 'floor', '2026-10-03T00:00:00Z')
+  assert.equal(r.quote.status, 'paid')
+  assert.equal(C.removePayment(r.quote, 1, 'floor', '2026-10-04T00:00:00Z').quote.status, 'sent')
+  assert.equal(C.addPayment({ kind: 'quote', items: [] }, { amount: 1 }, 'floor', 'x').ok, false)
+  assert.equal(C.addPayment(q, { amount: 0 }, 'floor', 'x').ok, false)
+  // 一部入金でも、残りがあって期限を過ぎれば「支払期限切れ」
+  const s = Object.assign(C.quoteSummary(C.addPayment(q, { amount: 5000 }, 'floor', 'x').quote, 'floor'), { dueDate: '2026-09-30' })
+  assert.equal(C.quoteAttentionKind(s, '2026-10-05'), 'overdue')
+  assert.equal(C.quoteAttentionKind(Object.assign({}, s, { balance: 0 }), '2026-10-05'), '')
+})
+
+await test('電子帳簿保存法: 送った書類は守る・日付と金額と取引先で探す', () => {
+  assert.equal(C.isLocked({ status: 'draft' }), false)
+  assert.equal(C.isLocked({ status: 'draft', sentAt: '2026-10-01T00:00:00Z' }), true)
+  assert.equal(C.isLocked({ status: 'won' }), true)
+  const L = [
+    { id: '1', kind: 'quote', number: 'Q-1', date: '2026-09-01', to: '株式会社サンプル', subject: 'サイト', total: 100000 },
+    { id: '2', kind: 'invoice', number: 'INV-1', date: '2026-10-01', to: 'めぐみ商店', subject: '研修', total: 50000 },
+  ]
+  assert.deepEqual(C.searchQuotes(L, { from: '2026-09-15' }).map((x) => x.id), ['2'])
+  assert.deepEqual(C.searchQuotes(L, { min: '60000' }).map((x) => x.id), ['1'])
+  assert.deepEqual(C.searchQuotes(L, { q: 'めぐみ', kind: 'invoice' }).map((x) => x.id), ['2'])
+  assert.equal(C.INVOICE_STATUS.void, '取消')
+})
+
+await test('お客様の承諾: 送った見積書だけ・期限切れや受注済みは不可', () => {
+  const q = { kind: 'quote', status: 'sent', validUntil: '2026-10-31', history: [] }
+  assert.equal(C.canAccept(q, '2026-10-10').ok, true)
+  assert.equal(C.canAccept(q, '2026-11-01').reason, 'expired')
+  const r = C.acceptQuote(q, '山田 花子', '2026-10-10T01:00:00Z')
+  assert.equal(r.quote.status, 'won')
+  assert.equal(r.quote.acceptedBy, '山田 花子')
+  assert.equal(C.canAccept(r.quote, '2026-10-10').reason, 'done')
+  assert.equal(C.canAccept({ kind: 'invoice', status: 'sent' }, '2026-10-10').reason, 'kind')
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)

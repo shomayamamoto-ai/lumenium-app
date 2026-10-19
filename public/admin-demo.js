@@ -3061,7 +3061,15 @@
   INV.decidedAt = ''; INV.memo = '';
   INV.dueDate = new Date(Date.UTC(Number(INV.date.slice(0, 4)), Number(INV.date.slice(5, 7)) + 1, 0)).toISOString().slice(0, 10);
   INV.history = [{ at: iso(11, 1), what: 'created', text: '受注した見積書から作成' }, { at: iso(11, 2), what: 'mail', text: 'daisuke@example.com にメールで送った' }, { at: iso(10, 4), what: 'opened', text: 'お客様がリンクを開いた' }];
+  // 一部入金の見本（残りは支払期限まで）。
+  INV.payments = [{ date: ymd(3), amount: 100000, note: '振込（一部）', at: iso(3, 1) }];
+  INV.history.push({ at: iso(3, 1), what: 'payment', text: '入金 ¥100,000（一部）' });
   QUOTES.push(INV);
+  // お客様がリンクから発注した見本（受注・承諾者つき）と、訂正版の見本。
+  QUOTES.forEach(function (q) {
+    if (q.id === 'qtdemo9') { q.acceptedBy = '小林 誠'; q.acceptedAt = q.decidedAt; q.history.push({ at: q.decidedAt, what: 'accepted', text: 'お客様がリンクから「この内容で発注」（小林 誠）' }); }
+    if (q.id === 'qtdemo11') { q.version = 2; q.versions = [{ n: 1, at: iso(2, 3) }]; q.history.push({ at: iso(2, 3), what: 'edited', text: '訂正（第2版。第1版はそのまま残しています）' }); }
+  });
 
   /* 見本の印影（角印）。画像ファイルを持たずに、その場で描きます。 */
   var seal = '';
@@ -3104,6 +3112,13 @@
   async function answer(u, method, body, ask) {
     if (method === 'GET') {
       var id = u.searchParams.get('id');
+      if (id && u.searchParams.get('version')) {
+        var v0 = QUOTES.filter(function (x) { return x.id === id; })[0];
+        if (!v0) return { ok: false, message: 'その版は見つかりませんでした。' };
+        var v1 = JSON.parse(JSON.stringify(v0));
+        v1.version = 1; v1.versions = []; v1.items = v1.items.map(function (it, i) { return i === 0 && it.price ? Object.assign({}, it, { price: Math.round(it.price * 1.1) }) : it; });
+        return { ok: true, quote: v1 };
+      }
       if (id) {
         var q = QUOTES.filter(function (x) { return x.id === id; })[0];
         return q ? { ok: true, quote: q } : { ok: false, message: 'その見積書は見つかりませんでした。' };

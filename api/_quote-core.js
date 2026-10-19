@@ -30,7 +30,7 @@
 
 /** 状態。「期限切れ」は保存しません（有効期限と今日から決まるため）。 */
 export const QUOTE_STATUS = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', expired: '期限切れ' }
-export const INVOICE_STATUS = { draft: '下書き', sent: '送付済み', paid: '入金済み' }
+export const INVOICE_STATUS = { draft: '下書き', sent: '送付済み', paid: '入金済み', void: '取消' }
 /** 税率。0 は非課税（消費税がかからないもの）。 */
 export const RATES = [10, 8, 0]
 export const RATE_LABEL = { 10: '10%', 8: '8%（軽減）', 0: '非課税' }
@@ -361,7 +361,9 @@ export const ATTN_LABEL = { expiring: '期限が近い', expired: '期限切れ'
 export function quoteAttentionKind(q, today) {
   if (!q || !validYmd(today)) return ''
   if ((q.kind || 'quote') === 'invoice') {
-    return q.status === 'sent' && validYmd(q.dueDate) && today > q.dueDate ? 'overdue' : ''
+    // 一部だけ入金があっても、残りがあれば「支払期限切れ」です。
+    const left = q.balance != null ? q.balance > 0 : true
+    return q.status === 'sent' && left && validYmd(q.dueDate) && today > q.dueDate ? 'overdue' : ''
   }
   const s = effectiveStatus(q, today)
   if (s === 'expired') return q.status === 'sent' ? 'expired' : ''
@@ -457,6 +459,12 @@ export function cleanQuote(input, prev, today) {
     views: p.views || 0,
     decidedAt: p.decidedAt || '',
     sentTo: p.sentTo || '',
+    // 入金・版・お客様の承諾は、ここ（内容の保存）では変えません（専用の操作で変えます）。
+    payments: Array.isArray(p.payments) ? p.payments : [],
+    version: p.version || 1,
+    versions: Array.isArray(p.versions) ? p.versions : [],
+    acceptedBy: p.acceptedBy || '',
+    acceptedAt: p.acceptedAt || '',
     history: Array.isArray(p.history) ? p.history.slice(-QCAPS.history) : [],
   }
   if (!q.subject && !items.length) return { ok: false, message: '件名か品目を1つ以上入れてください。' }
@@ -475,7 +483,100 @@ export function quoteSummary(q, rounding) {
     sentAt: q.sentAt || '', openedAt: q.openedAt || '', views: q.views || 0, decidedAt: q.decidedAt || '',
     inquiryId: q.inquiryId || '', source: q.source || '', sourceKind: q.sourceKind || '',
     fromQuote: q.fromQuote || '', createdAt: q.createdAt || '',
+    paid: paidTotal(q), balance: Math.max(0, t.total - paidTotal(q)), version: q.version || 1, acceptedAt: q.acceptedAt || '',
   }
+}
+
+/* ------------------------------------------------ 電子帳簿保存法への備え --
+   お客様に渡った書類（送付済み・受注・失注・入金済み・取消、または一度でも送ったもの）は、
+   上書きも削除もしません。直すと「訂正版」になり、前の版はそのまま残します（いつ・何版か）。
+   取り消すときは、請求書は「取消」にします（赤伝と同じ考え方で、記録は残ります）。 */
+export function isLocked(q) {
+  return !!q && ((q.status && q.status !== 'draft') || !!q.sentAt)
+}
+
+/* ---------------------------------------------------------------- 入金 --
+   請求書ごとに、入金の日と金額を何回でも（分割・一部入金）。残りが0円になったら
+   「入金済み」にします。 */
+export const MAX_PAYMENTS = 24
+export function paidTotal(q) {
+  return (Array.isArray(q && q.payments) ? q.payments : []).reduce((a, p) => a + (Number(p.amount) || 0), 0)
+}
+export function addPayment(q, input, rounding, nowIso) {
+  const x = input || {}
+  if ((q.kind || 'quote') !== 'invoice') return { ok: false, message: '入金を記録できるのは請求書だけです。' }
+  if (q.status === 'void') return { ok: false, message: '取消にした請求書には入金を記録できません。' }
+  const amount = Math.round(num(x.amount))
+  if (!isFinite(amount) || amount <= 0) return { ok: false, message: '入金の金額を入れてください（1円以上）。' }
+  const date = validYmd(x.date) ? x.date : String(nowIso).slice(0, 10)
+  const r = JSON.parse(JSON.stringify(q))
+  r.payments = (r.payments || []).concat([{ date, amount: Math.min(QCAPS.price * 100, amount), note: line(x.note, 60), at: nowIso }]).slice(-MAX_PAYMENTS)
+  const total = computeTotals(r, rounding).total
+  const left = total - paidTotal(r)
+  r.history = (r.history || []).concat([{ at: nowIso, what: 'payment', text: `入金 ${yen(amount)}（${jpDate(date)}）・残り ${yen(Math.max(0, left))}` }])
+  if (left <= 0 && r.status !== 'paid') {
+    r.history.push({ at: nowIso, what: 'status', text: (INVOICE_STATUS[r.status] || '—') + ' → ' + INVOICE_STATUS.paid })
+    r.status = 'paid'
+    r.decidedAt = nowIso
+    if (!r.sentAt) r.sentAt = nowIso
+  }
+  r.history = r.history.slice(-QCAPS.history)
+  return { ok: true, quote: r, left: Math.max(0, left) }
+}
+export function removePayment(q, index, rounding, nowIso) {
+  const list = Array.isArray(q.payments) ? q.payments : []
+  if (!(index >= 0 && index < list.length)) return { ok: false, message: 'その入金の記録が見つかりませんでした。' }
+  const r = JSON.parse(JSON.stringify(q))
+  const gone = r.payments.splice(index, 1)[0]
+  r.history = (r.history || []).concat([{ at: nowIso, what: 'payment', text: `入金の記録を取り消し（${yen(gone.amount)}・${jpDate(gone.date)}）` }])
+  if (r.status === 'paid' && computeTotals(r, rounding).total - paidTotal(r) > 0) {
+    r.history.push({ at: nowIso, what: 'status', text: INVOICE_STATUS.paid + ' → ' + INVOICE_STATUS.sent })
+    r.status = 'sent'
+    r.decidedAt = ''
+  }
+  r.history = r.history.slice(-QCAPS.history)
+  return { ok: true, quote: r }
+}
+
+/* ------------------------------------------------------------ 探す --
+   電子帳簿保存法の「取引の日・金額・取引先で探せること」。要約（quoteSummary）の一覧で探します。
+   f = { q: 取引先や件名や番号の言葉, from, to: 日付（YYYY-MM-DD）, min, max: 金額, kind } */
+export function searchQuotes(list, f) {
+  const x = f || {}
+  const words = String(x.q || '').toLowerCase().split(/\s+/).filter(Boolean)
+  const min = x.min === '' || x.min == null ? null : num(x.min)
+  const max = x.max === '' || x.max == null ? null : num(x.max)
+  return (Array.isArray(list) ? list : []).filter((s) => {
+    if (x.kind && (s.kind || 'quote') !== x.kind) return false
+    if (validYmd(x.from) && s.date < x.from) return false
+    if (validYmd(x.to) && s.date > x.to) return false
+    if (min != null && isFinite(min) && s.total < min) return false
+    if (max != null && isFinite(max) && s.total > max) return false
+    if (!words.length) return true
+    const hay = [s.to, s.subject, s.number].join(' ').toLowerCase()
+    return words.every((w) => hay.includes(w))
+  })
+}
+
+/* ------------------------------------------------- お客様の承諾（発注） --
+   見るだけのリンクで、お客様が「この内容で発注します」を押せるか。 */
+export function canAccept(q, today) {
+  if (!q || (q.kind || 'quote') !== 'quote') return { ok: false, reason: 'kind' }
+  if (q.acceptedAt || q.status === 'won') return { ok: false, reason: 'done' }
+  const s = effectiveStatus(q, today)
+  if (s === 'expired') return { ok: false, reason: 'expired' }
+  if (s === 'lost') return { ok: false, reason: 'lost' }
+  return { ok: true }
+}
+export function acceptQuote(q, name, nowIso) {
+  const r = applyStatus(q, 'won', nowIso)
+  if (!r.ok) return r
+  const out = r.quote
+  out.acceptedBy = line(name, 40)
+  out.acceptedAt = nowIso
+  if (!out.sentAt) out.sentAt = nowIso
+  out.history = (out.history || []).concat([{ at: nowIso, what: 'accepted', text: `お客様がリンクから「この内容で発注」（${out.acceptedBy}）` }]).slice(-QCAPS.history)
+  return { ok: true, quote: out }
 }
 
 /** 状態を変える。受注・失注には「決まった日」を残します（決まるまでの日数のため）。 */
@@ -881,5 +982,5 @@ export function docPage(q, issuer, opts) {
     : ''
   return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<meta name="robots" content="noindex"><title>' + esc(name) + '</title><style>html,body{margin:0;background:#f3f1ec}@media print{html,body{background:#fff}}' + DOC_CSS + '</style></head><body>' +
-    bar + renderDoc(q, issuer, o) + '</body></html>'
+    bar + (o.extra || '') + renderDoc(q, issuer, o) + '</body></html>'
 }

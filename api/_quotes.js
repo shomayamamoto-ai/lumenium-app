@@ -22,7 +22,7 @@ import { sandboxFrom, manageSecret, ownerAddress } from './_booking-mail.js'
 import { SERVICES } from '../src/data/services.js'
 import {
   DEFAULT_QUOTE_SETTINGS, ROUNDING, QCAPS, checkRegNo, catalogFromServices, cleanCatalog, cleanQuote, quoteSummary,
-  nextNumber, jstToday, fillMail, mailVars, applyStatus,
+  nextNumber, jstToday, fillMail, mailVars, applyStatus, isLocked, addPayment, removePayment, acceptQuote, canAccept,
 } from './_quote-core.js'
 
 export const QK = {
@@ -31,7 +31,10 @@ export const QK = {
   settings: `${KV}quote:settings`,
   catalog: `${KV}quote:catalog`,
   seq: (prefix, year) => `${KV}quote:seq:${prefix}:${year}`,
+  // 訂正する前の版（電子帳簿保存法のため、送った書類の前の形を残します）
+  ver: (id, n) => `${KV}quote:v:${id}:${n}`,
 }
+export const MAX_VERSIONS = 30
 
 export const quoteIdOk = (v) => /^qt[a-z0-9]{4,30}$/.test(String(v || ''))
 export function newQuoteId(now = Date.now()) {
@@ -188,6 +191,15 @@ export async function saveQuote(cfg, input, now = Date.now()) {
     q.id = newQuoteId(now)
     q.createdAt = at
     q.history = [{ at, what: 'created', text: q.fromQuote ? '受注した見積書から作成' : q.inquiryId ? '問い合わせから作成' : '作成' }]
+  } else if (isLocked(prev)) {
+    // お客様に渡った書類は上書きしません。前の版を残して「訂正版」にします。
+    const n = prev.version || 1
+    if ((prev.versions || []).length >= MAX_VERSIONS) return { ok: false, message: `訂正は${MAX_VERSIONS}回までです。新しく作り直してください（複製が使えます）。` }
+    await pipeline(cfg, [['SET', QK.ver(q.id, n), JSON.stringify(prev)]])
+    q.version = n + 1
+    q.versions = (prev.versions || []).concat([{ n, at }])
+    q.history.push({ at, what: 'edited', text: `訂正（第${q.version}版。第${n}版はそのまま残しています）` })
+    q.history = q.history.slice(-QCAPS.history)
   } else {
     q.history.push({ at, what: 'edited', text: '内容を直した' })
     q.history = q.history.slice(-QCAPS.history)
@@ -220,8 +232,62 @@ export async function setQuoteStatus(cfg, id, status, now = Date.now()) {
 
 export async function deleteQuote(cfg, id) {
   if (!quoteIdOk(id)) return { ok: false, message: 'その見積書は見つかりませんでした。' }
+  const q = await getQuote(cfg, id)
+  if (q && isLocked(q)) {
+    return { ok: false, locked: true, message: 'お客様に送った書類は消せません（電子帳簿保存法で7年間の保存が必要です）。' + ((q.kind || 'quote') === 'invoice' ? '取り消すときは、状態を「取消」にしてください。' : '取りやめるときは、状態を「失注」にしてください。') }
+  }
   await pipeline(cfg, [['DEL', QK.rec(id)], ['HDEL', QK.list, id]])
   return { ok: true }
+}
+
+/** 訂正する前の版（第 n 版）。 */
+export async function getVersion(cfg, id, n) {
+  if (!quoteIdOk(id) || !(n >= 1)) return null
+  const [raw] = await pipeline(cfg, [['GET', QK.ver(id, n)]])
+  return parse(raw)
+}
+
+/** 入金の記録（足す・取り消す）。 */
+export async function paymentQuote(cfg, id, input, remove, now = Date.now()) {
+  const q = await getQuote(cfg, id)
+  if (!q) return { ok: false, message: 'その請求書は見つかりませんでした。' }
+  const settings = await loadQuoteSettings(cfg)
+  const at = new Date(now).toISOString()
+  const r = remove ? removePayment(q, Number(input && input.index), settings.rounding, at) : addPayment(q, input, settings.rounding, at)
+  if (!r.ok) return r
+  await putQuote(cfg, r.quote, settings.rounding)
+  return { ok: true, quote: r.quote, message: remove ? '入金の記録を取り消しました。' : r.quote.status === 'paid' ? '入金を記録しました。全額そろったので「入金済み」にしました。' : `入金を記録しました（残り ${Number(r.left).toLocaleString('ja-JP')}円）。` }
+}
+
+/** お客様がリンクから「この内容で発注します」を押した。 */
+export async function acceptByCustomer(req, cfg, id, name, now = Date.now()) {
+  const q = await getQuote(cfg, id)
+  if (!q) return { ok: false, message: '見積書が見つかりませんでした。' }
+  const today = jstToday(now)
+  const c = canAccept(q, today)
+  if (!c.ok) return { ok: false, reason: c.reason, quote: q }
+  const at = new Date(now).toISOString()
+  const r = acceptQuote(q, name, at)
+  if (!r.ok) return r
+  const settings = await loadQuoteSettings(cfg)
+  await putQuote(cfg, r.quote, settings.rounding)
+  // 発行元へ知らせる（届かなくても承諾は記録済み。管理画面で「受注」になっています）。
+  try {
+    const key = await setting('RESEND_API_KEY', '', req)
+    const to = settings.email && EMAIL_RE.test(settings.email) ? settings.email : await ownerAddress(req)
+    if (key && to) {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: BRAND.from, to: [to],
+          subject: `【発注】${q.number} ${[q.toCompany, q.toPerson].filter(Boolean).join(' ')}`.slice(0, 150),
+          text: [`お客様が見積書のリンクから「この内容で発注します」を押しました。`, '', `番号: ${q.number}`, `件名: ${q.subject}`, `宛先: ${[q.toCompany, q.toPerson].filter(Boolean).join(' ')}`, `押した方のお名前: ${r.quote.acceptedBy}`, '', `管理画面で開く: ${BRAND.url}/admin-members.html#quotes-admin`].join('\n'),
+        }),
+      })
+    }
+  } catch (_) {}
+  return { ok: true, quote: r.quote }
 }
 
 /* ------------------------------------------------- 見るだけのリンク -- */
