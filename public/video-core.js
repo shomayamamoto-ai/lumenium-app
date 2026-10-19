@@ -1249,6 +1249,44 @@ function toSrt(lines) {
     `${i + 1}\n${srtTime(l.start)} --> ${srtTime(l.end)}\n${String(l.telop).trim()}\n`).join('\n')
 }
 
+/* ---- 再生しながらタップでテロップの時間を合わせる ----
+   台本の1行ずつ、話し始めたところでボタンを押すと、その行の「開始」が決まり、
+   ひとつ前の行の「終了」もそこにそろいます（テロップが途切れずにつながる）。
+   その行の「終了」は、元の長さのまま後ろにずらしておき、次の行を押したとき
+   （か「ここで終える」）に決まります。0.1秒単位です。 */
+
+/** i 行目の開始を t 秒にした新しい行の一覧（元の一覧は変えません）。 */
+function stampStart(lines, i, t, duration) {
+  const out = (lines || []).map((l) => ({ ...l }))
+  const l = out[i]
+  if (!l) return out
+  const at = round1(Math.max(0, Number(t) || 0))
+  const was = (Number(l.end) || 0) - (Number(l.start) || 0)
+  const len = was >= 0.5 ? was : 2
+  let end = round1(at + len)
+  if (duration > 0) end = Math.min(end, round1(duration))
+  l.start = at
+  l.end = Math.max(end, round1(at + 0.1))
+  const prev = out[i - 1]
+  if (prev && at > (Number(prev.start) || 0)) prev.end = at
+  return out
+}
+
+/** i 行目の終了を t 秒にした新しい行の一覧（最後の行を「ここで終える」）。 */
+function stampEnd(lines, i, t) {
+  const out = (lines || []).map((l) => ({ ...l }))
+  const l = out[i]
+  if (!l) return out
+  l.end = Math.max(round1(Number(t) || 0), round1((Number(l.start) || 0) + 0.1))
+  return out
+}
+
+/** いま再生している位置 t に出ている行（無ければ -1）。 */
+function lineAt(lines, t) {
+  const x = Number(t) || 0
+  return (lines || []).findIndex((l) => x >= (Number(l.start) || 0) && x < (Number(l.end) || 0))
+}
+
 function timecode(sec, fps) {
   const f = Math.max(0, Math.round(Number(sec) * fps))
   const ff = f % fps
@@ -1807,5 +1845,5 @@ function snsautoCounts(tables) {
   return out
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, ATTENTION, jstDay, attentionKind, attentionKey, videoAttention, attentionParts, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, ATTENTION, jstDay, attentionKind, attentionKey, videoAttention, attentionParts, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, stampStart, stampEnd, lineAt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts };
 })();

@@ -568,6 +568,32 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('数字から学ぶ（AVP・3秒維持率・離脱点と台本の行・次の仮説）')
 }
 
+/* ---- 再生しながらタップでテロップの時間を合わせる ---- */
+{
+  const lines = [
+    { start: 0, end: 3, telop: 'はじめ' },
+    { start: 3, end: 6, telop: 'まんなか' },
+    { start: 6, end: 6, telop: '最後' },
+  ]
+  let x = V.stampStart(lines, 0, 0.42, 20)
+  assert.deepEqual([x[0].start, x[0].end], [0.4, 3.4], '元の長さのまま後ろにずらす')
+  assert.equal(lines[0].start, 0, '元の一覧は変えない')
+  x = V.stampStart(x, 1, 2.96, 20)
+  assert.deepEqual([x[0].end, x[1].start, x[1].end], [3, 3, 6], '前の行の終わりが次の行の始まりにそろう')
+  x = V.stampStart(x, 2, 18.7, 20)
+  assert.deepEqual([x[1].end, x[2].start, x[2].end], [18.7, 18.7, 20], '長さの無い行は2秒・動画の長さまで')
+  x = V.stampEnd(x, 2, 19.55)
+  assert.equal(x[2].end, 19.6)
+  assert.equal(V.stampEnd(x, 2, 1)[2].end, 18.8, '始まりより前では終われない（0.1秒は残す）')
+  // 順番を飛ばして前の行を押し直しても、後ろの行の終わりを巻き戻さない
+  const back = V.stampStart(x, 0, 5, 20)
+  assert.equal(back[0].start, 5)
+  assert.equal(V.lineAt(x, 3.5), 1)
+  assert.equal(V.lineAt(x, 30), -1)
+  assert.match(V.toSrt(x), /^1\n00:00:00,400 --> 00:00:03,000\nはじめ\n/)
+  ok('タップでテロップの時間を合わせる（開始・前の行の終わり・最後の行）')
+}
+
 /* ---- 画面用ファイル ---- */
 {
   const { build } = await import('./build-video-core.mjs')

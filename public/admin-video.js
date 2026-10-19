@@ -620,6 +620,7 @@
       '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画・印）</label>' +
       '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th>印</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
       '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button></div>' +
+      '<details class="vid-tap" id="ve-tap"><summary>再生しながらタップで、テロップの時間を合わせる</summary><div id="ve-tap-body"></div></details>' +
       '<div id="ve-checks" style="margin-top:10px"></div>' +
       (s.rationale ? '<p class="soc-small">この構成にした理由（AI）: ' + esc(s.rationale) + '</p>' : '') +
       '<div class="vid-acts"><button type="button" id="ve-save">保存</button>' +
@@ -735,6 +736,7 @@
         if (kind === 'txt') download(name + '_ナレーション.txt', s.lines.map(function (l) { return l.narration; }).filter(Boolean).join('\n'));
       }
     });
+    tapper(s, function () { rows(); check(); });
     el('ve-add').addEventListener('click', function () {
       var last = s.lines[s.lines.length - 1];
       var st = last ? Number(last.end) || 0 : 0;
@@ -751,6 +753,106 @@
       say(result && result.banned.length ? '保存しました。禁止ワードが残っているため、書き出しと投稿はできません。' : '保存しました。', true);
     });
     check();
+  }
+
+  /* ---- 再生しながらタップでテロップの時間を合わせる ----
+     撮った動画を流しながら、台本の1行ずつ、話し始めたところで大きなボタンを
+     押します。押した時刻がその行の「開始」になり、ひとつ前の行の「終了」も
+     そこにそろいます（数え方は video-core.js の stampStart / stampEnd）。
+     最後の行は「ここで終える」で終わりを決めます。動画はこのブラウザの中だけで
+     流し、どこにも送りません（出荷前チェックで選んだ動画があれば、それを使います）。
+     redraw: 行の表と「決まりごと」の確認を描き直す（台本の画面の関数）。 */
+  function tapper(s, redraw) {
+    var box = el('ve-tap');
+    if (!box) return;
+    var at = 0;          // 次に押す行
+    var undo = [];       // 「1つ戻す」用の、押す前の行の一覧
+    function lineLabel(l) { return String(l.telop || '').trim() || String(l.narration || '').trim() || '（空の行）'; }
+    function draw() {
+      var body = el('ve-tap-body');
+      if (!body) return;
+      var has = !!S.fileUrl;
+      body.innerHTML =
+        '<p class="soc-small">撮った動画を流しながら、各行を話し始めたところで「この行をここから」を押します。押した時刻がその行の開始になり、前の行の終わりもそろいます。' +
+          '動画はこのブラウザの中だけで使い、どこにも送りません。</p>' +
+        '<div class="vid-row"><label class="soc-lab" for="ve-tap-file" style="margin:0">動画</label><input type="file" id="ve-tap-file" accept="video/*,audio/*">' +
+          (S.file ? '<span class="soc-small">' + esc(S.file.name) + '</span>' : '') + '</div>' +
+        (has
+          ? '<div class="vid-tap-grid"><div class="vid-tap-v"><video id="ve-tap-video" src="' + esc(S.fileUrl) + '" controls playsinline preload="auto"></video>' +
+              '<div class="vid-tap-now" id="ve-tap-now" aria-live="polite"></div></div>' +
+            '<div class="vid-tap-side">' +
+              '<button type="button" id="ve-tap-go" class="vid-tap-big"></button>' +
+              '<div class="vid-row" style="margin-top:8px">' +
+                '<button type="button" class="ghost" id="ve-tap-undo">1つ戻す</button>' +
+                '<button type="button" class="ghost" id="ve-tap-restart">最初の行から</button>' +
+                '<button type="button" class="ghost ve-out" data-out="srt">テロップ（SRT）を書き出す</button>' +
+              '</div>' +
+              '<ol class="vid-tap-list" id="ve-tap-list"></ol>' +
+            '</div></div>'
+          : '<p class="soc-small" style="margin-top:6px">先に動画を選んでください。</p>');
+      el('ve-tap-file').addEventListener('change', function () {
+        setFile(this.files[0] || null);
+        at = 0; undo = [];
+        draw();
+      });
+      if (!has) return;
+      var v = el('ve-tap-video');
+      v.addEventListener('timeupdate', paint);
+      v.addEventListener('seeked', paint);
+      el('ve-tap-go').addEventListener('click', stamp);
+      el('ve-tap-undo').addEventListener('click', function () {
+        var prev = undo.pop();
+        if (!prev) return;
+        s.lines = prev.lines; at = prev.at;
+        redraw(); paint();
+      });
+      el('ve-tap-restart').addEventListener('click', function () {
+        at = 0;
+        try { v.currentTime = 0; } catch (_) {}
+        paint();
+      });
+      el('ve-tap-list').addEventListener('click', function (e) {
+        var li = e.target.closest('li[data-i]');
+        if (!li) return;
+        // 行を押すと、次に合わせる行をそこにして、その行の開始へ動画を動かします。
+        at = Number(li.getAttribute('data-i'));
+        try { v.currentTime = Number(s.lines[at].start) || 0; } catch (_) {}
+        paint();
+      });
+      paint();
+    }
+    function stamp() {
+      var v = el('ve-tap-video');
+      if (!v || !s.lines.length) return;
+      var t = v.currentTime || 0;
+      undo.push({ lines: s.lines, at: at });
+      if (undo.length > 50) undo.shift();
+      if (at < s.lines.length) {
+        s.lines = V.stampStart(s.lines, at, t, v.duration || 0);
+        at++;
+      } else {
+        s.lines = V.stampEnd(s.lines, s.lines.length - 1, t);
+        at = s.lines.length + 1;
+      }
+      redraw(); paint();
+    }
+    function paint() {
+      var v = el('ve-tap-video'), go = el('ve-tap-go'), list = el('ve-tap-list'), now = el('ve-tap-now');
+      if (!v || !go || !list) return;
+      var t = v.currentTime || 0;
+      var on = V.lineAt(s.lines, t);
+      now.textContent = V.srtTime(t).slice(3, 10).replace(',', '.') + (on >= 0 ? '　' + lineLabel(s.lines[on]).slice(0, 30) : '');
+      if (!s.lines.length) { go.textContent = '台本に行がありません'; go.disabled = true; }
+      else if (at < s.lines.length) { go.textContent = (at + 1) + '行目をここから　「' + lineLabel(s.lines[at]).slice(0, 14) + '」'; go.disabled = false; }
+      else if (at === s.lines.length) { go.textContent = '最後の行をここで終える'; go.disabled = false; }
+      else { go.textContent = 'ぜんぶ合わせました'; go.disabled = true; }
+      list.innerHTML = s.lines.map(function (l, i) {
+        return '<li data-i="' + i + '" class="' + (i === at ? 'next' : '') + (i === on ? ' on' : '') + '"><span class="tm">' + esc(sec(l.start)) + '〜' + esc(sec(l.end)) + '</span>' +
+          '<span class="tx">' + esc(lineLabel(l)) + '</span></li>';
+      }).join('');
+    }
+    box.addEventListener('toggle', function () { if (box.open && !el('ve-tap-go') && !el('ve-tap-file')) draw(); });
+    draw();
   }
 
   /* ---------------- 4. 絵コンテ ---------------- */

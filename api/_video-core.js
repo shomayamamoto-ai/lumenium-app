@@ -1247,6 +1247,44 @@ export function toSrt(lines) {
     `${i + 1}\n${srtTime(l.start)} --> ${srtTime(l.end)}\n${String(l.telop).trim()}\n`).join('\n')
 }
 
+/* ---- 再生しながらタップでテロップの時間を合わせる ----
+   台本の1行ずつ、話し始めたところでボタンを押すと、その行の「開始」が決まり、
+   ひとつ前の行の「終了」もそこにそろいます（テロップが途切れずにつながる）。
+   その行の「終了」は、元の長さのまま後ろにずらしておき、次の行を押したとき
+   （か「ここで終える」）に決まります。0.1秒単位です。 */
+
+/** i 行目の開始を t 秒にした新しい行の一覧（元の一覧は変えません）。 */
+export function stampStart(lines, i, t, duration) {
+  const out = (lines || []).map((l) => ({ ...l }))
+  const l = out[i]
+  if (!l) return out
+  const at = round1(Math.max(0, Number(t) || 0))
+  const was = (Number(l.end) || 0) - (Number(l.start) || 0)
+  const len = was >= 0.5 ? was : 2
+  let end = round1(at + len)
+  if (duration > 0) end = Math.min(end, round1(duration))
+  l.start = at
+  l.end = Math.max(end, round1(at + 0.1))
+  const prev = out[i - 1]
+  if (prev && at > (Number(prev.start) || 0)) prev.end = at
+  return out
+}
+
+/** i 行目の終了を t 秒にした新しい行の一覧（最後の行を「ここで終える」）。 */
+export function stampEnd(lines, i, t) {
+  const out = (lines || []).map((l) => ({ ...l }))
+  const l = out[i]
+  if (!l) return out
+  l.end = Math.max(round1(Number(t) || 0), round1((Number(l.start) || 0) + 0.1))
+  return out
+}
+
+/** いま再生している位置 t に出ている行（無ければ -1）。 */
+export function lineAt(lines, t) {
+  const x = Number(t) || 0
+  return (lines || []).findIndex((l) => x >= (Number(l.start) || 0) && x < (Number(l.end) || 0))
+}
+
 export function timecode(sec, fps) {
   const f = Math.max(0, Math.round(Number(sec) * fps))
   const ff = f % fps
