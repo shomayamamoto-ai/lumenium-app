@@ -418,11 +418,13 @@ await t('通し: 空き枠の控え（1分）は、予約・取り消しのた�
 await t('明日（日本時間）の予約だけを選ぶ（UTC の日付の境目に転ばない）', () => {
   // 日本時間 10/4 23:30 = UTC 10/4 14:30。明日は 10/5。
   const now = jst('2026-10-04 23:30')
-  const mk = (id, s, extra) => ({ id, start: jst(s), end: jst(s) + 3600e3, status: 'confirmed', ...extra })
+  const mk = (id, s, extra) => ({ id, start: jst(s), end: jst(s) + 3600e3, status: 'confirmed', email: `${id}@example.com`, ...extra })
   const list = [
     mk('a', '2026-10-05 00:00'), mk('b', '2026-10-05 23:00'), mk('c', '2026-10-06 00:00'),
     mk('d', '2026-10-04 23:45'), mk('e', '2026-10-05 10:00', { status: 'cancelled' }),
     mk('f', '2026-10-05 11:00', { reminded: '2026-10-04T00:00:00Z' }), mk('g', '2026-10-05 12:00', { status: 'tentative' }),
+    // 電話で受けてメールの無い予約には、お知らせを送らない。
+    mk('h', '2026-10-05 13:00', { email: '' }),
   ]
   assert.deepEqual(B.dueReminders(list, now).map((r) => r.id), ['a', 'b', 'g'])
   // 朝9時（cron の時刻）に見ても同じ答え。
