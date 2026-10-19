@@ -808,3 +808,31 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .lv-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #shell .lv-n { flex: none; color: var(--ui-text-3); font-variant-numeric: tabular-nums; }
 #shell .lv-note { font-size: 10.5px; color: var(--ui-text-3); margin-top: 6px; line-height: 1.7; }
+
+/* ---- アクセス解析: グラフの出来事の印 ---- */
+#shell .mk-line { stroke-width: 1.2; stroke-dasharray: 3 3; opacity: .7; }
+#shell .mk-strip { position: relative; height: 18px; margin-top: 4px; }
+#shell button.mk-dot { position: absolute; top: 2px; box-sizing: border-box; width: 14px; height: 14px; min-height: 0; max-width: none; margin-left: -7px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(23,23,28,.25); cursor: pointer; font-size: 8.5px; line-height: 10px; color: #fff; font-weight: 800; min-width: 0; }
+#shell .mk-dot span { display: block; text-align: center; }
+#shell .mk-dot:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+#shell .mk-chip { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; margin-right: 6px; white-space: nowrap; vertical-align: 1px; }
+#shell .mk-note { background: #c2410c; stroke: #c2410c; }
+#shell .mk-news { background: #6d28d9; stroke: #6d28d9; }
+#shell .mk-sns { background: #0f766e; stroke: #0f766e; }
+#shell .mk-copy { background: #be185d; stroke: #be185d; }
+#shell .mk-aio { background: #a16207; stroke: #a16207; }
+#shell .mk-day { position: relative; margin-top: 8px; padding: 8px 30px 8px 11px; font-size: 12px; line-height: 1.9; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 10px; overflow-wrap: anywhere; }
+#shell button.mk-x { position: absolute; right: 4px; top: 4px; min-height: 0; width: auto; padding: 1px 8px; font-size: 13px; line-height: 1.4; }
+#shell .mk-box { margin-top: 10px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 12px; padding: 9px 12px; }
+#shell .mk-box > summary { cursor: pointer; font-size: 12.5px; font-weight: 700; }
+#shell .mk-legend { display: inline-flex; flex-wrap: wrap; gap: 3px 0; margin-left: 8px; font-weight: 400; }
+#shell .mk-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 260px; overflow-y: auto; }
+#shell .mk-row { display: flex; align-items: baseline; gap: 2px 8px; flex-wrap: wrap; padding: 5px 0; border-bottom: 1px solid rgba(23,23,28,.06); font-size: 12.5px; }
+#shell .mk-date { flex: none; width: 3.2em; color: var(--ui-text-3); font-variant-numeric: tabular-nums; }
+#shell .mk-label { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+#shell button.mk-del { min-height: 0; width: auto; padding: 3px 9px; font-size: 11px; }
+#shell .mk-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 10px; }
+#shell .mk-flabel { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--ui-text-2); }
+#shell .mk-ftext { flex: 1 1 220px; min-width: 0; }
+#shell .mk-form input { padding: 8px 10px; border: 1px solid var(--ui-border); border-radius: 9px; background: #fff; font: inherit; font-size: 13px; min-width: 0; }
+#shell .mk-form button { padding: 8px 14px; font-size: 12.5px; }

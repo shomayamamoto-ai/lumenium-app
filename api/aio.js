@@ -36,7 +36,7 @@ import { socialActivity } from './_social.js'
 import {
   DEFAULT_QUESTIONS, BRAND, JUDGE_MODEL, JUDGE_BATCH, JUDGE_EST_USD, MIN_FOR_RATE, LIMITS,
   namesBrand, hostOf, isHit, isOwnHost, isOwnCompany, companyKey, isBranded, VERDICTS, SENTIMENTS,
-  validateQuestions, questionSetHash, categoriesOf, planRun, QKEY, loadQuestions,
+  validateQuestions, questionSetHash, categoriesOf, planRun, QKEY, loadQuestions, AIO_INDEX,
 } from './_aio-catalog.js'
 import { ENGINES, ENGINE_IDS, engineKeys, askEngine, checkClaude } from './_engines.js'
 import { rate, compareRates } from './_aio-stats.js'
@@ -121,7 +121,7 @@ const RK = (id) => `${KV}aio:run:${id}`
 // One hash field per answer. Answers from different engines arrive at the
 // same time, and a read-modify-write of one run document would lose some.
 export const RES = (id) => `${KV}aio:res:${id}`
-const INDEX = `${KV}aio:index`
+const INDEX = AIO_INDEX
 
 const NO_STORE = {
   ok: false,

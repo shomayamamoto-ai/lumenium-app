@@ -298,6 +298,32 @@
     return { ok: true, at: new Date().toISOString(), storeFrom: 'env', count: count, minutes: 5,
       pages: pairs(PATHS.slice(0, 6).map(function (p) { return p[0]; }), views).slice(0, 5).map(function (x) { return { name: x.name, views: x.count }; }) };
   }
+  /* グラフの出来事の印（shape: api/analytics.js ?view=marks）。見本のお知らせ・
+     AIO計測の日と揃えてあります。メモの追加・削除は断ります。 */
+  function statsMarks(from, to) {
+    var raw = [
+      [2, 'aio', 'AIO出現率を計測'], [3, 'news', '年末年始の営業についてのお知らせ（サンプル）'],
+      [2, 'sns', '秋の新メニューのお知らせ（サンプル）', ['x', 'threads']], [5, 'sns', '施工事例を追加しました（サンプル）', ['instagram']],
+      [6, 'copy', '文章を保存'], [9, 'note', '駅前でチラシを500枚配った（サンプル）'],
+      [12, 'news', '実績を追加しました（サンプル）'], [16, 'aio', 'AIO出現率を計測'], [18, 'copy', '文章を保存', null, 2],
+      [19, 'sns', 'ブログを更新しました（サンプル）', ['x', 'facebook']], [23, 'note', 'Googleビジネスプロフィールの写真を入れ替えた（サンプル）'],
+      [26, 'news', 'ブログを更新しました（サンプル）'], [30, 'aio', 'AIO出現率を計測'], [41, 'news', '新しいサービスを始めました（サンプル）'],
+      [47, 'note', '地域の情報誌に掲載（サンプル）'], [60, 'copy', '文章を保存']
+    ];
+    var by = {};
+    raw.forEach(function (x, i) {
+      var d = jstDate(x[0]);
+      if (d < from || d > to) return;
+      var it = { kind: x[1], label: x[2] };
+      if (x[1] === 'note') it.id = 'demo-note-' + i;
+      else if (x[1] !== 'news') it.count = x[4] || 1;
+      if (x[3]) it.nets = x[3];
+      (by[d] = by[d] || []).push(it);
+    });
+    return { ok: true, from: from, to: to, missing: [],
+      kinds: { note: 'メモ', copy: '文章を保存', news: 'お知らせ', sns: 'SNSに投稿', aio: 'AIO計測' },
+      marks: Object.keys(by).sort().map(function (d) { return { date: d, items: by[d] }; }) };
+  }
   function analytics(daysIn, endIn) {
     var days = Math.min(Math.max(parseInt(daysIn || '30', 10) || 30, 1), 365);
     var end = Math.min(Math.max(parseInt(endIn || '0', 10) || 0, 0), Math.max(0, 400 - days * 2));
@@ -1707,6 +1733,8 @@
       if (p === '/api/social') return reply(socialPost(body));
       if (p === '/api/social-write') return reply(socialWrite(body));
       // 「確認しました」は、デモの中だけで覚えます（このページを開いている間）。
+      // グラフのメモの追加・削除は、ほかの保存と同じく断ります。
+      if (p === '/api/analytics' && body && /^note-/.test(String(body.action || ''))) { notice(MSG); return reply(blocked()); }
       if (p === '/api/analytics') { statsSeen = true; return reply(statsBadge()); }
       // 設定状況の「テスト」。実際には何も確かめず、結果の見え方だけを見せます。
       if (p === '/api/settings-test') return reply(liveTest(body));
@@ -1747,7 +1775,8 @@
             if (!o || typeof o !== 'object' || Array.isArray(o)) o = {};
             return reply({ ok: true, overrides: o, commit: commit(6, '文章を更新') });
           });
-      case '/api/analytics': return reply(q.get('view') === 'badge' ? statsBadge() : q.get('view') === 'live' ? statsLive() : analytics(q.get('days'), q.get('end')));
+      case '/api/analytics': return reply(q.get('view') === 'badge' ? statsBadge() : q.get('view') === 'live' ? statsLive() :
+        q.get('view') === 'marks' ? statsMarks(q.get('from') || jstDate(29), q.get('to') || jstDate(0)) : analytics(q.get('days'), q.get('end')));
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());

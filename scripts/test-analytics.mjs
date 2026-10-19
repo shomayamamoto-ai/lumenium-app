@@ -24,6 +24,7 @@ delete process.env.KV_PREFIX
 const str = new Map()
 const hashes = new Map()
 const hll = new Map()
+const lists = new Map()
 const hash = (k) => { if (!hashes.has(k)) hashes.set(k, new Map()); return hashes.get(k) }
 function run(c) {
   const op = String(c[0]).toUpperCase()
@@ -47,6 +48,8 @@ function run(c) {
     case 'HMGET': return c.slice(2).map((f) => (hashes.has(k) ? (hashes.get(k).get(String(f)) ?? null) : null))
     case 'HGETALL': return hashes.has(k) ? [...hashes.get(k)].flat() : []
     case 'PFADD': { if (!hll.has(k)) hll.set(k, new Set()); c.slice(2).forEach((v) => hll.get(k).add(v)); return 1 }
+    case 'LPUSH': { if (!lists.has(k)) lists.set(k, []); c.slice(2).forEach((v) => lists.get(k).unshift(String(v))); return lists.get(k).length }
+    case 'LRANGE': { const l = lists.get(k) || []; const e = Number(c[3]); return l.slice(Number(c[2]), e < 0 ? undefined : e + 1) }
     case 'PFCOUNT': { const u = new Set(); c.slice(1).forEach((key) => (hll.get(key) || []).forEach((v) => u.add(v))); return u.size }
     default: throw new Error('test redis: unsupported ' + op)
   }
@@ -61,7 +64,7 @@ globalThis.fetch = async (input, init = {}) => {
   if (u.includes('api.resend.com')) { sent.push(JSON.parse(init.body)); return new Response('{"id":"t"}', { status: 200 }) }
   throw new Error('test tried to reach the network: ' + u)
 }
-const reset = () => { str.clear(); hashes.clear(); hll.clear() }
+const reset = () => { str.clear(); hashes.clear(); hll.clear(); lists.clear() }
 
 const { K, jstDate } = await import(new URL('../api/_analytics-store.js', import.meta.url))
 const track = await import(new URL('../api/track.js', import.meta.url))
@@ -330,6 +333,44 @@ console.log('いまサイトにいる人（最近5分）')
   // 何も特定できないこと: 書いた鍵は人数（HyperLogLog）とページの回数だけ。
   const liveKeys = [...hashes.keys(), ...hll.keys(), ...str.keys()].filter((k) => /lv:/.test(k))
   check('残るのは人数の入れ物とページの回数だけ', liveKeys.every((k) => /lv:(u|p):\d+$/.test(k)) && [...(hashes.get(K.livePaths(L.minuteOf(Date.now()))) || new Map()).keys()].every((k) => k.startsWith('/')), liveKeys)
+}
+
+console.log('グラフの出来事の印')
+{
+  const M = await import(new URL('../api/_analytics-marks.js', import.meta.url))
+  const marks = M.buildMarks({
+    notes: [{ id: 'a', date: '2026-10-03', text: 'チラシを配った' }, { id: 'bad', date: '2026-02-30', text: 'x' }],
+    saves: [{ at: '2026-10-03T01:00:00Z', message: 'content: 1 件の文章を更新' }, { at: '2026-10-03T02:00:00Z', message: 'content: 2 件の文章を更新' },
+      { at: '2026-10-04T16:00:00Z', message: 'content: abc1234 の時点に戻す' }],
+    news: [{ date: '2026-10-05', title: '秋の営業時間' }, { date: '2026-09-01', title: '期間の外' }],
+    posts: [{ at: '2026-10-05T03:00:00Z', text: '新メニュー', results: [{ net: 'x', ok: true }, { net: 'threads', ok: true }] },
+      { at: '2026-10-05T05:00:00Z', text: '失敗した投稿', results: [{ net: 'x', ok: false }] }],
+    runs: [{ id: '2026-10-06-abc123' }, { id: 'weird' }],
+  }, '2026-10-01', '2026-10-31')
+  const day = (d) => (marks.find((m) => m.date === d) || { items: [] }).items
+  check('印: 日付順・期間の外と壊れたメモは落とす', marks.map((m) => m.date).join() === '2026-10-03,2026-10-05,2026-10-06', marks.map((m) => m.date))
+  check('印: 同じ日の保存は1行にまとめて数える', day('2026-10-03').find((x) => x.kind === 'copy').count === 2 && day('2026-10-03').some((x) => x.kind === 'note'))
+  check('印: 日本時間で日付を決める（UTC 16時は翌日）', !day('2026-10-04').length && marks.length === 3)
+  check('印: 送れたSNSだけ・投稿先も残す', day('2026-10-05').filter((x) => x.kind === 'sns').length === 1 && day('2026-10-05').find((x) => x.kind === 'sns').nets.join() === 'x,threads')
+  check('印: AIO計測は id の日付', day('2026-10-06')[0].kind === 'aio')
+  check('メモ: 長すぎる・空・暦に無い日は断る', !M.cleanNote({ date: '2026-10-01', text: 'あ'.repeat(81) }).ok && !M.cleanNote({ date: '2026-10-01', text: ' ' }).ok && !M.cleanNote({ date: '2026-13-01', text: 'x' }).ok)
+  check('メモ: 改行は空白に', M.cleanNote({ date: '2026-10-01', text: 'a\nb' }).note.text === 'a b')
+
+  reset()
+  const auth = { Authorization: 'Bearer test-admin-key', 'x-forwarded-for': '192.0.2.11', 'Content-Type': 'application/json' }
+  const post = async (b) => analytics.POST(new Request('https://lumenium.net/api/analytics', { method: 'POST', headers: auth, body: JSON.stringify(b) }))
+  const r1 = await post({ action: 'note-add', date: jstDate(2), text: '駅前でチラシ500枚' })
+  const j1 = await r1.json()
+  check('メモを足せる', r1.status === 200 && j1.notes.length === 1 && j1.notes[0].text === '駅前でチラシ500枚', j1)
+  check('足りないメモは 400', (await post({ action: 'note-add', date: jstDate(2), text: '' })).status === 400)
+  // AIO計測の一覧（_aio-catalog.js の AIO_INDEX）に1回ぶん。
+  lists.set(K.notes.replace('an:notes', 'aio:index'), [jstDate(1) + '-zz9'])
+  const m = await (await analytics.GET(new Request(`https://lumenium.net/api/analytics?view=marks&from=${jstDate(29)}&to=${jstDate()}`, { headers: auth }))).json()
+  const kinds = m.marks.flatMap((x) => x.items.map((i) => i.kind))
+  check('出来事: メモとAIO計測が出る・読めない記録は missing に', m.ok && kinds.includes('note') && kinds.includes('aio') && m.missing.includes('news') && m.missing.includes('copy'), m)
+  const r2 = await post({ action: 'note-del', id: j1.notes[0].id })
+  check('メモを消せる', r2.status === 200 && (await r2.json()).notes.length === 0)
+  check('無いメモを消すと 404', (await post({ action: 'note-del', id: 'nope' })).status === 404)
 }
 
 if (failed) {

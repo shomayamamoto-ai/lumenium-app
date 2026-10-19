@@ -1554,6 +1554,8 @@ input, select, textarea { color: var(--text); }
         <div style="margin-bottom:20px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:10px">日別の推移</h3>
           <div id="stats-chart" style="background:#f3f1ec;border:1px solid var(--border);border-radius:12px;padding:14px 12px 8px"></div>
+          <!-- グラフの出来事の印（文章の保存・お知らせ・SNS・AIO計測・自分のメモ）。 -->
+          <div id="stats-marks"></div>
         </div>
         <div style="margin-bottom:22px">
           <h3 style="font-size:12px;letter-spacing:.1em;color:var(--sub);font-weight:700;margin-bottom:4px">どこから来たか</h3>
@@ -4537,7 +4539,108 @@ window.lumAdmin = {
     if (b) b.addEventListener('click', function () { b.disabled = true; b.textContent = '送信しています…'; weekly(key, { action: 'test' }); });
   }
 
+  /* ---- グラフの出来事の印 ----
+     数字が動いた日に何をしたか。管理画面でしたこと（文章の保存・お知らせ・
+     SNS・AIO計測）は記録から自動で、画面の外の出来事は自分のメモで。
+     棒の数は変えず（印は棒とは別の線と、下の小さな点）、点を押すとその日の
+     中身が出ます（スマートフォンでは「上に乗せて読む」ができないため）。 */
+  var MARK_ORDER = ['note', 'news', 'sns', 'copy', 'aio'];
+  var MARK_NAME = { note: 'メモ', copy: '文章を保存', news: 'お知らせ', sns: 'SNSに投稿', aio: 'AIO計測' };
+  var NET_NAME = { x: 'X', facebook: 'Facebook', instagram: 'Instagram', threads: 'Threads', linkedin: 'LinkedIn', line: 'LINE', gbp: 'Googleビジネスプロフィール', bluesky: 'Bluesky' };
+  var lastMarks = null, lastSeries = [];
+  function markText(i) {
+    var t = i.label || MARK_NAME[i.kind] || '';
+    if (i.kind === 'sns') t = 'SNSに投稿' + (i.nets && i.nets.length ? '（' + i.nets.map(function (x) { return NET_NAME[x] || x; }).join('・') + '）' : '') + (i.count > 1 ? '' : '「' + t + '」');
+    if (i.count > 1) t += ' ×' + i.count;
+    return t;
+  }
+  function topKind(items) {
+    for (var k = 0; k < MARK_ORDER.length; k++) if (items.some(function (i) { return i.kind === MARK_ORDER[k]; })) return MARK_ORDER[k];
+    return 'note';
+  }
+  function marksByDate() {
+    var m = {};
+    ((lastMarks && lastMarks.marks) || []).forEach(function (x) { m[x.date] = x.items; });
+    return m;
+  }
+  async function loadMarks(range) {
+    if (!range) return;
+    var r = await window.lumAdmin.fetch('/api/analytics?view=marks&from=' + encodeURIComponent(range.from) + '&to=' + encodeURIComponent(range.to)).catch(function () { return null; });
+    lastMarks = r && r.data && r.data.ok ? r.data : { marks: [], missing: [], failed: true };
+    chart(lastSeries);
+    marksList();
+  }
+  function marksList(said) {
+    var host = el('stats-marks');
+    if (!host) return;
+    var list = (lastMarks && lastMarks.marks) || [];
+    var rows = [];
+    list.slice().reverse().forEach(function (d) {
+      d.items.forEach(function (i) {
+        rows.push('<li class="mk-row" data-date="' + esc(d.date) + '">' +
+          '<span class="mk-date">' + esc(md(d.date)) + '</span>' +
+          '<span class="mk-chip mk-' + esc(i.kind) + '">' + esc(MARK_NAME[i.kind] || i.kind) + '</span>' +
+          '<span class="mk-label">' + esc(markText(i)) + '</span>' +
+          (i.kind === 'note' && i.id ? '<button type="button" class="ghost mk-del" data-id="' + esc(i.id) + '">消す</button>' : '') +
+        '</li>');
+      });
+    });
+    var missing = ((lastMarks && lastMarks.missing) || []).map(function (k) { return MARK_NAME[k]; }).filter(Boolean);
+    var today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    host.innerHTML =
+      '<div class="mk-day" id="stats-mk-day" hidden></div>' +
+      '<details class="mk-box"' + (rows.length ? ' open' : '') + '>' +
+        '<summary>この期間の出来事 ' + rows.length + '件' +
+          '<span class="mk-legend">' + MARK_ORDER.map(function (k) { return '<span class="mk-chip mk-' + k + '">' + MARK_NAME[k] + '</span>'; }).join('') + '</span></summary>' +
+        (rows.length ? '<ul class="mk-list">' + rows.join('') + '</ul>'
+          : '<p class="share-note" style="margin:6px 0 0">この期間には、記録された出来事がありません。</p>') +
+        (lastMarks && lastMarks.failed ? '<p class="share-note" style="margin:6px 0 0">出来事を読み込めませんでした。「更新」でもう一度読みます。</p>'
+          : missing.length ? '<p class="share-note" style="margin:6px 0 0">読めなかった記録: ' + esc(missing.join('・')) + '（設定がまだのものは出ません）。</p>' : '') +
+        '<div class="mk-form">' +
+          '<label class="mk-flabel">日付<input type="date" id="stats-note-date" value="' + esc(today) + '"></label>' +
+          '<label class="mk-flabel mk-ftext">メモ（画面の外の出来事。例: 駅前でチラシを500枚配った）<input type="text" id="stats-note-text" maxlength="80" placeholder="例: 地域の情報誌に載った"></label>' +
+          '<button type="button" id="stats-note-add">メモを足す</button>' +
+        '</div>' +
+        '<p class="share-note" role="status" id="stats-note-msg" style="margin:4px 0 0">' + esc(said || '') + '</p>' +
+      '</details>';
+    el('stats-note-add').addEventListener('click', addNote);
+    Array.prototype.forEach.call(host.querySelectorAll('.mk-del'), function (b) {
+      b.addEventListener('click', function () { delNote(b.getAttribute('data-id'), b); });
+    });
+  }
+  async function noteCall(body, btn) {
+    if (btn) btn.disabled = true;
+    var r = await window.lumAdmin.fetch('/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(function () { return null; });
+    if (btn) btn.disabled = false;
+    var d = r && r.data;
+    if (!d || !d.ok) { var m = el('stats-note-msg'); if (m) m.textContent = (d && d.message) || '保存できませんでした。'; return false; }
+    return true;
+  }
+  async function addNote() {
+    var date = el('stats-note-date').value, text = el('stats-note-text').value.trim();
+    if (!text) { el('stats-note-msg').textContent = 'メモの文を書いてください。'; return; }
+    if (await noteCall({ action: 'note-add', date: date, text: text }, el('stats-note-add'))) {
+      await loadMarks(lastData && lastData.range);
+      var m = el('stats-note-msg'); if (m) m.textContent = md(date) + ' にメモを足しました。';
+    }
+  }
+  async function delNote(id, btn) {
+    if (!confirm('このメモを消しますか？')) return;
+    if (await noteCall({ action: 'note-del', id: id }, btn)) await loadMarks(lastData && lastData.range);
+  }
+  function showDay(date) {
+    var box = el('stats-mk-day');
+    var items = marksByDate()[date];
+    if (!box || !items) return;
+    box.hidden = false;
+    box.innerHTML = '<b>' + esc(md(date)) + '</b>　' + items.map(function (i) {
+      return '<span class="mk-chip mk-' + esc(i.kind) + '">' + esc(MARK_NAME[i.kind] || i.kind) + '</span>' + esc(markText(i));
+    }).join('　') + '<button type="button" class="ghost mk-x" aria-label="閉じる">×</button>';
+    box.querySelector('.mk-x').addEventListener('click', function () { box.hidden = true; });
+  }
+
   function chart(series) {
+    lastSeries = series;
     var W = 100, H = 34, pad = 1;
     var max = Math.max(1, Math.max.apply(null, series.map(function (p) { return p.views })));
     var bw = (W - pad * 2) / Math.max(series.length, 1);
@@ -4549,11 +4652,23 @@ window.lumAdmin = {
         '" height="' + Math.max(h, 0.4).toFixed(2) + '" rx="0.3" fill="url(#sg)"><title>' + esc(title) + '</title></rect>';
     }).join('');
     var first = series[0], last = series[series.length - 1];
+    // 出来事のあった日。棒の後ろに細い縦線、グラフの下に押せる点を置きます。
+    var byDate = marksByDate(), lines = '', dots = '';
+    series.forEach(function (p, i) {
+      var items = byDate[p.date];
+      if (!items) return;
+      var cx = pad + (i + 0.5) * bw, k = topKind(items);
+      lines += '<line class="mk-line mk-' + k + '" x1="' + cx.toFixed(2) + '" x2="' + cx.toFixed(2) + '" y1="0" y2="' + H + '" vector-effect="non-scaling-stroke"/>';
+      var tip = md(p.date) + '：' + items.map(markText).join('／');
+      dots += '<button type="button" class="mk-dot mk-' + k + '" data-date="' + esc(p.date) + '" style="left:' + ((i + 0.5) / series.length * 100).toFixed(2) + '%"' +
+        ' title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' + (items.length > 1 ? '<span>' + items.length + '</span>' : '') + '</button>';
+    });
     el('stats-chart').innerHTML =
       '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:150px;display:block">' +
       '<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">' +
       '<stop offset="0" stop-color="#3d3fbf"/><stop offset="1" stop-color="#3d3fbf" stop-opacity=".55"/>' +
-      '</linearGradient></defs>' + bars + '</svg>' +
+      '</linearGradient></defs>' + lines + bars + '</svg>' +
+      (dots ? '<div class="mk-strip">' + dots + '</div>' : '') +
       '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--sub);margin-top:6px">' +
       '<span>' + esc(first ? first.date : '') + '</span>' +
       '<span>最大 ' + n(max) + ' / 日</span>' +
@@ -4995,6 +5110,7 @@ window.lumAdmin = {
     cards(data);
     selfSwitch();
     chart(data.series || []);
+    loadMarks(data.range);
     kinds(data.referrerKinds || []);
     aiBox(data);
     convTable(data.convSources || []);
@@ -5155,6 +5271,10 @@ window.lumAdmin = {
   el('stats-prev').addEventListener('click', function () { endOffset += Number(el('stats-range').value) || 30; load(); });
   el('stats-next').addEventListener('click', function () { endOffset = Math.max(0, endOffset - (Number(el('stats-range').value) || 30)); load(); });
   el('stats-csv').addEventListener('click', downloadCsv);
+  el('stats-chart').addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.mk-dot') : null;
+    if (b) showDay(b.getAttribute('data-date'));
+  });
 
   /* ---- いまサイトにいる人（最近5分） ----
      人数と、いま開かれているページだけです。誰がどのページにいるかは、

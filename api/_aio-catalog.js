@@ -321,6 +321,8 @@ export function isOwnCompany(name) {
 /* ---- 保存した質問の一覧 ----
    計測（aio.js）とサイトの点検（site-audit.js）が同じ一覧を読むよう、ここに置きます。 */
 export const QKEY = `${KV}aio:questions`
+// 計測の一覧（新しい順の id）。アクセス解析のグラフの「出来事の印」も読みます。
+export const AIO_INDEX = `${KV}aio:index`
 
 /** This site's question list: the one saved from the admin, or the defaults.
  *  A saved list that no longer validates is ignored rather than trusted. */
