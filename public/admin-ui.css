@@ -845,3 +845,15 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 #shell .utm-qr-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 #shell .utm-qr-acts button { font-size: 12px; padding: 6px 12px; }
 @media (max-width: 480px) { #shell .utm-qr { flex-direction: column; } }
+
+/* ---- SEO / AIO: 変化のお知らせ ---- */
+#shell #seo-top { margin: 0 0 14px; }
+#shell .sa-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+#shell .sa-h { font-size: 13px; font-weight: 700; margin: 0; }
+#shell .sa-n { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--ui-ng-bg); color: var(--ui-ng); }
+#shell .sa-bar button { font-size: 12px; padding: 6px 12px; }
+#shell .sa-none { margin: 0; }
+#shell .sa-detail { font-size: 12px; color: var(--ui-text-2); line-height: 1.8; margin-top: 2px; }
+#shell button.sa-go { font-size: 11.5px; padding: 4px 10px; margin-top: 6px; min-height: 0; width: auto; }
+#shell .sa-foot { margin: 2px 0 0; }
+#shell .sa-foot button { font-size: 12px; padding: 7px 13px; }

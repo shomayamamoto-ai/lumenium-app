@@ -28,6 +28,8 @@ export const config = { runtime: 'edge' }
 //   POST {action:'judge', items:[{key,q,answer}]} -> how each answer treated us
 //   POST {action:'finalize', runId, results} -> the summary, stored with the run
 //   POST {action:'probe', index, engine}     -> one answer, nothing stored
+//   GET  ?view=alerts[&fresh=1]              -> 変化のお知らせ（_seo-alerts.js）
+//   POST {action:'alerts-seen', ids}         -> そのお知らせを「確認しました」に
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, NO_AI, spendGuard } from './_admin-auth.js'
@@ -42,6 +44,8 @@ import { ENGINES, ENGINE_IDS, engineKeys, askEngine, checkClaude } from './_engi
 import { rate, compareRates } from './_aio-stats.js'
 import { KV, BRAND as SITE } from './_brand.js'
 import { CHAT_RUNS } from './_aio-chat-runs.js'
+import { seoAlerts, markSeen, AUDIT_FRESH_KEY, ALERTS_SEEN_KEY, ALERTS_CACHE_KEY, ALERTS_CACHE_TTL } from './_seo-alerts.js'
+import { crawlerLastSeen } from './_crawlers.js'
 
 /* 1回の回答にかけてよい時間。
    エッジ関数は最初の応答までに使える時間が決まっていて、そこを越えると
@@ -874,11 +878,53 @@ export async function finalizeRun(cfg, run, sent, analysisFailures) {
   if (cfg) {
     try {
       await writeRun(cfg, run)
-      await pipeline(cfg, [['DEL', RES(run.id)]])
+      // 新しい計測が入ったので、変化のお知らせは次に読むとき作り直します。
+      await pipeline(cfg, [['DEL', RES(run.id)], ['DEL', ALERTS_CACHE_KEY]])
       stored = true
     } catch (_) { stored = false }
   }
   return { run, stored }
+}
+
+/* ---- 変化のお知らせ ----
+   最新の計測と、それと比べられる前回（同じ質問・同じAI）、クローラーが最後に
+   来た時刻、点検で新しく見つかった「必ず直す」から作ります（_seo-alerts.js）。
+   計測の記録は大きいので、作った結果は15分だけ取っておき、タブの横の数は
+   それを使います。画面を開いたときと、計測・点検のあとは作り直します。 */
+export async function seoAlertsFor(cfg, { fresh = false } = {}) {
+  if (!cfg) return { stored: false, checked: false, alerts: [], unseen: 0 }
+  const parse = (raw) => { try { return raw ? JSON.parse(raw) : null } catch (_) { return null } }
+  const [seenRaw, cacheRaw] = await pipeline(cfg, [['GET', ALERTS_SEEN_KEY], ['GET', ALERTS_CACHE_KEY]])
+  let base = fresh ? null : parse(cacheRaw)
+  if (!base || !Array.isArray(base.alerts)) {
+    const [ids, freshRaw] = await pipeline(cfg, [['LRANGE', INDEX, 0, 7], ['GET', AUDIT_FRESH_KEY]])
+    const list = Array.isArray(ids) ? ids : []
+    const stored = list.length ? (await pipeline(cfg, list.map((id) => ['GET', RK(id)]))).map(parse).filter((r) => r && r.summary) : []
+    const byTime = (r) => Date.parse(r.finishedAt || r.startedAt || '') || 0
+    const chat = CHAT_RUNS.filter((r) => r.site === SITE.host && r.summary && !stored.some((x) => x.id === r.id))
+    const runs = stored.concat(chat).sort((a, b) => byTime(b) - byTime(a))
+    const latest = runs[0] || null
+    const before = latest ? runs.slice(1).find((r) => comparable(latest, r).ok) || null : null
+    const cmp = (k) => {
+      const b = before.summary.stats && before.summary.stats[k]
+      const a = latest.summary.stats && latest.summary.stats[k]
+      return { before: b, after: a, ...compareRates(b, a) }
+    }
+    const compare = before ? { openMention: cmp('openMention'), recommend: cmp('recommend') } : null
+    const crawlerLast = await crawlerLastSeen(cfg)
+    const auditFresh = parse(freshRaw)
+    base = {
+      at: new Date().toISOString(),
+      // 比べる材料が1つでもあったか（無ければ「変化なし」とも言えません）。
+      checked: !!(latest || (crawlerLast && Object.keys(crawlerLast).length) || auditFresh),
+      latestAt: latest ? latest.finishedAt || null : null,
+      beforeAt: before ? before.finishedAt || null : null,
+      alerts: seoAlerts({ latest, before, compare, crawlerLast, auditFresh }),
+    }
+    try { await pipeline(cfg, [['SET', ALERTS_CACHE_KEY, JSON.stringify(base), 'EX', ALERTS_CACHE_TTL]]) } catch (_) {}
+  }
+  const alerts = markSeen(base.alerts, parse(seenRaw))
+  return { stored: true, ...base, alerts, unseen: alerts.filter((a) => a.fresh).length }
 }
 
 export async function GET(req) {
@@ -886,6 +932,13 @@ export async function GET(req) {
   if (denied) return denied
 
   const cfg = await storeFor(req)
+  if (new URL(req.url).searchParams.get('view') === 'alerts') {
+    try {
+      return json({ ok: true, ...(await seoAlertsFor(cfg, { fresh: new URL(req.url).searchParams.get('fresh') === '1' })) })
+    } catch (_) {
+      return json({ ok: false, message: '変化のお知らせを読めませんでした。' }, 502)
+    }
+  }
   const keys = await engineKeys(req)
   const { list, custom } = await loadQuestions(cfg)
   // 自動計測の状態。止まっている計測があれば、ここで続きを呼び直します
@@ -1076,6 +1129,22 @@ export async function POST(req) {
     if (!r.ok) return json({ ok: false, message: r.message }, 400)
     const kicked = await A.kick(new URL(req.url).origin)
     return json({ ok: true, kicked, auto: await A.autoStatus(store) })
+  }
+
+  /* 変化のお知らせの「確認しました」。AIは使わないので、キーが無くても動きます。 */
+  if (action === 'alerts-seen') {
+    if (!cfg) return json(NO_STORE, 503)
+    const ids = (Array.isArray(body.ids) ? body.ids : []).map((x) => String(x).slice(0, 300)).slice(0, 50)
+    try {
+      const [raw] = await pipeline(cfg, [['GET', ALERTS_SEEN_KEY]])
+      let seen = []
+      try { seen = JSON.parse(raw || '[]') } catch (_) { seen = [] }
+      const next = [...new Set([...ids, ...(Array.isArray(seen) ? seen : [])])].slice(0, 300)
+      await pipeline(cfg, [['SET', ALERTS_SEEN_KEY, JSON.stringify(next)]])
+      return json({ ok: true, ...(await seoAlertsFor(cfg)) })
+    } catch (_) {
+      return json({ ok: false, message: '保存できませんでした。時間をおいてもう一度お試しください。' }, 502)
+    }
   }
 
   // The judge is Claude whichever engines answer, so its key is required.

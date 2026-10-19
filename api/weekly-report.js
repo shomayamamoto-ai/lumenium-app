@@ -143,7 +143,13 @@ async function send(cfg, req, { test }) {
   // 自動改善の一節。読めなくてもメールは送ります。
   let auto = null
   try { const a = await import('./_auto-run.js'); auto = a.weeklyAutoLines(await a.weeklyAuto(cfg, pipeline)) } catch (_) { auto = null }
-  const { subject, text } = compose(rep, { test, sns, auto })
+  // 検索・AIでの見え方の変化（SEO / AIO の「変化のお知らせ」と同じもの）。読めなくても送ります。
+  let seo = null
+  try {
+    const [A, S] = await Promise.all([import('./aio.js'), import('./_seo-alerts.js')])
+    seo = S.alertLines(await A.seoAlertsFor(cfg))
+  } catch (_) { seo = null }
+  const { subject, text } = compose(rep, { test, sns, auto, seo })
   let res
   try {
     res = await fetch('https://api.resend.com/emails', {
@@ -288,7 +294,7 @@ export function advice(rep) {
   return '大きな変化はありませんでした。いまのペースで発信を続けましょう。'
 }
 
-export function compose(rep, { test, sns, auto } = {}) {
+export function compose(rep, { test, sns, auto, seo } = {}) {
   const c = rep.summary.cur, p = rep.summary.prev
   const span = `${md(rep.range.from)}〜${md(rep.range.to)}`
   const subject = `${test ? '【テスト送信】' : ''}【${BRAND.name}】先週のアクセスのまとめ（${span}）`
@@ -326,6 +332,10 @@ export function compose(rep, { test, sns, auto } = {}) {
   }
   if (auto && auto.length) {
     lines.push(...auto)
+    lines.push('')
+  }
+  if (seo && seo.length) {
+    lines.push(...seo)
     lines.push('')
   }
   lines.push('■ ひとこと')

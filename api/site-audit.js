@@ -33,6 +33,7 @@ import { readCrawls } from './_crawlers.js'
 import { loadQuestions } from './_aio-catalog.js'
 import { SITE, CHECKS, auditSite, questionCoverage, nominatePages } from './_audit-rules.js'
 import { BRAND, KV } from './_brand.js'
+import { AUDIT_FRESH_KEY, ALERTS_CACHE_KEY } from './_seo-alerts.js'
 
 /* Which page is supposed to answer each measured question. The two halves of
    this screen never met: the probe reported 「動画制作 0%」 and the audit
@@ -194,6 +195,15 @@ export async function GET(req) {
     counts: run.counts,
     linksChecked: run.linksChecked,
     notes: run.notes,
+  }
+  /* 変化のお知らせ（_seo-alerts.js）が読む、今回新しく見つかった「必ず直す」。
+     前回の点検が無い（初めての点検）ときは、どれも「新しく」ではないので空です。 */
+  if (cfg) {
+    const fresh = out.findings.filter((f) => f.fresh && f.level === 'must').slice(0, 30)
+      .map((f) => ({ check: f.check, page: f.page || '', problem: f.problem || f.check }))
+    try {
+      await pipeline(cfg, [['SET', AUDIT_FRESH_KEY, JSON.stringify({ checkedAt: out.checkedAt, items: fresh }), 'EX', 400 * 86400], ['DEL', ALERTS_CACHE_KEY]])
+    } catch (_) {}
   }
   // 次に画面を開いたとき、すぐ出せるように控えます（大きすぎるときは控えません）。
   if (cfg) {

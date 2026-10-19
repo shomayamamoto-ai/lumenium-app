@@ -1368,6 +1368,8 @@ input, select, textarea { color: var(--text); }
 
     <div class="panel" id="seo-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">お客様が実際に打ちそうな質問を、ウェブ検索を有効にしたAIに投げて、<strong>回答に自社の名前が出てくるか</strong>を計測します。Googleの AI Overview そのものを読んでいるわけではありません（Googleは掲載可否を公開しておらず、SERPの自動取得は規約違反です）。同じ役割のアンサーエンジンに同じ質問をして、時系列で比較できる指標として使います。</p>
+      <!-- 変化のお知らせ（前回の計測から悪い方へ動いたものだけ）。どのタブでも上に出ます。 -->
+      <div id="seo-top"></div>
       <div class="toolbar" style="margin-bottom:12px">
         <button id="seo-run" type="button">AIO出現率を計測</button>
         <button class="ghost" id="seo-probe" type="button">1問だけ試す（1回分の料金）</button>
@@ -6459,6 +6461,7 @@ window.lumAdmin = {
     running = false;
     el('seo-run').disabled = false;
     await load();
+    loadAlerts(true);
   }
 
   el('seo-run').addEventListener('click', function () {
@@ -6542,7 +6545,8 @@ window.lumAdmin = {
       btn.disabled = false; return;
     }
     renderAudit(data);
-    if (window.lumSeoBadge) window.lumSeoBadge();
+    // 点検で新しく見つかったものは、変化のお知らせにも出ます。
+    loadAlerts(true);
   }
 
   /* 画面を開いたときは、前回の点検の結果をすぐ出します（点検は20秒かかるため）。
@@ -6672,13 +6676,76 @@ window.lumAdmin = {
       }).join('') + '</ul>';
   }
 
-  /* タブの横の数: 最後の点検の「必ず直す」の数。 */
+  /* ---- 変化のお知らせ（api/_seo-alerts.js） ----
+     前回の計測から悪い方へ動いたものだけを、画面のいちばん上に一行ずつ。
+     下がった・追い越された・クローラーが来なくなった・点検で新しく見つかった。
+     「確認しました」を押すと、タブの横の数から外れます（お知らせ自体は、
+     次の計測や点検で状況が変わるまで残ります）。 */
+  var alertsData = null;
+  async function loadAlerts(fresh) {
+    var r = null;
+    try { r = await window.lumAdmin.fetch('/api/aio?view=alerts' + (fresh ? '&fresh=1' : '')); } catch (_) { r = null; }
+    var d = r && r.data;
+    alertsData = d && d.ok ? d : null;
+    paintAlerts();
+    if (window.lumSeoBadge) window.lumSeoBadge();
+  }
+  function paintAlerts(said) {
+    var host = el('seo-top');
+    if (!host) return;
+    var d = alertsData;
+    var head = '<div class="sa-bar"><h3 class="sa-h">変化のお知らせ' +
+      (d && d.alerts && d.alerts.length ? '<span class="sa-n">' + d.alerts.length + '件</span>' : '') + '</h3>' +
+      '<button type="button" class="ghost" id="seo-print-btn">印刷・PDFにする</button></div>';
+    if (!d || !d.stored) {
+      host.innerHTML = head + '<p class="share-note sa-none">' + (d ? '保存先（Upstash Redis）をつなぐと、前回の計測との差やクローラーの変化をここでお知らせします。' : 'お知らせを読み込めませんでした。') + '</p>';
+    } else if (!d.alerts.length) {
+      host.innerHTML = head + '<p class="share-note sa-none">' + (d.checked
+        ? 'いまは、気になる変化はありません（前回の計測との差・競合・AIのクローラー・サイトの点検を見ています）。'
+        : 'まだ比べる材料がありません。AIO出現率を2回計測するか、サイトの点検をすると、ここで変化をお知らせします。') + '</p>';
+    } else {
+      host.innerHTML = head + d.alerts.map(function (a, i) {
+        return '<div class="st-box' + (a.level === 'ng' ? ' red' : '') + ' sa-item">' +
+          (a.fresh ? '<span class="st-new">新着</span>' : '') + '<b>' + esc(a.title) + '</b>' +
+          '<div class="sa-detail">' + esc(a.detail || '') + '</div>' +
+          (a.go && a.go.id ? '<button type="button" class="ghost sa-go" data-i="' + i + '">詳しく見る</button>' : '') +
+        '</div>';
+      }).join('') +
+      (d.unseen ? '<div class="sa-foot"><button type="button" id="seo-alerts-seen">確認しました（タブの数を0に戻す）</button></div>' : '') +
+      (said ? '<p class="share-note" role="status">' + esc(said) + '</p>' : '');
+    }
+    Array.prototype.forEach.call(host.querySelectorAll('.sa-go'), function (b) {
+      b.addEventListener('click', function () {
+        var a = d.alerts[Number(b.getAttribute('data-i'))];
+        var t = a && a.go && el(a.go.id);
+        // 隠れているタブ・たたんだ内訳の中でも、先に開いてから移ります（/admin-subtabs.js）。
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    var seen = el('seo-alerts-seen');
+    if (seen) seen.addEventListener('click', async function () {
+      seen.disabled = true;
+      var r = await post({ action: 'alerts-seen', ids: d.alerts.map(function (a) { return a.id; }) }).catch(function (e) { return { ok: false, message: e.message }; });
+      if (r && r.ok) { alertsData = r; paintAlerts(); if (window.lumSeoBadge) window.lumSeoBadge(); }
+      else { seen.disabled = false; paintAlerts((r && r.message) || '保存できませんでした。'); }
+    });
+    var pb = el('seo-print-btn');
+    if (pb) pb.addEventListener('click', function () { if (window.lumSeoPrint) window.lumSeoPrint(); });
+  }
+
+  /* タブの横の数: 最後の点検の「必ず直す」の数と、まだ確認していない変化のお知らせ。
+     点検のお知らせは「必ず直す」の数にもう入っているので、二重には数えません。 */
   window.lumSeoBadge = async function () {
     if (!window.lumNavBadge) return;
-    var r = null;
-    try { r = await window.lumAdmin.fetch('/api/site-audit?view=badge'); } catch (_) { r = null; }
-    var d = r && r.data;
-    if (d && d.ok) window.lumNavBadge('seo-admin', d.must || 0, d.must ? ['サイトの点検で「必ず直す」' + d.must + '件'] : []);
+    var got = await Promise.all([
+      window.lumAdmin.fetch('/api/site-audit?view=badge').catch(function () { return null; }),
+      window.lumAdmin.fetch('/api/aio?view=alerts').catch(function () { return null; })
+    ]);
+    var d = got[0] && got[0].data, a = got[1] && got[1].data;
+    if (!(d && d.ok) && !(a && a.ok)) return;
+    var must = d && d.ok ? d.must || 0 : 0;
+    var news = a && a.ok ? (a.alerts || []).filter(function (x) { return x.fresh && x.kind !== 'audit'; }).length : 0;
+    window.lumNavBadge('seo-admin', must + news, [must ? 'サイトの点検で「必ず直す」' + must + '件' : '', news ? '変化のお知らせ ' + news + '件' : ''].filter(Boolean));
   };
   if (window.lumNavPoll) window.lumNavPoll(function () { window.lumSeoBadge(); });
 
@@ -6973,6 +7040,7 @@ window.lumAdmin = {
     // Free and fast, so it runs without being asked — the panel should say
     // something useful before any money has been spent on a measurement.
     if (!auditDone) { auditDone = true; auditFirst(); crawlBox(); loadSearchConsole(); }
+    loadAlerts(true);
   };
 })();
 </script>

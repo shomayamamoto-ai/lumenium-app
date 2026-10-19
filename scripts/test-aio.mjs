@@ -188,5 +188,64 @@ await test('comparable: only the same questions to the same engines', () => {
   assert.equal(comparable(a, {}).ok, false)
 })
 
+/* ---- 変化のお知らせ（_seo-alerts.js） ---- */
+const SA = await import(new URL('../api/_seo-alerts.js', import.meta.url))
+const runOf = (id, at, comps) => ({ id, finishedAt: at, summary: { competitors: comps } })
+const NOW = Date.parse('2026-10-19T00:00:00Z')
+
+await test('alerts: a drop beyond the noise is said, a drop inside it is not', () => {
+  const latest = runOf('r2', '2026-10-18T00:00:00Z', []), before = runOf('r1', '2026-10-04T00:00:00Z', [])
+  const down = { openMention: { change: 'down', before: { p: 0.4 }, after: { p: 0.1 } }, recommend: { change: 'same' } }
+  const a = SA.seoAlerts({ latest, before, compare: down, now: NOW })
+  assert.equal(a.length, 1)
+  assert.equal(a[0].kind, 'drop')
+  assert.match(a[0].title, /40% → 10%/)
+  assert.equal(a[0].id, 'drop:openMention:r2')
+  const same = { openMention: { change: 'same' }, recommend: { change: 'same' } }
+  assert.equal(SA.seoAlerts({ latest, before, compare: same, now: NOW }).length, 0)
+  // 前回が無い（比べられない）ときは何も言わない
+  assert.equal(SA.seoAlerts({ latest, before: null, compare: null, now: NOW }).length, 0)
+  // 候補の割合だけが下がったときは、そちらを言う
+  const rec = SA.seoAlerts({ latest, before, compare: { openMention: { change: 'same' }, recommend: { change: 'down', before: { p: 0.3 }, after: { p: 0 } } }, now: NOW })
+  assert.equal(rec[0].id, 'drop:recommend:r2')
+})
+
+await test('alerts: a competitor that overtook us (names folded, 1-vs-0 ignored)', () => {
+  const before = runOf('r1', '2026-10-04T00:00:00Z', [{ name: '自社', us: true, count: 4 }, { name: '株式会社サンプル', count: 3 }, { name: 'ずっと上', count: 9 }])
+  const latest = runOf('r2', '2026-10-18T00:00:00Z', [{ name: '自社', us: true, count: 3 }, { name: 'サンプル', count: 5 }, { name: 'ずっと上', count: 9 }, { name: '新顔', count: 1 }])
+  const a = SA.seoAlerts({ latest, before, compare: null, now: NOW }).filter((x) => x.kind === 'overtake')
+  assert.equal(a.length, 1, 'ずっと上だった会社と、1回だけの新顔は言わない')
+  assert.match(a[0].title, /サンプル/)
+  assert.match(a[0].detail, /前回は 3回・自社 4回/)
+})
+
+await test('alerts: AI crawlers quiet for 14 days (never-seen ones are not alerts)', () => {
+  const crawlerLast = { GPTBot: '2026-10-01T00:00:00Z', ClaudeBot: '2026-10-15T00:00:00Z', Googlebot: '2026-09-01T00:00:00Z' }
+  const a = SA.seoAlerts({ crawlerLast, now: NOW })
+  assert.equal(a.length, 1)
+  assert.equal(a[0].kind, 'crawler')
+  assert.match(a[0].title, /GPTBot/)
+  assert.doesNotMatch(a[0].title, /ClaudeBot|Googlebot|PerplexityBot/)
+})
+
+await test('alerts: new must-fix items from the site check, and seen marks', () => {
+  const auditFresh = { checkedAt: '2026-10-18T03:00:00Z', items: [{ check: 'noindex', page: '/a', problem: '検索に出さない設定' }, { check: 'noindex', page: '/b', problem: '検索に出さない設定' }] }
+  const a = SA.seoAlerts({ auditFresh, now: NOW })
+  assert.equal(a.length, 1)
+  assert.match(a[0].title, /2件/)
+  const marked = SA.markSeen(a, [a[0].id])
+  assert.equal(marked[0].fresh, false)
+  assert.equal(SA.markSeen(a, [])[0].fresh, true)
+  assert.equal(SA.seoAlerts({ auditFresh: { checkedAt: 'x', items: [] }, now: NOW }).length, 0)
+})
+
+await test('alerts: weekly mail lines', () => {
+  assert.deepEqual(SA.alertLines({ checked: false, alerts: [] }), [], '比べる材料が無ければ一節ごと省く')
+  assert.match(SA.alertLines({ checked: true, alerts: [] }).join('\n'), /気になる変化はありませんでした/)
+  const l = SA.alertLines({ checked: true, alerts: [{ title: 'AIのクローラーが…' }] })
+  assert.equal(l[0], '■ 検索・AIでの見え方の変化')
+  assert.equal(l[1], '・AIのクローラーが…')
+})
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

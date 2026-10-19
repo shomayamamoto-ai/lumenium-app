@@ -259,6 +259,21 @@ const asObj = (v) => {
   return v
 }
 
+/** 名前ごとの、最後に来た時刻だけ（{ id: ISO }）。1回の読みで済むので、
+ *  変化のお知らせ（_seo-alerts.js）と週次メールが使います。 */
+export async function crawlerLastSeen(cfg) {
+  if (!cfg) return null
+  let raw
+  try { [raw] = await pipeline(cfg, [['HGETALL', LAST]]) } catch (_) { return null }
+  const out = {}
+  for (const [id, v] of pairs(asObj(raw))) {
+    const name = RENAMED[id] || id
+    const at = String(v || '').split('|')[0]
+    if (at && (!out[name] || at > out[name])) out[name] = at
+  }
+  return out
+}
+
 /** Everything the panel shows about crawling, in one round trip. */
 export async function readCrawls(cfg, days = 30) {
   if (!cfg) return null

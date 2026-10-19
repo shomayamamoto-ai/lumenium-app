@@ -679,7 +679,7 @@
         [['/robots.txt', 22], ['/', 11], ['/pricing.html', 8], ['/llms.txt', 6], ['/services/web.html', 5]]),
       a('ClaudeBot', 'ai-train', 'Anthropic', 41, 26 * H, 'Anthropic（Claude）の学習用',
         [['/robots.txt', 15], ['/llms.txt', 7], ['/', 6], ['/services/ai.html', 4], ['/faq.html', 3]]),
-      a('PerplexityBot', 'ai-search', 'Perplexity', 23, 40 * H, 'Perplexity の検索用',
+      a('PerplexityBot', 'ai-search', 'Perplexity', 23, 17 * 24 * H, 'Perplexity の検索用',
         [['/robots.txt', 9], ['/', 5], ['/faq.html', 3], ['/llms.txt', 2], ['/services/web.html', 2]]),
       a('ChatGPT-User', 'ai-user', 'OpenAI', 7, 3 * 24 * H, 'ChatGPT の利用者に頼まれて開いた',
         [['/pricing.html', 3], ['/services/web.html', 2], ['/', 2]]),
@@ -1032,6 +1032,27 @@
     };
   }
 
+  /* 変化のお知らせ（shape: api/aio.js ?view=alerts → api/_seo-alerts.js）。
+     見本のほかの欄と食い違わないものだけにします: PerplexityBot は17日前が最後
+     （クローラーの欄と同じ）、点検の「新着」はリンク切れ1件（点検の欄と同じ）。
+     「確認しました」は、このページを開いている間だけ覚えます。 */
+  var aioAlertsSeen = false;
+  function mdOf(d) { return Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10)); }
+  function aioAlerts() {
+    var alerts = [
+      { id: 'crawler:PerplexityBot@demo', kind: 'crawler', level: 'warn',
+        title: 'AIのクローラーが14日以上来ていません（PerplexityBot）',
+        detail: 'PerplexityBot は ' + mdOf(jstDate(17)) + ' が最後。robots.txt やサイトの設定でこの名前を断っていないか確かめてください。断っていなければ、サイトマップを送り直し、新しいページを公開すると戻ってくることが多いです。',
+        go: { tab: 'site', id: 'crawl-body' }, at: null },
+      { id: 'audit:demo:1', kind: 'audit', level: 'warn',
+        title: 'サイトの点検で、新しく「必ず直す」が 1件 見つかりました',
+        detail: 'リンク切れ（リンク先のページが無い）（' + mdOf(jstDate(0)) + ' の点検）。検索に載らなくなる原因になるものです。',
+        go: { tab: 'site', id: 'audit-body' }, at: null }
+    ].map(function (a) { a.fresh = !aioAlertsSeen; return a; });
+    return { ok: true, stored: true, checked: true, at: new Date().toISOString(), latestAt: aioRun(0).finishedAt, beforeAt: aioRun(1).finishedAt,
+      alerts: alerts, unseen: aioAlertsSeen ? 0 : alerts.length };
+  }
+
   /* A measurement can be "run" in demo: a handful of the sample questions,
      answered at once, and the same report at the end. stored:true keeps the
      panel from copying the run into this browser's real AIO history. */
@@ -1072,6 +1093,7 @@
     }
     if (a === 'finalize') return { ok: true, run: aioRun(0), stored: true };
     if (a === 'check') return { ok: true, ready: true, kind: null, message: '', detail: '' };
+    if (a === 'alerts-seen') { aioAlertsSeen = true; return aioAlerts(); }
     if (a === 'probe') {
       var s0 = SAMPLE_QS[0];
       return { ok: true, probe: { ok: true, q: s0.q, engine: 'claude', ms: 16800, named: true, cited: true, searched: true, searchCount: 6,
@@ -1780,7 +1802,7 @@
       case '/api/weekly-report': return reply(weeklyReport());
       case '/api/search-console': return reply(searchConsole());
       case '/api/crawlers': return reply(crawlers());
-      case '/api/aio': return reply(aioGet(q.get('run')));
+      case '/api/aio': return reply(q.get('view') === 'alerts' ? aioAlerts() : aioGet(q.get('run')));
       case '/api/site-audit': return reply(q.get('view') === 'badge' ? auditBadge() : q.get('view') === 'last' ? auditLast() : siteAudit());
       case '/api/indexnow':
         return reply({ ok: true, last: { at: ago(5 * DAY + 3 * 3600000), status: 200, count: 42, ok: true }, keyUrl: 'https://example.com/demo-key.txt' });

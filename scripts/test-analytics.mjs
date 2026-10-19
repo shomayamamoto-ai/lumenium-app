@@ -373,6 +373,29 @@ console.log('グラフの出来事の印')
   check('無いメモを消すと 404', (await post({ action: 'note-del', id: 'nope' })).status === 404)
 }
 
+console.log('変化のお知らせ（週次メールと、保存先から作る道）')
+{
+  reset()
+  const { KV } = await import(new URL('../api/_brand.js', import.meta.url))
+  const A = await import(new URL('../api/aio.js', import.meta.url))
+  const cfg = { url: REDIS, token: 'test' }
+  const empty = await A.seoAlertsFor(cfg, { fresh: true })
+  // チャットで行った計測（_aio-chat-runs.js）はこのサイトのぶんが入っているので、クローラーの印だけで見ます。
+  const crawl = (x) => x.alerts.filter((a) => a.kind === 'crawler')
+  check('クローラーの記録が無ければ、クローラーのお知らせは無い', empty.ok !== false && crawl(empty).length === 0, empty)
+  hash(`${KV}bot:last`).set('GPTBot', new Date(Date.now() - 20 * 86400000).toISOString() + '|/robots.txt')
+  hash(`${KV}bot:last`).set('ClaudeBot', new Date(Date.now() - 86400000).toISOString() + '|/')
+  const r = await A.seoAlertsFor(cfg, { fresh: true })
+  check('20日来ていない GPTBot を知らせる（1日前の ClaudeBot は言わない）・まだ見ていない印', r.checked && crawl(r).length === 1 && /GPTBot/.test(crawl(r)[0].title) && !/ClaudeBot/.test(crawl(r)[0].title) && crawl(r)[0].fresh, r)
+  hash(`${KV}bot:last`).delete('GPTBot')
+  check('15分は作った結果を使う（タブの数のたびに読み直さない）', crawl(await A.seoAlertsFor(cfg)).length === 1)
+  const auth = { Authorization: 'Bearer test-admin-key', 'x-forwarded-for': '192.0.2.12', 'Content-Type': 'application/json' }
+  const seen = await (await A.POST(new Request('https://lumenium.net/api/aio', { method: 'POST', headers: auth, body: JSON.stringify({ action: 'alerts-seen', ids: r.alerts.map((a) => a.id) }) }))).json()
+  check('確認しました → まだ見ていない数が0（お知らせ自体は残る）', seen.ok && seen.unseen === 0 && crawl(seen).length === 1, seen)
+  const mail = weekly.compose(await buildReport(cfg, { days: 7, endOffset: 1 }), { seo: ['■ 検索・AIでの見え方の変化', '・テストのお知らせ'] })
+  check('週次メールに一節が入る', mail.text.includes('■ 検索・AIでの見え方の変化\n・テストのお知らせ'))
+}
+
 if (failed) {
   console.error(`\nアクセス解析のテスト: ${failed} 件失敗（${passed} 件成功）`)
   process.exit(1)
