@@ -453,4 +453,33 @@ await test('認証: 管理キーなしでは読めない', async () => {
   assert.deepEqual(Object.keys(dg[0]).sort(), ['comment', 'createdAt', 'id', 'stars'])
   passed++
 }
+{
+  // 定型の返信文: 空は捨てる・星の帯で選ぶ・差し込み
+  const P = C.cleanPhrases([{ name: 'お礼', stars: 'high', body: '{name}、ありがとうございます。{shop}' }, { body: '   ' }, { stars: 'zzz', body: 'みんなへ' }, { stars: 'low', body: 'お詫び' }])
+  assert.equal(P.length, 3)
+  assert.equal(P[1].stars, 'all')
+  assert.deepEqual(C.phrasesFor(P, 5).map((x) => x.body), ['{name}、ありがとうございます。{shop}', 'みんなへ'])
+  assert.deepEqual(C.phrasesFor(P, 1).map((x) => x.body), ['みんなへ', 'お詫び'])
+  assert.equal(C.fillPhrase(P[0].body, { author: '山田 花子' }, 'サロン'), '山田 花子 様、ありがとうございます。サロン')
+  assert.equal(C.fillPhrase('{name}へ', { author: '' }, ''), 'お客様へ')
+  assert.equal(C.cleanPhrases(Array.from({ length: 30 }, (_, i) => ({ body: 'x' + i }))).length, C.MAX_PHRASES)
+  passed++
+}
+{
+  // サイトに載せる口コミ: 星と文章の決まり・新しい順・お名前は最初の区切りまで
+  const now = Date.parse('2026-10-01T00:00:00Z'), iso = (d) => new Date(now - d * 86400000).toISOString()
+  const L = [
+    { id: 'a', stars: 5, comment: 'とても丁寧でした。また来ます。', author: '山田 花子', createdAt: iso(3) },
+    { id: 'b', stars: 4, comment: '雰囲気が良かったです。', author: '', createdAt: iso(1) },
+    { id: 'c', stars: 3, comment: 'ふつうでした。まあまあです。', author: 'X', createdAt: iso(0) },
+    { id: 'd', stars: 5, comment: '', author: 'Y', createdAt: iso(0) },
+  ]
+  const w = C.widgetItems(L, { min: 4 })
+  assert.deepEqual(w.map((x) => x.author), ['Google のお客様', '山田 様'])
+  assert.deepEqual(C.widgetItems(L, { min: 5 }).map((x) => x.stars), [5])
+  // 低い評価: 星1〜2だけ
+  assert.deepEqual(C.lowStarNew([{ stars: 1 }, { stars: 2 }, { stars: 3 }, { stars: 0 }]).length, 2)
+  assert.ok(/低い評価の口コミが 1 件/.test(C.lowStarText([{ stars: 1, comment: 'ひどい', author: '佐藤' }], '店', 'https://x')))
+  passed++
+}
 console.log(`  口コミ管理: ${passed} 件のテストが通りました`)
