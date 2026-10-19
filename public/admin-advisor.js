@@ -28,7 +28,7 @@
     started: false, state: null, view: 'chat', mode: 'deep', convId: '', messages: [],
     busy: false, controller: null, loading: false
   };
-  var VIEWS = [['chat', '相談'], ['saved', '保存した相談'], ['todo', 'ToDo']];
+  var VIEWS = [['chat', '相談'], ['saved', '保存した相談'], ['todo', 'ToDo'], ['profile', 'お店のプロフィール']];
   var KIND_LABEL = { news: 'お知らせ', copy: 'サイトの文章', sns: 'SNSの投稿', experiment: '文章の比べる案', pdca: '動画の仮説', todo: 'ToDo' };
   var TAB_LABEL = {
     'news-admin': 'お知らせ投稿', 'social-admin': 'SNS（文章）', 'video-admin': 'SNS（動画）', 'copy-admin': '文章編集',
@@ -187,6 +187,7 @@
     say('');
     if (view === 'saved') renderSaved();
     else if (view === 'todo') renderTodos();
+    else if (view === 'profile') renderProfile();
     else renderChat();
   }
 
@@ -669,6 +670,38 @@
   }
 
   /* ---- ToDo ---- */
+  /* ---- お店のプロフィール ----
+     業種・地域・強み・お客様像・目標・使わない言葉など。AIアドバイザーは、相談のたびに
+     これを前提として読みます（サイトの作り手の説明より優先）。 */
+  async function renderProfile() {
+    var body = el('adv-body');
+    body.innerHTML = '<p class="soc-small">読み込んでいます…</p>';
+    var r = await api('/api/shop-profile');
+    var d = (r && r.data) || {};
+    if (S.view !== 'profile') return;
+    if (!d.ok) { body.innerHTML = '<p class="msg show">' + esc(d.message || '読み込めませんでした。') + '</p>'; return; }
+    var p = d.profile || {};
+    body.innerHTML = '<div class="adv-card" style="padding:14px 16px">' +
+      '<p class="soc-small" style="margin:0 0 10px">ここに書いたことを、AIアドバイザーが相談のたびに前提として読みます。業種や強み、目標が分かると、答えが「このお店向け」になります。「使わない言葉」は必ず守るように伝えます。お客様の個人の情報は書かないでください。</p>' +
+      (d.fields || []).map(function (f) {
+        var long = f.max > 120;
+        return '<label class="soc-lab" for="sp-' + esc(f.key) + '" style="margin-top:10px;display:block">' + esc(f.label) + '</label>' +
+          (long ? '<textarea id="sp-' + esc(f.key) + '" rows="3" maxlength="' + f.max + '" placeholder="' + esc(f.hint) + '" style="width:100%;min-height:76px;line-height:1.6">' + esc(p[f.key] || '') + '</textarea>'
+            : '<input type="text" id="sp-' + esc(f.key) + '" maxlength="' + f.max + '" placeholder="' + esc(f.hint) + '" value="' + esc(p[f.key] || '') + '" style="width:100%">');
+      }).join('') +
+      '<div class="adv-row" style="margin-top:12px"><button type="button" id="sp-save">保存する</button>' +
+      (p.updatedAt ? '<span class="soc-small">最後に保存: ' + esc(new Date(p.updatedAt).toLocaleString('ja-JP')) + '</span>' : '') + '</div></div>';
+    el('sp-save').addEventListener('click', async function () {
+      var out = {};
+      (d.fields || []).forEach(function (f) { var x = el('sp-' + f.key); out[f.key] = x ? x.value : ''; });
+      this.disabled = true;
+      var x = await api('/api/shop-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: out }) });
+      this.disabled = false;
+      var dd = (x && x.data) || {};
+      say(dd.message || (dd.ok ? '保存しました。' : '保存できませんでした。'), !!dd.ok);
+    });
+  }
+
   function renderTodos() {
     var st = S.state || {};
     var body = el('adv-body');

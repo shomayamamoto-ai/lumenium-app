@@ -146,10 +146,17 @@ const STATIC = staticPrompt()
 /** 料金の目安（/api/advisor-store）で、指示文の長さに使います。 */
 export const STATIC_PROMPT_CHARS = STATIC.length
 
-/** その時点の数字。live: { pages, ground?, ...loadGrounding の答え } */
+/** その時点の数字。live: { pages, ground?, profile?, ...loadGrounding の答え } */
 function liveBlock(live) {
   const g = (live && live.ground) || groundingText(live || {})
+  const prof = live && live.profile
   return [
+    ...(prof ? [
+      '【お店のプロフィール（オーナーが書いたもの）】',
+      '【このサイトの前提】と食い違うところは、こちらを優先してください。「使わない言葉・言わないこと」は必ず守ってください。',
+      prof,
+      '',
+    ] : []),
     '【使える数字の名前】',
     Object.values(SOURCE_LABELS).join(' / '),
     '',
@@ -203,11 +210,11 @@ export async function POST(req) {
   }
 
   const cfg = await storeFor(req)
-  const [{ loadGrounding }, pages] = await Promise.all([import('./_advisor-data.js'), sitePages(req)])
-  const g = await loadGrounding(cfg, req)
+  const [{ loadGrounding }, pages, { readProfile, profileText }] = await Promise.all([import('./_advisor-data.js'), sitePages(req), import('./_shop-profile.js')])
+  const [g, prof] = await Promise.all([loadGrounding(cfg, req), readProfile(cfg).catch(() => null)])
   setCopyPaths(g.copyPaths)
   const ground = groundingText(g)
-  const live = { pages, ground }
+  const live = { pages, ground, profile: profileText(prof) }
   const client = new Anthropic({ apiKey: key })
   const encoder = new TextEncoder()
   const store = cfg ? await import('./_advisor-store.js') : null

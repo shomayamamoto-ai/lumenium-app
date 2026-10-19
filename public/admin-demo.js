@@ -3302,6 +3302,35 @@
   };
 })();
 
+/* ---- デモ：お店のプロフィール（shape: api/shop-profile.js） ---- */
+(function () {
+  'use strict';
+  var on = false;
+  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
+  if (!on || !window.fetch) return;
+  var F = [
+    ['kind', '業種', '例：美容室／整体院／税理士事務所／工務店／カフェ', 60], ['area', '地域・お店の場所', '例：横浜市青葉区（たまプラーザ駅から徒歩3分）', 80],
+    ['customers', 'おもなお客様', '例：30〜50代の女性。子育て中で平日昼に来る方が多い', 200], ['strengths', 'お店の強み・選ばれる理由', '例：完全予約制で待ち時間なし', 300],
+    ['price', '価格帯', '例：カット 4,400円〜', 120], ['hours', '営業時間・定休日', '例：10〜19時・火曜定休', 80],
+    ['goals', 'いまの目標', '例：平日の昼の予約を増やしたい', 200], ['avoid', '使わない言葉・言わないこと', '例：「激安」「No.1」は使わない', 200],
+    ['notes', 'ほかに伝えておきたいこと', '例：来年春に2号店を出す予定', 300]
+  ].map(function (f) { return { key: f[0], label: f[1], hint: f[2], max: f[3] }; });
+  var P = { kind: '美容室（サンプル）', area: '〇〇駅 東口から徒歩3分', customers: '30〜50代の女性。平日昼の主婦の方と、土日のお勤めの方', strengths: '完全予約制で待ち時間なし。白髪ぼかしのカラーが得意',
+    price: 'カット 4,400円〜（地域では中くらい）', hours: '10〜19時・月曜定休', goals: '平日の昼の予約を増やしたい。Google の口コミを月5件', avoid: '「激安」「No.1」は使わない。他店と比べない', notes: '', updatedAt: new Date(Date.now() - 5 * 86400000).toISOString() };
+  var inner = window.fetch;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+    var u = null;
+    try { u = new URL(url, location.href); } catch (_) {}
+    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/shop-profile') return inner(input, init);
+    var method = String((init && init.method) || 'GET').toUpperCase();
+    var body = method !== 'GET' ? { ok: false, demo: true, message: 'デモ版のため保存・送信はされません。' } : { ok: true, stored: true, profile: P, fields: F, filled: true };
+    return new Promise(function (ok) { setTimeout(ok, 100); }).then(function () {
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+  };
+})();
+
 /* ---- デモ：担当者と権限・操作の記録（shape: api/staff.js・api/audit.js・api/admin-ping.js） ----
    架空の4人（オーナーのほか、担当者2人・閲覧のみ1人）と、その操作の記録。
    ログイン中の人は、デモの帯の「この役割で見る」で選んだ役割になります
