@@ -211,7 +211,8 @@ async function history(token, repo) {
     const next = versions[i]
     // The oldest commit in the window has no "before" here unless a 21st was fetched.
     const prev = i + 1 < list.length ? versions[i + 1] : (list.length < 21 ? {} : undefined)
-    return { ...c, changes: next && prev !== undefined && prev !== null ? diffContent(prev, next) : null }
+    const ok = next && prev !== undefined && prev !== null
+    return { ...c, changes: ok ? diffContent(prev, next) : null, details: ok ? diffDetails(prev, next) : null }
   })
   return json({ ok: true, history: out })
 }
@@ -241,6 +242,26 @@ export function diffContent(prev, next) {
   const sa = sec(a, 'seo'), sb = sec(b, 'seo')
   for (const p of new Set([...Object.keys(sa), ...Object.keys(sb)])) {
     if (JSON.stringify(sa[p]) !== JSON.stringify(sb[p])) out.push(`seo:${p}`)
+  }
+  return out
+}
+
+/** 文字の項目について、変わる前と後の文（履歴で「何をどう変えたか」を見せるため）。
+ *  1回の保存につき10項目まで、1つの文は前後とも300字までにします（履歴は
+ *  20回ぶんを一度に返すので、長い記事を全部載せると重くなるため）。 */
+export const DETAIL_ITEMS = 10
+export const DETAIL_CHARS = 300
+export function diffDetails(prev, next) {
+  const a = migrateOverrides(prev).out
+  const b = migrateOverrides(next).out
+  const cut = (v) => (typeof v === 'string' ? (v.length > DETAIL_CHARS ? v.slice(0, DETAIL_CHARS) + '…' : v) : null)
+  const out = []
+  for (const k of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
+    const x = typeof a[k] === 'string' ? a[k] : null, y = typeof b[k] === 'string' ? b[k] : null
+    if ((x === null && y === null) || x === y) continue
+    // null は「上書きが無い＝元の文章」。画面では「元の文章に戻した」と出します。
+    out.push({ path: k, before: cut(x), after: cut(y) })
+    if (out.length >= DETAIL_ITEMS) break
   }
   return out
 }

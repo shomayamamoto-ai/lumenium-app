@@ -319,6 +319,7 @@ await t('revert: 「この時点に戻す」は新しいコミットとして書
   assert.equal(h.history.length, 2)
   assert.deepEqual(h.history[0].changes, ['text.lp.title'])
   assert.deepEqual(h.history[1].changes, [], '最初の回は空のファイルと比べる')
+  assert.deepEqual(h.history[0].details, [{ path: 'text.lp.title', before: null, after: '前' }], '履歴には変えた文そのものも付く（前が無ければ元の文章）')
   const r = await POST(req('content-save', 'POST', { revert: 'aaaaaaa' }))
   assert.equal(r.status, 200)
   assert.deepEqual(repo.content, { 'text.lp.title': '前' })
@@ -467,6 +468,39 @@ await t('content-save: 記事の保存・名前の付け替え・重なりは断
   assert.deepEqual(repo.content.added.articles.map((x) => x.slug).sort(), ['ai-start', 'other'])
   r = await POST(req('content-save', 'POST', { ops: { articles: { other: null, 'ai-start': null } } }))
   assert.equal(repo.content.added, undefined)
+})
+
+/* ==== 文章編集：変えたところ（保存前の確認と履歴） ==== */
+await t('history: 変わる前と後の文（文字の項目だけ・10項目と300字まで）', async () => {
+  const { diffDetails, DETAIL_ITEMS, DETAIL_CHARS } = await import('../api/content-save.js')
+  const prev = { 'text.a': '前の文', 'text.b': '同じ', added: { faq: [] } }
+  const next = { 'text.a': '後の文', 'text.b': '同じ', 'text.c': 'あ'.repeat(400), added: { faq: [{ id: 'x' }] } }
+  const d = diffDetails(prev, next)
+  assert.deepEqual(d.map((x) => x.path), ['text.a', 'text.c'], '節（added）は文として出さない')
+  assert.equal(d[0].before, '前の文')
+  assert.equal(d[1].before, null)
+  assert.equal(d[1].after.length, DETAIL_CHARS + 1)
+  const many = Object.fromEntries(Array.from({ length: 15 }, (_, i) => [`text.k${i}`, String(i)]))
+  assert.equal(diffDetails({}, many).length, DETAIL_ITEMS)
+})
+
+await t('text-diff: 変えたところだけを印にする（画面と同じファイル）', async () => {
+  const fs = await import('node:fs')
+  const vm = await import('node:vm')
+  const ctx = { window: {} }
+  vm.runInNewContext(fs.readFileSync(new URL('../public/text-diff.js', import.meta.url), 'utf8'), ctx)
+  const D = ctx.window.lumTextDiff
+  const join = (parts, keep) => parts.filter((x) => keep.includes(x.t)).map((x) => x.s).join('')
+  for (const [a, b] of [['こんにちは世界', 'こんばんは世界'], ['', '新しい'], ['消す文', ''], ['同じ', '同じ'], ['abc', 'xyz'],
+    ['ホームページの制作から運用まで', 'ホームページの企画・制作から公開後の運用まで'], ['a'.repeat(300), 'b'.repeat(300)]]) {
+    const p = D.parts(a, b)
+    assert.equal(join(p, ['=', '-']), a, '元の文に戻せる: ' + a)
+    assert.equal(join(p, ['=', '+']), b, '新しい文に戻せる: ' + b)
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(D.parts('こんにちは世界', 'こんばんは世界'))), [{ t: '=', s: 'こん' }, { t: '-', s: 'にち' }, { t: '+', s: 'ばん' }, { t: '=', s: 'は世界' }])
+  const h = D.html('<b>前</b>', '<b>後</b>')
+  assert.equal(h.before, '&lt;b&gt;<del>前</del>&lt;/b&gt;', 'HTML はエスケープしてから印を付ける')
+  assert.equal(h.after, '&lt;b&gt;<ins>後</ins>&lt;/b&gt;')
 })
 
 console.log(`test-content: ${passed} passed`)

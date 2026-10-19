@@ -1695,6 +1695,7 @@ input, select, textarea { color: var(--text); }
 <!-- お知らせ投稿の下書き・予約・画像・履歴・「SNSにも出す」。 -->
 <script src="/admin-news.js"></script>
 <!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
+<script src="/text-diff.js"></script>
 <script src="/admin-copy.js"></script>
 <!-- AIアドバイザー（相談・実行ボタン・保存した相談・ToDo・料金の目安）。 -->
 <script src="/admin-advisor.js"></script>
@@ -4120,13 +4121,62 @@ window.lumAdmin = {
     render();
   }
 
+  /* ---- 保存する前に「変えたところ」を確かめる ----
+     保存するとすぐサイトに出ます（1〜2分）。どの文をどう変えたかを、前と後を
+     並べて見せ、変わった文字に印を付けます（/text-diff.js）。打ち間違いや、
+     別の欄を書き換えていたことに、出てしまう前に気づけるように。 */
+  function defaultOf(path) {
+    var v = null;
+    (schema ? schema.groups : []).forEach(function (g) { g.fields.forEach(function (f) { if (f.path === path) v = f.value; }); });
+    return v == null ? '' : v;
+  }
+  var dlg = null;
+  function confirmChanges(changes, go) {
+    var paths = Object.keys(changes);
+    var D = window.lumTextDiff;
+    var rows = paths.map(function (p) {
+      var def = defaultOf(p);
+      var before = Object.prototype.hasOwnProperty.call(overrides, p) ? overrides[p] : def;
+      var after = changes[p] === null ? def : changes[p];
+      var h = D ? D.html(before, after) : { before: esc(before), after: esc(after) };
+      var empty = '<em class="cd-empty">（空欄）</em>';
+      return '<li class="cd-item"><div class="cd-label">' + esc(window.lumCopyLabel ? window.lumCopyLabel(p) : p) +
+          (changes[p] === null ? '<span class="cd-tag">元の文章に戻す</span>' : '') + '</div>' +
+        '<div class="cd-pair">' +
+          '<div class="cd-old"><span class="cd-k">前</span><div class="cd-t">' + (h.before || empty) + '</div></div>' +
+          '<div class="cd-new"><span class="cd-k">後</span><div class="cd-t">' + (h.after || empty) + '</div></div>' +
+        '</div></li>';
+    }).join('');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'cp-confirm';
+      dlg.className = 'cd-dlg';
+      dlg.setAttribute('aria-labelledby', 'cp-confirm-h');
+      document.body.appendChild(dlg);
+    }
+    dlg.innerHTML =
+      '<div class="cd-head"><h2 id="cp-confirm-h">変えたところを確かめてください（' + paths.length + '件）</h2>' +
+        '<p>保存すると、約1〜2分でサイトに出ます。<del>消える文字</del>と<ins>入る文字</ins>に印を付けています。</p></div>' +
+      '<ul class="cd-list">' + rows + '</ul>' +
+      '<div class="cd-foot"><button type="button" class="cd-cancel" id="cp-confirm-cancel">戻って直す</button>' +
+        '<button type="button" class="cd-ok" id="cp-confirm-ok">この内容で保存する</button></div>';
+    dlg.querySelector('#cp-confirm-ok').addEventListener('click', function () { dlg.close(); go(); });
+    dlg.querySelector('#cp-confirm-cancel').addEventListener('click', function () { dlg.close(); say('保存はまだしていません。', true); });
+    if (typeof dlg.showModal === 'function') { dlg.showModal(); dlg.querySelector('#cp-confirm-ok').focus(); }
+    else if (confirm(paths.length + '件の変更を保存します。よろしいですか？')) go();
+  }
+
   async function save() {
     var changes = {};
     Object.keys(edited).forEach(function (k) { changes[k] = edited[k]; });
     if (!Object.keys(changes).length) { say('変更はありません。', true); return; }
     var key = sessionStorage.getItem('lum_admin_key');
     if (!key) { say('管理キーが必要です。ページを再読み込みしてください。'); return; }
+    if (dlg && dlg.open) return;
+    confirmChanges(changes, function () { send(changes, key); });
+  }
 
+  async function send(changes, key) {
     var btn = document.getElementById('copy-save');
     btn.disabled = true;
     say('保存中…', true);

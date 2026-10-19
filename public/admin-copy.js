@@ -212,6 +212,23 @@
         if (c.changes.length > 6) chips.insertAdjacentHTML('beforeend', '<span class="cp-s">ほか ' + (c.changes.length - 6) + ' 件</span>');
       }
       li.appendChild(chips);
+      /* 変えた文そのもの。項目の名前だけでは「何をどう変えたか」が分からず、
+         戻すかどうかを決められません。前と後を並べ、変わった文字に印を付けます。 */
+      var det = c.details || [];
+      if (det.length) {
+        var box = document.createElement('details');
+        box.className = 'cp-hd';
+        var D = window.lumTextDiff;
+        box.innerHTML = '<summary>変えた文章を見る（' + det.length + (c.changes && c.changes.length > det.length ? ' / ' + c.changes.length : '') + '件）</summary>' +
+          det.map(function (x) {
+            var h = D ? D.html(x.before || '', x.after || '') : { before: esc(x.before || ''), after: esc(x.after || '') };
+            return '<div class="cp-hd-row"><b>' + esc(changeLabel(x.path)) + '</b><div class="cp-hd-pair">' +
+              '<div>' + (x.before == null ? '<span class="cp-s">（元の文章）</span>' : h.before || '<span class="cp-s">（空欄）</span>') + '</div>' +
+              '<div>' + (x.after == null ? '<span class="cp-s">（元の文章に戻した）</span>' : h.after || '<span class="cp-s">（空欄）</span>') + '</div>' +
+              '</div></div>';
+          }).join('');
+        li.appendChild(box);
+      }
       ul.appendChild(li);
     });
   }

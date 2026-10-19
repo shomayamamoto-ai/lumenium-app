@@ -2721,15 +2721,19 @@
     for (var k in STORED) o[k] = STORED[k];
     return o;
   }
+  // details は api/content-save.js diffDetails の形（文字の項目の、変わる前と後）。
   var HISTORY = [
-    { message: 'content: 2 件の文章を更新', changes: ['added.faq:faq-a-demo1', 'seo:/pricing.html'] },
-    { message: 'content: 1 件の文章を更新', changes: ['articles:demo-first-steps'] },
-    { message: 'content: 3 件の文章を更新', changes: ['added.testimonials:voice-a-demo1', 'hidden.testimonials:voice-xrypra', 'site.TESTIMONIALS.@voice-ywb0go.detail'] },
-    { message: 'content: 1 件の文章を更新', changes: ['added.cases:case-a-demo1'] },
-    { message: 'content: 1 件の文章を更新', changes: ['text.lp.title'] },
-    { message: 'content: abc1234 の時点に戻す', changes: ['text.lp.title'] }
+    { message: 'content: 2 件の文章を更新', changes: ['added.faq:faq-a-demo1', 'seo:/pricing.html'], details: [] },
+    { message: 'content: 1 件の文章を更新', changes: ['articles:demo-first-steps'], details: [] },
+    { message: 'content: 3 件の文章を更新', changes: ['added.testimonials:voice-a-demo1', 'hidden.testimonials:voice-xrypra', 'site.TESTIMONIALS.@voice-ywb0go.detail'],
+      details: [{ path: 'site.TESTIMONIALS.@voice-ywb0go.detail', before: null, after: 'SNS運用・動画制作をご依頼（デモで書き換えた例）' }] },
+    { message: 'content: 1 件の文章を更新', changes: ['added.cases:case-a-demo1'], details: [] },
+    { message: 'content: 1 件の文章を更新', changes: ['text.lp.title'],
+      details: [{ path: 'text.lp.title', before: '動画・Web・AIを、まとめて相談できる制作会社（サンプル）', after: '動画もWebもAI研修も、1社でまとめて相談できる制作会社（サンプル）' }] },
+    { message: 'content: abc1234 の時点に戻す', changes: ['text.lp.title'],
+      details: [{ path: 'text.lp.title', before: '動画・Web・AIをまとめて（書きかけ・サンプル）', after: '動画・Web・AIを、まとめて相談できる制作会社（サンプル）' }] }
   ].map(function (h, i) {
-    return { sha: ('c' + i + 'a0000000000000000000000000000000000000').slice(0, 40), at: ago((i * 4 + 1) * DAY + i * 3600000), message: h.message, changes: h.changes };
+    return { sha: ('c' + i + 'a0000000000000000000000000000000000000').slice(0, 40), at: ago((i * 4 + 1) * DAY + i * 3600000), message: h.message, changes: h.changes, details: h.details };
   });
   function reply(body) {
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
