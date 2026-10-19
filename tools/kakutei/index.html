@@ -1,0 +1,1514 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>じぶん確定申告</title>
+<style>
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --surface2:#f1f4f8; --line:#e0e5ec; --line2:#cfd6df;
+  --text:#1c2632; --muted:#647180; --brand:#2463eb; --brand-weak:#e7eeff; --brand-ink:#ffffff;
+  --pos:#0e9f66; --pos-weak:#e2f5ec; --neg:#d93a50; --neg-weak:#fde8eb; --warn:#b86e00; --warn-weak:#fff2dc;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.07); --r:12px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --surface:#161d25; --surface2:#1c252f; --line:#29343f; --line2:#364350;
+  --text:#e5eaf0; --muted:#94a1ae; --brand:#5b8dff; --brand-weak:#1b2944; --brand-ink:#0b1220;
+  --pos:#3cc98d; --pos-weak:#143027; --neg:#ff6b7e; --neg-weak:#3a1c23; --warn:#f0a63a; --warn-weak:#382a13;
+  --shadow:none; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --surface:#161d25; --surface2:#1c252f; --line:#29343f; --line2:#364350;
+  --text:#e5eaf0; --muted:#94a1ae; --brand:#5b8dff; --brand-weak:#1b2944; --brand-ink:#0b1220;
+  --pos:#3cc98d; --pos-weak:#143027; --neg:#ff6b7e; --neg-weak:#3a1c23; --warn:#f0a63a; --warn-weak:#382a13;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+.num,.tbl td.r,.tbl th.r{font-variant-numeric:tabular-nums}
+header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:16px;letter-spacing:.02em;white-space:nowrap}
+.logo span{color:var(--brand)}
+.top .sp{flex:1}
+.top select{padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);font-weight:700}
+#saveState{font-size:12px;color:var(--muted);white-space:nowrap}
+#saveState.bad{color:var(--neg);font-weight:700}
+.layout{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - 53px)}
+nav.side{border-right:1px solid var(--line);background:var(--surface);padding:12px 10px;position:sticky;top:53px;height:calc(100vh - 53px);overflow:auto}
+nav.side button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:9px;cursor:pointer;color:var(--text);font-weight:600;font-size:13.5px}
+nav.side button:hover{background:var(--surface2)}
+nav.side button.on{background:var(--brand-weak);color:var(--brand)}
+nav.side .grp{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;padding:12px 12px 4px}
+main{padding:22px 24px 80px;max-width:1080px;width:100%}
+h1.ttl{font-size:21px;margin:0 0 4px}
+p.lead{color:var(--muted);margin:0 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.card h3 small{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:700}
+.kpi .v{font-size:22px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .s{font-size:12px;color:var(--muted)}
+.pos{color:var(--pos)} .neg{color:var(--neg)} .mut{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--surface);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
+.btn.dan{color:var(--neg)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:8px 16px;font-weight:700;cursor:pointer;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line2)}
+.seg button.on.income{background:var(--pos-weak);color:var(--pos)}
+.seg button.on.expense{background:var(--neg-weak);color:var(--neg)}
+.seg button.on.transfer{background:var(--brand-weak);color:var(--brand)}
+.seg button.on.plain{background:var(--brand-weak);color:var(--brand)}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld>label{font-size:12px;font-weight:700;color:var(--muted)}
+.in,select.in,textarea.in{width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);min-width:0}
+.in:focus{outline:2px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:0;border-color:var(--brand)}
+.in.r{text-align:right;font-variant-numeric:tabular-nums}
+.in.w-s{max-width:120px} .in.w-m{max-width:220px}
+.chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin-top:2px}
+.note{font-size:12.5px;color:var(--muted);background:var(--surface2);border-radius:9px;padding:10px 12px;margin:10px 0 0}
+.alert{border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:13px;border:1px solid}
+.alert.warn{background:var(--warn-weak);border-color:color-mix(in srgb,var(--warn) 35%,transparent);color:var(--text)}
+.alert.warn b{color:var(--warn)}
+.alert.info{background:var(--brand-weak);border-color:color-mix(in srgb,var(--brand) 30%,transparent)}
+.alert.ok{background:var(--pos-weak);border-color:color-mix(in srgb,var(--pos) 30%,transparent)}
+.tblw{overflow:auto;border:1px solid var(--line);border-radius:10px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:var(--surface2);text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
+.tbl td{padding:7px 10px;border-top:1px solid var(--line);vertical-align:middle}
+.tbl td.r,.tbl th.r{text-align:right;white-space:nowrap}
+.tbl tr.sub td{background:var(--surface2);font-weight:700}
+.tbl tr.tot td{font-weight:800;border-top:2px solid var(--line2)}
+.tbl tr.sec td{background:var(--surface2);font-weight:700;color:var(--muted);font-size:12px}
+.tbl td.ind{padding-left:24px}
+.tbl tbody tr:hover td{background:color-mix(in srgb,var(--brand) 4%,transparent)}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.badge.income{background:var(--pos-weak);color:var(--pos)}
+.badge.expense{background:var(--neg-weak);color:var(--neg)}
+.badge.transfer{background:var(--brand-weak);color:var(--brand)}
+.badge.gray{background:var(--surface2);color:var(--muted)}
+.steps{list-style:none;margin:0;padding:0}
+.steps li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0}
+.steps .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;background:var(--surface2);color:var(--muted)}
+.steps .dot.ok{background:var(--pos);color:#fff}
+.steps .t{flex:1;min-width:0}
+.steps .t b{display:block}
+.steps .t span{font-size:12px;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:6px}
+.chart .m{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.chart .bars{height:124px;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+.chart .b{width:42%;border-radius:4px 4px 0 0;min-height:1px}
+.chart .b.i{background:var(--pos)} .chart .b.e{background:var(--neg);opacity:.8}
+.chart .lbl{font-size:11px;color:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.subtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.subtabs button{border:0;background:none;padding:9px 12px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.subtabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.calc td:first-child{width:62%}
+.big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,.2);max-width:calc(100% - 32px)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0;font-weight:700}
+.guide ol{padding-left:20px;margin:6px 0}
+.guide li{margin:6px 0}
+.res{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}
+.res b{font-variant-numeric:tabular-nums}
+.dedrow{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:14px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.dedrow:first-of-type{border-top:0}
+.dedrow .amt{text-align:right}
+.dedrow .amt small{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.dedrow .amt b{font-size:16px;font-variant-numeric:tabular-nums}
+.dedrow h4{margin:0 0 6px;font-size:14px}
+.inl{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  nav.side{position:sticky;top:53px;z-index:15;height:auto;display:flex;gap:4px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px}
+  nav.side .grp{display:none}
+  nav.side button{width:auto;white-space:nowrap;padding:7px 11px}
+  main{padding:16px 16px 80px}
+  .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .kpi .v{font-size:19px}
+  .dedrow{grid-template-columns:1fr}
+  .dedrow .amt{text-align:left}
+  .logo small{display:none}
+  #saveState:not(.bad){display:none}
+  header.top{padding:10px 12px}
+}
+@media print{
+  header.top,nav.side,.noprint,.btn,.subtabs{display:none!important}
+  .layout{display:block}
+  main{padding:0;max-width:none}
+  body{background:#fff;color:#000}
+  .card{box-shadow:none;border-color:#bbb;break-inside:avoid}
+  .tblw{overflow:visible}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">じぶん<span>確定申告</span> <small class="mut" style="font-weight:500;font-size:12px">個人事業主・フリーランス向け</small></div>
+  <div class="sp"></div>
+  <select id="yearSel" aria-label="年分"></select>
+  <span id="saveState">自動保存</span>
+</header>
+<div class="layout">
+  <nav class="side" id="nav"></nav>
+  <main id="view"></main>
+</div>
+
+<!-- ============================================================
+     計算エンジン（DOMに触れない純粋な関数だけ）
+     ============================================================ -->
+<script id="engine">
+"use strict";
+const fl = Math.floor;
+const num = v => { if (v == null || v === '') return 0; const n = Number(String(v).normalize('NFKC').replace(/[,\s円¥￥]/g, '')); return Number.isFinite(n) ? Math.round(n) : 0; };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sumBy = (arr, k) => arr.reduce((s, x) => s + (typeof k === 'function' ? k(x) : x[k]), 0);
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+
+// 年分ごとの税制パラメータ（所得税）
+const YEARCFG = {
+  2025: {
+    label: '令和7年分', filing: ['2026-02-16', '2026-03-16'], ctaxDue: '2026-03-31',
+    basic: t => t <= 1320000 ? 950000 : t <= 3360000 ? 880000 : t <= 4890000 ? 680000 : t <= 6550000 ? 630000
+      : t <= 23500000 ? 580000 : t <= 24000000 ? 480000 : t <= 24500000 ? 320000 : t <= 25000000 ? 160000 : 0,
+    salaryMin: 650000, depLimit: 580000, lifeKidSpecial: false, twoWari: true,
+  },
+  2026: {
+    label: '令和8年分', filing: ['2027-02-16', '2027-03-15'], ctaxDue: '2027-03-31',
+    basic: t => t <= 4890000 ? 1040000 : t <= 6550000 ? 670000 : t <= 23500000 ? 620000
+      : t <= 24000000 ? 480000 : t <= 24500000 ? 320000 : t <= 25000000 ? 160000 : 0,
+    salaryMin: 740000, depLimit: 620000, lifeKidSpecial: true, twoWari: true,
+  },
+};
+const cfgOf = y => YEARCFG[y] || YEARCFG[2026];
+
+const INCOME_ACCTS = ['売上高', '雑収入'];
+const EXPENSES = ['租税公課', '荷造運賃', '水道光熱費', '旅費交通費', '通信費', '広告宣伝費', '接待交際費', '損害保険料',
+  '修繕費', '消耗品費', '減価償却費', '福利厚生費', '給料賃金', '外注工賃', '利子割引料', '地代家賃', '貸倒金',
+  '支払手数料', '新聞図書費', '研修費', '会議費', '諸会費', '車両費', '雑費'];
+const EXPENSE_INPUT = ['仕入高', ...EXPENSES.filter(a => a !== '減価償却費')];
+const ASSET_CATS = ['工具器具備品', 'ソフトウェア', '車両運搬具', '機械装置', '建物附属設備'];
+const BS_ASSETS = ['現金', '普通預金', '売掛金', '商品', ...ASSET_CATS, '一括償却資産', '事業主貸'];
+const BS_LIABS = ['未払金', '預り金', '事業主借', '元入金'];
+const ACCT_HINT = {
+  '売上高': '本業の売上（請求額・税込）。源泉徴収された場合も差し引く前の金額', '雑収入': '本業以外の事業収入（協賛金、不用品売却など）',
+  '仕入高': '販売する商品・材料の仕入', '租税公課': '個人事業税・印紙・事業用の固定資産税（所得税・住民税は不可）',
+  '荷造運賃': '発送費・梱包資材', '水道光熱費': '電気・ガス・水道（自宅なら按分）', '旅費交通費': '電車・バス・タクシー・出張の宿泊',
+  '通信費': 'スマホ・ネット回線・サーバー・SaaS・切手', '広告宣伝費': '広告・チラシ・Web広告・名刺', '接待交際費': '取引先との飲食・贈答',
+  '損害保険料': '事業用の火災保険・賠償責任保険', '修繕費': '事業用資産の修理', '消耗品費': '10万円未満の備品・文具・ソフト',
+  '福利厚生費': '従業員の慶弔・健康診断（本人分は不可）', '給料賃金': '従業員・アルバイトへの給与', '外注工賃': '業務委託・外注費',
+  '利子割引料': '事業用借入の利息', '地代家賃': '事務所・駐車場の賃料（自宅なら按分）', '貸倒金': '回収不能になった売掛金',
+  '支払手数料': '振込手数料・決済手数料・仲介手数料', '新聞図書費': '書籍・新聞・電子書籍・有料記事', '研修費': 'セミナー・講座の受講料',
+  '会議費': '打合せの飲食・会議室', '諸会費': '業界団体・商工会の会費', '車両費': 'ガソリン・車検・駐車場（按分）', '雑費': 'どれにも当てはまらない少額の経費',
+};
+const TAX_DEFAULT = { '雑収入': '0', '租税公課': '0', '損害保険料': '0', '給料賃金': '0', '利子割引料': '0', '貸倒金': '0', '諸会費': '0', '地代家賃': '0' };
+const taxDef = a => TAX_DEFAULT[a] ?? '10';
+const KANI_RATE = { 1: .9, 2: .8, 3: .7, 4: .6, 5: .5, 6: .4 };
+const DISAB = { none: 0, normal: 270000, special: 400000, together: 750000 };
+const DISAB_R = { none: 0, normal: 260000, special: 300000, together: 530000 };
+
+function defYear() {
+  return {
+    blue: '65', bizTax: 5, ctax: 'exempt', kani: 5, ctaxInterim: 0,
+    opening: { wallets: {}, ar: 0, ap: 0 }, inv: { start: 0, end: 0 },
+    salary: { revenue: 0, withheld: 0, social: 0 }, misc: { revenue: 0, expense: 0, withheld: 0 },
+    ded: { social: 0, smallBiz: 0, lifeNewGen: 0, lifeOldGen: 0, lifeCare: 0, lifeNewPen: 0, lifeOldPen: 0, quake: 0,
+      medMode: 'normal', medPaid: 0, medReimb: 0, selfMed: 0, donation: 0, housing: 0, prepaid: 0, otherWh: 0,
+      selfStatus: 'none', selfDisab: 'none' },
+    spouse: { has: false, income: 0, elderly: false, disab: 'none' },
+    deps: [], checks: {},
+  };
+}
+const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+function fillIn(target, base) {
+  for (const k of Object.keys(base)) {
+    if (target[k] === undefined || target[k] === null) target[k] = base[k];
+    else if (isObj(target[k]) && isObj(base[k])) fillIn(target[k], base[k]);
+  }
+  return target;
+}
+function yearOf(D, y = D.year) {
+  const k = String(y); D.years = D.years || {};
+  D.years[k] = isObj(D.years[k]) ? fillIn(D.years[k], defYear()) : defYear();
+  if (!Array.isArray(D.years[k].deps)) D.years[k].deps = [];
+  return D.years[k];
+}
+
+function walletAcct(D, wid, side) {
+  if (wid === 'ar') return { a: '売掛金', s: '' };
+  if (wid === 'ap') return { a: '未払金', s: '未払い' };
+  if (wid === 'private') return { a: side === 'dr' ? '事業主貸' : '事業主借', s: '' };
+  const w = D.wallets.find(x => x.id === wid) || { kind: 'cash', name: '現金' };
+  return { a: w.kind === 'bank' ? '普通預金' : w.kind === 'card' ? '未払金' : '現金', s: w.name };
+}
+
+// ---- 給与所得（給与所得控除後の金額。660万円未満は所得税法別表第五の端数処理に準拠） ----
+function salaryIncome(rev, cfg) {
+  rev = Math.max(0, fl(num(rev)));
+  if (!rev) return 0;
+  let inc;
+  if (rev < 1900000) inc = rev - 650000;
+  else if (rev < 6600000) { const A = fl(rev / 4 / 1000) * 1000; inc = rev < 3600000 ? A * 28 / 10 - 80000 : A * 32 / 10 - 440000; }
+  else if (rev < 8500000) inc = fl(rev * 9 / 10) - 1100000;
+  else inc = rev - 1950000;
+  inc = Math.min(inc, rev - cfg.salaryMin);
+  return Math.max(0, fl(inc));
+}
+
+// ---- 生命保険料控除 ----
+const cl = Math.ceil;
+const lifeNew = x => x <= 0 ? 0 : x <= 20000 ? x : x <= 40000 ? cl(x / 2 + 10000) : x <= 80000 ? cl(x / 4 + 20000) : 40000;
+const lifeNewKid = x => x <= 0 ? 0 : x <= 30000 ? x : x <= 60000 ? cl(x / 2 + 15000) : x <= 120000 ? cl(x / 4 + 30000) : 60000;
+const lifeOld = x => x <= 0 ? 0 : x <= 25000 ? x : x <= 50000 ? cl(x / 2 + 12500) : x <= 100000 ? cl(x / 4 + 25000) : 50000;
+function lifeCat(newAmt, oldAmt, newFn, limit) {
+  const n = newFn(newAmt), o = lifeOld(oldAmt);
+  if (newAmt > 0 && oldAmt > 0) return Math.max(o, Math.min(n + o, limit));
+  return n || o;
+}
+function lifeDeduction(d, kid) {
+  const gen = lifeCat(num(d.lifeNewGen), num(d.lifeOldGen), kid ? lifeNewKid : lifeNew, kid ? 60000 : 40000);
+  const care = lifeNew(num(d.lifeCare));
+  const pen = lifeCat(num(d.lifeNewPen), num(d.lifeOldPen), lifeNew, 40000);
+  return Math.min(120000, gen + care + pen);
+}
+// 住民税
+const lifeNewR = x => x <= 0 ? 0 : x <= 12000 ? x : x <= 32000 ? cl(x / 2 + 6000) : x <= 56000 ? cl(x / 4 + 14000) : 28000;
+const lifeOldR = x => x <= 0 ? 0 : x <= 15000 ? x : x <= 40000 ? cl(x / 2 + 7500) : x <= 70000 ? cl(x / 4 + 17500) : 35000;
+function lifeCatR(n0, o0) { const n = lifeNewR(n0), o = lifeOldR(o0); return n0 > 0 && o0 > 0 ? Math.max(o, Math.min(n + o, 28000)) : (n || o); }
+function lifeDeductionR(d) { return Math.min(70000, lifeCatR(num(d.lifeNewGen), num(d.lifeOldGen)) + lifeNewR(num(d.lifeCare)) + lifeCatR(num(d.lifeNewPen), num(d.lifeOldPen))); }
+
+// ---- 配偶者控除・配偶者特別控除 ----
+const SPOUSE_SP = [[950000, [380000, 260000, 130000]], [1000000, [360000, 240000, 120000]], [1050000, [310000, 210000, 110000]],
+  [1100000, [260000, 180000, 90000]], [1150000, [210000, 140000, 70000]], [1200000, [160000, 110000, 60000]],
+  [1250000, [110000, 80000, 40000]], [1300000, [60000, 40000, 20000]], [1330000, [30000, 20000, 10000]]];
+const SPOUSE_SP_R = [[950000, [330000, 220000, 110000]], [1000000, [330000, 220000, 110000]], [1050000, [310000, 210000, 110000]],
+  [1100000, [260000, 180000, 90000]], [1150000, [210000, 140000, 70000]], [1200000, [160000, 110000, 60000]],
+  [1250000, [110000, 80000, 40000]], [1300000, [60000, 40000, 20000]], [1330000, [30000, 20000, 10000]]];
+function spouseDed(selfTotal, sp, L, resident) {
+  if (!sp || !sp.has || selfTotal > 10000000) return { kind: '', amt: 0 };
+  const col = selfTotal <= 9000000 ? 0 : selfTotal <= 9500000 ? 1 : 2;
+  const inc = num(sp.income);
+  if (inc <= L) {
+    const t = resident ? (sp.elderly ? [380000, 260000, 130000] : [330000, 220000, 110000]) : (sp.elderly ? [480000, 320000, 160000] : [380000, 260000, 130000]);
+    return { kind: '配偶者控除', amt: t[col] };
+  }
+  for (const [lim, t] of (resident ? SPOUSE_SP_R : SPOUSE_SP)) if (inc <= lim) return { kind: '配偶者特別控除', amt: t[col] };
+  return { kind: '', amt: 0 };
+}
+// ---- 特定親族特別控除（19〜22歳で所得が扶養の基準を超える親族） ----
+const TOKUTEI = [[850000, 630000], [900000, 610000], [950000, 510000], [1000000, 410000], [1050000, 310000], [1100000, 210000], [1150000, 110000], [1200000, 60000], [1230000, 30000]];
+const TOKUTEI_R = [[950000, 450000], [1000000, 410000], [1050000, 310000], [1100000, 210000], [1150000, 110000], [1200000, 60000], [1230000, 30000]];
+function depDed(p, L, resident) {
+  const age = num(p.age), inc = num(p.income);
+  if (inc <= L) {
+    if (age < 16) return { kind: '年少扶養（控除なし）', amt: 0, isDep: true };
+    if (age >= 19 && age <= 22) return { kind: '特定扶養親族', amt: resident ? 450000 : 630000, isDep: true };
+    if (age >= 70) return p.together ? { kind: '同居老親等', amt: resident ? 450000 : 580000, isDep: true } : { kind: '老人扶養親族', amt: resident ? 380000 : 480000, isDep: true };
+    return { kind: '一般の扶養親族', amt: resident ? 330000 : 380000, isDep: true };
+  }
+  if (age >= 19 && age <= 22) {
+    for (const [lim, v] of (resident ? TOKUTEI_R : TOKUTEI)) if (inc <= lim) return { kind: '特定親族特別控除', amt: v, tokutei: true };
+  }
+  return { kind: '所得が基準超（対象外）', amt: 0 };
+}
+
+// ---- 所得税の速算表 ----
+const BRACKETS = [[1949000, .05, 0], [3299000, .10, 97500], [6949000, .20, 427500], [8999000, .23, 636000], [17999000, .33, 1536000], [39999000, .40, 2796000], [Infinity, .45, 4796000]];
+function incomeTax(t) { if (t < 1000) return 0; for (const [lim, r, d] of BRACKETS) if (t <= lim) return fl((t * Math.round(r * 100) - d * 100) / 100); return 0; }
+function marginalRate(t) { if (t < 1000) return 0; for (const [lim, r] of BRACKETS) if (t <= lim) return r; return .45; }
+function withholdingOf(x) { x = Math.max(0, num(x)); return x <= 1000000 ? fl(x * 1021 / 10000) : fl((x - 1000000) * 2042 / 10000) + 102100; }
+
+// ---- 減価償却 ----
+const smallLimit = date => (date || '') >= '2026-04-01' ? 400000 : 300000;
+function assetSchedule(a, year) {
+  const cost = num(a.cost);
+  if (!a.date || cost <= 0) return null;
+  const ay = +a.date.slice(0, 4), am = +a.date.slice(5, 7) || 1;
+  if (!ay || ay > year) return null;
+  const life = Math.max(2, num(a.life) || 4);
+  const R = Math.ceil(1000 / life);                 // 定額法の償却率（×1000）
+  let book = cost, startBook = cost, dep = 0, months = 0;
+  for (let y = ay; y <= year; y++) {
+    let d = 0, m = 0;
+    if (a.method === 'small') { m = y === ay ? 13 - am : 0; d = y === ay ? book : 0; }
+    else if (a.method === 'lump3') { const k = y - ay; m = k < 3 ? 12 : 0; d = k < 2 ? fl(cost / 3) : k === 2 ? book : 0; }
+    else { m = y === ay ? 13 - am : 12; d = Math.min(Math.ceil(cost * R * m / 12000), Math.max(0, book - 1)); }
+    if (y === year) { startBook = book; dep = d; months = m; }
+    book -= d;
+  }
+  const ratio = clamp(a.ratio == null || a.ratio === '' ? 100 : num(a.ratio), 0, 100);
+  return { thisYear: ay === year, startBook: ay === year ? 0 : startBook, dep, bizDep: Math.round(dep * ratio / 100), endBook: book, months, rate: R / 1000, life, ratio };
+}
+
+// ============================================================
+//  全体計算：仕訳 → 試算表 → 決算書 → 税額
+// ============================================================
+function compute(D) {
+  const year = D.year, ys = String(year), cfg = cfgOf(year), Y = yearOf(D), L = cfg.depLimit;
+  const warnings = [];
+  const Ln = (a, s, dr, cr) => ({ a, s: s || '', dr, cr });
+  const J = [];
+
+  const txs = D.txs.filter(t => (t.date || '').startsWith(ys)).sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+  const assets = D.assets.map(a => ({ a, s: assetSchedule(a, year) })).filter(x => x.s);
+  const assetAcct = a => a.method === 'lump3' ? '一括償却資産' : (a.cat || '工具器具備品');
+
+  // 期首残高
+  const ol = [];
+  for (const w of D.wallets) {
+    const v = num(Y.opening.wallets[w.id]); if (!v) continue;
+    if (w.kind === 'card') ol.push(Ln('未払金', w.name, 0, v));
+    else ol.push(Ln(w.kind === 'bank' ? '普通預金' : '現金', w.name, v, 0));
+  }
+  if (num(Y.opening.ar)) ol.push(Ln('売掛金', '', num(Y.opening.ar), 0));
+  if (num(Y.opening.ap)) ol.push(Ln('未払金', '未払い', 0, num(Y.opening.ap)));
+  if (num(Y.inv.start)) ol.push(Ln('商品', '', num(Y.inv.start), 0));
+  for (const { a, s } of assets) if (!s.thisYear && s.startBook > 0) ol.push(Ln(assetAcct(a), a.name, s.startBook, 0));
+  const capital = sumBy(ol, 'dr') - sumBy(ol, 'cr');
+  if (capital) ol.push(capital > 0 ? Ln('元入金', '', 0, capital) : Ln('元入金', '', -capital, 0));
+  if (ol.length) J.push({ date: ys + '-01-01', desc: '期首残高', lines: ol, src: 'open' });
+
+  // 取引 → 仕訳
+  for (const t of txs) {
+    const amt = num(t.amount); if (amt <= 0) continue;
+    const lines = [];
+    if (t.type === 'income') {
+      const wh = clamp(num(t.wh), 0, amt), w = walletAcct(D, t.wallet, 'dr');
+      if (amt - wh) lines.push(Ln(w.a, w.s, amt - wh, 0));
+      if (wh) lines.push(Ln('事業主貸', '源泉所得税', wh, 0));
+      lines.push(Ln(t.acct || '売上高', '', 0, amt));
+    } else if (t.type === 'expense') {
+      const r = clamp(t.ratio == null || t.ratio === '' ? 100 : num(t.ratio), 0, 100), biz = Math.round(amt * r / 100);
+      if (biz) lines.push(Ln(t.acct || '雑費', '', biz, 0));
+      if (amt - biz) lines.push(Ln('事業主貸', '家事分', amt - biz, 0));
+      const w = walletAcct(D, t.wallet, 'cr'); lines.push(Ln(w.a, w.s, 0, amt));
+    } else {
+      const to = walletAcct(D, t.to, 'dr'), fr = walletAcct(D, t.wallet, 'cr');
+      lines.push(Ln(to.a, to.s, amt, 0), Ln(fr.a, fr.s, 0, amt));
+    }
+    J.push({ date: t.date, desc: t.memo || '', partner: t.partner || '', lines, src: 'tx', ref: t.id, type: t.type });
+  }
+  // 固定資産：取得と減価償却
+  let smallTotal = 0;
+  for (const { a, s } of assets) {
+    const acct = assetAcct(a), cost = num(a.cost);
+    if (s.thisYear) {
+      const w = walletAcct(D, a.wallet || 'private', 'cr');
+      J.push({ date: a.date, desc: `${a.name} を取得`, lines: [Ln(acct, a.name, cost, 0), Ln(w.a, w.s, 0, cost)], src: 'asset', ref: a.id });
+    }
+    if (s.dep > 0) {
+      const lines = [];
+      if (s.bizDep) lines.push(Ln('減価償却費', '', s.bizDep, 0));
+      if (s.dep - s.bizDep) lines.push(Ln('事業主貸', '家事分', s.dep - s.bizDep, 0));
+      lines.push(Ln(acct, a.name, 0, s.dep));
+      J.push({ date: ys + '-12-31', desc: `${a.name} の減価償却`, lines, src: 'dep', ref: a.id });
+    }
+    if (a.method === 'small' && s.thisYear) {
+      smallTotal += cost;
+      if (Y.blue === 'white') warnings.push(`「${a.name}」：少額減価償却資産の特例は青色申告のみ使えます。白色申告では通常の減価償却を選んでください。`);
+      if (cost >= smallLimit(a.date)) warnings.push(`「${a.name}」：取得価額が${(smallLimit(a.date) / 10000)}万円以上のため、少額減価償却資産の特例は使えません。`);
+    }
+    if (a.method === 'lump3' && cost >= 200000) warnings.push(`「${a.name}」：一括償却資産（3年均等）は20万円未満の資産のみです。`);
+  }
+  if (smallTotal > 3000000) warnings.push(`少額減価償却資産の特例は年間合計300万円までです（現在 ${smallTotal.toLocaleString()}円）。`);
+  // 棚卸
+  const invS = num(Y.inv.start), invE = num(Y.inv.end);
+  if (invS) J.push({ date: ys + '-12-31', desc: '期首商品の振替', lines: [Ln('期首商品棚卸高', '', invS, 0), Ln('商品', '', 0, invS)], src: 'close' });
+  if (invE) J.push({ date: ys + '-12-31', desc: '期末商品の棚卸', lines: [Ln('商品', '', invE, 0), Ln('期末商品棚卸高', '', 0, invE)], src: 'close' });
+
+  const ord = { open: 0, tx: 1, asset: 1, dep: 2, close: 3 };
+  J.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : ord[x.src] - ord[y.src]);
+  J.forEach((e, i) => e.no = i + 1);
+
+  // 試算表
+  const tb = {}, tbs = {};
+  for (const e of J) for (const l of e.lines) {
+    (tb[l.a] = tb[l.a] || { dr: 0, cr: 0 }); tb[l.a].dr += l.dr; tb[l.a].cr += l.cr;
+    const k = l.a + '|' + l.s; (tbs[k] = tbs[k] || { a: l.a, s: l.s, dr: 0, cr: 0 }); tbs[k].dr += l.dr; tbs[k].cr += l.cr;
+  }
+  const bal = a => tb[a] ? tb[a].dr - tb[a].cr : 0;
+  const openBal = {};
+  if (J[0] && J[0].src === 'open') for (const l of J[0].lines) openBal[l.a] = (openBal[l.a] || 0) + l.dr - l.cr;
+
+  // 損益計算書
+  const sales = -bal('売上高'), miscRev = -bal('雑収入'), revenue = sales + miscRev;
+  const purchases = bal('仕入高'), invStart = bal('期首商品棚卸高'), invEnd = -bal('期末商品棚卸高');
+  const cogs = invStart + purchases - invEnd, gross = revenue - cogs;
+  const exp = EXPENSES.map(a => ({ a, v: bal(a) }));
+  const expTotal = sumBy(exp, 'v');
+  const beforeBlue = gross - expTotal;
+  const blueCap = { '65': 650000, '55': 550000, '10': 100000 }[Y.blue] || 0;
+  const blueDed = Y.blue === 'white' ? 0 : Math.max(0, Math.min(blueCap, beforeBlue));
+  const bizIncome = beforeBlue - blueDed;
+
+  // 貸借対照表
+  const known = new Set([...BS_ASSETS, ...BS_LIABS, ...INCOME_ACCTS, ...EXPENSES, '仕入高', '期首商品棚卸高', '期末商品棚卸高']);
+  const bsA = BS_ASSETS.map(a => ({ a, open: openBal[a] || 0, v: bal(a) }));
+  const bsL = BS_LIABS.map(a => ({ a, open: -(openBal[a] || 0), v: -bal(a) }));
+  for (const a of Object.keys(tb)) if (!known.has(a)) { const v = bal(a); (v >= 0 ? bsA : bsL).push({ a, open: 0, v: Math.abs(v) }); }
+  const totA = sumBy(bsA, 'v'), totL = sumBy(bsL, 'v') + beforeBlue;
+  if (Math.abs(totA - totL) > 0) warnings.push('貸借対照表の左右が一致しません。取引データを確認してください。');
+
+  // 残高チェック
+  const subBal = (a, s) => { const x = tbs[a + '|' + s]; return x ? x.dr - x.cr : 0; };
+  const walletEnd = {};
+  for (const w of D.wallets) {
+    const acc = walletAcct(D, w.id, 'dr');
+    walletEnd[w.id] = w.kind === 'card' ? -subBal(acc.a, acc.s) : subBal(acc.a, acc.s);
+  }
+  const running = {};
+  const minBal = {};
+  for (const e of J) for (const l of e.lines) {
+    if (l.a !== '現金' && l.a !== '普通預金') continue;
+    const k = l.a + '|' + l.s; running[k] = (running[k] || 0) + l.dr - l.cr;
+    if (minBal[k] == null || running[k] < minBal[k].v) minBal[k] = { v: running[k], date: e.date };
+  }
+  for (const [k, m] of Object.entries(minBal)) if (m.v < 0) warnings.push(`「${k.split('|')[1] || k.split('|')[0]}」の残高が ${m.date} 時点でマイナス（${m.v.toLocaleString()}円）になっています。入力漏れ（入金・引き出し）や期首残高を確認してください。`);
+  const arEnd = bal('売掛金');
+  if (arEnd < 0) warnings.push('売掛金がマイナスです。入金の振替が二重になっていないか確認してください。');
+  const noPartner = txs.filter(t => t.type === 'income' && num(t.wh) > 0 && !t.partner).length;
+  if (noPartner) warnings.push(`源泉徴収のある収入のうち ${noPartner} 件に取引先が未入力です（申告書の「所得の内訳」に支払者名が必要です）。`);
+  if (beforeBlue < 0 && Y.blue !== 'white') warnings.push('事業が赤字です。青色申告なら赤字（純損失）を翌年以降3年間繰り越せます（申告書第四表）。このツールでは繰越の計算はしていません。');
+
+  // 月別
+  const monthly = Array.from({ length: 12 }, (_, i) => ({ m: i + 1, inc: 0, exp: 0 }));
+  for (const e of J) {
+    if (e.src === 'open' || e.src === 'close') continue;
+    const m = +e.date.slice(5, 7) - 1; if (!(m >= 0 && m < 12)) continue;
+    for (const l of e.lines) {
+      if (INCOME_ACCTS.includes(l.a)) monthly[m].inc += l.cr - l.dr;
+      else if (l.a === '仕入高' || EXPENSES.includes(l.a)) monthly[m].exp += l.dr - l.cr;
+    }
+  }
+
+  // ---------------- 所得税 ----------------
+  const d = Y.ded;
+  const salaryInc = salaryIncome(Y.salary.revenue, cfg);
+  const miscInc = Math.max(0, num(Y.misc.revenue) - num(Y.misc.expense));
+  const total = Math.max(0, bizIncome + salaryInc + miscInc);   // 合計所得金額（総所得金額等）
+  const social = num(d.social) + num(Y.salary.social);
+  const smallBiz = num(d.smallBiz);
+  const kid = cfg.lifeKidSpecial && Y.deps.some(p => num(p.age) < 23 && num(p.income) <= L);
+  const life = lifeDeduction(d, kid);
+  const quake = Math.min(50000, num(d.quake));
+  const medical = d.medMode === 'self'
+    ? clamp(num(d.selfMed) - 12000, 0, 88000)
+    : clamp(num(d.medPaid) - num(d.medReimb) - Math.min(100000, fl(total * 0.05)), 0, 2000000);
+  const donation = Math.max(0, Math.min(num(d.donation), fl(total * 0.4)) - 2000);
+  const sp = spouseDed(total, Y.spouse, L, false);
+  const deps = Y.deps.map(p => ({ p, r: depDed(p, L, false) }));
+  const depAmt = sumBy(deps.filter(x => x.r.isDep), x => x.r.amt);
+  const tokuteiAmt = sumBy(deps.filter(x => x.r.tokutei), x => x.r.amt);
+  let disab = DISAB[d.selfDisab] || 0;
+  if (Y.spouse.has && num(Y.spouse.income) <= L) disab += DISAB[Y.spouse.disab] || 0;
+  for (const { p } of deps) if (num(p.income) <= L) disab += DISAB[p.disab] || 0;
+  const sw = total <= 5000000 ? (d.selfStatus === 'single' ? 350000 : d.selfStatus === 'widow' ? 270000 : 0) : 0;
+  const basic = cfg.basic(total);
+  const dedList = [
+    ['社会保険料控除', social], ['小規模企業共済等掛金控除', smallBiz], ['生命保険料控除', life], ['地震保険料控除', quake],
+    [d.selfStatus === 'widow' ? '寡婦控除' : 'ひとり親控除', sw], ['障害者控除', disab],
+    [sp.kind || '配偶者（特別）控除', sp.amt], ['扶養控除', depAmt], ['特定親族特別控除', tokuteiAmt], ['基礎控除', basic],
+    ['医療費控除', medical], ['寄附金控除', donation],
+  ].map(([k, v]) => ({ k, v }));
+  const dedSum = sumBy(dedList, 'v');
+  const taxable = Math.max(0, fl((total - dedSum) / 1000) * 1000);
+  const taxBase = incomeTax(taxable);
+  const credit = Math.min(taxBase, num(d.housing));
+  const baseTax = taxBase - credit;                       // 再差引所得税額（基準所得税額）
+  const recon = fl(baseTax * 21 / 1000);
+  const totalTax = baseTax + recon;
+  const whTx = sumBy(txs.filter(t => t.type === 'income'), t => clamp(num(t.wh), 0, num(t.amount)));
+  const withheld = whTx + num(Y.salary.withheld) + num(Y.misc.withheld) + num(d.otherWh);
+  const diff = totalTax - withheld;
+  const declared = diff >= 0 ? fl(diff / 100) * 100 : diff;   // 申告納税額
+  const prepaid = num(d.prepaid);
+  const third = declared - prepaid;
+  const payable = third > 0 ? fl(third / 100) * 100 : 0;
+  const refund = third < 0 ? -third : 0;
+  const whByPartner = {};
+  for (const t of txs) if (t.type === 'income' && num(t.wh) > 0) {
+    const k = t.partner || '（取引先未入力）'; (whByPartner[k] = whByPartner[k] || { rev: 0, wh: 0 });
+    whByPartner[k].rev += num(t.amount); whByPartner[k].wh += clamp(num(t.wh), 0, num(t.amount));
+  }
+
+  // ---------------- 住民税（概算） ----------------
+  let resident;
+  if (total <= 450000) resident = { total: 0, shotoku: 0, kintou: 0, note: '合計所得が45万円以下のため非課税の可能性が高いです（基準は自治体・家族構成で異なります）。' };
+  else {
+    const basicR = total <= 24000000 ? 430000 : total <= 24500000 ? 290000 : total <= 25000000 ? 150000 : 0;
+    const spR = spouseDed(total, Y.spouse, L, true);
+    const depsR = sumBy(Y.deps, p => depDed(p, L, true).amt);
+    let disabR = DISAB_R[d.selfDisab] || 0;
+    if (Y.spouse.has && num(Y.spouse.income) <= L) disabR += DISAB_R[Y.spouse.disab] || 0;
+    for (const p of Y.deps) if (num(p.income) <= L) disabR += DISAB_R[p.disab] || 0;
+    const swR = total <= 5000000 ? (d.selfStatus === 'single' ? 300000 : d.selfStatus === 'widow' ? 260000 : 0) : 0;
+    const dedR = social + smallBiz + medical + lifeDeductionR(d) + Math.min(25000, fl(num(d.quake) / 2)) + spR.amt + depsR + disabR + swR + basicR;
+    const taxableR = Math.max(0, fl((total - dedR) / 1000) * 1000);
+    let shotoku = Math.max(0, fl(taxableR / 10) - (total <= 25000000 && taxableR > 0 ? 2500 : 0));
+    let furusato = 0;
+    const don = num(d.donation);
+    if (don > 2000) {
+      const basicPart = fl(Math.max(0, Math.min(don, fl(total * 0.3)) - 2000) * 0.1);
+      const special = Math.min(fl((don - 2000) * (0.9 - marginalRate(taxable) * 1.021)), fl(shotoku * 0.2));
+      furusato = Math.min(shotoku, basicPart + Math.max(0, special));
+    }
+    shotoku = fl(Math.max(0, shotoku - furusato) / 100) * 100;
+    resident = { total: shotoku + 5000, shotoku, kintou: 5000, furusato, taxableR, dedR };
+  }
+  // 個人事業税（概算）
+  const bizTaxBase = Math.max(0, beforeBlue - 2900000);
+  const bizTax = fl(bizTaxBase * num(Y.bizTax) / 10000) * 100;
+
+  // ---------------- 消費税（概算） ----------------
+  let s10 = 0, s8 = 0, p10 = 0, p8 = 0;
+  for (const t of txs) {
+    const a = num(t.amount);
+    if (t.type === 'income') { if (t.tax === '10') s10 += a; else if (t.tax === '8') s8 += a; }
+    else if (t.type === 'expense') {
+      const r = clamp(t.ratio == null || t.ratio === '' ? 100 : num(t.ratio), 0, 100), b = Math.round(a * r / 100);
+      if (t.tax === '10') p10 += b; else if (t.tax === '8') p8 += b;
+    }
+  }
+  for (const { a, s } of assets) if (s.thisYear) p10 += Math.round(num(a.cost) * s.ratio / 100);
+  const base10 = fl(s10 * 100 / 110 / 1000) * 1000, base8 = fl(s8 * 100 / 108 / 1000) * 1000;
+  const outTax = base10 * 78 / 1000 + fl(base8 * 624 / 10000 + 1e-9);
+  let inTax = 0;
+  if (Y.ctax === 'honsoku') inTax = fl(p10 * 78 / 1100 + p8 * 624 / 10800);
+  else if (Y.ctax === '2wari') inTax = fl(outTax * 0.8);
+  else if (Y.ctax === 'kani') inTax = fl(outTax * (KANI_RATE[Y.kani] || 0.5));
+  const netRaw = outTax - inTax;
+  const nat = netRaw >= 0 ? fl(netRaw / 100) * 100 : netRaw;
+  const loc = nat >= 0 ? fl(nat * 22 / 78 / 100) * 100 : -fl(-nat * 22 / 78);
+  const ctax = { mode: Y.ctax, s10, s8, p10, p8, base10, base8, outTax, inTax, nat, loc, total: nat + loc, interim: num(Y.ctaxInterim), due: nat + loc - num(Y.ctaxInterim) };
+  if (Y.ctax === 'exempt' && sales > 10000000) warnings.push('売上が1,000万円を超えています。2年後の年分は消費税の課税事業者になります（基準期間の課税売上高）。');
+
+  return {
+    year, cfg, Y, J, tb, tbs, bal, txs, assets, warnings, monthly, walletEnd, txCount: txs.length,
+    pl: { sales, miscRev, revenue, purchases, invStart, invEnd, cogs, gross, exp, expTotal, beforeBlue, blueDed, blueCap, bizIncome },
+    bs: { A: bsA, Lb: bsL, totA, totL },
+    tax: { salaryInc, miscInc, total, dedList, dedSum, taxable, taxBase, credit, baseTax, recon, totalTax, whTx, withheld, diff, declared, prepaid, third, payable, refund, whByPartner, kid, sp, deps },
+    resident, bizTax: { base: bizTaxBase, rate: num(Y.bizTax), tax: bizTax }, ctax,
+  };
+}
+if (typeof module !== 'undefined') module.exports = { compute, salaryIncome, incomeTax, lifeDeduction, assetSchedule, withholdingOf, spouseDed, depDed, YEARCFG, defYear, yearOf };
+</script>
+
+<!-- ============================================================
+     画面
+     ============================================================ -->
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yen = n => (n < 0 ? '△' : '') + Math.abs(Math.round(n || 0)).toLocaleString('ja-JP');
+const KEY = 'jibun_kakutei_v1';
+const DEFAULT_RULES = [
+  ['振込手数料', 'out', 'expense', '支払手数料', 100], ['AWS', 'out', 'expense', '通信費', 100], ['AMAZON WEB', 'out', 'expense', '通信費', 100],
+  ['GOOGLE', 'out', 'expense', '通信費', 100], ['ADOBE', 'out', 'expense', '通信費', 100], ['ZOOM', 'out', 'expense', '通信費', 100],
+  ['NOTION', 'out', 'expense', '通信費', 100], ['CANVA', 'out', 'expense', '通信費', 100], ['OPENAI', 'out', 'expense', '通信費', 100],
+  ['ANTHROPIC', 'out', 'expense', '通信費', 100], ['AMAZON', 'out', 'expense', '消耗品費', 100], ['アマゾン', 'out', 'expense', '消耗品費', 100],
+  ['ヨドバシ', 'out', 'expense', '消耗品費', 100], ['JR', 'out', 'expense', '旅費交通費', 100], ['SUICA', 'out', 'expense', '旅費交通費', 100],
+  ['PASMO', 'out', 'expense', '旅費交通費', 100], ['タクシー', 'out', 'expense', '旅費交通費', 100], ['GO ', 'out', 'expense', '旅費交通費', 100],
+  ['ドコモ', 'out', 'expense', '通信費', 50], ['ソフトバンク', 'out', 'expense', '通信費', 50], ['楽天モバイル', 'out', 'expense', '通信費', 50],
+  ['電気', 'out', 'expense', '水道光熱費', 30], ['電力', 'out', 'expense', '水道光熱費', 30], ['ガス', 'out', 'expense', '水道光熱費', 30],
+  ['水道', 'out', 'expense', '水道光熱費', 30], ['スターバックス', 'out', 'expense', '会議費', 100], ['ドトール', 'out', 'expense', '会議費', 100],
+  ['書店', 'out', 'expense', '新聞図書費', 100], ['KINDLE', 'out', 'expense', '新聞図書費', 100], ['国民年金', 'out', 'transfer', '', 100, 'private'],
+  ['住民税', 'out', 'transfer', '', 100, 'private'], ['所得税', 'out', 'transfer', '', 100, 'private'],
+  ['カード', 'out', 'transfer', '', 100, '__card'], ['ヒキオトシ', 'out', 'transfer', '', 100, '__card'],
+].map(([kw, dir, kind, acct, ratio, other]) => ({ kw, dir, kind, acct, ratio, other: other || '' }));
+
+function blank() {
+  return {
+    v: 1, year: 2026, profile: { name: '', trade: '' },
+    wallets: [{ id: 'cash', name: '現金', kind: 'cash' }, { id: 'bank1', name: '事業用口座', kind: 'bank' }, { id: 'card1', name: '事業用カード', kind: 'card' }],
+    rules: DEFAULT_RULES.map(r => ({ ...r, id: uid() })), txs: [], assets: [], years: {},
+  };
+}
+function normalize(d) {
+  const b = blank();
+  return {
+    ...b, ...d, profile: { ...b.profile, ...(d.profile || {}) },
+    wallets: Array.isArray(d.wallets) && d.wallets.length ? d.wallets : b.wallets,
+    rules: Array.isArray(d.rules) ? d.rules : b.rules, txs: Array.isArray(d.txs) ? d.txs : [],
+    assets: Array.isArray(d.assets) ? d.assets : [], years: d.years && typeof d.years === 'object' ? d.years : {},
+    year: YEARCFG[d.year] ? d.year : 2026,
+  };
+}
+function load() {
+  try { const raw = localStorage.getItem(KEY); if (raw) { const d = JSON.parse(raw); if (d && d.v === 1) return normalize(d); } } catch (e) {}
+  return blank();
+}
+let D = load();
+let R = null;
+const UI = { view: 'home', form: null, txf: { m: '', type: '', acct: '', q: '' }, imp: null, rep: 'pl', ledger: '普通預金', af: null, lastDate: '' };
+
+function save() {
+  const el = $('#saveState');
+  try { localStorage.setItem(KEY, JSON.stringify(D)); el.textContent = '自動保存済み（この端末）'; el.className = ''; }
+  catch (e) { el.textContent = '⚠ 保存できません：データ管理から書き出してください'; el.className = 'bad'; }
+}
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+const yr = () => yearOf(D);
+const yp = () => `years.${D.year}`;
+function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? undefined : a[k], o); }
+function setPath(o, p, v) { const ks = p.split('.'); let a = o; for (let i = 0; i < ks.length - 1; i++) { if (a[ks[i]] == null) a[ks[i]] = {}; a = a[ks[i]]; } a[ks[ks.length - 1]] = v; }
+
+// ---- 入力部品（data-p にパスを書くと変更時に自動保存） ----
+function inp(path, o = {}) {
+  const t = o.t || 'n', v = getPath(D, path);
+  return `<input class="in ${t === 'n' ? 'r' : ''} ${o.w || ''}" data-p="${path}" data-t="${t}" value="${esc(v ?? '')}" ${t === 'n' ? 'inputmode="numeric"' : ''} placeholder="${esc(o.ph || (t === 'n' ? '0' : ''))}" ${o.id ? `id="${o.id}"` : ''}>`;
+}
+function sel(path, opts, t = 's', cls = '') {
+  const v = String(getPath(D, path) ?? '');
+  return `<select class="in ${cls}" data-p="${path}" data-t="${t}">${opts.map(([k, l]) => `<option value="${esc(k)}" ${String(k) === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+}
+function chk(path, label) { return `<label class="chk"><input type="checkbox" data-p="${path}" data-t="b" ${getPath(D, path) ? 'checked' : ''}> ${esc(label)}</label>`; }
+const fld = (label, html, hint) => `<div class="fld"><label>${esc(label)}</label>${html}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+const head = (t, lead) => `<h1 class="ttl">${esc(t)}</h1><p class="lead">${lead}</p>`;
+const opt = (list, cur) => list.map(([k, l]) => `<option value="${esc(k)}" ${String(k) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`).join('');
+
+document.addEventListener('change', e => {
+  const el = e.target, p = el.dataset && el.dataset.p; if (!p) return;
+  const t = el.dataset.t;
+  const v = t === 'b' ? el.checked : t === 'n' ? num(el.value) : el.value;
+  setPath(D, p, v); save(); render(true);
+});
+
+// ---- 口座 ----
+const walletName = id => id === 'ar' ? '売掛金（未入金）' : id === 'ap' ? '未払金（未払い）' : id === 'private' ? 'プライベート資金' : (D.wallets.find(w => w.id === id) || {}).name || '（削除済み）';
+function walletOpts(type) {
+  const base = D.wallets.map(w => [w.id, w.name]);
+  if (type === 'income') return [...base, ['ar', '売掛金（あとで入金）'], ['private', 'プライベート口座に入金']];
+  if (type === 'expense') return [...base, ['ap', '未払金（あとで支払い）'], ['private', 'プライベート資金で支払い']];
+  return [...base, ['ar', '売掛金'], ['ap', '未払金'], ['private', 'プライベート（事業主貸・借）']];
+}
+function matchRule(text, dir) {
+  const s = String(text || '').normalize('NFKC').toUpperCase();
+  if (!s.trim()) return null;
+  return D.rules.find(r => r.kw && s.includes(String(r.kw).normalize('NFKC').toUpperCase()) && (r.dir === 'any' || r.dir === dir)) || null;
+}
+
+// ============================================================
+const NAV = [
+  ['home', 'ホーム'], ['g', '確定申告の流れ'],
+  ['settings', '① 基本設定・期首残高'], ['tx', '② 取引の入力'], ['import', '③ 明細の取込・自動ルール'],
+  ['assets', '④ 固定資産・減価償却'], ['ded', '⑤ 控除・ほかの所得'], ['reports', '⑥ 決算書・帳簿'], ['return', '⑦ 申告書・納税額'],
+  ['g', 'その他'], ['data', 'データ管理'],
+];
+function go(v) { UI.view = v; render(); }
+
+function render(keep) {
+  if ($('#txform')) syncForm();
+  const y = window.scrollY;
+  R = compute(D);
+  $('#yearSel').innerHTML = Object.entries(YEARCFG).map(([k, c]) => `<option value="${k}" ${+k === D.year ? 'selected' : ''}>${c.label}（${k}年）</option>`).join('');
+  $('#nav').innerHTML = NAV.map(([k, l]) => k === 'g' ? `<div class="grp">${l}</div>` : `<button class="${UI.view === k ? 'on' : ''}" onclick="go('${k}')">${l}</button>`).join('');
+  $('#view').innerHTML = (VIEWS[UI.view] || VIEWS.home)();
+  window.scrollTo(0, keep ? y : 0);
+}
+$('#yearSel').addEventListener('change', e => { D.year = +e.target.value; UI.form = null; save(); render(); });
+
+const warnBox = () => R.warnings.length ? R.warnings.map(w => `<div class="alert warn"><b>確認：</b>${esc(w)}</div>`).join('') : '';
+
+// ============================================================
+//  ホーム
+// ============================================================
+function vHome() {
+  const { pl, tax, cfg, Y } = R;
+  const end = new Date(cfg.filing[1] + 'T23:59:59'), start = new Date(cfg.filing[0] + 'T00:00:00'), now = new Date();
+  const days = Math.ceil((end - now) / 86400000);
+  const period = now < start ? `申告受付は ${fmtJ(cfg.filing[0])} から（あと${Math.ceil((start - now) / 86400000)}日）` : days >= 0 ? `申告期限まで あと <b>${days}日</b>` : '申告期限を過ぎています（期限後申告になります）';
+  const maxV = Math.max(1, ...R.monthly.map(m => Math.max(m.inc, m.exp)));
+  const res = tax.payable ? `<span class="neg">${yen(tax.payable)}円</span>` : tax.refund ? `<span class="pos">${yen(tax.refund)}円</span>` : '0円';
+  const resL = tax.payable ? '所得税の納付見込み' : tax.refund ? '所得税の還付見込み' : '所得税';
+  const others = R.resident.total + R.bizTax.tax + (Y.ctax !== 'exempt' ? Math.max(0, R.ctax.due) : 0);
+  const st = steps();
+  return `
+  ${head(`${cfg.label}の確定申告`, `${period}。期限：${fmtJ(cfg.filing[1])}${Y.ctax !== 'exempt' ? `（消費税は ${fmtJ(cfg.ctaxDue)}）` : ''}。数字はすべて入力した内容からの自動計算です。`)}
+  ${R.txCount === 0 && !D.assets.length ? `<div class="card"><h3>はじめに</h3><p style="margin:0 0 12px">左の ①〜⑦ の順に進めると、決算書と申告書に書く金額がそろいます。まずは触ってみたい方はサンプルデータを入れてみてください。</p>
+    <div class="row"><button class="btn pri" onclick="go('settings')">① 基本設定から始める</button><button class="btn" onclick="App.sample()">サンプルデータで試す</button></div></div>` : ''}
+  <div class="grid g4" style="margin-bottom:16px">
+    <div class="kpi"><div class="l">売上（収入）</div><div class="v">${yen(pl.revenue)}円</div><div class="s">取引 ${R.txCount}件</div></div>
+    <div class="kpi"><div class="l">経費（原価＋減価償却）</div><div class="v">${yen(pl.cogs + pl.expTotal)}円</div><div class="s">家事按分後の事業分</div></div>
+    <div class="kpi"><div class="l">事業所得</div><div class="v">${yen(pl.bizIncome)}円</div><div class="s">${Y.blue === 'white' ? '白色申告' : `青色申告特別控除 ${yen(pl.blueDed)}円 適用後`}</div></div>
+    <div class="kpi"><div class="l">${resL}</div><div class="v">${res}</div><div class="s">源泉徴収 ${yen(tax.withheld)}円 差引後</div></div>
+  </div>
+  ${warnBox()}
+  <div class="grid g2">
+    <div class="card"><h3>月別の売上と経費</h3>
+      <div class="chart">${R.monthly.map(m => `<div class="m"><div class="bars"><div class="b i" style="height:${Math.round(m.inc / maxV * 124)}px" title="${m.m}月 売上 ${yen(m.inc)}円"></div><div class="b e" style="height:${Math.round(m.exp / maxV * 124)}px" title="${m.m}月 経費 ${yen(m.exp)}円"></div></div><div class="lbl">${m.m}</div></div>`).join('')}</div>
+      <div class="legend" style="margin-top:8px"><span><i style="background:var(--pos)"></i>売上</span><span><i style="background:var(--neg)"></i>経費</span></div>
+    </div>
+    <div class="card"><h3>税金の見込み<small>この年分の所得から</small></h3>
+      <div class="res"><span>所得税・復興特別所得税（年税額）</span><b>${yen(tax.totalTax)}円</b></div>
+      <div class="res"><span>うち源泉徴収・予定納税で納付済み</span><b>${yen(tax.withheld + tax.prepaid)}円</b></div>
+      <div class="res"><span>確定申告で${tax.refund ? '戻ってくる' : '納める'}額</span><b class="${tax.refund ? 'pos' : 'neg'}">${yen(tax.payable || tax.refund)}円</b></div>
+      <div class="res"><span>住民税（翌年6月〜・概算）</span><b>${yen(R.resident.total)}円</b></div>
+      <div class="res"><span>個人事業税（翌年8月頃・概算）</span><b>${yen(R.bizTax.tax)}円</b></div>
+      ${Y.ctax !== 'exempt' ? `<div class="res"><span>消費税・地方消費税（概算）</span><b>${yen(R.ctax.due)}円</b></div>` : ''}
+      ${(() => { const net = tax.payable - tax.refund + others; return `<div class="res"><span><b>差し引きの合計（概算）</b></span><b class="${net < 0 ? 'pos' : ''}">${net < 0 ? `${yen(-net)}円 戻る見込み` : `${yen(net)}円 納める見込み`}</b></div>`; })()}
+      <p class="note">国民健康保険料は自治体ごとに計算方法が違うため含めていません。</p>
+    </div>
+  </div>
+  <div class="card"><h3>進み具合</h3><ol class="steps">${st.map((s, i) => `<li><span class="dot ${s.ok ? 'ok' : ''}">${s.ok ? '✓' : i + 1}</span><span class="t"><b>${s.t}</b><span>${s.d}</span></span><button class="btn sm" onclick="go('${s.v}')">${s.ok ? '見る' : '進める'}</button></li>`).join('')}</ol></div>`;
+}
+function steps() {
+  const Y = R.Y, c = Y.checks || {};
+  return [
+    { v: 'settings', t: '基本設定・期首残高', d: `${Y.blue === 'white' ? '白色申告' : `青色申告 ${Y.blue}万円控除`}／口座 ${D.wallets.length}件`, ok: !!c.settings },
+    { v: 'tx', t: '取引の入力', d: `${R.txCount}件（${R.monthly.filter(m => m.inc || m.exp).length}か月分）`, ok: R.txCount > 0 },
+    { v: 'import', t: '明細の取込（任意）', d: '銀行・カードのCSVをまとめて登録', ok: !!c.import || R.txCount > 20 },
+    { v: 'assets', t: '固定資産・減価償却', d: `${R.assets.length}件／該当なしでもOK`, ok: !!c.assets || R.assets.length > 0 },
+    { v: 'ded', t: '控除・ほかの所得', d: `所得控除の合計 ${yen(R.tax.dedSum)}円`, ok: !!c.ded },
+    { v: 'reports', t: '決算書・帳簿の確認', d: R.warnings.length ? `確認事項 ${R.warnings.length}件` : '確認事項なし', ok: R.txCount > 0 && !R.warnings.length && !!c.reports },
+    { v: 'return', t: '申告書の作成・提出', d: 'e-Taxで提出／納付', ok: !!c.filed },
+  ];
+}
+function fmtJ(s) { const [y, m, d] = s.split('-').map(Number); const w = '日月火水木金土'[new Date(y, m - 1, d).getDay()]; return `${y}年${m}月${d}日(${w})`; }
+const checkBtn = (k, label) => { const on = R.Y.checks && R.Y.checks[k]; return `<button class="btn ${on ? '' : 'pri'} noprint" onclick="App.check('${k}')">${on ? '✓ 確認済み（取り消す）' : esc(label || 'この手順を確認済みにする')}</button>`; };
+
+// ============================================================
+//  ① 基本設定
+// ============================================================
+function vSettings() {
+  const Y = yr(), p = yp();
+  const openRows = D.wallets.map(w => `<tr><td>${esc(w.name)} <span class="badge gray">${w.kind === 'bank' ? '預金' : w.kind === 'card' ? 'カード（未払残高）' : '現金'}</span></td><td class="r">${inp(`${p}.opening.wallets.${w.id}`, { w: 'w-m' })}</td></tr>`).join('');
+  const openA = D.wallets.filter(w => w.kind !== 'card').reduce((s, w) => s + num(Y.opening.wallets[w.id]), 0) + num(Y.opening.ar) + num(Y.inv.start) + sumBy(R.assets.filter(x => !x.s.thisYear), x => x.s.startBook);
+  const openL = D.wallets.filter(w => w.kind === 'card').reduce((s, w) => s + num(Y.opening.wallets[w.id]), 0) + num(Y.opening.ap);
+  return `
+  ${head('① 基本設定・期首残高', '申告の種類と、事業で使うお金の置き場所（口座・カード）を登録します。開業した年なら期首残高は0のままで大丈夫です。')}
+  <div class="card"><h3>申告者</h3><div class="grid g2">
+    ${fld('氏名', inp('profile.name', { t: 's', ph: '山田 太郎' }))}
+    ${fld('屋号（任意）', inp('profile.trade', { t: 's', ph: '〇〇デザイン' }))}
+  </div></div>
+  <div class="card"><h3>申告の種類</h3><div class="grid g2">
+    ${fld('青色申告／白色申告', sel(`${p}.blue`, [['65', '青色申告・65万円控除（複式簿記＋e-Tax提出）'], ['55', '青色申告・55万円控除（複式簿記＋書面提出）'], ['10', '青色申告・10万円控除（簡易な帳簿）'], ['white', '白色申告']]),
+      '青色申告は事前に「青色申告承認申請書」の提出が必要です（開業から2か月以内、または適用年の3月15日まで）。')}
+    ${fld('個人事業税の税率（概算用）', sel(`${p}.bizTax`, [[5, '5%：デザイン業・広告業・コンサルタント業・写真業など'], [4, '4%：畜産業・水産業など'], [3, '3%：あん摩・はり・きゅうなど'], [0, '対象外：文筆業・作曲家など法定業種外']], 'n'),
+      '業種が法定業種に当たるかは都道府県が判断します。')}
+  </div>
+  <p class="note">65万円控除の条件：複式簿記で記帳／貸借対照表と損益計算書を添付／期限内に e-Tax で提出（または優良な電子帳簿保存）。このツールは入力した取引から複式簿記の仕訳と貸借対照表を自動で作ります。※令和9年分から控除額の区分が改正予定（最大75万円・書面提出は10万円）。</p></div>
+  <div class="card"><h3>消費税</h3><div class="grid g3">
+    ${fld('課税の区分', sel(`${p}.ctax`, [['exempt', '免税事業者（インボイス未登録で売上1,000万円以下）'], ['2wari', '2割特例（インボイス登録で課税事業者になった方）'], ['kani', '簡易課税（届出済み）'], ['honsoku', '本則課税（一般課税）']]))}
+    ${Y.ctax === 'kani' ? fld('事業区分（みなし仕入率）', sel(`${p}.kani`, [[1, '第1種 卸売業（90%）'], [2, '第2種 小売業（80%）'], [3, '第3種 製造業など（70%）'], [4, '第4種 飲食店など（60%）'], [5, '第5種 サービス業など（50%）'], [6, '第6種 不動産業（40%）']], 'n')) : ''}
+    ${Y.ctax !== 'exempt' ? fld('中間納付した消費税', inp(`${p}.ctaxInterim`)) : ''}
+  </div>${Y.ctax === '2wari' ? '<p class="note">2割特例は、免税事業者がインボイス登録で課税事業者になった場合に、売上の消費税の2割を納めればよい制度です（個人は令和8年分まで）。</p>' : ''}</div>
+  <div class="card"><h3>口座・カード<small>事業で使うものだけ。プライベートと分けるのがおすすめ</small></h3>
+    <div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>種類</th><th></th></tr></thead><tbody>
+    ${D.wallets.map((w, i) => `<tr><td>${inp(`wallets.${i}.name`, { t: 's' })}</td><td>${sel(`wallets.${i}.kind`, [['bank', '預金口座'], ['card', 'クレジットカード'], ['cash', '現金']])}</td><td class="r"><button class="btn sm dan" onclick="App.delWallet('${w.id}')">削除</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="App.addWallet('bank')">＋ 預金口座</button><button class="btn" onclick="App.addWallet('card')">＋ カード</button><button class="btn" onclick="App.addWallet('cash')">＋ 現金</button></div>
+  </div>
+  <div class="card"><h3>期首残高<small>${R.cfg.label}の1月1日時点（前年の決算書の期末残高）</small></h3>
+    <div class="tblw"><table class="tbl"><thead><tr><th>項目</th><th class="r">金額（円）</th></tr></thead><tbody>
+      ${openRows}
+      <tr><td>売掛金（前年の売上で、まだ入金されていないもの）</td><td class="r">${inp(`${p}.opening.ar`, { w: 'w-m' })}</td></tr>
+      <tr><td>未払金（前年の経費で、まだ支払っていないもの）</td><td class="r">${inp(`${p}.opening.ap`, { w: 'w-m' })}</td></tr>
+      <tr><td>期首の商品棚卸高（物販の方のみ）</td><td class="r">${inp(`${p}.inv.start`, { w: 'w-m' })}</td></tr>
+      <tr><td>期末の商品棚卸高（12月31日の在庫・物販の方のみ）</td><td class="r">${inp(`${p}.inv.end`, { w: 'w-m' })}</td></tr>
+      <tr class="sub"><td>元入金（自動計算＝期首の資産 − 負債）</td><td class="r">${yen(openA - openL)}円</td></tr>
+    </tbody></table></div>
+    <p class="note">固定資産の期首帳簿価額は ④固定資産 の登録内容から自動で入ります。前年もこのツールを使った場合は「データ管理」の「翌年へ繰り越す」で自動入力できます。</p>
+  </div>
+  <div class="row">${checkBtn('settings', '設定を確認済みにする')}<button class="btn" onclick="go('tx')">② 取引の入力へ →</button></div>`;
+}
+
+// ============================================================
+//  ② 取引
+// ============================================================
+function todayIn() { const t = new Date(); const s = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; return s.startsWith(String(D.year)) ? s : `${D.year}-01-01`; }
+function newForm(type = 'expense', keep = {}) {
+  const acct = type === 'income' ? '売上高' : type === 'expense' ? '消耗品費' : '';
+  const bank = (D.wallets.find(w => w.kind === 'bank') || D.wallets[0] || {}).id || 'private';
+  const first = (D.wallets[0] || {}).id || 'private';
+  return { type, date: keep.date || UI.lastDate || todayIn(), acct, amount: '', wallet: type === 'income' ? bank : type === 'transfer' ? bank : first, to: type === 'transfer' ? ((D.wallets.find(w => w.kind === 'card') || {}).id || 'private') : '', partner: '', memo: '', ratio: 100, wh: '', tax: taxDef(acct), whNet: false, editing: null, touched: false };
+}
+function syncForm() {
+  const f = UI.form; if (!f) return;
+  const g = id => { const el = document.getElementById(id); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
+  for (const [k, id] of [['date', 'f_date'], ['acct', 'f_acct'], ['amount', 'f_amount'], ['wallet', 'f_wallet'], ['to', 'f_to'], ['partner', 'f_partner'], ['memo', 'f_memo'], ['ratio', 'f_ratio'], ['wh', 'f_wh'], ['tax', 'f_tax'], ['whNet', 'f_whnet']]) {
+    const v = g(id); if (v !== undefined) f[k] = v;
+  }
+}
+function vTx() {
+  if (!UI.form) UI.form = newForm();
+  const f = UI.form, T = f.type;
+  const accts = T === 'income' ? INCOME_ACCTS : EXPENSE_INPUT;
+  const fl_ = UI.txf;
+  let list = R.txs.slice().reverse();
+  if (fl_.m) list = list.filter(t => +t.date.slice(5, 7) === +fl_.m);
+  if (fl_.type) list = list.filter(t => t.type === fl_.type);
+  if (fl_.acct) list = list.filter(t => t.acct === fl_.acct);
+  if (fl_.q) { const q = fl_.q.normalize('NFKC').toUpperCase(); list = list.filter(t => `${t.partner} ${t.memo} ${t.acct}`.normalize('NFKC').toUpperCase().includes(q)); }
+  const usedAccts = [...new Set(R.txs.map(t => t.acct).filter(Boolean))];
+  const incSum = sumBy(list.filter(t => t.type === 'income'), t => num(t.amount));
+  const expSum = sumBy(list.filter(t => t.type === 'expense'), t => Math.round(num(t.amount) * (t.ratio == null || t.ratio === '' ? 100 : num(t.ratio)) / 100));
+  return `
+  ${head('② 取引の入力', '売上・経費・口座間の移動を1件ずつ登録します。登録すると複式簿記の仕訳が自動でできあがります。')}
+  <form class="card" id="txform" onsubmit="App.saveTx(event)">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <div class="seg">${[['income', '収入'], ['expense', '支出'], ['transfer', '振替・入金']].map(([k, l]) => `<button type="button" class="${T === k ? 'on ' + k : ''}" onclick="App.fType('${k}')">${l}</button>`).join('')}</div>
+      ${f.editing ? '<span class="badge transfer">編集中</span>' : ''}
+    </div>
+    <div class="grid g3">
+      ${fld('日付', `<input class="in" type="date" id="f_date" value="${esc(f.date)}" required>`)}
+      ${T !== 'transfer' ? fld('勘定科目', `<select class="in" id="f_acct" onchange="App.fAcct(this.value)">${accts.map(a => `<option ${a === f.acct ? 'selected' : ''}>${a}</option>`).join('')}</select>`, `<span id="f_hint">${esc(ACCT_HINT[f.acct] || '')}</span>`) : fld('移動元（お金が出ていく）', `<select class="in" id="f_wallet">${opt(walletOpts('transfer'), f.wallet)}</select>`)}
+      ${fld(T === 'transfer' ? '金額' : '金額（税込）', `<input class="in r" id="f_amount" inputmode="numeric" value="${esc(f.amount)}" placeholder="0" required>`)}
+      ${T !== 'transfer' ? fld(T === 'income' ? '入金先' : '支払い元', `<select class="in" id="f_wallet">${opt(walletOpts(T), f.wallet)}</select>`) : fld('移動先（お金が入る）', `<select class="in" id="f_to">${opt(walletOpts('transfer'), f.to)}</select>`, 'カードの引き落とし：移動元＝預金、移動先＝カード／売掛金の入金：移動元＝売掛金、移動先＝預金')}
+      ${fld('取引先', `<input class="in" id="f_partner" value="${esc(f.partner)}" placeholder="株式会社〇〇" onchange="App.fRule()">`)}
+      ${fld('摘要（内容）', `<input class="in" id="f_memo" value="${esc(f.memo)}" placeholder="${T === 'income' ? '5月分 制作費' : T === 'expense' ? 'Adobe Creative Cloud' : 'カード引き落とし'}" onchange="App.fRule()">`)}
+      ${T === 'expense' ? fld('事業で使った割合（家事按分）', `<div class="row"><input class="in r w-s" id="f_ratio" inputmode="numeric" value="${esc(f.ratio)}"> %</div>`, '自宅の家賃・光熱費・スマホなどは仕事で使う割合だけ経費にします') : ''}
+      ${T === 'income' ? fld('源泉徴収された税額', `<div class="row"><input class="in r w-m" id="f_wh" inputmode="numeric" value="${esc(f.wh)}" placeholder="0"><button type="button" class="btn sm" onclick="App.fWH()">10.21%で計算</button></div>`, `<label class="chk" style="font-weight:500"><input type="checkbox" id="f_whnet" ${f.whNet ? 'checked' : ''}> 消費税を除いた金額で計算（請求書で税額を分けている場合）</label>`) : ''}
+      ${T !== 'transfer' ? fld('消費税の区分', `<select class="in" id="f_tax">${opt([['10', '課税 10%'], ['8', '課税 8%（軽減）'], ['0', '非課税・不課税']], f.tax)}</select>`) : ''}
+    </div>
+    <div id="f_rulehint" class="hint" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn pri" type="submit">${f.editing ? '更新する' : '登録する'}</button>
+      ${f.editing ? '<button class="btn" type="button" onclick="App.cancelEdit()">キャンセル</button>' : ''}
+      <span class="hint">登録後も日付と区分は残るので、続けて入力できます。</span>
+    </div>
+  </form>
+  <div class="card"><h3>${R.cfg.label}の取引<small>${R.txCount}件</small></h3>
+    <div class="row noprint" style="margin-bottom:10px">
+      <select class="in w-s" onchange="App.filt('m',this.value)"><option value="">全期間</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${+fl_.m === i + 1 ? 'selected' : ''}>${i + 1}月</option>`).join('')}</select>
+      <select class="in w-s" onchange="App.filt('type',this.value)">${opt([['', 'すべての区分'], ['income', '収入'], ['expense', '支出'], ['transfer', '振替']], fl_.type)}</select>
+      <select class="in w-m" onchange="App.filt('acct',this.value)">${opt([['', 'すべての科目'], ...usedAccts.map(a => [a, a])], fl_.acct)}</select>
+      <input class="in w-m" placeholder="取引先・摘要で検索" value="${esc(fl_.q)}" onchange="App.filt('q',this.value)">
+    </div>
+    ${list.length ? `<div class="tblw"><table class="tbl"><thead><tr><th>日付</th><th>区分</th><th>科目</th><th>取引先・摘要</th><th>口座</th><th class="r">金額</th><th class="r">按分・源泉</th><th></th></tr></thead><tbody>
+    ${list.map(t => {
+      const r = t.ratio == null || t.ratio === '' ? 100 : num(t.ratio);
+      return `<tr><td class="num">${esc(t.date.slice(5).replace('-', '/'))}</td>
+      <td><span class="badge ${t.type}">${t.type === 'income' ? '収入' : t.type === 'expense' ? '支出' : '振替'}</span></td>
+      <td>${esc(t.type === 'transfer' ? '—' : t.acct)}</td>
+      <td>${esc(t.partner)}${t.partner && t.memo ? '<br>' : ''}<span class="mut">${esc(t.memo)}</span></td>
+      <td>${esc(t.type === 'transfer' ? `${walletName(t.wallet)} → ${walletName(t.to)}` : walletName(t.wallet))}</td>
+      <td class="r ${t.type === 'income' ? 'pos' : t.type === 'expense' ? 'neg' : ''}">${yen(num(t.amount))}</td>
+      <td class="r mut">${t.type === 'expense' && r !== 100 ? `事業${r}%` : ''}${t.type === 'income' && num(t.wh) ? `源泉 ${yen(num(t.wh))}` : ''}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn sm" onclick="App.editTx('${t.id}')">編集</button> <button class="btn sm" onclick="App.dupTx('${t.id}')">複製</button> <button class="btn sm dan" onclick="App.delTx('${t.id}')">削除</button></td></tr>`;
+    }).join('')}
+    <tr class="tot"><td colspan="5">表示中の合計</td><td class="r">収入 ${yen(incSum)}<br>経費 ${yen(expSum)}</td><td colspan="2"></td></tr>
+    </tbody></table></div>` : `<div class="empty">取引はまだありません。上のフォームから登録するか、③で明細を取り込めます。</div>`}
+  </div>`;
+}
+
+// ============================================================
+//  ③ 明細の取込・自動ルール
+// ============================================================
+function parseCSV(text) {
+  const rows = []; let row = [], f = '', q = false;
+  const delim = (text.split('\n')[0].match(/\t/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? '\t' : ',';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
+}
+function parseDate(s, year) {
+  s = String(s || '').normalize('NFKC').trim().replace(/[年月]/g, '/').replace(/日.*/, '').replace(/[.\-]/g, '/');
+  const p = (y, m, d) => (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : '';
+  let m;
+  if ((m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/))) return p(+m[1], +m[2], +m[3]);
+  if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) return p(+m[1], +m[2], +m[3]);
+  if ((m = s.match(/^R(\d{1,2})\/(\d{1,2})\/(\d{1,2})/i))) return p(2018 + +m[1], +m[2], +m[3]);
+  if ((m = s.match(/^(\d{2})\/(\d{1,2})\/(\d{1,2})$/))) return p(2000 + +m[1], +m[2], +m[3]);
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})$/))) return p(year, +m[1], +m[2]);
+  return '';
+}
+function parseAmt(s) {
+  s = String(s ?? '').normalize('NFKC').trim(); if (!s) return 0;
+  const neg = /^\(.*\)$/.test(s) || /^[-−▲△]/.test(s) || /-$/.test(s);
+  const n = Number(s.replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? Math.round(neg ? -n : n) : 0;
+}
+function autoMap(h) {
+  const find = re => h.findIndex(c => re.test(String(c)));
+  const map = {
+    date: find(/日付|年月日|取引日|利用日|ご利用日|お取引日|日時|Date/i),
+    desc: find(/摘要|内容|お取引内容|ご利用先|利用店|利用先|明細|取引先|加盟店|Description|メモ/i),
+    out: find(/出金|お支払|お引出|引出|支払金額|ご利用金額|利用金額|引落/),
+    inn: find(/入金|お預入|預入|受取/),
+    amt: find(/^金額|取引金額|金額\(円\)|Amount/i),
+  };
+  if (map.amt < 0 && map.out >= 0 && map.inn < 0) { map.amt = map.out; map.out = -1; map.sign = 'plus-out'; }
+  return map;
+}
+function buildPreview() {
+  const I = UI.imp, m = I.map, split = m.out >= 0 && m.inn >= 0;
+  I.rows = [];
+  for (const r of I.body) {
+    const date = parseDate(r[m.date], D.year); if (!date) continue;
+    const desc = String(r[m.desc] ?? '').trim();
+    let amount = 0, dir = 'out';
+    if (split) { const o = parseAmt(r[m.out]), i = parseAmt(r[m.inn]); if (o) { amount = Math.abs(o); dir = 'out'; } else if (i) { amount = Math.abs(i); dir = 'in'; } }
+    else if (m.amt >= 0) { const a = parseAmt(r[m.amt]); amount = Math.abs(a); dir = (I.sign === 'plus-out' ? a > 0 : a < 0) ? 'out' : 'in'; }
+    if (!amount) continue;
+    const rule = matchRule(desc, dir);
+    const kind = rule ? rule.kind : dir === 'out' ? 'expense' : 'income';
+    const acct = rule && rule.acct ? rule.acct : kind === 'income' ? '売上高' : '';
+    const dup = D.txs.some(t => t.date === date && num(t.amount) === amount && ((t.memo || '') === desc || (t.partner || '') === desc));
+    let other = rule && rule.other ? rule.other : 'private';
+    if (other === '__card') other = (D.wallets.find(w => w.kind === 'card' && w.id !== I.wallet) || {}).id || 'private';
+    I.rows.push({ use: !dup, date, desc, amount, dir, kind, acct, ratio: rule ? num(rule.ratio) || 100 : 100, other, dup, ruled: !!rule });
+  }
+}
+function vImport() {
+  const I = UI.imp;
+  const colOpts = I ? [[-1, '（使わない）'], ...I.header.map((h, i) => [i, `${i + 1}: ${String(h).slice(0, 18) || '(空)'}`])] : [];
+  const msel = (k, label) => fld(label, `<select class="in" onchange="App.impMap('${k}',this.value)">${opt(colOpts, I.map[k])}</select>`);
+  const ready = I && I.rows ? I.rows.filter(r => r.use && r.kind !== 'skip') : [];
+  const missing = ready.filter(r => (r.kind === 'income' || r.kind === 'expense') && !r.acct).length;
+  return `
+  ${head('③ 明細の取込・自動ルール', '銀行やカードのWeb明細からCSVを書き出して読み込むと、まとめて取引に登録できます。よく出る取引は「自動ルール」で科目が自動で入ります。')}
+  <div class="card"><h3>CSVを読み込む</h3>
+    <div class="grid g3">
+      ${fld('CSVファイル', `<input type="file" accept=".csv,.txt,text/csv" class="in" onchange="App.impFile(this)">`)}
+      ${fld('文字コード', `<select class="in" id="impEnc">${opt([['auto', '自動判定'], ['utf-8', 'UTF-8'], ['shift_jis', 'Shift_JIS（多くの銀行）']], 'auto')}</select>`)}
+      ${I ? fld('この明細の口座', `<select class="in" onchange="App.impSet('wallet',this.value)">${opt(D.wallets.map(w => [w.id, w.name]), I.wallet)}</select>`) : ''}
+    </div>
+    ${I ? `<p class="hint" style="margin-top:8px">${esc(I.name)}：${I.body.length}行。列の対応が違うときは下で直してください。</p>
+    <div class="grid g4" style="margin-top:8px">${msel('date', '日付の列')}${msel('desc', '内容（摘要）の列')}${I.map.out >= 0 || I.map.inn >= 0 ? msel('out', '出金の列') + msel('inn', '入金の列') : msel('amt', '金額の列')}</div>
+    ${I.map.out < 0 || I.map.inn < 0 ? `<div class="row" style="margin-top:8px">${fld('金額の向き', `<select class="in" onchange="App.impSet('sign',this.value)">${opt([['minus-out', 'マイナスが出金（銀行に多い）'], ['plus-out', 'プラスが利用額（カードに多い）']], I.sign || 'minus-out')}</select>`)}<button class="btn sm" onclick="App.impSplit()">出金・入金が別の列になっている</button></div>` : ''}` : `<p class="note">銀行・カード会社のWebサービスで「明細ダウンロード（CSV）」を選ぶと取得できます。源泉徴収された報酬の入金は、取込後に②で「請求額」と「源泉徴収税額」に直してください。</p>`}
+  </div>
+  ${I && I.rows ? `<div class="card"><h3>取込内容の確認<small>${I.rows.length}件中 ${ready.length}件を登録</small></h3>
+    ${I.rows.length ? `<div class="tblw" style="max-height:520px"><table class="tbl"><thead><tr><th><input type="checkbox" checked onchange="App.impAll(this.checked)"></th><th>日付</th><th>内容</th><th class="r">金額</th><th>登録のしかた</th><th>科目・相手</th><th>事業割合</th></tr></thead><tbody>
+    ${I.rows.map((r, i) => `<tr${r.dup ? ' style="opacity:.6"' : ''}><td><input type="checkbox" ${r.use ? 'checked' : ''} onchange="App.impRow(${i},'use',this.checked)"></td>
+      <td class="num">${esc(r.date)}</td><td>${esc(r.desc)}${r.dup ? ' <span class="badge gray">登録済み？</span>' : ''}${r.ruled ? ' <span class="badge transfer">ルール</span>' : ''}</td>
+      <td class="r ${r.dir === 'in' ? 'pos' : 'neg'}">${r.dir === 'in' ? '+' : '−'}${yen(r.amount)}</td>
+      <td><select class="in" onchange="App.impRow(${i},'kind',this.value,true)">${opt([['income', '収入'], ['expense', '支出（経費）'], ['transfer', '振替'], ['skip', '取り込まない']], r.kind)}</select></td>
+      <td>${r.kind === 'income' || r.kind === 'expense' ? `<select class="in" onchange="App.impRow(${i},'acct',this.value)">${opt([['', '（選んでください）'], ...(r.kind === 'income' ? INCOME_ACCTS : EXPENSE_INPUT).map(a => [a, a])], r.acct)}</select>`
+        : r.kind === 'transfer' ? `<select class="in" onchange="App.impRow(${i},'other',this.value)">${opt(walletOpts('transfer').filter(([k]) => k !== I.wallet), r.other)}</select>` : '<span class="mut">—</span>'}</td>
+      <td>${r.kind === 'expense' ? `<input class="in r w-s" value="${r.ratio}" onchange="App.impRow(${i},'ratio',this.value)">` : ''}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${missing ? `<div class="alert warn" style="margin-top:10px"><b>未選択：</b>科目が未選択の行が${missing}件あります。選ばない行は「雑費」で登録されます。</div>` : ''}
+    <div class="row" style="margin-top:12px"><button class="btn pri" onclick="App.impRun()" ${ready.length ? '' : 'disabled'}>${ready.length}件を取引に登録する</button><button class="btn" onclick="App.impCancel()">やめる</button></div>`
+      : '<div class="empty">日付と金額を読み取れる行がありませんでした。列の対応を確認してください。</div>'}
+  </div>` : ''}
+  <div class="card"><h3>自動ルール<small>内容（摘要）にキーワードが含まれると、科目と割合を自動で入れます（上から順に判定）</small></h3>
+    <div class="tblw"><table class="tbl"><thead><tr><th>キーワード</th><th>向き</th><th>登録のしかた</th><th>科目 / 相手</th><th>事業割合%</th><th></th></tr></thead><tbody>
+    ${D.rules.map((r, i) => `<tr><td>${inp(`rules.${i}.kw`, { t: 's' })}</td>
+      <td>${sel(`rules.${i}.dir`, [['out', '出金'], ['in', '入金'], ['any', 'どちらも']])}</td>
+      <td>${sel(`rules.${i}.kind`, [['expense', '支出'], ['income', '収入'], ['transfer', '振替'], ['skip', '取り込まない']])}</td>
+      <td>${r.kind === 'transfer' ? sel(`rules.${i}.other`, walletOpts('transfer')) : r.kind === 'skip' ? '<span class="mut">—</span>' : sel(`rules.${i}.acct`, (r.kind === 'income' ? INCOME_ACCTS : EXPENSE_INPUT).map(a => [a, a]))}</td>
+      <td>${r.kind === 'expense' ? inp(`rules.${i}.ratio`, { w: 'w-s' }) : ''}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn sm" onclick="App.ruleMove(${i},-1)" ${i ? '' : 'disabled'}>↑</button> <button class="btn sm dan" onclick="App.ruleDel(${i})">削除</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="App.ruleAdd()">＋ ルールを追加</button><span class="hint">例：「国民年金」「所得税」は経費にならないので、プライベート資金への振替（事業主貸）として取り込みます。</span></div>
+  </div>
+  <div class="row">${checkBtn('import', '取込を確認済みにする')}</div>`;
+}
+
+// ============================================================
+//  ④ 固定資産
+// ============================================================
+const LIFE_PRESETS = [['', '耐用年数の目安から選ぶ…'], ['4', 'パソコン（4年）'], ['5', 'サーバー（5年）'], ['5', 'カメラ・ビデオカメラ（5年）'], ['5', '自社で使うソフトウェア（5年）'], ['6', '普通自動車（6年）'], ['4', '軽自動車（4年）'], ['15', '事務机・椅子 金属製（15年）'], ['8', '事務机・椅子 その他（8年）'], ['6', 'エアコン（6年）'], ['15', '内装工事（建物附属設備 15年）']];
+function vAssets() {
+  const af = UI.af || (UI.af = { name: '', cat: '工具器具備品', date: todayIn(), cost: '', method: 'straight', life: 4, ratio: 100, wallet: (D.wallets.find(w => w.kind === 'card') || D.wallets[0] || {}).id || 'private', editing: null });
+  const blue = R.Y.blue !== 'white';
+  const lim = smallLimit(af.date) / 10000;
+  return `
+  ${head('④ 固定資産・減価償却', '10万円以上のパソコン・カメラ・車などは「固定資産」として登録し、何年かに分けて経費にします（減価償却）。登録すると今年の減価償却費が自動で経費に入ります。')}
+  <div class="card"><h3>金額による扱い方</h3>
+    <div class="tblw"><table class="tbl"><tbody>
+      <tr><td><b>10万円未満</b></td><td>固定資産にせず、②で「消耗品費」としてそのまま経費に</td></tr>
+      <tr><td><b>10万円以上20万円未満</b></td><td>「一括償却資産」：月数に関係なく3年で1/3ずつ経費に</td></tr>
+      <tr><td><b>${lim}万円未満</b>（青色申告のみ）</td><td>「少額減価償却資産の特例」：買った年に全額を経費に（年間合計300万円まで）。令和8年4月1日以後の取得は40万円未満、それより前は30万円未満</td></tr>
+      <tr><td><b>それ以上</b></td><td>「定額法」：耐用年数に分けて毎年経費に（買った年は月割り）</td></tr>
+    </tbody></table></div>
+  </div>
+  <form class="card" onsubmit="App.saveAsset(event)"><h3>${af.editing ? '固定資産を編集' : '固定資産を登録'}</h3>
+    <div class="grid g3">
+      ${fld('名前', `<input class="in" id="a_name" value="${esc(af.name)}" placeholder="MacBook Pro" required>`)}
+      ${fld('取得日（使い始めた日）', `<input class="in" type="date" id="a_date" value="${esc(af.date)}" required>`)}
+      ${fld('取得価額（税込）', `<input class="in r" id="a_cost" inputmode="numeric" value="${esc(af.cost)}" placeholder="0" required>`)}
+      ${fld('償却のしかた', `<select class="in" id="a_method">${opt([['straight', '定額法（耐用年数で分割）'], ['lump3', '一括償却資産（3年均等）'], ['small', `少額減価償却資産の特例（買った年に全額）${blue ? '' : '※青色のみ'}`]], af.method)}</select>`)}
+      ${fld('耐用年数（定額法）', `<div class="row"><input class="in r w-s" id="a_life" inputmode="numeric" value="${esc(af.life)}"> 年 <select class="in w-m" onchange="if(this.value)document.getElementById('a_life').value=this.value">${opt(LIFE_PRESETS, '')}</select></div>`)}
+      ${fld('勘定科目', `<select class="in" id="a_cat">${opt(ASSET_CATS.map(a => [a, a]), af.cat)}</select>`)}
+      ${fld('事業で使う割合', `<div class="row"><input class="in r w-s" id="a_ratio" inputmode="numeric" value="${esc(af.ratio)}"> %</div>`)}
+      ${fld('支払い元（今年買った場合）', `<select class="in" id="a_wallet">${opt(walletOpts('expense'), af.wallet)}</select>`, '前年以前に買った資産は支払いの記録は作られず、期首の帳簿価額だけが入ります。')}
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn pri">${af.editing ? '更新する' : '登録する'}</button>${af.editing ? '<button type="button" class="btn" onclick="App.cancelAsset()">キャンセル</button>' : ''}</div>
+  </form>
+  <div class="card"><h3>減価償却の明細<small>${R.cfg.label}</small></h3>
+    ${R.assets.length || D.assets.length ? `<div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>取得日</th><th class="r">取得価額</th><th>方法</th><th class="r">期首帳簿価額</th><th class="r">本年の償却費</th><th class="r">事業割合</th><th class="r">経費になる額</th><th class="r">期末帳簿価額</th><th></th></tr></thead><tbody>
+    ${D.assets.map(a => { const s = assetSchedule(a, D.year); return `<tr><td>${esc(a.name)}</td><td class="num">${esc(a.date)}</td><td class="r">${yen(num(a.cost))}</td>
+      <td>${a.method === 'small' ? '少額特例' : a.method === 'lump3' ? '一括3年' : `定額法 ${num(a.life)}年`}${s && a.method === 'straight' ? `<br><span class="mut">償却率 ${s.rate.toFixed(3)}・${s.months}か月</span>` : ''}</td>
+      ${s ? `<td class="r">${yen(s.thisYear ? 0 : s.startBook)}</td><td class="r">${yen(s.dep)}</td><td class="r">${s.ratio}%</td><td class="r"><b>${yen(s.bizDep)}</b></td><td class="r">${yen(s.endBook)}</td>` : '<td colspan="5" class="mut">この年分より後に取得</td>'}
+      <td class="r" style="white-space:nowrap"><button class="btn sm" onclick="App.editAsset('${a.id}')">編集</button> <button class="btn sm dan" onclick="App.delAsset('${a.id}')">削除</button></td></tr>`; }).join('')}
+    <tr class="tot"><td colspan="7">合計（必要経費に算入する減価償却費）</td><td class="r">${yen(sumBy(R.assets, x => x.s.bizDep))}</td><td class="r">${yen(sumBy(R.assets, x => x.s.endBook))}</td><td></td></tr>
+    </tbody></table></div>
+    <p class="note">少額減価償却資産の特例を使った資産は、青色申告決算書の減価償却の欄の摘要に「措法28の2」と書きます。一括償却資産の欄も別に書きます。</p>` : '<div class="empty">登録された固定資産はありません。該当がなければこのままでOKです。</div>'}
+  </div>
+  <div class="row">${checkBtn('assets', '固定資産を確認済みにする')}</div>`;
+}
+
+// ============================================================
+//  ⑤ 控除・ほかの所得
+// ============================================================
+function vDed() {
+  const Y = yr(), p = yp(), d = Y.ded, T = R.tax, cfg = R.cfg, L = cfg.depLimit;
+  const got = k => (T.dedList.find(x => x.k === k) || {}).v || 0;
+  const row = (title, body, amt, label = '控除額') => `<div class="dedrow"><div><h4>${title}</h4>${body}</div><div class="amt"><small>${label}</small><b>${yen(amt)}円</b></div></div>`;
+  const depRows = Y.deps.map((x, i) => { const r = T.deps[i] ? T.deps[i].r : { kind: '', amt: 0 }; return `<tr><td>${inp(`${p}.deps.${i}.name`, { t: 's', ph: '名前' })}</td><td>${inp(`${p}.deps.${i}.age`, { w: 'w-s' })}</td><td>${inp(`${p}.deps.${i}.income`, { w: 'w-m' })}</td>
+    <td>${chk(`${p}.deps.${i}.together`, '同居')}</td><td>${sel(`${p}.deps.${i}.disab`, [['none', 'なし'], ['normal', '障害者'], ['special', '特別障害者'], ['together', '同居特別障害者']])}</td>
+    <td>${esc(r.kind)}<br><b>${yen(r.amt)}円</b></td><td><button class="btn sm dan" onclick="App.delDep(${i})">削除</button></td></tr>`; }).join('');
+  return `
+  ${head('⑤ 控除・ほかの所得', '証明書や源泉徴収票を見ながら入力します。入力すると右側に控除額が自動で計算されます。わからない項目は0のままで構いません。')}
+  <div class="card"><h3>ほかの所得</h3>
+    ${row('給与（会社員・アルバイトとの掛け持ち）', `<div class="inl">${fld('源泉徴収票の「支払金額」', inp(`${p}.salary.revenue`))}${fld('「源泉徴収税額」', inp(`${p}.salary.withheld`))}${fld('「社会保険料等の金額」', inp(`${p}.salary.social`))}</div><div class="hint">給与所得控除の最低額は${R.cfg.label}で${(cfg.salaryMin / 10000)}万円です。年末調整済みの生命保険料などは下の欄に入れてください。</div>`, T.salaryInc, '給与所得')}
+    ${row('雑所得（事業以外の副収入：原稿料・講演料・アフィリエイトなど）', `<div class="inl">${fld('収入', inp(`${p}.misc.revenue`))}${fld('必要経費', inp(`${p}.misc.expense`))}${fld('源泉徴収税額', inp(`${p}.misc.withheld`))}</div>`, T.miscInc, '雑所得')}
+  </div>
+  <div class="card"><h3>所得控除<small>合計所得金額 ${yen(T.total)}円 をもとに計算</small></h3>
+    ${row('社会保険料控除', `<div class="inl">${fld('国民年金・国民健康保険・介護保険など（今年支払った額）', inp(`${p}.ded.social`))}</div><div class="hint">家族の分を払った場合も含められます。給与の源泉徴収票の分（${yen(num(Y.salary.social))}円）は自動で合算します。</div>`, got('社会保険料控除'))}
+    ${row('小規模企業共済等掛金控除', `<div class="inl">${fld('iDeCo・小規模企業共済の掛金', inp(`${p}.ded.smallBiz`))}</div>`, got('小規模企業共済等掛金控除'))}
+    ${row('生命保険料控除', `<div class="inl">${fld('一般（新契約）', inp(`${p}.ded.lifeNewGen`))}${fld('一般（旧契約）', inp(`${p}.ded.lifeOldGen`))}${fld('介護医療', inp(`${p}.ded.lifeCare`))}${fld('個人年金（新契約）', inp(`${p}.ded.lifeNewPen`))}${fld('個人年金（旧契約）', inp(`${p}.ded.lifeOldPen`))}</div>
+      <div class="hint">控除証明書の「年間の支払額（申告額）」を入れます。新契約＝平成24年以後の契約。${cfg.lifeKidSpecial ? (T.kid ? '<b>23歳未満の扶養親族がいるため、一般（新契約）の上限が6万円になる特例を適用中です。</b>' : '令和8年分は、23歳未満の扶養親族がいると一般（新契約）の上限が6万円に上がります（下の扶養親族に登録すると自動判定）。') : ''}</div>`, got('生命保険料控除'))}
+    ${row('地震保険料控除', `<div class="inl">${fld('地震保険料（年間）', inp(`${p}.ded.quake`))}</div>`, got('地震保険料控除'))}
+    ${row('医療費控除', `<div class="row" style="margin-bottom:8px">${sel(`${p}.ded.medMode`, [['normal', '通常の医療費控除'], ['self', 'セルフメディケーション税制']], 's', 'w-m')}</div>
+      ${d.medMode === 'self' ? `<div class="inl">${fld('対象の市販薬の購入額', inp(`${p}.ded.selfMed`))}</div><div class="hint">1.2万円を超えた分（上限8.8万円）。健康診断などを受けていることが条件です。</div>`
+        : `<div class="inl">${fld('支払った医療費（家族分も）', inp(`${p}.ded.medPaid`))}${fld('保険などで補てんされた額', inp(`${p}.ded.medReimb`))}</div><div class="hint">10万円（所得が200万円未満なら所得の5%）を超えた分が控除されます。医療費の明細書の添付が必要です。</div>`}`, got('医療費控除'))}
+    ${row('寄附金控除（ふるさと納税など）', `<div class="inl">${fld('寄附した金額の合計', inp(`${p}.ded.donation`))}</div><div class="hint">確定申告をするとワンストップ特例は無効になるので、ふるさと納税はすべてここに入れてください（受領証明書が必要）。</div>`, got('寄附金控除'))}
+    ${row('配偶者控除・配偶者特別控除', `<div class="row" style="margin-bottom:8px">${chk(`${p}.spouse.has`, '配偶者がいる')}</div>
+      ${Y.spouse.has ? `<div class="inl">${fld('配偶者の合計所得金額', inp(`${p}.spouse.income`), `給与だけなら 給与収入 − 給与所得控除。${yen(L)}円以下なら配偶者控除、${yen(L + 1)}〜1,330,000円は配偶者特別控除`)}${fld('障害', sel(`${p}.spouse.disab`, [['none', 'なし'], ['normal', '障害者'], ['special', '特別障害者'], ['together', '同居特別障害者']]))}</div><div style="margin-top:6px">${chk(`${p}.spouse.elderly`, '12月31日時点で70歳以上')}</div><div class="hint">本人の合計所得金額が1,000万円を超えると受けられません。</div>` : ''}`, T.sp.amt, T.sp.kind || '控除額')}
+    ${row('扶養控除・特定親族特別控除', `<div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>年齢（12/31）</th><th>合計所得金額</th><th>同居</th><th>障害</th><th>判定</th><th></th></tr></thead><tbody>${depRows || '<tr><td colspan="7" class="mut">登録なし</td></tr>'}</tbody></table></div>
+      <div class="row" style="margin-top:8px"><button class="btn sm" onclick="App.addDep()">＋ 扶養親族を追加</button><span class="hint">所得が${yen(L)}円以下の親族が対象（16歳未満は控除なし）。19〜22歳で所得が基準を超える場合は特定親族特別控除を自動判定します。</span></div>`, got('扶養控除') + got('特定親族特別控除'))}
+    ${row('本人の状況', `<div class="inl">${fld('寡婦・ひとり親', sel(`${p}.ded.selfStatus`, [['none', '該当なし'], ['single', 'ひとり親（35万円）'], ['widow', '寡婦（27万円）']]))}${fld('障害者控除（本人）', sel(`${p}.ded.selfDisab`, [['none', '該当なし'], ['normal', '障害者（27万円）'], ['special', '特別障害者（40万円）']]))}</div><div class="hint">寡婦・ひとり親は本人の合計所得金額が500万円以下の場合。</div>`, got('寡婦控除') + got('ひとり親控除') + got('障害者控除'))}
+    ${row('基礎控除', `<div class="hint">合計所得金額に応じて自動で決まります。${R.cfg.label}は、${R.year === 2026 ? '489万円以下：104万円／655万円以下：67万円／2,350万円以下：62万円' : '132万円以下：95万円／336万円以下：88万円／489万円以下：68万円／655万円以下：63万円／2,350万円以下：58万円'}。</div>`, got('基礎控除'))}
+    <div class="res" style="border-top:2px solid var(--line2);padding-top:10px"><b>所得控除の合計</b><b>${yen(T.dedSum)}円</b></div>
+  </div>
+  <div class="card"><h3>税額控除・納付済みの税金</h3>
+    ${row('住宅借入金等特別控除（住宅ローン控除）', `<div class="inl">${fld('控除額（計算明細書で計算した額）', inp(`${p}.ded.housing`))}</div><div class="hint">1年目は「住宅借入金等特別控除額の計算明細書」で計算します。2年目以降は税務署から届く書類で確認できます。</div>`, T.credit)}
+    ${row('予定納税額', `<div class="inl">${fld('7月・11月に納めた予定納税の合計', inp(`${p}.ded.prepaid`))}</div>`, T.prepaid, '納付済み')}
+    ${row('その他の源泉徴収税額', `<div class="inl">${fld('取引に入力していない源泉徴収分', inp(`${p}.ded.otherWh`))}</div><div class="hint">取引の入力で「源泉徴収された税額」を入れた分（${yen(T.whTx)}円）は自動で合算されています。</div>`, num(d.otherWh), '源泉徴収')}
+  </div>
+  <div class="row">${checkBtn('ded', '控除を確認済みにする')}<button class="btn" onclick="go('reports')">⑥ 決算書へ →</button></div>`;
+}
+
+// ============================================================
+//  ⑥ 決算書・帳簿
+// ============================================================
+function vReports() {
+  const tabs = [['pl', '損益計算書'], ['bs', '貸借対照表'], ['monthly', '月別売上・仕入'], ['journal', '仕訳帳'], ['ledger', '総勘定元帳'], ['tb', '試算表']];
+  const body = { pl: rPL, bs: rBS, monthly: rMonthly, journal: rJournal, ledger: rLedger, tb: rTB }[UI.rep] || rPL;
+  return `
+  ${head('⑥ 決算書・帳簿', `取引から自動で作った${R.Y.blue === 'white' ? '収支内訳書' : '青色申告決算書'}の数字と帳簿です。国税庁の確定申告書等作成コーナーには、この画面の金額をそのまま入力します。`)}
+  ${warnBox()}
+  <div class="subtabs">${tabs.map(([k, l]) => `<button class="${UI.rep === k ? 'on' : ''}" onclick="App.rep('${k}')">${l}</button>`).join('')}</div>
+  ${body()}
+  <div class="row noprint" style="margin-top:12px"><button class="btn" onclick="window.print()">印刷・PDFで保存</button>${checkBtn('reports', '決算書を確認済みにする')}</div>`;
+}
+function rPL() {
+  const p = R.pl, blue = R.Y.blue !== 'white';
+  const r = (l, v, cls = '') => `<tr class="${cls}"><td class="${cls ? '' : 'ind'}">${l}</td><td class="r">${v === '' ? '' : yen(v)}</td></tr>`;
+  return `<div class="card"><h3>損益計算書<small>${R.cfg.label}（1月1日〜12月31日）${D.profile.trade ? '・' + esc(D.profile.trade) : ''}</small></h3>
+  <div class="tblw"><table class="tbl"><thead><tr><th>科目</th><th class="r">金額（円）</th></tr></thead><tbody>
+    ${r('売上（収入）金額', p.revenue, 'sub')}
+    ${p.miscRev ? r('うち 雑収入', p.miscRev) : ''}
+    <tr class="sec"><td colspan="2">売上原価</td></tr>
+    ${r('期首商品（製品）棚卸高', p.invStart)}${r('仕入金額（製品製造原価）', p.purchases)}${r('小計', p.invStart + p.purchases)}${r('期末商品（製品）棚卸高', p.invEnd)}
+    ${r('差引原価', p.cogs, 'sub')}${r('差引金額（売上 − 原価）', p.gross, 'sub')}
+    <tr class="sec"><td colspan="2">経費</td></tr>
+    ${p.exp.map(x => r(x.a, x.v || '')).join('')}
+    ${r('経費 計', p.expTotal, 'sub')}
+    ${r('差引金額', p.beforeBlue, 'sub')}
+    ${blue ? r('青色申告特別控除前の所得金額', p.beforeBlue, 'sub') + r(`青色申告特別控除額（${R.Y.blue}万円枠）`, p.blueDed) : ''}
+    ${r('所得金額', p.bizIncome, 'tot')}
+  </tbody></table></div>
+  <p class="note">決算書の経費欄にない科目（支払手数料・新聞図書費・研修費・会議費・諸会費・車両費など）は、空欄の行に科目名を書いて記入します。</p></div>`;
+}
+function rBS() {
+  const b = R.bs;
+  const nm = a => a === '未払金' ? '未払金（カード等）' : a;
+  const rows = list => list.filter(x => x.open || x.v).map(x => `<tr><td>${nm(x.a)}</td><td class="r">${yen(x.open)}</td><td class="r">${yen(x.v)}</td></tr>`).join('');
+  const subs = Object.values(R.tbs).filter(x => (x.a === '現金' || x.a === '普通預金' || x.a === '未払金') && x.s && (x.dr || x.cr));
+  return `<div class="card"><h3>貸借対照表（資産負債調）<small>${R.cfg.label} 12月31日現在</small></h3>
+  <div class="grid g2">
+    <div class="tblw"><table class="tbl"><thead><tr><th>資産の部</th><th class="r">1月1日（期首）</th><th class="r">12月31日（期末）</th></tr></thead><tbody>
+      ${rows(b.A)}<tr class="tot"><td>合計</td><td class="r">${yen(sumBy(b.A, 'open'))}</td><td class="r">${yen(b.totA)}</td></tr></tbody></table></div>
+    <div class="tblw"><table class="tbl"><thead><tr><th>負債・資本の部</th><th class="r">1月1日（期首）</th><th class="r">12月31日（期末）</th></tr></thead><tbody>
+      ${rows(b.Lb)}<tr><td>青色申告特別控除前の所得金額</td><td class="r"></td><td class="r">${yen(R.pl.beforeBlue)}</td></tr>
+      <tr class="tot"><td>合計</td><td class="r">${yen(sumBy(b.Lb, 'open'))}</td><td class="r">${yen(b.totL)}</td></tr></tbody></table></div>
+  </div>
+  ${b.totA === b.totL ? '<div class="alert ok" style="margin-top:12px">資産の合計と、負債・資本の合計が一致しています。</div>' : '<div class="alert warn" style="margin-top:12px"><b>不一致：</b>左右の合計が一致していません。</div>'}
+  ${subs.length ? `<h3 style="margin-top:14px">口座ごとの期末残高</h3><div class="tblw"><table class="tbl"><tbody>${subs.map(x => `<tr><td>${esc(x.a)}：${esc(x.s)}</td><td class="r">${yen(x.a === '未払金' ? x.cr - x.dr : x.dr - x.cr)}円</td></tr>`).join('')}</tbody></table></div><p class="note">通帳・カード明細の12月31日の残高と一致しているか確認してください。一致しない場合は入力漏れがあります。</p>` : ''}
+  <p class="note">事業主貸＝事業のお金をプライベートに使った額（生活費・源泉所得税・家事按分の家事分など）、事業主借＝プライベートのお金を事業に入れた額。翌年の元入金 ＝ 元入金 ＋ 青色申告特別控除前の所得 ＋ 事業主借 − 事業主貸 です。</p></div>`;
+}
+function rMonthly() {
+  const m = Array.from({ length: 12 }, (_, i) => ({ s: 0, p: 0, i }));
+  for (const e of R.J) { if (e.src === 'open' || e.src === 'close') continue; const k = +e.date.slice(5, 7) - 1; if (!(k >= 0)) continue; for (const l of e.lines) { if (l.a === '売上高') m[k].s += l.cr - l.dr; if (l.a === '仕入高') m[k].p += l.dr - l.cr; } }
+  return `<div class="card"><h3>月別売上（収入）金額及び仕入金額<small>決算書2ページ目</small></h3><div class="tblw"><table class="tbl"><thead><tr><th>月</th><th class="r">売上（収入）金額</th><th class="r">仕入金額</th></tr></thead><tbody>
+  ${m.map(x => `<tr><td>${x.i + 1}月</td><td class="r">${yen(x.s)}</td><td class="r">${yen(x.p)}</td></tr>`).join('')}
+  <tr><td>雑収入</td><td class="r">${yen(R.pl.miscRev)}</td><td></td></tr>
+  <tr class="tot"><td>計</td><td class="r">${yen(sumBy(m, 's') + R.pl.miscRev)}</td><td class="r">${yen(sumBy(m, 'p'))}</td></tr></tbody></table></div></div>`;
+}
+function rJournal() {
+  return `<div class="card"><h3>仕訳帳<small>${R.J.length}件</small></h3><div class="tblw" style="max-height:640px"><table class="tbl"><thead><tr><th>No</th><th>日付</th><th>借方科目</th><th class="r">借方金額</th><th>貸方科目</th><th class="r">貸方金額</th><th>摘要</th></tr></thead><tbody>
+  ${R.J.map(e => { const dr = e.lines.filter(l => l.dr), cr = e.lines.filter(l => l.cr), n = Math.max(dr.length, cr.length); return Array.from({ length: n }, (_, i) => `<tr>${i === 0 ? `<td rowspan="${n}">${e.no}</td><td rowspan="${n}" class="num">${esc(e.date)}</td>` : ''}
+    <td>${dr[i] ? esc(dr[i].a) + (dr[i].s ? `<span class="mut">／${esc(dr[i].s)}</span>` : '') : ''}</td><td class="r">${dr[i] ? yen(dr[i].dr) : ''}</td>
+    <td>${cr[i] ? esc(cr[i].a) + (cr[i].s ? `<span class="mut">／${esc(cr[i].s)}</span>` : '') : ''}</td><td class="r">${cr[i] ? yen(cr[i].cr) : ''}</td>
+    ${i === 0 ? `<td rowspan="${n}">${esc([e.partner, e.desc].filter(Boolean).join(' '))}</td>` : ''}</tr>`).join(''); }).join('') || '<tr><td colspan="7" class="empty">仕訳はまだありません</td></tr>'}
+  </tbody></table></div><div class="row noprint" style="margin-top:10px"><button class="btn" onclick="App.csvJournal()">仕訳帳をCSVで書き出す</button></div></div>`;
+}
+function rLedger() {
+  const accts = Object.keys(R.tb);
+  const a = accts.includes(UI.ledger) ? UI.ledger : accts[0];
+  if (!a) return '<div class="card"><div class="empty">仕訳がありません</div></div>';
+  const debitSide = !(BS_LIABS.includes(a) || INCOME_ACCTS.includes(a) || a === '期末商品棚卸高');
+  let run = 0;
+  const rows = [];
+  for (const e of R.J) for (const l of e.lines) if (l.a === a) {
+    run += debitSide ? l.dr - l.cr : l.cr - l.dr;
+    const other = e.lines.filter(x => x !== l && (l.dr ? x.cr : x.dr)).map(x => x.a);
+    rows.push(`<tr><td class="num">${esc(e.date)}</td><td>${esc([...new Set(other)].join('・') || '諸口')}</td><td>${esc([l.s, e.partner, e.desc].filter(Boolean).join(' '))}</td><td class="r">${l.dr ? yen(l.dr) : ''}</td><td class="r">${l.cr ? yen(l.cr) : ''}</td><td class="r">${yen(run)}</td></tr>`);
+  }
+  return `<div class="card"><h3>総勘定元帳</h3><div class="row noprint" style="margin-bottom:10px"><select class="in w-m" onchange="App.ledger(this.value)">${opt(accts.map(x => [x, x]), a)}</select></div>
+  <div class="tblw" style="max-height:640px"><table class="tbl"><thead><tr><th>日付</th><th>相手科目</th><th>摘要</th><th class="r">借方</th><th class="r">貸方</th><th class="r">残高</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></div>`;
+}
+function rTB() {
+  const rows = Object.entries(R.tb).map(([a, v]) => ({ a, dr: v.dr, cr: v.cr }));
+  return `<div class="card"><h3>合計残高試算表</h3><div class="tblw"><table class="tbl"><thead><tr><th>勘定科目</th><th class="r">借方合計</th><th class="r">貸方合計</th><th class="r">残高</th></tr></thead><tbody>
+  ${rows.map(x => `<tr><td>${esc(x.a)}</td><td class="r">${yen(x.dr)}</td><td class="r">${yen(x.cr)}</td><td class="r">${yen(Math.abs(x.dr - x.cr))}${x.dr - x.cr < 0 ? '（貸）' : x.dr - x.cr > 0 ? '（借）' : ''}</td></tr>`).join('')}
+  <tr class="tot"><td>合計</td><td class="r">${yen(sumBy(rows, 'dr'))}</td><td class="r">${yen(sumBy(rows, 'cr'))}</td><td></td></tr></tbody></table></div></div>`;
+}
+
+// ============================================================
+//  ⑦ 申告書・納税額
+// ============================================================
+function vReturn() {
+  const T = R.tax, P = R.pl, Y = R.Y, cfg = R.cfg, C = R.ctax;
+  const line = (l, v, cls = '') => `<tr class="${cls}"><td>${l}</td><td class="r">${typeof v === 'number' ? yen(v) + '円' : v}</td></tr>`;
+  const parts = Object.entries(T.whByPartner);
+  return `
+  ${head('⑦ 申告書・納税額', `${cfg.label}の確定申告書（第一表・第二表）に入力する金額と、納める税金・戻ってくる税金の計算です。`)}
+  ${warnBox()}
+  <div class="grid g2">
+    <div class="kpi"><div class="l">${T.refund ? '還付される税金' : '納める税金（第3期分）'}</div><div class="big ${T.refund ? 'pos' : 'neg'}">${yen(T.refund || T.payable)}円</div>
+      <div class="s">${T.refund ? '指定した口座に振り込まれます（e-Taxなら3週間ほど）' : `納付期限：${fmtJ(cfg.filing[1])}（振替納税なら4月下旬に引き落とし）`}</div></div>
+    <div class="kpi"><div class="l">所得税及び復興特別所得税の額（年税額）</div><div class="big">${yen(T.totalTax)}円</div><div class="s">課税される所得金額 ${yen(T.taxable)}円 × 税率 ${Math.round(marginalRate(T.taxable) * 100)}%（速算表）</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>確定申告書に入力する金額<small>第一表</small></h3><div class="tblw"><table class="tbl calc"><tbody>
+    <tr class="sec"><td colspan="2">収入金額等</td></tr>
+    ${line('事業（営業等）', P.revenue)}${num(Y.salary.revenue) ? line('給与', num(Y.salary.revenue)) : ''}${num(Y.misc.revenue) ? line('雑（業務・その他）', num(Y.misc.revenue)) : ''}
+    <tr class="sec"><td colspan="2">所得金額等</td></tr>
+    ${line('事業（営業等）', P.bizIncome)}${T.salaryInc ? line('給与', T.salaryInc) : ''}${T.miscInc ? line('雑', T.miscInc) : ''}${line('合計', T.total, 'sub')}
+    <tr class="sec"><td colspan="2">所得から差し引かれる金額</td></tr>
+    ${T.dedList.filter(x => x.v).map(x => line(x.k, x.v)).join('')}${line('合計', T.dedSum, 'sub')}
+    <tr class="sec"><td colspan="2">税金の計算</td></tr>
+    ${line('課税される所得金額（1,000円未満切り捨て）', T.taxable)}${line('上の金額に対する税額', T.taxBase)}
+    ${T.credit ? line('住宅借入金等特別控除', T.credit) : ''}${line('差引所得税額（基準所得税額）', T.baseTax)}
+    ${line('復興特別所得税額（×2.1%）', T.recon)}${line('所得税及び復興特別所得税の額', T.totalTax, 'sub')}
+    ${line('源泉徴収税額', T.withheld)}${line('申告納税額（100円未満切り捨て）', T.declared)}
+    ${T.prepaid ? line('予定納税額', T.prepaid) : ''}
+    ${T.refund ? line('第3期分の税額：還付される税金', `<b class="pos">${yen(T.refund)}円</b>`, 'tot') : line('第3期分の税額：納める税金', `<b class="neg">${yen(T.payable)}円</b>`, 'tot')}
+    <tr class="sec"><td colspan="2">その他</td></tr>
+    ${Y.blue !== 'white' ? line('青色申告特別控除額', P.blueDed) : ''}
+    ${line('合計所得金額', T.total)}
+  </tbody></table></div>
+  ${T.payable >= 150000 ? `<p class="note">申告納税額が15万円以上のため、翌年は7月と11月に予定納税（それぞれ約${yen(fl(T.declared / 3 / 100) * 100)}円）が求められる見込みです。</p>` : ''}</div>
+  ${parts.length ? `<div class="card"><h3>所得の内訳（源泉徴収税額）<small>第二表</small></h3><div class="tblw"><table class="tbl"><thead><tr><th>所得の種類</th><th>種目</th><th>支払者の名称</th><th class="r">収入金額</th><th class="r">源泉徴収税額</th></tr></thead><tbody>
+    ${parts.map(([k, v]) => `<tr><td>事業（営業等）</td><td>報酬</td><td>${esc(k)}</td><td class="r">${yen(v.rev)}</td><td class="r">${yen(v.wh)}</td></tr>`).join('')}
+    ${num(Y.salary.revenue) ? `<tr><td>給与</td><td>給料</td><td>（源泉徴収票の支払者）</td><td class="r">${yen(num(Y.salary.revenue))}</td><td class="r">${yen(num(Y.salary.withheld))}</td></tr>` : ''}
+  </tbody></table></div></div>` : ''}
+  <div class="grid g2">
+    <div class="card"><h3>住民税（概算）<small>翌年6月から納付</small></h3>
+      ${R.resident.note ? `<p>${esc(R.resident.note)}</p>` : `<div class="res"><span>所得割（10%・調整控除の簡易計算）</span><b>${yen(R.resident.shotoku)}円</b></div><div class="res"><span>均等割（森林環境税を含む）</span><b>${yen(R.resident.kintou)}円</b></div>${R.resident.furusato ? `<div class="res"><span>うち ふるさと納税による減額（目安）</span><b>${yen(R.resident.furusato)}円</b></div>` : ''}<div class="res"><span><b>年額の目安</b></span><b>${yen(R.resident.total)}円</b></div>`}
+      <p class="note">確定申告の内容は自治体に送られるので、住民税の申告は別に必要ありません。副業がある会社員の方は、第二表で「自分で納付（普通徴収）」を選べます。金額は自治体の税率や調整控除で変わります。</p></div>
+    <div class="card"><h3>個人事業税（概算）<small>翌年8月・11月に納付</small></h3>
+      <div class="res"><span>事業所得（青色申告特別控除前）− 事業主控除290万円</span><b>${yen(R.bizTax.base)}円</b></div>
+      <div class="res"><span>税率</span><b>${R.bizTax.rate}%</b></div>
+      <div class="res"><span><b>年額の目安</b></span><b>${yen(R.bizTax.tax)}円</b></div>
+      <p class="note">個人事業税は青色申告特別控除が使えません。納めた年に「租税公課」として経費にできます。</p></div>
+  </div>
+  ${Y.ctax !== 'exempt' ? `<div class="card"><h3>消費税及び地方消費税（概算）<small>${{ '2wari': '2割特例', kani: '簡易課税', honsoku: '本則課税' }[Y.ctax]}・期限 ${fmtJ(cfg.ctaxDue)}</small></h3><div class="tblw"><table class="tbl calc"><tbody>
+    ${line('課税売上（税込）10%', C.s10)}${C.s8 ? line('課税売上（税込）8%', C.s8) : ''}${line('課税標準額（税抜・1,000円未満切り捨て）', C.base10 + C.base8)}
+    ${line('消費税額（国税 7.8%・6.24%）', C.outTax)}${line(Y.ctax === 'honsoku' ? '控除対象仕入税額（経費・固定資産の消費税）' : Y.ctax === '2wari' ? '控除する税額（売上の消費税の80%）' : `控除する税額（みなし仕入率 ${Math.round((KANI_RATE[Y.kani] || .5) * 100)}%）`, C.inTax)}
+    ${line('差引税額（国税・100円未満切り捨て）', C.nat)}${line('地方消費税（差引税額×22/78）', C.loc)}${C.interim ? line('中間納付額', C.interim) : ''}
+    ${line('納める消費税・地方消費税', C.due, 'tot')}</tbody></table></div>
+    <p class="note">税込経理で計算しています。消費税を納めた年に「租税公課」として経費にできます（未払計上も可）。</p></div>` : ''}
+  <div class="card guide"><h3>提出までの手順</h3><ol>
+    <li><b>書類をそろえる</b>：源泉徴収票（給与がある方）、報酬の支払明細、国民年金の控除証明書、国保の納付額、生命保険・地震保険の控除証明書、iDeCo・小規模企業共済の証明書、医療費の明細、ふるさと納税の受領証明書、マイナンバーカード。</li>
+    <li><b>国税庁「確定申告書等作成コーナー」を開く</b>：「作成開始」→「e-Tax（マイナンバーカード方式）」を選び、スマホでマイナンバーカードを読み取ってログインします。</li>
+    <li><b>決算書を先に作る</b>：「${Y.blue === 'white' ? '収支内訳書' : '青色申告決算書'}」を選び、⑥の損益計算書・月別売上・減価償却・貸借対照表の金額を入力します。</li>
+    <li><b>申告書を作る</b>：「所得税」を選び、このページの「確定申告書に入力する金額」と「所得の内訳」を入力します。計算結果がこのページと一致するか確認します（1円単位の差は端数処理によるものです）。</li>
+    <li><b>送信する</b>：${fmtJ(cfg.filing[0])}〜${fmtJ(cfg.filing[1])}に e-Tax で送信します。${Y.blue === '65' ? '<b>65万円控除は期限内の e-Tax 提出が条件です。</b>' : ''}</li>
+    <li><b>納付する／還付を待つ</b>：納付は振替納税（口座引き落とし・4月下旬）、ダイレクト納付、クレジットカード、スマホアプリ決済、コンビニ（QRコード）、金融機関・税務署の窓口から選べます。</li>
+    <li><b>帳簿と書類を保存する</b>：青色申告の帳簿・決算関係書類は7年間保存。メールやWebで受け取った請求書・領収書（電子取引データ）は、電子データのまま保存します。このツールの「データ管理」からバックアップも書き出してください。</li>
+  </ol>
+  <div class="alert info" style="margin-top:12px">このツールの計算は${cfg.label}の税制（令和8年度税制改正を含む）にもとづく自動計算で、申告内容を保証するものではありません。最終的な税額は確定申告書等作成コーナーの計算結果で確認し、判断に迷う場合は税務署や税理士に相談してください。</div></div>
+  <div class="row noprint"><button class="btn" onclick="window.print()">印刷・PDFで保存</button>${checkBtn('filed', '申告を提出済みにする')}</div>`;
+}
+
+// ============================================================
+//  データ管理
+// ============================================================
+function vData() {
+  return `
+  ${head('データ管理', 'データはこの端末のブラウザの中だけに保存され、外部には送信されません。ブラウザのデータ消去や端末の故障に備えて、定期的にバックアップを書き出してください。')}
+  <div class="card"><h3>バックアップ</h3><div class="row">
+    <button class="btn pri" onclick="App.exportJSON()">バックアップを書き出す（JSON）</button>
+    <label class="btn">バックアップを読み込む<input type="file" accept=".json,application/json" style="display:none" onchange="App.importJSON(this)"></label>
+  </div><p class="note">別のパソコンで続きをするときも、書き出したファイルを読み込めば同じ状態になります。</p></div>
+  <div class="card"><h3>書き出し</h3><div class="row">
+    <button class="btn" onclick="App.csvTx()">取引一覧（CSV）</button><button class="btn" onclick="App.csvJournal()">仕訳帳（CSV）</button>
+  </div><p class="note">CSVはExcelで開けるUTF-8（BOM付き）です。税理士さんへの共有にも使えます。</p></div>
+  <div class="card"><h3>翌年へ繰り越す</h3><p style="margin:0 0 10px">${R.cfg.label}の期末残高（口座・カード・売掛金・未払金・在庫）を、翌年分の期首残高に入れます。${YEARCFG[D.year + 1] ? '' : '<span class="mut">（翌年分の税制はまだこのツールに入っていません）</span>'}</p>
+    <button class="btn" onclick="App.carry()" ${YEARCFG[D.year + 1] ? '' : 'disabled'}>${YEARCFG[D.year + 1] ? YEARCFG[D.year + 1].label + 'へ繰り越す' : '翌年分は未対応'}</button></div>
+  <div class="card"><h3>サンプル・初期化</h3><div class="row">
+    <button class="btn" onclick="App.sample()">サンプルデータを入れる</button>
+    <button class="btn dan" onclick="App.reset()">すべてのデータを削除</button>
+  </div></div>`;
+}
+
+const VIEWS = { home: vHome, settings: vSettings, tx: vTx, import: vImport, assets: vAssets, ded: vDed, reports: vReports, return: vReturn, data: vData };
+
+// ============================================================
+//  操作
+// ============================================================
+function download(name, text, type) {
+  const blob = new Blob([text], { type }); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const csv = rows => '﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+
+window.App = {
+  check(k) { const Y = yr(); Y.checks[k] = !Y.checks[k]; save(); render(true); },
+  // 取引フォーム
+  fType(t) { syncForm(); const keep = { date: UI.form.date }; UI.form = newForm(t, keep); render(true); },
+  fAcct(v) {
+    UI.form.acct = v; UI.form.touched = true;
+    const tx = document.getElementById('f_tax'); if (tx) tx.value = taxDef(v);
+    const h = document.getElementById('f_hint'); if (h) h.textContent = ACCT_HINT[v] || '';
+  },
+  fRule() {
+    const f = UI.form; if (!f || f.type === 'transfer' || f.touched) return;
+    const text = `${$('#f_partner').value} ${$('#f_memo').value}`;
+    const r = matchRule(text, f.type === 'income' ? 'in' : 'out');
+    if (!r || !r.acct || r.kind !== f.type) return;
+    const s = $('#f_acct'); if (![...s.options].some(o => o.value === r.acct)) return;
+    s.value = r.acct; App.fAcct(r.acct); UI.form.touched = false;
+    const ra = $('#f_ratio'); if (ra && r.ratio) ra.value = r.ratio;
+    $('#f_rulehint').textContent = `自動ルール「${r.kw}」により「${r.acct}」${f.type === 'expense' && num(r.ratio) !== 100 ? `・事業割合${r.ratio}%` : ''}を入れました。`;
+  },
+  fWH() {
+    const amt = num($('#f_amount').value); if (!amt) { toast('先に金額を入力してください'); return; }
+    const base = $('#f_whnet') && $('#f_whnet').checked ? Math.round(amt / 1.1) : amt;
+    $('#f_wh').value = withholdingOf(base);
+  },
+  saveTx(e) {
+    e.preventDefault(); syncForm();
+    const f = UI.form, amount = num(f.amount);
+    if (!f.date) { toast('日付を入力してください'); return; }
+    if (amount <= 0) { toast('金額を入力してください'); return; }
+    if (f.type === 'transfer' && f.wallet === f.to) { toast('移動元と移動先が同じです'); return; }
+    const t = { id: f.editing || uid(), type: f.type, date: f.date, amount, wallet: f.wallet, partner: String(f.partner || '').trim(), memo: String(f.memo || '').trim() };
+    if (f.type === 'transfer') t.to = f.to;
+    else { t.acct = f.acct; t.tax = f.tax; }
+    if (f.type === 'expense') t.ratio = clamp(num(f.ratio), 0, 100);
+    if (f.type === 'income') t.wh = clamp(num(f.wh), 0, amount);
+    if (f.editing) { const i = D.txs.findIndex(x => x.id === f.editing); if (i >= 0) D.txs[i] = t; toast('更新しました'); }
+    else { D.txs.push(t); toast(f.date.startsWith(String(D.year)) ? '登録しました' : `登録しました（${f.date.slice(0, 4)}年の取引なので、この年分には表示されません）`); }
+    UI.lastDate = f.date;
+    UI.form = newForm(f.type, { date: f.date });
+    UI.form.wallet = f.wallet;
+    save(); render(true);
+    const a = $('#f_amount'); if (a) a.focus();
+  },
+  editTx(id) {
+    const t = D.txs.find(x => x.id === id); if (!t) return;
+    UI.form = { ...newForm(t.type), ...t, amount: String(t.amount), wh: t.wh ? String(t.wh) : '', ratio: t.ratio ?? 100, tax: t.tax ?? taxDef(t.acct), editing: id, touched: true };
+    render();
+  },
+  dupTx(id) { const t = D.txs.find(x => x.id === id); if (!t) return; D.txs.push({ ...t, id: uid() }); save(); render(true); toast('複製しました（編集で日付を直せます）'); },
+  delTx(id) { if (!confirm('この取引を削除しますか？')) return; D.txs = D.txs.filter(x => x.id !== id); if (UI.form && UI.form.editing === id) UI.form = null; save(); render(true); },
+  cancelEdit() { UI.form = newForm(UI.form.type); render(true); },
+  filt(k, v) { UI.txf[k] = v; render(true); },
+  // 口座
+  addWallet(kind) { D.wallets.push({ id: uid(), name: kind === 'bank' ? '新しい口座' : kind === 'card' ? '新しいカード' : '現金', kind }); save(); render(true); },
+  delWallet(id) {
+    const used = D.txs.some(t => t.wallet === id || t.to === id) || D.assets.some(a => a.wallet === id);
+    if (used) { alert('この口座を使っている取引があるため削除できません。名前の変更はできます。'); return; }
+    if (D.wallets.length <= 1) { alert('口座は1つ以上必要です。'); return; }
+    if (!confirm('この口座を削除しますか？')) return;
+    D.wallets = D.wallets.filter(w => w.id !== id); save(); render(true);
+  },
+  // 取込
+  async impFile(el) {
+    const file = el.files && el.files[0]; if (!file) return;
+    const buf = await file.arrayBuffer(); const enc = $('#impEnc').value; let text;
+    try {
+      if (enc === 'auto') { try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder('shift_jis').decode(buf); } }
+      else text = new TextDecoder(enc).decode(buf);
+    } catch (e) { alert('ファイルを読み込めませんでした。文字コードを変えて試してください。'); return; }
+    text = text.replace(/^﻿/, '');
+    const rows = parseCSV(text); if (!rows.length) { alert('CSVの中身が空です。'); return; }
+    let hi = rows.findIndex(r => r.some(c => /日付|年月日|取引日|利用日|お取引日|日時|Date/i.test(c)));
+    const header = hi >= 0 ? rows[hi] : rows[0].map((_, i) => `列${i + 1}`);
+    const body = hi >= 0 ? rows.slice(hi + 1) : rows;
+    const map = autoMap(header);
+    if (map.date < 0) map.date = 0;
+    if (map.desc < 0) map.desc = Math.min(1, header.length - 1);
+    if (map.amt < 0 && map.out < 0 && map.inn < 0) map.amt = header.length - 1;
+    UI.imp = { name: file.name, header, body, map, sign: map.sign || 'minus-out', wallet: (D.wallets.find(w => w.kind === (/カード|card/i.test(file.name) ? 'card' : 'bank')) || D.wallets[0]).id };
+    buildPreview(); render(true);
+  },
+  impMap(k, v) { UI.imp.map[k] = +v; buildPreview(); render(true); },
+  impSet(k, v) { UI.imp[k] = v; buildPreview(); render(true); },
+  impSplit() { const m = UI.imp.map; m.out = m.amt >= 0 ? m.amt : 0; m.inn = Math.min(UI.imp.header.length - 1, m.out + 1); m.amt = -1; buildPreview(); render(true); },
+  impRow(i, k, v, rerender) {
+    const r = UI.imp.rows[i]; r[k] = k === 'ratio' ? clamp(num(v), 0, 100) : v;
+    if (k === 'kind') r.acct = v === 'income' ? '売上高' : v === 'expense' ? (r.acct && EXPENSE_INPUT.includes(r.acct) ? r.acct : '') : '';
+    if (rerender || k === 'use' || k === 'acct') render(true);
+  },
+  impAll(on) { UI.imp.rows.forEach(r => r.use = on); render(true); },
+  impRun() {
+    const I = UI.imp; let n = 0;
+    for (const r of I.rows) {
+      if (!r.use || r.kind === 'skip') continue;
+      const t = { id: uid(), date: r.date, amount: r.amount, memo: r.desc, partner: '' };
+      if (r.kind === 'income') Object.assign(t, { type: 'income', acct: r.acct || '売上高', wallet: I.wallet, wh: 0, tax: taxDef(r.acct || '売上高') });
+      else if (r.kind === 'expense') { const a = r.acct || '雑費'; Object.assign(t, { type: 'expense', acct: a, wallet: I.wallet, ratio: r.ratio, tax: taxDef(a) }); }
+      else Object.assign(t, r.dir === 'out' ? { type: 'transfer', wallet: I.wallet, to: r.other } : { type: 'transfer', wallet: r.other, to: I.wallet });
+      D.txs.push(t); n++;
+    }
+    UI.imp = null; save(); toast(`${n}件を登録しました`); go('tx');
+  },
+  impCancel() { UI.imp = null; render(true); },
+  ruleAdd() { D.rules.unshift({ id: uid(), kw: '', dir: 'out', kind: 'expense', acct: '消耗品費', ratio: 100, other: 'private' }); save(); render(true); },
+  ruleDel(i) { D.rules.splice(i, 1); save(); render(true); },
+  ruleMove(i, d) { const j = i + d; if (j < 0 || j >= D.rules.length) return; [D.rules[i], D.rules[j]] = [D.rules[j], D.rules[i]]; save(); render(true); },
+  // 固定資産
+  saveAsset(e) {
+    e.preventDefault();
+    const g = id => document.getElementById(id).value;
+    const a = { id: (UI.af && UI.af.editing) || uid(), name: g('a_name').trim(), date: g('a_date'), cost: num(g('a_cost')), method: g('a_method'), life: Math.max(2, num(g('a_life')) || 4), cat: g('a_cat'), ratio: clamp(num(g('a_ratio')), 0, 100), wallet: g('a_wallet') };
+    if (!a.name || !a.date || a.cost <= 0) { toast('名前・取得日・取得価額を入力してください'); return; }
+    if (a.cost < 100000 && !confirm('10万円未満の物は固定資産にせず「消耗品費」として経費にできます。このまま固定資産として登録しますか？')) return;
+    const i = D.assets.findIndex(x => x.id === a.id);
+    if (i >= 0) D.assets[i] = a; else D.assets.push(a);
+    UI.af = null; save(); render(true); toast('固定資産を保存しました');
+  },
+  editAsset(id) { const a = D.assets.find(x => x.id === id); if (!a) return; UI.af = { ...a, editing: id }; render(); },
+  delAsset(id) { if (!confirm('この固定資産を削除しますか？')) return; D.assets = D.assets.filter(x => x.id !== id); save(); render(true); },
+  cancelAsset() { UI.af = null; render(true); },
+  // 控除
+  addDep() { yr().deps.push({ id: uid(), name: '', age: 0, income: 0, together: false, disab: 'none' }); save(); render(true); },
+  delDep(i) { yr().deps.splice(i, 1); save(); render(true); },
+  // 帳簿
+  rep(k) { UI.rep = k; render(true); },
+  ledger(a) { UI.ledger = a; render(true); },
+  csvJournal() {
+    const rows = [['No', '日付', '借方勘定科目', '借方補助', '借方金額', '貸方勘定科目', '貸方補助', '貸方金額', '摘要']];
+    for (const e of R.J) { const dr = e.lines.filter(l => l.dr), cr = e.lines.filter(l => l.cr), n = Math.max(dr.length, cr.length);
+      for (let i = 0; i < n; i++) rows.push([e.no, e.date, dr[i] ? dr[i].a : '', dr[i] ? dr[i].s : '', dr[i] ? dr[i].dr : '', cr[i] ? cr[i].a : '', cr[i] ? cr[i].s : '', cr[i] ? cr[i].cr : '', [e.partner, e.desc].filter(Boolean).join(' ')]); }
+    download(`仕訳帳_${D.year}.csv`, csv(rows), 'text/csv');
+  },
+  csvTx() {
+    const rows = [['日付', '区分', '勘定科目', '金額', '口座', '振替先', '取引先', '摘要', '事業割合', '源泉徴収税額', '消費税']];
+    for (const t of D.txs.slice().sort((a, b) => a.date < b.date ? -1 : 1)) rows.push([t.date, { income: '収入', expense: '支出', transfer: '振替' }[t.type], t.acct || '', t.amount, walletName(t.wallet), t.to ? walletName(t.to) : '', t.partner, t.memo, t.type === 'expense' ? (t.ratio ?? 100) : '', t.wh || '', t.tax || '']);
+    download('取引一覧.csv', csv(rows), 'text/csv');
+  },
+  // データ
+  exportJSON() { const d = new Date(); download(`確定申告データ_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`, JSON.stringify(D, null, 1), 'application/json'); },
+  importJSON(el) {
+    const f = el.files && el.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try { const d = JSON.parse(rd.result); if (!d || d.v !== 1 || !Array.isArray(d.txs)) throw new Error('format');
+        if (!confirm(`取引 ${d.txs.length}件のデータを読み込みます。いまのデータは置き換わります。よろしいですか？`)) return;
+        D = normalize(d); UI.form = null; UI.af = null; save(); render(); toast('読み込みました');
+      } catch (e) { alert('このツールのバックアップファイルではないようです。'); }
+    };
+    rd.readAsText(f);
+  },
+  carry() {
+    const next = D.year + 1; if (!YEARCFG[next]) return;
+    const Yn = yearOf(D, next), Yc = yr();
+    if (!confirm(`${R.cfg.label}の期末残高を ${YEARCFG[next].label} の期首残高に入れます（上書き）。よろしいですか？`)) return;
+    for (const w of D.wallets) Yn.opening.wallets[w.id] = Math.max(0, R.walletEnd[w.id] || 0);
+    Yn.opening.ar = Math.max(0, R.bal('売掛金'));
+    const apKey = '未払金|未払い'; Yn.opening.ap = Math.max(0, R.tbs[apKey] ? R.tbs[apKey].cr - R.tbs[apKey].dr : 0);
+    Yn.inv.start = num(Yc.inv.end);
+    for (const k of ['blue', 'bizTax', 'ctax', 'kani']) Yn[k] = Yc[k];
+    D.year = next; save(); go('settings'); toast(`${YEARCFG[next].label}に切り替えました`);
+  },
+  reset() { if (!confirm('すべてのデータを削除します。元に戻せません。先にバックアップを書き出しましたか？')) return; if (!confirm('本当に削除しますか？')) return; D = blank(); UI.form = null; UI.af = null; UI.imp = null; save(); go('home'); },
+  sample() {
+    if ((D.txs.length || D.assets.length) && !confirm('サンプルデータを入れると、いまのデータは置き換わります。よろしいですか？')) return;
+    D = blank(); D.year = 2026; D.profile = { name: '山田 花子', trade: 'はなデザイン' };
+    const T = (date, type, acct, amount, wallet, partner, memo, extra = {}) => ({ id: uid(), date, type, acct, amount, wallet, partner, memo, tax: taxDef(acct), ...extra });
+    D.txs = [
+      T('2026-01-31', 'income', '売上高', 330000, 'bank1', '株式会社サンプル商事', '1月分 Webサイト制作', { wh: 33693 }),
+      T('2026-02-27', 'income', '売上高', 550000, 'bank1', '合同会社テスト', 'LP制作一式', { wh: 51050 }),
+      T('2026-03-31', 'income', '売上高', 220000, 'ar', '株式会社サンプル商事', '3月分 保守運用', { wh: 0 }),
+      { id: uid(), date: '2026-04-30', type: 'transfer', amount: 220000, wallet: 'ar', to: 'bank1', partner: '株式会社サンプル商事', memo: '3月分の入金' },
+      T('2026-05-29', 'income', '売上高', 880000, 'bank1', '株式会社みらい', 'ECサイト構築', { wh: 89848 }),
+      T('2026-06-30', 'income', '雑収入', 30000, 'bank1', '', 'セミナー登壇の謝礼', { wh: 0 }),
+      ...[7, 8, 9, 10, 11, 12].map(m => T(`2026-${String(m).padStart(2, '0')}-${m === 8 || m === 10 || m === 12 ? 31 : 30}`, 'income', '売上高', 330000, 'bank1', '株式会社みらい', `${m}月分 システム保守`, { wh: 0 })),
+      T('2026-01-05', 'expense', '通信費', 3200, 'card1', 'Amazon Web Services', 'サーバー代', { ratio: 100 }),
+      T('2026-01-10', 'expense', '通信費', 7780, 'card1', 'Adobe', 'Creative Cloud', { ratio: 100 }),
+      T('2026-01-25', 'expense', '地代家賃', 120000, 'bank1', '大家', '自宅家賃（仕事部屋）', { ratio: 30 }),
+      T('2026-01-27', 'expense', '水道光熱費', 9800, 'bank1', '東京電力', '電気代', { ratio: 30 }),
+      T('2026-01-28', 'expense', '通信費', 8000, 'bank1', 'ドコモ', 'スマホ代', { ratio: 50 }),
+      T('2026-02-03', 'expense', '旅費交通費', 1520, 'cash', 'JR東日本', '打合せ移動', { ratio: 100 }),
+      T('2026-02-14', 'expense', '会議費', 1800, 'cash', 'スターバックス', 'クライアント打合せ', { ratio: 100 }),
+      T('2026-03-01', 'expense', '消耗品費', 15800, 'card1', 'Amazon', 'キーボード', { ratio: 100 }),
+      T('2026-03-20', 'expense', '新聞図書費', 3520, 'card1', '書店', 'デザイン技術書', { ratio: 100 }),
+      T('2026-04-10', 'expense', '外注工賃', 110000, 'bank1', 'フリーランス 佐藤', 'イラスト外注', { ratio: 100 }),
+      T('2026-04-15', 'expense', '支払手数料', 440, 'bank1', '', '振込手数料', { ratio: 100 }),
+      T('2026-05-12', 'expense', '広告宣伝費', 22000, 'card1', '', 'SNS広告', { ratio: 100 }),
+      T('2026-06-08', 'expense', '研修費', 16500, 'card1', '', 'UIデザイン講座', { ratio: 100 }),
+      { id: uid(), date: '2026-04-27', type: 'transfer', amount: 50300, wallet: 'bank1', to: 'card1', partner: '', memo: 'カード引き落とし' },
+      { id: uid(), date: '2026-05-01', type: 'transfer', amount: 300000, wallet: 'bank1', to: 'private', partner: '', memo: '生活費' },
+    ];
+    D.assets = [{ id: uid(), name: 'MacBook Pro', date: '2026-03-10', cost: 298000, method: 'small', life: 4, cat: '工具器具備品', ratio: 80, wallet: 'card1' },
+      { id: uid(), name: 'ミラーレスカメラ', date: '2026-06-01', cost: 480000, method: 'straight', life: 5, cat: '工具器具備品', ratio: 100, wallet: 'bank1' }];
+    const Y = yearOf(D, 2026);
+    Y.opening.wallets = { cash: 30000, bank1: 800000, card1: 0 };
+    Object.assign(Y.ded, { social: 450000, smallBiz: 276000, lifeNewGen: 60000, donation: 30000 });
+    save(); UI.form = null; go('home'); toast('サンプルデータを入れました');
+  },
+};
+window.go = go;
+
+// 他のタブで書き換えられたら読み直す
+window.addEventListener('storage', e => { if (e.key === KEY) { D = load(); render(true); } });
+save();
+render();
+</script>
+</body>
+</html>
