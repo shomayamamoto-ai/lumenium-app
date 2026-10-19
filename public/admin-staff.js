@@ -238,6 +238,9 @@
       'パスワードではなく、1人ずつの「個人のキー」を発行します（作ったときに1回だけ表示します）。ログインすると12時間使えます。</p>' +
       '<div id="stf-off"></div>' +
       roleCards() +
+      '<div class="stf-note" id="stf-otp" style="margin:0 0 14px"><b>ログインの安全（2段階認証）</b>' +
+        '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:6px;font-size:13px"><input type="checkbox" id="stf-otp-req" style="width:20px;height:20px;min-width:20px;margin-top:1px;appearance:auto;-webkit-appearance:checkbox"> 担当者は2段階認証を必ず使う（まだ設定していない人は、次に入ったときに設定の画面になります）</label>' +
+        '<p style="margin:6px 0 0;font-size:12px">2段階認証は、キーが誰かに知られても、本人のスマートフォンが無ければ入れないようにする仕組みです。各自が上の帯の自分の名前から設定します。スマートフォンを無くした人は、下の一覧の「2段階認証をリセット」で入り直せるようにできます。</p></div>' +
       '<h3 style="font-size:13.5px;font-weight:700;margin:0 0 6px">人を足す</h3>' +
       '<form class="stf-form" id="stf-form">' +
         '<label>名前<input id="stf-name" maxlength="40" required autocomplete="off" placeholder="例：佐藤 花子"></label>' +
@@ -292,11 +295,12 @@
       return '<li data-id="' + esc(m.id) + '"><span class="who">' + esc(m.name) +
         '<span class="stf-tag ' + (m.active ? 'ok' : 'off') + '">' + (m.active ? '使える' : '止めている') + '</span>' +
         '<span class="meta">' + (m.email ? esc(m.email) + '・' : '') + '最後のログイン ' + esc(when(m.lastLoginAt)) +
-        '・キー発行 ' + esc(when(m.keyIssuedAt)) + '</span></span>' +
+        '・キー発行 ' + esc(when(m.keyIssuedAt)) + '・2段階認証 ' + (m.otp ? 'オン' + (m.otpRecoveryLeft <= 2 ? '（予備のコード残り ' + m.otpRecoveryLeft + '）' : '') : 'オフ') + '</span></span>' +
         '<select data-act="role" aria-label="' + esc(m.name) + 'さんの役割">' +
           ['manager', 'staff', 'viewer'].map(function (r) { return '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + LABEL[r] + '</option>'; }).join('') +
         '</select>' +
         '<span class="acts"><button type="button" class="ghost" data-act="reset">キーを作り直す</button>' +
+        (m.otp ? '<button type="button" class="ghost" data-act="otp.reset">2段階認証をリセット</button>' : '') +
         '<button type="button" class="ghost" data-act="' + (m.active ? 'disable' : 'enable') + '">' + (m.active ? '止める' : '戻す') + '</button>' +
         '<button type="button" class="ghost bk-danger" data-act="remove">消す</button></span></li>';
     }).join('');
@@ -315,6 +319,7 @@
         var a = b.getAttribute('data-act');
         var ask = {
           reset: m.name + 'さんのキーを作り直します。古いキーはすぐに使えなくなります。よろしいですか？',
+          'otp.reset': m.name + 'さんの2段階認証をリセットします（スマートフォンを無くした・替えたとき）。本人はキーで入り直し、もう一度設定します。よろしいですか？',
           disable: m.name + 'さんを止めます。ログイン中の画面もすぐに使えなくなります。よろしいですか？',
           remove: m.name + 'さんを消します。元に戻せません（操作の記録は残ります）。よろしいですか？'
         }[a];
@@ -357,6 +362,22 @@
     if (!r.res.ok || !r.data.ok) { staffSay((r.data && r.data.message) || '読み込めませんでした。'); return; }
     S.ready = r.data.ready !== false;
     S.staff = r.data.staff || [];
+    var req = el('stf-otp-req');
+    if (req) {
+      req.checked = !!(r.data.policy && r.data.policy.otpRequired);
+      req.disabled = !S.ready;
+      if (!req.dataset.bound) {
+        req.dataset.bound = '1';
+        req.addEventListener('change', async function () {
+          var on = req.checked;
+          if (on && !confirm('担当者は2段階認証を必ず使う決まりにします。まだ設定していない人は、次に入ったときに設定するまで、ほかの画面を使えなくなります。よろしいですか？')) { req.checked = false; return; }
+          var x = await post('/api/staff', { action: 'policy', otpRequired: on });
+          if (!x.res.ok || !x.data.ok) req.checked = !on;
+          if (x.data && x.data.staff) { S.staff = x.data.staff; paintStaff(); }
+          staffSay((x.data && x.data.message) || '', x.res.ok && x.data.ok !== false);
+        });
+      }
+    }
     staffSay(r.data.demo ? r.data.message : '', true);
     paintStaff();
   }

@@ -178,6 +178,19 @@ export async function allStaff(cfg = storeConfig()) {
   return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
 }
 
+/* ---- 2段階認証の決まり（オーナーが決める） ---- */
+export const POLICY_KEY = `${KV}staff:policy`
+export async function readPolicy(cfg = storeConfig()) {
+  if (!cfg) return { otpRequired: false }
+  try { const [raw] = await pipeline(cfg, [['GET', POLICY_KEY]]); const p = raw ? JSON.parse(raw) : {}; return { otpRequired: !!p.otpRequired } } catch (_) { return { otpRequired: false } }
+}
+export async function savePolicy(input, cfg = storeConfig()) {
+  const p = { otpRequired: !!(input && input.otpRequired) }
+  await pipeline(cfg, [['SET', POLICY_KEY, JSON.stringify(p)]])
+  return p
+}
+export const otpOn = (rec) => !!(rec && rec.totp && rec.totp.on && rec.totp.secret)
+
 export async function removeStaff(id, cfg = storeConfig()) {
   await pipeline(cfg, [['HDEL', USERS_KEY, String(id)], ['DEL', FAIL_KEY(id)]])
 }
@@ -188,6 +201,8 @@ export function publicStaff(rec) {
     id: rec.id, name: rec.name, email: rec.email || '', role: rec.role, roleLabel: ROLE_LABEL[rec.role] || rec.role,
     active: rec.active !== false, createdAt: rec.createdAt || null, lastLoginAt: rec.lastLoginAt || null,
     keyIssuedAt: rec.keyIssuedAt || null,
+    // 2段階認証。秘密の値と予備のコードは決して返しません（オンかどうかと、予備の残りの数だけ）。
+    otp: otpOn(rec), otpRecoveryLeft: otpOn(rec) ? (rec.totp.recovery || []).length : 0,
   }
 }
 

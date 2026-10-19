@@ -982,6 +982,10 @@ input, select, textarea { color: var(--text); }
       <form id="key-form">
         <label for="admin-key">管理キー（Vercel の ADMIN_KEY）または担当者のキー</label>
         <input type="password" id="admin-key" autocomplete="off" required>
+        <div id="otp-row" hidden>
+          <label for="admin-otp">2段階認証のコード（スマートフォンの認証アプリの6けた。予備のコードも使えます）</label>
+          <input type="text" id="admin-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="12" spellcheck="false">
+        </div>
         <button type="submit" id="key-btn">ログイン</button>
       </form>
       <p class="msg" id="key-msg"></p>
@@ -1748,6 +1752,8 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-advisor.js"></script>
 <!-- 担当者と権限・操作の記録・ログイン中の人と役割（役割で使えないタブは出しません）。 -->
 <script src="/admin-staff.js"></script>
+<!-- 自分の2段階認証（上の帯の名前を押すと開きます）。 -->
+<script src="/admin-otp.js"></script>
 <!-- どこでも検索（⌘K / Ctrl+K）・ブラウザのタブに件数・新着のデスクトップ通知。 -->
 <script src="/admin-finder.js"></script>
 <!-- お客様カルテ（1人の問い合わせ・予約・見積書・会員登録を1つの時系列に）。 -->
@@ -2997,6 +3003,10 @@ window.lumAdmin = {
   /* ログインできたあとの画面づくり。/api/admin-ping の返事（役割・会社名）を使います。 */
   function enter(key, data) {
     sessionStorage.setItem('lum_admin_key', data.session || key);
+    var orow = document.getElementById('otp-row');
+    if (orow) { orow.hidden = true; document.getElementById('admin-otp').value = ''; }
+    // オーナーが「必ず使う」にしていて、まだ2段階認証を設定していない担当者には、設定の窓を出します。
+    if (data.otp && data.otp.required && !data.otp.on && window.lumOtp) setTimeout(function () { window.lumOtp.open({ forced: true }); }, 400);
     try { sessionStorage.setItem('lum_admin_ping', JSON.stringify({ who: data.who || null, staff: data.staff, brand: data.brand || null })); } catch (_) {}
     applyBrand(data.brand || null);
     if (window.lumStaff && window.lumStaff.signedIn(data)) {
@@ -3039,6 +3049,8 @@ window.lumAdmin = {
       // 「入る」を押したときだけ、操作の記録に「ログイン」を残すよう知らせます。
       var h = { Authorization: 'Bearer ' + key };
       if (signingIn) h['x-lum-login'] = '1';
+      var otpEl = document.getElementById('admin-otp');
+      if (signingIn && otpEl && !document.getElementById('otp-row').hidden && otpEl.value.trim()) h['x-lum-otp'] = otpEl.value.trim();
       res = await fetch('/api/admin-ping', { headers: h });
       data = await res.json();
     } catch (_) {
@@ -3060,6 +3072,15 @@ window.lumAdmin = {
       // A lockout and a wrong key used to look identical, so a correct key
       // appeared wrong for fifteen minutes with nothing saying why.
       showMsg(data.message || '試行回数の上限に達しました。しばらくお待ちください。', true);
+      return false;
+    }
+    // 2段階認証をオンにしている担当者: キーのあとに、認証アプリの6けたを聞きます。
+    if (data.code === 'OTP_REQUIRED' || data.code === 'OTP_WRONG') {
+      document.getElementById('otp-row').hidden = false;
+      var oe = document.getElementById('admin-otp');
+      oe.value = '';
+      showMsg(data.message, data.code === 'OTP_REQUIRED');
+      oe.focus();
       return false;
     }
     if (!res.ok || data.ok !== true) {

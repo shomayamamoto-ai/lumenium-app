@@ -3371,7 +3371,7 @@
     { id: 'demo-sato', name: '佐藤 花子', email: 'sato@example.com', role: 'staff', active: true, createdAt: ago(60 * DAY), lastLoginAt: ago(2 * H), keyIssuedAt: ago(60 * DAY) },
     { id: 'demo-suzuki', name: '鈴木 一郎', email: '', role: 'staff', active: true, createdAt: ago(41 * DAY), lastLoginAt: ago(26 * H), keyIssuedAt: ago(12 * DAY) },
     { id: 'demo-tanaka', name: '田中 美咲', email: 'tanaka@example.com', role: 'viewer', active: true, createdAt: ago(20 * DAY), lastLoginAt: ago(5 * DAY), keyIssuedAt: ago(20 * DAY) }
-  ].map(function (s) { s.roleLabel = LABEL[s.role]; return s; });
+  ].map(function (s, i) { s.roleLabel = LABEL[s.role]; s.otp = i === 0; s.otpRecoveryLeft = i === 0 ? 7 : 0; return s; });
   var WHO = {
     owner: { id: 'owner', name: 'オーナー', role: 'owner' },
     manager: { id: 'demo-kato', name: '加藤 健（見本）', role: 'manager' },
@@ -3445,12 +3445,21 @@
     var u = null;
     try { u = new URL(url, location.href); } catch (_) {}
     var p = u ? u.pathname.replace(/\/+$/, '') : '';
-    if (p !== '/api/admin-ping' && p !== '/api/staff' && p !== '/api/audit') return inner(input, init);
+    if (p !== '/api/admin-ping' && p !== '/api/staff' && p !== '/api/audit' && p !== '/api/otp') return inner(input, init);
     var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
       if (p === '/api/admin-ping') return reply({ ok: true, who: current(), staff: true });
+      // 自分の2段階認証。設定の流れ（QR コードまで）は見られるように。オンにする所で断ります。
+      if (p === '/api/otp') {
+        var me = current();
+        if (me.role === 'owner') return reply({ ok: true, owner: true, required: false, message: 'オーナーの管理キーは、Vercel の環境変数（ADMIN_KEY）にある長い乱数のキーです。2段階認証は、担当者のキーで入る人が使います。（デモでは、上の「この役割で見る」を担当者にすると設定の流れを見られます）' });
+        if (method === 'GET') return reply({ ok: true, owner: false, on: me.id === 'demo-sato', required: false, recoveryLeft: me.id === 'demo-sato' ? 7 : 0 });
+        var ob = {}; try { ob = JSON.parse((init && init.body) || '{}'); } catch (_) {}
+        if (ob.action === 'start') return reply({ ok: true, secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', uri: 'otpauth://totp/' + encodeURIComponent('Lumenium:' + me.name) + '?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Lumenium&algorithm=SHA1&digits=6&period=30' });
+        return reply({ ok: false, demo: true, message: MSG });
+      }
       if (method !== 'GET') return reply({ ok: false, demo: true, message: MSG + '（実際の画面では、ここで担当者が足され、キーが1回だけ表示されます）' });
-      if (p === '/api/staff') return reply({ ok: true, ready: true, demo: true, staff: STAFF, message: '' });
+      if (p === '/api/staff') return reply({ ok: true, ready: true, demo: true, staff: STAFF, policy: { otpRequired: false }, message: '' });
       var hit = filtered(u.searchParams);
       if (u.searchParams.get('format') === 'csv') {
         return new Response(csv(hit), { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });

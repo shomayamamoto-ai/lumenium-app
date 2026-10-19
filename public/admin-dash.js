@@ -57,11 +57,12 @@
       '<span class="sk-gap"></span>' +
       '<button type="button" class="sk-bell" id="sk-bell" aria-haspopup="true" aria-expanded="false" aria-controls="sk-pop" aria-label="お知らせ（要対応）">' + ICON.bell + '<b id="sk-bell-n" hidden></b></button>' +
       '<span class="sk-sep" aria-hidden="true"></span>' +
-      '<div class="sk-user"><span class="sk-avatar" id="sk-avatar" aria-hidden="true">?</span><span class="sk-user-t"><b id="sk-user-name"></b><small id="sk-user-role"></small></span></div>' +
+      '<button type="button" class="sk-user" id="sk-user" title="ログインの安全（2段階認証）"><span class="sk-avatar" id="sk-avatar" aria-hidden="true">?</span><span class="sk-user-t"><b id="sk-user-name"></b><small id="sk-user-role"></small></span></button>' +
       '<div class="sk-pop" id="sk-pop" role="dialog" aria-label="要対応の一覧" hidden></div>';
     main.insertBefore(bar, main.firstChild);
     el('sk-search').addEventListener('click', function () { if (window.lumFinder) window.lumFinder.open(); });
     el('sk-bell').addEventListener('click', function (e) { e.stopPropagation(); togglePop(); });
+    el('sk-user').addEventListener('click', function () { if (window.lumOtp) window.lumOtp.open(); });
     document.addEventListener('click', function (e) { var p = el('sk-pop'); if (p && !p.hidden && !p.contains(e.target)) togglePop(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') togglePop(false); });
     // メニューの下の一言

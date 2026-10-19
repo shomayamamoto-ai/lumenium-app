@@ -31,8 +31,9 @@ import { KV } from './_brand.js'
 import { decide, endpointOf, isRead, areaOf, quietBody } from './_permissions.js'
 import {
   OWNER, getStaff, putStaff, verifyKey, verifySession, keyId, isStaffKey, isSessionToken,
-  userFailState, recordUserFail, clearUserFails, userLocked,
+  userFailState, recordUserFail, clearUserFails, userLocked, otpOn, readPolicy,
 } from './_staff.js'
+import { checkSecondFactor } from './_totp.js'
 import { entry, record, targetOf, ipHash } from './_audit.js'
 
 const WINDOW_S = 15 * 60
@@ -247,6 +248,11 @@ export async function requireAdmin(req, opts) {
         }, 401)
       }
       who = { id: rec.id, name: rec.name, role: rec.role, via: 'session' }
+      // オーナーが「担当者は2段階認証を必ず使う」にしていて、まだ設定していない人は、
+      // 設定の画面（と入るための確認）しか使えません。
+      if (!otpOn(rec) && endpoint !== 'admin-ping' && endpoint !== 'otp' && (await readPolicy(cfg)).otpRequired) {
+        return fail({ ok: false, code: 'OTP_SETUP_REQUIRED', message: '先に2段階認証を設定してください（オーナーが必ず使う決まりにしています）。' }, 403)
+      }
     } else {
       // The raw staff key is for signing in only; afterwards the session goes
       // in its place, so the key itself is not on every request.
@@ -267,6 +273,21 @@ export async function requireAdmin(req, opts) {
       }
       if (rec.active === false) {
         return fail({ ok: false, code: 'STAFF_REVOKED', message: 'このキーは止められています。オーナーに確かめてください。' }, 401)
+      }
+      // 2段階認証をオンにしている人は、認証アプリの6けた（か予備のコード）も要ります。
+      if (otpOn(rec)) {
+        const code = (req.headers.get('x-lum-otp') || '').trim()
+        if (!code) {
+          return fail({ ok: false, code: 'OTP_REQUIRED', message: '2段階認証のコードを入れてください（スマートフォンの認証アプリに出ている6けた）。' }, 401)
+        }
+        const r = await checkSecondFactor(rec.totp, code)
+        if (!r.ok) {
+          await recordFail(ip, cfg)
+          await recordUserFail(rec.id, cfg)
+          await audit({ id: rec.id, name: rec.name, role: rec.role }, 'failed')
+          return fail({ ok: false, code: 'OTP_WRONG', message: 'コードが正しくありません。認証アプリの、いま出ている6けたを入れてください（予備のコードも使えます）。' }, 401)
+        }
+        if (r.recovery) rec.totp.recovery = r.recovery
       }
       await clearUserFails(rec.id, cfg)
       rec.lastLoginAt = new Date().toISOString()

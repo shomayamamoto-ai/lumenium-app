@@ -17,7 +17,7 @@ import { storeConfig } from './_analytics-store.js'
 import { ROLE_LABEL } from './_permissions.js'
 import {
   allStaff, getStaff, putStaff, removeStaff, publicStaff, makeCredential, newId, cleanInput,
-  STAFF_ROLES, MAX_STAFF,
+  STAFF_ROLES, MAX_STAFF, readPolicy, savePolicy,
 } from './_staff.js'
 
 const NO_STORE = '担当者の機能には、保存先（Upstash Redis）を Vercel の環境変数につなぐ必要があります。いまはオーナーの管理キーだけで使えます。'
@@ -33,7 +33,7 @@ export async function GET(req) {
   const cfg = storeConfig()
   if (!cfg) return json({ ok: true, ready: false, staff: [], roles: ROLES, message: NO_STORE })
   try {
-    return json({ ok: true, ready: true, staff: await list(cfg), roles: ROLES })
+    return json({ ok: true, ready: true, staff: await list(cfg), roles: ROLES, policy: await readPolicy(cfg) })
   } catch (e) {
     return json({ ok: false, message: '保存先から読めませんでした。少し待ってから開き直してください。' }, 503)
   }
@@ -48,6 +48,12 @@ export async function POST(req) {
   try { b = await req.json() } catch (_) {}
   if (!b || typeof b.action !== 'string') return json({ ok: false, message: '送られた内容を読めませんでした。' }, 400)
   const now = new Date().toISOString()
+
+  // 担当者に2段階認証を必ず使ってもらうか（オーナーが決めます）。
+  if (b.action === 'policy') {
+    const policy = await savePolicy({ otpRequired: !!b.otpRequired }, cfg)
+    return json({ ok: true, policy, staff: await list(cfg), message: policy.otpRequired ? '担当者は2段階認証を必ず使う決まりにしました。まだ設定していない人は、次に入ったときに設定の画面になります。' : '2段階認証は、使いたい人だけが使う決まりにしました。' })
+  }
 
   if (b.action === 'create') {
     const c = cleanInput(b)
@@ -95,6 +101,14 @@ export async function POST(req) {
       ok: true, key: cred.key, member: publicStaff(rec), staff: await list(cfg),
       message: `${rec.name}さんのキーを作り直しました。古いキーはもう使えません。新しいキーは今だけ表示します。`,
     })
+  }
+  // スマートフォンを無くした・替えたとき。オフにして、ログイン中の画面も入り直してもらいます。
+  if (b.action === 'otp.reset') {
+    delete rec.totp
+    delete rec.totpPending
+    rec.gen = (Number(rec.gen) || 0) + 1
+    await putStaff(rec, cfg)
+    return json({ ok: true, staff: await list(cfg), message: `${rec.name}さんの2段階認証をリセットしました。本人はキーで入り直し、もう一度設定します。` })
   }
   if (b.action === 'remove') {
     await removeStaff(rec.id, cfg)

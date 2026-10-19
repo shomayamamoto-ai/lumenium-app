@@ -388,6 +388,9 @@ body:not(.is-in) .ui-top-menu, body:not(.is-in) .ui-top-help, body:not(.is-in) #
 .ui-login #admin-key { width: 100%; min-width: 0; min-height: 44px; background: var(--ui-surface); border-color: var(--ui-border-strong); border-radius: var(--ui-r); }
 .ui-login #admin-key:focus { outline: 2px solid var(--ui-focus); outline-offset: 0; box-shadow: none; }
 .ui-login #key-btn { min-height: 44px; margin-top: var(--ui-s2); width: 100%; }
+.ui-login #otp-row { display: grid; gap: var(--ui-s2); margin-top: var(--ui-s2); }
+.ui-login #otp-row[hidden] { display: none; }
+.ui-login #admin-otp { width: 100%; min-height: 44px; padding: 10px 14px; font-size: 18px; letter-spacing: .2em; font-variant-numeric: tabular-nums; background: var(--ui-surface); border: 1px solid var(--ui-border-strong); border-radius: var(--ui-r); }
 
 /* ---- 本文と左のメニュー ---- */
 .shell { grid-template-columns: var(--ui-side-w) minmax(0, 1fr); gap: 0; align-items: start; }

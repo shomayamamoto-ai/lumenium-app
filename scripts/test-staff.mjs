@@ -375,6 +375,50 @@ await test('ログイン画面から入ったときだけ、オーナーのロ�
   assert.equal(ok.by, 'owner')
 })
 
+await test('2段階認証: 設定・キーだけでは入れない・コード・予備のコード・必須の決まり・リセット', async () => {
+  const T = await import('../api/_totp.js')
+  const otpApi = await import('../api/otp.js')
+  const made = await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'create', name: '二段', role: 'manager' })
+  const key = made.data.key, id = made.data.member.id
+  const sess = (await call(ping, 'GET', 'admin-ping', key, undefined, '203.0.113.50')).data.session
+  // 設定を始める → アプリの6けたでオン → 予備のコードが8つ
+  const st = await call(otpApi, 'POST', 'otp', sess, { action: 'start' }, '203.0.113.50')
+  assert.equal(st.status, 200)
+  assert.match(st.data.uri, /^otpauth:\/\/totp\//)
+  assert.equal((await call(otpApi, 'POST', 'otp', sess, { action: 'enable', code: '000000' }, '203.0.113.50')).status, 400)
+  const code = await T.hotp(st.data.secret, Math.floor(Date.now() / 30000))
+  const en = await call(otpApi, 'POST', 'otp', sess, { action: 'enable', code }, '203.0.113.50')
+  assert.equal(en.data.on, true)
+  assert.equal(en.data.codes.length, 8)
+  assert.equal((await call(staffApi, 'GET', 'staff', 'test-owner-key')).data.staff.find((x) => x.id === id).otp, true)
+  // キーだけでは入れない・違うコードは断る・正しいコードで入れる・予備のコードは1回だけ
+  const login = async (otp, ip) => {
+    const res = await ping.GET(new Request('https://example.test/api/admin-ping', { headers: { ...H(key, ip), ...(otp ? { 'x-lum-otp': otp } : {}) } }))
+    return { status: res.status, data: await res.json() }
+  }
+  assert.equal((await login('', '203.0.113.51')).data.code, 'OTP_REQUIRED')
+  assert.equal((await login('123456', '203.0.113.52')).data.code, 'OTP_WRONG')
+  const ok = await login(await T.hotp(st.data.secret, Math.floor(Date.now() / 30000)), '203.0.113.53')
+  assert.equal(ok.status, 200)
+  assert.ok(ok.data.session)
+  assert.equal((await login(en.data.codes[0], '203.0.113.54')).status, 200)
+  assert.equal((await login(en.data.codes[0], '203.0.113.55')).data.code, 'OTP_WRONG', '予備のコードは1回だけ')
+  // 必須の決まり: まだ設定していない人は、確認と設定の窓口しか使えない
+  const other = await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'create', name: 'まだ', role: 'staff' })
+  const s2 = (await call(ping, 'GET', 'admin-ping', other.data.key, undefined, '203.0.113.56')).data.session
+  await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'policy', otpRequired: true })
+  assert.equal((await call(staffApi, 'GET', 'staff', s2, undefined, '203.0.113.57')).data.code, 'OTP_SETUP_REQUIRED')
+  const p2 = await call(ping, 'GET', 'admin-ping', s2, undefined, '203.0.113.58')
+  assert.equal(p2.status, 200)
+  assert.deepEqual(p2.data.otp, { on: false, required: true })
+  assert.equal((await call(otpApi, 'GET', 'otp', s2, undefined, '203.0.113.59')).status, 200)
+  await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'policy', otpRequired: false })
+  // オーナーのリセット: オフになり、ログイン中の画面も入り直し
+  await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'otp.reset', id })
+  assert.equal((await call(ping, 'GET', 'admin-ping', ok.data.session, undefined, '203.0.113.60')).data.code, 'STAFF_REVOKED')
+  assert.equal((await login('', '203.0.113.61')).status, 200, 'リセット後はキーだけで入れる')
+})
+
 await test('個人の情報の書き出しは、操作の記録に残す対象になる', async () => {
   const { exportOf } = await import('../api/_admin-auth.js')
   const u = (p) => new URL('https://x.test' + p)

@@ -120,7 +120,8 @@ body { background: var(--ui-bg); }
 }
 .sk-bell b[hidden] { display: none; }
 .sk-sep { width: 1px; height: 28px; background: var(--ui-border); }
-.sk-user { display: flex; align-items: center; gap: 10px; flex: none; }
+.sk-user { display: flex; align-items: center; gap: 10px; flex: none; font: inherit; color: inherit; background: none; border: 0; padding: 4px 6px; border-radius: 12px; cursor: pointer; text-align: left; min-height: 44px; }
+.sk-user:hover { background: rgba(37, 99, 235, .06); }
 .sk-avatar {
   width: 40px; height: 40px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; font-weight: 800; font-size: 16px;

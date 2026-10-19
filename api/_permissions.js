@@ -40,6 +40,8 @@ export const OWNER_AREAS = ['settings', 'staff', 'share']
 // 値は「これ以上の役割なら可」。
 export const TABLE = {
   'admin-ping': { area: 'login', read: 'viewer' },
+  // 自分の2段階認証（だれでも自分の分だけ）
+  otp: { area: 'login', read: 'viewer', write: 'viewer' },
   // 何がつながっているかだけ（値は返しません）。ポータルが全員分を読みます。
   health: { area: 'other', read: 'viewer' },
   settings: { area: 'settings', read: 'owner', write: 'owner' },

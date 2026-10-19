@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { requireAdmin, json, whoOf } from './_admin-auth.js'
 import { ROLE_LABEL } from './_permissions.js'
-import { signSession, getStaff, staffReady } from './_staff.js'
+import { signSession, getStaff, staffReady, otpOn, readPolicy } from './_staff.js'
 import { setting } from './_settings.js'
 import { BRAND } from './_brand.js'
 
@@ -31,6 +31,11 @@ export async function GET(req) {
     staff: staffReady(),
     // 管理画面の左上の会社名とロゴ（ADMIN_BRAND_NAME / ADMIN_LOGO_URL。無ければ SITE_NAME）。
     brand: await brandOf(req),
+  }
+  if (who.via === 'key' || who.via === 'session') {
+    // 2段階認証: オンか・必ず使う決まりか（まだ設定していない人には、画面が設定を出します）。
+    const [rec0, policy] = await Promise.all([getStaff(who.id).catch(() => null), readPolicy().catch(() => ({ otpRequired: false }))])
+    out.otp = { on: otpOn(rec0), required: !!policy.otpRequired }
   }
   if (who.via === 'key') {
     const rec = await getStaff(who.id)
