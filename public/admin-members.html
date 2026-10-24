@@ -1533,6 +1533,9 @@ input, select, textarea { color: var(--text); }
     <div class="panel" id="staff-admin" style="display:none; margin-top:20px"></div>
     <div class="panel" id="audit-admin" style="display:none; margin-top:20px"></div>
 
+    <!-- 資料：1分プレゼン（自己紹介のスライドとタイマー）。中身は /admin-present.js が作ります。 -->
+    <div class="panel" id="present-admin" style="display:none; margin-top:20px"></div>
+
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
       <div class="toolbar" style="margin-bottom:12px">
@@ -1754,6 +1757,8 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-staff.js"></script>
 <!-- 自分の2段階認証（上の帯の名前を押すと開きます）。 -->
 <script src="/admin-otp.js"></script>
+<!-- 資料：1分プレゼン。 -->
+<script src="/admin-present.js"></script>
 <!-- どこでも検索（⌘K / Ctrl+K）・ブラウザのタブに件数・新着のデスクトップ通知。 -->
 <script src="/admin-finder.js"></script>
 <!-- お客様カルテ（1人の問い合わせ・予約・見積書・会員登録を1つの時系列に）。 -->
@@ -2042,7 +2047,10 @@ window.lumAdmin = {
     { id: 'staff-admin', icon: 'shield', label: '担当者と権限', init: 'lumStaffInit', needs: 'store',
       desc: '入れる人と役割を決める', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
     { id: 'audit-admin', icon: 'list', label: '操作の記録', init: 'lumAuditInit', needs: 'store',
-      desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' }
+      desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' },
+    /* 資料：交流会などで使う自己紹介の1枚とタイマー（/admin-present.js）。 */
+    { id: 'present-admin', icon: 'present', label: '1分プレゼン', init: 'lumPresentInit',
+      desc: '自己紹介のスライドとタイマー', accent: '#b8892f', tint: 'rgba(184,137,47,0.14)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ホーム', icon: 'home' }].concat(TABS);
@@ -2057,6 +2065,7 @@ window.lumAdmin = {
     { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
+    { label: '資料', ids: ['present-admin'] },
     { label: '管理', ids: ['setup-admin', 'health-admin', 'staff-admin', 'audit-admin'] }
   ];
   /* 画面の見出しの下に出す一行の説明。長い説明は「？」の中です。 */

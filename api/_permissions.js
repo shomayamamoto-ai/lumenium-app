@@ -104,6 +104,7 @@ export const TABLE = {
   // お客様ごとのメモ・タグ・次に連絡する日（会員リストの「お客様（全員）」とお客様カルテ）
   customers: { area: 'members', read: 'viewer', write: 'staff' },
   'shop-profile': { area: 'advisor', read: 'viewer', write: 'manager' },
+  present: { area: 'other', read: 'viewer', write: 'staff' },
 }
 
 /** 記録しない操作: 「見た」「開いた（既読）」の印だけを付けるもの。毎回記録すると、
