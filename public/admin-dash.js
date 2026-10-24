@@ -151,8 +151,11 @@
     D.a30 = r[0]; D.a180 = r[1]; D.quotes = r[2] && Array.isArray(r[2].list) ? r[2].list : null; D.pages = (r[3] && r[3].pages) || {};
     D.profile = (r[4] && r[4].profile) || null;
     D.loading = false;
-    paint();
+    soon();
   }
+  /* 読み込みの結果は何回かに分けて届くので、続けて届いたものは1回の描き直しにまとめます。 */
+  var soonT = 0;
+  function soon() { clearTimeout(soonT); soonT = setTimeout(paint, 160); }
 
   function pct(cur, prev) {
     if (cur == null || prev == null || !isFinite(cur) || !isFinite(prev) || prev <= 0) return null;
@@ -488,6 +491,10 @@
           })() : '<p class="dk-empty">' + (D.loading ? '読み込み中…' : 'まだデータがありません。') + '</p>') +
         '</section>' +
       '</div>';
+    // 中身が前と同じなら作り直しません（ホームの読み込みは何回かに分けて届くため、
+    // 毎回作り直すと、そのたびに画面全体の配置の計算が走っていました）。
+    if (html === D.html && host.firstChild && el('opsmap-slot')) return;
+    D.html = html;
     host.innerHTML = html;
     // 運営マップ（admin-opsmap.js）は、作り直さずに差し込み直します
     var slot = el('opsmap-slot'), map = el('opsmap');
@@ -645,7 +652,7 @@
     D.src = e.detail;
     buildTop();
     paintUser();
-    paint();
+    soon();
     if (!D.a30 && !D.loading) loadExtra();
   });
   function boot() {

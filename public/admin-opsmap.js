@@ -51,8 +51,11 @@
     M.staff = r[1] && Array.isArray(r[1].staff) ? r[1].staff : null;
     M.auto = r[2];
     M.at = Date.now();
-    paint();
+    soon();
   }
+  /* 読み込みの結果は少しずつ届くので、続けて届いたものは1回の描き直しにまとめます。 */
+  var soonT = 0;
+  function soon() { clearTimeout(soonT); soonT = setTimeout(paint, 160); }
 
   /* 左のメニューから、部門とツールを読みます */
   function departments() {
@@ -190,6 +193,10 @@
         '</aside>' +
       '</div>' +
       ticker();
+    // 中身が前と同じなら、描き直しません（読み込みの途中で何度も呼ばれるため。描き直すたびに
+    // 画面全体の配置の計算が走り、管理画面が重くなっていました）。
+    if (html === M.html && box.firstChild) { box.classList.toggle('is-still', M.still || reduce); return; }
+    M.html = html;
     box.innerHTML = html;
     box.classList.toggle('is-still', M.still || reduce);
     box.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { if (window.lumShowTab) window.lumShowTab(b.getAttribute('data-go')); }); });
@@ -198,7 +205,14 @@
       try { localStorage.setItem('lum_ops_still', M.still ? '1' : '0'); } catch (_) {}
       paint();
     });
-    requestAnimationFrame(wires);
+    queueWires();
+  }
+  /* 線を引くのは、1フレームに1回だけ・大きさが変わったときだけ。 */
+  var wireQueued = false;
+  function queueWires() {
+    if (wireQueued) return;
+    wireQueued = true;
+    requestAnimationFrame(function () { wireQueued = false; wires(); });
   }
   function chip(label, v, cls) { return '<span class="om-chip' + (cls ? ' ' + cls : '') + '"><small>' + esc(label) + '</small><b>' + esc(v) + '</b></span>'; }
 
@@ -224,8 +238,14 @@
   function wires() {
     var tree = el('om-tree'), svg = el('om-wires');
     if (!tree || !svg) return;
+    // 画面に入っていないあいだは引きません（位置を測ると、そのたびに画面全体の配置の計算が走るため）。
+    if (M.visible === false) { M.wireKey = ''; return; }
     var R = tree.getBoundingClientRect();
     if (!R.width) return;
+    // 同じ大きさ・同じ中身なら、引き直す必要はありません。
+    var key = Math.round(R.width) + 'x' + Math.round(R.height) + ':' + (M.html ? M.html.length : 0);
+    if (key === M.wireKey && svg.firstChild) return;
+    M.wireKey = key;
     svg.setAttribute('viewBox', '0 0 ' + R.width + ' ' + R.height);
     var rel = function (n) { var r = n.getBoundingClientRect(); return { x: r.left - R.left, y: r.top - R.top, w: r.width, h: r.height }; };
     var own = el('om-owner'), hub = el('om-hub');
@@ -268,7 +288,7 @@
     var s = document.createElement('style');
     s.id = 'om-css';
     s.textContent =
-      '#opsmap-slot{min-width:0;max-width:100%}#opsmap{position:relative;min-width:0;max-width:100%;contain:inline-size;border-radius:20px;padding:16px 18px 0;color:#dbe4f5;overflow:hidden;' +
+      '#opsmap-slot{min-width:0;max-width:100%}#opsmap{position:relative;min-width:0;max-width:100%;contain:inline-size;content-visibility:auto;contain-intrinsic-size:auto 1000px;border-radius:20px;padding:16px 18px 0;color:#dbe4f5;overflow:hidden;' +
         'background:radial-gradient(120% 90% at 50% -10%,rgba(56,189,248,.10),transparent 55%),linear-gradient(180deg,#0d1730 0%,#0a1224 100%);' +
         'border:1px solid #1d2a4a;box-shadow:0 18px 50px rgba(2,6,23,.35),inset 0 1px 0 rgba(255,255,255,.05)}' +
       '#opsmap::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(148,163,184,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.06) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(180deg,#000,transparent 85%)}' +
@@ -350,6 +370,13 @@
     }
     slot.appendChild(box);
     paint();
+    // 大きさが変わったとき（画面の幅・ホームの並びの変化）だけ線を引き直します。
+    if (window.ResizeObserver && !M.ro) { M.ro = new ResizeObserver(function () { queueWires(); }); M.ro.observe(box); }
+    if (window.IntersectionObserver && !M.io) {
+      M.visible = false;
+      M.io = new IntersectionObserver(function (es) { M.visible = es[es.length - 1].isIntersecting; if (M.visible) queueWires(); }, { rootMargin: '200px 0px' });
+      M.io.observe(box);
+    }
     if (!M.at) loadMore();
     if (!M.clock) M.clock = setInterval(tick, 1000);
     if (!M.timer) M.timer = setInterval(function () {
@@ -357,9 +384,9 @@
       if (p && p.style.display !== 'none' && !document.hidden) loadMore();
     }, 60000);
   };
-  window.addEventListener('lum:portal', function (e) { M.src = e.detail; paint(); });
-  window.addEventListener('resize', function () { requestAnimationFrame(wires); });
+  window.addEventListener('lum:portal', function (e) { M.src = e.detail; soon(); });
+  window.addEventListener('resize', function () { queueWires(); });
   // 左のメニューの数が変わったら（各ツールの数え直し）、マップも描き直します
-  setInterval(function () { if (el('opsmap') && el('portal') && el('portal').style.display !== 'none') { var k = depKey(); if (k !== M.key) { M.key = k; paint(); } } }, 5000);
+  setInterval(function () { if (el('opsmap') && el('portal') && el('portal').style.display !== 'none') { var k = depKey(); if (k !== M.key) { M.key = k; soon(); } } }, 5000);
   function depKey() { return Array.prototype.map.call(document.querySelectorAll('#shell-nav .nav-count, #shell-nav .inq-badge, #shell-nav .bk-badge, #shell-nav .rev-badge'), function (b) { return b.textContent; }).join(','); }
 })();
