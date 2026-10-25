@@ -1842,3 +1842,254 @@ export function snsautoCounts(tables) {
   for (const t of SNSAUTO_TABLES) out[t] = (T[t] || []).length
   return out
 }
+
+/* =========================================================================
+   6工程で作る（reference → spec.md / data → data.json / story → story.md /
+   motion → Scene.tsx / direct → timing.ts / ship → final.mp4）
+
+   「動画を作って」と丸投げせず、小さな仕事に分けて、工程ごとにファイルを作り、
+   次の工程（人やAI）に引き継ぎます。成果物が工程ごとに確かめられ、直したい所だけ
+   直せて、全体を最初から作り直さずに済みます。前の工程を直したら、それを使う後ろの
+   工程に「要確認」の印を付けます（必要な所だけ見直すため）。
+   最後の書き出し（final.mp4）は Remotion（Claude Code など、手元の環境）で行います。
+   ========================================================================= */
+
+export const PIPE_STEPS = [
+  { id: 'spec', no: 1, name: 'reference', file: 'spec.md', label: '参考動画を言葉にする', desc: '参考にする動画のテンポ・冒頭の動き・カットのリズムを書き出します。', needs: [] },
+  { id: 'data', no: 2, name: 'data', file: 'data.json', label: '数字を集める（出典つき）', desc: '動画に使う数字を集め、すべてに出典（どこに書いてあったか）を付けます。', needs: [] },
+  { id: 'story', no: 3, name: 'story', file: 'story.md', label: '伝えることを1つに絞る', desc: 'メッセージを1つ、重要な数字を1つ選び、3段階で組み立てます。', needs: ['spec', 'data'] },
+  { id: 'motion', no: 4, name: 'motion', file: 'Scene.tsx', label: '動きをコードにする（Remotion）', desc: '場面ごとのアニメーションをコードで作ります（時間の割り振りは timing.ts）。', needs: ['story'] },
+  { id: 'direct', no: 5, name: 'direct', file: 'timing.ts', label: '言葉で直す（タイミング）', desc: '「タイトルをもう少し早く表示して」のように言葉で指示して、必要な所だけ直します。', needs: ['motion'] },
+  { id: 'ship', no: 6, name: 'ship', file: 'final.mp4', label: '確かめて仕上げる', desc: '仕様（spec）と数字（data）に照らして確かめ、承認してから完成版を書き出します。', needs: ['spec', 'data', 'story', 'direct'] },
+]
+
+const pstr = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').slice(0, n)
+const pnum = (v, lo, hi, d) => { const n = Number(v); return isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d }
+
+/** 保存できる形にそろえます。 */
+export function cleanPipe(x) {
+  const p = x && typeof x === 'object' ? x : {}
+  const at = (v) => (typeof v === 'string' && !isNaN(Date.parse(v)) ? v : '')
+  const items = (Array.isArray(p.data && p.data.items) ? p.data.items : []).slice(0, 40).map((d) => ({
+    label: pstr(d && d.label, 80).trim(), value: pstr(d && d.value, 40).trim(), unit: pstr(d && d.unit, 20).trim(),
+    source: pstr(d && d.source, 300).trim(), note: pstr(d && d.note, 200).trim(),
+  })).filter((d) => d.label || d.value)
+  const st = p.story || {}
+  const stages = (Array.isArray(st.stages) ? st.stages : []).slice(0, 3).map((s) => ({ title: pstr(s && s.title, 40).trim(), text: pstr(s && s.text, 300).trim() }))
+  while (stages.length < 3) stages.push({ title: '', text: '' })
+  const tm = p.timing || {}
+  const scenes = (Array.isArray(tm.scenes) ? tm.scenes : []).slice(0, 20).map((s, i) => ({
+    id: /^[a-z][a-z0-9_]{0,23}$/i.test(String(s && s.id || '')) ? String(s.id) : 's' + (i + 1),
+    title: pstr(s && s.title, 40).trim(), text: pstr(s && s.text, 120).trim(),
+    from: Math.round(pnum(s && s.from, 0, 600, 0) * 10) / 10, dur: Math.round(pnum(s && s.dur, 0.5, 120, 3) * 10) / 10,
+  }))
+  const stale = {}
+  PIPE_STEPS.forEach((s) => { if (p.stale && p.stale[s.id]) stale[s.id] = true })
+  return {
+    spec: { text: pstr(p.spec && p.spec.text, 8000), at: at(p.spec && p.spec.at) },
+    data: { items, at: at(p.data && p.data.at) },
+    story: { message: pstr(st.message, 120).trim(), number: pstr(st.number, 80).trim(), stages, at: at(st.at) },
+    timing: { fps: [24, 25, 30, 60].indexOf(Number(tm.fps)) >= 0 ? Number(tm.fps) : 30, width: 1080, height: 1920, scenes, at: at(tm.at) },
+    motion: { code: pstr(p.motion && p.motion.code, 30000), custom: !!(p.motion && p.motion.custom), at: at(p.motion && p.motion.at) },
+    direct: { log: (Array.isArray(p.direct && p.direct.log) ? p.direct.log : []).slice(-30).map((l) => ({ at: at(l && l.at), instruction: pstr(l && l.instruction, 300), summary: pstr(l && l.summary, 400) })) },
+    ship: { approvedAt: at(p.ship && p.ship.approvedAt), by: pstr(p.ship && p.ship.by, 40) },
+    stale,
+  }
+}
+
+/** その工程を直したら、それを使う後ろの工程に「要確認」を付けます（自分の印は外します）。 */
+export function markStale(pipe, changed) {
+  const out = JSON.parse(JSON.stringify(pipe))
+  out.stale = out.stale || {}
+  delete out.stale[changed]
+  const hit = new Set([changed])
+  let grew = true
+  while (grew) {
+    grew = false
+    PIPE_STEPS.forEach((s) => { if (!hit.has(s.id) && s.needs.some((n) => hit.has(n))) { hit.add(s.id); grew = true } })
+  }
+  hit.delete(changed)
+  hit.forEach((id) => { out.stale[id] = true })
+  if (hit.has('ship') && out.ship) out.ship.approvedAt = ''
+  return out
+}
+
+/** 工程が済んでいるか（中身があるか）。 */
+export function stepDone(pipe, id) {
+  const p = pipe || {}
+  if (id === 'spec') return !!(p.spec && p.spec.text.trim())
+  if (id === 'data') return !!(p.data && p.data.items.length)
+  if (id === 'story') return !!(p.story && p.story.message && p.story.stages.every((s) => s.text))
+  if (id === 'motion') return !!(p.motion && p.motion.code)
+  if (id === 'direct') return !!(p.timing && p.timing.scenes.length)
+  if (id === 'ship') return !!(p.ship && p.ship.approvedAt)
+  return false
+}
+
+/** 数字の確かめ: 値・出典（http の URL か、資料の名前）が無いもの。 */
+export function dataProblems(items) {
+  const out = []
+  ;(items || []).forEach((d, i) => {
+    if (!d.value) out.push({ index: i, text: `「${d.label || '#' + (i + 1)}」の数字が空です` })
+    if (!d.source) out.push({ index: i, text: `「${d.label || '#' + (i + 1)}」に出典がありません` })
+  })
+  return out
+}
+
+export function dataJson(items) {
+  return JSON.stringify((items || []).map((d) => ({ label: d.label, value: d.value, unit: d.unit, source: d.source, ...(d.note ? { note: d.note } : {}) })), null, 2) + '\n'
+}
+
+export function storyMd(story) {
+  const s = story || {}
+  const st = s.stages || []
+  return [
+    '# story', '',
+    '## 伝えたいメッセージ（1つ）', s.message || '（まだ）', '',
+    '## 重要な数字（1つ）', s.number || '（まだ）', '',
+    '## 3段階の構成',
+    ...[0, 1, 2].map((i) => `### ${i + 1}. ${(st[i] && st[i].title) || ['つかむ', '見せる', '動かす'][i]}\n${(st[i] && st[i].text) || '（まだ）'}`),
+    '',
+  ].join('\n')
+}
+
+/** ストーリーから、最初の時間の割り振り（timing）を作ります。 */
+export function timingFromStory(story, fps) {
+  const s = story || {}
+  const st = s.stages || []
+  const scenes = [{ id: 'title', title: 'タイトル', text: s.message || '', from: 0, dur: 3 }]
+  let t = 3
+  st.forEach((x, i) => { scenes.push({ id: 'stage' + (i + 1), title: x.title || ['つかむ', '見せる', '動かす'][i], text: x.text || '', from: t, dur: 7 }); t += 7 })
+  if (s.number) { scenes.splice(2, 0, { id: 'number', title: '重要な数字', text: s.number, from: 0, dur: 4 }) }
+  let c = 0
+  scenes.forEach((x) => { x.from = c; c += x.dur })
+  scenes.push({ id: 'end', title: 'まとめ', text: '', from: c, dur: 3 })
+  return { fps: fps || 30, width: 1080, height: 1920, scenes, at: '' }
+}
+
+/** 場面を時間の順に詰め直します（直したあとに、重なり・すき間が出ないように）。 */
+export function packTiming(timing) {
+  const t = JSON.parse(JSON.stringify(timing))
+  let c = 0
+  t.scenes.forEach((s) => { s.from = Math.round(c * 10) / 10; c += s.dur })
+  return t
+}
+
+export function timingTotal(timing) {
+  return Math.round(((timing && timing.scenes) || []).reduce((a, s) => a + s.dur, 0) * 10) / 10
+}
+
+export function timingTs(timing) {
+  const t = timing || { fps: 30, scenes: [] }
+  const lines = t.scenes.map((s) => `  { id: ${JSON.stringify(s.id)}, title: ${JSON.stringify(s.title)}, text: ${JSON.stringify(s.text)}, from: ${Math.round(s.from * t.fps)}, durationInFrames: ${Math.round(s.dur * t.fps)} },`)
+  return [
+    '// timing.ts — 場面ごとの時間（フレーム）。ここだけ直せば、Scene.tsx は直さずに済みます。',
+    `export const FPS = ${t.fps};`,
+    `export const WIDTH = ${t.width || 1080};`,
+    `export const HEIGHT = ${t.height || 1920};`,
+    'export const timing = [',
+    ...lines,
+    '] as const;',
+    `export const DURATION_IN_FRAMES = ${Math.round(timingTotal(t) * t.fps)};`,
+    '',
+  ].join('\n')
+}
+
+/** Scene.tsx（Remotion）の雛形。timing.ts の場面を順に出し、数字の場面は数え上げます。 */
+export function sceneTsx(story) {
+  const msg = (story && story.message) || ''
+  return [
+    "// Scene.tsx — 6工程の ④ motion。時間の割り振りは timing.ts（⑤ direct で言葉で直します）。",
+    "import { AbsoluteFill, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';",
+    "import { timing } from './timing';",
+    '',
+    'const Card: React.FC<{ title: string; text: string; big?: boolean }> = ({ title, text, big }) => {',
+    '  const frame = useCurrentFrame();',
+    '  const { fps, durationInFrames } = useVideoConfig();',
+    '  const enter = spring({ frame, fps, config: { damping: 200 } });',
+    '  const leave = interpolate(frame, [durationInFrames - 8, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });',
+    '  return (',
+    '    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 96, opacity: enter * leave }}>',
+    '      <div style={{ transform: `translateY(${(1 - enter) * 40}px)`, textAlign: "center" }}>',
+    '        <div style={{ fontSize: 40, letterSpacing: 6, color: "#f0a33a", marginBottom: 24 }}>{title}</div>',
+    '        <div style={{ fontSize: big ? 120 : 64, fontWeight: 800, lineHeight: 1.35, color: "#fffaf0" }}>{text}</div>',
+    '      </div>',
+    '    </AbsoluteFill>',
+    '  );',
+    '};',
+    '',
+    'export const Scene: React.FC = () => (',
+    '  <AbsoluteFill style={{ background: "linear-gradient(180deg,#15100b,#0e0b08)", fontFamily: "Noto Sans JP, sans-serif" }}>',
+    '    {timing.map((s) => (',
+    '      <Sequence key={s.id} from={s.from} durationInFrames={s.durationInFrames}>',
+    '        <Card title={s.title} text={s.text} big={s.id === "number"} />',
+    '      </Sequence>',
+    '    ))}',
+    '  </AbsoluteFill>',
+    ');',
+    '',
+    `// メッセージ: ${msg.replace(/\n/g, ' ')}`,
+    '// 書き出し: npx remotion render src/index.ts Scene out/final.mp4',
+    '',
+  ].join('\n')
+}
+
+/** ⑥ ship の確かめ。{ ok, text } の一覧。 */
+export function pipeChecks(pipe, opts) {
+  const p = pipe || {}
+  const o = opts || {}
+  const out = []
+  const add = (ok, text) => out.push({ ok: !!ok, text })
+  add(stepDone(p, 'spec'), '参考動画の仕様（spec.md）が書かれている')
+  const dp = dataProblems(p.data && p.data.items)
+  add(stepDone(p, 'data') && !dp.length, dp.length ? '数字に出典か値が無いものがある（' + dp.length + '件）' : '数字（data.json）にすべて出典が付いている')
+  add(!!(p.story && p.story.message), 'メッセージが1つに絞られている')
+  const num = p.story && p.story.number
+  const inData = !!num && (p.data && p.data.items || []).some((d) => d.value && String(num).indexOf(d.value) >= 0)
+  add(inData, inData ? '重要な数字が data.json にあり、出典で確かめられる' : '重要な数字が data.json に見つからない（出典の無い数字は使わない）')
+  const sc = (p.timing && p.timing.scenes) || []
+  const total = timingTotal(p.timing)
+  const max = o.maxSec || 90
+  add(sc.length && total <= max, sc.length ? '長さ ' + total + '秒（上限 ' + max + '秒）' : '場面の時間（timing.ts）がまだ無い')
+  const first = sc[0]
+  add(!!first && first.from <= 0.01 && first.dur <= 4, '最初の場面（タイトル）が3〜4秒以内に出ている')
+  const fast = sc.filter((s) => s.text && charLen(s.text) / s.dur > (o.maxCps || 8))
+  add(!fast.length, fast.length ? '文字が速すぎる場面: ' + fast.map((s) => s.title || s.id).join('・') + '（1秒' + (o.maxCps || 8) + '文字まで）' : 'テロップの速さが読める範囲（1秒' + (o.maxCps || 8) + '文字まで）')
+  const stale = Object.keys(p.stale || {}).filter((k) => k !== 'ship')
+  add(!stale.length, stale.length ? '「要確認」が残っている工程: ' + stale.map((k) => (PIPE_STEPS.find((s) => s.id === k) || {}).file).join('・') : '前の工程を直したあとの見直しが済んでいる')
+  return out
+}
+
+/** 次のAI（Claude Code など）に渡す指示書。その工程に要るファイルの中身を添えます。 */
+export function pipeHandoff(pipe, stepId, project) {
+  const p = pipe || {}
+  const step = PIPE_STEPS.find((s) => s.id === stepId)
+  if (!step) return ''
+  const files = {
+    'spec.md': (p.spec && p.spec.text) || '',
+    'data.json': dataJson(p.data && p.data.items),
+    'story.md': storyMd(p.story),
+    'Scene.tsx': (p.motion && p.motion.code) || '',
+    'timing.ts': timingTs(p.timing),
+  }
+  const need = { spec: [], data: [], story: ['spec.md', 'data.json'], motion: ['story.md', 'spec.md'], direct: ['timing.ts', 'Scene.tsx', 'spec.md'], ship: ['spec.md', 'data.json', 'story.md', 'timing.ts', 'Scene.tsx'] }[stepId]
+  const task = {
+    spec: '参考動画を見て、テンポ（1カットの長さ）・冒頭3秒の動き・カットのリズム・文字の出し方を、見た人が同じものを作れる言葉で spec.md に書いてください。',
+    data: '動画に使う数値を集め、data.json（[{label, value, unit, source, note}]）にしてください。すべての数値に出典（URL か資料名）を付け、出典の無い数値は入れないでください。',
+    story: 'spec.md と data.json を読み、伝えたいメッセージを1つに絞り、重要な数字を data.json から1つ選び、3段階（つかむ・見せる・動かす）の story.md を作ってください。data.json に無い数字は使わないでください。',
+    motion: 'story.md の構成を、Remotion の Scene.tsx にしてください。時間の割り振りは timing.ts から読み、Scene.tsx には秒数を直接書かないでください。',
+    direct: '次の指示に合わせて timing.ts だけを直してください（Scene.tsx は変えない）。変えた場面と、前後の秒数を最後に一覧にしてください。\n指示: （ここに「タイトルをもう少し早く表示して」のように書く）',
+    ship: '各場面をレンダリングして確かめ、spec.md（テンポ・冒頭）と data.json（数字と出典）と食い違いがないか照合してください。問題が無ければ npx remotion render で out/final.mp4 を書き出してください。',
+  }[stepId]
+  return [
+    `# 動画制作 ${step.no}/6 ${step.name} → ${step.file}${project && project.name ? '（' + project.name + '）' : ''}`,
+    '',
+    '6つの小さな仕事に分けて、工程ごとにファイルを作り、次に引き継いでいます。この工程だけを行ってください。',
+    '',
+    '## やること', task, '',
+    ...(need.length ? ['## 使うファイル', ...need.map((f) => '### ' + f + '\n```\n' + (files[f] || '（まだありません）').trim() + '\n```')] : []),
+    '',
+    `## 出すもの\n${step.file}`,
+    '',
+  ].join('\n')
+}

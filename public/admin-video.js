@@ -22,7 +22,7 @@
   };
   var SECTIONS = [
     ['todo', '要対応・予定'],
-    ['project', 'プロジェクト'], ['research', '競合リサーチ'], ['script', '台本'], ['board', '絵コンテ'],
+    ['project', 'プロジェクト'], ['pipe', '6工程で作る'], ['research', '競合リサーチ'], ['script', '台本'], ['board', '絵コンテ'],
     ['ship', '出荷前チェック'], ['silence', '無音カット'], ['publish', '投稿'], ['metrics', '数字'],
     ['pdca', 'PDCA']
   ];
@@ -156,7 +156,9 @@
   }
 
   async function pick(pid, quiet) {
+    if (pid !== S.pid) S.pipeStep = '';
     S.pid = pid;
+    S.pipe = null;
     try { sessionStorage.setItem('lum_video_pid', pid); } catch (_) {}
     if (!pid) { S.data = { project: null }; go(S.sec); return; }
     var r = await api('/api/video?project=' + encodeURIComponent(pid));
@@ -188,6 +190,198 @@
     return o;
   }
   function lines(text) { return String(text || '').split(/\n|、|,/).map(function (s) { return s.trim(); }).filter(Boolean); }
+
+  /* ---------------- 6工程で作る ----------------
+     「動画を作って」と丸投げせず、6つの小さな仕事に分けます。工程ごとにファイル
+     （spec.md・data.json・story.md・Scene.tsx・timing.ts・最後の確認）を作り、次の
+     工程（人や Claude Code などのAI）に引き継ぎます。前の工程を直すと、それを使う
+     後ろの工程に「要確認」が付くので、見直すのは必要な所だけです。計算は video-core.js。 */
+  R.pipe = function (host) {
+    if (needProject(host)) return;
+    var P = S.pipe || V.cleanPipe(S.data.pipe || {});
+    S.pipe = P;
+    if (!S.pipeStep) {
+      var firstTodo = V.PIPE_STEPS.filter(function (st) { return P.stale[st.id] || !V.stepDone(P, st.id); })[0];
+      S.pipeStep = firstTodo ? firstTodo.id : 'ship';
+    }
+    function state(id) { return P.stale[id] ? 'stale' : V.stepDone(P, id) ? 'done' : 'todo'; }
+    var LBL = { done: '済み', stale: '要確認', todo: 'まだ' };
+    host.innerHTML = '<h3 class="soc-step">6工程で作る</h3>' +
+      '<p class="soc-small">動画を1回で丸ごと作らず、6つの小さな仕事に分けて進めます。工程ごとにファイルができるので、確かめやすく、直したい所だけ直せます。前の工程を直すと、後ろの工程に「要確認」が付きます。' +
+      '各工程の「指示書をコピー」は、Claude Code など手元のAIにそのまま渡せる形です（必要なファイルの中身も入ります）。最後の動画ファイル（final.mp4）は、手元で Remotion を使って書き出します。</p>' +
+      '<ol class="vp-steps">' + V.PIPE_STEPS.map(function (st) {
+        var k = state(st.id);
+        return '<li><button type="button" data-pstep="' + st.id + '" class="vp-step ' + k + '" aria-pressed="' + (S.pipeStep === st.id) + '">' +
+          '<span class="n">' + st.no + '</span><span class="t"><b>' + esc(st.name) + '</b><small>' + esc(st.file) + '</small></span><span class="s">' + LBL[k] + '</span></button></li>';
+      }).join('') + '</ol>' +
+      '<div id="vp-body"></div>';
+    host.querySelectorAll('[data-pstep]').forEach(function (b) {
+      b.addEventListener('click', function () { S.pipeStep = b.getAttribute('data-pstep'); R.pipe(host); });
+    });
+    drawStep(el('vp-body'), host);
+  };
+
+  async function pipeSave(changed, msg) {
+    var r = await post({ action: 'pipe.save', pipe: S.pipe, changed: changed || '' });
+    if (r.data && r.data.ok) { S.pipe = V.cleanPipe(r.data.pipe); say(msg || '保存しました。', true); return true; }
+    say((r.data && r.data.message) || '保存できませんでした。');
+    return false;
+  }
+  async function pipeAi(step, extra, btn) {
+    if (btn) btn.disabled = true;
+    say('AIが下書きを作っています（20秒ほど）…', true);
+    var r = await post(Object.assign({ action: 'pipe.ai', step: step }, extra || {}));
+    if (btn) btn.disabled = false;
+    if (!r.data || !r.data.ok) { say((r.data && r.data.message) || '作れませんでした。'); return false; }
+    S.pipe = V.cleanPipe(r.data.pipe);
+    say(r.data.summary || '下書きを作りました。読んで直してから次へ進んでください。', true);
+    return true;
+  }
+
+  function drawStep(body, host) {
+    var P = S.pipe, id = S.pipeStep;
+    var st = V.PIPE_STEPS.filter(function (x) { return x.id === id; })[0];
+    var redraw = function () { R.pipe(host); };
+    var head = '<div class="vp-card"><h4>' + st.no + '. ' + esc(st.label) + ' <code>' + esc(st.file) + '</code></h4><p class="soc-small">' + esc(st.desc) + '</p>' +
+      (P.stale[id] ? '<div class="vp-stale">前の工程が直されました。この工程の中身が今も合っているか確かめて、必要なら直してから保存してください（保存すると「要確認」が外れます）。</div>' : '');
+    var tools = '<div class="vid-acts" style="margin-top:10px"><button type="button" class="ghost" data-handoff>指示書をコピー（Claude Code などへ）</button></div>';
+    var html = head;
+    if (id === 'spec') {
+      html += fld('参考動画のメモ（AIに渡す。どんな動画か・気づいたこと・URL）', '<textarea class="vid-in" id="vp-spec-in" rows="3" placeholder="例：同業のパン屋さんのリール。最初に焼き上がりの音。1カット2秒くらい…"></textarea>') +
+        '<div class="vid-acts"><button type="button" id="vp-spec-ai">AIで spec.md を作る</button></div>' +
+        fld('spec.md', '<textarea class="vid-in vp-code" id="vp-spec" rows="12">' + esc(P.spec.text) + '</textarea>') +
+        '<div class="vid-acts"><button type="button" id="vp-spec-save">保存</button><button type="button" class="ghost" id="vp-spec-dl">spec.md を保存</button></div>';
+    } else if (id === 'data') {
+      var probs = V.dataProblems(P.data.items);
+      html += '<table class="vp-tbl"><thead><tr><th>何の数字</th><th>値</th><th>単位</th><th>出典（URL か資料の名前）</th><th></th></tr></thead><tbody>' +
+        P.data.items.map(function (d, i) {
+          return '<tr data-i="' + i + '"><td><input class="vid-in" data-f="label" placeholder="何の数字（例：1日の来店）" value="' + esc(d.label) + '"></td><td><input class="vid-in" data-f="value" placeholder="値" value="' + esc(d.value) + '" style="width:6em"></td>' +
+            '<td><input class="vid-in" data-f="unit" placeholder="単位" value="' + esc(d.unit) + '" style="width:4em"></td><td><input class="vid-in" data-f="source" placeholder="出典（URL か資料の名前）" value="' + esc(d.source) + '"></td>' +
+            '<td><button type="button" class="ghost" data-del="' + i + '">消す</button></td></tr>';
+        }).join('') + '</tbody></table>' +
+        '<div class="vid-acts"><button type="button" class="ghost" id="vp-data-add">＋ 数字を足す</button><button type="button" id="vp-data-save">保存</button><button type="button" class="ghost" id="vp-data-dl">data.json を保存</button></div>' +
+        (probs.length ? '<div class="vp-stale">' + probs.map(function (x) { return esc(x.text); }).join('<br>') + '。出典の無い数字は、動画に使いません。</div>' : (P.data.items.length ? '<p class="soc-small">◯ すべての数字に出典があります。</p>' : '')) +
+        '<details class="vp-more"><summary>資料の文から AI で抜き出す</summary>' +
+          fld('資料の名前か URL（出典になります）', '<input class="vid-in" id="vp-data-src" placeholder="例：POSレジの集計（2026年9月）">') +
+          fld('数字が書いてある文', '<textarea class="vid-in" id="vp-data-in" rows="4"></textarea>') +
+          '<div class="vid-acts"><button type="button" id="vp-data-ai">AIで抜き出す</button></div></details>';
+    } else if (id === 'story') {
+      var opts = P.data.items.map(function (d) { var t = d.label + ' ' + d.value + d.unit; return '<option value="' + esc(d.value + d.unit + '（' + d.label + '）') + '">' + esc(t) + '</option>'; }).join('');
+      html += fld('伝えたいメッセージ（1つ・40字まで）', '<input class="vid-in" id="vp-msg" maxlength="120" value="' + esc(P.story.message) + '">') +
+        fld('重要な数字（1つ・data.json から）', '<input class="vid-in" id="vp-num" list="vp-nums" maxlength="80" value="' + esc(P.story.number) + '"><datalist id="vp-nums">' + opts + '</datalist>') +
+        P.story.stages.map(function (x, i) {
+          return '<div class="vp-stage"><b>' + (i + 1) + '</b>' + fld('見出し', '<input class="vid-in" data-st="' + i + '" data-f="title" value="' + esc(x.title || ['つかむ', '見せる', '動かす'][i]) + '">') +
+            fld('中身', '<textarea class="vid-in" rows="2" data-st="' + i + '" data-f="text">' + esc(x.text) + '</textarea>') + '</div>';
+        }).join('') +
+        '<div class="vid-acts"><button type="button" id="vp-story-save">保存</button><button type="button" class="ghost" id="vp-story-ai">spec と data から AI で作る</button><button type="button" class="ghost" id="vp-story-dl">story.md を保存</button></div>';
+    } else if (id === 'motion') {
+      html += '<p class="soc-small">story.md から、場面の並びと時間（timing.ts）と、それを動かすコード（Scene.tsx・Remotion）を作ります。秒数は Scene.tsx には書かず、timing.ts だけで決めます（⑤で言葉で直せるように）。</p>' +
+        '<div class="vid-acts"><button type="button" id="vp-motion-make">story から場面と Scene.tsx を作る</button></div>' +
+        fld('Scene.tsx', '<textarea class="vid-in vp-code" id="vp-code" rows="14" spellcheck="false">' + esc(P.motion.code) + '</textarea>', '自分で直した場合は「保存」を押してください。作り直すと上書きされます。') +
+        '<div class="vid-acts"><button type="button" class="ghost" id="vp-code-save">保存</button><button type="button" class="ghost" id="vp-code-dl">Scene.tsx を保存</button><button type="button" class="ghost" id="vp-ts-dl">timing.ts を保存</button></div>';
+    } else if (id === 'direct') {
+      var total = V.timingTotal(P.timing);
+      html += '<div class="vp-row"><input class="vid-in" id="vp-instr" maxlength="300" placeholder="例：タイトルをもう少し早く表示して／数字の場面を長く"><button type="button" id="vp-direct-ai">言葉で直す（AI）</button></div>' +
+        (P.timing.scenes.length ? '<table class="vp-tbl"><thead><tr><th>場面</th><th>文字</th><th>開始</th><th>長さ（秒）</th></tr></thead><tbody>' + P.timing.scenes.map(function (x, i) {
+          return '<tr><td>' + esc(x.title || x.id) + '</td><td><input class="vid-in" data-sc="' + i + '" data-f="text" value="' + esc(x.text) + '"></td><td>' + x.from + '秒</td>' +
+            '<td><input class="vid-in" data-sc="' + i + '" data-f="dur" inputmode="decimal" value="' + x.dur + '" style="width:5em"></td></tr>';
+        }).join('') + '</tbody></table><p class="soc-small">合計 ' + total + '秒</p>' : '<p class="soc-small">先に ④ motion で場面を作ってください。</p>') +
+        '<div class="vid-acts"><button type="button" id="vp-tm-save">手で直した分を保存</button><button type="button" class="ghost" id="vp-ts-dl">timing.ts を保存</button></div>' +
+        (P.direct.log.length ? '<h4 style="margin-top:12px">直した記録</h4><ul class="vp-log">' + P.direct.log.slice().reverse().map(function (l) {
+          return '<li><b>「' + esc(l.instruction) + '」</b><span>' + esc(l.summary) + '</span></li>';
+        }).join('') + '</ul>' : '');
+    } else if (id === 'ship') {
+      var checks = V.pipeChecks(P, { maxSec: 90, maxCps: (S.data.rules && S.data.rules.telop && S.data.rules.telop.MAX_CPS) || 8 });
+      var allOk = checks.every(function (c) { return c.ok; });
+      html += '<ul class="vp-checks">' + checks.map(function (c) { return '<li class="' + (c.ok ? 'ok' : 'ng') + '">' + (c.ok ? '◯ ' : '✗ ') + esc(c.text) + '</li>'; }).join('') + '</ul>' +
+        (P.ship.approvedAt ? '<p class="soc-small">◯ ' + esc(new Date(P.ship.approvedAt).toLocaleString('ja-JP')) + ' に承認しました。書き出しは手元で：</p>' : '<p class="soc-small">確かめて問題が無ければ承認し、手元で書き出します：</p>') +
+        '<pre class="vp-code vp-pre">npx remotion render src/index.ts Scene out/final.mp4</pre>' +
+        '<div class="vid-acts"><button type="button" id="vp-approve"' + (P.ship.approvedAt ? ' disabled' : '') + '>' + (P.ship.approvedAt ? '承認済み' : '承認する') + '</button>' +
+        '<button type="button" class="ghost" id="vp-all-dl">ファイルをまとめて保存</button></div>' +
+        (allOk ? '' : '<p class="soc-small">✗ の項目があります。直してから承認するのがおすすめです（そのままでも承認はできます）。</p>');
+    }
+    html += tools + '</div>';
+    body.innerHTML = html;
+
+    body.querySelector('[data-handoff]').addEventListener('click', async function () {
+      var text = V.pipeHandoff(S.pipe, id, project());
+      var ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (_) {}
+      if (!ok) download(st.no + '-' + st.name + '-指示書.md', text, 'text/markdown');
+      say(ok ? '指示書をコピーしました。Claude Code などに貼り付けて、この工程だけを頼めます。' : '指示書をファイルで保存しました。', true);
+    });
+    var on = function (i, f) { var x = el(i); if (x) x.addEventListener('click', f); };
+    if (id === 'spec') {
+      on('vp-spec-ai', function () { pipeAi('spec', { input: el('vp-spec-in').value }, this).then(function (ok) { if (ok) redraw(); }); });
+      on('vp-spec-save', function () { S.pipe.spec = { text: el('vp-spec').value, at: new Date().toISOString() }; pipeSave('spec').then(redraw); });
+      on('vp-spec-dl', function () { download('spec.md', el('vp-spec').value, 'text/markdown'); });
+    }
+    if (id === 'data') {
+      var read = function () {
+        body.querySelectorAll('tr[data-i]').forEach(function (tr) {
+          var d = S.pipe.data.items[Number(tr.getAttribute('data-i'))];
+          tr.querySelectorAll('[data-f]').forEach(function (x) { d[x.getAttribute('data-f')] = x.value.trim(); });
+        });
+      };
+      on('vp-data-add', function () { read(); S.pipe.data.items.push({ label: '', value: '', unit: '', source: '', note: '' }); redraw(); });
+      body.querySelectorAll('[data-del]').forEach(function (b) { b.addEventListener('click', function () { read(); S.pipe.data.items.splice(Number(b.getAttribute('data-del')), 1); redraw(); }); });
+      on('vp-data-save', function () { read(); S.pipe.data.at = new Date().toISOString(); pipeSave('data').then(redraw); });
+      on('vp-data-dl', function () { read(); download('data.json', V.dataJson(S.pipe.data.items), 'application/json'); });
+      on('vp-data-ai', function () { pipeAi('data', { input: el('vp-data-in').value, source: el('vp-data-src').value }, this).then(function (ok) { if (ok) redraw(); }); });
+    }
+    if (id === 'story') {
+      var readStory = function () {
+        S.pipe.story.message = el('vp-msg').value.trim();
+        S.pipe.story.number = el('vp-num').value.trim();
+        body.querySelectorAll('[data-st]').forEach(function (x) { S.pipe.story.stages[Number(x.getAttribute('data-st'))][x.getAttribute('data-f')] = x.value.trim(); });
+      };
+      on('vp-story-save', function () { readStory(); S.pipe.story.at = new Date().toISOString(); pipeSave('story').then(redraw); });
+      on('vp-story-ai', function () { pipeAi('story', {}, this).then(function (ok) { if (ok) redraw(); }); });
+      on('vp-story-dl', function () { readStory(); download('story.md', V.storyMd(S.pipe.story), 'text/markdown'); });
+    }
+    if (id === 'motion') {
+      on('vp-motion-make', function () {
+        if (!S.pipe.story.message) { say('先に ③ story でメッセージを決めてください。'); return; }
+        if (S.pipe.motion.custom && !confirm('自分で直した Scene.tsx を作り直します（上書きされます）。よろしいですか？')) return;
+        var now = new Date().toISOString();
+        S.pipe.timing = Object.assign(V.timingFromStory(S.pipe.story, S.pipe.timing.fps), { at: now });
+        S.pipe.motion = { code: V.sceneTsx(S.pipe.story), custom: false, at: now };
+        pipeSave('motion', '場面と Scene.tsx を作りました。⑤で時間を言葉で直せます。').then(redraw);
+      });
+      on('vp-code-save', function () { S.pipe.motion = { code: el('vp-code').value, custom: true, at: new Date().toISOString() }; pipeSave('motion').then(redraw); });
+      on('vp-code-dl', function () { download('Scene.tsx', el('vp-code').value, 'text/plain'); });
+      on('vp-ts-dl', function () { download('timing.ts', V.timingTs(S.pipe.timing), 'text/plain'); });
+    }
+    if (id === 'direct') {
+      on('vp-direct-ai', function () { pipeAi('direct', { instruction: el('vp-instr').value }, this).then(function (ok) { if (ok) redraw(); }); });
+      on('vp-tm-save', function () {
+        body.querySelectorAll('[data-sc]').forEach(function (x) {
+          var sc = S.pipe.timing.scenes[Number(x.getAttribute('data-sc'))], f = x.getAttribute('data-f');
+          sc[f] = f === 'dur' ? Math.max(0.5, parseFloat(x.value) || sc.dur) : x.value.trim();
+        });
+        S.pipe.timing = Object.assign(V.packTiming(S.pipe.timing), { at: new Date().toISOString() });
+        pipeSave('direct').then(redraw);
+      });
+      on('vp-ts-dl', function () { download('timing.ts', V.timingTs(S.pipe.timing), 'text/plain'); });
+    }
+    if (id === 'ship') {
+      on('vp-approve', function () {
+        var ng = V.pipeChecks(S.pipe).filter(function (c) { return !c.ok; }).length;
+        if (ng && !confirm('✗ の項目が ' + ng + ' 件あります。このまま承認しますか？')) return;
+        S.pipe.ship = { approvedAt: new Date().toISOString(), by: '' };
+        S.pipe.stale = {};
+        pipeSave('', '承認しました。手元で npx remotion render を実行すると final.mp4 ができます。').then(redraw);
+      });
+      on('vp-all-dl', function () {
+        var P2 = S.pipe;
+        download('spec.md', P2.spec.text || '', 'text/markdown');
+        setTimeout(function () { download('data.json', V.dataJson(P2.data.items), 'application/json'); }, 300);
+        setTimeout(function () { download('story.md', V.storyMd(P2.story), 'text/markdown'); }, 600);
+        setTimeout(function () { download('Scene.tsx', P2.motion.code || '', 'text/plain'); }, 900);
+        setTimeout(function () { download('timing.ts', V.timingTs(P2.timing), 'text/plain'); }, 1200);
+      });
+    }
+  }
 
   R.project = function (host, blank) {
     var p = blank ? null : project();

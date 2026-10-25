@@ -28,6 +28,8 @@ export const VK = {
   queue: `${KV}video:queue`,
   processing: `${KV}video:processing`,
   sent: (net) => `${KV}video:sent:${net}`,
+  // 6工程で作る（spec / data / story / motion / direct / ship）の成果物
+  pipe: (pid) => `${KV}video:pipe:${pid}`,
 }
 
 export const KINDS = ['posts', 'scripts', 'pubs', 'pdca']

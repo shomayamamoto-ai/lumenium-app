@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS, getItem, mergePubEdit,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 import { createWithFallback } from './_ai-create.js'
 
@@ -42,12 +42,16 @@ export async function GET(req) {
     const project = await getProject(cfg, pid)
     if (!project) return json({ ok: false, message: 'そのプロジェクトは見つかりませんでした（削除されたかもしれません）。' }, 404)
     const [posts, scripts, pubs, pdca] = await Promise.all(KINDS.map((k) => listItems(cfg, pid, k)))
+    const pipeRaw = (await pipeline(cfg, [['GET', VK.pipe(pid)]]))[0]
+    let pipe = null
+    try { pipe = pipeRaw ? cleanPipe(JSON.parse(pipeRaw)) : null } catch (_) { pipe = null }
     const scored = scorePosts(posts)
     const byDate = (a, b) => (String(a.created_at) < String(b.created_at) ? 1 : -1)
     return json({
       ok: true, stored: true, project, ready, rules: RULES, caps: CAPS,
       posts: scored, band: durationBand(scored),
       scripts: scripts.sort(byDate), pubs: pubs.sort(byDate), pdca: pdca.sort(byDate),
+      pipe: pipe || cleanPipe({}),
     })
   } catch (e) {
     return json({ ok: false, message: `保存先から読めませんでした（${String((e && e.message) || e).slice(0, 100)}）。少し待ってから開き直してください。` }, 503)
@@ -120,6 +124,14 @@ export async function POST(req) {
     }
     if (a === 'analyze') return await analyze(req, cfg, project, b.ids)
     if (a === 'script.generate') return await generate(req, cfg, project, b)
+    if (a === 'pipe.save') {
+      // changed: 直した工程（後ろの工程に「要確認」を付けるため）
+      let p = cleanPipe(b.pipe)
+      if (b.changed) p = markStale(p, String(b.changed))
+      await pipeline(cfg, [['SET', VK.pipe(pid), JSON.stringify(p)]])
+      return json({ ok: true, pipe: p })
+    }
+    if (a === 'pipe.ai') return await pipeAi(req, cfg, project, b)
     if (a === 'hook.suggest') return await suggestHooks(req, project, b.script)
     return json({ ok: false, message: 'その操作には対応していません。' }, 400)
   } catch (e) {
@@ -402,3 +414,62 @@ async function generate(req, cfg, project, b) {
   })
 }
 
+
+/* ---------------- 6工程で作る（AIの下書き） ----------------
+   どの工程も「その工程の成果物だけ」を作ります。前の工程のファイルを読み、
+   書いていない数字や事実は作らせません（数字は data.json の出典つきのものだけ）。 */
+const PIPE_SCHEMAS = {
+  spec: { type: 'object', additionalProperties: false, required: ['markdown'], properties: { markdown: { type: 'string' } } },
+  data: {
+    type: 'object', additionalProperties: false, required: ['items'],
+    properties: { items: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['label', 'value', 'unit', 'source', 'note'], properties: { label: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' }, source: { type: 'string' }, note: { type: 'string' } } } } },
+  },
+  story: {
+    type: 'object', additionalProperties: false, required: ['message', 'number', 'stages'],
+    properties: { message: { type: 'string' }, number: { type: 'string' }, stages: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'text'], properties: { title: { type: 'string' }, text: { type: 'string' } } } } },
+  },
+  direct: {
+    type: 'object', additionalProperties: false, required: ['scenes', 'summary'],
+    properties: {
+      scenes: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'title', 'text', 'dur'], properties: { id: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' }, dur: { type: 'number' } } } },
+      summary: { type: 'string' },
+    },
+  },
+}
+
+async function pipeAi(req, cfg, project, b) {
+  const step = String(b.step || '')
+  if (!PIPE_SCHEMAS[step]) return json({ ok: false, message: 'その工程はAIで作れません。' }, 400)
+  const capped = await spendGuard('video', AI_DAILY)
+  if (capped) return capped
+  const raw = (await pipeline(cfg, [['GET', VK.pipe(project.id)]]))[0]
+  let p = cleanPipe({})
+  try { if (raw) p = cleanPipe(JSON.parse(raw)) } catch (_) {}
+  const input = str(b.input, 6000)
+  const instruction = str(b.instruction, 300)
+  const base = '日本語で、小さな会社のSNS用の縦長ショート動画（1080×1920）の制作を手伝います。書いていない数字・事実・固有名詞は作らないでください。'
+  const users = {
+    spec: `参考動画についてのメモです。テンポ（1カットの長さ）・冒頭3秒の動き・カットのリズム・文字の出し方・音の使い方を、見出しつきの Markdown（spec.md）にしてください。メモに無いことは「（不明）」と書いてください。\n\n---\n${input}`,
+    data: `次の資料から、動画に使える数値を抜き出してください。value は数字（と記号）だけ、unit は単位、source は資料の URL か名前（${str(b.source, 300) || '下の資料'}）、note は何の数字か。資料に無い数値は入れないでください。\n\n---\n${input}`,
+    story: `spec.md と data.json を読み、伝えたいメッセージを1つ（40字以内）に絞り、重要な数字を data.json から1つ選び（number に値と何の数字かを書く）、3段階（つかむ・見せる・動かす）の stages を作ってください。data.json に無い数字は使わないでください。\n\n## spec.md\n${p.spec.text || '（まだ）'}\n\n## data.json\n${dataJson(p.data.items)}`,
+    direct: `次の timing（場面の並びと秒数）を、指示に合わせて直してください。並び順と id は変えず、直すのは秒数（dur）と、指示があるときだけ文字（text）。summary に、変えた場面と前後の秒数を短く書いてください。\n指示: ${instruction || '（指示なし）'}\n\n## timing\n${JSON.stringify(p.timing.scenes.map((s) => ({ id: s.id, title: s.title, text: s.text, dur: s.dur })))}`,
+  }
+  if ((step === 'spec' || step === 'data') && !input.trim()) return json({ ok: false, message: step === 'spec' ? '参考動画のメモ（どんな動画か・気づいたこと）を入れてください。' : '数字が書いてある資料の文を貼ってください。' }, 400)
+  if (step === 'direct' && (!instruction || !p.timing.scenes.length)) return json({ ok: false, message: !p.timing.scenes.length ? '先に ④ motion で場面を作ってください。' : '直したいことを言葉で書いてください（例：タイトルをもう少し早く表示して）。' }, 400)
+  const r = await claude(req, { system: base, user: users[step], schema: PIPE_SCHEMAS[step], maxTokens: 4000 })
+  if (r.error) return r.error
+  const d = r.data || {}
+  const now = new Date().toISOString()
+  if (step === 'spec') { p.spec = { text: str(d.markdown, 8000), at: now }; p = markStale(p, 'spec') }
+  if (step === 'data') { p.data = { items: cleanPipe({ data: { items: p.data.items.concat(Array.isArray(d.items) ? d.items : []) } }).data.items, at: now }; p = markStale(p, 'data') }
+  if (step === 'story') { p.story = { ...cleanPipe({ story: d }).story, at: now }; p = markStale(p, 'story') }
+  if (step === 'direct') {
+    const byId = new Map((d.scenes || []).map((s) => [String(s.id), s]))
+    p.timing.scenes = p.timing.scenes.map((s) => { const n = byId.get(s.id); return n ? { ...s, dur: Math.max(0.5, Math.min(120, Number(n.dur) || s.dur)), text: str(n.text, 120) || s.text } : s })
+    p.timing = { ...packTiming(p.timing), at: now }
+    p.direct.log = p.direct.log.concat([{ at: now, instruction, summary: str(d.summary, 400) }]).slice(-30)
+    p = markStale(p, 'direct')
+  }
+  await pipeline(cfg, [['SET', VK.pipe(project.id), JSON.stringify(p)]])
+  return json({ ok: true, pipe: p, summary: step === 'direct' ? str(d.summary, 400) : '' })
+}

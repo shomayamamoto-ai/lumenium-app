@@ -643,4 +643,57 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('下書き・失敗だけ直せる（状態・作った日時は残し、失敗は下書きへ）')
 }
 
+/* ---- 6工程で作る ---- */
+{
+  const p0 = V.cleanPipe({ data: { items: [{ label: '1日の来店', value: '120', unit: '人', source: '' }, { label: '', value: '' }] }, stale: { story: 1, nope: 1 } })
+  assert.equal(p0.data.items.length, 1)
+  assert.deepEqual(Object.keys(p0.stale), ['story'])
+  assert.equal(p0.story.stages.length, 3)
+  assert.equal(V.dataProblems(p0.data.items).length, 1)
+  ok('6工程: 保存の形をそろえ、出典の無い数字を見つける')
+
+  const done = V.cleanPipe({ ship: { approvedAt: '2026-10-01T00:00:00Z' } })
+  const s1 = V.markStale(done, 'data')
+  assert.deepEqual(Object.keys(s1.stale).sort(), ['direct', 'motion', 'ship', 'story'])
+  assert.equal(s1.ship.approvedAt, '')
+  const s2 = V.markStale({ ...s1, stale: { ...s1.stale } }, 'story')
+  assert.equal(s2.stale.story, undefined)
+  assert.equal(s2.stale.motion, true)
+  const s3 = V.markStale(V.cleanPipe({}), 'direct')
+  assert.deepEqual(Object.keys(s3.stale), ['ship'])
+  ok('6工程: 直した工程の後ろだけに「要確認」が付き、承認は外れる')
+
+  const story = { message: '焼きたては朝7時から', number: '120人（1日の来店）', stages: [{ title: 'つかむ', text: 'a' }, { title: '見せる', text: 'b' }, { title: '動かす', text: 'c' }] }
+  const tm = V.timingFromStory(story, 30)
+  assert.deepEqual(tm.scenes.map((s) => s.id), ['title', 'stage1', 'number', 'stage2', 'stage3', 'end'])
+  assert.equal(tm.scenes[0].from, 0)
+  assert.equal(tm.scenes[2].from, 10)
+  assert.equal(V.timingTotal(tm), 31)
+  tm.scenes[0].dur = 2
+  const packed = V.packTiming(tm)
+  assert.equal(packed.scenes[1].from, 2)
+  assert.equal(V.timingTotal(packed), 30)
+  const ts = V.timingTs(packed)
+  assert.match(ts, /durationInFrames: 60 \}/)
+  assert.match(ts, /DURATION_IN_FRAMES = 900;/)
+  assert.match(V.sceneTsx(story), /from '\.\/timing'/)
+  ok('6工程: story から場面と秒数を作り、直したあと詰め直す（timing.ts はフレーム）')
+
+  const full = V.cleanPipe({
+    spec: { text: '1カット2秒' }, data: { items: [{ label: '1日の来店', value: '120', unit: '人', source: 'POS' }] },
+    story, timing: packed, motion: { code: 'x' },
+  })
+  assert.ok(V.pipeChecks(full).every((c) => c.ok))
+  const bad = V.cleanPipe({ ...full, story: { ...story, number: '300人' }, stale: { motion: true } })
+  const ng = V.pipeChecks(bad).filter((c) => !c.ok).map((c) => c.text)
+  assert.equal(ng.length, 2)
+  assert.ok(ng.some((x) => x.includes('data.json に見つからない')))
+  assert.ok(ng.some((x) => x.includes('Scene.tsx')))
+  const h = V.pipeHandoff(full, 'direct', { name: 'パン屋' })
+  assert.match(h, /5\/6 direct → timing\.ts（パン屋）/)
+  assert.match(h, /### timing\.ts/)
+  assert.ok(!h.includes('### data.json'))
+  ok('6工程: 仕上げの確かめ（出典の無い数字・要確認の残り）と、次のAIへの指示書')
+}
+
 console.log(`\n動画まわり ${n} 件すべて通りました。`)

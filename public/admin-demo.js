@@ -1713,6 +1713,24 @@
   function videoList() {
     return { ok: true, stored: true, projects: [VIDEO_PROJECT], accounts: [], ready: videoReady(), rules: window.lumVideoCore ? window.lumVideoCore.RULES : VIDEO_RULES };
   }
+  /* 6工程で作る（spec / data / story / motion / direct / ship）の見本。⑤まで進み、⑥の確認待ち。 */
+  function videoPipe() {
+    var C = window.lumVideoCore;
+    var story = { message: '朝7時の焼きたてで、1日の始まりを少しだけ良くする', number: '朝7時台の来店 38%（1日の来店のうち）',
+      stages: [{ title: 'つかむ', text: '朝7時、パンが焼き上がる音から始まる' }, { title: '見せる', text: '来店の38%は朝7時台。焼きたてを目当てに来る人が多い' }, { title: '動かす', text: '明日の朝、焼きたてを食べに来てください' }], at: ago(3 * DAY) };
+    var timing = C ? C.timingFromStory(story, 30) : { fps: 30, scenes: [] };
+    if (timing.scenes[0]) timing.scenes[0].dur = 2.5;
+    timing = C ? C.packTiming(timing) : timing;
+    return {
+      spec: { text: '# spec\n\n## テンポ\n1カット 1.5〜2.5秒。後半は少し長め（3秒）。\n\n## 冒頭3秒\n焼き上がりの音 → オーブンを開ける手元の寄り → タイトル。\n\n## カットのリズム\n寄り・引き・手元を交互に。同じ画は2秒まで。\n\n## 文字\n1画面1行・12文字まで。下から1/3の位置。', at: ago(5 * DAY) },
+      data: { items: [{ label: '朝7時台の来店の割合', value: '38', unit: '%', source: 'POSレジの集計（2026年9月）', note: '1日の来店のうち' }, { label: '1日の焼き上がり回数', value: '6', unit: '回', source: 'お店の焼成表', note: '' }], at: ago(4 * DAY) },
+      story: story,
+      timing: Object.assign(timing, { at: ago(1 * DAY) }),
+      motion: { code: C ? C.sceneTsx(story) : '', custom: false, at: ago(2 * DAY) },
+      direct: { log: [{ at: ago(1 * DAY), instruction: 'タイトルをもう少し早く表示して', summary: 'タイトルを3秒→2.5秒に短くし、後ろの場面を0.5秒ずつ前へ' }] },
+      ship: { approvedAt: '', by: '' }, stale: {}
+    };
+  }
   function videoProject() {
     var C = window.lumVideoCore;
     var posts = videoPosts();
@@ -1720,7 +1738,7 @@
     return {
       ok: true, stored: true, project: VIDEO_PROJECT, ready: videoReady(), rules: C ? C.RULES : null, caps: { posts: 300, scripts: 100, pubs: 300, pdca: 50 },
       posts: scored, band: C ? C.durationBand(scored) : { ok: false, message: '' },
-      scripts: [videoScript(), videoLongScript()], pubs: videoPubs(),
+      scripts: [videoScript(), videoLongScript()], pubs: videoPubs(), pipe: videoPipe(),
       pdca: [{ id: 'demo-pdca', title: '冒頭を問いかけにする', stage: 'check', hypothesis: '問いかけで始めると、最後まで見る人が増えるはず', target: { metric: 'retention_rate', target: 0.05, baseline: 0.46 },
         publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) }]
     };
