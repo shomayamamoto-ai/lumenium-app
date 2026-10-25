@@ -11437,3 +11437,74 @@ body { color: var(--lp-ink); }
   .line-icon-fill { display: none; }
   .lp-btn--primary { background: ButtonText; }
 }
+
+/* ===== Footer（左に会社のカード・右に4列のリンク・右下に連絡の帯） ===== */
+.footer.ft { padding: 56px 0 40px; border-top: 1px solid var(--border); }
+.ft-grid { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 48px; align-items: stretch; }
+.ft-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 22px;
+  padding: 30px 28px 26px;
+  display: flex; flex-direction: column;
+}
+.ft .ft-logo { margin-bottom: 18px; }
+.ft-tagline { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.7; }
+.ft-sub { font-size: 12.5px; color: var(--text-muted); line-height: 1.85; margin-top: 6px; }
+.ft-info { margin: 18px 0 0; display: grid; gap: 8px; }
+.ft-info > div { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; font-size: 13px; line-height: 1.6; }
+.ft-info dt { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); padding-top: 1px; }
+.ft-info dd { margin: 0; color: var(--text-sub); }
+.ft-info a { color: var(--text); text-decoration: none; }
+.ft-copy { margin-top: auto; padding-top: 22px; font-size: 11.5px; color: var(--text-muted); letter-spacing: 0.015em; font-variant-numeric: tabular-nums; }
+
+.ft-nw { white-space: nowrap; }
+.ft-main { display: flex; flex-direction: column; justify-content: space-between; gap: 36px; min-width: 0; }
+.ft-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 24px; padding-top: 6px; }
+.ft-col h4 { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--text-muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.ft-col a, .ft-linkbtn {
+  display: block; width: 100%; text-align: left;
+  font: inherit; font-size: 13px; line-height: 1.55; letter-spacing: 0.01em;
+  color: var(--text-sub); text-decoration: none;
+  padding: 6px 0; margin: 0; background: none; border: 0; cursor: pointer;
+  transition: color 0.2s ease;
+}
+.ft-col a:hover, .ft-linkbtn:hover { color: var(--text); }
+.ft-linkbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.ft-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: stretch; gap: 10px; }
+.ft-call, .ft-btn {
+  display: inline-flex; align-items: center; gap: 12px;
+  border-radius: 999px; text-decoration: none; min-height: 56px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.ft-call svg, .ft-btn svg { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ft-call { background: #dc2626; color: #fff !important; padding: 8px 28px 8px 22px; box-shadow: 0 10px 24px -12px rgba(220,38,38,0.7); }
+.ft-call:hover { background: #b91c1c; transform: translateY(-1px); color: #fff !important; }
+.ft-call > span { display: flex; flex-direction: column; line-height: 1.25; }
+.ft-call b { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.ft-call b.ft-call-text { font-size: 16px; letter-spacing: 0.02em; }
+.ft-call small { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+.ft-btn { padding: 8px 24px; font-size: 14px; font-weight: 700; color: var(--text) !important; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); }
+.ft-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+.ft-btn--line { background: #06c755; border-color: #06c755; color: #fff !important; }
+.ft-btn--line svg { fill: currentColor; stroke: none; }
+.ft-btn--line:hover { background: #05b04b; }
+
+@media (max-width: 1024px) {
+  .ft-grid { grid-template-columns: 1fr; gap: 32px; }
+  .ft-card { order: 2; }
+  .ft-main { order: 1; }
+  .ft-bar { justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  .footer.ft { padding: 40px 0 calc(32px + env(safe-area-inset-bottom)); }
+  .ft-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 18px; }
+  .ft-bar { flex-direction: column; }
+  .ft-call, .ft-btn { width: 100%; justify-content: center; }
+  .ft-card { padding: 24px 20px 20px; border-radius: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ft-call, .ft-btn { transition: none; }
+  .ft-call:hover, .ft-btn:hover { transform: none; }
+}

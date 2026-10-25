@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-11T07:18:36.489Z",
-  "count": 446,
+  "generatedAt": "2026-10-25T16:38:58.651Z",
+  "count": 451,
   "groups": [
     {
       "key": "text",
@@ -289,6 +289,26 @@
         {
           "path": "text.footer.base",
           "value": "東京 / オンライン全国対応"
+        },
+        {
+          "path": "text.footer.tel",
+          "value": ""
+        },
+        {
+          "path": "text.footer.telHours",
+          "value": ""
+        },
+        {
+          "path": "text.footer.line",
+          "value": ""
+        },
+        {
+          "path": "text.footer.consult",
+          "value": "無料で相談する"
+        },
+        {
+          "path": "text.footer.consultNote",
+          "value": "48時間以内にご返信・オンラインで全国対応"
         },
         {
           "path": "text.home.yomi",
