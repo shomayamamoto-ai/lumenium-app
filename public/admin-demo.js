@@ -3142,7 +3142,7 @@
     email: 'info@example.jp', person: '山本', regNo: 'T9000000000000', bank: '見本銀行 本店営業部 普通 1234567\n口座名義 ミホンクリエイティブ（カ',
     validDays: 30, rounding: 'floor', taxMode: 'excl', payTerms: '月末締め・翌月末までにお振込み', delivery: 'ご発注から2週間ほど',
     notes: '・お見積りの内容に変更がある場合は、改めてご相談のうえお見積りします。\n・素材（写真・文章）はご支給をお願いします。', logo: '', seal: '',
-    prefix: 'Q', invoicePrefix: 'INV', linkDays: 60,
+    prefix: 'Q', invoicePrefix: 'INV', receiptPrefix: 'RCP', payMethod: '銀行振込', linkDays: 60,
     mailSubject: '【お見積書】{件名}（{会社名}）',
     mailBody: '{宛名}\n\nいつもお世話になっております。{会社名}の{担当者}です。\nご依頼いただいた「{件名}」のお見積書をお送りします。\n\n　お見積金額：{金額}（税込）\n　有効期限：{有効期限}\n\n下のリンクから、お見積書をご覧いただけます（印刷・PDFでの保存もできます）。\n{リンク}\n\nご不明な点がございましたら、このメールにご返信ください。\nどうぞよろしくお願いいたします。\n\n{会社名}\n{担当者}'
   };
@@ -3242,13 +3242,29 @@
     return seal;
   }
   function core() { return window.lumQuoteCore; }
+  /* 一部入金の分の領収書（発行済み）。計算の部品が読み込まれてから1回だけ作ります。 */
+  var extras = false;
+  function addExtras() {
+    if (extras) return;
+    extras = true;
+    var C = core();
+    var R = C.receiptFrom(INV, ymd(3), { pay: INV.payments[0], payIndex: 0, rounding: SETTINGS.rounding, payMethod: SETTINGS.payMethod });
+    Object.assign(R, { id: 'qtdemorcp1', number: 'RCP-2026-0001', status: 'issued', createdAt: iso(3, 2), sentAt: iso(3, 3), sentTo: 'daisuke@example.com',
+      history: [{ at: iso(3, 2), what: 'created', text: '元の書類から作成' }, { at: iso(3, 3), what: 'mail', text: 'daisuke@example.com にメールで送った' }] });
+    INV.payments[0].receipt = R.number;
+    INV.history.push({ at: iso(3, 2), what: 'receipt', text: '領収書 ' + R.number + ' を作成' });
+    QUOTES.push(R);
+  }
   function state() {
     var C = core();
+    addExtras();
     return {
       ok: true, stored: true, today: ymd(0), settings: Object.assign({}, SETTINGS, { seal: sealImage() }), regNo: C.checkRegNo(SETTINGS.regNo),
       catalog: CATALOG, catalogSeeded: true,
       list: QUOTES.map(function (q) { return C.quoteSummary(q, SETTINGS.rounding); }),
-      mail: { key: true, sandbox: false, secret: true, from: '見本クリエイティブ <info@example.jp>' }
+      mail: { key: true, sandbox: false, secret: true, from: '見本クリエイティブ <info@example.jp>' },
+      // 記載の記録（保存した書類から覚えた宛先・文・品目）。
+      book: C.bookFromQuotes(QUOTES)
     };
   }
   /* 計算の部品（/reviews-core.js・/quote-core.js）は、その画面を開くまで読み込まれません。
@@ -3263,6 +3279,7 @@
     });
   };
   async function answer(u, method, body, ask) {
+    addExtras();
     if (method === 'GET') {
       var id = u.searchParams.get('id');
       if (id && u.searchParams.get('version')) {
@@ -3296,6 +3313,7 @@
       return { ok: true, draft: core().prefillFromInquiry(x.item, SETTINGS, ymd(0)) };
     }
     if (b.action === 'link') return { ok: false, demo: true, message: MSG + '実際は、お客様が見るだけのリンク（' + SETTINGS.linkDays + '日間有効）を作ります。' };
+    if (b.action === 'receipt') return { ok: false, demo: true, message: MSG + '実際は、宛先・件名・品目・お取引日を引き継いだ領収書の下書きを作ります（一部入金なら、その金額の分）。見本は「領収書」の絞り込みにある RCP-2026-0001 です。' };
     return { ok: false, demo: true, message: MSG };
   }
   var inner = window.fetch;

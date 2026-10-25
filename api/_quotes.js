@@ -23,6 +23,7 @@ import { SERVICES } from '../src/data/services.js'
 import {
   DEFAULT_QUOTE_SETTINGS, ROUNDING, QCAPS, checkRegNo, catalogFromServices, cleanCatalog, cleanQuote, quoteSummary,
   nextNumber, jstToday, fillMail, mailVars, applyStatus, isLocked, addPayment, removePayment, acceptQuote, canAccept,
+  KIND_LABEL, kindOf, cleanBook, learnBook, bookFromQuotes, BOOK_FIELDS, receiptFrom, MAIL_BY_KIND,
 } from './_quote-core.js'
 
 export const QK = {
@@ -30,6 +31,8 @@ export const QK = {
   rec: (id) => `${KV}quote:r:${id}`,
   settings: `${KV}quote:settings`,
   catalog: `${KV}quote:catalog`,
+  // 記載の記録（宛先・よく書く文・品目）。次に作るときの候補になります。
+  book: `${KV}quote:book`,
   seq: (prefix, year) => `${KV}quote:seq:${prefix}:${year}`,
   // 訂正する前の版（電子帳簿保存法のため、送った書類の前の形を残します）
   ver: (id, n) => `${KV}quote:v:${id}:${n}`,
@@ -59,7 +62,7 @@ export function cleanQuoteSettings(input, cur) {
   const s = Object.assign({}, DEFAULT_QUOTE_SETTINGS, cur || {})
   const pick = (k, n, multi) => { if (x[k] !== undefined) s[k] = multi ? clip(x[k], n).trim() : one(x[k], n) }
   pick('company', 80); pick('address', 160, true); pick('tel', 30); pick('email', 100); pick('person', 40)
-  pick('bank', 300, true); pick('payTerms', 120); pick('delivery', 120); pick('notes', 1500, true)
+  pick('bank', 300, true); pick('payTerms', 120); pick('delivery', 120); pick('notes', 1500, true); pick('payMethod', 40)
   pick('mailSubject', 120); pick('mailBody', 3000, true)
   pick('defScope', 1500, true); pick('defExcluded', 1500, true); pick('defTerms', 1500, true); pick('defSchedule', 120)
   if (x.regNo !== undefined) {
@@ -82,7 +85,7 @@ export function cleanQuoteSettings(input, cur) {
     s.rounding = x.rounding
   }
   if (x.taxMode !== undefined) s.taxMode = x.taxMode === 'incl' ? 'incl' : 'excl'
-  for (const k of ['prefix', 'invoicePrefix']) {
+  for (const k of ['prefix', 'invoicePrefix', 'receiptPrefix']) {
     if (x[k] === undefined) continue
     const v = String(x[k] || '').trim().toUpperCase()
     if (!/^[A-Z]{1,6}$/.test(v)) return { ok: false, message: '番号の頭は英字1〜6文字にしてください（例: Q）。' }
@@ -100,7 +103,7 @@ export function cleanQuoteSettings(input, cur) {
     }
     s.seal = v
   }
-  if (s.prefix === s.invoicePrefix) return { ok: false, message: '見積書と請求書の番号の頭は、別の文字にしてください。' }
+  if (new Set([s.prefix, s.invoicePrefix, s.receiptPrefix]).size < 3) return { ok: false, message: '見積書・請求書・領収書の番号の頭は、それぞれ別の文字にしてください。' }
   return { ok: true, settings: s }
 }
 
@@ -159,7 +162,7 @@ export async function allQuoteSummaries(cfg) {
 
 /** 番号を1つ進めて返す。数え札と、いまある番号の大きい方の次です。 */
 export async function takeNumber(cfg, list, kind, settings, date) {
-  const prefix = kind === 'invoice' ? settings.invoicePrefix : settings.prefix
+  const prefix = kind === 'invoice' ? settings.invoicePrefix : kind === 'receipt' ? (settings.receiptPrefix || 'RCP') : settings.prefix
   const year = String(date).slice(0, 4)
   const [seq] = await pipeline(cfg, [['INCR', QK.seq(prefix, year)]])
   const r = nextNumber(list.filter((s) => (s.kind || 'quote') === kind).map((s) => s.number), prefix, year, seq)
@@ -205,8 +208,79 @@ export async function saveQuote(cfg, input, now = Date.now()) {
     q.history = q.history.slice(-QCAPS.history)
   }
   await putQuote(cfg, q, settings.rounding)
-  if (!prev && q.inquiryId) await noteOnInquiry(cfg, q.inquiryId, `${q.kind === 'invoice' ? '請求書' : '見積書'} ${q.number} を作成`, at)
+  await rememberQuote(cfg, q, at)
+  if (!prev && q.inquiryId) await noteOnInquiry(cfg, q.inquiryId, `${KIND_LABEL[kindOf(q)]} ${q.number} を作成`, at)
   return { ok: true, quote: q, summary: quoteSummary(q, settings.rounding) }
+}
+
+/* ---------------------------------------------------------- 記載の記録 -- */
+
+/** 記録を読む。まだ無ければ、いまある書類（新しい200件）から作って保存します。 */
+export async function loadBook(cfg, list) {
+  const [raw] = await pipeline(cfg, [['GET', QK.book]])
+  const saved = parse(raw)
+  if (saved && saved.at) return cleanBook(saved)
+  const ids = (list || []).slice(0, 200).map((s) => s.id).filter(quoteIdOk)
+  if (!ids.length) return cleanBook({})
+  const raws = await pipeline(cfg, ids.map((id) => ['GET', QK.rec(id)]))
+  const book = bookFromQuotes(raws.map((r) => parse(r)).filter(Boolean))
+  if (!book.at) book.at = new Date().toISOString()
+  await pipeline(cfg, [['SET', QK.book, JSON.stringify(book)]])
+  return book
+}
+
+/** 保存のたびに覚える。覚えられなくても、書類の保存は止めません。 */
+async function rememberQuote(cfg, q, at) {
+  try {
+    const [raw] = await pipeline(cfg, [['GET', QK.book]])
+    await pipeline(cfg, [['SET', QK.book, JSON.stringify(learnBook(parse(raw), q, at))]])
+  } catch (_) {}
+}
+
+/** 記録から1つ消す（宛先・文・品目）。 */
+export async function forgetBook(cfg, what, value) {
+  const [raw] = await pipeline(cfg, [['GET', QK.book]])
+  const b = cleanBook(parse(raw))
+  const v = String(value || '')
+  if (what === 'client') b.clients = b.clients.filter((c) => (c.company + '|' + c.person) !== v)
+  else if (what === 'item') b.items = b.items.filter((it) => it.name !== v)
+  else if (BOOK_FIELDS.indexOf(what) >= 0) b.words[what] = b.words[what].filter((w) => w !== v)
+  else return { ok: false, message: '消すものが分かりませんでした。' }
+  if (!b.at) b.at = new Date().toISOString()
+  await pipeline(cfg, [['SET', QK.book, JSON.stringify(b)]])
+  return { ok: true, book: b, message: '記録から消しました。' }
+}
+
+/** 領収書を作る。請求書（payIndex を渡すとその入金の分）か、受注の見積書から。 */
+export async function makeReceipt(cfg, id, payIndex, now = Date.now()) {
+  const src = await getQuote(cfg, id)
+  if (!src) return { ok: false, message: 'その書類は見つかりませんでした。' }
+  const k = kindOf(src)
+  if (k === 'receipt') return { ok: false, message: '領収書からは作れません（元の請求書から作ってください）。' }
+  if (k === 'quote' && src.status !== 'won') return { ok: false, message: '見積書から領収書を作れるのは「受注」のときだけです。' }
+  if (k === 'invoice' && src.status === 'void') return { ok: false, message: '取消にした請求書からは作れません。' }
+  const settings = await loadQuoteSettings(cfg)
+  const today = jstToday(now)
+  let pay = null
+  const hasIndex = payIndex !== undefined && payIndex !== null && payIndex !== ''
+  if (hasIndex) {
+    const i = Number(payIndex)
+    pay = (Number.isInteger(i) && src.payments && src.payments[i]) || null
+    if (!pay) return { ok: false, message: 'その入金の記録が見つかりませんでした。' }
+    if (pay.receipt) return { ok: false, message: `この入金の領収書は、もう作ってあります（${pay.receipt}）。` }
+  }
+  const draft = receiptFrom(src, today, { pay, payIndex: hasIndex ? Number(payIndex) : null, rounding: settings.rounding, payMethod: settings.payMethod })
+  const r = await saveQuote(cfg, Object.assign(draft, { id: '' }), now)
+  if (!r.ok) return r
+  // 元の書類の記録に残し、入金の行には領収書の番号を付けます（同じ入金で2枚作らないため）。
+  const at = new Date(now).toISOString()
+  const fresh = await getQuote(cfg, id)
+  if (fresh) {
+    if (pay && fresh.payments && fresh.payments[Number(payIndex)]) fresh.payments[Number(payIndex)].receipt = r.quote.number
+    fresh.history = (fresh.history || []).concat([{ at, what: 'receipt', text: `領収書 ${r.quote.number} を作成` }]).slice(-QCAPS.history)
+    await putQuote(cfg, fresh, settings.rounding)
+  }
+  return Object.assign(r, { message: `領収書 ${r.quote.number} の下書きを作りました。中身を確かめて保存・送付してください。` })
 }
 
 /** 元の問い合わせの履歴に「見積書を作った」と書く（問い合わせ管理から見えるように）。
@@ -234,7 +308,7 @@ export async function deleteQuote(cfg, id) {
   if (!quoteIdOk(id)) return { ok: false, message: 'その見積書は見つかりませんでした。' }
   const q = await getQuote(cfg, id)
   if (q && isLocked(q)) {
-    return { ok: false, locked: true, message: 'お客様に送った書類は消せません（電子帳簿保存法で7年間の保存が必要です）。' + ((q.kind || 'quote') === 'invoice' ? '取り消すときは、状態を「取消」にしてください。' : '取りやめるときは、状態を「失注」にしてください。') }
+    return { ok: false, locked: true, message: 'お客様に送った書類は消せません（電子帳簿保存法で7年間の保存が必要です）。' + (kindOf(q) !== 'quote' ? '取り消すときは、状態を「取消」にしてください。' : '取りやめるときは、状態を「失注」にしてください。') }
   }
   await pipeline(cfg, [['DEL', QK.rec(id)], ['HDEL', QK.list, id]])
   return { ok: true }
@@ -371,8 +445,9 @@ export async function sendQuote(req, cfg, input, now = Date.now()) {
   const settings = await loadQuoteSettings(cfg)
   const link = await viewLink(req, q, settings, now)
   const vars = mailVars(q, settings, link, settings.rounding)
-  const subject = one(fillMail(x.subject || settings.mailSubject, vars), 200) || 'お見積書のご送付'
-  let text = clip(fillMail(x.body || settings.mailBody, vars), 5000)
+  const tpl = MAIL_BY_KIND[kindOf(q)] || { subject: settings.mailSubject, body: settings.mailBody }
+  const subject = one(fillMail(x.subject || tpl.subject, vars), 200) || `${KIND_LABEL[kindOf(q)]}のご送付`
+  let text = clip(fillMail(x.body || tpl.body, vars), 5000)
   if (text.indexOf(link) < 0) text += `\n\nお見積書: ${link}`
   const replyTo = settings.email && EMAIL_RE.test(settings.email) ? settings.email : await ownerAddress(req)
   const key = await setting('RESEND_API_KEY', '', req)
@@ -390,7 +465,9 @@ export async function sendQuote(req, cfg, input, now = Date.now()) {
   if (!ok) return { ok: false, message: `メールを送れませんでした（${err}）。メールの設定を確かめてください。` }
   const at = new Date(now).toISOString()
   let r = q
-  if (q.status === 'draft' || (q.kind !== 'invoice' && q.status === 'sent')) {
+  if (q.kind === 'receipt') {
+    if (q.status === 'draft') r = applyStatus(q, 'issued', at).quote
+  } else if (q.status === 'draft' || (q.kind !== 'invoice' && q.status === 'sent')) {
     r = applyStatus(q, 'sent', at).quote
   }
   r.sentAt = r.sentAt || at

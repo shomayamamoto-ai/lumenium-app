@@ -614,4 +614,144 @@ await test('お客様の承諾: 送った見積書だけ・期限切れや受注
   assert.equal(C.canAccept({ kind: 'invoice', status: 'sent' }, '2026-10-10').reason, 'kind')
 })
 
+/* ------------------------------------------- 記載の記録・領収書 -- */
+await test('領収書: 請求書の全額から（品目・宛先・お取引日を引き継ぐ）', () => {
+  const inv = { id: 'qtinv1', kind: 'invoice', number: 'INV-1', date: '2026-10-01', toCompany: '株式会社サンプル', toPerson: '', honor: '御中', toEmail: 'a@example.com',
+    subject: 'ホームページ制作', delivery: '2026年9月分', items: [item(100000, 10), item(2000, 8), { ...item(5000), optional: true }], taxMode: 'excl', status: 'paid', payments: [{ date: '2026-10-20', amount: 112160 }] }
+  const r = C.receiptFrom(inv, '2026-10-25', { rounding: 'floor' })
+  assert.equal(r.kind, 'receipt')
+  assert.equal(r.items.length, 2, 'オプションは持ち越さない')
+  assert.equal(r.toCompany, '株式会社サンプル')
+  assert.equal(r.delivery, '2026年9月分')
+  assert.equal(r.proviso, 'ホームページ制作代として')
+  assert.equal(r.fromQuote, 'qtinv1')
+  assert.equal(r.status, 'draft')
+  assert.equal(r.number, '')
+  assert.deepEqual(r.payments, [])
+  assert.equal(C.computeTotals(r, 'floor').total, C.computeTotals(Object.assign({}, inv, { items: inv.items.slice(0, 2) }), 'floor').total)
+})
+
+await test('領収書: 一部の入金なら、その金額を税率ごとに分けた「内金」の行にする', () => {
+  const inv = { id: 'qtinv2', kind: 'invoice', subject: '研修', items: [item(100000, 10), item(20000, 8)], taxMode: 'excl' }
+  // 合計 110000 + 21600 = 131600 のうち 50000 円の入金
+  const r = C.receiptFrom(inv, '2026-10-25', { pay: { date: '2026-10-10', amount: 50000 }, payIndex: 0, rounding: 'floor' })
+  assert.equal(r.date, '2026-10-10')
+  assert.equal(r.taxMode, 'incl')
+  assert.equal(r.payIndex, 0)
+  assert.equal(r.items.length, 2)
+  assert.ok(r.items.every((x) => /研修の内金/.test(x.name)))
+  assert.equal(r.items.reduce((a, x) => a + x.price, 0), 50000, '内金の合計は入金額と同じ')
+  const t = C.computeTotals(r, 'floor')
+  assert.equal(t.total, 50000)
+  assert.deepEqual(t.groups.map((g) => g.rate), [10, 8])
+})
+
+await test('領収書: 状態・紙の形（但し書き・登録番号・印紙の注意は確認用だけ）', () => {
+  const q = C.cleanQuote({ kind: 'receipt', subject: 'HP', proviso: 'HP制作代として', payMethod: '銀行振込', delivery: '2026年9月分', items: [item(60000)] }, { kind: 'receipt' }, '2026-10-25').quote
+  assert.equal(q.kind, 'receipt')
+  assert.equal(q.proviso, 'HP制作代として')
+  assert.equal(C.effectiveStatus(q, '2026-12-31'), 'draft', '領収書に期限切れはない')
+  assert.equal(C.quoteAttentionKind(Object.assign({}, q, { date: '2026-01-01' }), '2026-10-25'), '')
+  const iss = C.applyStatus(q, 'issued', '2026-10-25T01:00:00Z')
+  assert.equal(iss.quote.status, 'issued')
+  assert.ok(iss.quote.sentAt)
+  assert.equal(C.applyStatus(q, 'won', 'x').ok, false)
+  assert.equal(C.statusLabel(iss.quote, '2026-10-25'), '発行済み')
+  const h = C.renderDoc(Object.assign({}, q, { number: 'RCP-2026-0001' }), { company: 'L', regNo: 'T1234567890123' })
+  assert.match(h, /<h1>領収書<\/h1>/)
+  assert.match(h, /但し　HP制作代として/)
+  assert.match(h, /上記正に領収いたしました/)
+  assert.match(h, /領収書番号：RCP-2026-0001/)
+  assert.match(h, /お支払方法/)
+  assert.ok(!/収入印紙/.test(h), '印紙の注意はお客様の紙には出さない')
+  assert.match(C.renderDoc(q, {}, { draft: true }), /収入印紙/)
+  assert.ok(!/お振込先/.test(C.renderDoc(q, { bank: '○○銀行' })), '領収書に振込先は出さない')
+  assert.ok(C.quoteStats([C.quoteSummary(q)], '2026-10-25').total === 0, '見積書の数字に数えない')
+})
+
+await test('記載の記録: 宛先・よく書く文・品目を覚え、次の候補にする', () => {
+  let b = C.cleanBook(null)
+  b = C.learnBook(b, { id: 'q1', kind: 'quote', number: 'Q-1', toCompany: '株式会社サンプル', toPerson: '山田 太郎', honor: '様', toEmail: 'yamada@example.com',
+    subject: 'ホームページ制作', payTerms: '月末締め翌月末払い', notes: '備考A', items: [item(300000), { kind: 'discount', name: '値引き', price: 1000, rate: 'all' }] }, '2026-10-01T00:00:00Z')
+  b = C.learnBook(b, { id: 'q2', kind: 'quote', number: 'Q-2', toCompany: 'めぐみ商店', honor: '御中', subject: '研修', items: [{ ...item(50000), name: 'AI研修', unit: '回' }] }, '2026-10-02T00:00:00Z')
+  b = C.learnBook(b, { id: 'q3', kind: 'invoice', number: 'INV-1', toCompany: '株式会社サンプル', toPerson: '山田 太郎', honor: '様', subject: 'ホームページ制作', items: [item(300000)] }, '2026-10-03T00:00:00Z')
+  assert.equal(b.clients.length, 2)
+  assert.equal(b.clients[0].company, '株式会社サンプル', '新しく使ったものが先')
+  assert.equal(b.clients[0].count, 2)
+  assert.equal(b.clients[0].email, 'yamada@example.com', 'メールが空の書類でも、覚えたメールは消さない')
+  assert.equal(b.clients[0].lastNumber, 'INV-1')
+  assert.deepEqual(b.words.subject, ['ホームページ制作', '研修'])
+  assert.deepEqual(b.words.notes, ['備考A'])
+  assert.equal(b.items[0].name, '品目')
+  assert.equal(b.items[0].count, 2)
+  assert.ok(!b.items.some((x) => x.name === '値引き'), '値引きは品目として覚えない')
+  assert.equal(C.findClient(b, '株式会社 サンプル').person, '山田 太郎')
+  assert.equal(C.findClient(b, 'yamada@example.com').company, '株式会社サンプル')
+  assert.equal(C.findClient(b, 'ない会社'), null)
+  // 同じ書類を直して保存しても、使った回数は増えない
+  const again = C.learnBook(b, { id: 'q3', kind: 'invoice', number: 'INV-1', toCompany: '株式会社サンプル', toPerson: '山田 太郎', items: [] }, '2026-10-04T00:00:00Z')
+  assert.equal(again.clients[0].count, 2)
+  // 上限
+  let big = C.cleanBook({})
+  for (let i = 0; i < 30; i++) big = C.learnBook(big, { id: 'x' + i, toCompany: 'A', subject: '件名' + i, items: [] }, 't')
+  assert.equal(big.words.subject.length, C.BOOK_CAPS.words)
+  assert.equal(big.words.subject[0], '件名29')
+  // 古い書類からまとめて
+  const fb = C.bookFromQuotes([{ id: 'b', toCompany: 'B社', createdAt: '2026-02-01', items: [] }, { id: 'a', toCompany: 'A社', createdAt: '2026-01-01', items: [] }])
+  assert.deepEqual(fb.clients.map((c) => c.company), ['B社', 'A社'])
+})
+
+await test('前回の内容を写す: 宛先・番号・日付はそのまま、品目と文を写す', () => {
+  const cur = { kind: 'quote', number: 'Q-9', date: '2026-10-25', toCompany: 'A社', items: [], status: 'draft' }
+  const prev = { kind: 'quote', number: 'Q-1', date: '2026-01-01', toCompany: 'A社', subject: '保守', items: [item(1000)], payTerms: '前払い', scope: '範囲', schedule: [{ label: '着手', pct: 100 }], notes: 'n' }
+  const r = C.copyFromPrevious(cur, prev)
+  assert.equal(r.number, 'Q-9')
+  assert.equal(r.date, '2026-10-25')
+  assert.equal(r.subject, '保守')
+  assert.equal(r.items.length, 1)
+  assert.equal(r.payTerms, '前払い')
+  assert.deepEqual(r.schedule, [{ label: '着手', pct: 100 }])
+  r.items[0].price = 5
+  assert.equal(prev.items[0].price, 1000, '元の書類は変えない')
+  const inv = C.copyFromPrevious({ kind: 'invoice', items: [] }, prev)
+  assert.equal(inv.payTerms, undefined, '請求書には見積書だけの欄を写さない')
+})
+
+await test('窓口: 入金ごとの領収書・同じ入金で2枚作らない・記録が候補になる', async () => {
+  const sv = await post({ action: 'save', quote: { toCompany: '記録テスト株式会社', toPerson: '佐藤 一郎', honor: '様', toEmail: 'sato@example.com', subject: 'LP制作', items: [item(200000)], payTerms: '納品月末締め' } })
+  assert.equal(sv.status, 200, sv.d.message)
+  const qid = sv.d.quote.id
+  assert.equal((await post({ action: 'receipt', id: qid })).status, 400, '受注前の見積書からは作れない')
+  await post({ action: 'status', id: qid, status: 'won' })
+  const inv = (await post({ action: 'invoice', id: qid })).d.quote
+  await post({ action: 'save', quote: Object.assign({}, inv, { delivery: '2026年10月分' }) })
+  const p1 = await post({ action: 'payment.add', id: inv.id, date: '2026-10-20', amount: 100000 })
+  assert.equal(p1.status, 200, p1.d.message)
+  const rc = await post({ action: 'receipt', id: inv.id, payIndex: 0 })
+  assert.equal(rc.status, 200, rc.d.message)
+  assert.equal(rc.d.quote.kind, 'receipt')
+  assert.match(rc.d.quote.number, /^RCP-\d{4}-0001$/)
+  assert.equal(rc.d.quote.toPerson, '佐藤 一郎')
+  assert.equal(rc.d.quote.delivery, '2026年10月分')
+  assert.equal(C.computeTotals(rc.d.quote, 'floor').total, 100000)
+  assert.equal((await post({ action: 'receipt', id: inv.id, payIndex: 0 })).status, 400, '同じ入金で2枚目は作らない')
+  const after = (await get('?id=' + inv.id)).d.quote
+  assert.equal(after.payments[0].receipt, rc.d.quote.number)
+  assert.ok(after.history.some((h) => /領収書 RCP-/.test(h.text)))
+  assert.equal((await post({ action: 'receipt', id: inv.id, payIndex: 5 })).status, 400)
+  assert.equal((await post({ action: 'receipt', id: rc.d.quote.id })).status, 400, '領収書からは作れない')
+  // 発行（状態）・Excel の種類
+  assert.equal((await post({ action: 'status', id: rc.d.quote.id, status: 'issued' })).d.quote.status, 'issued')
+  // 記載の記録
+  const book = (await get()).d.book
+  assert.ok(book && book.clients.some((c) => c.company === '記録テスト株式会社' && c.email === 'sato@example.com'))
+  assert.ok(book.words.payTerms.includes('納品月末締め'))
+  const fg = await post({ action: 'book.forget', what: 'payTerms', value: '納品月末締め' })
+  assert.equal(fg.status, 200)
+  assert.ok(!(await get()).d.book.words.payTerms.includes('納品月末締め'))
+  assert.equal((await post({ action: 'book.forget', what: 'nope', value: 'x' })).status, 400)
+  // 番号の頭は3つとも別に
+  assert.equal((await post({ action: 'settings', settings: { receiptPrefix: 'INV' } })).status, 400)
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)

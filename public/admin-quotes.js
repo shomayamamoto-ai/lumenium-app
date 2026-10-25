@@ -22,8 +22,8 @@
     started: false, sec: 'list', filter: '', q: '', data: null,
     open: '', cur: null, dirty: false, pick: false, inq: null, panel: ''
   };
-  var SECTIONS = [['list', '見積書'], ['stats', '数字'], ['catalog', 'よく使う品目'], ['settings', '設定']];
-  var FILTERS = [['todo', '要対応'], ['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ'], ['invoice', '請求書']];
+  var SECTIONS = [['list', '見積書'], ['stats', '数字'], ['catalog', 'よく使う品目'], ['book', '記載の記録'], ['settings', '設定']];
+  var FILTERS = [['todo', '要対応'], ['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ'], ['invoice', '請求書'], ['receipt', '領収書']];
   var core = function () { return window.lumQuoteCore; };
 
   function esc(t) {
@@ -99,6 +99,12 @@
     '.qt-open .meta{font-size:11.5px;color:var(--sub);line-height:1.7;overflow-wrap:anywhere}' +
     '.qt-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:#f3f1ec;color:var(--sub);margin:0 4px 2px 0;white-space:nowrap}' +
     '.qt-tag.sent{background:rgba(59,130,246,.13);color:#1d4ed8}.qt-tag.won,.qt-tag.paid{background:rgba(16,185,129,.16);color:#047857}' +
+    '.qt-tag.issued{background:rgba(16,185,129,.16);color:#047857}.qt-tag.rcp{background:rgba(180,83,9,.12);color:#92400e}' +
+    '.qt-client{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:8px 0 2px;font-size:12.5px;line-height:1.7;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;background:#fbfaf7}' +
+    '.qt-client:empty{display:none}.qt-client button{font-size:12px;padding:6px 12px}' +
+    '.qt-past{margin-top:4px;font-size:12px}#quotes-admin select.qt-past{width:auto;max-width:100%;padding:6px 8px;font-size:12px}' +
+    '.qt-bk{list-style:none;margin:0;padding:0}.qt-bk li{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--border);font-size:12.5px;min-width:0}' +
+    '.qt-bk li:first-child{border-top:0}.qt-bk li span{min-width:0;overflow-wrap:anywhere}.qt-bk li small{color:var(--sub)}.qt-bk button{flex:none;font-size:11px;padding:4px 10px}' +
     '.qt-tag.lost{background:#f3f1ec;color:#6b6b74}.qt-tag.expired{background:rgba(180,35,24,.1);color:#b42318}.qt-tag.inv{background:rgba(99,102,241,.12);color:#3d3fbf}' +
     '.qt-sec{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:12px;background:#fff;min-width:0}' +
     '.qt-sec h4{font-size:12px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:0 0 8px}' +
@@ -186,6 +192,7 @@
     }
     if (sec === 'stats') return statsView(body);
     if (sec === 'catalog') return catalogView(body);
+    if (sec === 'book') return bookView(body);
     return settingsView(body);
   }
 
@@ -208,9 +215,10 @@
 
   function statusOf(x) { return core().effectiveStatus(x, S.data.today); }
   function tagOf(x) {
-    if ((x.kind || 'quote') === 'invoice') {
+    var kind = core().kindOf(x);
+    if (kind !== 'quote') {
       var st = statusOf(x);
-      return '<span class="qt-tag inv">請求書</span><span class="qt-tag ' + st + '">' + esc(core().INVOICE_STATUS[st]) + '</span>';
+      return '<span class="qt-tag ' + (kind === 'receipt' ? 'rcp' : 'inv') + '">' + core().KIND_LABEL[kind] + '</span><span class="qt-tag ' + st + '">' + esc(core().statusTable(kind)[st]) + '</span>';
     }
     var s = statusOf(x);
     return '<span class="qt-tag ' + s + '">' + esc(core().QUOTE_STATUS[s]) + '</span>';
@@ -219,7 +227,7 @@
   function matches(x) {
     var kind = x.kind || 'quote';
     if (S.filter === 'todo') { if (!attn(x)) return false; }
-    else if (S.filter === 'invoice') { if (kind !== 'invoice') return false; }
+    else if (S.filter === 'invoice' || S.filter === 'receipt') { if (kind !== S.filter) return false; }
     else if (S.filter !== 'all') { if (kind !== 'quote' || statusOf(x) !== S.filter) return false; }
     var f = S.find || {};
     if ((f.from || f.to || f.min || f.max) && !core().searchQuotes([x], f).length) return false;
@@ -237,7 +245,7 @@
     paintBadge(at);
     var counts = { todo: at.total };
     S.data.list.forEach(function (x) {
-      var k = (x.kind || 'quote') === 'invoice' ? 'invoice' : statusOf(x);
+      var k = (x.kind || 'quote') !== 'quote' ? x.kind : statusOf(x);
       counts[k] = (counts[k] || 0) + 1;
     });
     var rows = S.data.list.filter(matches);
@@ -268,7 +276,7 @@
       (rows.length ? '<ul class="qt-list">' + rows.map(function (x) {
         var meta = [x.number, '発行 ' + ymdText(x.date)];
         if ((x.kind || 'quote') === 'invoice') { if (x.dueDate) meta.push('支払期限 ' + ymdText(x.dueDate)); }
-        else if (x.validUntil) meta.push('有効期限 ' + ymdText(x.validUntil));
+        else if ((x.kind || 'quote') === 'quote' && x.validUntil) meta.push('有効期限 ' + ymdText(x.validUntil));
         if (x.sentAt) meta.push('送付 ' + md(x.sentAt));
         if (x.openedAt) meta.push('お客様が開いた ' + md(x.openedAt));
         else if (x.sentAt && statusOf(x) === 'sent') meta.push('まだ開かれていません');
@@ -433,23 +441,36 @@
   function editor(body) {
     var C = core();
     var q = S.cur;
-    var inv = q.kind === 'invoice';
-    var noun = inv ? '請求書' : '見積書';
+    var kind = C.kindOf(q);
+    var inv = kind === 'invoice';
+    var rec = kind === 'receipt';
+    var noun = C.KIND_LABEL[kind];
     var saved = !!q.id;
     var st = saved ? statusOf(q) : 'draft';
-    var stTable = inv ? C.INVOICE_STATUS : C.QUOTE_STATUS;
+    var stTable = C.statusTable(kind);
+    var bk = book();
+    var dl = function (id, list) { return '<datalist id="' + id + '">' + list.filter(Boolean).map(function (v) { return '<option value="' + esc(v) + '">'; }).join('') + '</datalist>'; };
+    var past = function (f) {
+      var w = (bk.words[f] || []).filter(function (v) { return v !== q[f]; });
+      return w.length ? '<select class="qt-in qt-past" data-past="' + f + '" aria-label="前に書いた文から入れる"><option value="">前に書いた文から入れる…</option>' +
+        w.map(function (v, i) { return '<option value="' + i + '">' + esc(v.replace(/\s+/g, ' ').slice(0, 60)) + '</option>'; }).join('') + '</select>' : '';
+    };
     var stOpts = Object.keys(stTable).filter(function (k) { return k !== 'expired'; }).map(function (k) {
       return '<option value="' + k + '"' + (q.status === k ? ' selected' : '') + '>' + stTable[k] + '</option>';
     }).join('');
     var cat = (S.data.catalog || []);
+    var catNames = cat.map(function (c) { return c.name; });
+    var learned = bk.items.filter(function (it) { return catNames.indexOf(it.name) < 0; });
     var hist = (q.history || []).slice().reverse();
-    body.innerHTML =
-      '<div class="qt-bar"><button type="button" class="ghost" id="qt-back">← 一覧へ</button>' +
+    S.painting = true;
+    try { body.innerHTML = paintEditor(); } finally { S.painting = false; }
+    function paintEditor() {
+      return '<div class="qt-bar"><button type="button" class="ghost" id="qt-back">← 一覧へ</button>' +
         (q.toEmail && window.lumCustomer ? '<button type="button" class="ghost" id="qt-karte" style="font-size:12px;padding:6px 12px">このお客様の記録</button>' : '') +
         '<b style="font-size:14px">' + esc(saved ? noun + ' ' + q.number : '新しい' + noun + '（まだ保存していません）') + '</b>' +
         (saved ? '<span>' + tagOf(q) + '</span>' : '') + '</div>' +
       (q.inquiryId ? '<div class="qt-note blue">問い合わせから作った' + noun + 'です' + (q.source ? '（' + esc(q.source) + '）' : '') + '。 <button type="button" class="ghost" id="qt-inqback" style="font-size:12px;padding:6px 12px">元の問い合わせを開く</button></div>' : '') +
-      (q.fromQuote ? '<div class="qt-note blue">受注した見積書から作った請求書です。 <button type="button" class="ghost" id="qt-qback" style="font-size:12px;padding:6px 12px">元の見積書を開く</button></div>' : '') +
+      (q.fromQuote ? '<div class="qt-note blue">' + (rec ? '元の書類の宛先・品目を引き継いで作った領収書です。' : '受注した見積書から作った請求書です。') + ' <button type="button" class="ghost" id="qt-qback" style="font-size:12px;padding:6px 12px">元の' + (rec ? '書類' : '見積書') + 'を開く</button></div>' : '') +
       (q.acceptedAt ? '<div class="qt-note green">お客様が見積書のリンクから「この内容で発注します」を押しました（' + esc(q.acceptedBy) + '・' + esc(md(q.acceptedAt)) + '）。</div>' : '') +
       (saved && C.isLocked(q) ? '<div class="qt-note blue">お客様に渡った' + noun + 'です（第' + (q.version || 1) + '版）。直して保存すると「訂正版」になり、いまの版はそのまま残ります（電子帳簿保存法のため、消すことはできません）。' +
         ((q.versions || []).length ? '<div class="qt-vers">前の版: ' + q.versions.map(function (v) { return '<button type="button" class="ghost" data-ver="' + v.n + '">第' + v.n + '版（' + esc(md(v.at)) + 'まで）</button>'; }).join('') + '</div>' : '') + '</div>' : '') +
@@ -459,60 +480,71 @@
         '<button type="button" class="ghost" id="qt-print">印刷・PDFで保存</button>' +
         (saved ? '<button type="button" class="ghost" id="qt-mail">メールで送る</button><button type="button" class="ghost" id="qt-link">リンクを作る</button>' +
           '<button type="button" class="ghost" id="qt-dup">複製</button>' +
-          (!inv && q.status === 'won' ? '<button type="button" class="ghost" id="qt-inv">請求書を作る</button>' : '') +
+          (kind === 'quote' && q.status === 'won' ? '<button type="button" class="ghost" id="qt-inv">請求書を作る</button>' : '') +
+          ((kind === 'quote' && q.status === 'won') || (inv && q.status !== 'void') ? '<button type="button" class="ghost" id="qt-rcp">領収書を作る' + (inv ? '（請求額の全額）' : '') + '</button>' : '') +
           '<label style="font-size:12px;display:flex;gap:6px;align-items:center">状態 <select class="qt-in" id="qt-status" style="width:auto">' + stOpts + '</select></label>' +
           (C.isLocked(q) ? '' : '<button type="button" class="ghost" id="qt-del">消す</button>') : '') +
       '</div>' +
       '<div id="qt-panel"></div>' +
       (inv && saved ? payHtml(q) : '') +
       '<div class="qt-sec"><h4>宛先と内容</h4><div class="qt-grid">' +
-        field('qt-toCompany', '宛先（会社・団体名）', inp('qt-toCompany', q.toCompany, ' autocomplete="off"')) +
-        field('qt-toPerson', '宛先（ご担当者のお名前）', inp('qt-toPerson', q.toPerson, ' autocomplete="off"')) +
+        field('qt-toCompany', '宛先（会社・団体名）', inp('qt-toCompany', q.toCompany, ' autocomplete="off" list="qt-bk-co"')) +
+        field('qt-toPerson', '宛先（ご担当者のお名前）', inp('qt-toPerson', q.toPerson, ' autocomplete="off" list="qt-bk-pe"')) +
         field('qt-honor', '敬称', '<select class="qt-in" id="qt-honor"><option value="御中"' + (q.honor === '御中' ? ' selected' : '') + '>御中（会社あて）</option><option value="様"' + (q.honor !== '御中' ? ' selected' : '') + '>様（個人あて）</option></select>',
           '会社名だけなら「御中」、お名前を書くなら「様」。両方は付けません。') +
-        field('qt-toEmail', 'お客様のメールアドレス', inp('qt-toEmail', q.toEmail, ' type="email" autocomplete="off"'), '印刷物には出ません（メールで送るときに使います）。') +
-      '</div><div class="qt-grid">' +
-        field('qt-subject', '件名', inp('qt-subject', q.subject, ' placeholder="例: ホームページ制作"')) +
-        field('qt-number', inv ? '請求番号' : '見積番号', inp('qt-number', q.number, ' placeholder="空なら保存のときに自動で振ります"')) +
+        field('qt-toEmail', 'お客様のメールアドレス', inp('qt-toEmail', q.toEmail, ' type="email" autocomplete="off" list="qt-bk-em"'), '印刷物には出ません（メールで送るときに使います）。') +
+      '</div>' +
+      dl('qt-bk-co', uniq(bk.clients.map(function (c) { return c.company; }))) + dl('qt-bk-pe', uniq(bk.clients.map(function (c) { return c.person; }))) +
+      dl('qt-bk-em', uniq(bk.clients.map(function (c) { return c.email; }))) +
+      ['subject', 'delivery', 'payTerms', 'proviso', 'payMethod'].map(function (f) { return dl('qt-bk-' + f, bk.words[f] || []); }).join('') +
+      '<div class="qt-client" id="qt-client" aria-live="polite"></div>' +
+      '<div class="qt-grid">' +
+        field('qt-subject', '件名', inp('qt-subject', q.subject, ' placeholder="例: ホームページ制作" list="qt-bk-subject"')) +
+        field('qt-number', inv ? '請求番号' : rec ? '領収書番号' : '見積番号', inp('qt-number', q.number, ' placeholder="空なら保存のときに自動で振ります"')) +
         field('qt-date', inv ? '請求日' : '発行日', inp('qt-date', q.date, ' type="date"')) +
         (inv
           ? field('qt-dueDate', 'お支払期限', inp('qt-dueDate', q.dueDate, ' type="date"')) +
-            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分"'), '適格請求書（インボイス）には、取引の年月日が必要です。')
+            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"'), '適格請求書（インボイス）には、取引の年月日が必要です。')
+          : rec
+          ? field('qt-proviso', '但し書き（何の代金か）', inp('qt-proviso', q.proviso, ' placeholder="例: ホームページ制作代として" list="qt-bk-proviso"'), '「お品代」だけより、何の代金かが分かる書き方がおすすめです。') +
+            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"'), '適格簡易請求書（インボイス）には、取引の年月日が必要です。') +
+            field('qt-payMethod', 'お支払方法', inp('qt-payMethod', q.payMethod, ' placeholder="例: 銀行振込" list="qt-bk-payMethod"'))
           : field('qt-validUntil', '有効期限', inp('qt-validUntil', q.validUntil, ' type="date"'), 'この日を過ぎて返事がないと「期限切れ」になります。') +
-            field('qt-delivery', '納期', inp('qt-delivery', q.delivery)) +
-            field('qt-payTerms', 'お支払条件', inp('qt-payTerms', q.payTerms))) +
+            field('qt-delivery', '納期', inp('qt-delivery', q.delivery, ' list="qt-bk-delivery"')) +
+            field('qt-payTerms', 'お支払条件', inp('qt-payTerms', q.payTerms, ' list="qt-bk-payTerms"'))) +
       '</div></div>' +
       '<div class="qt-sec"><h4>品目</h4>' +
         '<div style="max-width:300px">' + field('qt-taxMode', '単価の書き方', '<select class="qt-in" id="qt-taxMode"><option value="excl"' + (q.taxMode !== 'incl' ? ' selected' : '') + '>税抜の単価（消費税は下で足す）</option><option value="incl"' + (q.taxMode === 'incl' ? ' selected' : '') + '>税込の単価（消費税は内数で出す）</option></select>') + '</div>' +
         '<div class="qt-items" id="qt-items"><div class="qt-row head" aria-hidden="true"><span>品目</span><span>数量</span><span>単位</span><span>単価</span><span>税率</span><span style="text-align:right">金額</span><span></span></div>' +
           q.items.map(itemRow).join('') + '</div>' +
-        '<datalist id="qt-cat">' + cat.map(function (c) { return '<option value="' + esc(c.name) + '">'; }).join('') + '</datalist>' +
+        '<datalist id="qt-cat">' + cat.map(function (c) { return '<option value="' + esc(c.name) + '">'; }).join('') +
+          learned.map(function (c) { return '<option value="' + esc(c.name) + '">前に使った品目（' + esc(yen(c.price)) + '）</option>'; }).join('') + '</datalist>' +
         '<div class="qt-acts" style="margin-top:8px"><button type="button" class="ghost" id="qt-add">＋ 行を足す</button><button type="button" class="ghost" id="qt-adddisc">＋ 値引き</button>' +
         (cat.length ? '<select class="qt-in" id="qt-addcat" style="width:auto;max-width:100%" aria-label="よく使う品目から足す"><option value="">よく使う品目から足す…</option>' +
           cat.map(function (c, i) { return '<option value="' + i + '">' + esc(c.name) + '（' + esc(yen(c.price)) + '）</option>'; }).join('') + '</select>' : '') +
         '</div>' +
-        '<div class="soc-small" style="margin-top:6px">品目の欄に打ち始めると、よく使う品目が候補に出ます（選ぶと単価と単位も入ります）。値引きは「どの税率から引くか」を選びます。「全体」にすると、税率ごとの金額の割合で分けて引きます。</div>' +
+        '<div class="soc-small" style="margin-top:6px">品目の欄に打ち始めると、よく使う品目と前に使った品目が候補に出ます（選ぶと単価と単位も入ります）。値引きは「どの税率から引くか」を選びます。「全体」にすると、税率ごとの金額の割合で分けて引きます。</div>' +
         '<div class="qt-tot" id="qt-tot" aria-live="polite"></div>' +
       '</div>' +
-      (inv ? '' :
+      (kind !== 'quote' ? '' :
       '<div class="qt-sec"><h4>作業範囲とお取引条件</h4>' +
         '<div class="soc-small" style="margin-bottom:8px">「どこまでが含まれるか」「修正や変更をどう扱うか」を先に書いておくと、あとで揉めにくくなります。空の欄は印刷されません。既定の文面は「設定」で決められます。</div>' +
-        field('qt-scope', '作業範囲・前提条件', '<textarea class="qt-in" id="qt-scope" rows="3" placeholder="例: ・お打ち合わせで伺った内容にもとづきます　・素材はお客様にご用意いただきます">' + esc(q.scope || '') + '</textarea>') +
-        field('qt-excluded', 'このお見積りに含まれないもの', '<textarea class="qt-in" id="qt-excluded" rows="3" placeholder="例: ・サーバー・ドメイン費用（実費）　・公開後の保守">' + esc(q.excluded || '') + '</textarea>') +
-        field('qt-terms', 'お取引条件（修正の回数・仕様変更・検収・不具合の扱いなど）', '<textarea class="qt-in" id="qt-terms" rows="4">' + esc(q.terms || '') + '</textarea>') +
+        field('qt-scope', '作業範囲・前提条件', '<textarea class="qt-in" id="qt-scope" rows="3" placeholder="例: ・お打ち合わせで伺った内容にもとづきます　・素材はお客様にご用意いただきます">' + esc(q.scope || '') + '</textarea>' + past('scope')) +
+        field('qt-excluded', 'このお見積りに含まれないもの', '<textarea class="qt-in" id="qt-excluded" rows="3" placeholder="例: ・サーバー・ドメイン費用（実費）　・公開後の保守">' + esc(q.excluded || '') + '</textarea>' + past('excluded')) +
+        field('qt-terms', 'お取引条件（修正の回数・仕様変更・検収・不具合の扱いなど）', '<textarea class="qt-in" id="qt-terms" rows="4">' + esc(q.terms || '') + '</textarea>' + past('terms')) +
         field('qt-schedule', 'お支払いの分割', inp('qt-schedule', C.scheduleText(q.schedule), ' placeholder="例: 着手時 50% / 納品時 50%（一括なら空のまま）"'),
           '「着手時 30% / 中間 40% / 納品時 30%」のように書くと、合計を割合で分けた金額が見積書に載ります。割合は合計100%に。') +
         '<div class="qt-pay" id="qt-pay" aria-live="polite"></div>' +
       '</div>') +
       '<div class="qt-sec"><h4>備考と社内メモ</h4>' +
-        field('qt-notes', '備考（' + noun + 'に印刷されます）', '<textarea class="qt-in" id="qt-notes" rows="3">' + esc(q.notes) + '</textarea>') +
+        field('qt-notes', '備考（' + noun + 'に印刷されます）', '<textarea class="qt-in" id="qt-notes" rows="3">' + esc(q.notes) + '</textarea>' + past('notes')) +
         field('qt-memo', '社内メモ（印刷されません・お客様には見えません）', '<textarea class="qt-in" id="qt-memo" rows="3">' + esc(q.memo) + '</textarea>') +
       '</div>' +
       (hist.length ? '<div class="qt-sec"><h4>記録</h4><ul class="qt-hist">' + hist.map(function (h) {
         return '<li><time>' + esc(md(h.at)) + '</time>' + esc(h.text) + '</li>';
       }).join('') + '</ul>' +
         (q.openedAt ? '<div class="soc-small" style="margin-top:6px">お客様がリンクを開いた回数: ' + (q.views || 0) + '回（最後 ' + esc(md(q.lastViewedAt)) + '）。会社のメールの安全確認の仕組みが先にリンクを開くことがあり、その場合もここに数えられます。</div>' : '') +
-      '</div>' : '');
+      '</div>' : ''); }
 
     el('qt-back').addEventListener('click', function () { if (!leaveOk()) return; S.cur = null; go('list'); });
     if (el('qt-karte')) el('qt-karte').addEventListener('click', function () { window.lumCustomer.open({ email: q.toEmail, name: q.toPerson, company: q.toCompany }); });
@@ -528,15 +560,33 @@
       el('qt-link').addEventListener('click', makeLink);
       el('qt-dup').addEventListener('click', function () { derive('duplicate'); });
       if (el('qt-inv')) el('qt-inv').addEventListener('click', function () { derive('invoice'); });
+      if (el('qt-rcp')) el('qt-rcp').addEventListener('click', function () { derive('receipt'); });
       el('qt-status').addEventListener('change', changeStatus);
       if (el('qt-del')) el('qt-del').addEventListener('click', remove);
       body.querySelectorAll('[data-ver]').forEach(function (b) { b.addEventListener('click', function () { showVersion(Number(b.getAttribute('data-ver'))); }); });
       if (inv) bindPay(q);
     }
-    body.querySelectorAll('.qt-sec input, .qt-sec select, .qt-sec textarea').forEach(function (f) {
+    body.querySelectorAll('.qt-sec input, .qt-sec select:not(.qt-past), .qt-sec textarea').forEach(function (f) {
       f.addEventListener('input', onEdit);
       f.addEventListener('change', onEdit);
     });
+    // 前に書いた文から入れる（いまの文が空なら置き換え、あれば後ろに足します）。
+    body.querySelectorAll('[data-past]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var f = sel.getAttribute('data-past');
+        var w = (bk.words[f] || []).filter(function (v) { return v !== q[f]; })[Number(sel.value)];
+        sel.value = '';
+        var ta = el('qt-' + f);
+        if (!w || !ta) return;
+        ta.value = ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n' + w : w;
+        onEdit({ type: 'input', target: ta });
+      });
+    });
+    // 宛先を入れたら、前に使った宛先かを見て、ご担当者・敬称・メールを入れ、前回の書類を案内します。
+    ['qt-toCompany', 'qt-toPerson', 'qt-toEmail'].forEach(function (id) {
+      el(id).addEventListener('change', function (e) { if (!S.painting && e.target.isConnected) clientHint(true); });
+    });
+    clientHint(false);
     el('qt-items').addEventListener('click', function (e) {
       var b = e.target.closest('[data-del]');
       if (!b) return;
@@ -568,7 +618,9 @@
       (over ? '<div class="qt-note red">お支払期限（' + esc(C.jpDate(q.dueDate)) + '）を過ぎて、' + yen(left) + ' がまだです。 <button type="button" class="ghost" id="qt-remind" style="font-size:12px;padding:6px 12px">お支払いのお願いのメールを作る</button></div>' : '') +
       (list.length ? '<ul class="qt-hist">' + list.map(function (p, i) {
         return '<li><time>' + esc(C.jpDate(p.date)) + '</time>' + yen(p.amount) + (p.note ? '（' + esc(p.note) + '）' : '') +
-          ' <button type="button" class="ghost" data-unpay="' + i + '" style="font-size:11px;padding:3px 9px">取り消す</button></li>';
+          (p.receipt ? ' <span class="qt-tag rcp">領収書 ' + esc(p.receipt) + '</span>'
+            : (q.status !== 'void' ? ' <button type="button" class="ghost" data-rcpi="' + i + '" style="font-size:11px;padding:3px 9px">この入金の領収書を作る</button>' : '') +
+              ' <button type="button" class="ghost" data-unpay="' + i + '" style="font-size:11px;padding:3px 9px">取り消す</button>') + '</li>';
       }).join('') + '</ul>' : '<p class="soc-small">まだ入金の記録はありません。</p>') +
       (q.status === 'void' || !left ? '' :
       '<div class="qt-acts" style="margin-top:8px">' +
@@ -588,6 +640,9 @@
       var r = await send({ action: 'payment.add', id: q.id, date: el('qt-pdate').value, amount: Number(amt), note: el('qt-pnote').value });
       this.disabled = false;
       afterPay(r);
+    });
+    document.querySelectorAll('[data-rcpi]').forEach(function (b) {
+      b.addEventListener('click', function () { derive('receipt', { payIndex: Number(b.getAttribute('data-rcpi')) }); });
     });
     document.querySelectorAll('[data-unpay]').forEach(function (b) {
       b.addEventListener('click', async function () {
@@ -669,11 +724,15 @@
   }
 
   function onEdit(e) {
+    // 描き直しで外された欄（入力中のまま消えた欄）からの知らせは読まない。読むと、
+    // 描き直す前の古い中身で、いまの内容を上書きしてしまいます。
+    if (S.painting || (e && e.target && e.target.isConnected === false)) return;
     S.dirty = true;
     // よく使う品目の名前を選んだら、単価・単位・税率も入れる（単価が空のときだけ）。
     var t = e && e.target;
     if (t && t.getAttribute && t.getAttribute('data-f') === 'name' && e.type === 'change') {
-      var c = (S.data.catalog || []).filter(function (x) { return x.name === t.value; })[0];
+      var c = (S.data.catalog || []).filter(function (x) { return x.name === t.value; })[0] ||
+        book().items.filter(function (x) { return x.name === t.value; })[0];
       var row = t.closest('.qt-row');
       if (c && row && row.getAttribute('data-kind') === 'item') {
         var p = row.querySelector('[data-f=price]');
@@ -691,7 +750,7 @@
   function val(id) { var f = el(id); return f ? f.value : undefined; }
   function readForm() {
     var q = S.cur;
-    ['toCompany', 'toPerson', 'honor', 'toEmail', 'subject', 'number', 'date', 'validUntil', 'dueDate', 'delivery', 'payTerms', 'taxMode', 'notes', 'memo', 'scope', 'excluded', 'terms'].forEach(function (k) {
+    ['toCompany', 'toPerson', 'honor', 'toEmail', 'subject', 'number', 'date', 'validUntil', 'dueDate', 'delivery', 'payTerms', 'taxMode', 'notes', 'memo', 'scope', 'excluded', 'terms', 'proviso', 'payMethod'].forEach(function (k) {
       var v = val('qt-' + k);
       if (v !== undefined) q[k] = v;
     });
@@ -770,6 +829,7 @@
     S.cur = d.quote;
     S.dirty = false;
     upsert(d.summary);
+    S.data.book = core().learnBook(S.data.book, d.quote, new Date().toISOString());
     go('list');
     say('保存しました（' + d.quote.number + '）。', true);
     return true;
@@ -801,9 +861,9 @@
     say('状態を「' + sel.options[sel.selectedIndex].text + '」にしました。' + (want === 'won' && S.cur.kind !== 'invoice' ? '「請求書を作る」で、同じ内容の請求書の下書きを作れます。' : ''), true);
   }
 
-  async function derive(action) {
+  async function derive(action, extra) {
     if (!leaveOk()) return;
-    var r = await send({ action: action, id: S.cur.id });
+    var r = await send(Object.assign({ action: action, id: S.cur.id }, extra || {}));
     var d = r.data || {};
     if (!d.ok) { say(d.message || 'できませんでした。'); return; }
     upsert(d.summary);
@@ -814,7 +874,7 @@
   }
 
   async function remove() {
-    var noun = S.cur.kind === 'invoice' ? '請求書' : '見積書';
+    var noun = core().KIND_LABEL[core().kindOf(S.cur)];
     if (!confirm(noun + ' ' + S.cur.number + ' を消します。元に戻せません。お客様に送ったリンクも開けなくなります。よろしいですか？')) return;
     var r = await send({ action: 'delete', id: S.cur.id });
     var d = r.data || {};
@@ -857,6 +917,7 @@
     var q = numeric(S.cur);
     var m = S.data.mail || {};
     var vars = C.mailVars(q, s, '{リンク}', s.rounding);
+    var tpl = C.MAIL_BY_KIND[C.kindOf(q)] || { subject: s.mailSubject, body: s.mailBody };
     var blocked = !m.key ? 'メールの設定（RESEND_API_KEY）がまだのため、ここからは送れません。「リンクを作る」でリンクだけ作り、ふだんのメールやLINEに貼って送ることはできます。'
       : m.sandbox ? '送信元が Resend の試用アドレス（onboarding@resend.dev）のままなので、お客様には届きません（試用中は自分あてにしか送れない決まりです）。送信元のドメインを設定するまでは、「リンクを作る」でリンクだけ作って、ふだんのメールで送ってください。'
       : !m.secret ? 'リンクの署名に使う鍵（SESSION_SECRET か ADMIN_KEY）がありません。「設定状況」で入れてください。' : '';
@@ -864,8 +925,8 @@
       (blocked ? '<div class="qt-note red">' + esc(blocked) + '</div>' : '') +
       '<p class="soc-small" style="margin:0 0 6px">お客様には「見るだけのリンク」を送ります（PDFの添付ではありません）。リンクは ' + esc(s.linkDays || 60) + '日間開けます。送ると状態が「送付済み」になり、お客様が開くと「開いた日」がここに出ます。{リンク} のところに、送るときにリンクが入ります。</p>' +
       field('qt-mto', '宛先のメールアドレス', inp('qt-mto', q.toEmail, ' type="email"')) +
-      field('qt-msub', '件名', inp('qt-msub', C.fillMail(s.mailSubject, vars))) +
-      field('qt-mbody', '本文', '<textarea class="qt-in" id="qt-mbody" rows="12">' + esc(C.fillMail(s.mailBody, vars)) + '</textarea>') +
+      field('qt-msub', '件名', inp('qt-msub', C.fillMail(tpl.subject, vars))) +
+      field('qt-mbody', '本文', '<textarea class="qt-in" id="qt-mbody" rows="12">' + esc(C.fillMail(tpl.body, vars)) + '</textarea>') +
       '<div class="qt-acts"><button type="button" id="qt-msend"' + (blocked ? ' disabled' : '') + '>この内容で送る</button><button type="button" class="ghost" id="qt-mclose">閉じる</button></div></div>';
     el('qt-mclose').addEventListener('click', function () { togglePanel('mail'); });
     el('qt-msend').addEventListener('click', async function () {
@@ -937,6 +998,76 @@
   }
 
   /* ---------------- よく使う品目 ---------------- */
+
+  /* ---------------- 記載の記録（宛先・よく書く文・品目） ----------------
+     保存した見積書・請求書・領収書から覚えたもの。作るときの候補になります（quote-core.js の learnBook）。 */
+  function book() { return core().cleanBook(S.data && S.data.book); }
+  function uniq(list) { var seen = {}; return list.filter(function (v) { if (!v || seen[v]) return false; seen[v] = 1; return true; }); }
+  var KIND_JA = function (k) { return core().KIND_LABEL[k] || '見積書'; };
+
+  function clientHint(fill) {
+    var box = el('qt-client');
+    if (!box) return;
+    var C = core();
+    var bk = book();
+    var c = C.findClient(bk, val('qt-toCompany')) || C.findClient(bk, val('qt-toPerson')) || C.findClient(bk, val('qt-toEmail'));
+    if (!c) { box.innerHTML = ''; return; }
+    if (fill) {
+      var put = function (id, v) { var f = el(id); if (f && v && !f.value.trim()) { f.value = v; } };
+      put('qt-toCompany', c.company); put('qt-toPerson', c.person); put('qt-toEmail', c.email);
+      if (el('qt-honor') && !S.cur.id) el('qt-honor').value = c.honor;
+      readForm();
+      S.dirty = true;
+    }
+    var self = c.lastId && c.lastId === S.cur.id;
+    box.innerHTML = '<span>前にも作ったお客様です（' + c.count + '回）。' + (c.lastNumber && !self ? '前回: ' + esc(KIND_JA(c.lastKind)) + ' ' + esc(c.lastNumber) + (c.subject ? '「' + esc(c.subject) + '」' : '') : '') + '</span>' +
+      (c.lastId && !self ? '<button type="button" class="ghost" id="qt-copyprev">前回の品目と文を写す</button>' : '');
+    if (el('qt-copyprev')) el('qt-copyprev').addEventListener('click', function () { copyPrev(c.lastId); });
+  }
+
+  async function copyPrev(id) {
+    readForm();
+    var has = S.cur.items.some(function (it) { return it.name || core().num(it.price) > 0; });
+    if (has && !confirm('いま入っている品目を、前回の書類の品目で置き換えます。よろしいですか？')) return;
+    var r = await api('/api/quotes?id=' + encodeURIComponent(id));
+    if (!r.data || !r.data.ok) { say((r.data && r.data.message) || '前回の書類を開けませんでした。'); return; }
+    S.cur = core().copyFromPrevious(S.cur, r.data.quote);
+    if (!S.cur.items.length) S.cur.items = [{ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }];
+    S.dirty = true;
+    editor(el('qt-body'));
+    say('前回（' + (r.data.quote.number || '') + '）の件名・品目・文を写しました。金額と日付を確かめてから保存してください。', true);
+  }
+
+  function bookView(body) {
+    var bk = book();
+    var LBL = { subject: '件名', delivery: '納期・お取引日', payTerms: 'お支払条件', notes: '備考', scope: '作業範囲・前提条件', excluded: '含まれないもの', terms: 'お取引条件', proviso: '但し書き', payMethod: 'お支払方法' };
+    var del = function (what, value) { return '<button type="button" class="ghost" data-forget="' + esc(what) + '" data-v="' + esc(value) + '">消す</button>'; };
+    body.innerHTML =
+      '<p class="share-note" style="margin-bottom:8px">保存した見積書・請求書・領収書から、宛先・よく書く文・品目を自動で覚えています。新しく作るとき、欄に打ち始めると候補に出ます。前にも作ったお客様なら、ご担当者・メールが入り、「前回の品目と文を写す」が使えます。見積書から請求書・領収書を作ると、宛先と品目はそのまま引き継がれます。</p>' +
+      '<div class="qt-sec"><h4>宛先（' + bk.clients.length + '件）</h4>' + (bk.clients.length ? '<ul class="qt-bk">' + bk.clients.map(function (c) {
+        return '<li><span><b>' + esc([c.company, c.person].filter(Boolean).join(' ')) + '</b> <small>' + esc(c.honor) + (c.email ? '・' + esc(c.email) : '') + '・' + c.count + '回' + (c.lastNumber ? '・前回 ' + esc(c.lastNumber) : '') + '</small></span>' + del('client', c.company + '|' + c.person) + '</li>';
+      }).join('') + '</ul>' : '<p class="soc-small">まだありません。見積書を保存すると、ここに増えます。</p>') + '</div>' +
+      '<div class="qt-sec"><h4>前に使った品目（' + bk.items.length + '件）</h4>' + (bk.items.length ? '<ul class="qt-bk">' + bk.items.slice(0, 60).map(function (it) {
+        return '<li><span>' + esc(it.name) + ' <small>' + esc(yen(it.price)) + ' / ' + esc(it.unit || '—') + '・' + it.count + '回</small></span>' + del('item', it.name) + '</li>';
+      }).join('') + '</ul>' : '<p class="soc-small">まだありません。</p>') +
+      '<p class="soc-small" style="margin-top:6px">いつも同じ値段で出す品目は、「よく使う品目」に入れておくと、候補の先頭に出ます。</p></div>' +
+      core().BOOK_FIELDS.filter(function (f) { return (bk.words[f] || []).length; }).map(function (f) {
+        return '<div class="qt-sec"><h4>' + esc(LBL[f] || f) + '</h4><ul class="qt-bk">' + bk.words[f].map(function (w) {
+          return '<li><span>' + esc(w.replace(/\s+/g, ' ').slice(0, 120)) + '</span>' + del(f, w) + '</li>';
+        }).join('') + '</ul></div>';
+      }).join('');
+    body.querySelectorAll('[data-forget]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        b.disabled = true;
+        var r = await send({ action: 'book.forget', what: b.getAttribute('data-forget'), value: b.getAttribute('data-v') });
+        var d = r.data || {};
+        if (!d.ok) { b.disabled = false; say(d.message || '消せませんでした。'); return; }
+        S.data.book = d.book;
+        bookView(body);
+        say(d.message || '消しました。', true);
+      });
+    });
+  }
 
   function catalogView(body) {
     var list = (S.data.catalog || []).slice();
@@ -1013,6 +1144,8 @@
           field('qs-linkDays', 'お客様のリンクを開ける日数', inp('qs-linkDays', s.linkDays, ' type="number" min="7" max="365"')) +
           field('qs-prefix', '見積番号の頭', inp('qs-prefix', s.prefix, ' maxlength="6"'), '例: Q → Q-2026-0001') +
           field('qs-invoicePrefix', '請求番号の頭', inp('qs-invoicePrefix', s.invoicePrefix, ' maxlength="6"'), '例: INV → INV-2026-0001') +
+          field('qs-receiptPrefix', '領収書番号の頭', inp('qs-receiptPrefix', s.receiptPrefix || 'RCP', ' maxlength="6"'), '例: RCP → RCP-2026-0001') +
+          field('qs-payMethod', '領収書のお支払方法（既定）', inp('qs-payMethod', s.payMethod || '銀行振込')) +
           field('qs-delivery', '納期（既定）', inp('qs-delivery', s.delivery)) +
           field('qs-payTerms', 'お支払条件（既定）', inp('qs-payTerms', s.payTerms)) +
         '</div>' +
@@ -1091,7 +1224,7 @@
     });
     el('qs-save').addEventListener('click', async function () {
       var out = { logo: img.logo, seal: img.seal };
-      ['company', 'person', 'tel', 'email', 'address', 'regNo', 'taxMode', 'validDays', 'linkDays', 'prefix', 'invoicePrefix', 'delivery', 'payTerms', 'notes', 'bank', 'mailSubject', 'mailBody', 'defScope', 'defExcluded', 'defTerms', 'defSchedule'].forEach(function (k) {
+      ['company', 'person', 'tel', 'email', 'address', 'regNo', 'taxMode', 'validDays', 'linkDays', 'prefix', 'invoicePrefix', 'receiptPrefix', 'payMethod', 'delivery', 'payTerms', 'notes', 'bank', 'mailSubject', 'mailBody', 'defScope', 'defExcluded', 'defTerms', 'defSchedule'].forEach(function (k) {
         out[k] = el('qs-' + k).value;
       });
       var r0 = body.querySelector('input[name=qt-round]:checked');

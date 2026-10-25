@@ -17,25 +17,30 @@ export const config = { runtime: 'edge' }
 //   POST { action:'catalog', items }         -> よく使う品目
 //   POST { action:'payment.add', id, date, amount, note } / { action:'payment.remove', id, index } -> 請求書の入金
 //   GET ?id=<id>&version=<n>         -> 訂正する前の版（第 n 版）
-//   GET ?view=xlsx                   -> 見積書・請求書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
+//   GET ?view=xlsx                   -> 見積書・請求書・領収書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
+//   POST { action:'receipt', id, payIndex? }  -> 請求書（その入金の分）か受注の見積書から、領収書の下書き（保存します）
+//   POST { action:'book.forget', what, value } -> 記載の記録（宛先・文・品目）から1つ消す
+//   GET の一覧には book（記載の記録: 宛先・よく書く文・品目）も入ります。作るときの候補です。
 
 import { requireAdmin, json } from './_admin-auth.js'
 import { storeConfig } from './_analytics-store.js'
 import {
   loadQuoteSettings, saveQuoteSettings, loadCatalog, saveCatalog, getQuote, saveQuote, allQuoteSummaries, setQuoteStatus,
-  deleteQuote, viewLink, sendQuote, mailState, getVersion, paymentQuote,
+  deleteQuote, viewLink, sendQuote, mailState, getVersion, paymentQuote, loadBook, forgetBook, makeReceipt,
 } from './_quotes.js'
 import { buildXlsx } from './_xlsx.js'
 import { BRAND } from './_brand.js'
-import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention, statusLabel, QUOTE_STATUS, INVOICE_STATUS } from './_quote-core.js'
+import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention, statusLabel, statusTable, kindOf, KIND_LABEL } from './_quote-core.js'
 
 const NO_STORE = '保存先（Upstash Redis）が無いため、見積書を保存できません。「設定状況」で保存先をつないでください。'
 
 async function state(req, cfg) {
   const [settings, catalog, list, mail] = await Promise.all([loadQuoteSettings(cfg), loadCatalog(cfg), allQuoteSummaries(cfg), mailState(req)])
+  let book = null
+  try { book = await loadBook(cfg, list) } catch (_) { book = null }
   return {
     ok: true, stored: true, today: jstToday(), settings, regNo: checkRegNo(settings.regNo),
-    catalog: catalog.items, catalogSeeded: catalog.seeded, list, mail,
+    catalog: catalog.items, catalogSeeded: catalog.seeded, list, mail, book,
   }
 }
 
@@ -58,11 +63,11 @@ export async function GET(req) {
       const rows = [['種類', '番号', '発行日', '取引先', '件名', '合計（税込）', '状態', '有効期限', '支払期限', '入金済み', '残り', '版', '送った日', '決まった日']]
       for (const s of list.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))) {
         const inv = (s.kind || 'quote') === 'invoice'
-        rows.push([inv ? '請求書' : '見積書', s.number, s.date, s.to, s.subject, s.total, statusLabel(s, today) || (inv ? INVOICE_STATUS : QUOTE_STATUS)[s.status] || '',
+        rows.push([KIND_LABEL[kindOf(s)], s.number, s.date, s.to, s.subject, s.total, statusLabel(s, today) || statusTable(kindOf(s))[s.status] || '',
           s.validUntil || '', s.dueDate || '', inv ? (s.paid || 0) : '', inv ? (s.balance != null ? s.balance : '') : '', s.version || 1,
           String(s.sentAt || '').slice(0, 10), String(s.decidedAt || '').slice(0, 10)])
       }
-      return new Response(buildXlsx(rows, '見積書・請求書'), {
+      return new Response(buildXlsx(rows, '見積書・請求書・領収書'), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="${BRAND.slug}-quotes-${today}.xlsx"`,
@@ -136,6 +141,8 @@ export async function POST(req) {
       return reply(r.ok ? { ok: true, settings: r.settings, regNo: checkRegNo(r.settings.regNo), message: '設定を保存しました。' } : r)
     }
     if (action === 'payment.add' || action === 'payment.remove') return reply(await paymentQuote(cfg, id, b, action === 'payment.remove'))
+    if (action === 'receipt') return reply(await makeReceipt(cfg, id, b.payIndex))
+    if (action === 'book.forget') return reply(await forgetBook(cfg, String(b.what || ''), b.value))
     if (action === 'catalog') return reply({ ok: true, catalog: await saveCatalog(cfg, b.items), message: 'よく使う品目を保存しました。' })
   } catch (e) {
     return json({ ok: false, message: 'うまくいきませんでした（' + String((e && e.message) || e).slice(0, 100) + '）。時間をおいてもう一度お試しください。' }, 502)

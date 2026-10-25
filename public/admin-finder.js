@@ -175,7 +175,7 @@
 
   var ST_INQ = { new: '未対応', doing: '対応中', done: '完了' };
   var ST_BK = { confirmed: '確定', tentative: '仮予約', cancelled: 'キャンセル', visited: '来店済み', noshow: '無断キャンセル' };
-  var ST_QT = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', paid: '入金済み' };
+  var ST_QT = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', paid: '入金済み', issued: '発行済み', void: '取消' };
 
   function tabs() {
     return [].slice.call(document.querySelectorAll('#shell-nav .shell-tab')).filter(function (b) {
@@ -246,7 +246,7 @@
     });
     if (bk.length) groups.push(['予約', bk]);
     var qt = (C.quotes || []).filter(function (x) { return hit([x.number, x.to, x.subject].join(' '), words); }).slice(0, 8).map(function (x) {
-      return { k: (x.kind === 'invoice' ? '請求書 ' : '') + (ST_QT[x.status] || ''), t: (x.number || '（番号なし）') + '　' + (x.subject || ''),
+      return { k: (x.kind === 'invoice' ? '請求書 ' : x.kind === 'receipt' ? '領収書 ' : '') + (ST_QT[x.status] || ''), t: (x.number || '（番号なし）') + '　' + (x.subject || ''),
         s: [x.to, yen(x.total) + '（税込）', x.date].filter(Boolean).join('　'), run: function () { go('quotes-admin', function () { if (window.lumQuoteOpen) window.lumQuoteOpen(x.id); }); } };
     });
     if (qt.length) groups.push(['見積書・請求書', qt]);

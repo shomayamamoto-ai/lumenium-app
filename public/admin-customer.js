@@ -103,7 +103,7 @@
 
   var ST_INQ = { new: '未対応', doing: '対応中', done: '完了' };
   var ST_BK = { confirmed: '確定', tentative: '仮予約', cancelled: '取り消し', visited: '来店済み', noshow: '無断キャンセル' };
-  var ST_QT = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', paid: '入金済み' };
+  var ST_QT = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', paid: '入金済み', issued: '発行済み', void: '取消' };
 
   var P = { back: null, panel: null, lastFocus: null, seq: 0 };
 
@@ -227,7 +227,7 @@
         run: function () { go('booking-admin', function () { if (window.lumBookOpen) window.lumBookOpen(b.id); }); } });
     });
     d.qt.forEach(function (x) {
-      items.push({ at: Date.parse(x.createdAt || x.date || '') || 0, k: 'qt', tag: (x.kind === 'invoice' ? '請求書・' : '見積書・') + (ST_QT[x.status] || x.status || ''),
+      items.push({ at: Date.parse(x.createdAt || x.date || '') || 0, k: 'qt', tag: (x.kind === 'invoice' ? '請求書・' : x.kind === 'receipt' ? '領収書・' : '見積書・') + (ST_QT[x.status] || x.status || ''),
         t: (x.number || '') + '　' + (x.subject || '') + '　' + yen(x.total), p: (x.sure ? '' : '宛先の名前が一致した見積書です（同じ方か、念のためご確認ください）'),
         run: function () { go('quotes-admin', function () { if (window.lumQuoteOpen) window.lumQuoteOpen(x.id); }); } });
     });
@@ -238,7 +238,7 @@
     }
     items.sort(function (a, b) { return b.at - a.at; });
 
-    var won = d.qt.filter(function (x) { return x.kind !== 'invoice' && (x.status === 'won'); }).reduce(function (a, x) { return a + (Number(x.total) || 0); }, 0);
+    var won = d.qt.filter(function (x) { return (x.kind || 'quote') === 'quote' && (x.status === 'won'); }).reduce(function (a, x) { return a + (Number(x.total) || 0); }, 0);
     var visits = d.bk.filter(function (b) { return bkStatus(b) === 'visited'; }).length;
     var first = items.length ? items[items.length - 1].at : 0;
     var upcoming = d.bk.filter(function (b) { var s = bkStatus(b); return (s === 'confirmed' || s === 'tentative') && (b.start || 0) > Date.now(); }).length;
@@ -328,7 +328,7 @@
       var p = get(x.email || inqEmail[x.inquiryId] || '', '', '');
       if (!p) return;
       p.quotes++;
-      if ((x.kind || 'quote') !== 'invoice' && x.status === 'won') p.won += Number(x.total) || 0;
+      if ((x.kind || 'quote') === 'quote' && x.status === 'won') p.won += Number(x.total) || 0;
       p.last = Math.max(p.last, Date.parse(x.createdAt || x.date || '') || 0);
     });
     ((res[3] && res[3].members) || []).forEach(function (m) {

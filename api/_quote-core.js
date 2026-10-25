@@ -31,6 +31,11 @@
 /** 状態。「期限切れ」は保存しません（有効期限と今日から決まるため）。 */
 export const QUOTE_STATUS = { draft: '下書き', sent: '送付済み', won: '受注', lost: '失注', expired: '期限切れ' }
 export const INVOICE_STATUS = { draft: '下書き', sent: '送付済み', paid: '入金済み', void: '取消' }
+export const RECEIPT_STATUS = { draft: '下書き', issued: '発行済み', void: '取消' }
+/** 書類の種類。見積書 → 請求書 → 領収書 と、同じ宛先・品目を引き継いで作ります。 */
+export const KIND_LABEL = { quote: '見積書', invoice: '請求書', receipt: '領収書' }
+export function kindOf(q) { const k = q && q.kind; return k === 'invoice' || k === 'receipt' ? k : 'quote' }
+export function statusTable(kind) { return kind === 'invoice' ? INVOICE_STATUS : kind === 'receipt' ? RECEIPT_STATUS : QUOTE_STATUS }
 /** 税率。0 は非課税（消費税がかからないもの）。 */
 export const RATES = [10, 8, 0]
 export const RATE_LABEL = { 10: '10%', 8: '8%（軽減）', 0: '非課税' }
@@ -47,7 +52,9 @@ export const QCAPS = {
 export const DEFAULT_QUOTE_SETTINGS = {
   company: '', address: '', tel: '', email: '', person: '', regNo: '', bank: '',
   validDays: 30, rounding: 'floor', taxMode: 'excl', payTerms: '月末締め・翌月末までにお振込み', delivery: 'ご発注から2週間ほど',
-  notes: '', logo: '', seal: '', prefix: 'Q', invoicePrefix: 'INV', linkDays: 60,
+  notes: '', logo: '', seal: '', prefix: 'Q', invoicePrefix: 'INV', receiptPrefix: 'RCP', linkDays: 60,
+  // 領収書の「お支払方法」の最初の値。
+  payMethod: '銀行振込',
   // 新しい見積書に最初から入れる「作業範囲・前提条件」「含まれないもの」「お取引条件」「お支払いの分割」。
   defScope: '', defExcluded: '', defTerms: '', defSchedule: '',
   mailSubject: '【お見積書】{件名}（{会社名}）',
@@ -345,6 +352,7 @@ export function nextNumber(numbers, prefix, year, seq) {
 /** いまの状態。下書き・送付済みのまま有効期限を過ぎたら「期限切れ」。 */
 export function effectiveStatus(q, today) {
   if (q.kind === 'invoice') return INVOICE_STATUS[q.status] ? q.status : 'draft'
+  if (q.kind === 'receipt') return RECEIPT_STATUS[q.status] ? q.status : 'draft'
   const s = QUOTE_STATUS[q.status] && q.status !== 'expired' ? q.status : 'draft'
   if ((s === 'draft' || s === 'sent') && validYmd(q.validUntil) && today > q.validUntil) return 'expired'
   return s
@@ -360,6 +368,7 @@ export function effectiveStatus(q, today) {
 export const ATTN_LABEL = { expiring: '期限が近い', expired: '期限切れ', overdue: '支払期限切れ', opened: '開いたまま返事なし', stale: '下書きのまま' }
 export function quoteAttentionKind(q, today) {
   if (!q || !validYmd(today)) return ''
+  if (q.kind === 'receipt') return ''
   if ((q.kind || 'quote') === 'invoice') {
     // 一部だけ入金があっても、残りがあれば「支払期限切れ」です。
     const left = q.balance != null ? q.balance > 0 : true
@@ -390,7 +399,7 @@ export function quoteAttention(list, today) {
 
 export function statusLabel(q, today) {
   const s = effectiveStatus(q, today)
-  return (q.kind === 'invoice' ? INVOICE_STATUS : QUOTE_STATUS)[s]
+  return statusTable(kindOf(q))[s]
 }
 
 /* ---------------------------------------------------- 入力のそろえ方 -- */
@@ -423,7 +432,7 @@ export function cleanQuote(input, prev, today) {
   const p = prev || {}
   const items = (Array.isArray(x.items) ? x.items : []).slice(0, QCAPS.items).map(cleanItem)
     .filter((it) => it.kind === 'discount' ? it.price > 0 : (it.name || it.price > 0))
-  const kind = (p.kind || x.kind) === 'invoice' ? 'invoice' : 'quote'
+  const kind = kindOf({ kind: p.kind || x.kind })
   const date = validYmd(x.date) ? x.date : (p.date || today)
   const q = {
     id: p.id || '',
@@ -447,6 +456,10 @@ export function cleanQuote(input, prev, today) {
     excluded: clip(x.excluded, QCAPS.clause).trim(),
     terms: clip(x.terms, QCAPS.clause).trim(),
     schedule: kind === 'quote' ? parseSchedule(x.schedule) : [],
+    // 領収書だけ: 但し書き（「〇〇代として」）とお支払方法。
+    proviso: kind === 'receipt' ? line(x.proviso, QCAPS.text) : '',
+    payMethod: kind === 'receipt' ? line(x.payMethod, 40) : '',
+    payIndex: kind === 'receipt' && Number.isInteger(p.payIndex != null ? p.payIndex : x.payIndex) ? (p.payIndex != null ? p.payIndex : x.payIndex) : null,
     status: p.status || 'draft',
     inquiryId: p.inquiryId || line(x.inquiryId, 40),
     source: p.source || line(x.source, 60),
@@ -581,7 +594,7 @@ export function acceptQuote(q, name, nowIso) {
 
 /** 状態を変える。受注・失注には「決まった日」を残します（決まるまでの日数のため）。 */
 export function applyStatus(q, status, nowIso) {
-  const table = q.kind === 'invoice' ? INVOICE_STATUS : QUOTE_STATUS
+  const table = statusTable(kindOf(q))
   if (!table[status] || status === 'expired') return { ok: false, message: '状態の値が正しくありません。' }
   const before = q.status
   if (before === status) return { ok: true, quote: q, changed: false }
@@ -589,7 +602,7 @@ export function applyStatus(q, status, nowIso) {
   r.status = status
   if (status === 'won' || status === 'lost' || status === 'paid') r.decidedAt = nowIso
   else r.decidedAt = ''
-  if (status === 'sent' && !r.sentAt) r.sentAt = nowIso
+  if ((status === 'sent' || status === 'issued') && !r.sentAt) r.sentAt = nowIso
   r.history = (r.history || []).concat([{ at: nowIso, what: 'status', text: (table[before] || '—') + ' → ' + table[status] }]).slice(-QCAPS.history)
   return { ok: true, quote: r, changed: true }
 }
@@ -616,6 +629,147 @@ export function invoiceFromQuote(q, today) {
     items: (q.items || []).filter((it) => !it.optional),
     scope: '', excluded: '', terms: '', schedule: [],
   })
+}
+
+/** 見積書（受注）か請求書から、領収書の下書き。宛先・件名・品目・お取引日を引き継ぎます。
+ *  pay（請求書の入金の1回分 { date, amount }）を渡すと、その金額の領収書にします。
+ *  一部だけの入金なら、品目の代わりに「内金」の行を税率ごとに分けて作ります
+ *  （適格簡易請求書として、税率ごとの金額と消費税が要るため）。 */
+export function receiptFrom(src, today, opts) {
+  const o = opts || {}
+  const pay = o.pay || null
+  const r = duplicateQuote(src, today, 0)
+  const items = (src.items || []).filter((it) => !it.optional)
+  const t = computeTotals(Object.assign({}, src, { items }), o.rounding)
+  const amount = pay ? Math.max(0, Math.round(Number(pay.amount) || 0)) : t.total
+  let lines = items
+  let taxMode = src.taxMode
+  if (pay && amount < t.total) {
+    const groups = t.groups.filter((g) => g.incl > 0)
+    const parts = allocate(amount, groups.map((g) => g.incl))
+    lines = groups.map((g, i) => ({
+      kind: 'item', name: (src.subject || 'ご請求') + 'の内金' + (groups.length > 1 ? '（' + RATE_LABEL[g.rate] + ' 対象）' : ''),
+      qty: 1, unit: '式', price: parts[i], rate: g.rate,
+    })).filter((x) => x.price > 0)
+    taxMode = 'incl'
+  }
+  return Object.assign(r, {
+    kind: 'receipt', items: lines, taxMode,
+    date: pay && validYmd(pay.date) ? pay.date : today,
+    validUntil: '', dueDate: '', payTerms: '', notes: '', scope: '', excluded: '', terms: '', schedule: [],
+    // 請求書の「お取引日」はそのまま。見積書の「納期」は取引の日ではないので持ち越しません。
+    delivery: src.kind === 'invoice' ? (src.delivery || '') : '',
+    proviso: (src.subject ? src.subject + '代として' : ''),
+    payMethod: o.payMethod || '銀行振込',
+    payIndex: pay && Number.isInteger(o.payIndex) ? o.payIndex : null,
+    fromQuote: src.id, payments: [], acceptedBy: '', acceptedAt: '',
+  })
+}
+
+/** 領収書の紙に添える注意（画面の確認用だけ。印刷物には出しません）。 */
+export function receiptNotes(q, rounding) {
+  const t = computeTotals(q, rounding)
+  const out = []
+  if (t.subtotal >= 50000) out.push('紙で渡す領収書は、税抜5万円以上なら収入印紙が要ります（メールやリンクなど電子で渡すときは不要です）。')
+  if (!q.proviso) out.push('「但し書き」（何の代金か）を入れてください。')
+  return out
+}
+
+/* ------------------------------------------------------ 記載の記録 --
+   見積書・請求書・領収書を保存するたびに、宛先・よく書く文・品目を覚えておき、
+   次に作るときの候補にします（打ち直す手間を減らすため）。保存先は1つの記録で、
+   古いものから押し出します。お客様に出す書類そのものは変えません。 */
+export const BOOK_CAPS = { clients: 200, words: 15, items: 150 }
+export const BOOK_FIELDS = ['subject', 'delivery', 'payTerms', 'notes', 'scope', 'excluded', 'terms', 'proviso', 'payMethod']
+const bookKey = (c) => (String(c.company || '').toLowerCase().replace(/\s+/g, '') + '|' + String(c.person || '').toLowerCase().replace(/\s+/g, '')) || ''
+
+export function cleanBook(b) {
+  const x = b && typeof b === 'object' ? b : {}
+  const words = {}
+  BOOK_FIELDS.forEach((f) => {
+    const n = f === 'notes' || f === 'scope' || f === 'excluded' || f === 'terms' ? QCAPS.clause : QCAPS.text
+    words[f] = (Array.isArray(x.words && x.words[f]) ? x.words[f] : []).map((v) => clip(v, n).trim()).filter(Boolean).slice(0, BOOK_CAPS.words)
+  })
+  const clients = (Array.isArray(x.clients) ? x.clients : []).map((c) => ({
+    company: line(c && c.company, QCAPS.company), person: line(c && c.person, QCAPS.person),
+    honor: c && c.honor === '御中' ? '御中' : '様', email: line(c && c.email, 100),
+    count: Math.max(0, Math.round(Number(c && c.count) || 0)), last: line(c && c.last, 30),
+    lastId: line(c && c.lastId, 40), lastNumber: line(c && c.lastNumber, QCAPS.number), lastKind: kindOf({ kind: c && c.lastKind }),
+    subject: line(c && c.subject, QCAPS.text),
+  })).filter((c) => c.company || c.person).slice(0, BOOK_CAPS.clients)
+  const items = (Array.isArray(x.items) ? x.items : []).map((it) => ({
+    name: line(it && it.name, QCAPS.name), unit: line(it && it.unit, QCAPS.unit),
+    price: Math.min(QCAPS.price, Math.max(0, Math.round(Number(it && it.price) || 0))),
+    rate: RATES.indexOf(Number(it && it.rate)) >= 0 ? Number(it.rate) : 10,
+    count: Math.max(0, Math.round(Number(it && it.count) || 0)), last: line(it && it.last, 30),
+  })).filter((it) => it.name).slice(0, BOOK_CAPS.items)
+  return { clients, words, items, at: line(x.at, 30) }
+}
+
+/** 1枚の書類から覚えます。新しいものほど前に。 */
+export function learnBook(book, q, nowIso) {
+  const b = cleanBook(book)
+  const at = String(nowIso || '')
+  if (!q) return b
+  const c = { company: line(q.toCompany, QCAPS.company), person: line(q.toPerson, QCAPS.person) }
+  if (c.company || c.person) {
+    const key = bookKey(c)
+    const email = line(q.toEmail, 100)
+    const i = b.clients.findIndex((x) => bookKey(x) === key)
+    const prev = i >= 0 ? b.clients.splice(i, 1)[0] : { count: 0, email: '' }
+    b.clients.unshift({
+      company: c.company, person: c.person, honor: q.honor === '御中' ? '御中' : '様', email: email || prev.email || '',
+      count: (prev.count || 0) + (i >= 0 && prev.lastId === q.id ? 0 : 1), last: at,
+      lastId: q.id || prev.lastId || '', lastNumber: q.number || prev.lastNumber || '', lastKind: kindOf(q), subject: line(q.subject, QCAPS.text) || prev.subject || '',
+    })
+    b.clients = b.clients.slice(0, BOOK_CAPS.clients)
+  }
+  BOOK_FIELDS.forEach((f) => {
+    const v = String(q[f] == null ? '' : q[f]).trim()
+    if (!v) return
+    b.words[f] = [v].concat(b.words[f].filter((w) => w !== v)).slice(0, BOOK_CAPS.words)
+  })
+  ;(q.items || []).forEach((it) => {
+    if (!it || it.kind === 'discount' || !line(it.name, QCAPS.name)) return
+    const name = line(it.name, QCAPS.name)
+    const i = b.items.findIndex((x) => x.name === name)
+    const prev = i >= 0 ? b.items.splice(i, 1)[0] : { count: 0 }
+    b.items.unshift({ name, unit: line(it.unit, QCAPS.unit), price: Math.max(0, Math.round(Number(it.price) || 0)), rate: RATES.indexOf(Number(it.rate)) >= 0 ? Number(it.rate) : 10, count: (prev.count || 0) + 1, last: at })
+  })
+  b.items = b.items.slice(0, BOOK_CAPS.items)
+  b.at = at
+  return b
+}
+
+/** 保存してある書類（古い順）から、まとめて覚え直します（記録を始める前の分のため）。 */
+export function bookFromQuotes(list) {
+  return (Array.isArray(list) ? list : []).slice()
+    .sort((a, b) => (String(a.createdAt || a.date) < String(b.createdAt || b.date) ? -1 : 1))
+    .reduce((b, q) => learnBook(b, q, q.createdAt || (q.date ? q.date + 'T00:00:00.000Z' : '')), cleanBook({}))
+}
+
+/** 宛先の候補。会社名・お名前・メールのどれかで探します（前から合うもの・よく使うもの）。 */
+export function findClient(book, text) {
+  const t = String(text || '').toLowerCase().replace(/\s+/g, '')
+  if (!t) return null
+  const list = cleanBook(book).clients
+  return list.find((c) => c.company && c.company.toLowerCase().replace(/\s+/g, '') === t) ||
+    list.find((c) => c.person && c.person.toLowerCase().replace(/\s+/g, '') === t) ||
+    list.find((c) => c.email && c.email.toLowerCase() === t) || null
+}
+
+/** 前回の書類の中身を、いまの書類に写します（宛先・番号・日付・状態は今のまま）。 */
+export function copyFromPrevious(cur, prev) {
+  const r = JSON.parse(JSON.stringify(cur))
+  const p = prev || {}
+  ;['subject', 'taxMode', 'notes'].forEach((k) => { if (p[k] != null && p[k] !== '') r[k] = p[k] })
+  r.items = (p.items || []).map((it) => Object.assign({}, it))
+  if (kindOf(r) === 'quote' && kindOf(p) === 'quote') {
+    ;['delivery', 'payTerms', 'scope', 'excluded', 'terms'].forEach((k) => { if (p[k]) r[k] = p[k] })
+    r.schedule = Array.isArray(p.schedule) ? p.schedule.slice() : []
+  }
+  if (kindOf(r) === 'receipt') { if (p.proviso) r.proviso = p.proviso; if (p.payMethod) r.payMethod = p.payMethod }
+  return r
 }
 
 /* ---------------------------------------------------------------- 数字 -- */
@@ -805,6 +959,18 @@ export function addressee(q) {
   return lines.join(' ') + ' ' + (q.honor || '様')
 }
 
+/** 請求書・領収書を送るときの、最初の件名と本文（見積書は設定の文を使います）。 */
+export const MAIL_BY_KIND = {
+  invoice: {
+    subject: '【請求書】{件名}（{会社名}）',
+    body: '{宛名}\n\nいつもお世話になっております。{会社名}の{担当者}です。\n「{件名}」の請求書をお送りします。\n\n　ご請求金額：{金額}（税込）\n\n下のリンクから、請求書をご覧いただけます（印刷・PDFでの保存もできます）。\n{リンク}\n\nどうぞよろしくお願いいたします。\n\n{会社名}\n{担当者}',
+  },
+  receipt: {
+    subject: '【領収書】{件名}（{会社名}）',
+    body: '{宛名}\n\nいつもお世話になっております。{会社名}の{担当者}です。\nこのたびはお支払いいただき、ありがとうございました。領収書をお送りします。\n\n　金額：{金額}（税込）\n\n下のリンクから、領収書をご覧いただけます（印刷・PDFでの保存もできます）。\n{リンク}\n\n今後ともどうぞよろしくお願いいたします。\n\n{会社名}\n{担当者}',
+  },
+}
+
 export function mailVars(q, settings, link, rounding) {
   const s = settings || {}
   return {
@@ -872,8 +1038,10 @@ export function renderDoc(q, issuer, opts) {
   const s = Object.assign({}, DEFAULT_QUOTE_SETTINGS, issuer || {})
   const o = opts || {}
   const t = computeTotals(q, s.rounding)
-  const inv = q.kind === 'invoice'
-  const title = inv ? '請求書' : '御見積書'
+  const kind = kindOf(q)
+  const inv = kind === 'invoice'
+  const rec = kind === 'receipt'
+  const title = inv ? '請求書' : rec ? '領収書' : '御見積書'
   let no = 0
   const optRows = []
   const rows = (q.items || []).map((it, i) => {
@@ -908,7 +1076,10 @@ export function renderDoc(q, issuer, opts) {
   sumRows.push('<tr class="tot"><th>合計（税込）</th><td class="num">' + yen(t.total) + '</td></tr>')
   const kv = []
   if (q.subject) kv.push(['件名', q.subject])
-  if (inv) {
+  if (rec) {
+    if (q.delivery) kv.push(['お取引日', q.delivery])
+    if (q.payMethod) kv.push(['お支払方法', q.payMethod])
+  } else if (inv) {
     if (q.delivery) kv.push(['お取引日', q.delivery])
     if (q.dueDate) kv.push(['お支払期限', jpDate(q.dueDate)])
   } else {
@@ -920,8 +1091,10 @@ export function renderDoc(q, issuer, opts) {
   const warn = []
   if (o.draft && inv && (!reg.value || reg.state === 'format')) warn.push('請求書を適格請求書（インボイス）として出すには、設定に登録番号が必要です。')
   if (o.draft && inv && !q.delivery) warn.push('適格請求書には、取引の年月日（納品日・作業の月など）が必要です。「お取引日」に入れてください。')
+  if (o.draft && rec) receiptNotes(q, s.rounding).forEach((m) => warn.push(m))
+  if (o.draft && rec && (!reg.value || reg.state === 'format')) warn.push('領収書を適格簡易請求書（インボイス）として出すには、設定に登録番号が必要です。')
   if (o.draft && t.errors.length) warn.push(t.errors.join(' '))
-  const sch = inv ? { rows: [], ok: true } : scheduleAmounts(t.total, q.schedule)
+  const sch = kind !== 'quote' ? { rows: [], ok: true } : scheduleAmounts(t.total, q.schedule)
   if (o.draft && !sch.ok) warn.push(sch.message)
   if (o.draft) warn.unshift('この画面は確認用です（「下書き」の印はお客様に送るものには出ません）。')
   const to = [q.toCompany, q.toPerson].filter(Boolean)
@@ -932,9 +1105,9 @@ export function renderDoc(q, issuer, opts) {
   return '<div class="qd">' +
     (warn.length ? '<div class="warn qd-noprint">' + warn.map(esc).join('<br>') + '</div>' : '') +
     '<h1>' + title + '</h1>' +
-    '<div class="meta"><div>' + (inv ? '請求番号' : '見積番号') + '：' + esc(q.number || '（未採番）') + '</div><div>' + (inv ? '請求日' : '発行日') + '：' + esc(jpDate(q.date)) + '</div></div>' +
+    '<div class="meta"><div>' + (inv ? '請求番号' : rec ? '領収書番号' : '見積番号') + '：' + esc(q.number || '（未採番）') + '</div><div>' + (inv ? '請求日' : '発行日') + '：' + esc(jpDate(q.date)) + '</div></div>' +
     '<div class="top"><div class="to"><div class="nm">' + toHtml + '</div>' +
-    '<p class="lead">' + (inv ? '下記のとおりご請求申し上げます。' : '下記のとおりお見積り申し上げます。') + '</p>' +
+    (rec ? '' : '<p class="lead">' + (inv ? '下記のとおりご請求申し上げます。' : '下記のとおりお見積り申し上げます。') + '</p>') +
     (kv.length ? '<table class="kv">' + kv.map((r) => '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>' : '') +
     '</div><div class="from">' +
     (imgOk(s.logo) ? '<img class="logo" src="' + esc(s.logo) + '" alt="">' : '') +
@@ -946,7 +1119,8 @@ export function renderDoc(q, issuer, opts) {
     (s.person ? '<div>担当：' + esc(s.person) + '</div>' : '') +
     (reg.value && reg.state !== 'format' ? '<div class="reg">登録番号：' + esc(reg.value) + '</div>' : '') +
     '</div></div>' +
-    '<div class="big"><span class="k">' + (inv ? 'ご請求金額' : '御見積金額') + '</span><span class="v num">' + yen(t.total) + '<small>（税込）</small></span></div>' +
+    '<div class="big"><span class="k">' + (inv ? 'ご請求金額' : rec ? '金額' : '御見積金額') + '</span><span class="v num">' + yen(t.total) + '<small>（税込）</small></span></div>' +
+    (rec ? '<p class="lead">但し　' + esc(q.proviso || '') + '<br>上記正に領収いたしました。</p><div class="foot" style="text-align:left;margin:0 0 2mm">内訳</div>' : '') +
     '<table class="it"><thead><tr><th style="width:7%">No.</th><th>品目</th><th style="width:9%">数量</th><th class="col-u" style="width:8%">単位</th>' +
     '<th style="width:14%">単価' + (incl ? '（税込）' : '') + '</th><th class="col-r" style="width:9%">税率</th><th style="width:15%">金額' + (incl ? '（税込）' : '') + '</th></tr></thead>' +
     '<tbody>' + (rows || '<tr><td colspan="7" class="c" style="color:#9a978f">（品目なし）</td></tr>') + '</tbody></table>' +
@@ -963,9 +1137,9 @@ export function renderDoc(q, issuer, opts) {
       ? '<div class="box"><h2>お支払いの分割</h2><table class="pay">' + sch.rows.map((r, i) =>
         '<tr><th>' + (i + 1) + '回目　' + esc(r.label) + '</th><td class="num">' + r.pct + '%</td><td class="num">' + yen(r.amount) + '（税込）</td></tr>').join('') + '</table></div>'
       : '') +
-    (!inv && q.scope ? '<div class="box"><h2>作業範囲・前提条件</h2>' + nl(q.scope) + '</div>' : '') +
-    (!inv && q.excluded ? '<div class="box"><h2>このお見積りに含まれないもの</h2>' + nl(q.excluded) + '</div>' : '') +
-    (!inv && q.terms ? '<div class="box"><h2>お取引条件</h2>' + nl(q.terms) + '</div>' : '') +
+    (kind === 'quote' && q.scope ? '<div class="box"><h2>作業範囲・前提条件</h2>' + nl(q.scope) + '</div>' : '') +
+    (kind === 'quote' && q.excluded ? '<div class="box"><h2>このお見積りに含まれないもの</h2>' + nl(q.excluded) + '</div>' : '') +
+    (kind === 'quote' && q.terms ? '<div class="box"><h2>お取引条件</h2>' + nl(q.terms) + '</div>' : '') +
     (inv && s.bank ? '<div class="box"><h2>お振込先</h2>' + nl(s.bank) + '<div style="margin-top:1mm">お振込手数料はご負担くださいますようお願いいたします。</div></div>' : '') +
     (q.notes ? '<div class="box"><h2>備考</h2>' + nl(q.notes) + '</div>' : '') +
     '</div>'
@@ -974,7 +1148,7 @@ export function renderDoc(q, issuer, opts) {
 /** 1枚だけのページ（印刷用の窓・お客様が開くリンクの両方で使う）。 */
 export function docPage(q, issuer, opts) {
   const o = opts || {}
-  const name = (q.kind === 'invoice' ? '請求書 ' : '御見積書 ') + (q.number || '')
+  const name = (q.kind === 'invoice' ? '請求書 ' : q.kind === 'receipt' ? '領収書 ' : '御見積書 ') + (q.number || '')
   const bar = o.toolbar
     ? '<div class="qd-noprint" style="max-width:210mm;margin:12px auto 0;padding:0 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:system-ui,sans-serif;font-size:13px">' +
       '<button type="button" onclick="window.print()" style="font:inherit;font-weight:700;padding:9px 16px;border-radius:10px;border:1px solid #1b1b1f;background:#1b1b1f;color:#fff;cursor:pointer">印刷・PDFで保存</button>' +
