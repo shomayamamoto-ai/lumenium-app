@@ -16,14 +16,26 @@
    読み書きは api/quotes.js です。 */
 (function () {
   'use strict';
-  var TAB = 'quotes-admin';
+  /* 同じ部品を2つの画面で使います。「見積書」（mode: quote）と「請求書・領収書」（mode: bill）。
+     描くのは開いている方だけで（中の id が重ならないように）、一覧の絞り込み・開いている書類・
+     保存していない変更は、画面ごとにしまっておきます。 */
+  var HOSTS = { quote: 'quotes-admin', bill: 'bills-admin' };
+  var TAB = HOSTS.quote;
   var el = function (id) { return document.getElementById(id); };
   var S = {
-    started: false, sec: 'list', filter: '', q: '', data: null,
+    mode: 'quote', mounted: '', sec: 'list', filter: '', q: '', data: null,
     open: '', cur: null, dirty: false, pick: false, inq: null, panel: ''
   };
-  var SECTIONS = [['list', '見積書'], ['stats', '数字'], ['catalog', 'よく使う品目'], ['book', '記載の記録'], ['settings', '設定']];
-  var FILTERS = [['todo', '要対応'], ['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ'], ['invoice', '請求書'], ['receipt', '領収書']];
+  var MODE_SECTIONS = {
+    quote: [['list', '見積書'], ['stats', '数字'], ['catalog', 'よく使う品目'], ['book', '記載の記録'], ['settings', '設定']],
+    bill: [['list', '請求書・領収書'], ['catalog', 'よく使う品目'], ['book', '記載の記録'], ['settings', '設定']]
+  };
+  var MODE_FILTERS = {
+    quote: [['todo', '要対応'], ['all', 'すべて'], ['draft', '下書き'], ['sent', '送付済み'], ['won', '受注'], ['lost', '失注'], ['expired', '期限切れ']],
+    bill: [['todo', '要対応'], ['all', 'すべて'], ['invoice', '請求書'], ['unpaid', '未入金'], ['paid', '入金済み'], ['receipt', '領収書'], ['draft', '下書き']]
+  };
+  function secs() { return MODE_SECTIONS[S.mode]; }
+  function modeOf(x) { return (x && x.kind && x.kind !== 'quote') ? 'bill' : 'quote'; }
   var core = function () { return window.lumQuoteCore; };
 
   function esc(t) {
@@ -74,10 +86,10 @@
   function yen(n) { return core().yen(n); }
 
   var CSS =
-    '#quotes-admin button{transition:none}#quotes-admin .qt-acts button,#quotes-admin .qt-bar button{font-size:12px;padding:8px 13px}' +
+    '.qt-host button{transition:none}.qt-host .qt-acts button,.qt-host .qt-bar button{font-size:12px;padding:8px 13px}' +
     '.qt-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px}' +
     '.qt-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff;min-width:0}' +
-    'button.qt-card-btn{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}button.qt-card-btn:hover{border-color:var(--ui-border-strong,#b9b4a8)}' +
+    'button.qt-card-btn{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch}button.qt-card-btn:hover{border-color:var(--ui-border-strong,#b9b4a8)}' +
     'button.qt-card-btn.on{outline:2px solid var(--ui-accent,#3d3fbf);outline-offset:-2px}button.qt-card-btn.hot .v{color:#b42318}' +
     '.qt-tag.attn{background:rgba(180,35,24,.1);color:#b42318}' +
     '.qt-card .k{font-size:11px;font-weight:700;color:var(--sub)}.qt-card .v{font-size:20px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}' +
@@ -102,7 +114,7 @@
     '.qt-tag.issued{background:rgba(16,185,129,.16);color:#047857}.qt-tag.rcp{background:rgba(180,83,9,.12);color:#92400e}' +
     '.qt-client{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:8px 0 2px;font-size:12.5px;line-height:1.7;border:1px dashed var(--border);border-radius:10px;padding:8px 10px;background:#fbfaf7}' +
     '.qt-client:empty{display:none}.qt-client button{font-size:12px;padding:6px 12px}' +
-    '.qt-past{margin-top:4px;font-size:12px}#quotes-admin select.qt-past{width:auto;max-width:100%;padding:6px 8px;font-size:12px}' +
+    '.qt-past{margin-top:4px;font-size:12px}.qt-host select.qt-past{width:auto;max-width:100%;padding:6px 8px;font-size:12px}' +
     '.qt-bk{list-style:none;margin:0;padding:0}.qt-bk li{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--border);font-size:12.5px;min-width:0}' +
     '.qt-bk li:first-child{border-top:0}.qt-bk li span{min-width:0;overflow-wrap:anywhere}.qt-bk li small{color:var(--sub)}.qt-bk button{flex:none;font-size:11px;padding:4px 10px}' +
     '.qt-tag.lost{background:#f3f1ec;color:#6b6b74}.qt-tag.expired{background:rgba(180,35,24,.1);color:#b42318}.qt-tag.inv{background:rgba(99,102,241,.12);color:#3d3fbf}' +
@@ -112,8 +124,8 @@
     '.qt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:4px 12px}' +
     '.qt-field{margin:6px 0;min-width:0}.qt-field label,.qt-field .lb{display:block;font-size:12px;font-weight:700;margin-bottom:4px}' +
     '.qt-field .hint{font-size:11px;color:var(--sub);line-height:1.6;margin-top:3px}.qt-field .hint.bad{color:#b42318;font-weight:700}.qt-field .hint.ok{color:#047857}' +
-    '#quotes-admin input.qt-in,#quotes-admin select.qt-in,#quotes-admin textarea.qt-in{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:13px;line-height:1.5;color:var(--text)}' +
-    '#quotes-admin textarea.qt-in{resize:vertical}' +
+    '.qt-host input.qt-in,.qt-host select.qt-in,.qt-host textarea.qt-in{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:13px;line-height:1.5;color:var(--text)}' +
+    '.qt-host textarea.qt-in{resize:vertical}' +
     '.qt-items{display:flex;flex-direction:column;gap:6px}' +
     '.qt-row{display:grid;grid-template-columns:minmax(0,1fr) 70px 58px 108px 112px 96px 34px;gap:6px;align-items:center}' +
     '.qt-row.head{font-size:11px;font-weight:700;color:var(--sub)}.qt-row.head span{padding-left:2px}' +
@@ -122,7 +134,7 @@
     '.qt-row .opt{display:inline-flex;gap:5px;align-items:center;font-size:11px;color:var(--sub);margin-top:3px;cursor:pointer}.qt-row .opt input{width:14px;height:14px;margin:0}' +
     '.qt-row.is-opt{background:#f4f2fb;border-radius:10px}.qt-row.is-opt .amt{color:var(--sub);font-weight:600}' +
     '.qt-pay{font-size:12.5px;margin-top:6px}.qt-pay span{display:inline-block;margin-right:12px;white-space:nowrap}' +
-    '#quotes-admin .qt-row .del{padding:6px 0;width:34px;font-size:13px;background:#faf9f6;border:1px solid var(--border);color:var(--sub)}' +
+    '.qt-host .qt-row .del{padding:6px 0;width:34px;font-size:13px;background:#faf9f6;border:1px solid var(--border);color:var(--sub)}' +
     '.qt-row input.num{text-align:right;font-variant-numeric:tabular-nums}' +
     '.qt-tot{margin-top:10px;margin-left:auto;max-width:360px;font-size:13px}.qt-tot table{width:100%;border-collapse:collapse}' +
     '.qt-tot th{text-align:left;font-weight:400;color:var(--sub);padding:3px 0}.qt-tot td{text-align:right;padding:3px 0;font-variant-numeric:tabular-nums;white-space:nowrap}' +
@@ -152,10 +164,14 @@
 
   function shell() {
     var host = el(TAB);
+    host.classList.add('qt-host');
     host.innerHTML =
-      '<p class="share-note ui-intro">見積書を作って、印刷・PDFにしたり、お客様にメールで送ったりします。合計と消費税は自動で計算します（税率ごとに1回だけ端数を処理する、インボイス制度の決まりどおり）。' +
-      '受注したら、同じ内容で請求書の下書きも作れます。</p>' +
-      '<div class="nq-row" role="tablist" aria-label="見積書の項目">' + SECTIONS.map(function (s) {
+      (S.mode === 'bill'
+        ? '<p class="share-note ui-intro">請求書と領収書を作って、印刷・PDFにしたり、お客様にメールで送ったりします。見積書が無くても、ここから直接作れます。入金を記録すると残りが分かり、入金ごとに領収書も作れます。' +
+          '宛先や品目は、前に作った書類から候補に出ます（「記載の記録」）。</p>'
+        : '<p class="share-note ui-intro">見積書を作って、印刷・PDFにしたり、お客様にメールで送ったりします。合計と消費税は自動で計算します（税率ごとに1回だけ端数を処理する、インボイス制度の決まりどおり）。' +
+          '受注したら、同じ内容で請求書の下書きも作れます（請求書は「請求書・領収書」の画面に入ります）。</p>') +
+      '<div class="nq-row" role="tablist" aria-label="' + (S.mode === 'bill' ? '請求書・領収書' : '見積書') + 'の項目">' + secs().map(function (s) {
         return '<button type="button" class="nq-chip" data-qsec="' + s[0] + '" aria-pressed="false">' + s[1] + '</button>';
       }).join('') + '</div>' +
       '<p class="msg" id="qt-msg" style="margin:0 0 12px"></p>' +
@@ -177,8 +193,9 @@
   }
 
   function go(sec) {
+    if (!secs().some(function (s) { return s[0] === sec; })) sec = 'list';
     S.sec = sec;
-    try { sessionStorage.setItem('lum_qt_sec', sec); } catch (_) {}
+    try { sessionStorage.setItem('lum_qt_sec_' + S.mode, sec); } catch (_) {}
     document.querySelectorAll('#' + TAB + ' [data-qsec]').forEach(function (b) {
       b.setAttribute('aria-pressed', b.getAttribute('data-qsec') === sec ? 'true' : 'false');
     });
@@ -224,11 +241,15 @@
     return '<span class="qt-tag ' + s + '">' + esc(core().QUOTE_STATUS[s]) + '</span>';
   }
   function attn(x) { return core().quoteAttentionKind(x, S.data.today); }
+  function mine(x) { return modeOf(x) === S.mode; }
+  function unpaid(x) { return (x.kind || 'quote') === 'invoice' && x.status === 'sent' && (x.balance == null || x.balance > 0); }
   function matches(x) {
     var kind = x.kind || 'quote';
+    if (!mine(x)) return false;
     if (S.filter === 'todo') { if (!attn(x)) return false; }
     else if (S.filter === 'invoice' || S.filter === 'receipt') { if (kind !== S.filter) return false; }
-    else if (S.filter !== 'all') { if (kind !== 'quote' || statusOf(x) !== S.filter) return false; }
+    else if (S.filter === 'unpaid') { if (!unpaid(x)) return false; }
+    else if (S.filter !== 'all') { if (statusOf(x) !== S.filter) return false; }
     var f = S.find || {};
     if ((f.from || f.to || f.min || f.max) && !core().searchQuotes([x], f).length) return false;
     if (!S.q) return true;
@@ -238,31 +259,47 @@
 
   function listView(body) {
     var C = core();
+    var bill = S.mode === 'bill';
+    var list = S.data.list.filter(mine);
     var st = C.quoteStats(S.data.list, S.data.today);
-    var at = C.quoteAttention(S.data.list, S.data.today);
-    // 最初に開いたとき、手を打つ時期の見積書があれば、それだけを先に見せます。
-    if (!S.filter) S.filter = at.total ? 'todo' : 'all';
-    paintBadge(at);
-    var counts = { todo: at.total };
-    S.data.list.forEach(function (x) {
-      var k = (x.kind || 'quote') !== 'quote' ? x.kind : statusOf(x);
+    var at = C.quoteAttention(list, S.data.today);
+    // 最初に開いたとき、手を打つ時期の書類があれば、それだけを先に見せます。
+    if (!S.filter || !MODE_FILTERS[S.mode].some(function (f) { return f[0] === S.filter; })) S.filter = at.total ? 'todo' : 'all';
+    paintBadges();
+    var counts = { todo: at.total, all: list.length };
+    list.forEach(function (x) {
+      var k = statusOf(x);
       counts[k] = (counts[k] || 0) + 1;
+      if (bill) { counts[x.kind] = (counts[x.kind] || 0) + 1; if (unpaid(x)) counts.unpaid = (counts.unpaid || 0) + 1; }
     });
-    var rows = S.data.list.filter(matches);
-    body.innerHTML =
-      (settingsMissing() ? '<div class="qt-note">はじめに「設定」で、見積書に載せる会社名・住所・連絡先を入れてください（登録番号があれば、それも）。入れるまでは、見積書の発行元が空のままです。 <button type="button" class="ghost" id="qt-goset" style="font-size:12px;padding:6px 12px;margin-left:4px">設定を開く</button></div>' : '') +
-      '<div class="qt-top">' +
-        card('要対応', at.total + '件', at.total ? attnText(at) : '手を打つ時期の見積書はありません', 'todo', at.total ? ' hot' : '') +
+    var rows = list.filter(matches);
+    var month = String(S.data.today).slice(0, 7);
+    var sum = function (a, f) { return a.reduce(function (n, x) { return n + (Number(f(x)) || 0); }, 0); };
+    var invs = list.filter(function (x) { return x.kind === 'invoice' && x.status !== 'void'; });
+    var unp = invs.filter(unpaid);
+    var monthInv = invs.filter(function (x) { return String(x.date).slice(0, 7) === month; });
+    var monthRcp = list.filter(function (x) { return x.kind === 'receipt' && x.status !== 'void' && String(x.date).slice(0, 7) === month; });
+    var top = bill
+      ? card('未入金', unp.length + '件', '残り ' + yen(sum(unp, function (x) { return x.balance != null ? x.balance : x.total; })) + '（送付済みの請求書）', 'unpaid', unp.length ? '' : '') +
+        card('支払期限切れ', at.overdue + '件', at.overdue ? '入金を確かめて、まだならお客様へ連絡を' : '期限を過ぎた請求書はありません', 'todo', at.overdue ? ' hot' : '') +
+        card('今月の請求', monthInv.length + '件', '合計 ' + yen(sum(monthInv, function (x) { return x.total; }))) +
+        card('今月の領収書', monthRcp.length + '件', '合計 ' + yen(sum(monthRcp, function (x) { return x.total; })), 'receipt')
+      : card('要対応', at.total + '件', at.total ? attnText(at) : '手を打つ時期の見積書はありません', 'todo', at.total ? ' hot' : '') +
         card('返事待ち', st.waiting + '件', '合計 ' + yen(st.waitingAmount) + '（送付済み・期限内）', 'sent') +
         card('受注率', st.winRate == null ? '—' : Math.round(st.winRate * 100) + '%', st.decided ? st.decided + '件中 ' + st.won + '件' + (st.few ? '（まだ少ないので参考程度）' : '') : 'まだ決まった見積書がありません') +
-        card('今月の見積書', st.monthCount + '件', '合計 ' + yen(st.monthAmount) + (st.monthWonAmount ? '・受注 ' + yen(st.monthWonAmount) : '')) +
-      '</div>' +
-      '<div class="qt-bar"><button type="button" id="qt-new">＋ 新しい見積書</button><button type="button" class="ghost" id="qt-frominq">問い合わせから作る</button></div>' +
-      '<div class="nq-row" role="group" aria-label="絞り込み">' + FILTERS.map(function (f) {
-        var n = f[0] === 'all' ? S.data.list.length : counts[f[0]] || 0;
+        card('今月の見積書', st.monthCount + '件', '合計 ' + yen(st.monthAmount) + (st.monthWonAmount ? '・受注 ' + yen(st.monthWonAmount) : ''));
+    body.innerHTML =
+      (settingsMissing() ? '<div class="qt-note">はじめに「設定」で、見積書に載せる会社名・住所・連絡先を入れてください（登録番号があれば、それも）。入れるまでは、見積書の発行元が空のままです。 <button type="button" class="ghost" id="qt-goset" style="font-size:12px;padding:6px 12px;margin-left:4px">設定を開く</button></div>' : '') +
+      '<div class="qt-top">' + top + '</div>' +
+      (bill
+        ? '<div class="qt-bar"><button type="button" id="qt-newinv">＋ 新しい請求書</button><button type="button" id="qt-newrcp">＋ 新しい領収書</button>' +
+          '<span class="soc-small">見積書から作るときは、見積書を「受注」にして「請求書を作る」を押します。</span></div>'
+        : '<div class="qt-bar"><button type="button" id="qt-new">＋ 新しい見積書</button><button type="button" class="ghost" id="qt-frominq">問い合わせから作る</button></div>') +
+      '<div class="nq-row" role="group" aria-label="絞り込み">' + MODE_FILTERS[S.mode].map(function (f) {
+        var n = counts[f[0]] || 0;
         return '<button type="button" class="nq-chip" data-qf="' + f[0] + '" aria-pressed="' + (S.filter === f[0]) + '">' + f[1] + ' ' + n + '</button>';
       }).join('') + '</div>' +
-      '<div class="qt-bar"><input type="search" id="qt-q" placeholder="宛先・件名・番号で探す" aria-label="見積書を探す" value="' + esc(S.q) + '">' +
+      '<div class="qt-bar"><input type="search" id="qt-q" placeholder="宛先・件名・番号で探す" aria-label="' + (bill ? '請求書・領収書' : '見積書') + 'を探す" value="' + esc(S.q) + '">' +
         '<button type="button" class="ghost" id="qt-xlsx">Excel で書き出す</button></div>' +
       (function () {
         var f = S.find || {};
@@ -285,10 +322,17 @@
         return '<li><button type="button" class="qt-open" data-qid="' + esc(x.id) + '"><div class="l1"><span class="who">' + (ak ? '<span class="qt-tag attn">' + esc(C.ATTN_LABEL[ak]) + '</span>' : '') + tagOf(x) + esc(x.to) + '</span><span class="amt">' + yen(x.total) + '</span></div>' +
           '<div class="meta">' + esc(x.subject || '（件名なし）') + '</div><div class="meta">' + esc(meta.join('・')) + '</div></button></li>';
       }).join('') + '</ul>'
-        : '<p class="soc-small">' + (S.filter === 'todo' && S.data.list.length ? '手を打つ時期の見積書・請求書はありません。見落としはありません。' : S.data.list.length ? '当てはまる見積書はありません。' : 'まだ見積書がありません。「＋ 新しい見積書」か「問い合わせから作る」で始めてください。') + '</p>');
+        : '<p class="soc-small">' + (bill
+          ? (S.filter === 'todo' && list.length ? '期限を過ぎた請求書はありません。見落としはありません。' : list.length ? '当てはまる書類はありません。' : 'まだ請求書・領収書がありません。「＋ 新しい請求書」「＋ 新しい領収書」で作るか、受注した見積書から「請求書を作る」で作ってください。')
+          : (S.filter === 'todo' && list.length ? '手を打つ時期の見積書はありません。見落としはありません。' : list.length ? '当てはまる見積書はありません。' : 'まだ見積書がありません。「＋ 新しい見積書」か「問い合わせから作る」で始めてください。')) + '</p>');
     if (el('qt-goset')) el('qt-goset').addEventListener('click', function () { go('settings'); });
-    el('qt-new').addEventListener('click', function () { openNew(); });
-    el('qt-frominq').addEventListener('click', function () { S.pick = true; go('list'); });
+    if (bill) {
+      el('qt-newinv').addEventListener('click', function () { openNew(null, 'invoice'); });
+      el('qt-newrcp').addEventListener('click', function () { openNew(null, 'receipt'); });
+    } else {
+      el('qt-new').addEventListener('click', function () { openNew(); });
+      el('qt-frominq').addEventListener('click', function () { S.pick = true; go('list'); });
+    }
     body.querySelectorAll('[data-qf]').forEach(function (b) {
       b.addEventListener('click', function () { S.filter = b.getAttribute('data-qf'); listView(body); });
     });
@@ -326,20 +370,26 @@
     return ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return at[k]; }).map(function (k) { return C.ATTN_LABEL[k] + ' ' + at[k]; }).join('・');
   }
   /* タブの横の「要対応」の数（共通の部品 admin-badge.js）。 */
-  function paintBadge(at) {
+  function paintBadge(host, at) {
     if (!window.lumNavBadge || !at) return;
     var C = window.lumQuoteCore;
     var parts = ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return at[k]; }).map(function (k) { return (C ? C.ATTN_LABEL[k] : k) + ' ' + at[k] + '件'; });
-    window.lumNavBadge(TAB, at.total, parts);
+    window.lumNavBadge(host, at.total || 0, parts);
+  }
+  /* 見積書の画面には見積書の、請求書・領収書の画面には請求書の「要対応」を出します。 */
+  function paintBadges() {
+    var C = core();
+    if (!C || !S.data) return;
+    paintBadge(HOSTS.quote, C.quoteAttention(S.data.list.filter(function (x) { return modeOf(x) === 'quote'; }), S.data.today));
+    paintBadge(HOSTS.bill, C.quoteAttention(S.data.list.filter(function (x) { return modeOf(x) === 'bill'; }), S.data.today));
   }
   window.lumQuoteBadge = async function () {
     try { await loadCore(); } catch (_) {}
     var r = await api('/api/quotes?view=badge');
     var d = r.data;
     if (!d || !d.ok) return;
-    var LBL = { expiring: '期限が近い', expired: '期限切れ', overdue: '支払期限切れ', opened: '開いたまま返事なし', stale: '下書きのまま' };
-    var parts = ['expired', 'overdue', 'expiring', 'opened', 'stale'].filter(function (k) { return d[k]; }).map(function (k) { return LBL[k] + ' ' + d[k] + '件'; });
-    if (window.lumNavBadge) window.lumNavBadge(TAB, d.total || 0, parts);
+    paintBadge(HOSTS.quote, d.quote || d);
+    paintBadge(HOSTS.bill, d.bill || { total: 0 });
   };
   if (window.lumNavPoll) window.lumNavPoll(function () { window.lumQuoteBadge(); });
 
@@ -380,9 +430,10 @@
 
   /* ---------------- 作る・直す ---------------- */
 
-  function openNew(pre) {
+  function openNew(pre, kind) {
     var s = S.data.settings || {};
     var t = S.data.today;
+    var k = kind || 'quote';
     S.cur = {
       kind: 'quote', number: '', date: t, toCompany: '', toPerson: '', honor: '御中', toEmail: '', subject: '',
       items: [{ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }],
@@ -390,8 +441,14 @@
       delivery: s.delivery || '', payTerms: s.payTerms || '', notes: s.notes || '', memo: '', status: 'draft', history: [],
       scope: s.defScope || '', excluded: s.defExcluded || '', terms: s.defTerms || '', schedule: core().parseSchedule(s.defSchedule || '')
     };
+    // 見積書を使わずに、請求書・領収書を直接作るとき。見積書だけの欄は空にします。
+    if (k !== 'quote') {
+      Object.assign(S.cur, { kind: k, validUntil: '', delivery: '', payTerms: '', notes: '', scope: '', excluded: '', terms: '', schedule: [], honor: '御中' });
+      if (k === 'invoice') S.cur.dueDate = core().endOfNextMonth(t);
+      if (k === 'receipt') Object.assign(S.cur, { proviso: '', payMethod: s.payMethod || '銀行振込' });
+    }
     // お客様カルテ（admin-customer.js）から開いたときは、宛先を入れておきます。
-    if (pre) ['toCompany', 'toPerson', 'toEmail', 'honor'].forEach(function (k) { if (pre[k]) S.cur[k] = String(pre[k]); });
+    if (pre) ['toCompany', 'toPerson', 'toEmail', 'honor'].forEach(function (f) { if (pre[f]) S.cur[f] = String(pre[f]); });
     S.dirty = false;
     S.panel = '';
     go('list');
@@ -402,10 +459,21 @@
     el('qt-body').innerHTML = '<p class="soc-small">読み込んでいます…</p>';
     var r = await api('/api/quotes?id=' + encodeURIComponent(id));
     if (!r.data || !r.data.ok) { say((r.data && r.data.message) || '読み込めませんでした。'); S.cur = null; go('list'); return; }
-    S.cur = r.data.quote;
+    showDoc(r.data.quote);
+  }
+  /* 書類を、その種類の画面で開きます（見積書は「見積書」、請求書・領収書は「請求書・領収書」）。 */
+  function showDoc(q, msg) {
+    var mode = modeOf(q);
+    if (mode !== S.mode) {
+      if (window.lumShowTab && window.lumShowTab(HOSTS[mode]) === false) return;
+      mount(mode);
+    }
+    S.cur = q;
     S.dirty = false;
     S.panel = '';
+    S.pick = false;
     go('list');
+    if (msg) say(msg, true);
   }
 
   function rateOpts(v, discount) {
@@ -840,7 +908,7 @@
     var done = false;
     for (var i = 0; i < list.length; i++) { if (list[i].id === sum.id) { list[i] = sum; done = true; break; } }
     if (!done) list.unshift(sum);
-    paintBadge(core().quoteAttention(list, S.data.today));
+    paintBadges();
   }
 
   async function changeStatus() {
@@ -867,10 +935,8 @@
     var d = r.data || {};
     if (!d.ok) { say(d.message || 'できませんでした。'); return; }
     upsert(d.summary);
-    S.cur = d.quote;
     S.dirty = false;
-    go('list');
-    say(d.message || '作りました。', true);
+    showDoc(d.quote, d.message || '作りました。');
   }
 
   async function remove() {
@@ -1265,37 +1331,94 @@
 
   /* ---------------- 開始 ---------------- */
 
-  /* ほかの画面から見積書を開く（いまは使っていませんが、問い合わせ管理から呼べるように）。 */
-  /* どこでも検索（admin-finder.js）の「新しい見積書を作る」。読み込み前なら、読み込んだあとで開きます。 */
-  window.lumQuoteNew = function (pre) {
-    if (S.data) { if (leaveOk()) openNew(pre); }
-    else S.pendingNew = pre || true;
-  };
-  window.lumQuoteOpen = function (id) {
-    if (window.lumShowTab && window.lumShowTab(TAB) === false) return;
-    if (S.data) openQuote(id);
-    else S.pendingOpen = id;
-  };
+  /* ---------------- 2つの画面に出す ---------------- */
 
-  window.lumQuotesInit = async function () {
-    if (S.started) return;
-    S.started = true;
-    addCss();
+  var KEEP = ['sec', 'filter', 'q', 'find', 'cur', 'dirty', 'pick', 'panel'];
+  var VIEWS = {};
+  /* その画面に描く。いま描いている方の状態（開いている書類・入力中の中身も）はしまっておきます。 */
+  function mount(mode) {
+    if (S.mounted === mode) return;
+    if (S.mounted) {
+      if (S.cur && el('qt-items')) readForm();
+      var keep = {};
+      KEEP.forEach(function (k) { keep[k] = S[k]; });
+      VIEWS[S.mounted] = keep;
+      var old = el(HOSTS[S.mounted]);
+      if (old) old.innerHTML = '';
+    }
+    var v = VIEWS[mode];
+    if (!v) {
+      var sec = 'list';
+      try { sec = sessionStorage.getItem('lum_qt_sec_' + mode) || 'list'; } catch (_) {}
+      v = { sec: sec, filter: '', q: '', find: {}, cur: null, dirty: false, pick: false, panel: '' };
+    }
+    KEEP.forEach(function (k) { S[k] = v[k]; });
+    S.mode = mode;
+    S.mounted = mode;
+    TAB = HOSTS[mode];
     shell();
-    try { S.sec = sessionStorage.getItem('lum_qt_sec') || 'list'; } catch (_) {}
-    if (!SECTIONS.some(function (s) { return s[0] === S.sec; })) S.sec = 'list';
+  }
+
+  var booting = null;
+  function boot() {
+    if (!booting) {
+      booting = (async function () {
+        addCss();
+        try { await loadCore(); } catch (_) { S.coreFail = true; return false; }
+        return await load();
+      })();
+    }
+    return booting;
+  }
+
+  async function show(mode) {
+    var had = !!S.data;
+    mount(mode);
     go(S.sec);
-    try { await loadCore(); } catch (_) {
+    if (had) return;
+    var ok = await boot();
+    if (S.mode !== mode) return;
+    if (S.coreFail) {
       el('qt-body').innerHTML = '<div class="qt-note red">画面の部品（/quote-core.js）を読み込めませんでした。再読み込みしてください。</div>';
       return;
     }
-    if (await load()) {
-      if (S.pendingOpen) { var id = S.pendingOpen; S.pendingOpen = ''; S.sec = 'list'; openQuote(id); }
-      else if (S.pendingNew) { var pre = S.pendingNew === true ? null : S.pendingNew; S.pendingNew = false; openNew(pre); }
-      else go(S.sec);
+    if (!ok) return;
+    paintBadges();
+    go(S.sec);
+  }
+
+  /* どこでも検索・お客様カルテから。書類の種類に合った画面で開きます。 */
+  window.lumQuoteOpen = async function (id) {
+    if (!(await boot())) return;
+    var hit = S.data.list.filter(function (x) { return x.id === id; })[0];
+    var mode = modeOf(hit || { kind: 'quote' });
+    if (S.mode !== mode || !S.mounted) {
+      if (window.lumShowTab && window.lumShowTab(HOSTS[mode]) === false) return;
+      mount(mode);
     }
+    if (!leaveOk()) return;
+    S.sec = 'list';
+    openQuote(id);
   };
+  /* 新しい見積書（お客様カルテ・どこでも検索の「新しい見積書を作る」）。 */
+  window.lumQuoteNew = async function (pre) { return newIn('quote', pre, 'quote'); };
+  /* 新しい請求書・領収書（kind: 'invoice' | 'receipt'）。 */
+  window.lumBillNew = async function (kind, pre) { return newIn('bill', pre, kind === 'receipt' ? 'receipt' : 'invoice'); };
+  async function newIn(mode, pre, kind) {
+    if (!(await boot())) return;
+    if (S.mode !== mode || !S.mounted) {
+      if (window.lumShowTab && window.lumShowTab(HOSTS[mode]) === false) return;
+      mount(mode);
+    }
+    if (leaveOk()) openNew(pre, kind);
+  }
+
+  window.lumQuotesInit = function () { boot(); };
+  window.lumBillsInit = function () { boot(); };
+  window.lumQuotesShow = function () { show('quote'); };
+  window.lumBillsShow = function () { show('bill'); };
   window.addEventListener('beforeunload', function (e) {
-    if (S.dirty) { e.preventDefault(); e.returnValue = ''; }
+    var other = VIEWS[S.mode === 'quote' ? 'bill' : 'quote'];
+    if (S.dirty || (other && other.dirty)) { e.preventDefault(); e.returnValue = ''; }
   });
 })();

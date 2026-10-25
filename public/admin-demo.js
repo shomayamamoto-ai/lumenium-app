@@ -3295,7 +3295,11 @@
       }
       if (u.searchParams.get('view') === 'badge') {
         var Cq = core();
-        return Object.assign({ ok: true }, Cq.quoteAttention(QUOTES.map(function (q) { return Cq.quoteSummary(q, SETTINGS.rounding); }), ymd(0)));
+        var sums = QUOTES.map(function (q) { return Cq.quoteSummary(q, SETTINGS.rounding); });
+        return Object.assign({ ok: true }, Cq.quoteAttention(sums, ymd(0)), {
+          quote: Cq.quoteAttention(sums.filter(function (q) { return q.kind === 'quote'; }), ymd(0)),
+          bill: Cq.quoteAttention(sums.filter(function (q) { return q.kind !== 'quote'; }), ymd(0))
+        });
       }
       if (u.searchParams.get('view') === 'inquiries') {
         var r = await (await ask('/api/inquiries?status=all')).json();

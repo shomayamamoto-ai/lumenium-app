@@ -26,6 +26,8 @@
     inbox: 'M3.5 13.5 6 5h12l2.5 8.5v5h-17z M3.5 13.5H9l1 2h4l1-2h5.5',
     star: 'M12 3.8l2.5 5.2 5.6.8-4.1 4 1 5.6L12 16.8l-5 2.6 1-5.6-4.1-4 5.6-.8Z',
     file: 'M6 3.5h8l4 4v13H6z M14 3.5v4h4 M9 12h6 M9 15.5h6',
+    // 領収書: 下がぎざぎざの紙と円
+    receipt: 'M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z M9.5 8l2.5 3.2L14.5 8 M12 11.2v4.3 M9.8 12.7h4.4 M9.8 14.6h4.4',
     shield: 'M12 3.5l7 2.5v5.5c0 4.3-3 7.6-7 9-4-1.4-7-4.7-7-9V6Z M9 12l2 2 4-4',
     present: 'M3.5 4.5h17v11h-17z M12 15.5V20 M8.5 20h7 M7 12l3-3 2.5 2.5L16 8',
     settings: 'M4 7h9 M17 7h3 M4 17h3 M11 17h9 M15 4.5v5 M9 14.5v5',
@@ -49,7 +51,7 @@
 
   /* 面を敷くアイコン。1 は線と同じ形、文字列はその形（線が開いている物は、面だけ別に描きます）。 */
   var DUO = {
-    video: 1, chat: 1, pen: 1, megaphone: 1, users: 1, bell: 1, mail: 1, inbox: 1, star: 1, file: 1, shield: 1, sparkle: 1,
+    video: 1, chat: 1, pen: 1, megaphone: 1, users: 1, bell: 1, mail: 1, inbox: 1, star: 1, file: 1, receipt: 'M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z', shield: 1, sparkle: 1,
     info: 1, help: 1, alert: 1, clock: 1, key: 1,
     web: 'M3 5h18v11H3z',
     calendar: 'M4 6h16v14H4z',

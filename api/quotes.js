@@ -20,6 +20,7 @@ export const config = { runtime: 'edge' }
 //   GET ?view=xlsx                   -> 見積書・請求書・領収書の一覧（Excel）。税理士さんに渡す・会計ソフトに取り込む用
 //   POST { action:'receipt', id, payIndex? }  -> 請求書（その入金の分）か受注の見積書から、領収書の下書き（保存します）
 //   POST { action:'book.forget', what, value } -> 記載の記録（宛先・文・品目）から1つ消す
+//   GET ?view=badge                  -> 要対応の数（全体と、quote: 見積書・bill: 請求書と領収書）
 //   GET の一覧には book（記載の記録: 宛先・よく書く文・品目）も入ります。作るときの候補です。
 
 import { requireAdmin, json } from './_admin-auth.js'
@@ -80,7 +81,13 @@ export async function GET(req) {
       return q ? json({ ok: true, quote: q }) : json({ ok: false, message: 'その見積書は見つかりませんでした（消されたかもしれません）。' }, 404)
     }
     if (u.searchParams.get('view') === 'badge') {
-      return json(Object.assign({ ok: true }, quoteAttention(await allQuoteSummaries(cfg), jstToday())))
+      // 全体の数（ホームが使う）に加えて、見積書の画面と請求書・領収書の画面の分けた数。
+      const all = await allQuoteSummaries(cfg)
+      const today = jstToday()
+      return json(Object.assign({ ok: true }, quoteAttention(all, today), {
+        quote: quoteAttention(all.filter((s) => kindOf(s) === 'quote'), today),
+        bill: quoteAttention(all.filter((s) => kindOf(s) !== 'quote'), today),
+      }))
     }
     if (u.searchParams.get('view') === 'inquiries') {
       const { allSummaries } = await import('./_inquiries.js')

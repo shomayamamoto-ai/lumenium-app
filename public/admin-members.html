@@ -1407,6 +1407,7 @@ input, select, textarea { color: var(--text); }
 
     <!-- 見積書。中身は /admin-quotes.js が組み立てます。 -->
     <div class="panel" id="quotes-admin" style="display:none; margin-top:20px"></div>
+    <div class="panel" id="bills-admin" style="display:none; margin-top:20px"></div>
 
     <!-- 予約管理。中身は /admin-booking.js が組み立てます（項目が多いので別ファイル）。 -->
     <div class="panel" id="booking-admin" style="display:none; margin-top:20px"></div>
@@ -2054,8 +2055,10 @@ window.lumAdmin = {
       desc: 'Googleの口コミを読む・返信する', accent: '#a16207', tint: 'rgba(234,179,8,0.15)' },
     /* The store: quotes, numbering and the issuer settings live there. Writing
        the quote needs nothing else; sending it by mail checks Resend itself. */
-    { id: 'quotes-admin', icon: 'file', label: '見積書', init: 'lumQuotesInit', needs: 'store',
+    { id: 'quotes-admin', icon: 'file', label: '見積書', init: 'lumQuotesInit', show: 'lumQuotesShow', needs: 'store',
       desc: '見積書を作る・送る・請求書にする', accent: '#0f766e', tint: 'rgba(20,184,166,0.14)' },
+    { id: 'bills-admin', icon: 'receipt', label: '請求書・領収書', init: 'lumBillsInit', show: 'lumBillsShow', needs: 'store',
+      desc: '請求書・領収書を作る・送る・入金を記録する（見積書なしでも）', accent: '#b45309', tint: 'rgba(245,158,11,0.14)' },
     { id: 'list-view', icon: 'users', label: '会員リスト', needs: 'resend',
       desc: '登録者を見る・渡す', accent: '#3d3fbf', tint: 'rgba(59,130,246,0.14)' },
     { id: 'news-admin', icon: 'megaphone', label: 'お知らせ投稿', needs: 'github',
@@ -2105,7 +2108,7 @@ window.lumAdmin = {
      （項目が1つも残らない見出しは、見出しごと出しません）。 */
   var NAV_GROUPS = [
     { label: '', ids: [PORTAL] },
-    { label: 'お客様対応', ids: ['inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'list-view'] },
+    { label: 'お客様対応', ids: ['inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'bills-admin', 'list-view'] },
     { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
@@ -2119,7 +2122,8 @@ window.lumAdmin = {
     'setup-admin': 'このサイトの機能を使い始めるための設定を、上から順に済ませます。',
     'inquiries-admin': 'フォームから届いた問い合わせを読み、返信の状況を管理します。',
     'reviews-admin': 'Google の口コミを読み、返信します。',
-    'quotes-admin': '見積書を作って送り、請求書にします。',
+    'quotes-admin': '見積書を作って送り、受注したら請求書にします。',
+    'bills-admin': '請求書・領収書を作って送り、入金を記録します。見積書が無くても作れます。',
     'list-view': '会員登録した人の一覧と、外部に渡す共有リンク。',
     'news-admin': 'サイトの「お知らせ」に記事を出します。',
     'social-admin': 'SNS と LINE に、文章と画像をまとめて投稿します。',
@@ -2256,6 +2260,8 @@ window.lumAdmin = {
       started[id] = true;
       if (window[tab.init]) window[tab.init]();
     }
+    // 開くたびに知らせてほしい画面（見積書と請求書・領収書は、同じ部品を2つの画面で使います）。
+    if (tab && tab.show && window[tab.show]) window[tab.show]();
     takeIntro(id);
     paintHead(id);
     var title = onPortal ? 'ホーム' : (tab ? tab.label : '');

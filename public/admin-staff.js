@@ -30,7 +30,7 @@
   var TAB_MIN = { 'setup-admin': 'owner', 'health-admin': 'manager', 'advisor-admin': 'staff', 'staff-admin': 'owner', 'audit-admin': 'manager' };
   /* その画面の主な保存・送信に要る役割。足りないときに上へ一言出します。 */
   var WRITE_MIN = {
-    'inquiries-admin': 'staff', 'reviews-admin': 'staff', 'social-admin': 'staff', 'booking-admin': 'staff', 'quotes-admin': 'staff',
+    'inquiries-admin': 'staff', 'reviews-admin': 'staff', 'social-admin': 'staff', 'booking-admin': 'staff', 'quotes-admin': 'staff', 'bills-admin': 'staff',
     'news-admin': 'staff', 'advisor-admin': 'staff', 'list-view': 'manager', 'video-admin': 'manager',
     'copy-admin': 'manager', 'stats-admin': 'manager', 'seo-admin': 'manager', 'auto-admin': 'manager',
     'health-admin': 'owner'
@@ -43,7 +43,8 @@
       'inquiries-admin': 'CSV の書き出し・設定・返信の文例の保存は管理者以上が使えます。',
       'booking-admin': '受付時間などの設定は管理者以上が使えます。',
       'reviews-admin': '口調・署名などの設定は管理者以上が使えます。',
-      'quotes-admin': '見積書・請求書の作成・送付・複製はできます。削除・発行元の設定・よく使う品目の保存は管理者以上が使えます。'
+      'quotes-admin': '見積書・請求書の作成・送付・複製はできます。削除・発行元の設定・よく使う品目の保存は管理者以上が使えます。',
+      'bills-admin': '請求書・領収書の作成・送付・入金の記録はできます。削除・発行元の設定・よく使う品目の保存は管理者以上が使えます。'
     },
     manager: {
       'list-view': '会員の書き出し・共有リンク・削除はオーナーだけが使えます。',

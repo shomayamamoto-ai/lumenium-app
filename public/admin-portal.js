@@ -293,7 +293,7 @@
     if (!ok(s)) return [];
     var d = s.data, out = [];
     if (num(d.overdue)) {
-      out.push({ id: 'qt-overdue', level: 'urgent', tab: 'quotes-admin', count: d.overdue, unit: '件',
+      out.push({ id: 'qt-overdue', level: 'urgent', tab: 'bills-admin', count: d.overdue, unit: '件',
         title: '支払い期限を過ぎた請求書',
         why: '入金を確かめて、入っていれば「入金済み」に、まだならお客様へ確認の連絡をしてください。',
         go: { label: '請求書を見る' } });
@@ -571,7 +571,7 @@
 
     if (by['rv-low']) put('reviews-admin', '★1〜3 未返信 ' + by['rv-low'].count, 'action');
     if (by['rv-todo']) put('reviews-admin', '未返信 ' + by['rv-todo'].count, 'action');
-    if (by['qt-overdue']) put('quotes-admin', '支払い期限切れ ' + by['qt-overdue'].count, 'urgent');
+    if (by['qt-overdue']) put('bills-admin', '支払い期限切れ ' + by['qt-overdue'].count, 'urgent');
     if (by['qt-follow']) put('quotes-admin', 'フォロー ' + by['qt-follow'].count, 'action');
     if (by['vid-failed']) put('video-admin', '失敗 ' + by['vid-failed'].count, 'urgent');
     if (by['vid-inbox']) put('video-admin', '公開待ち ' + by['vid-inbox'].count, 'action');

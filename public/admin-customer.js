@@ -252,6 +252,7 @@
     html += '<div class="cu-acts">' +
       (email ? '<a class="pri" href="mailto:' + esc(email) + '">メールを書く</a>' : '') +
       (visibleTab('quotes-admin') ? '<button type="button" data-cu="quote">この方あての見積書を作る</button>' : '') +
+      (visibleTab('bills-admin') ? '<button type="button" data-cu="invoice">請求書を作る</button><button type="button" data-cu="receipt">領収書を作る</button>' : '') +
       (email ? '<button type="button" data-cu="copy">メールアドレスをコピー</button>' : '') +
     '</div>';
     html += first ? '<p class="cu-note">はじめての記録: ' + esc(ymd(first)) + (d.mb ? '　・会員' + (d.mb.unsubscribed ? '（お知らせメールは配信停止中）' : '') : '') + '</p>' : '';
@@ -277,6 +278,14 @@
     if (q) q.addEventListener('click', function () {
       var pre = { toCompany: d.company || '', toPerson: d.name || '', toEmail: email || '', honor: d.company && !d.name ? '御中' : '様' };
       go('quotes-admin', function () { if (window.lumQuoteNew) window.lumQuoteNew(pre); });
+    });
+    // 見積書を使わずに、請求書・領収書を直接（宛先を入れた状態で）。
+    body.querySelectorAll('[data-cu="invoice"], [data-cu="receipt"]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var pre = { toCompany: d.company || '', toPerson: d.name || '', toEmail: email || '', honor: d.company && !d.name ? '御中' : '様' };
+        var kind = b.getAttribute('data-cu');
+        go('bills-admin', function () { if (window.lumBillNew) window.lumBillNew(kind, pre); });
+      });
     });
     var c = body.querySelector('[data-cu="copy"]');
     if (c) c.addEventListener('click', function () {

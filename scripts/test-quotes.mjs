@@ -754,4 +754,23 @@ await test('窓口: 入金ごとの領収書・同じ入金で2枚作らない�
   assert.equal((await post({ action: 'settings', settings: { receiptPrefix: 'INV' } })).status, 400)
 })
 
+await test('窓口: 見積書なしで請求書・領収書を直接作る・要対応の数は画面ごとに分ける', async () => {
+  const inv = await post({ action: 'save', quote: { kind: 'invoice', toCompany: '直接請求株式会社', honor: '御中', subject: '保守（10月分）', delivery: '2026年10月分', dueDate: '2026-01-31', items: [item(30000)] } })
+  assert.equal(inv.status, 200, inv.d.message)
+  assert.equal(inv.d.quote.kind, 'invoice')
+  assert.match(inv.d.quote.number, /^INV-/)
+  assert.equal(inv.d.quote.fromQuote, '')
+  const rc = await post({ action: 'save', quote: { kind: 'receipt', toPerson: '店頭 太郎', subject: '物販', proviso: '商品代として', payMethod: '現金', items: [{ ...item(1100), }], taxMode: 'incl' } })
+  assert.equal(rc.status, 200, rc.d.message)
+  assert.equal(rc.d.quote.kind, 'receipt')
+  assert.match(rc.d.quote.number, /^RCP-/)
+  assert.equal(rc.d.quote.payMethod, '現金')
+  // 送付済みにして期限を過ぎた請求書は、請求書の画面の数に入り、見積書の画面の数には入らない
+  await post({ action: 'status', id: inv.d.quote.id, status: 'sent' })
+  const b = (await get('?view=badge')).d
+  assert.ok(b.bill.overdue >= 1)
+  assert.equal(b.quote.overdue, 0)
+  assert.equal(b.overdue, b.bill.overdue, '全体の数（ホーム用）はこれまでどおり')
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)

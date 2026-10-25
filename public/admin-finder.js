@@ -193,6 +193,10 @@
     if (visibleTab('booking-admin')) out.push({ k: '操作', t: '要対応の予約を見る', s: '新しい予約・確定待ち・未記入', run: function () { go('booking-admin', function () { if (window.lumBookOpen) window.lumBookOpen(''); }); } });
     if (visibleTab('inquiries-admin')) out.push({ k: '操作', t: '未対応の問い合わせを見る', s: '問い合わせ管理の受信箱', run: function () { go('inquiries-admin'); } });
     if (visibleTab('quotes-admin')) out.push({ k: '操作', t: '新しい見積書を作る', s: '見積書', run: function () { go('quotes-admin', function () { if (window.lumQuoteNew) window.lumQuoteNew(); }); } });
+    if (visibleTab('bills-admin')) {
+      out.push({ k: '操作', t: '新しい請求書を作る', s: '請求書・領収書', run: function () { go('bills-admin', function () { if (window.lumBillNew) window.lumBillNew('invoice'); }); } });
+      out.push({ k: '操作', t: '新しい領収書を作る', s: '請求書・領収書', run: function () { go('bills-admin', function () { if (window.lumBillNew) window.lumBillNew('receipt'); }); } });
+    }
     if (visibleTab('news-admin')) out.push({ k: '操作', t: 'お知らせを書く', s: 'お知らせ投稿', run: function () { go('news-admin'); } });
     out.push({ k: '操作', t: notifyOn() ? '新着のデスクトップ通知を止める（いまはオン）' : '新着をデスクトップに知らせる（いまはオフ）',
       s: '管理画面を開いているあいだ、新しい問い合わせ・予約が入ったら画面の隅に知らせます', run: toggleNotify });
