@@ -44,38 +44,55 @@ const MAX_FAILS = 5
 // Redis is configured the count is shared across every instance.
 const fails = new Map()
 
+// 数えるのは「違うキーを入れた回数」です。同じ間違ったキーが何度届いても1回と数えます。
+// 画面を開くと、いくつもの部品が同じキーで同時に問い合わせるため、1回の入力ミスで
+// 何回分も数えてしまい、5回入れる前にロックされていました。キーの無い問い合わせ
+// （ログイン前の画面など）は、そもそも試行ではないので数えません。
+// 当て推量（毎回ちがうキー）は今までどおり5回で止まります。
+const RL = (ip) => `${KV}rl2:${ip}`
+
 async function failState(ip, cfg) {
   if (!cfg) {
     const rec = fails.get(ip)
     if (!rec || Date.now() > rec.resetAt) return { count: 0, retryAfter: 0 }
-    return { count: rec.count, retryAfter: Math.ceil((rec.resetAt - Date.now()) / 1000) }
+    return { count: rec.keys.size, retryAfter: Math.ceil((rec.resetAt - Date.now()) / 1000) }
   }
   try {
-    const [count, ttl] = await pipeline(cfg, [['GET', `${KV}rl:${ip}`], ['TTL', `${KV}rl:${ip}`]])
+    const [count, ttl] = await pipeline(cfg, [['SCARD', RL(ip)], ['TTL', RL(ip)]])
     return { count: Number(count) || 0, retryAfter: Math.max(0, Number(ttl) || 0) }
   } catch (_) {
     return { count: 0, retryAfter: 0 }
   }
 }
 
-async function recordFail(ip, cfg) {
+async function guessId(guess) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('lum:rl:' + String(guess)))
+  return [...new Uint8Array(d).slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** 間違ったキーを1つ数えます（同じものは1回だけ）。数えたあとの回数を返します。 */
+async function recordFail(ip, cfg, guess) {
+  const g = String(guess || '')
+  if (!g) return -1
+  const id = await guessId(g)
   if (!cfg) {
     const now = Date.now()
-    const rec = fails.get(ip)
-    if (!rec || now > rec.resetAt) fails.set(ip, { count: 1, resetAt: now + WINDOW_S * 1000 })
-    else rec.count += 1
+    let rec = fails.get(ip)
+    if (!rec || now > rec.resetAt) { rec = { keys: new Set(), resetAt: now + WINDOW_S * 1000 }; fails.set(ip, rec) }
+    rec.keys.add(id)
     if (fails.size > 1000) fails.clear()
-    return
+    return rec.keys.size
   }
   try {
-    await pipeline(cfg, [['INCR', `${KV}rl:${ip}`], ['EXPIRE', `${KV}rl:${ip}`, WINDOW_S, 'NX']])
-  } catch (_) { /* never block a login on the limiter being unavailable */ }
+    const r = await pipeline(cfg, [['SADD', RL(ip), id], ['EXPIRE', RL(ip), WINDOW_S, 'NX'], ['SCARD', RL(ip)]])
+    return Number(r[2]) || 0
+  } catch (_) { return -1 /* never block a login on the limiter being unavailable */ }
 }
 
 async function clearFails(ip, cfg) {
   fails.delete(ip)
   if (!cfg) return
-  try { await pipeline(cfg, [['DEL', `${KV}rl:${ip}`]]) } catch (_) {}
+  try { await pipeline(cfg, [['DEL', RL(ip)], ['DEL', `${KV}rl:${ip}`]]) } catch (_) {}
 }
 
 export function json(body, status = 200, extra) {
@@ -187,7 +204,7 @@ export async function requireAdmin(req, opts) {
         }
         return null
       }
-      await recordFail(ip, cfg)
+      await recordFail(ip, cfg, 'share:' + token)
       return fail({
         ok: false, code: 'SHARE_INVALID',
         message: 'この共有リンクは使えません。失効したか、有効期限が切れています。発行元に再発行を依頼してください。',
@@ -208,16 +225,18 @@ export async function requireAdmin(req, opts) {
   // ログイン画面の「入る」から来たときだけ（開き直すたびの確認は記録しません）。
   const signingIn = endpoint === 'admin-ping' && req.headers.get('x-lum-login') === '1'
   const wrong = async (staffId) => {
-    await recordFail(ip, cfg)
+    // キーが空のもの（ログイン前の画面からの問い合わせなど）は、試行として数えません。
+    if (!submitted) return fail({ ok: false, code: 'UNAUTHORIZED', message: '管理キーを入れてください。' }, 401)
+    const n = await recordFail(ip, cfg, submitted)
     // だれのものでもないキーでのログイン失敗も残します（名前は分からないので「不明なキー」）。
     if (signingIn && !staffId) await audit({ id: 'unknown', name: '不明なキー', role: '' }, 'failed')
     if (staffId) await recordUserFail(staffId, cfg)
-    const left = MAX_FAILS - (state.count + 1)
+    const left = MAX_FAILS - (n >= 0 ? n : state.count + 1)
     return fail({
       ok: false, code: 'UNAUTHORIZED',
       message: left > 0
-        ? `管理キーが正しくありません。（あと${left}回でロックされます）`
-        : '管理キーが正しくありません。回数上限に達したため、15分間ロックされます。',
+        ? `管理キーが正しくありません。（${MAX_FAILS}回まちがえるとロックされます。あと${left}回）`
+        : `管理キーが正しくありません。${MAX_FAILS}回まちがえたため、15分間ロックされます。`,
     }, 401)
   }
 
@@ -282,7 +301,7 @@ export async function requireAdmin(req, opts) {
         }
         const r = await checkSecondFactor(rec.totp, code)
         if (!r.ok) {
-          await recordFail(ip, cfg)
+          await recordFail(ip, cfg, 'otp:' + rec.id + ':' + code)
           await recordUserFail(rec.id, cfg)
           await audit({ id: rec.id, name: rec.name, role: rec.role }, 'failed')
           return fail({ ok: false, code: 'OTP_WRONG', message: 'コードが正しくありません。認証アプリの、いま出ている6けたを入れてください（予備のコードも使えます）。' }, 401)

@@ -19,13 +19,15 @@ delete process.env.KV_REST_API_URL
 delete process.env.KV_REST_API_TOKEN
 
 /* ---- 作り物の Redis（使うコマンドだけ） ---- */
-const str = new Map(), hashes = new Map(), lists = new Map(), ttls = new Map()
+const str = new Map(), hashes = new Map(), lists = new Map(), ttls = new Map(), sets = new Map()
 function redis(cmds) {
   return cmds.map((c) => {
     const op = String(c[0]).toUpperCase(), k = c[1]
     if (op === 'GET') return { result: str.get(k) ?? null }
     if (op === 'SET') { str.set(k, String(c[2])); return { result: 'OK' } }
-    if (op === 'DEL') { str.delete(k); hashes.delete(k); lists.delete(k); return { result: 1 } }
+    if (op === 'DEL') { str.delete(k); hashes.delete(k); lists.delete(k); sets.delete(k); ttls.delete(k); return { result: 1 } }
+    if (op === 'SADD') { const st = sets.get(k) || new Set(); st.add(String(c[2])); sets.set(k, st); return { result: 1 } }
+    if (op === 'SCARD') return { result: sets.get(k)?.size || 0 }
     if (op === 'INCR') { const v = (Number(str.get(k)) || 0) + 1; str.set(k, String(v)); return { result: v } }
     if (op === 'EXPIRE') { if (!(c[3] === 'NX' && ttls.has(k))) ttls.set(k, Number(c[2])); return { result: 1 } }
     if (op === 'TTL') return { result: ttls.get(k) ?? -1 }
@@ -417,6 +419,25 @@ await test('2段階認証: 設定・キーだけでは入れない・コード�
   await call(staffApi, 'POST', 'staff', 'test-owner-key', { action: 'otp.reset', id })
   assert.equal((await call(ping, 'GET', 'admin-ping', ok.data.session, undefined, '203.0.113.60')).data.code, 'STAFF_REVOKED')
   assert.equal((await login('', '203.0.113.61')).status, 200, 'リセット後はキーだけで入れる')
+})
+
+await test('ロックは5回まちがえてから（同じキーの重複・空のキーは数えない）', async () => {
+  const ip = '198.51.100.7'
+  // 空のキー（ログイン前の画面からの問い合わせ）は何回来ても数えない。
+  for (let i = 0; i < 8; i++) assert.equal((await call(ping, 'GET', 'admin-ping', '', undefined, ip)).status, 401)
+  // 同じ間違ったキーが何度届いても1回。
+  for (let i = 0; i < 8; i++) assert.equal((await call(ping, 'GET', 'admin-ping', 'wrong-1', undefined, ip)).status, 401)
+  assert.equal((await call(ping, 'GET', 'admin-ping', 'test-owner-key', undefined, ip)).status, 200, '1回まちがえただけでは開ける')
+  // 正しく入ると数え直し。ちがうキーを4回まちがえても、まだ開ける。
+  const msgs = []
+  for (let i = 1; i <= 4; i++) msgs.push((await call(ping, 'GET', 'admin-ping', 'wrong-x' + i, undefined, ip)).data.message)
+  assert.match(msgs[3], /あと1回/)
+  assert.equal((await call(ping, 'GET', 'admin-ping', 'test-owner-key', undefined, ip)).status, 200, '4回までは開ける')
+  // 5回まちがえたら、そこでロック。
+  for (let i = 1; i <= 5; i++) await call(ping, 'GET', 'admin-ping', 'wrong-y' + i, undefined, ip)
+  const locked = await call(ping, 'GET', 'admin-ping', 'test-owner-key', undefined, ip)
+  assert.equal(locked.status, 429)
+  str.delete('x'); sets.clear(); ttls.clear()
 })
 
 await test('個人の情報の書き出しは、操作の記録に残す対象になる', async () => {
