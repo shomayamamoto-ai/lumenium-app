@@ -280,7 +280,9 @@
         (function () {
           try {
             var l = location
-            var play = /[?&]intro\b/.test(l.search) || (l.pathname === '/' && !navigator.webdriver)
+            // ページの途中（#contact など）を指して来たときは流しません。ほかのページの
+            // 「無料で相談する」から来た人が、ムービーを待たずにフォームへ行けるように。
+            var play = /[?&]intro\b/.test(l.search) || (l.pathname === '/' && !l.hash && !navigator.webdriver)
             if (!play) return
             window.__lumIntro = true
             var b = document.getElementById('boot-splash')
