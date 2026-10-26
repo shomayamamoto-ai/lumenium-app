@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
 import { SERVICES } from '../data/services'
@@ -13,20 +13,16 @@ import Footer from './Footer'
  * トップページ。
  *
  * 1ページで「何をしている会社か → いくらか → 本当にできるのか → どう
- * 進むか → 相談」まで、5画面ほどで読み終わる長さにしています。お知らせ・
- * 社名の由来・代表の経歴・お客様の声・ブログは、それぞれの詳しいページ
- * （/about.html など）に任せ、ここには置きません。
+ * 進むか → 相談」まで読める並びはそのままに、見た目を「明るい地・写真と
+ * 白いカードの交互・筆記体の英語見出し＋日本語の小見出し・赤い丸ボタン」に
+ * しています（見本にしたサイトの組み方）。
  *
- * 見た目の方針（「AIが作ったサイトっぽさ」を消すため）:
- *   ・紺と紫の光るグラデーションをやめ、紙のような明るい地に黒い文字。
- *     色は相談ボタンの藍色1色だけ。
- *   ・見出しの上の英語ラベル（YOUR PAIN POINTS など）をやめ、日本語で。
- *   ・「中央揃えの見出し＋アイコン付きカード3枚」の繰り返しをやめ、
- *     左揃えの表と一覧で読ませる。
- *   ・動く演出はなし。本物の顔（代表の写真）と、本物の仕事を先に見せる。
+ * 写真の代わりに使っているのは、実際の管理画面の画面（見本の数字）と代表の
+ * 写真だけです。作り物の写真は使いません。画面の下には「数字は見本」と添えます。
  *
  * 文章はすべて管理画面から直せるデータ（text.js の lp、services.js、
- * site.js、faq.js）から読みます。
+ * site.js、faq.js）から読みます。英語の見出し（About など）は飾りなので、
+ * 読み上げでは飛ばします（aria-hidden）。
  */
 
 // 料金の表記「3万円〜(案件規模に応じてご提案)」から、表に載せる部分だけ
@@ -94,26 +90,81 @@ function HeroMovie() {
   )
 }
 
+/* 英語の筆記体の見出し（飾り）と、日本語の見出し。 */
+function Title({ en, id, children, lead, align = 'center' }) {
+  return (
+    <header className={`og-title og-title--${align}`}>
+      <p className="og-en" aria-hidden="true">{en}</p>
+      <h2 id={id} className="og-ja">{children}</h2>
+      {lead ? <p className="og-lead">{lead}</p> : null}
+    </header>
+  )
+}
+
+/* 画面の写真。画面例であることと、数字が見本であることを必ず添えます。 */
+function Shot({ src, alt, note, className = '', eager = false }) {
+  return (
+    <figure className={`og-shot ${className}`}>
+      <img src={src} alt={alt} width="1440" height="900" loading={eager ? 'eager' : 'lazy'} decoding="async" {...(eager ? { fetchpriority: 'high' } : {})} />
+      {note ? <figcaption>{note}</figcaption> : null}
+    </figure>
+  )
+}
+
+const SYS_ICON = { 'sys-site': 'web', 'sys-sns': 'sns', 'sys-phone': 'megaphone', 'sys-card': 'users', 'sys-match': 'cast', 'sys-stock': 'chip', 'sys-contract': 'book' }
+const SHOT_NOTE = '管理画面の画面例（数字・名前は見本です）'
+
+/* 横に流れる一覧（左右のボタンでも、指で横にずらしても動きます）。 */
+function Carousel({ label, children }) {
+  const ref = useRef(null)
+  const by = (dir) => {
+    const el = ref.current
+    if (!el) return
+    const card = el.querySelector('.og-sys-card')
+    el.scrollBy({ left: dir * ((card ? card.getBoundingClientRect().width : 320) + 24), behavior: 'smooth' })
+  }
+  return (
+    <div className="og-carousel">
+      <button type="button" className="og-arrow og-arrow--prev" onClick={() => by(-1)} aria-label="前へ">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      <div className="og-track" ref={ref} role="list" aria-label={label} tabIndex={0}>{children}</div>
+      <button type="button" className="og-arrow og-arrow--next" onClick={() => by(1)} aria-label="次へ">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+    </div>
+  )
+}
+
+const Arrow = () => <span className="og-btn-arrow" aria-hidden="true">→</span>
+
 export default function Landing({ onPrivacy }) {
-  // 中心の2つ（システム開発・HP制作、AI研修）は内容まで見せ、ほかは一覧で。
+  // 中心の2つ（システム開発・HP制作、AI研修）は内容まで見せ、ほかはカードで。
   const MAIN = ['web', 'ai']
   const main = SERVICES.filter((s) => MAIN.includes(s.id))
   const other = SERVICES.filter((s) => !MAIN.includes(s.id))
   const faqs = practicalFaq()
+  const pics = {
+    web: { src: '/img/home/admin-stats.jpg', alt: 'アクセス解析の画面（管理画面の画面例）', note: SHOT_NOTE, en: 'System' },
+    ai: { src: '/profile.jpg', alt: '代表 山本 捷真', note: '研修の講師は代表の山本が務めます', en: 'Training', portrait: true },
+  }
 
   return (
-    <div className="lp">
-      {/* 1. 最初の画面 */}
-      <section className="lp-hero" id="top">
-        <div className="lp-wrap lp-hero-grid has-movie">
-          <div className="lp-hero-copy">
-            <h1 className="lp-h1">{heroTitle(SECTION.lp.title)}</h1>
-            <p className="lp-lead">{rich(SECTION.lp.lead)}</p>
-            <div className="lp-actions">
-              <a href="#contact" className="lp-btn lp-btn--primary" data-cta="hero-consult">{SECTION.lp.ctaPrimary}</a>
-              <a href="#services" className="lp-btn lp-btn--ghost" data-cta="hero-services">{SECTION.lp.ctaSecondary}</a>
+    <div className="lp og">
+      {/* 1. 最初の画面：大きな画面の写真の上に、白いカード */}
+      <section className="og-hero" id="top">
+        <div className="og-hero-bg" aria-hidden="true">
+          <img src="/img/home/admin-portal.jpg" alt="" width="1440" height="900" fetchpriority="high" decoding="async" />
+        </div>
+        <div className="og-wrap og-hero-in">
+          <div className="og-hero-card">
+            <p className="og-en og-en--hero" aria-hidden="true">Lumenium</p>
+            <h1 className="og-h1 lp-h1">{heroTitle(SECTION.lp.title)}</h1>
+            <div className="og-actions">
+              <a href="#contact" className="og-btn og-btn--red" data-cta="hero-consult">{SECTION.lp.ctaPrimary}<Arrow /></a>
+              <a href="#services" className="og-btn og-btn--line" data-cta="hero-services">{SECTION.lp.ctaSecondary}<Arrow /></a>
             </div>
-            <ul className="lp-assure">
+            <ul className="og-assure">
               <li>{SECTION.lp.assure1}</li>
               <li>{SECTION.lp.assure2}</li>
               <li>{SECTION.lp.assure3}</li>
@@ -121,187 +172,211 @@ export default function Landing({ onPrivacy }) {
           </div>
           <HeroMovie />
         </div>
+        <p className="og-hero-note">背景は管理画面の画面例です（数字・名前は見本）</p>
       </section>
 
-      {/* 2. できること（サービスと料金を1つの表に） */}
-      <section className="lp-sec" id="services" aria-labelledby="lp-services-h">
-        <div className="lp-wrap">
-          <header className="lp-sec-head">
-            <h2 id="lp-services-h" className="lp-h2">{SECTION.lp.servicesTitle}</h2>
-            <p className="lp-sec-lead">{rich(SECTION.lp.servicesLead)}</p>
-          </header>
-          <div className="lp-main">
-            {main.map((s) => (
-              <article key={s.id} className="lp-main-card">
-                <div className="lp-main-head">
-                  <span className="lp-svc-icon" aria-hidden="true"><LineIcon name={s.id} size={22} /></span>
-                  <h3 className="lp-main-name">{s.title}</h3>
-                </div>
-                <p className="lp-main-desc">{rich(s.desc)}</p>
-                <div className="lp-main-cols">
+      {/* 2. About */}
+      <section className="og-sec og-about" id="about" aria-labelledby="og-about-h">
+        <svg className="og-deco og-deco--l" viewBox="0 0 200 200" aria-hidden="true"><path d="M100 10 L112 88 L190 100 L112 112 L100 190 L88 112 L10 100 L88 88 Z M40 40 L160 160 M160 40 L40 160" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
+        <svg className="og-deco og-deco--r" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" strokeWidth="1" /><circle cx="100" cy="100" r="54" fill="none" stroke="currentColor" strokeWidth="1" /><path d="M100 14v172M14 100h172" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
+        <div className="og-wrap og-narrow">
+          <Title en="About" id="og-about-h">Lumeniumについて</Title>
+          <p className="og-about-text">{rich(SECTION.lp.lead)}</p>
+        </div>
+      </section>
+
+      {/* 3. Service：写真と白いカードを左右交互に */}
+      <section className="og-sec og-service" id="services" aria-labelledby="lp-services-h">
+        <div className="og-wrap">
+          <Title en="Service" id="lp-services-h" lead={rich(SECTION.lp.servicesLead)}>{SECTION.lp.servicesTitle}</Title>
+        </div>
+        {main.map((s, i) => {
+          const pic = pics[s.id] || pics.web
+          return (
+            <article key={s.id} className={`og-feature ${i % 2 ? 'is-rev' : ''}`}>
+              <div className={`og-feature-pic ${pic.portrait ? 'is-portrait' : ''}`}>
+                <Shot src={pic.src} alt={pic.alt} note={pic.note} />
+              </div>
+              <div className="og-feature-card">
+                <p className="og-en og-en--card" aria-hidden="true">{pic.en}</p>
+                <h3 className="og-feature-name">
+                  <span className="og-ic" aria-hidden="true"><LineIcon name={s.id} size={20} /></span>{s.title}
+                </h3>
+                <p className="og-feature-desc">{rich(s.desc)}</p>
+                <div className="og-feature-cols">
                   <div>
-                    <p className="lp-main-label">{SECTION.lp.servicesFor}</p>
+                    <p className="og-label">{SECTION.lp.servicesFor}</p>
                     <ul>{s.highlights.map((h) => <li key={h}>{h}</li>)}</ul>
                   </div>
                   <div>
-                    <p className="lp-main-label">{SECTION.lp.servicesDone}</p>
+                    <p className="og-label">{SECTION.lp.servicesDone}</p>
                     <ul>{s.examples.map((e) => <li key={e}>{e}</li>)}</ul>
                   </div>
                 </div>
-                <div className="lp-main-foot">
-                  <p className="lp-main-price">
-                    {/* 「システム … / サイト … / LP …」は1項目ずつ改行（項目の途中で折れないように） */}
-                    {priceHead(s.price).split(' / ').map((p) => <span key={p} className="lp-main-price-item">{p}</span>)}
-                  </p>
-                  <a href={`/services/${s.id}.html`} className="lp-btn lp-btn--ghost lp-main-go">{SECTION.lp.mainMore.replace('{name}', s.title.split('・')[0])} →</a>
-                </div>
-              </article>
-            ))}
-          </div>
+                <p className="og-price">
+                  {priceHead(s.price).split(' / ').map((p) => <span key={p}>{p}</span>)}
+                </p>
+                <a href={`/services/${s.id}.html`} className="og-btn og-btn--line">{SECTION.lp.mainMore.replace('{name}', s.title.split('・')[0])}<Arrow /></a>
+              </div>
+            </article>
+          )
+        })}
+        <nav className="og-wrap og-next" aria-label="次に見る">
+          <span className="og-next-h">{SECTION.lp.nextTitle}</span>
+          <a href="/works.html">{SECTION.lp.nextWorks}<Arrow /></a>
+          <a href="/pricing.html">{SECTION.lp.nextPricing}<Arrow /></a>
+          <a href="#contact">{SECTION.lp.nextBook}<Arrow /></a>
+        </nav>
+      </section>
 
-          {/* トップだけで帰る人が7割。サービスを読んだところで、次の行き先を
-              3つ並べます。 */}
-          <nav className="lp-next" aria-label="次に見る">
-            <span className="lp-next-h">{SECTION.lp.nextTitle}</span>
-            <a href="/works.html">{SECTION.lp.nextWorks} →</a>
-            <a href="/pricing.html">{SECTION.lp.nextPricing} →</a>
-            <a href="#contact">{SECTION.lp.nextBook} →</a>
-          </nav>
-
-          <h3 className="lp-h3">{SECTION.lp.servicesOther}</h3>
-          <ul className="lp-svc">
+      {/* 4. ほかのサービス：淡い背景の上に白いカード */}
+      <section className="og-sec og-soft og-soft--a" aria-labelledby="og-other-h">
+        <div className="og-wrap">
+          <Title en="Other" id="og-other-h">{SECTION.lp.servicesOther}</Title>
+          <ul className="og-cards og-cards--4">
             {other.map((s) => (
-              <li key={s.id} className="lp-svc-row">
-                <span className="lp-svc-icon" aria-hidden="true"><LineIcon name={s.id} size={20} /></span>
-                <div className="lp-svc-main">
-                  <p className="lp-svc-name">{s.title}</p>
-                  <p className="lp-svc-desc">{rich(s.desc)}</p>
-                  {s.partner && (
-                    <p className="lp-svc-partner">
-                      制作パートナー：<a href={s.partnerUrl} target="_blank" rel="noopener noreferrer">{s.partner}</a>
-                    </p>
-                  )}
-                </div>
-                <p className="lp-svc-price">{priceHead(s.price)}</p>
-                <a href={`/services/${s.id}.html`} className="lp-svc-more" aria-label={`${s.title}を詳しく見る`}>{SECTION.lp.servicesMore} →</a>
+              <li key={s.id} className="og-card">
+                <span className="og-card-ic" aria-hidden="true"><LineIcon name={s.id} size={26} /></span>
+                <p className="og-card-t">{s.title}</p>
+                <p className="og-card-d">{rich(s.desc)}</p>
+                {s.partner && (
+                  <p className="og-card-partner">制作パートナー：<a href={s.partnerUrl} target="_blank" rel="noopener noreferrer">{s.partner}</a></p>
+                )}
+                <p className="og-card-price">{priceHead(s.price)}</p>
+                <a href={`/services/${s.id}.html`} className="og-more" aria-label={`${s.title}を詳しく見る`}>{SECTION.lp.servicesMore}<Arrow /></a>
               </li>
             ))}
           </ul>
         </div>
       </section>
 
-      {/* 作ってきたシステム。「なんでも作れる」だけでは何を頼めるか伝わらないので、
-          実際に作ったものを「誰が・何に困って・何を入れたか」で並べます。
-          相談ボタンは、下のフォームにそのシステム名を入れて移動します。 */}
-      <section className="lp-sec lp-sec--alt" id="systems" aria-labelledby="lp-systems-h">
-        <div className="lp-wrap">
-          <header className="lp-sec-head">
-            <h2 id="lp-systems-h" className="lp-h2">{SECTION.lp.systemsTitle}</h2>
-            <p className="lp-sec-lead">{rich(SECTION.lp.systemsLead)}</p>
-          </header>
-          <div className="lp-sys">
-            {SYSTEMS.map((sys) => (
-              <article key={sys.id} className="lp-sys-card">
-                <p className="lp-sys-tag">{sys.tag}</p>
-                <h3 className="lp-sys-name">{rich(sys.name)}</h3>
-                <p className="lp-sys-who"><span>{SECTION.lp.systemsWho}</span>{sys.who}</p>
-                <p className="lp-sys-desc">{rich(sys.short)}</p>
-                <div className="lp-sys-acts">
-                  <a href={`/systems.html#${sys.id}`} className="lp-sys-more">{SECTION.lp.systemsMore} →</a>
-                  <a
-                    href="#contact"
-                    className="lp-sys-ask"
-                    data-cta={`system-${sys.id}`}
-                    onClick={() => askAbout(sys.id)}
-                  >{SECTION.lp.systemsAsk}</a>
+      {/* 5. Works：作ってきたシステムを横に流す */}
+      <section className="og-sec og-works" id="systems" aria-labelledby="lp-systems-h">
+        <div className="og-wrap">
+          <Title en="Works" id="lp-systems-h" lead={rich(SECTION.lp.systemsLead)}>{SECTION.lp.systemsTitle}</Title>
+        </div>
+        <div className="og-wrap og-wrap--wide">
+          <Carousel label={SECTION.lp.systemsTitle}>
+            {SYSTEMS.map((sys, i) => (
+              <article key={sys.id} className="og-sys-card" role="listitem">
+                <div className={`og-sys-art og-tone-${i % 4}`} aria-hidden="true">
+                  <LineIcon name={SYS_ICON[sys.id] || 'web'} size={44} />
+                  <span>{String(i + 1).padStart(2, '0')}</span>
+                </div>
+                <div className="og-sys-body">
+                  <p className="og-sys-tag">{sys.tag}</p>
+                  <h3 className="og-sys-name">{rich(sys.name)}</h3>
+                  <p className="og-sys-who"><span>{SECTION.lp.systemsWho}</span>{sys.who}</p>
+                  <p className="og-sys-desc">{rich(sys.short)}</p>
+                  <div className="og-sys-acts">
+                    <a href={`/systems.html#${sys.id}`} className="og-more">{SECTION.lp.systemsMore}<Arrow /></a>
+                    <a href="#contact" className="og-btn og-btn--red og-btn--sm" data-cta={`system-${sys.id}`} onClick={() => askAbout(sys.id)}>{SECTION.lp.systemsAsk}</a>
+                  </div>
                 </div>
               </article>
             ))}
-          </div>
-          <p className="lp-sys-note">{SECTION.lp.systemsNote}</p>
-          <a href="/systems.html" className="lp-link">{SECTION.lp.systemsAll.replace('{n}', String(SYSTEMS.length))} →</a>
+          </Carousel>
+        </div>
+        <div className="og-wrap og-center">
+          <p className="og-note">{SECTION.lp.systemsNote}</p>
+          <a href="/systems.html" className="og-btn og-btn--red">{SECTION.lp.systemsAll.replace('{n}', String(SYSTEMS.length))}<Arrow /></a>
         </div>
       </section>
 
-      {/* Webの強み: このサイトと同じような管理画面 */}
-      <section className="lp-admin" id="admin" aria-labelledby="lp-admin-h">
-        <div className="lp-wrap lp-admin-grid">
-          <div className="lp-admin-copy">
-            <h2 id="lp-admin-h" className="lp-h2">{rich(SECTION.lp.adminTitle)}</h2>
-            <p className="lp-admin-lead">{rich(SECTION.lp.adminLead)}</p>
-            <p className="lp-admin-note">{rich(SECTION.lp.adminNote)}</p>
-            <p className="lp-admin-pitch">{rich(SECTION.lp.adminPitch)}</p>
-            <a href="#contact" className="lp-btn lp-btn--light" data-cta="admin-consult">{SECTION.lp.adminCta}</a>
+      {/* 6. 管理画面：大きな白いカード（画面の写真と説明） */}
+      <section className="og-sec og-soft og-soft--b" id="admin" aria-labelledby="lp-admin-h">
+        <div className="og-wrap">
+          <Title en="Management" id="lp-admin-h">{rich(SECTION.lp.adminTitle)}</Title>
+          <div className="og-panel">
+            <div className="og-panel-top">
+              <Shot src="/img/home/admin-portal.jpg" alt="管理画面のホーム（画面例）" note={SHOT_NOTE} className="og-panel-shot" />
+              <div className="og-panel-copy">
+                <p className="og-panel-lead">{rich(SECTION.lp.adminLead)}</p>
+                <p className="og-panel-note">{rich(SECTION.lp.adminNote)}</p>
+                <p className="og-panel-pitch">{rich(SECTION.lp.adminPitch)}</p>
+                <a href="#contact" className="og-btn og-btn--red" data-cta="admin-consult">{SECTION.lp.adminCta}<Arrow /></a>
+              </div>
+            </div>
+            <ul className="og-feats">
+              {[
+                ['creative', SECTION.lp.adminF1Title, SECTION.lp.adminF1Desc],
+                ['megaphone', SECTION.lp.adminF2Title, SECTION.lp.adminF2Desc],
+                ['chart', SECTION.lp.adminF3Title, SECTION.lp.adminF3Desc],
+                ['search', SECTION.lp.adminF4Title, SECTION.lp.adminF4Desc],
+                ['users', SECTION.lp.adminF5Title, SECTION.lp.adminF5Desc],
+                ['sns', SECTION.lp.adminF6Title, SECTION.lp.adminF6Desc],
+              ].map(([icon, t, d]) => (
+                <li key={t}>
+                  <span className="og-ic" aria-hidden="true"><LineIcon name={icon} size={20} /></span>
+                  <div>
+                    <p className="og-feat-t">{t}</p>
+                    <p className="og-feat-d">{d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="lp-admin-list">
-            {[
-              ['creative', SECTION.lp.adminF1Title, SECTION.lp.adminF1Desc],
-              ['megaphone', SECTION.lp.adminF2Title, SECTION.lp.adminF2Desc],
-              ['chart', SECTION.lp.adminF3Title, SECTION.lp.adminF3Desc],
-              ['search', SECTION.lp.adminF4Title, SECTION.lp.adminF4Desc],
-              ['users', SECTION.lp.adminF5Title, SECTION.lp.adminF5Desc],
-              ['sns', SECTION.lp.adminF6Title, SECTION.lp.adminF6Desc],
-            ].map(([icon, t, d]) => (
-              <li key={t}>
-                <span className="lp-admin-icon" aria-hidden="true"><LineIcon name={icon} size={20} /></span>
-                <div>
-                  <p className="lp-admin-t">{t}</p>
-                  <p className="lp-admin-d">{d}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
       </section>
 
-      {/* 3. これまでの仕事 */}
-      <section className="lp-sec lp-sec--alt" id="works" aria-labelledby="lp-works-h">
-        <div className="lp-wrap">
-          <header className="lp-sec-head">
-            <h2 id="lp-works-h" className="lp-h2">{SECTION.lp.worksTitle}</h2>
-          </header>
-          <div className="lp-cases">
+      {/* 帯：管理画面の画面例を3枚 */}
+      <div className="og-strip" aria-label="管理画面の画面例">
+        <div className="og-strip-row">
+          <Shot src="/img/home/admin-quotes.jpg" alt="見積書の画面（画面例）" />
+          <Shot src="/img/home/admin-video.jpg" alt="SNS（動画）の画面（画面例）" />
+          <Shot src="/img/home/admin-seo.jpg" alt="検索・AIでの見え方の画面（画面例）" />
+        </div>
+        <p className="og-strip-note">見積書・動画づくり・AIでの見え方の画面（数字・名前は見本です）</p>
+      </div>
+
+      {/* 7. これまでの仕事 */}
+      <section className="og-sec og-achieve" id="works" aria-labelledby="lp-works-h">
+        <div className="og-wrap">
+          <Title en="Achievement" id="lp-works-h">{SECTION.lp.worksTitle}</Title>
+          <div className="og-cards og-cards--3">
             {CASE_STUDIES.map((c) => (
-              <article key={c.title} className="lp-case">
-                <p className="lp-case-tag">{c.tag}</p>
-                <h3 className="lp-case-title">{c.title}</h3>
-                <p className="lp-case-desc">{rich(c.desc)}</p>
+              <article key={c.title} className="og-card og-card--case">
+                <p className="og-card-tag">{c.tag}</p>
+                <h3 className="og-card-t">{c.title}</h3>
+                <p className="og-card-d">{rich(c.desc)}</p>
                 {c.metric ? (
-                  <p className="lp-case-metric">
-                    <span>{Number(c.metric).toLocaleString('ja-JP')}</span> {c.metricLabel}
-                  </p>
+                  <p className="og-card-metric"><span>{Number(c.metric).toLocaleString('ja-JP')}</span> {c.metricLabel}</p>
                 ) : null}
               </article>
             ))}
           </div>
-          <h3 className="lp-h3">{SECTION.lp.worksOther}</h3>
-          <ul className="lp-achieve">
-            {ACHIEVEMENTS.slice(0, 5).map((a) => <li key={a}>{a}</li>)}
-          </ul>
-          <a href="/works.html" className="lp-link">{SECTION.lp.worksMore} →</a>
+          <div className="og-box">
+            <h3 className="og-box-h">{SECTION.lp.worksOther}</h3>
+            <ul className="og-achieve-list">
+              {ACHIEVEMENTS.slice(0, 5).map((a) => <li key={a}>{a}</li>)}
+            </ul>
+          </div>
+          <div className="og-center"><a href="/works.html" className="og-btn og-btn--line">{SECTION.lp.worksMore}<Arrow /></a></div>
         </div>
       </section>
 
-      {/* 4. 流れとよくある質問を横に並べて、1画面で */}
-      <section className="lp-sec" id="flow" aria-label="ご依頼の流れとよくある質問">
-        <div className="lp-wrap lp-two">
-          <div>
-            <h2 className="lp-h2">{SECTION.lp.flowTitle}</h2>
-            <ol className="lp-flow">
-              {FLOW_STEPS.map((s, i) => (
-                <li key={s.title}>
-                  <span className="lp-flow-no">{i + 1}</span>
-                  <div>
-                    <p className="lp-flow-title">{s.title}</p>
-                    <p className="lp-flow-desc">{s.desc}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+      {/* 8. ご依頼の流れ */}
+      <section className="og-sec og-soft og-soft--c" id="flow" aria-labelledby="og-flow-h">
+        <div className="og-wrap">
+          <Title en="Flow" id="og-flow-h">{SECTION.lp.flowTitle}</Title>
+          <ol className="og-flow">
+            {FLOW_STEPS.map((s, i) => (
+              <li key={s.title}>
+                <span className="og-flow-no">{String(i + 1).padStart(2, '0')}</span>
+                <p className="og-flow-t">{s.title}</p>
+                <p className="og-flow-d">{s.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* 9. よくある質問と、ご相談の多い内容（白いカードの中に一覧） */}
+      <section className="og-sec og-qa" aria-label="よくある質問とご相談の多い内容">
+        <div className="og-wrap og-narrow">
           <div id="faq">
-            <h2 className="lp-h2">{SECTION.lp.faqTitle}</h2>
-            <div className="lp-faq">
+            <Title en={"Q&A"} id="og-faq-h">{SECTION.lp.faqTitle}</Title>
+            <div className="og-list">
               {faqs.map((f) => (
                 <details key={f.q}>
                   <summary>{f.q}</summary>
@@ -309,15 +384,14 @@ export default function Landing({ onPrivacy }) {
                 </details>
               ))}
             </div>
-            <a href="/faq.html" className="lp-link">{SECTION.lp.faqMore} →</a>
+            <div className="og-center"><a href="/faq.html" className="og-btn og-btn--line">{SECTION.lp.faqMore}<Arrow /></a></div>
           </div>
           {/* 依頼先を探している人が、AIや検索にそのまま打つ質問と、その答え。
               トップは検索エンジンが最初に読むページなので、答えをここに置きます
               （閉じていても、文章はページの中にあります）。 */}
-          <div id="consult" className="lp-consult">
-            <h2 className="lp-h2">{SECTION.lp.consultTitle}</h2>
-            <p className="lp-consult-lead">{SECTION.lp.consultLead}</p>
-            <div className="lp-faq lp-faq-2">
+          <div id="consult" className="og-consult">
+            <Title en="Consultation" id="og-consult-h" lead={SECTION.lp.consultLead}>{SECTION.lp.consultTitle}</Title>
+            <div className="og-list og-list--2">
               {consultFaq().map((f) => (
                 <details key={f.q}>
                   <summary>{f.q}</summary>
@@ -329,10 +403,23 @@ export default function Landing({ onPrivacy }) {
         </div>
       </section>
 
-      {/* 5. 相談: まず日時を選ぶだけの予約、決めきれない人はフォーム */}
-      <div id="contact">
+      {/* 10. Contact：空色のカードの案内 → 予約 → フォーム */}
+      <div id="contact" className="og-contact">
+        <div className="og-wrap">
+          <div className="og-banner">
+            <div className="og-banner-copy">
+              <p className="og-en og-en--banner" aria-hidden="true">Contact</p>
+              <p className="og-banner-t">{SECTION.lp.assure1}・{SECTION.lp.assure2}</p>
+              <div className="og-actions">
+                <a href="#contact-form" className="og-btn og-btn--red" data-cta="banner-form">{SECTION.lp.ctaPrimary}<Arrow /></a>
+                <a href="/pricing.html" className="og-btn og-btn--white">{SECTION.lp.nextPricing}<Arrow /></a>
+              </div>
+            </div>
+            <img className="og-banner-mark" src="/lumenium-logo.svg?v=3" alt="" width="200" height="200" loading="lazy" decoding="async" />
+          </div>
+        </div>
         <QuickBook />
-        <div className="lp-contact">
+        <div className="lp-contact og-form">
           <ContactForm />
         </div>
       </div>
