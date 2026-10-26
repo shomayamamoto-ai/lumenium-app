@@ -132,7 +132,7 @@ export default function QuickBook() {
           <>
             <div className="qb-head">
               <h2 className="qb-h" id="qb-h">{textFor('booking.heading', copy.heading)}</h2>
-              <p className="qb-lead">文章を書かなくても大丈夫です。日時を選んで、お名前とメールアドレスを入れるだけ。{copy.length}</p>
+              <p className="qb-lead">{copy.lead}</p>
             </div>
             {copy.services.length > 1 ? (
               <div className="qb-svcs" role="group" aria-label="メニュー">

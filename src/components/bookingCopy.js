@@ -29,6 +29,10 @@ export function bookingCopy(info) {
     services,
     heading,
     length: `お時間は${minutes}分${tail}`,
+    // 予約欄の見出しの下の一行（いまの設定なら「60分無料のオンライン相談をここから予約」）。
+    lead: consult
+      ? (free ? `${minutes}分無料の${online ? 'オンライン' : 'ご'}相談をここから予約` : `${minutes}分の${online ? 'オンライン' : 'ご'}相談をここから予約（料金の目安は${price}）`)
+      : `空いている日時をここから予約（${minutes}分）`,
     pickerTitle: `このまま${wording}のお時間も決められます`,
     pickerLead: (i.mode === 'google' ? 'ご都合のよい枠を選ぶと、その場で確定します。' : 'ご都合のよい枠を選ぶと、その場でお時間を確保します（確定のご連絡は後ほどお送りします）。')
       + `${online ? 'オンライン（Google Meet）で' : ''}${minutes}分${tail}`,
