@@ -231,3 +231,93 @@ dl.qa dt { color: var(--ink) !important; }
 @media (max-width: 720px) { .next-read-grid { grid-template-columns: 1fr; } }
 .nr-t { line-height: 1.5; font-size: 14.5px; }
 .nr-d { margin-top: 0; }
+
+/* =========================================================================
+   トップページと同じ組み方（見本サイト：オガノニワ）
+   明るい地・筆記体の英語見出し・白いカード・赤い丸ボタン・明るいフッター。
+   上の指定より後ろに書いて、上書きします。
+   ========================================================================= */
+:root {
+  --bg: #f3f2ef; --card: #f8f7f4; --accent: #e0565b; --accent-2: #c7444a;
+  --og-red-soft: #fcecec; --og-shadow: 0 18px 44px -28px rgba(40, 40, 52, .45);
+  --og-script: 'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive;
+}
+html, body { background: #f3f2ef !important; }
+
+/* ヘッダー：白い細い帯、両端寄せ、赤い丸ボタン */
+.site-hd { background: rgba(255, 255, 255, .96); -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px); }
+.site-hd .site-in { max-width: none; padding: 0 clamp(16px, 3vw, 44px); }
+.site-nav a { font-size: 13px; letter-spacing: .06em; }
+.site-nav a:hover { color: var(--accent) !important; }
+.site-cta, .side-btn, .sys-ask { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; border-radius: 999px !important; box-shadow: 0 10px 22px -12px rgba(224, 86, 91, .9); }
+.site-cta:hover, .side-btn:hover, .sys-ask:hover { background: var(--accent-2) !important; }
+
+/* 見出しの帯：淡くぼかした写真の地の上に、筆記体の英語と日本語の見出し */
+.page-head { position: relative; overflow: hidden; isolation: isolate; text-align: center; padding: 72px 0 60px; border-bottom: 0; background: #eef0ee; }
+.page-head::before { content: ''; position: absolute; inset: -60px; z-index: -2; background: url('/img/home/admin-stats.jpg') no-repeat 85% 30% / 190% auto; filter: blur(30px) saturate(1.25); opacity: .45; transform: scale(1.1); }
+.page-head::after { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(247, 246, 243, .55); }
+.page-en { font-family: var(--og-script); font-size: 64px; line-height: 1.05; color: #3a3a42 !important; margin: 0 0 6px; }
+.page-head .eyebrow { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .18em; color: #5a5a64 !important; }
+.page-head h1 { font-size: clamp(24px, 2.8vw, 34px); margin: 0 auto 16px; max-width: 28em; line-height: 1.6; }
+.page-head h1::after { content: ''; display: block; width: 28px; height: 2px; margin: 16px auto 0; background: var(--accent); border-radius: 2px; }
+.page-head .meta, .page-head .lead { margin: 0 auto; text-align: left; max-width: 46em; }
+.page-head .meta { text-align: center; }
+
+/* 本文は白い大きなカードの中に */
+.page-grid { padding-top: 56px; padding-bottom: 88px; }
+.page-main { background: #fff; border-radius: 24px; padding: 44px 48px; box-shadow: var(--og-shadow); max-width: none; }
+main h2, article h2, .wrap h2 { position: relative; padding-left: 18px !important; }
+main h2::before, article h2::before, .wrap h2::before { content: ''; position: absolute; left: 0; top: .3em; bottom: .3em; width: 4px; border-radius: 4px; background: var(--accent); }
+.page-side { gap: 20px; }
+.side-toc { background: #fff; border-radius: 18px; padding: 20px 18px; box-shadow: var(--og-shadow); }
+.side-toc ol { border-left-color: #ece9e4; }
+.side-toc a:hover { color: var(--accent) !important; border-left-color: var(--accent); }
+.side-cta { border: 0; border-radius: 18px; padding: 22px 20px; box-shadow: var(--og-shadow); }
+.side-btn { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* 表・一覧・枠 */
+.facts, dl { border-radius: 16px !important; }
+.price, .contact-strip, section[style] { border-radius: 20px !important; }
+.list a:hover, .others a:hover { color: var(--accent) !important; }
+.others a:hover { border-color: var(--accent) !important; }
+.note, article p.keypoint { border-left-color: var(--accent) !important; border-radius: 0 12px 12px 0; }
+article p.keypoint { border-left-color: var(--accent) !important; }
+
+/* ボタン：赤い丸ボタン（塗り・線） */
+.cta a, a.back, section[style] a[style] { border-radius: 999px !important; }
+.cta .primary, section[style] a[style*="gradient"] { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; box-shadow: 0 10px 22px -12px rgba(224, 86, 91, .9); }
+.cta .primary:hover { background: var(--accent-2) !important; }
+.cta .ghost, a.back { background: #fff !important; border: 1px solid var(--accent) !important; color: var(--accent) !important; }
+.cta .ghost:hover, a.back:hover { background: var(--accent) !important; color: #fff !important; }
+
+/* 終わりの相談の案内：空色のカード */
+.contact-strip { background: linear-gradient(118deg, #cfe7f4 0%, #e6f3f1 48%, #f8f5ec 100%) !important; border: 0 !important; box-shadow: 0 24px 56px -40px rgba(40, 70, 100, .55); }
+.contact-strip h2::before { display: none; }
+.contact-strip h2 { padding-left: 0 !important; }
+
+/* 次に読む */
+.next-read a { border: 0; border-radius: 16px; box-shadow: var(--og-shadow); }
+.next-read a:hover { box-shadow: 0 0 0 1px var(--accent), var(--og-shadow); }
+.nr-t { color: var(--accent); }
+
+/* フッター：トップと同じ明るい地（左に白いカード） */
+.site-ft { background: #ecebe7 !important; color: #55555e; padding: 64px 0 0 !important; }
+.site-ft a { color: #55555e !important; }
+.site-ft a:hover { color: var(--accent) !important; }
+.ft-brand { background: #fff; border-radius: 22px; padding: 28px 26px; box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
+.site-ft .wm .wm-t, .site-ft .wm .wm-i { color: #333338 !important; -webkit-text-fill-color: #333338 !important; }
+.ft-name small, .ft-sub, .ft-facts dt, .ft-h { color: #6e6e78 !important; }
+.ft-tag, .ft-facts dd { color: #333338 !important; }
+.ft-h::after { background: var(--accent); }
+.ft-bottom { border-top-color: rgba(0, 0, 0, .08) !important; color: #6e6e78; }
+
+@media (max-width: 900px) {
+  .page-main { padding: 32px 24px; border-radius: 20px; }
+  .page-en { font-size: 50px; }
+}
+@media (max-width: 640px) {
+  .page-head { padding: 52px 0 44px; }
+  .page-en { font-size: 44px; }
+  .page-main { padding: 26px 18px; border-radius: 18px; }
+  .ft-brand { padding: 22px 18px; }
+}

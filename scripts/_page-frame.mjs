@@ -117,6 +117,16 @@ function siteFooter() {
 </footer>`
 }
 
+/* 見出しの上の筆記体の英語（飾り）。トップページと同じ組み方です。 */
+const EN = [
+  [/^\/services\//, 'Service'], [/^\/pricing/, 'Price'], [/^\/works/, 'Works'], [/^\/systems/, 'System'],
+  [/^\/flow/, 'Flow'], [/^\/faq/, 'Q&amp;A'], [/^\/blog\//, 'Blog'], [/^\/news/, 'News'], [/^\/about/, 'About'],
+  [/^\/profile/, 'Profile'], [/^\/voice/, 'Voice'], [/^\/choose/, 'Guide'], [/^\/onestop/, 'One Stop'],
+  [/^\/pain/, 'Problem'], [/^\/positioning/, 'Difference'], [/^\/story/, 'Story'], [/^\/sitemap/, 'Sitemap'],
+  [/^\/contact/, 'Contact'],
+]
+const enTitle = (path) => (EN.find(([re]) => re.test(path)) || [null, 'Lumenium'])[1]
+
 export function framePage(html, path = '') {
   const open = html.indexOf('<div class="wrap">')
   const footAt = html.indexOf('<footer>', open)
@@ -187,6 +197,7 @@ export function framePage(html, path = '') {
   <a class="site-cta" href="/#contact">無料で相談する</a>
 </div></header>
 <section class="page-head"><div class="site-in">
+    <p class="page-en" aria-hidden="true">${enTitle(path)}</p>
     ${head}
 </div></section>
 <div class="site-in page-grid">
