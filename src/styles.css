@@ -11817,3 +11817,5 @@ body { color: var(--lp-ink); }
 
 .og-about-facts { margin: 22px auto 0; max-width: 760px; font-size: 13.5px; line-height: 1.95; color: var(--og-ink-2); text-align: center; padding: 14px 20px; border-radius: 14px; background: var(--og-bg); }
 @media (max-width: 600px) { .og-about-facts { text-align: left; } }
+/* フッターが明るい地になったので、ロゴの i の縦棒も濃い色に（淡い色のままだと消えて見えます） */
+.og .footer-wm .wm-iw > .wm-i.wm-t { -webkit-text-fill-color: var(--og-ink) !important; color: var(--og-ink) !important; }
