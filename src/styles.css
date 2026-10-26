@@ -11814,3 +11814,6 @@ body { color: var(--lp-ink); }
 
 /* ヘッダーは両端寄せ（ロゴは左端、メニューと相談ボタンは右端） */
 .hd-inner { max-width: none; padding: 0 clamp(16px, 3vw, 44px); }
+
+.og-about-facts { margin: 22px auto 0; max-width: 760px; font-size: 13.5px; line-height: 1.95; color: var(--og-ink-2); text-align: center; padding: 14px 20px; border-radius: 14px; background: var(--og-bg); }
+@media (max-width: 600px) { .og-about-facts { text-align: left; } }

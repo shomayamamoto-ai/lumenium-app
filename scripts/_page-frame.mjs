@@ -196,15 +196,17 @@ export function framePage(html, path = '') {
   <nav class="site-nav" aria-label="メインナビゲーション">${nav}</nav>
   <a class="site-cta" href="/#contact">無料で相談する</a>
 </div></header>
+<main id="main">
 <section class="page-head"><div class="site-in">
     <p class="page-en" aria-hidden="true">${enTitle(path)}</p>
     ${head}
 </div></section>
 <div class="site-in page-grid">
-  <main class="page-main">
+  <div class="page-main">
 ${inner.trim()}
-  </main>${side}
+  </div>${side}
 </div>
+</main>
 ${siteFooter()}`
 
   return html.slice(0, open) + framed + html.slice(wrapEnd + '</div>'.length)

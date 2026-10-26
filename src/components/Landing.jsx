@@ -93,11 +93,11 @@ function HeroMovie() {
 /* 英語の筆記体の見出し（飾り）と、日本語の見出し。 */
 function Title({ en, id, children, lead, align = 'center' }) {
   return (
-    <header className={`og-title og-title--${align}`}>
+    <div className={`og-title og-title--${align}`}>
       <p className="og-en" aria-hidden="true">{en}</p>
       <h2 id={id} className="og-ja">{children}</h2>
       {lead ? <p className="og-lead">{lead}</p> : null}
-    </header>
+    </div>
   )
 }
 
@@ -182,6 +182,7 @@ export default function Landing({ onPrivacy }) {
         <div className="og-wrap og-narrow">
           <Title en="About" id="og-about-h">Lumeniumについて</Title>
           <p className="og-about-text">{rich(SECTION.lp.lead)}</p>
+          <p className="og-about-facts">{rich(SECTION.lp.aboutFacts)}</p>
         </div>
       </section>
 

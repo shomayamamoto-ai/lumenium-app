@@ -1,0 +1,378 @@
+{
+ "measuredAt": "2026-10-26T13:20:00+09:00",
+ "note": "5回目（デザインを作り直したあと）。28問すべてで lumenium.net は出てこなかった（前回と同じ）。社名で聞いても「日本ルメンタム」「株式会社Lumii」など別会社を挙げるか、見つからないと答えた。答えの根拠は比較・紹介サイト（比較ビズ・アイミツ・発注ナビ・ミツモア）、クラウドソーシングの紹介（ランサーズ・クラウドワークス・ココナラ）、プレスリリース（PR TIMES）、制作会社のブログ。サイトの中身より、外の名簿・紹介サイトに載っているかで決まっている状態が続いている。",
+ "answers": [
+  {
+   "id": "brand-what",
+   "verdict": "other_company",
+   "companies": [
+    "日本ルメンタム株式会社"
+   ],
+   "missing": "公式サイト・会社情報",
+   "answer": "「ルメニウム」という会社は見つからず、名前の近い日本ルメンタム株式会社（光半導体）を説明した。",
+   "urls": [
+    "https://hrmos.co/pages/lumentum/jobs/2230523987053064211",
+    "https://mynavi-agent.jp/corpdetail/31921/",
+    "https://www.datanyze.com/companies/lumium/353729374"
+   ]
+  },
+  {
+   "id": "brand-real",
+   "verdict": "denied",
+   "companies": [
+    "株式会社Lumii"
+   ],
+   "missing": "公式サイト",
+   "answer": "Lumenium という日本の制作会社は見つからないと回答。綴りの近い株式会社Lumii（動画制作）を挙げた。",
+   "urls": [
+    "https://www.shopowner-support.net/?p=173632",
+    "https://www.bloomberg.com/quote/LUMINZ:JP",
+    "https://www.ledinside.com/node/22285"
+   ]
+  },
+  {
+   "id": "brand-vs",
+   "verdict": "other_company",
+   "companies": [
+    "Lumentum"
+   ],
+   "missing": "別会社であることの説明",
+   "answer": "ルメニウムという社名は見つからず、Lumentum（ルメンタム）の表記違いか誤記の可能性が高いと回答した。",
+   "urls": [
+    "https://en.wikipedia.org/wiki/Lumentum",
+    "https://hrmos.co/pages/lumentum",
+    "https://www.r-agent.com/company/c7684/"
+   ]
+  },
+  {
+   "id": "trust-review",
+   "verdict": "denied",
+   "companies": [
+    "株式会社Lumii"
+   ],
+   "missing": "口コミ・お客様の声",
+   "answer": "ルメニウム（Lumenium）の評判・口コミは見つからないと回答。別会社の株式会社Lumiiの口コミを挙げた。",
+   "urls": [
+    "https://www.shopowner-support.net/?p=173632",
+    "https://boxil.jp/service/8347/reviews/30031/",
+    "https://jp.trustpilot.com/review/lumens.com"
+   ]
+  },
+  {
+   "id": "trust-real",
+   "verdict": "denied",
+   "companies": [
+    "日本ルメンタム株式会社"
+   ],
+   "missing": "特定商取引法の表記・会社概要",
+   "answer": "ルメニウムの事業者情報・所在地は見つからないと回答。似た名前の別会社（日本ルメンタム・ルミネ・ルミナス）を挙げた。",
+   "urls": [
+    "https://mynavi-agent.jp/corpdetail/31921/",
+    "https://www.biz.ne.jp/company/luminejp/",
+    "https://salesnow.jp/db/companies/jcb4vj4gws94k3am"
+   ]
+  },
+  {
+   "id": "trust-newco",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "一般論（実態・連絡先・見積もりの内訳）を答えた。具体的な会社名は挙げなかった。",
+   "urls": [
+    "https://atsoho.com/blog/thumbnail-banner-anzen",
+    "https://hnavi.co.jp/lp/hp2/",
+    "https://atsoho.com/blog/unreachable-production-company-response-record"
+   ]
+  },
+  {
+   "id": "video-hire",
+   "verdict": "absent",
+   "companies": [
+    "LOCUS"
+   ],
+   "missing": "",
+   "answer": "比較記事（発注ナビ・StockSun）とアイミツの事例、比較ビズの案件を挙げた。",
+   "urls": [
+    "https://imitsu.jp/ct-movie/pr-tokyo/ci-chiyoda-ku/supplier/61578/service/120175/achievement/14357",
+    "https://stock-sun.com/column/tokyo-video-production/",
+    "https://hnavi.co.jp/knowledge/blog/tokyo_video_companies/"
+   ]
+  },
+  {
+   "id": "video-cheap",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "相場（30万〜200万円、ショート動画は数万円〜）を説明。根拠は制作会社のブログと比較記事。",
+   "urls": [
+    "https://atsoho.com/blog/video-outsourcing-freelance-vs-agency-cost",
+    "https://0120.co.jp/blog/video-02/",
+    "https://www.biz.ne.jp/list/video-creator/13_tokyo/nakanoku/"
+   ]
+  },
+  {
+   "id": "video-price",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "相場（30万〜200万円）と依頼先ごとの違いを説明。アイミツなど仲介サービスを挙げた。",
+   "urls": [
+    "https://atsoho.com/blog/company-video-production-cost",
+    "https://imitsu.jp/cost/movie/",
+    "https://meetsmore.com/product-services/CM-video-advertisement-production/media/208535"
+   ]
+  },
+  {
+   "id": "ai-train",
+   "verdict": "absent",
+   "companies": [
+    "サイバーエージェント",
+    "パーソルホールディングス",
+    "アイテック"
+   ],
+   "missing": "",
+   "answer": "サイバーエージェント・パーソル・アイテック・スノーフレイクを挙げた。",
+   "urls": [
+    "https://www.cyberagent.co.jp/techinfo/news/detail/id=29837",
+    "https://aismiley.co.jp/ai_news/persol-generative-ai-skilling/",
+    "https://www.shopowner-support.net/attracting_customers/btob-business/office-solution/produced-ai-training/"
+   ]
+  },
+  {
+   "id": "ai-intro",
+   "verdict": "absent",
+   "companies": [
+    "株式会社Saira"
+   ],
+   "missing": "",
+   "answer": "無料相談窓口（Saira）・AI導入支援会社・補助金を挙げた。根拠はPR TIMESと解説記事。",
+   "urls": [
+    "https://prtimes.jp/main/html/rd/p/000000009.000152184.html",
+    "https://weel.co.jp/media/small-and-medium-sized-enterprises-ai-introduction-support/",
+    "https://start-link.jp/hubspot-ai/ai/genai-work/ai-efficiency-sme-guide"
+   ]
+  },
+  {
+   "id": "ai-rule",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "社内ルールづくりの一般論を説明。支援会社の名前は特定できないと回答。",
+   "urls": [
+    "https://ai.giftx.co.jp/blog/chatgpt-company-rollout-guide/",
+    "https://www.ai-souken.com/article/internal-rules-for-chatgpt",
+    "https://saas.imitsu.jp/cate-internal-chatgpt/serviceList"
+   ]
+  },
+  {
+   "id": "sns-line",
+   "verdict": "absent",
+   "companies": [
+    "株式会社MARKELINK"
+   ],
+   "missing": "",
+   "answer": "比較記事（shopowner-support）、MARKELINK、ランサーズのフリーランスを挙げた。",
+   "urls": [
+    "https://www.shopowner-support.net/customer_attraction_information/online/linebiz/line-official-account-setup-service/",
+    "https://meetsmore.com/products/markelink",
+    "https://www.lancers.jp/menu/browse/usecase/28"
+   ]
+  },
+  {
+   "id": "sns-ops",
+   "verdict": "absent",
+   "companies": [
+    "株式会社pamxy"
+   ],
+   "missing": "",
+   "answer": "オナマエの比較記事、pamxy、求人に出ている会社を挙げた。",
+   "urls": [
+    "https://www.onamae.com/business/article/242480/",
+    "https://pamxy.co.jp/marke-driven/sns-marketing/tokyo-sns-operation-agency/amp/",
+    "https://stock-sun.com/column/sns-management-tokyo/"
+   ]
+  },
+  {
+   "id": "sns-short",
+   "verdict": "absent",
+   "companies": [
+    "株式会社アドライブエージェント"
+   ],
+   "missing": "",
+   "answer": "ランサーズに出ている会社（アドライブエージェント）とクラウドワークスの個人を挙げた。",
+   "urls": [
+    "https://www.lancers.jp/profile/lib_creators/portfolio",
+    "https://crowdworks.jp/public/employees/4202948",
+    "https://s--line.co.jp/short-video-agency/"
+   ]
+  },
+  {
+   "id": "web-make",
+   "verdict": "absent",
+   "companies": [
+    "ベイジ",
+    "サイブリッジ"
+   ],
+   "missing": "",
+   "answer": "比較ビズ・ミツモアと、Webtan の記事に出てくる会社（ベイジ・サイブリッジなど）を挙げた。",
+   "urls": [
+    "https://meetsmore.com/t/website-development/tokyo",
+    "https://www.biz.ne.jp/list/hp-design/13_tokyo/taitoku/",
+    "https://webtan.impress.co.jp/u/2021/04/28/39987"
+   ]
+  },
+  {
+   "id": "web-sys",
+   "verdict": "absent",
+   "companies": [
+    "株式会社カイズ"
+   ],
+   "missing": "",
+   "answer": "発注ナビ・アイミツの比較と、比較ビズに出ている会社（カイズ）を挙げた。",
+   "urls": [
+    "https://hnavi.co.jp/knowledge/blog/small-system_companies/",
+    "https://imitsu.jp/list/web-system/small-business/",
+    "https://www.biz.ne.jp/company/kaiz/"
+   ]
+  },
+  {
+   "id": "web-renew",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "依頼の流れの一般論。根拠は比較ビズの案件とクラウドワークスの相談。",
+   "urls": [
+    "https://www.biz.ne.jp/subject/toi_detail.html?tid=987848",
+    "https://crowdworks.jp/consultation/threads/2704"
+   ]
+  },
+  {
+   "id": "cast-book",
+   "verdict": "absent",
+   "companies": [
+    "株式会社MC planning"
+   ],
+   "missing": "",
+   "answer": "アイミツの比較記事（MC planning）とココナラ・クラウドワークスの個人を挙げた。",
+   "urls": [
+    "https://imitsu.jp/list/event-planning/liveevent-staff/",
+    "https://imitsu.jp/list/event-planning/casting-agent/",
+    "https://coconala.com/services/4279981"
+   ]
+  },
+  {
+   "id": "cast-expo",
+   "verdict": "absent",
+   "companies": [
+    "ケイプロモーション",
+    "株式会社ファクト"
+   ],
+   "missing": "",
+   "answer": "イベコン.com（ケイプロモーション）と株式会社ファクトを挙げた。",
+   "urls": [
+    "https://prtimes.jp/main/html/rd/p/000000006.000057754.html",
+    "https://rocket-boys.co.jp/event-staff/"
+   ]
+  },
+  {
+   "id": "cast-shoot",
+   "verdict": "absent",
+   "companies": [
+    "株式会社アクエリアス",
+    "株式会社エーフラット"
+   ],
+   "missing": "",
+   "answer": "アクエリアス・エーフラット・アテンションとランサーズのサービスを挙げた。",
+   "urls": [
+    "https://www.biz.ne.jp/company/aq-movie/",
+    "https://www.value-press.com/pressrelease/325993",
+    "https://www.lancers.jp/menu/detail/1276479"
+   ]
+  },
+  {
+   "id": "cre-logo",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "クラウドワークスのロゴ作成案件だけが出た。",
+   "urls": [
+    "https://crowdworks.jp/public/proposal_products/15167315"
+   ]
+  },
+  {
+   "id": "cre-brand",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "クラウドワークスの個人デザイナーの提案だけが出た。",
+   "urls": [
+    "https://crowdworks.jp/public/jobs/10913168/proposal_products/users/79671",
+    "https://crowdworks.jp/consultation/threads/1533"
+   ]
+  },
+  {
+   "id": "cre-pamph",
+   "verdict": "absent",
+   "companies": [
+    "株式会社アズ・クリエイト"
+   ],
+   "missing": "",
+   "answer": "ランサーズのアズ・クリエイトと比較ビズの案件を挙げた。",
+   "urls": [
+    "https://www.lancers.jp/menu/detail/1279025",
+    "https://www.biz.ne.jp/subject/toi_detail.html?tid=989999"
+   ]
+  },
+  {
+   "id": "cross-onestop",
+   "verdict": "absent",
+   "companies": [
+    "株式会社エーファクト"
+   ],
+   "missing": "",
+   "answer": "まとめて頼める会社は特定できないと回答。aicrew・エーファクト・Enter ENT を挙げた。",
+   "urls": [
+    "https://www.lancers.jp/client/Enter_ENT",
+    "https://webtan.impress.co.jp/r/prtimes/items/000000013.000163392",
+    "https://www.biz.ne.jp/company/afact/"
+   ]
+  },
+  {
+   "id": "cross-dx",
+   "verdict": "absent",
+   "companies": [
+    "株式会社フォーバル",
+    "ミロク情報サービス"
+   ],
+   "missing": "",
+   "answer": "公的な伴走支援（静岡県・静岡市）とMJS・キヤノンSAを挙げた。",
+   "urls": [
+    "https://www.zenkyo.or.jp/chiiki/docs/jigyou2026/18_shizuoka_p2026.pdf",
+    "https://www.mjs.co.jp/news/news_2025/000000430.000018493/pdf/d18493-430-68e7049e03b3ec1e661835811bab9bc8.pdf"
+   ]
+  },
+  {
+   "id": "cross-choose",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "選び方の一般論（実績・相場・書面化・3〜5社比較）。おすすめの会社名は挙げなかった。",
+   "urls": [
+    "https://atsoho.com/blog/production-company-choice-tokyo",
+    "https://imitsu.jp/matome/hp-design/4202341051950229",
+    "https://jinrai.co.jp/blog/homepage-seisaku-kaisha-erabikata/"
+   ]
+  },
+  {
+   "id": "cross-budget",
+   "verdict": "absent",
+   "companies": [],
+   "missing": "",
+   "answer": "両方を扱う会社は特定できないと回答。比較ビズの案件だけが出た。",
+   "urls": [
+    "https://www.biz.ne.jp/subject/toi_detail.html?tid=980566",
+    "https://www.biz.ne.jp/matome/2003590/"
+   ]
+  }
+ ]
+}

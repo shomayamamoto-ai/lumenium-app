@@ -498,7 +498,9 @@ ${md(a.content)}
     made.add(path)
     const canonical = SITE + path
     const plain = String(n.body || '').replace(/\s+/g, ' ').trim()
-    const desc = (plain ? plain : `${n.date} のお知らせ「${n.title}」です。`).slice(0, 150)
+    // 検索結果の説明は60〜160字が目安。本文が短いお知らせは、日付・題名と会社の一言を足します。
+    let desc = (plain ? plain : `${n.date} のお知らせ「${n.title}」です。`).slice(0, 150)
+    if (desc.length < 60) desc = `${desc}（Lumenium（ルメニウム）のお知らせ・${n.date}「${n.title}」）東京を拠点に、業務効率化システムの開発・AI研修・Web制作をオンラインで全国にお届けしています。`.slice(0, 150)
     const img = n.image && n.image.url ? n.image : null
     const ldArticle = {
       '@context': 'https://schema.org',
@@ -719,6 +721,7 @@ ${md(a.content)}
   <p class="meta">東京発のクリエイティブ &amp; DX パートナー</p>
   <article>
     <p class="keypoint">${esc(DEFINITION.replace(/代表は[^、]*、/, ''))}</p>
+    <p>料金の目安は、業務効率化システムが30万〜1500万円、LP（1枚のページ）が30万円〜、AI研修が講師1回10万円〜です。LPは2週間前後で納品します。ご相談とお見積りは無料で、<a href="/contact.html">お問い合わせ</a>から48時間以内にご返信します。</p>
 
     <h2>会社概要</h2>
     <dl class="facts">

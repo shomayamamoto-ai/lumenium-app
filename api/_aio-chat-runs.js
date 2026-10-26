@@ -11585,5 +11585,2786 @@ export const CHAT_RUNS = [
   "social": null,
   "companiesFailed": false,
   "analysisFailures": []
+ },
+ {
+  "id": "2026-10-26-1320-chat",
+  "source": "chat",
+  "site": "lumenium.net",
+  "note": "5回目（デザインを作り直したあと）。28問すべてで lumenium.net は出てこなかった（前回と同じ）。社名で聞いても「日本ルメンタム」「株式会社Lumii」など別会社を挙げるか、見つからないと答えた。答えの根拠は比較・紹介サイト（比較ビズ・アイミツ・発注ナビ・ミツモア）、クラウドソーシングの紹介（ランサーズ・クラウドワークス・ココナラ）、プレスリリース（PR TIMES）、制作会社のブログ。サイトの中身より、外の名簿・紹介サイトに載っているかで決まっている状態が続いている。",
+  "startedAt": "2026-10-26T04:20:00.000Z",
+  "finishedAt": "2026-10-26T04:20:00.000Z",
+  "settings": {
+   "samples": 1,
+   "engines": [
+    "claude"
+   ],
+   "questionsHash": "09bbc68d",
+   "questionCount": 28,
+   "customQuestions": false,
+   "models": {
+    "claude": "Claude（チャット・ウェブ検索）"
+   },
+   "judgeModel": "Claude（チャット・ウェブ検索）"
+  },
+  "questions": [
+   {
+    "id": "brand-what",
+    "cat": "ブランド指名",
+    "branded": true,
+    "q": "ルメニウム（Lumenium）とはどんな会社ですか？事業内容と拠点を教えてください。"
+   },
+   {
+    "id": "brand-real",
+    "cat": "ブランド指名",
+    "branded": true,
+    "q": "Lumenium という日本の制作会社は実在しますか？公式サイトはどこですか？"
+   },
+   {
+    "id": "brand-vs",
+    "cat": "ブランド指名",
+    "branded": true,
+    "q": "ルメニウムとLumentumは同じ会社ですか？"
+   },
+   {
+    "id": "trust-review",
+    "cat": "評判・信頼性",
+    "branded": true,
+    "q": "ルメニウム（Lumenium）という制作会社の評判を教えてください。実際に利用した人の声はありますか？"
+   },
+   {
+    "id": "trust-real",
+    "cat": "評判・信頼性",
+    "branded": true,
+    "q": "ルメニウムに制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？"
+   },
+   {
+    "id": "trust-newco",
+    "cat": "評判・信頼性",
+    "q": "設立して間もない制作会社に発注するのは不安です。信頼できるかどうか、何で見分ければよいですか？",
+    "branded": false
+   },
+   {
+    "id": "video-hire",
+    "cat": "動画制作",
+    "q": "東京で採用動画の制作を依頼できる会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "video-cheap",
+    "cat": "動画制作",
+    "q": "中小企業でも頼める安い動画制作会社はどこですか？相場も教えてください。",
+    "branded": false
+   },
+   {
+    "id": "video-price",
+    "cat": "動画制作",
+    "q": "会社紹介動画の制作費用はいくらくらいかかりますか？依頼先の候補も挙げてください。",
+    "branded": false
+   },
+   {
+    "id": "ai-train",
+    "cat": "AI導入・研修",
+    "q": "社員向けの生成AI研修をやってくれる会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "ai-intro",
+    "cat": "AI導入・研修",
+    "q": "中小企業がAIを業務に導入したいとき、どこに相談すればよいですか？",
+    "branded": false
+   },
+   {
+    "id": "ai-rule",
+    "cat": "AI導入・研修",
+    "q": "ChatGPTを社内で使えるようにしたいのですが、社内ルールづくりから支援してくれる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "sns-line",
+    "cat": "SNS・LINE",
+    "q": "企業のLINE公式アカウントの構築を代行してくれる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "sns-ops",
+    "cat": "SNS・LINE",
+    "q": "SNS運用代行を依頼できる東京の会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "sns-short",
+    "cat": "SNS・LINE",
+    "q": "InstagramやTikTokの短い動画を、撮影から投稿までまとめて任せられる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "web-make",
+    "cat": "Web制作・システム開発",
+    "q": "企業のホームページ制作を依頼できる会社を東京で探しています。",
+    "branded": false
+   },
+   {
+    "id": "web-sys",
+    "cat": "Web制作・システム開発",
+    "q": "業務システムの開発を小規模から相談できる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "web-renew",
+    "cat": "Web制作・システム開発",
+    "q": "古い会社のホームページを作り直したいのですが、相談できる制作会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "cast-book",
+    "cat": "キャスト手配",
+    "q": "イベントのMCやキャストを手配してくれる会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "cast-expo",
+    "cat": "キャスト手配",
+    "q": "展示会の司会やコンパニオンを手配したいのですが、東京で相談できる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "cast-shoot",
+    "cat": "キャスト手配",
+    "q": "撮影に出演するモデルやナレーターの手配も含めて、動画制作を任せられる会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "cre-logo",
+    "cat": "クリエイティブ",
+    "q": "会社のロゴやバナーのデザインを依頼できる制作会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "cre-brand",
+    "cat": "クリエイティブ",
+    "q": "ロゴから名刺・会社案内まで、まとめてデザインを頼める会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "cre-pamph",
+    "cat": "クリエイティブ",
+    "q": "会社案内のパンフレットや展示会のパネルを作ってくれる制作会社を探しています。",
+    "branded": false
+   },
+   {
+    "id": "cross-onestop",
+    "cat": "横断・比較",
+    "q": "動画もWebもAI研修もまとめて頼める制作会社はありますか？",
+    "branded": false
+   },
+   {
+    "id": "cross-dx",
+    "cat": "横断・比較",
+    "q": "中小企業のDXを一社でまとめて支援してくれる会社を教えてください。",
+    "branded": false
+   },
+   {
+    "id": "cross-choose",
+    "cat": "横断・比較",
+    "q": "制作会社を選ぶとき、何を基準に比較すればよいですか？おすすめの会社も挙げてください。",
+    "branded": false
+   },
+   {
+    "id": "cross-budget",
+    "cat": "横断・比較",
+    "q": "予算100万円以内で、動画制作とホームページ制作の両方を相談できる会社はありますか？",
+    "branded": false
+   }
+  ],
+  "results": [
+   {
+    "key": "brand-what#claude#0",
+    "id": "brand-what",
+    "cat": "ブランド指名",
+    "q": "ルメニウム（Lumenium）とはどんな会社ですか？事業内容と拠点を教えてください。",
+    "branded": true,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "「ルメニウム」という会社は見つからず、名前の近い日本ルメンタム株式会社（光半導体）を説明した。",
+    "named": true,
+    "verdict": "other_company",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://hrmos.co/pages/lumentum/jobs/2230523987053064211",
+      "title": "",
+      "host": "hrmos.co"
+     },
+     {
+      "url": "https://mynavi-agent.jp/corpdetail/31921/",
+      "title": "",
+      "host": "mynavi-agent.jp"
+     },
+     {
+      "url": "https://www.datanyze.com/companies/lumium/353729374",
+      "title": "",
+      "host": "datanyze.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "hrmos.co",
+     "mynavi-agent.jp",
+     "datanyze.com"
+    ],
+    "sourceUrls": [
+     "https://hrmos.co/pages/lumentum/jobs/2230523987053064211",
+     "https://mynavi-agent.jp/corpdetail/31921/",
+     "https://www.datanyze.com/companies/lumium/353729374"
+    ],
+    "ownPages": [],
+    "companies": [
+     "日本ルメンタム株式会社"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "公式サイト・会社情報",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "brand-real#claude#0",
+    "id": "brand-real",
+    "cat": "ブランド指名",
+    "q": "Lumenium という日本の制作会社は実在しますか？公式サイトはどこですか？",
+    "branded": true,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "Lumenium という日本の制作会社は見つからないと回答。綴りの近い株式会社Lumii（動画制作）を挙げた。",
+    "named": true,
+    "verdict": "denied",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.shopowner-support.net/?p=173632",
+      "title": "",
+      "host": "shopowner-support.net"
+     },
+     {
+      "url": "https://www.bloomberg.com/quote/LUMINZ:JP",
+      "title": "",
+      "host": "bloomberg.com"
+     },
+     {
+      "url": "https://www.ledinside.com/node/22285",
+      "title": "",
+      "host": "ledinside.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "shopowner-support.net",
+     "bloomberg.com",
+     "ledinside.com"
+    ],
+    "sourceUrls": [
+     "https://www.shopowner-support.net/?p=173632",
+     "https://www.bloomberg.com/quote/LUMINZ:JP",
+     "https://www.ledinside.com/node/22285"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社Lumii"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "公式サイト",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "brand-vs#claude#0",
+    "id": "brand-vs",
+    "cat": "ブランド指名",
+    "q": "ルメニウムとLumentumは同じ会社ですか？",
+    "branded": true,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "ルメニウムという社名は見つからず、Lumentum（ルメンタム）の表記違いか誤記の可能性が高いと回答した。",
+    "named": true,
+    "verdict": "other_company",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://en.wikipedia.org/wiki/Lumentum",
+      "title": "",
+      "host": "en.wikipedia.org"
+     },
+     {
+      "url": "https://hrmos.co/pages/lumentum",
+      "title": "",
+      "host": "hrmos.co"
+     },
+     {
+      "url": "https://www.r-agent.com/company/c7684/",
+      "title": "",
+      "host": "r-agent.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "en.wikipedia.org",
+     "hrmos.co",
+     "r-agent.com"
+    ],
+    "sourceUrls": [
+     "https://en.wikipedia.org/wiki/Lumentum",
+     "https://hrmos.co/pages/lumentum",
+     "https://www.r-agent.com/company/c7684/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "Lumentum"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "別会社であることの説明",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "trust-review#claude#0",
+    "id": "trust-review",
+    "cat": "評判・信頼性",
+    "q": "ルメニウム（Lumenium）という制作会社の評判を教えてください。実際に利用した人の声はありますか？",
+    "branded": true,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "ルメニウム（Lumenium）の評判・口コミは見つからないと回答。別会社の株式会社Lumiiの口コミを挙げた。",
+    "named": true,
+    "verdict": "denied",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.shopowner-support.net/?p=173632",
+      "title": "",
+      "host": "shopowner-support.net"
+     },
+     {
+      "url": "https://boxil.jp/service/8347/reviews/30031/",
+      "title": "",
+      "host": "boxil.jp"
+     },
+     {
+      "url": "https://jp.trustpilot.com/review/lumens.com",
+      "title": "",
+      "host": "jp.trustpilot.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "shopowner-support.net",
+     "boxil.jp",
+     "jp.trustpilot.com"
+    ],
+    "sourceUrls": [
+     "https://www.shopowner-support.net/?p=173632",
+     "https://boxil.jp/service/8347/reviews/30031/",
+     "https://jp.trustpilot.com/review/lumens.com"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社Lumii"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "口コミ・お客様の声",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "trust-real#claude#0",
+    "id": "trust-real",
+    "cat": "評判・信頼性",
+    "q": "ルメニウムに制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？",
+    "branded": true,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "ルメニウムの事業者情報・所在地は見つからないと回答。似た名前の別会社（日本ルメンタム・ルミネ・ルミナス）を挙げた。",
+    "named": true,
+    "verdict": "denied",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://mynavi-agent.jp/corpdetail/31921/",
+      "title": "",
+      "host": "mynavi-agent.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/company/luminejp/",
+      "title": "",
+      "host": "biz.ne.jp"
+     },
+     {
+      "url": "https://salesnow.jp/db/companies/jcb4vj4gws94k3am",
+      "title": "",
+      "host": "salesnow.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "mynavi-agent.jp",
+     "biz.ne.jp",
+     "salesnow.jp"
+    ],
+    "sourceUrls": [
+     "https://mynavi-agent.jp/corpdetail/31921/",
+     "https://www.biz.ne.jp/company/luminejp/",
+     "https://salesnow.jp/db/companies/jcb4vj4gws94k3am"
+    ],
+    "ownPages": [],
+    "companies": [
+     "日本ルメンタム株式会社"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "特定商取引法の表記・会社概要",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "trust-newco#claude#0",
+    "id": "trust-newco",
+    "cat": "評判・信頼性",
+    "q": "設立して間もない制作会社に発注するのは不安です。信頼できるかどうか、何で見分ければよいですか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "一般論（実態・連絡先・見積もりの内訳）を答えた。具体的な会社名は挙げなかった。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://atsoho.com/blog/thumbnail-banner-anzen",
+      "title": "",
+      "host": "atsoho.com"
+     },
+     {
+      "url": "https://hnavi.co.jp/lp/hp2/",
+      "title": "",
+      "host": "hnavi.co.jp"
+     },
+     {
+      "url": "https://atsoho.com/blog/unreachable-production-company-response-record",
+      "title": "",
+      "host": "atsoho.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "atsoho.com",
+     "hnavi.co.jp"
+    ],
+    "sourceUrls": [
+     "https://atsoho.com/blog/thumbnail-banner-anzen",
+     "https://hnavi.co.jp/lp/hp2/",
+     "https://atsoho.com/blog/unreachable-production-company-response-record"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "video-hire#claude#0",
+    "id": "video-hire",
+    "cat": "動画制作",
+    "q": "東京で採用動画の制作を依頼できる会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "比較記事（発注ナビ・StockSun）とアイミツの事例、比較ビズの案件を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://imitsu.jp/ct-movie/pr-tokyo/ci-chiyoda-ku/supplier/61578/service/120175/achievement/14357",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://stock-sun.com/column/tokyo-video-production/",
+      "title": "",
+      "host": "stock-sun.com"
+     },
+     {
+      "url": "https://hnavi.co.jp/knowledge/blog/tokyo_video_companies/",
+      "title": "",
+      "host": "hnavi.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "imitsu.jp",
+     "stock-sun.com",
+     "hnavi.co.jp"
+    ],
+    "sourceUrls": [
+     "https://imitsu.jp/ct-movie/pr-tokyo/ci-chiyoda-ku/supplier/61578/service/120175/achievement/14357",
+     "https://stock-sun.com/column/tokyo-video-production/",
+     "https://hnavi.co.jp/knowledge/blog/tokyo_video_companies/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "LOCUS"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "video-cheap#claude#0",
+    "id": "video-cheap",
+    "cat": "動画制作",
+    "q": "中小企業でも頼める安い動画制作会社はどこですか？相場も教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "相場（30万〜200万円、ショート動画は数万円〜）を説明。根拠は制作会社のブログと比較記事。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://atsoho.com/blog/video-outsourcing-freelance-vs-agency-cost",
+      "title": "",
+      "host": "atsoho.com"
+     },
+     {
+      "url": "https://0120.co.jp/blog/video-02/",
+      "title": "",
+      "host": "0120.co.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/list/video-creator/13_tokyo/nakanoku/",
+      "title": "",
+      "host": "biz.ne.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "atsoho.com",
+     "0120.co.jp",
+     "biz.ne.jp"
+    ],
+    "sourceUrls": [
+     "https://atsoho.com/blog/video-outsourcing-freelance-vs-agency-cost",
+     "https://0120.co.jp/blog/video-02/",
+     "https://www.biz.ne.jp/list/video-creator/13_tokyo/nakanoku/"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "video-price#claude#0",
+    "id": "video-price",
+    "cat": "動画制作",
+    "q": "会社紹介動画の制作費用はいくらくらいかかりますか？依頼先の候補も挙げてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "相場（30万〜200万円）と依頼先ごとの違いを説明。アイミツなど仲介サービスを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://atsoho.com/blog/company-video-production-cost",
+      "title": "",
+      "host": "atsoho.com"
+     },
+     {
+      "url": "https://imitsu.jp/cost/movie/",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://meetsmore.com/product-services/CM-video-advertisement-production/media/208535",
+      "title": "",
+      "host": "meetsmore.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "atsoho.com",
+     "imitsu.jp",
+     "meetsmore.com"
+    ],
+    "sourceUrls": [
+     "https://atsoho.com/blog/company-video-production-cost",
+     "https://imitsu.jp/cost/movie/",
+     "https://meetsmore.com/product-services/CM-video-advertisement-production/media/208535"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "ai-train#claude#0",
+    "id": "ai-train",
+    "cat": "AI導入・研修",
+    "q": "社員向けの生成AI研修をやってくれる会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "サイバーエージェント・パーソル・アイテック・スノーフレイクを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.cyberagent.co.jp/techinfo/news/detail/id=29837",
+      "title": "",
+      "host": "cyberagent.co.jp"
+     },
+     {
+      "url": "https://aismiley.co.jp/ai_news/persol-generative-ai-skilling/",
+      "title": "",
+      "host": "aismiley.co.jp"
+     },
+     {
+      "url": "https://www.shopowner-support.net/attracting_customers/btob-business/office-solution/produced-ai-training/",
+      "title": "",
+      "host": "shopowner-support.net"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "cyberagent.co.jp",
+     "aismiley.co.jp",
+     "shopowner-support.net"
+    ],
+    "sourceUrls": [
+     "https://www.cyberagent.co.jp/techinfo/news/detail/id=29837",
+     "https://aismiley.co.jp/ai_news/persol-generative-ai-skilling/",
+     "https://www.shopowner-support.net/attracting_customers/btob-business/office-solution/produced-ai-training/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "サイバーエージェント",
+     "パーソルホールディングス",
+     "アイテック"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "ai-intro#claude#0",
+    "id": "ai-intro",
+    "cat": "AI導入・研修",
+    "q": "中小企業がAIを業務に導入したいとき、どこに相談すればよいですか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "無料相談窓口（Saira）・AI導入支援会社・補助金を挙げた。根拠はPR TIMESと解説記事。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://prtimes.jp/main/html/rd/p/000000009.000152184.html",
+      "title": "",
+      "host": "prtimes.jp"
+     },
+     {
+      "url": "https://weel.co.jp/media/small-and-medium-sized-enterprises-ai-introduction-support/",
+      "title": "",
+      "host": "weel.co.jp"
+     },
+     {
+      "url": "https://start-link.jp/hubspot-ai/ai/genai-work/ai-efficiency-sme-guide",
+      "title": "",
+      "host": "start-link.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "prtimes.jp",
+     "weel.co.jp",
+     "start-link.jp"
+    ],
+    "sourceUrls": [
+     "https://prtimes.jp/main/html/rd/p/000000009.000152184.html",
+     "https://weel.co.jp/media/small-and-medium-sized-enterprises-ai-introduction-support/",
+     "https://start-link.jp/hubspot-ai/ai/genai-work/ai-efficiency-sme-guide"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社Saira"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "ai-rule#claude#0",
+    "id": "ai-rule",
+    "cat": "AI導入・研修",
+    "q": "ChatGPTを社内で使えるようにしたいのですが、社内ルールづくりから支援してくれる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "社内ルールづくりの一般論を説明。支援会社の名前は特定できないと回答。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://ai.giftx.co.jp/blog/chatgpt-company-rollout-guide/",
+      "title": "",
+      "host": "ai.giftx.co.jp"
+     },
+     {
+      "url": "https://www.ai-souken.com/article/internal-rules-for-chatgpt",
+      "title": "",
+      "host": "ai-souken.com"
+     },
+     {
+      "url": "https://saas.imitsu.jp/cate-internal-chatgpt/serviceList",
+      "title": "",
+      "host": "saas.imitsu.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "ai.giftx.co.jp",
+     "ai-souken.com",
+     "saas.imitsu.jp"
+    ],
+    "sourceUrls": [
+     "https://ai.giftx.co.jp/blog/chatgpt-company-rollout-guide/",
+     "https://www.ai-souken.com/article/internal-rules-for-chatgpt",
+     "https://saas.imitsu.jp/cate-internal-chatgpt/serviceList"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "sns-line#claude#0",
+    "id": "sns-line",
+    "cat": "SNS・LINE",
+    "q": "企業のLINE公式アカウントの構築を代行してくれる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "比較記事（shopowner-support）、MARKELINK、ランサーズのフリーランスを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.shopowner-support.net/customer_attraction_information/online/linebiz/line-official-account-setup-service/",
+      "title": "",
+      "host": "shopowner-support.net"
+     },
+     {
+      "url": "https://meetsmore.com/products/markelink",
+      "title": "",
+      "host": "meetsmore.com"
+     },
+     {
+      "url": "https://www.lancers.jp/menu/browse/usecase/28",
+      "title": "",
+      "host": "lancers.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "shopowner-support.net",
+     "meetsmore.com",
+     "lancers.jp"
+    ],
+    "sourceUrls": [
+     "https://www.shopowner-support.net/customer_attraction_information/online/linebiz/line-official-account-setup-service/",
+     "https://meetsmore.com/products/markelink",
+     "https://www.lancers.jp/menu/browse/usecase/28"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社MARKELINK"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "sns-ops#claude#0",
+    "id": "sns-ops",
+    "cat": "SNS・LINE",
+    "q": "SNS運用代行を依頼できる東京の会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "オナマエの比較記事、pamxy、求人に出ている会社を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.onamae.com/business/article/242480/",
+      "title": "",
+      "host": "onamae.com"
+     },
+     {
+      "url": "https://pamxy.co.jp/marke-driven/sns-marketing/tokyo-sns-operation-agency/amp/",
+      "title": "",
+      "host": "pamxy.co.jp"
+     },
+     {
+      "url": "https://stock-sun.com/column/sns-management-tokyo/",
+      "title": "",
+      "host": "stock-sun.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "onamae.com",
+     "pamxy.co.jp",
+     "stock-sun.com"
+    ],
+    "sourceUrls": [
+     "https://www.onamae.com/business/article/242480/",
+     "https://pamxy.co.jp/marke-driven/sns-marketing/tokyo-sns-operation-agency/amp/",
+     "https://stock-sun.com/column/sns-management-tokyo/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社pamxy"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "sns-short#claude#0",
+    "id": "sns-short",
+    "cat": "SNS・LINE",
+    "q": "InstagramやTikTokの短い動画を、撮影から投稿までまとめて任せられる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "ランサーズに出ている会社（アドライブエージェント）とクラウドワークスの個人を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.lancers.jp/profile/lib_creators/portfolio",
+      "title": "",
+      "host": "lancers.jp"
+     },
+     {
+      "url": "https://crowdworks.jp/public/employees/4202948",
+      "title": "",
+      "host": "crowdworks.jp"
+     },
+     {
+      "url": "https://s--line.co.jp/short-video-agency/",
+      "title": "",
+      "host": "s--line.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "lancers.jp",
+     "crowdworks.jp",
+     "s--line.co.jp"
+    ],
+    "sourceUrls": [
+     "https://www.lancers.jp/profile/lib_creators/portfolio",
+     "https://crowdworks.jp/public/employees/4202948",
+     "https://s--line.co.jp/short-video-agency/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社アドライブエージェント"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "web-make#claude#0",
+    "id": "web-make",
+    "cat": "Web制作・システム開発",
+    "q": "企業のホームページ制作を依頼できる会社を東京で探しています。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "比較ビズ・ミツモアと、Webtan の記事に出てくる会社（ベイジ・サイブリッジなど）を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://meetsmore.com/t/website-development/tokyo",
+      "title": "",
+      "host": "meetsmore.com"
+     },
+     {
+      "url": "https://www.biz.ne.jp/list/hp-design/13_tokyo/taitoku/",
+      "title": "",
+      "host": "biz.ne.jp"
+     },
+     {
+      "url": "https://webtan.impress.co.jp/u/2021/04/28/39987",
+      "title": "",
+      "host": "webtan.impress.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "meetsmore.com",
+     "biz.ne.jp",
+     "webtan.impress.co.jp"
+    ],
+    "sourceUrls": [
+     "https://meetsmore.com/t/website-development/tokyo",
+     "https://www.biz.ne.jp/list/hp-design/13_tokyo/taitoku/",
+     "https://webtan.impress.co.jp/u/2021/04/28/39987"
+    ],
+    "ownPages": [],
+    "companies": [
+     "ベイジ",
+     "サイブリッジ"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "web-sys#claude#0",
+    "id": "web-sys",
+    "cat": "Web制作・システム開発",
+    "q": "業務システムの開発を小規模から相談できる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "発注ナビ・アイミツの比較と、比較ビズに出ている会社（カイズ）を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://hnavi.co.jp/knowledge/blog/small-system_companies/",
+      "title": "",
+      "host": "hnavi.co.jp"
+     },
+     {
+      "url": "https://imitsu.jp/list/web-system/small-business/",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/company/kaiz/",
+      "title": "",
+      "host": "biz.ne.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "hnavi.co.jp",
+     "imitsu.jp",
+     "biz.ne.jp"
+    ],
+    "sourceUrls": [
+     "https://hnavi.co.jp/knowledge/blog/small-system_companies/",
+     "https://imitsu.jp/list/web-system/small-business/",
+     "https://www.biz.ne.jp/company/kaiz/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社カイズ"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "web-renew#claude#0",
+    "id": "web-renew",
+    "cat": "Web制作・システム開発",
+    "q": "古い会社のホームページを作り直したいのですが、相談できる制作会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "依頼の流れの一般論。根拠は比較ビズの案件とクラウドワークスの相談。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.biz.ne.jp/subject/toi_detail.html?tid=987848",
+      "title": "",
+      "host": "biz.ne.jp"
+     },
+     {
+      "url": "https://crowdworks.jp/consultation/threads/2704",
+      "title": "",
+      "host": "crowdworks.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "biz.ne.jp",
+     "crowdworks.jp"
+    ],
+    "sourceUrls": [
+     "https://www.biz.ne.jp/subject/toi_detail.html?tid=987848",
+     "https://crowdworks.jp/consultation/threads/2704"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cast-book#claude#0",
+    "id": "cast-book",
+    "cat": "キャスト手配",
+    "q": "イベントのMCやキャストを手配してくれる会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "アイミツの比較記事（MC planning）とココナラ・クラウドワークスの個人を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://imitsu.jp/list/event-planning/liveevent-staff/",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://imitsu.jp/list/event-planning/casting-agent/",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://coconala.com/services/4279981",
+      "title": "",
+      "host": "coconala.com"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "imitsu.jp",
+     "coconala.com"
+    ],
+    "sourceUrls": [
+     "https://imitsu.jp/list/event-planning/liveevent-staff/",
+     "https://imitsu.jp/list/event-planning/casting-agent/",
+     "https://coconala.com/services/4279981"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社MC planning"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cast-expo#claude#0",
+    "id": "cast-expo",
+    "cat": "キャスト手配",
+    "q": "展示会の司会やコンパニオンを手配したいのですが、東京で相談できる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "イベコン.com（ケイプロモーション）と株式会社ファクトを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://prtimes.jp/main/html/rd/p/000000006.000057754.html",
+      "title": "",
+      "host": "prtimes.jp"
+     },
+     {
+      "url": "https://rocket-boys.co.jp/event-staff/",
+      "title": "",
+      "host": "rocket-boys.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "prtimes.jp",
+     "rocket-boys.co.jp"
+    ],
+    "sourceUrls": [
+     "https://prtimes.jp/main/html/rd/p/000000006.000057754.html",
+     "https://rocket-boys.co.jp/event-staff/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "ケイプロモーション",
+     "株式会社ファクト"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cast-shoot#claude#0",
+    "id": "cast-shoot",
+    "cat": "キャスト手配",
+    "q": "撮影に出演するモデルやナレーターの手配も含めて、動画制作を任せられる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "アクエリアス・エーフラット・アテンションとランサーズのサービスを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.biz.ne.jp/company/aq-movie/",
+      "title": "",
+      "host": "biz.ne.jp"
+     },
+     {
+      "url": "https://www.value-press.com/pressrelease/325993",
+      "title": "",
+      "host": "value-press.com"
+     },
+     {
+      "url": "https://www.lancers.jp/menu/detail/1276479",
+      "title": "",
+      "host": "lancers.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "biz.ne.jp",
+     "value-press.com",
+     "lancers.jp"
+    ],
+    "sourceUrls": [
+     "https://www.biz.ne.jp/company/aq-movie/",
+     "https://www.value-press.com/pressrelease/325993",
+     "https://www.lancers.jp/menu/detail/1276479"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社アクエリアス",
+     "株式会社エーフラット"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cre-logo#claude#0",
+    "id": "cre-logo",
+    "cat": "クリエイティブ",
+    "q": "会社のロゴやバナーのデザインを依頼できる制作会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "クラウドワークスのロゴ作成案件だけが出た。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://crowdworks.jp/public/proposal_products/15167315",
+      "title": "",
+      "host": "crowdworks.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 1,
+    "sources": [
+     "crowdworks.jp"
+    ],
+    "sourceUrls": [
+     "https://crowdworks.jp/public/proposal_products/15167315"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cre-brand#claude#0",
+    "id": "cre-brand",
+    "cat": "クリエイティブ",
+    "q": "ロゴから名刺・会社案内まで、まとめてデザインを頼める会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "クラウドワークスの個人デザイナーの提案だけが出た。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://crowdworks.jp/public/jobs/10913168/proposal_products/users/79671",
+      "title": "",
+      "host": "crowdworks.jp"
+     },
+     {
+      "url": "https://crowdworks.jp/consultation/threads/1533",
+      "title": "",
+      "host": "crowdworks.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "crowdworks.jp"
+    ],
+    "sourceUrls": [
+     "https://crowdworks.jp/public/jobs/10913168/proposal_products/users/79671",
+     "https://crowdworks.jp/consultation/threads/1533"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cre-pamph#claude#0",
+    "id": "cre-pamph",
+    "cat": "クリエイティブ",
+    "q": "会社案内のパンフレットや展示会のパネルを作ってくれる制作会社を探しています。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "ランサーズのアズ・クリエイトと比較ビズの案件を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.lancers.jp/menu/detail/1279025",
+      "title": "",
+      "host": "lancers.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/subject/toi_detail.html?tid=989999",
+      "title": "",
+      "host": "biz.ne.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "lancers.jp",
+     "biz.ne.jp"
+    ],
+    "sourceUrls": [
+     "https://www.lancers.jp/menu/detail/1279025",
+     "https://www.biz.ne.jp/subject/toi_detail.html?tid=989999"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社アズ・クリエイト"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cross-onestop#claude#0",
+    "id": "cross-onestop",
+    "cat": "横断・比較",
+    "q": "動画もWebもAI研修もまとめて頼める制作会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "まとめて頼める会社は特定できないと回答。aicrew・エーファクト・Enter ENT を挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.lancers.jp/client/Enter_ENT",
+      "title": "",
+      "host": "lancers.jp"
+     },
+     {
+      "url": "https://webtan.impress.co.jp/r/prtimes/items/000000013.000163392",
+      "title": "",
+      "host": "webtan.impress.co.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/company/afact/",
+      "title": "",
+      "host": "biz.ne.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "lancers.jp",
+     "webtan.impress.co.jp",
+     "biz.ne.jp"
+    ],
+    "sourceUrls": [
+     "https://www.lancers.jp/client/Enter_ENT",
+     "https://webtan.impress.co.jp/r/prtimes/items/000000013.000163392",
+     "https://www.biz.ne.jp/company/afact/"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社エーファクト"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cross-dx#claude#0",
+    "id": "cross-dx",
+    "cat": "横断・比較",
+    "q": "中小企業のDXを一社でまとめて支援してくれる会社を教えてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "公的な伴走支援（静岡県・静岡市）とMJS・キヤノンSAを挙げた。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.zenkyo.or.jp/chiiki/docs/jigyou2026/18_shizuoka_p2026.pdf",
+      "title": "",
+      "host": "zenkyo.or.jp"
+     },
+     {
+      "url": "https://www.mjs.co.jp/news/news_2025/000000430.000018493/pdf/d18493-430-68e7049e03b3ec1e661835811bab9bc8.pdf",
+      "title": "",
+      "host": "mjs.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "zenkyo.or.jp",
+     "mjs.co.jp"
+    ],
+    "sourceUrls": [
+     "https://www.zenkyo.or.jp/chiiki/docs/jigyou2026/18_shizuoka_p2026.pdf",
+     "https://www.mjs.co.jp/news/news_2025/000000430.000018493/pdf/d18493-430-68e7049e03b3ec1e661835811bab9bc8.pdf"
+    ],
+    "ownPages": [],
+    "companies": [
+     "株式会社フォーバル",
+     "ミロク情報サービス"
+    ],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cross-choose#claude#0",
+    "id": "cross-choose",
+    "cat": "横断・比較",
+    "q": "制作会社を選ぶとき、何を基準に比較すればよいですか？おすすめの会社も挙げてください。",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "選び方の一般論（実績・相場・書面化・3〜5社比較）。おすすめの会社名は挙げなかった。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://atsoho.com/blog/production-company-choice-tokyo",
+      "title": "",
+      "host": "atsoho.com"
+     },
+     {
+      "url": "https://imitsu.jp/matome/hp-design/4202341051950229",
+      "title": "",
+      "host": "imitsu.jp"
+     },
+     {
+      "url": "https://jinrai.co.jp/blog/homepage-seisaku-kaisha-erabikata/",
+      "title": "",
+      "host": "jinrai.co.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 3,
+    "sources": [
+     "atsoho.com",
+     "imitsu.jp",
+     "jinrai.co.jp"
+    ],
+    "sourceUrls": [
+     "https://atsoho.com/blog/production-company-choice-tokyo",
+     "https://imitsu.jp/matome/hp-design/4202341051950229",
+     "https://jinrai.co.jp/blog/homepage-seisaku-kaisha-erabikata/"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   },
+   {
+    "key": "cross-budget#claude#0",
+    "id": "cross-budget",
+    "cat": "横断・比較",
+    "q": "予算100万円以内で、動画制作とホームページ制作の両方を相談できる会社はありますか？",
+    "branded": false,
+    "engine": "claude",
+    "model": "Claude（チャット・ウェブ検索）",
+    "sample": 0,
+    "answer": "両方を扱う会社は特定できないと回答。比較ビズの案件だけが出た。",
+    "named": false,
+    "verdict": "absent",
+    "cited": false,
+    "citedRank": null,
+    "citedUrls": [
+     {
+      "url": "https://www.biz.ne.jp/subject/toi_detail.html?tid=980566",
+      "title": "",
+      "host": "biz.ne.jp"
+     },
+     {
+      "url": "https://www.biz.ne.jp/matome/2003590/",
+      "title": "",
+      "host": "biz.ne.jp"
+     }
+    ],
+    "searched": false,
+    "searchCount": 2,
+    "sources": [
+     "biz.ne.jp"
+    ],
+    "sourceUrls": [
+     "https://www.biz.ne.jp/subject/toi_detail.html?tid=980566",
+     "https://www.biz.ne.jp/matome/2003590/"
+    ],
+    "ownPages": [],
+    "companies": [],
+    "position": null,
+    "sentiment": null,
+    "missing": "",
+    "truncated": false,
+    "truncReason": null,
+    "error": null
+   }
+  ],
+  "summary": {
+   "missingEvidence": [
+    "公式サイト・会社情報",
+    "公式サイト",
+    "別会社であることの説明",
+    "口コミ・お客様の声",
+    "特定商取引法の表記・会社概要"
+   ],
+   "asked": 28,
+   "total": 28,
+   "questions": 28,
+   "samples": 1,
+   "engineIds": [
+    "claude"
+   ],
+   "coverage": 1,
+   "errors": [],
+   "unjudged": 0,
+   "truncated": 0,
+   "failed": 0,
+   "fallback": false,
+   "stats": {
+    "recommend": {
+     "k": 0,
+     "n": 23,
+     "p": 0,
+     "lo": 0,
+     "hi": 0.14312112541726274
+    },
+    "openMention": {
+     "k": 0,
+     "n": 23,
+     "p": 0,
+     "lo": 0,
+     "hi": 0.14312112541726274
+    },
+    "mention": {
+     "k": 0,
+     "n": 28,
+     "p": 0,
+     "lo": 0,
+     "hi": 0.12064720365810762
+    },
+    "cite": {
+     "k": 0,
+     "n": 28,
+     "p": 0,
+     "lo": 0,
+     "hi": 0.12064720365810762
+    },
+    "searched": {
+     "k": 0,
+     "n": 28,
+     "p": 0,
+     "lo": 0,
+     "hi": 0.12064720365810762
+    }
+   },
+   "mentionRate": 0,
+   "openMentionRate": 0,
+   "recommendRate": 0,
+   "citeRate": 0,
+   "searchRate": 0,
+   "verdicts": {
+    "recommended": 0,
+    "mentioned": 0,
+    "denied": 3,
+    "other_company": 2,
+    "absent": 23
+   },
+   "engines": [
+    {
+     "id": "claude",
+     "label": "Claude",
+     "model": "Claude（チャット・ウェブ検索）",
+     "total": 28,
+     "asked": 28,
+     "failed": 0,
+     "truncated": 0,
+     "stats": {
+      "recommend": {
+       "k": 0,
+       "n": 23,
+       "p": 0,
+       "lo": 0,
+       "hi": 0.14312112541726274
+      },
+      "openMention": {
+       "k": 0,
+       "n": 23,
+       "p": 0,
+       "lo": 0,
+       "hi": 0.14312112541726274
+      },
+      "mention": {
+       "k": 0,
+       "n": 28,
+       "p": 0,
+       "lo": 0,
+       "hi": 0.12064720365810762
+      },
+      "cite": {
+       "k": 0,
+       "n": 28,
+       "p": 0,
+       "lo": 0,
+       "hi": 0.12064720365810762
+      },
+      "searched": {
+       "k": 0,
+       "n": 28,
+       "p": 0,
+       "lo": 0,
+       "hi": 0.12064720365810762
+      }
+     }
+    }
+   ],
+   "byQuestion": [
+    {
+     "id": "brand-what",
+     "cat": "ブランド指名",
+     "q": "ルメニウム（Lumenium）とはどんな会社ですか？事業内容と拠点を教えてください。",
+     "branded": true,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "brand-real",
+     "cat": "ブランド指名",
+     "q": "Lumenium という日本の制作会社は実在しますか？公式サイトはどこですか？",
+     "branded": true,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "brand-vs",
+     "cat": "ブランド指名",
+     "q": "ルメニウムとLumentumは同じ会社ですか？",
+     "branded": true,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "trust-review",
+     "cat": "評判・信頼性",
+     "q": "ルメニウム（Lumenium）という制作会社の評判を教えてください。実際に利用した人の声はありますか？",
+     "branded": true,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "trust-real",
+     "cat": "評判・信頼性",
+     "q": "ルメニウムに制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？",
+     "branded": true,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "trust-newco",
+     "cat": "評判・信頼性",
+     "q": "設立して間もない制作会社に発注するのは不安です。信頼できるかどうか、何で見分ければよいですか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "video-hire",
+     "cat": "動画制作",
+     "q": "東京で採用動画の制作を依頼できる会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "video-cheap",
+     "cat": "動画制作",
+     "q": "中小企業でも頼める安い動画制作会社はどこですか？相場も教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "video-price",
+     "cat": "動画制作",
+     "q": "会社紹介動画の制作費用はいくらくらいかかりますか？依頼先の候補も挙げてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "ai-train",
+     "cat": "AI導入・研修",
+     "q": "社員向けの生成AI研修をやってくれる会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "ai-intro",
+     "cat": "AI導入・研修",
+     "q": "中小企業がAIを業務に導入したいとき、どこに相談すればよいですか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "ai-rule",
+     "cat": "AI導入・研修",
+     "q": "ChatGPTを社内で使えるようにしたいのですが、社内ルールづくりから支援してくれる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "sns-line",
+     "cat": "SNS・LINE",
+     "q": "企業のLINE公式アカウントの構築を代行してくれる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "sns-ops",
+     "cat": "SNS・LINE",
+     "q": "SNS運用代行を依頼できる東京の会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "sns-short",
+     "cat": "SNS・LINE",
+     "q": "InstagramやTikTokの短い動画を、撮影から投稿までまとめて任せられる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "web-make",
+     "cat": "Web制作・システム開発",
+     "q": "企業のホームページ制作を依頼できる会社を東京で探しています。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "web-sys",
+     "cat": "Web制作・システム開発",
+     "q": "業務システムの開発を小規模から相談できる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "web-renew",
+     "cat": "Web制作・システム開発",
+     "q": "古い会社のホームページを作り直したいのですが、相談できる制作会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cast-book",
+     "cat": "キャスト手配",
+     "q": "イベントのMCやキャストを手配してくれる会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cast-expo",
+     "cat": "キャスト手配",
+     "q": "展示会の司会やコンパニオンを手配したいのですが、東京で相談できる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cast-shoot",
+     "cat": "キャスト手配",
+     "q": "撮影に出演するモデルやナレーターの手配も含めて、動画制作を任せられる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cre-logo",
+     "cat": "クリエイティブ",
+     "q": "会社のロゴやバナーのデザインを依頼できる制作会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cre-brand",
+     "cat": "クリエイティブ",
+     "q": "ロゴから名刺・会社案内まで、まとめてデザインを頼める会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cre-pamph",
+     "cat": "クリエイティブ",
+     "q": "会社案内のパンフレットや展示会のパネルを作ってくれる制作会社を探しています。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cross-onestop",
+     "cat": "横断・比較",
+     "q": "動画もWebもAI研修もまとめて頼める制作会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cross-dx",
+     "cat": "横断・比較",
+     "q": "中小企業のDXを一社でまとめて支援してくれる会社を教えてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cross-choose",
+     "cat": "横断・比較",
+     "q": "制作会社を選ぶとき、何を基準に比較すればよいですか？おすすめの会社も挙げてください。",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    },
+    {
+     "id": "cross-budget",
+     "cat": "横断・比較",
+     "q": "予算100万円以内で、動画制作とホームページ制作の両方を相談できる会社はありますか？",
+     "branded": false,
+     "n": 1,
+     "hits": 0,
+     "recs": 0,
+     "cites": 0,
+     "searched": 0,
+     "total": 1,
+     "perEngine": {
+      "claude": {
+       "n": 1,
+       "hits": 0,
+       "recs": 0,
+       "cites": 0
+      }
+     }
+    }
+   ],
+   "byCategory": [
+    {
+     "cat": "ブランド指名",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": true,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "評判・信頼性",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "動画制作",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "AI導入・研修",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "SNS・LINE",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "Web制作・システム開発",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "キャスト手配",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "クリエイティブ",
+     "asked": 3,
+     "planned": 3,
+     "questions": 3,
+     "plannedQuestions": 3,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 3,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.5615060804490177
+     }
+    },
+    {
+     "cat": "横断・比較",
+     "asked": 4,
+     "planned": 4,
+     "questions": 4,
+     "plannedQuestions": 4,
+     "branded": false,
+     "mentions": 0,
+     "cites": 0,
+     "thin": false,
+     "rate": 0,
+     "ci": {
+      "k": 0,
+      "n": 4,
+      "p": 0,
+      "lo": 0,
+      "hi": 0.48990002040399916
+     }
+    }
+   ],
+   "competitors": [
+    {
+     "name": "LOCUS",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "サイバーエージェント",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "パーソルホールディングス",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "アイテック",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社Saira",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社MARKELINK",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社pamxy",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社アドライブエージェント",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "ベイジ",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "サイブリッジ",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社カイズ",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社MC planning",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "ケイプロモーション",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社ファクト",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "株式会社アクエリアス",
+     "count": 1,
+     "questions": 1,
+     "share": 0.043478260869565216,
+     "us": false
+    },
+    {
+     "name": "Lumenium",
+     "count": 0,
+     "questions": 0,
+     "share": 0,
+     "us": true
+    }
+   ],
+   "shareOfVoice": {
+    "ours": 0,
+    "others": 20,
+    "value": 0
+   },
+   "position": null,
+   "sentiment": {
+    "positive": 0,
+    "neutral": 0,
+    "negative": 0
+   },
+   "citedPages": [
+    {
+     "url": "https://mynavi-agent.jp/corpdetail/31921/",
+     "host": "mynavi-agent.jp",
+     "count": 2
+    },
+    {
+     "url": "https://www.shopowner-support.net/?p=173632",
+     "host": "shopowner-support.net",
+     "count": 2
+    }
+   ],
+   "ownPages": [],
+   "topSources": [
+    {
+     "name": "biz.ne.jp",
+     "count": 9
+    },
+    {
+     "name": "imitsu.jp",
+     "count": 5
+    },
+    {
+     "name": "lancers.jp",
+     "count": 5
+    },
+    {
+     "name": "shopowner-support.net",
+     "count": 4
+    },
+    {
+     "name": "atsoho.com",
+     "count": 4
+    },
+    {
+     "name": "crowdworks.jp",
+     "count": 4
+    },
+    {
+     "name": "hnavi.co.jp",
+     "count": 3
+    },
+    {
+     "name": "meetsmore.com",
+     "count": 3
+    },
+    {
+     "name": "hrmos.co",
+     "count": 2
+    },
+    {
+     "name": "mynavi-agent.jp",
+     "count": 2
+    },
+    {
+     "name": "stock-sun.com",
+     "count": 2
+    },
+    {
+     "name": "prtimes.jp",
+     "count": 2
+    }
+   ],
+   "topCited": [
+    {
+     "name": "biz.ne.jp",
+     "count": 9
+    },
+    {
+     "name": "imitsu.jp",
+     "count": 5
+    },
+    {
+     "name": "lancers.jp",
+     "count": 5
+    },
+    {
+     "name": "shopowner-support.net",
+     "count": 4
+    },
+    {
+     "name": "atsoho.com",
+     "count": 4
+    },
+    {
+     "name": "crowdworks.jp",
+     "count": 4
+    },
+    {
+     "name": "hnavi.co.jp",
+     "count": 3
+    },
+    {
+     "name": "meetsmore.com",
+     "count": 3
+    },
+    {
+     "name": "hrmos.co",
+     "count": 2
+    },
+    {
+     "name": "mynavi-agent.jp",
+     "count": 2
+    },
+    {
+     "name": "stock-sun.com",
+     "count": 2
+    },
+    {
+     "name": "prtimes.jp",
+     "count": 2
+    }
+   ]
+  },
+  "actions": [
+   {
+    "rank": 1,
+    "title": "「実在が確認できない」と答えられた質問が 3 件（回答 3 回）",
+    "why": "サイトの中で何を書いても、外に裏づけが無いと答えるAIには確認できません。自社サイトだけが情報源の会社は、存在を疑われる側に置かれます。",
+    "how": "第三者の面に社名・所在地・代表者・URLを同じ表記で載せる（法人番号公表サイト、求人・発注系のディレクトリ、取引先の実績ページ、プレスリリース）。1件ずつ増やすたびにこの数字は下がります。",
+    "evidence": [
+     "Lumenium という日本の制作会社は実在しますか？公式サイトはどこですか？",
+     "ルメニウム（Lumenium）という制作会社の評判を教えてください。実際に利用した人の声はありますか？",
+     "ルメニウムに制作を依頼しても大丈夫ですか？会社の所在地や事業者情報は確認できますか？"
+    ],
+    "kind": "exists"
+   },
+   {
+    "rank": 2,
+    "title": "他社だけが挙がったカテゴリ 7 件",
+    "why": "そのカテゴリの質問には答えが出ていて、そこに自社が入っていないということです。需要が無いのではなく、候補として持っていないだけなので、ここは埋められます。",
+    "how": "挙がった会社のページと自社の該当ページを並べ、答えに必要な具体（料金の幅・対応範囲・実績数・所在地・連絡手段）が抜けている項目を足す。質問文そのものを見出しにしたページが最短です。",
+    "evidence": [
+     "動画制作：LOCUS",
+     "AI導入・研修：サイバーエージェント、パーソルホールディングス、アイテック、株式会社Saira",
+     "SNS・LINE：株式会社MARKELINK、株式会社pamxy、株式会社アドライブエージェント",
+     "Web制作・システム開発：ベイジ、サイブリッジ、株式会社カイズ",
+     "キャスト手配：株式会社MC planning、ケイプロモーション、株式会社ファクト、株式会社アクエリアス、株式会社エーフラット",
+     "クリエイティブ：株式会社アズ・クリエイト",
+     "横断・比較：株式会社エーファクト、株式会社フォーバル、ミロク情報サービス"
+    ],
+    "kind": "category"
+   },
+   {
+    "rank": 3,
+    "title": "複数の質問で読まれていた情報源 12 件",
+    "why": "答えを組み立てる材料にされている面です。そこに載っていない会社は、そもそも材料に入りません。",
+    "how": "掲載条件を確認して、載せられるものから載せる（多くは無料の事業者登録）。載ったら次の計測で、その質問の出現率が動くかを見ます。",
+    "evidence": [
+     "biz.ne.jp（9問で参照）",
+     "imitsu.jp（5問で参照）",
+     "lancers.jp（5問で参照）",
+     "shopowner-support.net（4問で参照）",
+     "atsoho.com（4問で参照）",
+     "crowdworks.jp（4問で参照）"
+    ],
+    "kind": "sources"
+   },
+   {
+    "rank": 4,
+    "title": "自社サイトが答えの出典になった質問 0 / 28 件",
+    "why": "一度も出典になっていません。ページが無いか、その質問に答える形になっていないかのどちらかです。",
+    "how": "計測している質問文を、そのままページの見出しにする。答えは最初の2〜3行に置き、そこに金額・対応地域・期間・連絡先を数字で書く。",
+    "evidence": [],
+    "kind": "cited"
+   }
+  ],
+  "social": null,
+  "companiesFailed": false,
+  "analysisFailures": []
  }
 ]
