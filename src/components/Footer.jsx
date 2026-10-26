@@ -3,7 +3,7 @@ import { rich } from '../lib/rich'
 import Wordmark from './Wordmark'
 
 // 左に会社のカード（ロゴ・社名・拠点・著作権）、右に4列のリンク、右下に連絡の帯
-// （電話か無料相談・お問い合わせ・公式LINE）。電話番号と LINE の URL は
+// （電話か無料相談・公式LINE）。電話番号と LINE の URL は
 // 文章編集（text.footer）で入れたものだけ出します。
 const telHref = (t) => 'tel:' + String(t).replace(/[^\d+]/g, '')
 
@@ -75,10 +75,6 @@ export default function Footer({ onPrivacy }) {
                 <span><b className="ft-call-text">{SECTION.footer.consult}</b>{SECTION.footer.consultNote ? <small>{SECTION.footer.consultNote}</small> : null}</span>
               </a>
             )}
-            <a className="ft-btn" href="#contact-form" data-cta="footer-contact">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6h17v12h-17z M4 6.5l8 6 8-6" /></svg>
-              お問い合わせ
-            </a>
             {SECTION.footer.line ? (
               <a className="ft-btn ft-btn--line" href={SECTION.footer.line} target="_blank" rel="noopener noreferrer" data-cta="footer-line">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C7 4 3 7.2 3 11.2c0 3.6 3.2 6.6 7.5 7.1.3.1.7.2.8.5l-.2 1.7c0 .3.2.6.6.4 2.7-1.4 7.3-4.7 7.3-9.7C21 7.2 17 4 12 4Z" /></svg>
