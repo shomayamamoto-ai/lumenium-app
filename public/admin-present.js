@@ -1,17 +1,18 @@
 /* ---- 資料：提案資料（自己紹介とご提案・14枚） ----
    過去に作った提案資料「Lumenium 自己紹介・ご提案」を、管理画面の中でそのまま見せ・発表します。
-   スライドの中身は /proposal-deck.js（開いたときに読み込みます）。1枚は 1920×1080 の枠で、
-   画面の幅に合わせて縮めて表示します。できること:
+   スライドの中身は /proposal-deck.js（開いたときに読み込みます）。1枚は A4横（297×210mm）と同じ
+   比率の 1920×1358 の枠で、画面の幅に合わせて縮めて表示します。できること:
    ・前後に送る（← → キー・スペース）、一覧から選ぶ
    ・全画面で発表（F キー）。話す内容のメモ（ノート）は、全画面にしない画面の下に出ます
-   ・印刷・PDF（1枚ずつ横長のページに）
+   ・印刷・PDF（1枚ずつ A4横 297×210mm のページに）
    ・デザインの切り替え：サイトと同じデザインに作り直した版（/proposal-deck-site.js）と、元の資料
      （/proposal-deck.js）。「元のデザインに戻す」で、元の資料がそのまま出ます（選んだ方を覚えます）。
      中身（文章・並び・ノート）はどちらも同じです。 */
 (function () {
   'use strict';
   var el = function (id) { return document.getElementById(id); };
-  var W = 1920, H = 1080;
+  /* A4横（297×210mm）と同じ比率。1920 × 210 / 297 = 1357.6 → 1358 */
+  var W = 1920, H = 1358;
   var S = { started: false, i: 0, notes: true, deck: null, style: 'site' };
   /* デザインの種類。site: サイトと同じデザイン（既定） / classic: 元の資料 */
   var STYLES = {
@@ -36,8 +37,8 @@
       '#present-admin .pd-bar button:disabled{opacity:.45;cursor:default}' +
       '#present-admin .pd-count{font-size:13px;font-weight:700;color:var(--sub,#55555e);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:center}' +
       '#present-admin .pd-sp{flex:1 1 auto}' +
-      '.pd-frame{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:#141826;box-shadow:0 1px 3px rgba(15,23,42,.12),0 8px 24px rgba(15,23,42,.08)}' +
-      '.pd-slide{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden}' +
+      '.pd-frame{position:relative;width:100%;aspect-ratio:297/210;overflow:hidden;border-radius:12px;background:#141826;box-shadow:0 1px 3px rgba(15,23,42,.12),0 8px 24px rgba(15,23,42,.08)}' +
+      '.pd-slide{position:absolute;left:0;top:0;width:1920px;height:1358px;transform-origin:0 0;overflow:hidden}' +
       '.pd-slide>section{position:absolute;inset:0;box-sizing:border-box;font-family:"Noto Sans JP",sans-serif;color:#1b1e2b;line-height:1.3;letter-spacing:0;text-align:left;-webkit-font-smoothing:antialiased}' +
       '.pd-slide>section *{margin:0;box-sizing:border-box}' +
       '.pd-slide>section h1,.pd-slide>section h2,.pd-slide>section h3{letter-spacing:0}' +
@@ -54,11 +55,11 @@
       '.pd-show{position:fixed;inset:0;background:#0b0d16;z-index:4000;display:flex;align-items:center;justify-content:center;cursor:none}' +
       '.pd-show .pd-frame{border-radius:0;box-shadow:none;width:auto;height:auto;aspect-ratio:auto}' +
       '.pd-show-hint{position:fixed;right:16px;bottom:12px;color:rgba(255,255,255,.55);font-size:12px;z-index:4001;font-family:system-ui,sans-serif;pointer-events:none}' +
-      /* 印刷・PDF（1枚ずつ） */
+      /* 印刷・PDF（1枚ずつ A4横。1920px の枠を 297mm の幅に縮めます） */
       '#pd-print{display:none}' +
       '@media print{body.pd-printing>*:not(#pd-print){display:none!important}body.pd-printing #pd-print{display:block}' +
-      'body.pd-printing{background:#fff!important;margin:0}#pd-print .pd-page{position:relative;width:1920px;height:1080px;overflow:hidden;break-after:page;page-break-after:always}' +
-      '#pd-print .pd-page:last-child{break-after:auto;page-break-after:auto}#pd-print .pd-slide{transform:none}' +
+      'body.pd-printing{background:#fff!important;margin:0}#pd-print .pd-page{position:relative;width:297mm;height:210mm;overflow:hidden;break-after:page;page-break-after:always}' +
+      '#pd-print .pd-page:last-child{break-after:auto;page-break-after:auto}#pd-print .pd-slide{transform:scale(' + (297 / 25.4 * 96 / W).toFixed(6) + ')}' +
       '#pd-print *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
     document.head.appendChild(s);
   }
@@ -113,7 +114,7 @@
     if (window.lumIcon) html = html.replace(/<span class="pd-ic" data-ic="([a-z]+)"([^>]*)><\/span>/g, function (_, n, rest) { return '<span class="pd-ic"' + rest + '>' + window.lumIcon(n) + '</span>'; });
     return '<div class="pd-slide">' + html + '</div>';
   }
-  /* 枠の幅に合わせて縮める（枠は 16:9）。 */
+  /* 枠の幅に合わせて縮める（枠は A4横の比率）。 */
   function fit(frame, w, h) {
     var sl = frame.querySelector('.pd-slide');
     if (!sl) return;
@@ -242,7 +243,7 @@
     wrap.innerHTML = S.deck.slides.map(function (x) { return '<div class="pd-page">' + slideHtml(x) + '</div>'; }).join('');
     var page = document.createElement('style');
     page.id = 'pd-page';
-    page.textContent = '@page{size:1920px 1080px;margin:0}';
+    page.textContent = '@page{size:297mm 210mm;margin:0}';
     document.body.appendChild(wrap);
     document.head.appendChild(page);
     document.body.classList.add('pd-printing');

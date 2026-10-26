@@ -6,6 +6,8 @@
 // 変えません。管理画面の「資料 › 提案資料」で「元のデザインに戻す」を押すと、元の資料がそのまま
 // 出ます（admin-present.js）。
 //
+// 1枚は 1920×1358 の枠です（A4横 297×210mm と同じ比率。印刷・PDFは A4横ちょうどになります）。
+//
 // デザインはトップページと同じ組み方です: 明るく温かい灰色の地・筆記体の英語の見出し＋日本語の
 // 見出し・白いカード・コーラルの赤・淡くぼかした写真の地。写真は実際の管理画面の画面例
 // （数字は見本と書き添えます）と代表の写真だけです。
@@ -58,9 +60,9 @@ const S = {}
 S.cover = section('cover', '#ffffff',
   `<img src="/img/home/admin-portal.jpg" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:left top">` +
   `<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.94) 0%,rgba(255,255,255,.72) 55%,rgba(255,255,255,.25) 100%)"></div>` +
-  card('position:absolute;left:128px;top:140px;width:1260px;padding:64px 80px 60px',
-    `<p style="font-family:${SCRIPT};font-size:110px;line-height:1;color:${RED}">Lumenium</p>` +
-    `<h1 style="font-family:${MIN};font-size:68px;font-weight:700;line-height:1.5;color:${INK};margin-top:18px"><span style="color:#b9b6c0">ぼんやり</span>としたお悩みを<br><span style="border-bottom:6px solid ${RED}">はっきり</span>とさせる<br>夢実現のプロフェッショナルです</h1>` +
+  card('position:absolute;left:128px;top:250px;width:1360px;padding:76px 80px 72px',
+    `<p style="font-family:${SCRIPT};font-size:124px;line-height:1;color:${RED}">Lumenium</p>` +
+    `<h1 style="font-family:${MIN};font-size:70px;font-weight:700;line-height:1.55;color:${INK};margin-top:24px"><span style="color:#b9b6c0">ぼんやり</span>としたお悩みを<br><span style="border-bottom:6px solid ${RED}">はっきり</span>とさせる<br>夢実現のプロフェッショナルです</h1>` +
     `<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:40px">` +
       ['業務効率化システムの開発', 'ホームページ制作', 'AI研修'].map((t) => `<p style="font-size:26px;font-weight:700;color:#a8383c;background:${RED_SOFT};padding:10px 26px;border-radius:999px">${t}</p>`).join('') +
     `</div>`) +
@@ -80,15 +82,15 @@ const career = [
   ['2026', '大学卒業、Lumenium 設立', '業務効率化システムの開発とAI研修を軸に'],
 ]
 S.profile = section('profile', BG,
-  title('Profile', '自己紹介', { top: 70 }) +
-  `<div style="position:absolute;left:128px;top:320px;width:440px;height:560px;border-radius:28px;overflow:hidden;box-shadow:${SHADOW}"><img src="/profile.jpg" alt="代表 山本 捷真の写真" style="width:100%;height:118%;object-fit:cover;object-position:center 40%;margin-top:-9%;display:block"></div>` +
-  card('position:absolute;left:620px;right:128px;top:200px;padding:34px 48px 30px',
-    `<p style="font-family:${MIN};font-size:52px;font-weight:700;line-height:1.2">山本 捷真</p>` +
+  title('Profile', '自己紹介', { top: 96 }) +
+  `<div style="position:absolute;left:128px;top:400px;width:440px;height:700px;border-radius:28px;overflow:hidden;box-shadow:${SHADOW}"><img src="/profile.jpg" alt="代表 山本 捷真の写真" style="width:100%;height:118%;object-fit:cover;object-position:center 40%;margin-top:-9%;display:block"></div>` +
+  card('position:absolute;left:620px;right:128px;top:230px;padding:44px 52px 36px',
+    `<p style="font-family:${MIN};font-size:60px;font-weight:700;line-height:1.2">山本 捷真</p>` +
     `<p style="font-size:24px;color:${INK2};margin-top:6px">やまもと しょうま　｜　Lumenium（ルメニウム）代表　｜　東京・オンラインで全国対応</p>` +
-    `<div style="margin-top:14px">` +
-      career.map(([y, t, d], i) => `<div style="display:grid;grid-template-columns:140px 1fr;gap:24px;padding:8px 0;border-top:1px solid ${i ? LINE : INK}">` +
-        `<p style="font-family:${MIN};font-size:30px;font-weight:700;color:${RED};line-height:1.4">${esc(y)}</p>` +
-        `<p style="font-size:27px;font-weight:700;line-height:1.4">${esc(t)}<br><span style="font-size:24px;font-weight:400;color:${INK2}">${esc(d)}</span></p></div>`).join('') +
+    `<div style="margin-top:22px">` +
+      career.map(([y, t, d], i) => `<div style="display:grid;grid-template-columns:140px 1fr;gap:24px;padding:17px 0;border-top:1px solid ${i ? LINE : INK}">` +
+        `<p style="font-family:${MIN};font-size:32px;font-weight:700;color:${RED};line-height:1.4">${esc(y)}</p>` +
+        `<p style="font-size:29px;font-weight:700;line-height:1.45">${esc(t)}<br><span style="font-size:25px;font-weight:400;color:${INK2}">${esc(d)}</span></p></div>`).join('') +
     `</div>`) +
   foot(2))
 
@@ -99,12 +101,12 @@ const strengths = [
   ['03', '約束', '費用と工程を隠しません。料金の目安を公開し、見積りは無料、返信は48時間以内'],
 ]
 S.strengths = section('strengths', BG, soft('/img/home/admin-video.jpg') +
-  title('Strength', '「目的」を言葉にして、手段に置き換える', { align: 'center', sub: '何を作るか決まっていなくても大丈夫です。お話を伺って目的を言葉にし、それに合う仕組みに置き換えます。', top: 80 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:470px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px">` +
-    strengths.map(([n, h, t]) => card('padding:48px 44px;min-height:440px',
+  title('Strength', '「目的」を言葉にして、手段に置き換える', { align: 'center', sub: '何を作るか決まっていなくても大丈夫です。お話を伺って目的を言葉にし、それに合う仕組みに置き換えます。', top: 110 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:560px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px">` +
+    strengths.map(([n, h, t]) => card('padding:60px 48px;min-height:560px',
       `<p style="width:84px;height:84px;border-radius:50%;background:${RED};color:#fff;font-family:${MIN};font-size:34px;font-weight:700;display:flex;align-items:center;justify-content:center">${n}</p>` +
       `<h3 style="font-family:${MIN};font-size:46px;font-weight:700;margin-top:26px">${h}</h3>` +
-      `<p style="font-size:29px;line-height:1.75;color:${INK2};margin-top:16px">${br(t)}</p>`)).join('') +
+      `<p style="font-size:30px;line-height:1.85;color:${INK2};margin-top:22px">${br(t)}</p>`)).join('') +
   `</div>` + foot(3))
 
 /* 4. 事業内容（6つの事業） */
@@ -117,32 +119,32 @@ const biz = [
   ['06', '個々に合わせた\n苦手克服AIを用いた\nオンライン塾', '', 'sparkle'],
 ]
 S.business = section('business', BG,
-  title('Service', '6つの事業で、お悩みに合わせてお手伝いします', { top: 70 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:300px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px 32px">` +
-    biz.map(([n, h, p, ic]) => card('padding:26px 34px;min-height:262px;display:flex;flex-direction:column;gap:12px',
+  title('Service', '6つの事業で、お悩みに合わせてお手伝いします', { top: 96 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:350px;display:grid;grid-template-columns:repeat(3,1fr);gap:32px 32px">` +
+    biz.map(([n, h, p, ic]) => card('padding:36px 38px;min-height:350px;display:flex;flex-direction:column;gap:16px',
       `<div style="display:flex;align-items:center;justify-content:space-between"><span style="width:64px;height:64px;border-radius:50%;background:${RED_SOFT};color:${RED};display:flex;align-items:center;justify-content:center">${icon(ic, 34)}</span>` +
       `<p style="font-family:${MIN};font-size:36px;font-weight:700;color:${RED}">${n}</p></div>` +
-      `<h3 style="font-size:30px;font-weight:700;line-height:1.45">${br(h)}</h3>` +
+      `<h3 style="font-size:32px;font-weight:700;line-height:1.5">${br(h)}</h3>` +
       (p ? `<p style="font-family:${MIN};font-size:28px;font-weight:700;color:${RED};margin-top:auto">${esc(p)}</p>` : ''))).join('') +
   `</div>` +
-  `<p style="position:absolute;left:128px;bottom:104px;font-size:26px;color:${INK2}">料金はいずれも目安です。内容を伺って、無料でお見積りします。</p>` + foot(4))
+  `<p style="position:absolute;left:128px;bottom:120px;font-size:27px;color:${INK2}">料金はいずれも目安です。内容を伺って、無料でお見積りします。</p>` + foot(4))
 
 /* 5. お悩み・つながりたい人 */
 const pains = ['紙やExcel、電話で回している業務に、\n毎日時間を取られている', '予約・在庫・顧客の管理が、\n人や店舗ごとにばらばら', 'ホームページを作ったきりで、\n更新も効果も分からない', 'AIを使いたいが、\n何から始めればよいか決まっていない']
 const chips = ['人手が足りない', '人が採れない', '手作業に時間がかかる', '社員にAIを使わせたい', '予約・在庫管理がバラバラ', '電話予約を取りこぼしている', 'HPを作ったきり', '動画を作りたい', 'SNSの運用を任せたい', 'ロゴ・チラシ・ポスターを作りたい', 'モデル・MCを手配したい', '名刺を営業リストにしたい']
 S.pains = section('pains', BG, soft('/img/home/admin-seo.jpg') +
-  title('Problem', 'こんなお悩みはありませんか', { top: 44 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:268px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">` +
-    pains.map((t, i) => card('padding:18px 30px;display:flex;gap:22px;align-items:center;border-radius:22px',
+  title('Problem', 'こんなお悩みはありませんか', { top: 70 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:320px;display:grid;grid-template-columns:1fr 1fr;gap:22px 28px">` +
+    pains.map((t, i) => card('padding:28px 34px;display:flex;gap:22px;align-items:center;border-radius:22px',
       `<p style="font-family:${SCRIPT};font-size:60px;line-height:1;color:${RED};width:44px;flex:none">Q</p>` +
-      `<p style="font-size:27px;font-weight:700;line-height:1.45">${br(t)}</p>`)).join('') +
+      `<p style="font-size:28px;font-weight:700;line-height:1.5">${br(t)}</p>`)).join('') +
   `</div>` +
-  card('position:absolute;left:128px;right:128px;top:532px;padding:20px 34px 22px;border-radius:22px',
+  card('position:absolute;left:128px;right:128px;top:640px;padding:32px 40px 34px;border-radius:22px',
     `<p style="font-size:24px;font-weight:700;letter-spacing:3px;color:${RED}">つながりたい人</p>` +
-    `<p style="font-size:24px;line-height:1.6;margin-top:6px">人手が足りない経営者／人を雇いたい経営者／紙・Excel・電話で業務を回している中小企業や複数店舗の経営者（飲食・小売・サロン・士業事務所など）／AIを導入したいが何から始めるか決まっていない会社／中高生・受験生のお子さんの成績や塾代に悩むご家庭／パソコン・スマホを買い替えたい方</p>` +
-    `<p style="font-size:24px;font-weight:700;letter-spacing:3px;color:${RED};margin-top:16px">こんな話が出たら、お声がけください</p>` +
-    `<div style="display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:10px">` +
-      chips.map((c) => `<p style="font-size:24px;line-height:1.2;color:#a8383c;background:${RED_SOFT};padding:6px 18px;border-radius:999px">${esc(c)}</p>`).join('') +
+    `<p style="font-size:26px;line-height:1.75;margin-top:10px">人手が足りない経営者／人を雇いたい経営者／紙・Excel・電話で業務を回している中小企業や複数店舗の経営者（飲食・小売・サロン・士業事務所など）／AIを導入したいが何から始めるか決まっていない会社／中高生・受験生のお子さんの成績や塾代に悩むご家庭／パソコン・スマホを買い替えたい方</p>` +
+    `<p style="font-size:24px;font-weight:700;letter-spacing:3px;color:${RED};margin-top:26px">こんな話が出たら、お声がけください</p>` +
+    `<div style="display:flex;flex-wrap:wrap;gap:12px 12px;margin-top:14px">` +
+      chips.map((c) => `<p style="font-size:25px;line-height:1.2;color:#a8383c;background:${RED_SOFT};padding:9px 20px;border-radius:999px">${esc(c)}</p>`).join('') +
     `</div>`) + foot(5))
 
 /* 6・7. 制作したシステム */
@@ -155,17 +157,17 @@ const systems = [
   ['仕入れ・備品の管理システム', '数店舗の雑貨店の経営者', '欠品と二重発注がなくなり、\n仕入れ額を店舗ごとに比べられる', 'list'],
   ['契約書を作成するシステム', '士業事務所の代表', '下書きが数分ででき、\n空いた時間を確認と相談に使える', 'file'],
 ]
-const sysRow = ([name, who, eff, ic], i) => card('display:grid;grid-template-columns:120px 1fr 1fr;gap:32px;align-items:center;padding:22px 34px;border-radius:24px',
+const sysRow = ([name, who, eff, ic], i) => card('display:grid;grid-template-columns:120px 1fr 1fr;gap:32px;align-items:center;padding:34px 38px;border-radius:24px',
   `<div style="width:120px;height:96px;border-radius:18px;background:${tones[i % 4]};color:#fff;display:flex;align-items:center;justify-content:center;position:relative">${icon(ic, 40)}<span style="position:absolute;right:10px;bottom:2px;font-family:${MIN};font-size:26px;font-weight:700;color:rgba(255,255,255,.7)">${String(i + 1).padStart(2, '0')}</span></div>` +
   `<div><p style="font-size:30px;font-weight:700;line-height:1.4">${esc(name)}</p><p style="display:inline-block;font-size:24px;color:${INK2};border:1px solid ${LINE};border-radius:999px;padding:2px 16px;margin-top:8px">${esc(who)}</p></div>` +
   `<p style="font-size:27px;line-height:1.6;color:${INK}">${br(eff)}</p>`)
 S.systems1 = section('systems1', BG,
-  title('Works', 'これまでに制作したシステム　1 / 2', { top: 56 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:310px;display:flex;flex-direction:column;gap:20px">${systems.slice(0, 4).map((s, i) => sysRow(s, i)).join('')}</div>` + foot(6))
+  title('Works', 'これまでに制作したシステム　1 / 2', { top: 80 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:350px;display:flex;flex-direction:column;gap:28px">${systems.slice(0, 4).map((s, i) => sysRow(s, i)).join('')}</div>` + foot(6))
 S.systems2 = section('systems2', BG,
-  title('Works', 'これまでに制作したシステム　2 / 2', { top: 56 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:310px;display:flex;flex-direction:column;gap:20px">${systems.slice(4).map((s, i) => sysRow(s, i + 4)).join('')}</div>` +
-  `<p style="position:absolute;left:128px;right:128px;top:808px;font-size:25px;line-height:1.7;color:${INK2}">お客様の例は、守秘義務のため業種と規模を一般化したモデルケースです。<br>ほかに、企業ホームページと業務システムの開発、企業公式LINEの構築、企業研修の講師・教材制作も担当しています。</p>` + foot(7))
+  title('Works', 'これまでに制作したシステム　2 / 2', { top: 80 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:350px;display:flex;flex-direction:column;gap:28px">${systems.slice(4).map((s, i) => sysRow(s, i + 4)).join('')}</div>` +
+  `<p style="position:absolute;left:128px;right:128px;top:1010px;font-size:26px;line-height:1.8;color:${INK2}">お客様の例は、守秘義務のため業種と規模を一般化したモデルケースです。<br>ほかに、企業ホームページと業務システムの開発、企業公式LINEの構築、企業研修の講師・教材制作も担当しています。</p>` + foot(7))
 
 /* 8. 管理画面 */
 const feats = [
@@ -177,9 +179,9 @@ const feats = [
   ['sparkle', '次の一手をAIに相談', '数字をもとに、次にやることをAIが提案'],
 ]
 S.admin = section('admin', BG, soft('/img/home/admin-stats.jpg') +
-  title('Management', '公開したあとも、自分たちで回せるサイトに', { top: 56, sub: 'Lumenium のサイトで毎日使っている管理画面と同じ仕組みを、お客様のサイトにもお作りできます。' }) +
-  shot('/img/home/admin-portal.jpg', 'left:128px;top:400px;width:760px;height:475px') +
-  card('position:absolute;left:940px;right:128px;top:380px;padding:30px 36px;display:grid;grid-template-columns:1fr;gap:16px',
+  title('Management', '公開したあとも、自分たちで回せるサイトに', { top: 80, sub: 'Lumenium のサイトで毎日使っている管理画面と同じ仕組みを、お客様のサイトにもお作りできます。' }) +
+  shot('/img/home/admin-portal.jpg', 'left:128px;top:470px;width:760px;height:640px') +
+  card('position:absolute;left:940px;right:128px;top:470px;padding:40px 40px;display:grid;grid-template-columns:1fr;gap:28px',
     feats.map(([ic, t, d]) => `<div style="display:flex;gap:20px;align-items:center"><span style="width:62px;height:62px;border-radius:50%;background:${RED_SOFT};color:${RED};display:flex;align-items:center;justify-content:center;flex:none">${icon(ic, 30)}</span>` +
       `<div><p style="font-size:28px;font-weight:700;line-height:1.3">${t}</p><p style="font-size:24px;color:${INK2};line-height:1.45">${d}</p></div></div>`).join('')) + foot(8))
 
@@ -190,12 +192,12 @@ const aio = [
   ['1', 'ページ', '検索エンジンに読まれていた自社サイトのページ数。ここが改善の出発点'],
 ]
 S.aio = section('aio', BG,
-  title('Search', 'お客様がAIに聞いたとき、自社が挙がるかを測ります', { top: 70, sub: 'AIでの見え方の計測　自社の例・2026年10月' }) +
-  `<div style="position:absolute;left:128px;right:128px;top:450px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px">` +
-    aio.map(([n, u, t]) => card('padding:48px 44px;min-height:360px;text-align:center',
+  title('Search', 'お客様がAIに聞いたとき、自社が挙がるかを測ります', { top: 100, sub: 'AIでの見え方の計測　自社の例・2026年10月' }) +
+  `<div style="position:absolute;left:128px;right:128px;top:540px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px">` +
+    aio.map(([n, u, t]) => card('padding:64px 48px;min-height:500px;text-align:center',
       `<p style="font-family:${MIN};font-size:150px;font-weight:700;line-height:1;color:${RED}">${n}<span style="font-size:52px;color:${INK};margin-left:6px">${u}</span></p>` +
       `<div style="width:56px;height:4px;border-radius:4px;background:${RED};margin:28px auto"></div>` +
-      `<p style="font-size:28px;line-height:1.7;color:${INK2};text-align:left">${esc(t)}</p>`)).join('') +
+      `<p style="font-size:29px;line-height:1.8;color:${INK2};text-align:left">${esc(t)}</p>`)).join('') +
   `</div>` + foot(9))
 
 /* 10. お客様の声 */
@@ -206,12 +208,12 @@ const voices = [
   ['動画・LP・SNS運用を一社に任せられる。\nこれだけで価値がありました', '教育系企業 広報担当　｜　採用動画・Web制作'],
 ]
 S.voices = section('voices', BG, soft('/img/home/admin-video.jpg') +
-  title('Voice', 'ご依頼いただいた方から', { align: 'center', top: 64 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:340px;display:grid;grid-template-columns:1fr 1fr;gap:32px 40px">` +
-    voices.map(([q, who]) => card('padding:36px 44px 32px;position:relative;min-height:250px',
+  title('Voice', 'ご依頼いただいた方から', { align: 'center', top: 100 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:420px;display:grid;grid-template-columns:1fr 1fr;gap:40px 40px">` +
+    voices.map(([q, who]) => card('padding:52px 48px 44px;position:relative;min-height:330px',
       `<p style="position:absolute;left:30px;top:8px;font-family:${SCRIPT};font-size:120px;line-height:1;color:${RED};opacity:.35">“</p>` +
       `<p style="font-family:${MIN};font-size:36px;font-weight:700;line-height:1.6;margin-top:22px;position:relative">${br(q)}</p>` +
-      `<p style="font-size:24px;color:${INK2};margin-top:16px">${esc(who)}</p>`)).join('') +
+      `<p style="font-size:25px;color:${INK2};margin-top:24px">${esc(who)}</p>`)).join('') +
   `</div>` + foot(10))
 
 /* 11. ご依頼の流れ */
@@ -223,15 +225,15 @@ const flow = [
   ['納品・運用', 'データ一式をお渡しし、改善まで伴走', '継続も可能'],
 ]
 S.flow = section('flow', BG,
-  title('Flow', 'ご依頼の流れ', { align: 'center', top: 64 }) +
-  `<div style="position:absolute;left:128px;right:128px;top:350px;display:grid;grid-template-columns:repeat(5,1fr);gap:26px">` +
-    flow.map(([h, t, d], i) => card('padding:40px 28px 34px;text-align:center;min-height:420px;display:flex;flex-direction:column;align-items:center;gap:18px',
+  title('Flow', 'ご依頼の流れ', { align: 'center', top: 100 }) +
+  `<div style="position:absolute;left:128px;right:128px;top:420px;display:grid;grid-template-columns:repeat(5,1fr);gap:26px">` +
+    flow.map(([h, t, d], i) => card('padding:52px 28px 44px;text-align:center;min-height:540px;display:flex;flex-direction:column;align-items:center;gap:24px',
       `<p style="width:96px;height:96px;border-radius:50%;background:${RED};color:#fff;font-family:${MIN};font-size:38px;font-weight:700;display:flex;align-items:center;justify-content:center">${String(i + 1).padStart(2, '0')}</p>` +
       `<h3 style="font-size:30px;font-weight:700;line-height:1.4;min-height:84px">${br(h)}</h3>` +
-      `<p style="font-size:25px;line-height:1.65;color:${INK2};text-align:left">${esc(t)}</p>` +
+      `<p style="font-size:26px;line-height:1.75;color:${INK2};text-align:center">${esc(t)}</p>` +
       `<p style="font-size:25px;font-weight:700;color:#a8383c;background:${RED_SOFT};padding:6px 18px;border-radius:999px;margin-top:auto">${esc(d)}</p>`)).join('') +
   `</div>` +
-  `<p style="position:absolute;left:128px;right:128px;top:830px;text-align:center;font-size:26px;color:${INK2}">連絡は Slack・Chatwork・メールなど、お客様が普段お使いのものに合わせます。</p>` + foot(11))
+  `<p style="position:absolute;left:128px;right:128px;top:1020px;text-align:center;font-size:27px;color:${INK2}">連絡は Slack・Chatwork・メールなど、お客様が普段お使いのものに合わせます。</p>` + foot(11))
 
 /* 12. 料金の目安 */
 const price = [
@@ -243,11 +245,11 @@ const price = [
   ['ロゴ・バナーなど', '3万円〜', '内容に応じて'],
 ]
 S.price = section('price', BG,
-  title('Price', '料金の目安', { top: 56 }) +
-  card('position:absolute;left:128px;right:128px;top:270px;padding:8px 52px',
-    price.map(([k, v, d], i) => `<div style="display:grid;grid-template-columns:1fr 760px 280px;gap:32px;align-items:center;padding:17px 0;border-top:${i ? `1px solid ${LINE}` : '0'}">` +
+  title('Price', '料金の目安', { top: 80 }) +
+  card('position:absolute;left:128px;right:128px;top:330px;padding:14px 56px',
+    price.map(([k, v, d], i) => `<div style="display:grid;grid-template-columns:1fr 760px 280px;gap:32px;align-items:center;padding:30px 0;border-top:${i ? `1px solid ${LINE}` : '0'}">` +
       `<p style="font-size:30px;font-weight:700">${esc(k)}</p><p style="font-family:${MIN};font-size:38px;font-weight:700;color:${RED}">${esc(v)}</p><p style="font-size:26px;color:${INK2}">${esc(d)}</p></div>`).join('')) +
-  `<p style="position:absolute;left:128px;right:128px;top:880px;font-size:28px;line-height:1.6">相談・お見積りは無料。最低発注額も最低契約期間もありません。<b style="color:${RED}">LP1枚・研修1回から</b>お受けします。</p>` + foot(12))
+  `<p style="position:absolute;left:128px;right:128px;top:1100px;font-size:29px;line-height:1.6">相談・お見積りは無料。最低発注額も最低契約期間もありません。<b style="color:${RED}">LP1枚・研修1回から</b>お受けします。</p>` + foot(12))
 
 /* 13. ご提案 */
 const steps = [
@@ -256,26 +258,26 @@ const steps = [
   ['STEP 3　必要に応じて', '広げる・定着させる', '効果を見てほかの業務へ広げ、\n社員向けのAI研修で、\n現場で使い続けられる形にします'],
 ]
 S.proposal = section('proposal', BG, soft('/img/home/admin-portal.jpg') +
-  title('Proposal', 'まず1つの業務から、小さく始めませんか', { top: 56, sub: '最初から大きなシステムを作る必要はありません。効果を確かめてから広げるので、無駄な投資になりません。' }) +
-  `<div style="position:absolute;left:128px;right:128px;top:420px;display:grid;grid-template-columns:1fr 60px 1fr 60px 1fr;align-items:stretch">` +
+  title('Proposal', 'まず1つの業務から、小さく始めませんか', { top: 80, sub: '最初から大きなシステムを作る必要はありません。効果を確かめてから広げるので、無駄な投資になりません。' }) +
+  `<div style="position:absolute;left:128px;right:128px;top:500px;display:grid;grid-template-columns:1fr 60px 1fr 60px 1fr;align-items:stretch">` +
     steps.map(([s, h, t], i) => (i ? `<p style="display:flex;align-items:center;justify-content:center;font-size:48px;color:${RED}">→</p>` : '') +
-      card('padding:40px 38px;min-height:440px',
+      card('padding:52px 40px;min-height:600px',
         `<p style="display:inline-block;font-size:26px;font-weight:700;color:#fff;background:${RED};padding:6px 22px;border-radius:999px">${esc(s)}</p>` +
         `<h3 style="font-family:${MIN};font-size:44px;font-weight:700;line-height:1.35;margin-top:22px">${esc(h)}</h3>` +
-        `<p style="font-size:28px;line-height:1.7;color:${INK2};margin-top:16px">${br(t)}</p>`)).join('') +
+        `<p style="font-size:29px;line-height:1.85;color:${INK2};margin-top:22px">${br(t)}</p>`)).join('') +
   `</div>` + foot(13))
 
 /* 14. 連絡先（空色のカード） */
 S.contact = section('contact', '#ffffff',
   `<div style="position:absolute;left:96px;right:96px;top:96px;bottom:96px;border-radius:48px;background:linear-gradient(118deg,#cfe7f4 0%,#e6f3f1 48%,#f8f5ec 100%);box-shadow:0 40px 80px -50px rgba(40,70,100,.55);overflow:hidden">` +
     `<div style="position:absolute;right:-120px;bottom:-160px;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.8),rgba(255,255,255,0) 70%)"></div>` +
-    `<p style="position:absolute;left:110px;top:90px;font-family:${SCRIPT};font-size:170px;line-height:1;color:#2c4a66">Contact</p>` +
-    `<h2 style="position:absolute;left:110px;top:330px;width:1100px;font-family:${MIN};font-size:68px;font-weight:700;line-height:1.5;color:${INK}">ぼんやりした段階から、<br>お気軽にご相談ください</h2>` +
+    `<p style="position:absolute;left:110px;top:120px;font-family:${SCRIPT};font-size:190px;line-height:1;color:#2c4a66">Contact</p>` +
+    `<h2 style="position:absolute;left:110px;top:420px;width:1100px;font-family:${MIN};font-size:74px;font-weight:700;line-height:1.5;color:${INK}">ぼんやりした段階から、<br>お気軽にご相談ください</h2>` +
     `<div style="position:absolute;left:110px;right:110px;bottom:90px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px">` +
       [['代表', '山本 捷真'], ['ご相談フォーム', 'lumenium.net/contact.html'], ['お約束', '無料相談・48時間以内に返信']].map(([k, v]) =>
         `<div style="background:rgba(255,255,255,.88);border-radius:22px;padding:22px 30px"><p style="font-size:24px;letter-spacing:2px;color:${RED};font-weight:700">${k}</p><p style="font-size:32px;font-weight:700;margin-top:6px">${v}</p></div>`).join('') +
     `</div>` +
-    `<img src="/lumenium-logo.svg?v=3" alt="" style="position:absolute;right:130px;top:110px;width:300px;height:300px;filter:drop-shadow(0 24px 40px rgba(40,60,90,.3))">` +
+    `<img src="/lumenium-logo.svg?v=3" alt="" style="position:absolute;right:130px;top:150px;width:340px;height:340px;filter:drop-shadow(0 24px 40px rgba(40,60,90,.3))">` +
   `</div>`)
 
 /* ---- 書き出し（並び・節・ノートは元の資料と同じ） ---- */
