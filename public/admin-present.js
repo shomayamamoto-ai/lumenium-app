@@ -4,12 +4,21 @@
    画面の幅に合わせて縮めて表示します。できること:
    ・前後に送る（← → キー・スペース）、一覧から選ぶ
    ・全画面で発表（F キー）。話す内容のメモ（ノート）は、全画面にしない画面の下に出ます
-   ・印刷・PDF（1枚ずつ横長のページに） */
+   ・印刷・PDF（1枚ずつ横長のページに）
+   ・デザインの切り替え：サイトと同じデザインに作り直した版（/proposal-deck-site.js）と、元の資料
+     （/proposal-deck.js）。「元のデザインに戻す」で、元の資料がそのまま出ます（選んだ方を覚えます）。
+     中身（文章・並び・ノート）はどちらも同じです。 */
 (function () {
   'use strict';
   var el = function (id) { return document.getElementById(id); };
   var W = 1920, H = 1080;
-  var S = { started: false, i: 0, notes: true, deck: null };
+  var S = { started: false, i: 0, notes: true, deck: null, style: 'site' };
+  /* デザインの種類。site: サイトと同じデザイン（既定） / classic: 元の資料 */
+  var STYLES = {
+    site: { src: '/proposal-deck-site.js', key: 'lumProposalDeckSite', label: 'サイトのデザイン' },
+    classic: { src: '/proposal-deck.js', key: 'lumProposalDeck', label: '元のデザイン' }
+  };
+  try { if (localStorage.getItem('lum_pd_style') === 'classic') S.style = 'classic'; } catch (_) {}
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -65,18 +74,37 @@
     });
   }
 
-  var wait = null;
-  function loadDeck() {
-    if (window.lumProposalDeck) return Promise.resolve(window.lumProposalDeck);
-    if (wait) return wait;
-    wait = new Promise(function (ok, ng) {
+  var waits = {};
+  function loadDeck(style) {
+    var st = STYLES[style] || STYLES.site;
+    if (window[st.key]) return Promise.resolve(window[st.key]);
+    if (waits[style]) return waits[style];
+    waits[style] = new Promise(function (ok, ng) {
       var s = document.createElement('script');
-      s.src = '/proposal-deck.js';
-      s.onload = function () { window.lumProposalDeck ? ok(window.lumProposalDeck) : ng(new Error('deck')); };
-      s.onerror = function () { wait = null; ng(new Error('deck')); };
+      s.src = st.src;
+      s.onload = function () { window[st.key] ? ok(window[st.key]) : ng(new Error('deck')); };
+      s.onerror = function () { waits[style] = null; ng(new Error('deck')); };
       document.head.appendChild(s);
     });
-    return wait;
+    return waits[style];
+  }
+  /* デザインを切り替える（いま見ている枚数はそのまま） */
+  async function setStyle(style) {
+    if (style === S.style) return;
+    var btn = el('pd-style-btn');
+    if (btn) btn.disabled = true;
+    try {
+      var deck = await loadDeck(style);
+      S.style = style;
+      S.deck = deck;
+      try { localStorage.setItem('lum_pd_style', style); } catch (_) {}
+      fonts(deck.fonts);
+      S.i = Math.min(S.i, deck.slides.length - 1);
+      paint();
+    } catch (_) {
+      if (btn) btn.disabled = false;
+      alert('資料を読み込めませんでした。再読み込みしてください。');
+    }
   }
 
   /* 1枚の HTML（中身は自分たちの資料。アイコンだけ、ここで管理画面の線のアイコンに置き換えます）。 */
@@ -109,7 +137,8 @@
     var host = el('present-admin');
     var d = S.deck, n = d.slides.length, sl = d.slides[S.i];
     host.innerHTML =
-      '<p class="share-note ui-intro">過去に作った提案資料「' + esc(d.title) + '」です。ここからそのまま発表したり、印刷・PDFにして渡したりできます。← → キーで送り、F キーで全画面になります。</p>' +
+      '<p class="share-note ui-intro">過去に作った提案資料「' + esc(d.title) + '」です。ここからそのまま発表したり、印刷・PDFにして渡したりできます。← → キーで送り、F キーで全画面になります。' +
+        'いまは<b>' + STYLES[S.style].label + '</b>で表示しています。右上のボタンで、いつでも切り替えられます（中身は同じです）。</p>' +
       '<div class="pd-bar">' +
         '<button type="button" id="pd-prev"' + (S.i ? '' : ' disabled') + ' aria-label="前のスライド">← 前</button>' +
         '<span class="pd-count" aria-live="polite">' + (S.i + 1) + ' / ' + n + '</span>' +
@@ -118,6 +147,7 @@
         '<button type="button" class="pri" id="pd-show">全画面で発表</button>' +
         '<button type="button" id="pd-print-btn">印刷・PDF</button>' +
         '<button type="button" id="pd-notes-btn" aria-pressed="' + S.notes + '">' + (S.notes ? 'ノートを隠す' : 'ノートを見る') + '</button>' +
+        '<button type="button" id="pd-style-btn">' + (S.style === 'site' ? '元のデザインに戻す' : 'サイトのデザインにする') + '</button>' +
       '</div>' +
       '<div class="pd-frame" id="pd-main" role="img" aria-label="スライド ' + (S.i + 1) + '">' + slideHtml(sl) + '</div>' +
       '<p class="pd-sec">' + esc(sectionOf(S.i)) + '</p>' +
@@ -131,6 +161,7 @@
     el('pd-show').addEventListener('click', show);
     el('pd-print-btn').addEventListener('click', printAll);
     el('pd-notes-btn').addEventListener('click', function () { S.notes = !S.notes; paint(); });
+    el('pd-style-btn').addEventListener('click', function () { setStyle(S.style === 'site' ? 'classic' : 'site'); });
     host.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { go(Number(b.getAttribute('data-go'))); }); });
   }
 
@@ -247,7 +278,7 @@
     css();
     var host = el('present-admin');
     host.innerHTML = '<p class="soc-small">読み込んでいます…</p>';
-    try { S.deck = await loadDeck(); } catch (_) {
+    try { S.deck = await loadDeck(S.style); } catch (_) {
       S.started = false;
       host.innerHTML = '<p class="soc-small">資料を読み込めませんでした。再読み込みしてください。</p>';
       return;
