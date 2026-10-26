@@ -3396,35 +3396,6 @@
   };
 })();
 
-/* ---- デモ：1分プレゼン（shape: api/present.js）。中身は既定のもの。保存は断ります。 ---- */
-(function () {
-  'use strict';
-  var on = false;
-  try { on = sessionStorage.getItem('lum_demo') === '1'; } catch (_) {}
-  if (!on || !window.fetch) return;
-  var DECK = {
-    event: '日本海側最大のマーケット 新潟⇔東京', number: 4, total: 9, seconds: 60, company: 'フェリシア', badge: '本システム開発者',
-    name: '山本 捷真', honor: 'さん',
-    title: 'Lumenium 代表/夢を叶えるシステム開発屋、売れるAI集客システム付きWebサイト制作、セキュリティ特化のAI研修、有名監督による企業PR動画・SNS運用',
-    area: '東京・関東で対面 ・ オンラインは全国対応',
-    targets: '人手が足りない経営者/人を雇いたい経営者/紙・Excel・電話で業務を回している中小企業や複数店舗の経営者(飲食・小売・サロン・士業事務所など)/AIを導入したいが何から始めるか決まっていない会社',
-    topics: ['人手が足りない', '人が採れない', '手作業に時間がかかる', '社員にAIを使わせたい'], next: ['05 小林 末季こぱねぇ', '06 大場 雅俊', '07 床島 良夫'],
-    photo: '/profile.jpg', idealFrom: '08:53', idealTo: '09:25', startAt: '08:21', endAt: '10:21'
-  };
-  var inner = window.fetch;
-  window.fetch = function (input, init) {
-    var url = typeof input === 'string' ? input : (input && input.url) || String(input);
-    var u = null;
-    try { u = new URL(url, location.href); } catch (_) {}
-    if (!u || u.pathname.replace(/\/+$/, '') !== '/api/present') return inner(input, init);
-    var method = String((init && init.method) || 'GET').toUpperCase();
-    var body = method !== 'GET' ? { ok: false, demo: true, message: 'デモ版のため保存・送信はされません。' } : { ok: true, stored: true, saved: false, deck: DECK };
-    return new Promise(function (ok) { setTimeout(ok, 80); }).then(function () {
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    });
-  };
-})();
-
 /* ---- デモ：担当者と権限・操作の記録（shape: api/staff.js・api/audit.js・api/admin-ping.js） ----
    架空の4人（オーナーのほか、担当者2人・閲覧のみ1人）と、その操作の記録。
    ログイン中の人は、デモの帯の「この役割で見る」で選んだ役割になります

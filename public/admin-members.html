@@ -1578,7 +1578,7 @@ input, select, textarea { color: var(--text); }
     <div class="panel" id="staff-admin" style="display:none; margin-top:20px"></div>
     <div class="panel" id="audit-admin" style="display:none; margin-top:20px"></div>
 
-    <!-- 資料：1分プレゼン（自己紹介のスライドとタイマー）。中身は /admin-present.js が作ります。 -->
+    <!-- 資料：提案資料（自己紹介とご提案）。中身は /admin-present.js と /proposal-deck.js。 -->
     <div class="panel" id="present-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
@@ -2095,9 +2095,9 @@ window.lumAdmin = {
       desc: '入れる人と役割を決める', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
     { id: 'audit-admin', icon: 'list', label: '操作の記録', init: 'lumAuditInit', needs: 'store',
       desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' },
-    /* 資料：交流会などで使う自己紹介の1枚とタイマー（/admin-present.js）。 */
-    { id: 'present-admin', icon: 'present', label: '1分プレゼン', init: 'lumPresentInit',
-      desc: '自己紹介のスライドとタイマー', accent: '#b8892f', tint: 'rgba(184,137,47,0.14)' }
+    /* 資料：過去に作った提案資料（自己紹介とご提案・14枚）を見る・発表する（/admin-present.js）。 */
+    { id: 'present-admin', icon: 'present', label: '提案資料', init: 'lumPresentInit',
+      desc: '自己紹介とご提案のスライド（発表・印刷）', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ホーム', icon: 'home' }].concat(TABS);
