@@ -3,6 +3,8 @@ import { rich } from '../lib/rich'
 import { useState, useRef, useEffect } from 'react'
 import { events, funnel, whenSeen } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
+import SlotField from './QuickBook'
+import { bookingCopy } from './bookingCopy'
 import { ORG_TYPES, TOPICS, SYSTEMS } from '../data/site'
 import { scrollBehavior } from '../lib/motion'
 import { visitSource } from '../lib/pageview'
@@ -12,7 +14,9 @@ const LIMITS = { name: 50, email: 100, company: 80, message: 1000 }
 
 const orgType = (id) => ORG_TYPES.find((o) => o.id === id) || null
 
-function validate(form) {
+// slot: フォームの中で選んだ相談の日時。選んだときは、相談内容は書かなくても送れます
+// （「日時を選んで、お名前とメールアドレスを入れるだけ」）。
+function validate(form, slot) {
   const errors = {}
   if (!form.name.trim()) errors.name = 'お名前を入力してください'
   else if (form.name.length > LIMITS.name) errors.name = `${LIMITS.name}文字以内でお願いします`
@@ -25,8 +29,8 @@ function validate(form) {
   }
   if (!form.email.trim()) errors.email = 'メールアドレスを入力してください'
   else if (!EMAIL_RE.test(form.email)) errors.email = 'メールアドレスの形式を確認してください'
-  if (!form.message.trim()) errors.message = 'ご相談内容を入力してください'
-  else if (form.message.trim().length < 10) errors.message = 'もう少し詳しくご記入ください (10文字以上)'
+  if (!form.message.trim()) { if (!slot) errors.message = 'ご相談内容を入力してください' }
+  else if (form.message.trim().length < 10 && !slot) errors.message = 'もう少し詳しくご記入ください (10文字以上)'
   else if (form.message.length > LIMITS.message) errors.message = `${LIMITS.message}文字以内でお願いします`
   return errors
 }
@@ -82,7 +86,6 @@ export default function ContactForm() {
     try { return !!sessionStorage.getItem('lum_estimate') } catch (_) { return false }
   })
   const [touched, setTouched] = useState({})
-  const [quickPicked, setQuickPicked] = useState(false)
   const [errors, setErrors] = useState({})
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
@@ -90,6 +93,13 @@ export default function ContactForm() {
   // 送った内容は、フォームを空にする前に控えておく。日程を確定するときに
   // 名前とメールをもう一度打たせるようでは、その場で決める意味が無い。
   const [lastSent, setLastSent] = useState(null)
+  // フォームの中で選んだ相談の日時と、予約の設定（長さ・呼び方）。
+  const [slot, setSlot] = useState(null)
+  const [bookInfo, setBookInfo] = useState(null)
+  const [slotReload, setSlotReload] = useState(0)
+  // 予約まで済んだとき（日時と、招待を送ったか）。選んだ枠が先に埋まったときは retry。
+  const [booked, setBooked] = useState(null)
+  const [retry, setRetry] = useState(false)
   const startedRef = useRef(false)
   const sectionRef = useRef(null)
 
@@ -119,7 +129,7 @@ export default function ContactForm() {
   const onChange = (key) => (e) => {
     const next = { ...form, [key]: e.target.value }
     setForm(next)
-    if (touched[key]) setErrors(validate(next))
+    if (touched[key]) setErrors(validate(next, slot))
   }
 
   /* 区分は1つ、ジャンルは複数。押し直しで外せます（選んだら最後まで
@@ -130,7 +140,7 @@ export default function ContactForm() {
     // 個人に切り替えたら、もう聞かない欄の中身は持ち越さない。
     if (!orgType(next.orgType) || !orgType(next.orgType).field) next.company = ''
     setForm(next)
-    if (touched.company) setErrors(validate(next))
+    if (touched.company) setErrors(validate(next, slot))
   }
 
   const toggleTopic = (id) => () => {
@@ -141,12 +151,12 @@ export default function ContactForm() {
 
   const onBlur = (key) => () => {
     setTouched({ ...touched, [key]: true })
-    setErrors(validate(form))
+    setErrors(validate(form, slot))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const nextErrors = validate(form)
+    const nextErrors = validate(form, slot)
     setErrors(nextErrors)
     setTouched({ name: true, email: true, company: true, message: true })
     if (Object.keys(nextErrors).length > 0) {
@@ -158,6 +168,11 @@ export default function ContactForm() {
     }
 
     setSending(true)
+    // 日時を選んだときは、相談内容が空でも送れます。問い合わせの記録には、選んだ日時を書き添えます。
+    const when = slot ? `${slot.day} ${slot.time}（${slot.minutes}分）` : ''
+    const message = slot
+      ? (form.message.trim() ? form.message + `\n\nご希望の日時: ${when}` : `オンライン相談の日時を予約しました（${when}）。`)
+      : form.message
 
     try {
       const res = await fetch('/api/contact', {
@@ -166,7 +181,7 @@ export default function ContactForm() {
         body: JSON.stringify({
           name: form.name,
           email: form.email,
-          message: form.message,
+          message,
           company: form.company,
           orgType: form.orgType,
           topics: form.topics,
@@ -186,11 +201,39 @@ export default function ContactForm() {
       setSent(true)
       // 日程を決めるところまで、選んだ内容を持っていく。予定の説明にも入るので、
       // 当日は何の話をするのかが分かった状態で始められます。
-      setLastSent({
-        name: form.name, email: form.email, message: form.message,
+      const sentInfo = {
+        name: form.name, email: form.email, message,
         company: form.company, orgType: form.orgType, topics: form.topics,
-      })
-      showToast('success', 'お問い合わせを送信しました。48時間以内にご返信いたします。')
+      }
+      setLastSent(sentInfo)
+      setBooked(null)
+      setRetry(false)
+      // 日時を選んでいたら、そのまま予約します（送った内容を予定の説明にも入れます）。
+      if (slot) {
+        const b = await fetch('/api/booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: slot.key, service: slot.service, name: form.name, email: form.email, message,
+            company: form.company || '', topics: form.topics || [], website: '',
+            page: typeof window !== 'undefined' ? window.location.hash || window.location.pathname : '',
+          }),
+        }).catch(() => null)
+        const bd = b ? await b.json().catch(() => ({})) : {}
+        if (b && b.ok && bd.ok) {
+          funnel.bookingConfirm()
+          setBooked({ when: bd.when || when, invited: !!bd.invited })
+          showToast('success', `お問い合わせを送信し、${bd.when || when}で予約しました。`)
+        } else {
+          // 先に埋まった・つながらなかった。問い合わせは届いているので、別の日時を選び直してもらいます。
+          setRetry(true)
+          setSlotReload((n) => n + 1)
+          showToast('error', (bd && bd.message) || 'お問い合わせは送信しました。選んだ日時は埋まってしまったため、下から別の日時をお選びください。')
+        }
+        setSlot(null)
+      } else {
+        showToast('success', 'お問い合わせを送信しました。48時間以内にご返信いたします。')
+      }
       setForm({ name: '', email: '', company: '', orgType: '', topics: [], message: '', website: '' })
       setTouched({})
       setErrors({})
@@ -222,34 +265,6 @@ export default function ContactForm() {
         <div className="section-header" data-animate>
           <h2 className="section-title">{rich(SECTION.contact.title)}</h2>
           <p className="section-desc">{rich(SECTION.contact.desc)}</p>
-        </div>
-        {/* 気軽な入口。問い合わせ画面まで来た人が、入力を始めずに帰っていた
-            （7人来て0人）。文章を考えなくても送れるよう、よくある用件を
-            押すだけで相談内容が入るようにしています。 */}
-        <div className="quick-ask">
-          <p className="quick-ask-label">{SECTION.contact.quickLabel}</p>
-          <div className="quick-ask-row">
-            {[
-              [SECTION.contact.quick1, SECTION.contact.quick1Text],
-              [SECTION.contact.quick2, SECTION.contact.quick2Text],
-              [SECTION.contact.quick3, SECTION.contact.quick3Text],
-            ].map(([label, text]) => (
-              <button
-                key={label}
-                type="button"
-                className={`quick-ask-chip ${form.message === text ? 'is-on' : ''}`}
-                data-text={text}
-                aria-pressed={form.message === text}
-                onClick={() => {
-                  handleStart()
-                  setForm({ ...form, message: text })
-                  setQuickPicked(true)
-                  setTimeout(() => { const n = document.getElementById('name'); if (n) n.focus() }, 0)
-                }}
-              >{label}</button>
-            ))}
-          </div>
-          {quickPicked && <p className="quick-ask-hint" role="status">{SECTION.contact.quickHint}</p>}
         </div>
         <form className="contact-form" onSubmit={handleSubmit} data-animate data-delay="1" noValidate>
           <div className="form-row">
@@ -350,9 +365,11 @@ export default function ContactForm() {
               ))}
             </div>
           </div>
+          {/* 日時まで決められる人は、ここで選んでから送信します（選ばなくても送れます）。 */}
+          <SlotField value={slot} onChange={(v) => { handleStart(); setSlot(v); if (touched.message) setErrors(validate(form, v)) }} onInfo={setBookInfo} reloadKey={slotReload} />
           <div className={`form-group form-group--${fieldState('message')}`}>
             <div className="form-label-row">
-              <label htmlFor="message">ご相談内容 <span className="required" aria-hidden="true">*</span></label>
+              <label htmlFor="message">ご相談内容 {slot ? <span className="qb-opt">（日時を選んだので、空でも送れます）</span> : <span className="required" aria-hidden="true">*</span>}</label>
               <span
                 className={`form-counter ${charInfo('message').nearLimit ? 'is-near-limit' : ''}`}
                 aria-live="polite"
@@ -406,14 +423,21 @@ export default function ContactForm() {
                   <span className="btn-spinner" aria-hidden="true" />
                   送信中...
                 </span>
-              ) : sent ? '✓ 送信しました' : '送信する →'}
+              ) : sent ? '✓ 送信しました' : slot ? 'この日時で予約して送信する →' : '送信する →'}
             </button>
             <p className="form-note">✓ 48時間以内に返信 ✓ 見積り無料 ✓ 秘密厳守</p>
           </div>
         </form>
-        {/* 送信できたときだけ、その下に日程の候補が出る。予約の仕組みが
-            動いていなければ、この欄は何も描きません。 */}
-        {lastSent ? <BookingPicker contact={lastSent} /> : null}
+        {/* 予約まで済んだとき。日時を選んだ枠が先に埋まっていたときだけ、
+            その下に日程の候補を出し直します（問い合わせはもう届いています）。 */}
+        {booked ? (
+          <div className="qb-done" role="status">
+            <p className="qb-h">ご予約ありがとうございます</p>
+            <p className="qb-when">{booked.when}（日本時間）</p>
+            <p className="qb-note">{booked.invited ? bookingCopy(bookInfo).doneInvited : bookingCopy(bookInfo).doneHeld}</p>
+          </div>
+        ) : null}
+        {lastSent && retry ? <BookingPicker contact={lastSent} /> : null}
         {toast && (
           <div
             className={`form-toast form-toast--${toast.type}`}

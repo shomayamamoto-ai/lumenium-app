@@ -6,7 +6,6 @@ import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS, SYSTEMS } from '../data/site'
 import { landingFaq, consultFaq } from '../data/faq'
 import LineIcon from './LineIcon'
 import ContactForm from './ContactForm'
-import QuickBook from './QuickBook'
 import Footer from './Footer'
 
 /**
@@ -419,7 +418,6 @@ export default function Landing({ onPrivacy }) {
             <img className="og-banner-mark" src="/lumenium-logo.svg?v=3" alt="" width="200" height="200" loading="lazy" decoding="async" />
           </div>
         </div>
-        <QuickBook />
         <div className="lp-contact og-form">
           <ContactForm />
         </div>
