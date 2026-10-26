@@ -90,8 +90,8 @@
     '.mt-checks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}' +
     '.mt-checks label{display:flex;gap:6px;align-items:center}' +
     '.mt-checks input{width:18px;height:18px}' +
-    'button.mt-name{background:none;border:0;padding:0;color:#3d3fbf;font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left;letter-spacing:0}' +
-    'button.mt-name:hover{filter:none}button.mt-name:focus-visible{outline:2px solid #3d3fbf;outline-offset:3px;border-radius:4px}' +
+    'button.mt-name{background:none;border:0;padding:0;color:var(--ui-accent);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left;letter-spacing:0}' +
+    'button.mt-name:hover{filter:none}button.mt-name:focus-visible{outline:2px solid var(--ui-accent);outline-offset:3px;border-radius:4px}' +
     '.mt-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--border)}' +
     '.mt-list li{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;border-bottom:1px solid var(--border);padding:9px 2px;font-size:13px}' +
     '.mt-list li .grow{flex:1 1 160px;min-width:0;overflow-wrap:anywhere}' +
@@ -753,7 +753,7 @@
         return '<tr style="border-top:1px solid var(--border)">' +
           '<td style="padding:5px 6px 5px 0;white-space:nowrap">' + esc(label(x.month)) + '</td>' +
           '<td style="padding:5px 6px;width:100%"><div style="display:flex;align-items:center;gap:6px" title="' + esc(x.month + ': ' + x.added + '人') + '">' +
-          '<span style="display:block;flex:0 1 auto;height:10px;width:' + w + '%;background:#3d3fbf;border-radius:0 4px 4px 0"></span>' +
+          '<span style="display:block;flex:0 1 auto;height:10px;width:' + w + '%;background:var(--ui-accent);border-radius:0 4px 4px 0"></span>' +
           '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">' + x.added + '人</span></div></td>' +
           '<td style="padding:5px 0 5px 6px;text-align:right;font-variant-numeric:tabular-nums">' + (stops[x.month] || 0) + '</td>' +
           '<td style="padding:5px 0 5px 6px;text-align:right;font-variant-numeric:tabular-nums">' + x.total + '</td></tr>';

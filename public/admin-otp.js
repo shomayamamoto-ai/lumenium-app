@@ -42,7 +42,7 @@
       '.otp h2{font-size:18px;margin:0 0 6px}.otp p{font-size:13.5px;line-height:1.8;color:#334155;margin:6px 0}' +
       '.otp .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}' +
       '.otp button{font:inherit;font-size:13.5px;font-weight:700;padding:10px 16px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#0f172a;cursor:pointer;min-height:44px}' +
-      '.otp button.pri{background:#2563eb;border-color:#2563eb;color:#fff}.otp button:disabled{opacity:.55}' +
+      '.otp button.pri{background:var(--ui-accent,#e0565b);border-color:var(--ui-accent,#e0565b);color:#fff;border-radius:999px}.otp button:disabled{opacity:.55}' +
       '.otp input{font:inherit;font-size:20px;letter-spacing:.2em;padding:8px 12px;border:1px solid #cbd5e1;border-radius:10px;width:11em;min-height:44px;font-variant-numeric:tabular-nums}' +
       '.otp .qr{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:10px 0}.otp .qr div:first-child{width:170px;height:170px;border:1px solid #e2e8f0;border-radius:12px;padding:6px;background:#fff}' +
       '.otp .qr svg{width:100%;height:100%;display:block}.otp code{font-size:13px;word-break:break-all;background:#f1f5f9;padding:2px 6px;border-radius:6px}' +

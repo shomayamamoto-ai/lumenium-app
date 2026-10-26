@@ -248,3 +248,78 @@ body.is-in { font-feature-settings: "palt" 1; }          /* 和文の字間を�
   .dk-kpi:hover { transform: none; }
   * { scroll-behavior: auto !important; }
 }
+
+/* =====================================================================
+   公開サイトと同じ組み方（見本サイト：オガノニワ）
+   明るく温かい灰色の地・白いカード・赤（コーラル）の押すところ・
+   白いメニュー・筆記体の英語の見出し・丸いボタン。上の指定を上書きします。
+   ===================================================================== */
+:root {
+  --ui-bg: #f3f2ef;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f8f7f4;
+  --ui-surface-3: #efede9;
+  --ui-border: #e5e2dc;
+  --ui-border-strong: #cfcac1;
+  --ui-text: #2f2f35;
+  --ui-text-2: #55555e;
+  --ui-text-3: #7a7a84;
+  --ui-accent: #e0565b;
+  --ui-accent-hover: #c7444a;
+  --ui-accent-weak: #fcecec;
+  --ui-accent-line: #f3c3c5;
+  --ui-focus: #e0565b;
+  --ui-r: 12px; --ui-r-lg: 18px;
+  --ui-shadow: 0 1px 2px rgba(40, 40, 52, .04), 0 14px 36px -24px rgba(40, 40, 52, .35);
+  --sk-ring: 0 0 0 3px rgba(224, 86, 91, .35);
+  --sk-side: #ffffff;
+  --sk-side-2: #faf9f7;
+  --sk-side-line: #ece9e4;
+  --sk-side-text: #45454f;
+  --sk-side-muted: #8a8a93;
+  --sk-side-active: linear-gradient(135deg, #e0565b 0%, #ea7469 100%);
+  --sk-script: 'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive;
+}
+body { background: var(--ui-bg); }
+
+/* 左のメニュー：白 */
+.ui-side { background: #fff; color: var(--sk-side-text); border-right: 1px solid var(--sk-side-line); box-shadow: none; scrollbar-color: #d9d6d0 transparent; }
+.ui-side::before { background: radial-gradient(120% 80% at 10% 0%, rgba(224, 86, 91, .08), transparent 60%); }
+.ui-nav-item { color: var(--sk-side-text); }
+.ui-nav-item:hover { background: #f6f4f1; color: var(--ui-text); }
+.ui-nav-item[aria-current="page"], .ui-nav-item[aria-current="page"]:hover { color: #fff; box-shadow: 0 8px 20px -10px rgba(224, 86, 91, .8); }
+.ui-nav-item[aria-current="page"]::before { background: rgba(255, 255, 255, .7); }
+.ui-nav-ic { color: #9a97a0; }
+.ui-nav-item:hover .ui-nav-ic { color: var(--ui-accent); }
+.ui-nav-item[aria-current="page"] .ui-nav-ic { color: #fff; }
+.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge, .ui-nav-item .nav-count { background: #e0565b; box-shadow: 0 0 0 2px #fff; }
+.ui-nav-item[aria-current="page"] .inq-badge, .ui-nav-item[aria-current="page"] .rev-badge, .ui-nav-item[aria-current="page"] .bk-badge, .ui-nav-item[aria-current="page"] .nav-count { background: #fff; color: #c7444a; box-shadow: none; }
+.ui-side-close { color: var(--ui-text); }
+@media (min-width: 1024px) {
+  body.is-in .ui-side-name { color: var(--ui-text); }
+  body.is-in .ui-side-pill { background: #f6f4f1; border-color: var(--sk-side-line); color: var(--sk-side-text); }
+}
+.ui-side-brand .ui-brand-mark { filter: drop-shadow(0 4px 10px rgba(99, 102, 241, .25)); }
+.sk-side-motto { background: radial-gradient(120% 100% at 0% 100%, rgba(224, 86, 91, .12), transparent 60%), #faf9f7; border-color: var(--sk-side-line); color: var(--ui-text); }
+.ui-side .fd-open { background: #f6f4f1; border-color: var(--sk-side-line); color: var(--sk-side-text); }
+.ui-side .fd-open kbd { background: #fff; border-color: var(--sk-side-line); color: var(--sk-side-muted); }
+
+/* 上の帯 */
+.sk-top { background: rgba(243, 242, 239, .88); }
+.sk-user:hover { background: rgba(224, 86, 91, .06); }
+.sk-avatar { background: linear-gradient(135deg, #e0565b, #ea7469) !important; }
+
+/* 画面の見出し：筆記体の英語＋日本語 */
+.sk-en { font-family: var(--sk-script); font-size: 40px; line-height: 1; color: var(--ui-accent); margin: 0 0 2px; letter-spacing: 0; }
+.shell-main > .ui-page-header h1 { font-size: 22px; letter-spacing: .06em; }
+
+/* カード・ボタン */
+.shell-main .panel, .lp-box, .ui-card { border-radius: 20px !important; }
+.ui-btn, .dk-btn { border-radius: 999px; }
+.dk-btn { box-shadow: 0 8px 18px -10px rgba(224, 86, 91, .8), inset 0 1px 0 rgba(255, 255, 255, .18); }
+button.pri, .pri { border-radius: 999px; }
+
+@media (max-width: 640px) {
+  .sk-en { font-size: 32px; }
+}
+.dk-hello h1::before { content: 'Welcome'; display: block; font-family: var(--sk-script); font-size: 40px; line-height: 1; font-weight: 400; color: var(--ui-accent); margin-bottom: 4px; letter-spacing: 0; }

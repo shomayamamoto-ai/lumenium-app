@@ -74,7 +74,7 @@
       'border:1px solid var(--border);border-radius:999px;padding:5px 11px;background:#fff;white-space:nowrap;max-width:100%}' +
     '#who-chip[hidden]{display:none}#who-chip .r{font-weight:600;color:var(--sub)}' +
     '#who-chip:not([hidden])~#sign-out{margin-left:0}' +
-    '#role-note{border:1px solid var(--border);border-left:4px solid #3d3fbf;border-radius:10px;padding:9px 12px;margin:0 0 12px;' +
+    '#role-note{border:1px solid var(--border);border-left:4px solid var(--ui-accent);border-radius:10px;padding:9px 12px;margin:0 0 12px;' +
       'font-size:12.5px;line-height:1.75;background:#f7f7fd;overflow-wrap:anywhere}#role-note[hidden]{display:none}' +
     '.stf-note{border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:12.5px;line-height:1.75;background:#fffdf7}' +
     '.stf-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:8px;margin:0 0 16px}' +

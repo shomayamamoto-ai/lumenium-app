@@ -114,11 +114,11 @@
     '.inq-list li.unread .who{font-weight:800}' +
     '.inq-list input[type=checkbox]{margin-top:4px;width:18px;height:18px;flex:none}' +
     '.inq-open{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;color:var(--text);font:inherit;font-weight:400;cursor:pointer;letter-spacing:0}' +
-    '.inq-open:hover{filter:none}.inq-open:focus-visible{outline:2px solid #3d3fbf;outline-offset:3px;border-radius:4px}' +
+    '.inq-open:hover{filter:none}.inq-open:focus-visible{outline:2px solid var(--ui-accent);outline-offset:3px;border-radius:4px}' +
     '.inq-open .who{font-size:13.5px;overflow-wrap:anywhere}.inq-open .meta{font-size:11.5px;color:var(--sub);line-height:1.7;overflow-wrap:anywhere}' +
     '.inq-open .snip{font-size:12.5px;line-height:1.7;color:#33333b;overflow-wrap:anywhere;margin-top:2px}' +
     '.inq-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:#f3f1ec;color:var(--sub);margin:0 4px 2px 0;white-space:nowrap}' +
-    '.inq-tag.new{background:rgba(61,63,191,.12);color:#3d3fbf}.inq-tag.ok{background:rgba(16,185,129,.16);color:#047857}' +
+    '.inq-tag.new{background:rgba(61,63,191,.12);color:var(--ui-accent)}.inq-tag.ok{background:rgba(16,185,129,.16);color:#047857}' +
     '.inq-tag.warn{background:rgba(251,191,36,.22);color:#92400e}.inq-tag.late,.inq-tag.ng{background:rgba(248,113,113,.17);color:#b42318}' +
     '.inq-pages{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px;font-size:12px;color:var(--sub)}' +
     '.inq-pages button{font-size:12px;padding:7px 12px}' +
@@ -136,7 +136,7 @@
     '.inq-hist{list-style:none;margin:0;padding:0;font-size:12px;line-height:1.7}.inq-hist li{padding:3px 0;border-top:1px dashed var(--border)}.inq-hist li:first-child{border-top:0}' +
     '.inq-hist time{color:var(--sub);margin-right:8px;white-space:nowrap}' +
     '.inq-tbl{width:100%;font-size:12.5px}.inq-tbl td,.inq-tbl th{padding:6px 8px}' +
-    '.inq-meter{display:block;height:8px;border-radius:4px;background:#3d3fbf;min-width:2px}' +
+    '.inq-meter{display:block;height:8px;border-radius:4px;background:var(--ui-accent);min-width:2px}' +
     '.inq-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}' +
     '.inq-check{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.6;margin:6px 0}' +
     '.inq-check input{width:18px;height:18px;margin-top:2px;flex:none}' +

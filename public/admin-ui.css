@@ -880,19 +880,19 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   body.lum-printing { background: #fff !important; }
   body.lum-printing > *:not(#seo-print) { display: none !important; }
   body.lum-printing #seo-print { display: block; color: #17171c; font-size: 9.5pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  #seo-print .pr-head { border-bottom: 2px solid #3d3fbf; padding-bottom: 5px; margin-bottom: 9px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  #seo-print .pr-head { border-bottom: 2px solid var(--ui-accent); padding-bottom: 5px; margin-bottom: 9px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
   #seo-print .pr-head h1 { font-size: 14pt; margin: 0; }
   #seo-print .pr-head p { margin: 0; color: #55555f; font-size: 8.5pt; white-space: nowrap; }
   #seo-print .pr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; }
   #seo-print .pr-sec { break-inside: avoid; border: 1px solid #dcd8ce; border-radius: 6px; padding: 7px 9px; }
-  #seo-print .pr-sec h2 { font-size: 10pt; margin: 0 0 5px; color: #3d3fbf; }
+  #seo-print .pr-sec h2 { font-size: 10pt; margin: 0 0 5px; color: var(--ui-accent); }
   #seo-print .pr-tbl { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
   #seo-print .pr-tbl th, #seo-print .pr-tbl td { text-align: left; padding: 2px 4px; border-bottom: 1px solid #eee; vertical-align: top; font-weight: 400; }
   #seo-print .pr-tbl tr:first-child th { font-weight: 700; color: #55555f; font-size: 8pt; }
   #seo-print .pr-tbl td { font-variant-numeric: tabular-nums; }
   #seo-print .pr-tbl small, #seo-print .pr-big small { color: #6a6a74; font-size: 7.5pt; }
   #seo-print .pr-barcell { width: 45%; }
-  #seo-print .pr-bar { display: inline-block; height: 7px; background: #3d3fbf; border-radius: 3px; }
+  #seo-print .pr-bar { display: inline-block; height: 7px; background: var(--ui-accent); border-radius: 3px; }
   #seo-print .pr-lead, #seo-print .pr-small, #seo-print .pr-none { margin: 3px 0 0; font-size: 8pt; color: #55555f; }
   #seo-print .pr-big { margin: 0 0 3px; }
   #seo-print .pr-list { margin: 2px 0 0 14px; padding: 0; font-size: 8.5pt; }
@@ -908,7 +908,7 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 .cd-head p { font-size: 12px; color: #55555f; margin: 0; line-height: 1.7; }
 .cd-list { list-style: none; margin: 0; padding: 6px 16px; overflow-y: auto; flex: 1 1 auto; }
 .cd-item { padding: 10px 0; border-bottom: 1px solid #ece9e1; }
-.cd-label { font-size: 12px; font-weight: 700; color: #3d3fbf; margin-bottom: 6px; overflow-wrap: anywhere; }
+.cd-label { font-size: 12px; font-weight: 700; color: var(--ui-accent); margin-bottom: 6px; overflow-wrap: anywhere; }
 .cd-tag { display: inline-block; margin-left: 8px; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; background: #fdf5e6; color: #8a4b06; }
 .cd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 560px) { .cd-pair { grid-template-columns: 1fr; } }
@@ -923,9 +923,9 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
 .cd-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 10px 16px 14px; border-top: 1px solid #ece9e1; }
 .cd-foot button { font: inherit; font-size: 13px; font-weight: 700; border-radius: 10px; padding: 9px 16px; cursor: pointer; }
 .cd-cancel { background: #fff; color: #17171c; border: 1px solid #b9b4a8; }
-.cd-ok { background: #3d3fbf; color: #fff; border: 1px solid #3d3fbf; }
-.cd-ok:hover { background: #2f31a3; }
-.cd-foot button:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 2px; }
+.cd-ok { background: var(--ui-accent); color: #fff; border: 1px solid var(--ui-accent); }
+.cd-ok:hover { background: var(--ui-accent-hover); }
+.cd-foot button:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
 #shell .cp-hd { margin-top: 6px; }
 #shell .cp-hd > summary { cursor: pointer; font-size: 11.5px; color: var(--ui-accent); }
 #shell .cp-hd-row { margin-top: 6px; font-size: 12px; line-height: 1.75; }

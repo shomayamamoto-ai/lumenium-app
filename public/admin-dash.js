@@ -530,7 +530,7 @@
       '.dk-mini{height:40px;padding:0 14px;border:1px solid var(--ui-border);border-radius:12px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:#1f2937;cursor:pointer}' +
       '.dk-mini:hover{border-color:#bfd3fb}' +
       '.dk-goal{position:relative;display:block;width:100%;height:6px;border-radius:3px;background:#e8edf5;margin-top:10px;overflow:visible}' +
-      '.dk-goal i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#2563eb}.dk-goal.done i{background:#16a34a}.dk-goal.behind i{background:#f59e0b}' +
+      '.dk-goal i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--ui-accent)}.dk-goal.done i{background:#16a34a}.dk-goal.behind i{background:#f59e0b}' +
       '.dk-goal em{position:absolute;top:-3px;width:2px;height:12px;background:#94a3b8;border-radius:1px}' +
       '.dk-goal-t{display:block;margin-top:4px}' +
       '.dk-range{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--ui-border);border-radius:12px;background:#fff;font-size:14px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}' +
@@ -541,17 +541,17 @@
       '.dk-hero{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(0,1fr);gap:16px}' +
       '.dk-first{position:relative;display:flex;flex-direction:column;gap:8px;padding:22px 24px;background:radial-gradient(120% 140% at 100% 0%,rgba(37,99,235,.08),transparent 55%),#fff}' +
       '.dk-first h2{font-size:20px;font-weight:800;margin:4px 0 0;line-height:1.4;color:#0f172a;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}' +
-      '.dk-count{font-size:30px;font-weight:800;color:#2563eb;font-variant-numeric:tabular-nums}' +
+      '.dk-count{font-size:30px;font-weight:800;color:var(--ui-accent);font-variant-numeric:tabular-nums}' +
       '.dk-first p{margin:0;color:#475569;font-size:14px;line-height:1.75;max-width:60ch}' +
       '.dk-eyebrow{position:absolute;top:18px;right:20px;color:#94a3b8;font-size:12px;letter-spacing:.12em}' +
       '.dk-chip{align-self:flex-start;display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eaf1fe;color:#1d4ed8}' +
       '.dk-chip.lv-urgent{background:#fee2e2;color:#b91c1c}.dk-chip.lv-action{background:#fef3c7;color:#92400e}.dk-chip.lv-ok{background:#dcfce7;color:#166534}' +
       '.dk-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}' +
-      '.dk-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:10px;border:0;background:#2563eb;color:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer}' +
-      '.dk-btn:hover{background:#1d4ed8}' +
+      '.dk-btn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--ui-accent);color:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer}' +
+      '.dk-btn:hover{background:var(--ui-accent-hover)}' +
       '.dk-btn.ghost{background:#fff;color:#1f2937;border:1px solid var(--ui-border);height:36px;font-size:13px}' +
       '.dk-btn.ghost:hover{border-color:var(--ui-border-strong);background:#f8fafc}' +
-      '.dk-link{border:0;background:none;padding:0;font:inherit;font-size:13px;font-weight:700;color:#2563eb;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-decoration:none}' +
+      '.dk-link{border:0;background:none;padding:0;font:inherit;font-size:13px;font-weight:700;color:var(--ui-accent);cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-decoration:none}' +
       '.dk-quote{display:flex;flex-direction:column;justify-content:center;gap:10px;background:linear-gradient(135deg,#eef2f8,#e6ebf3);border-color:#dfe5ee}' +
       '.dk-quote blockquote{margin:0;font-size:19px;line-height:1.85;color:#334155;font-family:"Zen Old Mincho","Hiragino Mincho ProN",serif;letter-spacing:.04em}' +
       '.dk-quote p{margin:0;color:#64748b;font-size:14px;padding-left:24px;position:relative}' +
@@ -571,7 +571,7 @@
       '.dk-grid2b{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}' +
       '.dk-seg{display:inline-flex;padding:3px;border:1px solid var(--ui-border);border-radius:10px;background:#f8fafc}' +
       '.dk-seg button{border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:#64748b;padding:5px 14px;border-radius:8px;cursor:pointer;min-height:30px}' +
-      '.dk-seg button[aria-selected="true"]{background:#fff;color:#2563eb;box-shadow:0 1px 3px rgba(15,23,42,.1)}' +
+      '.dk-seg button[aria-selected="true"]{background:#fff;color:var(--ui-accent);box-shadow:0 1px 3px rgba(15,23,42,.1)}' +
       '.dk-chart{position:relative}' +
       '.dk-svg{width:100%;height:auto;display:block;overflow:visible}' +
       '.dk-grid{stroke:#e8edf4;stroke-width:1}' +
@@ -597,7 +597,7 @@
       '.dk-top-t{min-width:0}.dk-top-t b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dk-top-t small{display:block;color:#94a3b8;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
       '.dk-top-v{font-variant-numeric:tabular-nums;font-weight:700;color:#334155}' +
       '.dk-top-s{display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;font-variant-numeric:tabular-nums}.dk-top-s i{display:block;height:6px;border-radius:3px;background:#2a78d6;opacity:.85}' +
-      '.dk-top-open{color:#94a3b8;text-decoration:none;font-weight:700}.dk-top-open:hover{color:#2563eb}' +
+      '.dk-top-open{color:#94a3b8;text-decoration:none;font-weight:700}.dk-top-open:hover{color:var(--ui-accent)}' +
       '.dk-bar path{fill:#1baf7a;opacity:.75}.dk-bar.is-now path{opacity:1}.dk-bar:hover path{opacity:1}' +
       '.dk-bar-v{font-size:12px;font-weight:800;fill:#0f172a}' +
       '.dk-bars-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;padding:12px 14px;border-radius:12px;background:#f8fafc}' +
@@ -615,8 +615,13 @@
   function watchHome() {
     var portal = el('portal');
     if (!portal) return;
-    var sync = function () { document.body.classList.toggle('sk-home', portal.style.display !== 'none' && !!el('shell') && el('shell').style.display !== 'none'); };
-    new MutationObserver(sync).observe(portal, { attributes: true, attributeFilter: ['style'] });
+    // ホームは class（on）で出し入れしています。style だけを見ていたため、ほかの画面でも
+    // 見出しが隠れたままでした。実際に見えているかで決めます。
+    var sync = function () {
+      var shell = el('shell');
+      document.body.classList.toggle('sk-home', getComputedStyle(portal).display !== 'none' && !!shell && getComputedStyle(shell).display !== 'none');
+    };
+    new MutationObserver(sync).observe(portal, { attributes: true, attributeFilter: ['style', 'class'] });
     sync();
   }
 

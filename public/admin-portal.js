@@ -610,12 +610,12 @@
   var CSS =
     '.lp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 18px}' +
     '.lp-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);cursor:pointer;font:inherit;min-width:0}' +
-    '.lp-kpi:hover{border-color:#3d3fbf;filter:none;background:#fff}' +
+    '.lp-kpi:hover{border-color:var(--ui-accent);filter:none;background:#fff}' +
     '.lp-kpi-l{font-size:12px;font-weight:700;color:var(--sub)}' +
     '.lp-kpi-v{font-size:26px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}' +
     '.lp-kpi-s{font-size:12px;color:var(--sub)}' +
     '.lp-kpi.warn .lp-kpi-s{color:#b45309;font-weight:700}' +
-    '.lp-more{margin-top:8px;padding:8px 14px;font-size:12.5px;border-radius:999px;background:#fff;color:#3d3fbf;border:1px solid #c9c8ef;font-weight:700}' +
+    '.lp-more{margin-top:8px;padding:8px 14px;font-size:12.5px;border-radius:999px;background:#fff;color:var(--ui-accent);border:1px solid #c9c8ef;font-weight:700}' +
     '.lp-more:hover{background:#f5f5ff;filter:none}' +
     '@media (max-width:900px){.lp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
         '.lp-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px}' +
@@ -628,17 +628,17 @@
       'border:1px solid var(--border);border-left:4px solid var(--sub);border-radius:10px;padding:10px 12px;background:#fff}' +
     '.lp-row.urgent{border-left-color:#b42318;background:#fff8f7}' +
     '.lp-row.action{border-left-color:#b45309;background:#fffdf7}' +
-    '.lp-row.today{border-left-color:#3d3fbf}' +
+    '.lp-row.today{border-left-color:var(--ui-accent)}' +
     '.lp-row.fyi{border-left-color:var(--border);background:#faf9f6}' +
     '.lp-n{font-size:24px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}' +
     '.lp-n small{font-size:12px;font-weight:700;margin-left:2px;color:var(--sub)}' +
     '.lp-lv{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--sub);margin-bottom:2px}' +
-    '.lp-row.urgent .lp-lv{color:#b42318}.lp-row.action .lp-lv{color:#b45309}.lp-row.today .lp-lv{color:#3d3fbf}' +
+    '.lp-row.urgent .lp-lv{color:#b42318}.lp-row.action .lp-lv{color:#b45309}.lp-row.today .lp-lv{color:var(--ui-accent)}' +
     '.lp-what b{display:block;font-size:14px;line-height:1.5}' +
     '.lp-what span{display:block;font-size:12.5px;color:var(--sub);line-height:1.7}' +
     '.lp-row button,.lp-row a.lp-go{padding:9px 14px;font-size:12.5px;white-space:nowrap}' +
     /* 行のボタンは、至急の行だけ塗りつぶし。ほかは白地に藍の文字（濃い青が10個並ぶと、どれが大事か分からないため）。 */
-    '.lp-row:not(.urgent) button,.lp-row:not(.urgent) a.lp-go{background:#fff;color:#3d3fbf;border:1px solid #c9c8ef;box-shadow:none}' +
+    '.lp-row:not(.urgent) button,.lp-row:not(.urgent) a.lp-go{background:#fff;color:var(--ui-accent);border:1px solid #c9c8ef;box-shadow:none}' +
     '.lp-row:not(.urgent) button:hover,.lp-row:not(.urgent) a.lp-go:hover{background:#f5f5ff;filter:none}' +
     '.lp-row a.lp-go{display:inline-block;border-radius:10px;background:var(--grad);color:#fff;font-weight:700;text-decoration:none}' +
     '.lp-empty{font-size:14px;font-weight:700;padding:14px 12px;border:1px dashed var(--border);border-radius:10px;background:#faf9f6}' +
@@ -656,7 +656,7 @@
     '.lp-setup summary .lp-tg{margin-left:auto;font-size:12px;color:var(--sub);text-decoration:underline}' +
     '.lp-setup[open] summary .lp-tg-c,.lp-setup:not([open]) summary .lp-tg-o{display:none}' +
     '.lp-bar{display:block;flex-basis:100%;height:6px;border-radius:999px;background:#eceae4;overflow:hidden}' +
-    '.lp-bar i{display:block;height:100%;background:#3d3fbf}' +
+    '.lp-bar i{display:block;height:100%;background:var(--ui-accent)}' +
     '.lp-steps{list-style:none;margin:12px 0 0;padding:0;border-top:1px solid var(--border)}' +
     '.lp-step{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:12px 2px;border-bottom:1px solid var(--border)}' +
     '.lp-mk{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sub)}' +
@@ -676,7 +676,7 @@
     '.lp-out[hidden]{display:none}' +
     '.lp-out.ok{border-color:rgba(4,120,87,.4);background:rgba(20,184,166,.08)}.lp-out.error{border-color:rgba(180,35,24,.4);background:#fff8f7;color:#b42318}' +
     '.lp-out.warn{border-color:rgba(217,119,6,.45);background:rgba(251,191,36,.10)}' +
-    '.lp-target{outline:2px solid #3d3fbf !important;outline-offset:3px}' +
+    '.lp-target{outline:2px solid var(--ui-accent) !important;outline-offset:3px}' +
     /* ポモドーロは、表示を選んだときだけ。選んでいないときの時計は、
        文字盤（秒針が回る）を外して、時刻と日付の1行にします。 */
     '#portal:not(.lp-pomo) #pomo{display:none}' +
@@ -693,11 +693,11 @@
     '.pn-live{margin-top:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;border:1px solid transparent}' +
     '.pn-live.urgent{background:#b42318;color:#fff}' +
     '.pn-live.action{background:rgba(251,191,36,.2);color:#92400e;border-color:rgba(217,119,6,.35)}' +
-    '.pn-live.today{background:rgba(61,63,191,.1);color:#3d3fbf}' +
+    '.pn-live.today{background:rgba(61,63,191,.1);color:var(--ui-accent)}' +
     '.pn-live.fyi{background:#f3f1ec;color:var(--sub)}' +
     '.lp-foot{margin-top:14px;font-size:12px;color:var(--sub)}' +
     '.lp-foot label{display:inline-flex;align-items:center;gap:7px;cursor:pointer}' +
-    '.lp-foot input{width:15px;height:15px;accent-color:#3d3fbf}' +
+    '.lp-foot input{width:15px;height:15px;accent-color:var(--ui-accent)}' +
     '@media (max-width:560px){' +
       '.lp-box{padding:14px 12px}' +
       '.lp-row{grid-template-columns:58px minmax(0,1fr);gap:4px 10px;align-items:start}' +

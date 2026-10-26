@@ -23,7 +23,7 @@
     s.textContent =
       '#present-admin .pd-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}' +
       '#present-admin .pd-bar button{font:inherit;font-size:13px;font-weight:700;padding:9px 14px;border-radius:10px;border:1px solid var(--ui-border,#dcd8ce);background:#fff;color:#17171c;cursor:pointer;min-height:40px}' +
-      '#present-admin .pd-bar button.pri{background:#3d3fbf;border-color:#3d3fbf;color:#fff}' +
+      '#present-admin .pd-bar button.pri{background:var(--ui-accent);border-color:var(--ui-accent);color:#fff}' +
       '#present-admin .pd-bar button:disabled{opacity:.45;cursor:default}' +
       '#present-admin .pd-count{font-size:13px;font-weight:700;color:var(--sub,#55555e);font-variant-numeric:tabular-nums;min-width:4.5em;text-align:center}' +
       '#present-admin .pd-sp{flex:1 1 auto}' +
@@ -38,7 +38,7 @@
       '#present-admin .pd-sec{font-size:12px;color:var(--sub,#55555e);margin:6px 2px 0}' +
       '#present-admin .pd-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:16px}' +
       '#present-admin .pd-thumb{display:block;padding:0;border:2px solid transparent;border-radius:10px;background:none;cursor:pointer;text-align:left;font:inherit}' +
-      '#present-admin .pd-thumb[aria-current="true"]{border-color:#3d3fbf}' +
+      '#present-admin .pd-thumb[aria-current="true"]{border-color:var(--ui-accent)}' +
       '#present-admin .pd-thumb .pd-frame{border-radius:8px;box-shadow:none;border:1px solid var(--ui-border,#dcd8ce)}' +
       '#present-admin .pd-thumb span{display:block;font-size:11.5px;color:var(--sub,#55555e);padding:4px 2px 0}' +
       /* 全画面で発表 */

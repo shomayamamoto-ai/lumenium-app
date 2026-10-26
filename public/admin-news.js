@@ -93,7 +93,7 @@
     '.nw-badge.sch{background:rgba(180,83,9,.1);color:#92400e;border:1px solid rgba(180,83,9,.35)}' +
     '.nw-badge.due{background:rgba(4,120,87,.1);color:#065f46;border:1px solid rgba(4,120,87,.35)}' +
     '.nw-badge.img{background:#f3f1ec;color:var(--sub);border:1px solid var(--border)}' +
-    '.nw-badge.pin{background:#eeeefb;color:#3d3fbf;border:1px solid #c9c9f1}' +
+    '.nw-badge.pin{background:var(--ui-accent-weak);color:var(--ui-accent);border:1px solid var(--ui-accent-line)}' +
     '.nw-badge.cat{background:#fff;color:var(--sub);border:1px solid var(--border)}' +
     '.nw-badge.end{background:#f3f1ec;color:#6b6457;border:1px dashed #b9b4a8}' +
     '.nw-check{display:flex;gap:10px;align-items:center;min-height:44px;font-size:13px;cursor:pointer}' +
@@ -107,7 +107,7 @@
     '.nw-pv-cap{font-size:11.5px;font-weight:700;color:var(--sub);margin:0 0 6px}' +
     '.nw-g{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-family:Arial,"Hiragino Sans","Noto Sans JP",sans-serif;min-width:0}' +
     '.nw-g-site{display:flex;gap:8px;align-items:center;font-size:12px;color:#202124;margin-bottom:6px;min-width:0}' +
-    '.nw-g-fav{width:22px;height:22px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#3d3fbf;flex-shrink:0}' +
+    '.nw-g-fav{width:22px;height:22px;border-radius:50%;background:#f1f3f4;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ui-accent);flex-shrink:0}' +
     '.nw-g-url{display:block;color:#4d5156;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.nw-g-t{font-size:18px;line-height:1.35;color:#1a0dab;margin:0 0 4px;overflow-wrap:anywhere}' +
     '.nw-g-d{font-size:13px;line-height:1.6;color:#4d5156;margin:0;overflow-wrap:anywhere}' +

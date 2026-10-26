@@ -130,7 +130,7 @@
       '.adv-text { white-space: pre-wrap; overflow-wrap: anywhere; }' +
       '.adv-user .adv-text { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; }' +
       '.adv-acts { display: grid; gap: 8px; margin-top: 10px; }' +
-      '.adv-act { background: #fff; border: 1px solid var(--border); border-left: 3px solid #3d3fbf; border-radius: 10px; padding: 10px 12px; min-width: 0; }' +
+      '.adv-act { background: #fff; border: 1px solid var(--border); border-left: 3px solid var(--ui-accent); border-radius: 10px; padding: 10px 12px; min-width: 0; }' +
       '.adv-act h4 { font-size: 12.5px; font-weight: 800; margin: 0 0 4px; overflow-wrap: anywhere; }' +
       '.adv-act .adv-pre { font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; background: #faf9f6; border-radius: 8px; padding: 7px 9px; margin: 4px 0 6px; max-height: 14em; overflow-y: auto; }' +
       '.adv-act .adv-does { font-size: 11.5px; color: var(--sub); line-height: 1.7; margin: 0 0 7px; }' +

@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- 文字の形（Noto Sans JP）は待たずに描きます。届いたら差し替わります（display=swap）。 -->
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap" rel="stylesheet"></noscript>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&family=Great+Vibes&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&family=Great+Vibes&display=swap" rel="stylesheet"></noscript>
 <script>
 /* 起動の合図。このタブにログインしたキーが残っていれば、ログインの画面は出さずに
    管理画面の骨組みを先に描きます（中身は読み込みしだい入ります）。 */
@@ -23,7 +23,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
 .boot-skel{display:none}
 .lum-boot #key-panel{display:none}
 .lum-boot .boot-skel{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - 64px)}
-.boot-skel .bs-side{background:#0f1a33}
+.boot-skel .bs-side{background:#fff;border-right:1px solid #ece9e4}
 .boot-skel .bs-main{padding:28px 32px;display:flex;flex-direction:column;gap:16px}
 .boot-skel i{display:block;border-radius:14px;background:linear-gradient(90deg,#e9edf3 0,#f4f6f9 50%,#e9edf3 100%);background-size:200% 100%;animation:bsk 1.2s linear infinite}
 .boot-skel .bs-h{height:28px;width:40%}
@@ -39,7 +39,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   :root {
     --bg: #f6f4ef; --card: #ffffff; --border: #dcd8ce;
     --text: #17171c; --sub: #5b5b66;
-    --grad: #3d3fbf;
+    --grad: var(--ui-accent);
   }
   body { min-height: 100dvh; background: var(--bg); color: var(--text); }
 
@@ -68,7 +68,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     flex: none; padding: 9px 15px; border-radius: 999px; font-size: 12.5px;
     background: #faf9f6; border: 1px solid var(--border); color: var(--text);
   }
-  #portal-keys:hover { border-color: #3d3fbf; color: #3d3fbf; }
+  #portal-keys:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
   #portal-keys.urgent { background: var(--grad); border-color: transparent; color: #fff; }
   #portal-hub-sub {
     flex: none; padding: 5px 11px; border-radius: 999px;
@@ -114,10 +114,10 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .portal-hub {
     width: 212px; height: 212px; padding: 0; cursor: default;
     background: radial-gradient(circle at 50% 35%, #ffffff 0%, #ffffff 70%);
-    border-color: #3d3fbf;
+    border-color: var(--ui-accent);
     box-shadow: 0 0 0 10px rgba(79,70,229,0.07), 0 0 40px rgba(79,70,229,0.18);
   }
-  .portal-hub.timing { border-color: #3d3fbf; box-shadow: 0 0 0 10px rgba(129,140,248,0.09), 0 0 46px rgba(129,140,248,0.26); }
+  .portal-hub.timing { border-color: var(--ui-accent); box-shadow: 0 0 0 10px rgba(129,140,248,0.09), 0 0 46px rgba(129,140,248,0.26); }
   .portal-hub.rang { border-color: #047857; box-shadow: 0 0 0 10px rgba(52,211,153,0.12), 0 0 46px rgba(52,211,153,0.3); }
   /* Above the readout, the way a watch works: hands pass over whatever is
      printed on the dial. This was the other way round — the digital box sits
@@ -141,7 +141,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .hub-face .cap { fill: url(#capG); stroke: rgba(15,23,42,0.6); stroke-width: 0.6; }
   .hub-face .cap-top { fill: #0f172a; }
   .hub-face .prog {
-    fill: none; stroke: #3d3fbf; stroke-width: 5; stroke-linecap: round;
+    fill: none; stroke: var(--ui-accent); stroke-width: 5; stroke-linecap: round;
     transform: rotate(-90deg); transform-origin: 50% 50%;
   }
   .portal-hub.rang .hub-face .prog { stroke: #047857; }
@@ -161,13 +161,13 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     font-size: calc(var(--hs, 212px) * 0.105); font-weight: 800;
     line-height: 1.15; letter-spacing: 0.01em; font-variant-numeric: tabular-nums;
   }
-  .portal-hub.timing .hub-clock { color: #3d3fbf; }
+  .portal-hub.timing .hub-clock { color: var(--ui-accent); }
   .portal-hub.rang .hub-clock { color: #047857; }
   .hub-sub { font-size: max(9px, calc(var(--hs, 212px) * 0.05)); color: var(--sub); line-height: 1.4; white-space: nowrap; }
 
   .pnode { width: 152px; height: 152px; }
-  .pnode:hover, .pnode:focus-visible { transform: translate(-50%, -50%) scale(1.06); border-color: var(--n-accent, #3d3fbf); }
-  .pnode:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 3px; }
+  .pnode:hover, .pnode:focus-visible { transform: translate(-50%, -50%) scale(1.06); border-color: var(--n-accent, var(--ui-accent)); }
+  .pnode:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 3px; }
   .pnode .pn-icon {
     width: 34px; height: 34px; border-radius: 11px;
     display: grid; place-items: center; font-size: 17px; line-height: 1;
@@ -208,7 +208,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     padding: 9px 0; border: 1px solid var(--border); border-radius: 9px;
     background: #faf9f6; color: var(--text); font-size: 12.5px; font-weight: 700;
   }
-  .pomo-presets button:hover { border-color: #3d3fbf; color: #3d3fbf; }
+  .pomo-presets button:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
   .pomo-presets button[aria-pressed="true"] { background: var(--grad); border-color: transparent; color: #fff; }
   .pomo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .pomo-actions button { padding: 10px 0; border-radius: 9px; font-size: 12.5px; }
@@ -222,7 +222,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
      and an outline instead of by blinking. */
   .pomo.ringing .pomo-stop { display: block; font-weight: 800; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28); }
   .pomo-sound { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); }
-  .pomo-sound input[type="range"] { flex: 1; min-width: 0; height: 18px; accent-color: #3d3fbf; }
+  .pomo-sound input[type="range"] { flex: 1; min-width: 0; height: 18px; accent-color: var(--ui-accent); }
   .pomo-sound button { flex: none; padding: 7px 11px; font-size: 11.5px; border-radius: 8px; }
   .pomo-opt select {
     margin-left: auto; padding: 5px 9px; border-radius: 8px;
@@ -230,7 +230,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     font-family: inherit; font-size: 11.5px;
   }
   .pomo-opt { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--sub); cursor: pointer; }
-  .pomo-opt input { width: 14px; height: 14px; accent-color: #3d3fbf; }
+  .pomo-opt input { width: 14px; height: 14px; accent-color: var(--ui-accent); }
   .pomo-log { border-top: 1px solid var(--border); padding-top: 10px; font-size: 11px; color: var(--sub); }
 
   /* Running, but you have walked off to another section. */
@@ -238,7 +238,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     position: fixed; right: 18px; bottom: 18px; z-index: 40;
     display: none; align-items: center; gap: 8px;
     padding: 10px 15px; border-radius: 999px;
-    background: var(--card); border: 1px solid #3d3fbf; color: var(--text);
+    background: var(--card); border: 1px solid var(--ui-accent); color: var(--text);
     box-shadow: 0 10px 28px rgba(0,0,0,0.35);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
@@ -329,7 +329,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     margin-bottom: 8px; padding: 12px 14px;
     background: #faf9f6; border: 1px solid var(--border); border-radius: 12px;
   }
-  .share-label { font-size: 11.5px; font-weight: 700; color: #3d3fbf; white-space: nowrap; }
+  .share-label { font-size: 11.5px; font-weight: 700; color: var(--ui-accent); white-space: nowrap; }
   .share-block {
     margin-bottom: 18px; padding: 14px 16px 12px;
     background: #faf9f6; border: 1px solid var(--border); border-radius: 14px;
@@ -365,7 +365,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .f-fill { display: block; height: 100%; background: var(--grad); }
   .f-people, .f-rate, .f-times, .f-drop { flex: none; text-align: right; font-variant-numeric: tabular-nums; }
   .f-people { width: 50px; font-size: 12.5px; font-weight: 700; }
-  .f-rate { width: 42px; font-size: 11.5px; color: #3d3fbf; }
+  .f-rate { width: 42px; font-size: 11.5px; color: var(--ui-accent); }
   .f-times { width: 46px; font-size: 11px; color: var(--sub); }
   .f-drop { width: 80px; font-size: 11.5px; color: var(--sub); }
   .f-drop.warn { color: #b42318; }
@@ -388,7 +388,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .set-row h4 { grid-column: 1 / -1; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .set-row .state { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
   .set-row .state.on { background: rgba(16,185,129,0.16); color: #047857; }
-  .set-row .state.env { background: rgba(59,130,246,0.16); color: #3d3fbf; }
+  .set-row .state.env { background: rgba(59,130,246,0.16); color: var(--ui-accent); }
   .set-row .state.dev { background: rgba(20,184,166,0.18); color: #0f766e; }
   .set-row .state.off { background: rgba(248,113,113,0.15); color: #b42318; }
   .set-row .why { grid-column: 1 / -1; font-size: 12px; color: var(--sub); line-height: 1.7; }
@@ -412,17 +412,17 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .set-group p { font-size: 11.5px; color: var(--sub); line-height: 1.7; }
   .set-group .tally { font-size: 11px; font-weight: 700; color: var(--sub); margin-left: 8px; }
   .linkish {
-    padding: 0; background: none; border: 0; color: #3d3fbf;
+    padding: 0; background: none; border: 0; color: var(--ui-accent);
     font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline;
   }
-  .linkish:hover { color: #3d3fbf; }
+  .linkish:hover { color: var(--ui-accent); }
 
   /* ---- SNS composer ---- */
   .soc-step {
     font-size: 11.5px; letter-spacing: .06em; font-weight: 800; color: var(--sub);
     margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
   }
-  .soc-step::first-letter { color: #3d3fbf; font-size: 14px; }
+  .soc-step::first-letter { color: var(--ui-accent); font-size: 14px; }
   .soc-nets { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 8px; margin-bottom: 12px; }
   .soc-net {
     display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 9px;
@@ -450,7 +450,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-res.ok { border-color: rgba(16,185,129,0.5); }
   .soc-res.ng { border-color: rgba(248,113,113,0.5); }
   .soc-res b { flex: none; }
-  .soc-res a { color: #3d3fbf; }
+  .soc-res a { color: var(--ui-accent); }
   .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; }
   .soc-post .when { font-size: 11px; color: var(--sub); }
   .soc-post .body { font-size: 12.5px; line-height: 1.7; margin: 3px 0; white-space: pre-wrap; word-break: break-word; }
@@ -620,7 +620,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   button.bk-danger { color: #b42318; border-color: rgba(180,35,24,0.35); }
   .bk-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
   .bk-day { border: 1px solid var(--border); border-radius: 10px; padding: 7px; background: #fff; min-width: 0; }
-  .bk-day.is-today { border-color: #3d3fbf; }
+  .bk-day.is-today { border-color: var(--ui-accent); }
   .bk-dh { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
   .bk-dh span { display: block; font-size: 10.5px; font-weight: 400; color: var(--sub); overflow-wrap: anywhere; }
   .bk-ev { display: block; width: 100%; text-align: left; font-size: 11px; font-weight: 400; line-height: 1.5; padding: 5px 6px; margin-top: 4px;
@@ -681,7 +681,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-crop-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .soc-crop-presets button { font-size: 11.5px; padding: 5px 11px; }
   .soc-crop canvas { display: block; max-width: 100%; height: auto; touch-action: none; cursor: move; border-radius: 6px; background: #fff; }
-  .soc-crop canvas:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 2px; }
+  .soc-crop canvas:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
   .soc-crop .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 8px; font-size: 11.5px; }
   .soc-crop input[type=range] { width: 180px; max-width: 100%; accent-color: #14b8a6; }
   .soc-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
@@ -726,7 +726,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-pv .av { width: 30px; height: 30px; border-radius: 50%; background: #dcd8ce; flex: none; }
   .soc-pv .hd { font-weight: 500; color: var(--sub); font-size: 11.5px; }
   .soc-pv .tx { font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
-  .soc-pv .u { color: #3d3fbf; }
+  .soc-pv .u { color: var(--ui-accent); }
   .soc-pv .pics { display: grid; gap: 4px; margin-top: 8px; grid-template-columns: repeat(2, 1fr); }
   .soc-pv .pics.one { grid-template-columns: 1fr; }
   .soc-pv .pics img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 9px; border: 1px solid var(--border); display: block; }
@@ -783,7 +783,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-cal .d.today { border-color: #0f766e; }
   .soc-cal .d.sel { box-shadow: inset 0 0 0 2px #14b8a6; }
   .soc-cal .d .num { font-weight: 700; font-size: 11px; display: block; }
-  .soc-cal .d:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 1px; }
+  .soc-cal .d:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 1px; }
   /* 行事（季節のネタ帳）と、ドラッグで日付を変えられる予約 */
   .soc-cal .d .ev { display: block; font-size: 10px; line-height: 1.35; color: #92400e; font-weight: 700; margin: 1px 0; }
   .soc-cal .d .qi { display: inline-block; cursor: grab; border-radius: 5px; }
@@ -829,7 +829,7 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
     font-size: 12px; color: var(--sub); cursor: pointer;
   }
-  .copy-only input { accent-color: #3d3fbf; width: 14px; height: 14px; }
+  .copy-only input { accent-color: var(--ui-accent); width: 14px; height: 14px; }
   /* Which section a result came from, shown on every row while searching —
      with fourteen groups the answer to "where is this text" is the point. */
   .copy-where {
@@ -885,7 +885,7 @@ details.utm > summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .nq-row:last-child { margin-bottom: 0; }
 .nq-chip { min-height: 32px; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: #fff; color: var(--sub); border: 1px solid var(--border); }
 .nq-chip:hover:not(:disabled) { border-color: #b9b4a8; color: var(--text); filter: none; }
-.nq-chip[aria-pressed="true"], .nq-chip[aria-pressed="true"]:hover:not(:disabled) { background: #eeeefb; border-color: #c9c9f1; color: #3d3fbf; }
+.nq-chip[aria-pressed="true"], .nq-chip[aria-pressed="true"]:hover:not(:disabled) { background: var(--ui-accent-weak); border-color: var(--ui-accent-line); color: var(--ui-accent); }
 #news-date { padding: 7px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fff; color: var(--text); font-family: inherit; font-size: 12.5px; }
 
 /* =========================================================================
@@ -970,7 +970,7 @@ input, select, textarea { color: var(--text); }
 #portal-hub.rang .hub-face .prog { stroke: #6ee7b7; }
 #portal-hub:not(.timing):not(.rang) .hub-face .prog { display: none; }
 #portal-hub .hub-clock { font-size: 44px; color: var(--text); letter-spacing: .02em; }
-#portal-hub.timing .hub-clock { color: #3d3fbf; }
+#portal-hub.timing .hub-clock { color: var(--ui-accent); }
 #portal-hub.rang .hub-clock { color: #047857; }
 #portal-hub .hub-sub { font-size: 14px; color: var(--sub); margin-top: 4px; }
 @media (max-width: 560px) {
@@ -992,8 +992,8 @@ input, select, textarea { color: var(--text); }
 /* 会員リスト: 一覧を先に、共有リンクは下にたたんで。 */
 #list-view > .share-block { margin-top: 18px; }
 .share-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer; padding: 2px 0; }
-.share-toggle:focus-visible { outline: 2px solid #3d3fbf; outline-offset: 3px; border-radius: 6px; }
-.share-toggle .share-tg::after { content: '開く'; font-size: 12px; color: #3d3fbf; font-weight: 700; margin-left: auto; }
+.share-toggle:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 3px; border-radius: 6px; }
+.share-toggle .share-tg::after { content: '開く'; font-size: 12px; color: var(--ui-accent); font-weight: 700; margin-left: auto; }
 .share-block.open .share-toggle .share-tg::after { content: 'たたむ'; }
 .share-toggle .share-tg { margin-left: auto; flex: none; }
 .share-toggle .share-label { flex: 1 1 auto; min-width: 0; }
@@ -1055,7 +1055,7 @@ input, select, textarea { color: var(--text); }
     <div class="shell-main" id="main">
     <!-- 画面の見出し（1画面に1つ）。題名・一行の説明・右に操作と「？」。 -->
     <div class="ui-page-header" id="page-head">
-      <div class="ui-ph-text"><h1 id="page-title" tabindex="-1">ホーム</h1><p class="ui-ph-desc" id="page-desc"></p></div>
+      <div class="ui-ph-text"><p class="sk-en" id="page-en" aria-hidden="true">Home</p><h1 id="page-title" tabindex="-1">ホーム</h1><p class="ui-ph-desc" id="page-desc"></p></div>
       <div class="ui-ph-actions" id="page-actions"><button type="button" class="ui-help" id="page-help-btn" aria-controls="page-help" aria-expanded="false" hidden><span aria-hidden="true">？</span><span>説明</span></button></div>
       <div class="ui-help-panel" id="page-help" role="region" aria-label="この画面の説明" hidden></div>
     </div>
@@ -2115,6 +2115,14 @@ window.lumAdmin = {
     { label: '資料', ids: ['present-admin'] },
     { label: '管理', ids: ['setup-admin', 'health-admin', 'staff-admin', 'audit-admin'] }
   ];
+  /* 画面の見出しの上の、筆記体の英語（飾り）。 */
+  var PAGE_EN = {
+    portal: 'Home', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
+    'quotes-admin': 'Estimate', 'bills-admin': 'Invoice', 'list-view': 'Members', 'news-admin': 'News',
+    'social-admin': 'Social', 'video-admin': 'Movie', 'copy-admin': 'Writing', 'seo-admin': 'Search',
+    'stats-admin': 'Analytics', 'auto-admin': 'Improve', 'advisor-admin': 'Advisor', 'present-admin': 'Proposal',
+    'setup-admin': 'Setup', 'health-admin': 'Status', 'staff-admin': 'Staff', 'audit-admin': 'Record'
+  };
   /* 画面の見出しの下に出す一行の説明。長い説明は「？」の中です。 */
   var PAGE_DESC = {
     portal: '今日やることと、今週の数字をまとめて見ます。',
@@ -2197,6 +2205,9 @@ window.lumAdmin = {
     var tab = id === PORTAL ? NAV[0] : TABS.find(function (t) { return t.id === id; });
     var h = document.getElementById('page-title');
     if (h) h.textContent = tab ? tab.label : '';
+    // 見出しの上の筆記体の英語（飾り。公開サイトと同じ組み方）
+    var en = document.getElementById('page-en');
+    if (en) en.textContent = PAGE_EN[id] || 'Lumenium';
     var d = document.getElementById('page-desc');
     if (d) d.textContent = PAGE_DESC[id] || '';
     var btn = document.getElementById('page-help-btn');
@@ -3199,7 +3210,7 @@ window.lumAdmin = {
       var li = document.createElement('li');
       li.style.cssText = 'display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px';
       var d = document.createElement('span');
-      d.style.cssText = 'color:#3d3fbf;flex-shrink:0;font-size:12px';
+      d.style.cssText = 'color:var(--ui-accent);flex-shrink:0;font-size:12px';
       d.textContent = n.date || '';
       var t = document.createElement('span');
       t.style.cssText = 'flex:1;color:var(--text)';
@@ -3910,7 +3921,7 @@ window.lumAdmin = {
     var base = 'line-height:1.8;color:var(--text);word-break:break-word;';
     return base + {
       title: 'font-size:23px;font-weight:700;letter-spacing:-.02em;line-height:1.35;',
-      label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:#3d3fbf;',
+      label: 'font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--ui-accent);',
       lead: 'font-size:14.5px;color:#4a4f63;',
       q: 'font-size:14px;font-weight:700;',
       body: 'font-size:13.5px;',
@@ -3981,7 +3992,7 @@ window.lumAdmin = {
     else if (kind === 'url' && !/^https?:\/\/[^\s]+$/.test(v)) bad = 'http:// か https:// で始まる形になっていません。';
     else if (kind === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) bad = 'メールアドレスの形になっていません。';
     var shown = kind === 'url' && /^https?:\/\//.test(v)
-      ? '<a href="' + esc(v) + '" target="_blank" rel="noopener" style="color:#3d3fbf">' + esc(v) + '</a>' +
+      ? '<a href="' + esc(v) + '" target="_blank" rel="noopener" style="color:var(--ui-accent)">' + esc(v) + '</a>' +
         '<span style="font-size:11px;color:var(--sub)">　← 押すと開きます</span>'
       : esc(v);
     return shown + (bad
@@ -4091,7 +4102,7 @@ window.lumAdmin = {
       var label = document.createElement('span');
       label.textContent = humanLabel(f.path);
       label.title = f.path;
-      label.style.cssText = 'font-size:12px;font-weight:700;color:#3d3fbf';
+      label.style.cssText = 'font-size:12px;font-weight:700;color:var(--ui-accent)';
       head.appendChild(label);
 
       if (wide) {
@@ -5903,7 +5914,7 @@ window.lumAdmin = {
         return '<tr data-url="' + esc(p.url) + '">' +
           '<td style="padding:5px 8px 5px 0;font-size:11.5px;color:var(--sub);white-space:nowrap;vertical-align:top">' + p.count + '問</td>' +
           '<td style="padding:5px 0;font-size:12px;word-break:break-all">' +
-            '<a href="' + esc(lumSafeHref(p.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(p.url) + '</a>' +
+            '<a href="' + esc(lumSafeHref(p.url)) + '" target="_blank" rel="noopener" style="color:var(--ui-accent);text-decoration:none">' + esc(p.url) + '</a>' +
             '<div style="font-size:11px;color:var(--sub)"><span class="listing-host">' + esc(p.host) + '</span><span class="listing-state"></span></div>' +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -6069,7 +6080,7 @@ window.lumAdmin = {
         (r.verdict === 'recommended' ? '同時に挙がった会社: ' : 'ここで挙がっていた会社: ') + esc(rivals.join('、')) + '</div>'
       : '';
     var link = function (u) {
-      return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
+      return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:var(--ui-accent);text-decoration:none;word-break:break-all">' + esc(u) + '</a>';
     };
     var citedUrls = (r.citedUrls || []).map(function (c) { return c.url; }).filter(Boolean);
     var read = (r.sourceUrls || []).filter(function (u) { return citedUrls.indexOf(u) < 0; });
@@ -6845,7 +6856,7 @@ window.lumAdmin = {
       return '<tr><td style="padding:5px 8px;font-size:12px">' + mark + ' ' + esc(c.cat) +
         '<span style="color:var(--sub);font-size:11px"> ' + c.asked + '問</span></td>' +
         '<td style="padding:5px 8px;font-size:11.5px">' + (c.pages || []).map(function (u) {
-          return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
+          return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:var(--ui-accent);text-decoration:none">' + esc(u) + '</a>';
         }).join('、') + '</td>' +
         '<td style="padding:5px 8px;font-size:11.5px;color:var(--sub)">' + esc(note) + '</td></tr>';
     }).join('');
@@ -6879,9 +6890,9 @@ window.lumAdmin = {
     var pageRef = function (u) {
       // 1ページなら開けるリンクに。「/a.html、/b.html」のような組はそのまま。
       if (/^\/[^\s、]*$/.test(u)) {
-        return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:#3d3fbf;text-decoration:none">' + esc(u) + '</a>';
+        return '<a href="' + esc(lumSafeHref(u)) + '" target="_blank" rel="noopener" style="color:var(--ui-accent);text-decoration:none">' + esc(u) + '</a>';
       }
-      return '<span style="color:#3d3fbf">' + esc(u) + '</span>';
+      return '<span style="color:var(--ui-accent)">' + esc(u) + '</span>';
     };
     var levelHtml = function (key, label, color) {
       var by = {}, order = [];
@@ -7644,7 +7655,7 @@ window.lumAdmin = {
       if (g.id === 'booking') {
         var bl = document.createElement('p');
         bl.style.cssText = 'font-size:12px;color:var(--sub);margin:4px 0 18px;line-height:1.8';
-        bl.innerHTML = '接続のボタン・予約の一覧・受付時間は <button type="button" class="linkish" id="to-booking" style="background:none;border:0;padding:0;font-size:12px;font-weight:700;color:#3d3fbf;cursor:pointer">予約管理 →</button> にあります。';
+        bl.innerHTML = '接続のボタン・予約の一覧・受付時間は <button type="button" class="linkish" id="to-booking" style="background:none;border:0;padding:0;font-size:12px;font-weight:700;color:var(--ui-accent);cursor:pointer">予約管理 →</button> にあります。';
         host.appendChild(bl);
         bl.querySelector('#to-booking').addEventListener('click', function () { if (window.lumShowTab) window.lumShowTab('booking-admin'); });
       }
@@ -7784,7 +7795,7 @@ window.lumAdmin = {
       return '<div style="font-size:12.5px;line-height:1.9">' +
         (s.set ? '✓ ' : '・') + label + ': ' +
         (s.set
-          ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:#3d3fbf">確認ファイルを開く</a>' +
+          ? '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--ui-accent)">確認ファイルを開く</a>' +
             '<span style="color:var(--sub);font-size:11px">（ここが表示されれば、登録画面の「確認」を押せます）</span>'
           : '<span style="color:var(--sub)">未設定</span>') +
         '</div>';
@@ -8240,7 +8251,7 @@ window.lumAdmin = {
         '<span style="font-size:11px;font-weight:500;color:var(--sub);margin-left:8px">' + esc(st.effort || '') + '</span></div>' +
       '<div style="font-size:12px;color:var(--sub);line-height:1.8">' +
         esc(st.what || '') + '<br>' + esc(st.where || '') +
-        (st.url ? ' <a href="' + esc(window.lumSafeHref(st.url)) + '" target="_blank" rel="noopener" style="color:#3d3fbf">取りに行く ↗</a>' : '') +
+        (st.url ? ' <a href="' + esc(window.lumSafeHref(st.url)) + '" target="_blank" rel="noopener" style="color:var(--ui-accent)">取りに行く ↗</a>' : '') +
         '<br><span style="opacity:.75">貼る場所の名前: ' + esc((n.needs || []).join('・')) + '</span>' +
       '</div></div>';
   }
