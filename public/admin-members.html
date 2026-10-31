@@ -2102,6 +2102,22 @@ window.lumAdmin = {
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ホーム', icon: 'home' }].concat(TABS);
   var started = {};
+  /* 画面を始める（init）。再読み込みで前の画面を開き直すと、その画面の部品（あとに並んだ
+     スクリプト）がまだ読み込まれていないことがあります。そのときは「始めた」にせず、
+     読み込みが終わってから始めます——印だけ付けて中身を読みに行かないと、
+     見出しとタブだけの空の画面が残るため。 */
+  function startTab(tab) {
+    if (!tab || !tab.init || started[tab.id] || !window[tab.init]) return false;
+    started[tab.id] = true;
+    window[tab.init]();
+    return true;
+  }
+  function startLate() {
+    var tab = TABS.find(function (t) { return t.id === currentTab; });
+    if (startTab(tab) && tab.show && window[tab.show]) window[tab.show]();
+  }
+  document.addEventListener('DOMContentLoaded', startLate);
+  window.addEventListener('load', startLate);
 
   /* 左のメニューの並び。お客様対応 → 発信 → サイト → 改善 → 管理。
      役割で見られない項目は TABS から外れているので、ここでも出ません
@@ -2267,10 +2283,7 @@ window.lumAdmin = {
     });
     var tab = TABS.find(function (t) { return t.id === id; });
     watchIntro(id);
-    if (tab && tab.init && !started[id]) {
-      started[id] = true;
-      if (window[tab.init]) window[tab.init]();
-    }
+    startTab(tab);
     // 開くたびに知らせてほしい画面（見積書と請求書・領収書は、同じ部品を2つの画面で使います）。
     if (tab && tab.show && window[tab.show]) window[tab.show]();
     takeIntro(id);
@@ -5412,35 +5425,42 @@ window.lumAdmin = {
     el('stats-csv').disabled = false;
     kindLabel = {};
     (data.referrerKinds || []).forEach(function (k) { kindLabel[k.key] = k.label; });
-    cards(data);
-    selfSwitch();
-    chart(data.series || []);
-    loadMarks(data.range);
-    kinds(data.referrerKinds || []);
-    aiBox(data);
-    convTable(data.convSources || []);
-    landingTable(data.landings || []);
-    timeTable(data.pageTimes || []);
-    campaignTable(data.campaigns || []);
-    if (!weeklyDone) { weeklyDone = true; weekly(key); }
-    readDepth(data.funnel || {});
-    readPaths(data.readByPath || []);
-    hours(data.hours || []);
-    links(data.links || [], data.funnel || {});
-    exits(data.exits || []);
-    notFound(data.notFound || []);
-    queries();
-    funnelBars(data.funnel || []);
-    bars('stats-paths', data.topPaths, { link: true });
-    bars('stats-refs', data.topReferrers);
-    bars('stats-devices', data.devices);
+    /* 表やグラフを1つずつ描きます。1つが描けなくても（届いた数字の形が想定と違うなど）、
+       ほかの表まで巻き込んで画面ごと空にならないように、失敗はその部分だけで止めます。 */
+    var broken = [];
+    var part = function (name, fn) {
+      try { fn(); } catch (e) { broken.push(name); if (window.console) console.error('アクセス解析: ' + name + ' を描けませんでした', e); }
+    };
+    part('数字のカード', function () { cards(data); });
+    part('この端末の扱い', selfSwitch);
+    part('日別の推移', function () { chart(data.series || []); });
+    part('出来事', function () { loadMarks(data.range); });
+    part('流入元', function () { kinds(data.referrerKinds || []); });
+    part('AIアシスタントから', function () { aiBox(data); });
+    part('問い合わせにつながった流入元', function () { convTable(data.convSources || []); });
+    part('最初に見られたページ', function () { landingTable(data.landings || []); });
+    part('ページごとの滞在', function () { timeTable(data.pageTimes || []); });
+    part('計測用リンク', function () { campaignTable(data.campaigns || []); });
+    if (!weeklyDone) { weeklyDone = true; part('週次メール', function () { weekly(key); }); }
+    part('どこまで読まれたか', function () { readDepth(data.funnel || {}); });
+    part('ページごとの読了', function () { readPaths(data.readByPath || []); });
+    part('いつ見られているか', function () { hours(data.hours || []); });
+    part('サイトの外へ', function () { links(data.links || [], data.funnel || {}); });
+    part('どのページで帰ったか', function () { exits(data.exits || []); });
+    part('見つからないページ', function () { notFound(data.notFound || []); });
+    part('検索キーワード', queries);
+    part('問い合わせまでの導線', function () { funnelBars(data.funnel || []); });
+    part('よく見られたページ', function () { bars('stats-paths', data.topPaths, { link: true }); });
+    part('紹介元', function () { bars('stats-refs', data.topReferrers); });
+    part('端末', function () { bars('stats-devices', data.devices); });
     bodyEl.style.display = 'block';
     endOffset = (data.range && data.range.end) || 0;
-    el('stats-updated').textContent = md(data.range.from) + '〜' + md(data.range.to) +
+    var rg = data.range || {};
+    el('stats-updated').textContent = (rg.from ? md(rg.from) + '〜' + md(rg.to) : '') +
       (data.previous ? '（前の期間 ' + md(data.previous.from) + '〜' + md(data.previous.to) + ' と比べています）' : '');
     el('stats-next').disabled = !endOffset;
     el('stats-prev').disabled = (data.keepDays || 400) < endOffset + Number(days) * 3;
-    say('', true);
+    say(broken.length ? '一部を表示できませんでした（' + broken.join('・') + '）。ほかの数字はそのまま見られます。「更新」で読み直せます。' : '', !broken.length);
     todo();
   }
   function md(ymd) { var m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(ymd || ''); return m ? Number(m[2]) + '/' + Number(m[3]) : (ymd || ''); }
