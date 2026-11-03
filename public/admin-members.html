@@ -308,6 +308,23 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #b42318; display: none; }
   .msg.show { display: block; }
   .msg.info { color: var(--sub); }
+  /* アクセス解析: 5つの指標の図（左）と、その読み方（右）。狭い画面では縦に並べます。 */
+  .rd { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 14px; margin: 4px 0 14px; }
+  .rd-fig, .rd-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; }
+  .rd-fig svg { display: block; width: 100%; height: auto; max-width: 440px; margin: 0 auto; }
+  .rd-fig svg text { font-family: inherit; }
+  .rd-legend { display: flex; justify-content: flex-end; gap: 16px; font-size: 12px; color: var(--sub); margin-top: 4px; }
+  .rd-legend i { display: inline-block; width: 22px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .rd-card { background: #f7f6f2; }
+  .rd-card h3 { font-size: 20px; font-weight: 800; color: var(--ui-accent, #e0565b); letter-spacing: .02em; margin: 2px 0 2px; }
+  .rd-card .rd-sub { font-size: 13px; color: var(--sub); margin: 0 0 12px; }
+  .rd-card p.rd-read { font-size: 13.5px; line-height: 1.95; margin: 0 0 12px; color: var(--text); }
+  .rd-rows { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .rd-rows th { background: none; text-align: left; font-weight: 700; padding: 6px 0; border-top: 1px solid var(--border); white-space: nowrap; }
+  .rd-rows td { padding: 6px 0 6px 10px; border-top: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rd-rows td.up { color: #0f7a4f; font-weight: 700; } .rd-rows td.down { color: #b42318; font-weight: 700; } .rd-rows td.flat { color: var(--sub); }
+  .rd-sum { font-size: 13px; font-weight: 700; margin: 10px 0 0; line-height: 1.8; }
+  @media (max-width: 860px) { .rd { grid-template-columns: 1fr; } }
   /* list */
   #list-view { display: none; }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -1652,6 +1669,8 @@ input, select, textarea { color: var(--text); }
         <div id="stats-note"></div>
         <div id="stats-self"></div>
         <div id="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px"></div>
+        <!-- 5つの指標を、前の同じ長さの期間と重ねた図と、その読み方（radar() が描きます）。 -->
+        <div id="stats-radar"></div>
         <div id="stats-since"></div>
         <details class="utm" id="stats-about" style="margin-top:4px;margin-bottom:18px">
           <summary>この数字について</summary>
@@ -4584,6 +4603,104 @@ window.lumAdmin = {
     }
   }
 
+  /* ---- 5つの指標の図（前の同じ長さの期間と重ねる） ----
+     数・率・時間は単位がそろわないので、軸ごとに「2つの期間の大きい方」を外側の線にして
+     描きます（大きい方が8割の線）。図で読めるのは「どちらが大きいか・どれだけ差があるか」で、軸どうしの
+     大きさは比べません（その読み方を右のカードに書きます）。
+     前の期間の訪問が少ないうちは、差がたまたまの揺れなので、図は出さずにそう書きます。 */
+  var RD_ACC = '#e0565b', RD_PREV = '#7c9a74';
+  function radar(d) {
+    var host = el('stats-radar');
+    if (!host) return;
+    var sm = d.summary || {}, c = sm.cur || {}, p = sm.prev || {};
+    var eng = function (s) { return s.bounceRate === null || s.bounceRate === undefined ? null : 1 - s.bounceRate; };
+    var axes = [
+      { label: '閲覧数', cur: c.views, prev: p.views, show: function (v) { return n(v); } },
+      { label: '訪問数', cur: c.visits, prev: p.visits, show: function (v) { return n(v); } },
+      { label: '本文に入った率', cur: eng(c), prev: eng(p), show: pct, rate: true },
+      { label: '平均滞在', cur: c.avgTimeMs, prev: p.avgTimeMs, show: secs },
+      { label: '問い合わせ', cur: c.submits, prev: p.submits, show: function (v) { return n(v) + '件'; } },
+    ];
+    if (!d.previous || !(p.visits >= 10) || !(c.visits >= 10)) {
+      host.innerHTML = '<p class="share-note" style="margin:2px 0 14px">5つの指標を前の期間と重ねた図は、この期間と前の期間の訪問がそれぞれ10回を超えると出ます（いまは前 ' +
+        n(p.visits) + '回・この期間 ' + n(c.visits) + '回）。少ないうちの差は、たまたまの揺れで読み違えるためです。</p>';
+      return;
+    }
+    var W = 440, H = 360, cx = 220, cy = 186, R = 112;
+    var pt = function (i, r) {
+      var a = -Math.PI / 2 + (i * 2 * Math.PI) / axes.length;
+      return [cx + Math.cos(a) * R * r, cy + Math.sin(a) * R * r];
+    };
+    // 大きい方を 8割の線に置きます（外側に余白があると、2つの形の差が読みやすい）。
+    var ratio = function (v, top) { return top > 0 && v > 0 ? Math.min(1, (v / top) * 0.8) : 0; };
+    var poly = function (key) {
+      return axes.map(function (ax, i) {
+        var top = Math.max(ax.cur || 0, ax.prev || 0);
+        var q = pt(i, ratio(ax[key], top));
+        return q[0].toFixed(1) + ',' + q[1].toFixed(1);
+      }).join(' ');
+    };
+    var rings = [0.25, 0.5, 0.75, 1].map(function (r) {
+      return '<polygon points="' + axes.map(function (_, i) { var q = pt(i, r); return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') +
+        '" fill="none" stroke="#e4e1da" stroke-width="1"/>';
+    }).join('');
+    var spokes = axes.map(function (_, i) { var q = pt(i, 1); return '<line x1="' + cx + '" y1="' + cy + '" x2="' + q[0].toFixed(1) + '" y2="' + q[1].toFixed(1) + '" stroke="#e4e1da"/>'; }).join('');
+    var dots = axes.map(function (ax, i) {
+      var top = Math.max(ax.cur || 0, ax.prev || 0), q = pt(i, ratio(ax.cur, top));
+      return '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3.5" fill="' + RD_ACC + '"><title>' + esc(ax.label + '：この期間 ' + ax.show(ax.cur) + '／前 ' + ax.show(ax.prev)) + '</title></circle>';
+    }).join('');
+    var labels = axes.map(function (ax, i) {
+      var q = pt(i, 1.2), anchor = Math.abs(q[0] - cx) < 8 ? 'middle' : q[0] > cx ? 'start' : 'end';
+      var y = q[1] + (i === 0 ? -6 : 4);
+      return '<text x="' + q[0].toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + anchor + '" font-size="13" font-weight="700" fill="#33333a">' + esc(ax.label) + '</text>' +
+        '<text x="' + q[0].toFixed(1) + '" y="' + (y + 17).toFixed(1) + '" text-anchor="' + anchor + '" font-size="12" fill="#6b6b74">' + esc(ax.show(ax.cur)) + '</text>';
+    }).join('');
+    var span = '前の' + rangeDays + '日間';
+    // 軸ごとの増減。率はポイント、ほかは % で（cards() と同じ書き方）。
+    var ups = [], downs = [];
+    var rows = axes.map(function (ax) {
+      var cls = 'flat', txt = '—';
+      if (ax.cur !== null && ax.cur !== undefined && ax.prev !== null && ax.prev !== undefined) {
+        var diff = ax.rate ? Math.round((ax.cur - ax.prev) * 100) : ax.prev ? Math.round(((ax.cur - ax.prev) / ax.prev) * 100) : null;
+        if (diff === null) txt = ax.cur ? '新たに' : '±0';
+        else if (diff === 0) txt = '±0';
+        else {
+          txt = (diff > 0 ? '+' : '−') + Math.abs(diff) + (ax.rate ? 'pt' : '%');
+          // 率は2ポイント、ほかは5%より小さい差は「横ばい」。毎月そのくらいは揺れるので、
+          // 「へこんだ」と書くと、直さなくてよい所に目が向いてしまいます。
+          cls = Math.abs(diff) < (ax.rate ? 2 : 5) ? 'flat' : diff > 0 ? 'up' : 'down';
+        }
+        if (cls === 'up') ups.push(ax.label); if (cls === 'down') downs.push(ax.label);
+      }
+      return '<tr><th>' + esc(ax.label) + '</th><td>' + esc(ax.show(ax.cur)) + '</td><td style="color:var(--sub)">' + esc(ax.show(ax.prev)) + '</td><td class="' + cls + '">' + txt + '</td></tr>';
+    }).join('');
+    var sum = ups.length === axes.length ? '5つすべてで、' + span + 'を上回りました。'
+      : downs.length ? 'へこんだのは <span style="color:#b42318">' + downs.map(esc).join('・') + '</span>。' + (ups.length ? '伸びたのは ' + ups.map(esc).join('・') + '。' : '') + 'へこんだ軸から先に見てください。'
+      : ups.length ? '伸びたのは ' + ups.map(esc).join('・') + '。ほかは横ばいです。' : '5つとも、' + span + 'とほぼ同じです。';
+    host.innerHTML =
+      '<div class="rd">' +
+        '<div class="rd-fig">' +
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="5つの指標を、この期間と' + span + 'で重ねた図">' +
+            rings + spokes +
+            '<polygon points="' + poly('prev') + '" fill="' + RD_PREV + '" fill-opacity=".16" stroke="' + RD_PREV + '" stroke-width="2" stroke-dasharray="5 4"/>' +
+            '<polygon points="' + poly('cur') + '" fill="' + RD_ACC + '" fill-opacity=".18" stroke="' + RD_ACC + '" stroke-width="2.5"/>' +
+            dots + labels +
+          '</svg>' +
+          '<div class="rd-legend"><span><i style="background:rgba(224,86,91,.18);border:2px solid ' + RD_ACC + '"></i>この期間</span>' +
+            '<span><i style="background:rgba(124,154,116,.16);border:2px dashed ' + RD_PREV + '"></i>' + esc(span) + '</span></div>' +
+        '</div>' +
+        '<div class="rd-card">' +
+          '<h3>サイトの調子</h3>' +
+          '<p class="rd-sub">5つの指標を、' + esc(span) + 'と重ねて見ます</p>' +
+          '<p class="rd-read">集客（閲覧数・訪問数）、読まれ方（本文に入った率・平均滞在）、成果（問い合わせ）の5つです。' +
+            '軸ごとに2つの期間の大きい方を同じ線（外から2つ目）にそろえているので、<b>赤が緑より外に出ている軸は伸びた所、内側に入っている軸は落ちた所</b>です。' +
+            '形の大きさではなく、どの軸がへこんだかを見てください（率は2ポイント、ほかは5%より小さい差は横ばいとしています）。集客は伸びたのに問い合わせがへこんでいるなら、直すのは集客ではなく、問い合わせまでの導線です。</p>' +
+          '<table class="rd-rows"><tr style="color:var(--sub);font-size:11px"><th style="border-top:0;font-weight:400"></th><td style="border-top:0">この期間</td><td style="border-top:0">前</td><td style="border-top:0">増減</td></tr>' + rows + '</table>' +
+          '<p class="rd-sum">' + sum + '</p>' +
+        '</div>' +
+      '</div>';
+  }
+
   /* 表ひとつ。1列目は余った幅いっぱいに広がり、長いものは「…」で切れます
      （width:100% と max-width:0 の組み合わせ。max-width:0 だけだと列が
      潰れて、名前が一文字も出ません）。 */
@@ -5432,6 +5549,7 @@ window.lumAdmin = {
       try { fn(); } catch (e) { broken.push(name); if (window.console) console.error('アクセス解析: ' + name + ' を描けませんでした', e); }
     };
     part('数字のカード', function () { cards(data); });
+    part('5つの指標の図', function () { radar(data); });
     part('この端末の扱い', selfSwitch);
     part('日別の推移', function () { chart(data.series || []); });
     part('出来事', function () { loadMarks(data.range); });
