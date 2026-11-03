@@ -5,7 +5,6 @@
  *   中: あなた（オーナー）→ 管理ポータル → 部門（お客様対応・発信・サイト・改善・管理）
  *       → 各ツール（状態のランプ・要対応の数・最後に動いた時刻・吹き出しで一番の用件）
  *   右: 自動で動いている仕組み（毎朝の自動処理・自動改善・口コミの同期・サイトの公開）と担当者
- *   下: 流れる記録（だれが・いつ・何をしたか）
  *
  * 部門とツールは、左のメニュー（#shell-nav）からそのまま作るので、その人の役割で
  * 見えないツールは出ません。数字は、ホームの読み込み結果（lum:portal）・操作の記録
@@ -191,8 +190,7 @@
             return '<div class="om-person' + (p.active === false ? ' is-off' : '') + '"><span class="om-av sm">' + esc(String(p.name || '?').charAt(0)) + '</span><span><b>' + esc(p.name) + '</b><small>' + esc(lbl) + (p.lastLoginAt ? '・最終ログイン ' + esc(when(p.lastLoginAt)) : '・まだログインなし') + '</small></span></div>';
           }).join('') : '') +
         '</aside>' +
-      '</div>' +
-      ticker();
+      '</div>';
     // 中身が前と同じなら、描き直しません（読み込みの途中で何度も呼ばれるため。描き直すたびに
     // 画面全体の配置の計算が走り、管理画面が重くなっていました）。
     if (html === M.html && box.firstChild) { box.classList.toggle('is-still', M.still || reduce); return; }
@@ -215,24 +213,6 @@
     requestAnimationFrame(function () { wireQueued = false; wires(); });
   }
   function chip(label, v, cls) { return '<span class="om-chip' + (cls ? ' ' + cls : '') + '"><small>' + esc(label) + '</small><b>' + esc(v) + '</b></span>'; }
-
-  function ticker() {
-    var items = (M.audit || []).slice(0, 18);
-    if (!items.length) {
-      var rows = [];
-      try { rows = M.src && window.lumPortalCore ? window.lumPortalCore.buildToday(M.src, Date.now()).todo.slice(0, 8) : []; } catch (_) {}
-      if (!rows.length) return '';
-      return '<div class="om-ticker" aria-label="いまの用件"><div class="om-track">' + [0, 1].map(function () {
-        return rows.map(function (r) { return '<span><b>' + esc(r.count) + esc(r.unit || '') + '</b>' + esc(r.title) + '</span>'; }).join('');
-      }).join('') + '</div></div>';
-    }
-    var one = items.map(function (e) {
-      var what = e.result === 'login' ? 'ログイン' : e.result === 'failed' ? 'ログインに失敗' : (e.actLabel || e.act || '操作');
-      var area = { inquiries: '問い合わせ', booking: '予約', reviews: '口コミ', quotes: '見積書', members: '会員', news: 'お知らせ', sns: 'SNS', video: '動画', copy: '文章', seo: 'SEO', analytics: '解析', auto: '自動改善', advisor: 'AI', settings: '設定', staff: '担当者', audit: '記録', login: '' }[e.area] || '';
-      return '<span><time>' + hm(Date.parse(e.at)) + '</time><b>' + esc(e.name || e.by) + '</b><i>→</i>' + (area ? esc(area) + '：' : '') + esc(what) + (e.result === 'denied' ? '（断られた）' : '') + '</span>';
-    }).join('');
-    return '<div class="om-ticker" aria-label="最近の操作の記録"><div class="om-track">' + one + one + '</div></div>';
-  }
 
   /* 線を引きます（オーナー → ポータル → 各部門 → 各ツール） */
   function wires() {
@@ -288,7 +268,7 @@
     var s = document.createElement('style');
     s.id = 'om-css';
     s.textContent =
-      '#opsmap-slot{min-width:0;max-width:100%}#opsmap{position:relative;min-width:0;max-width:100%;contain:inline-size;content-visibility:auto;contain-intrinsic-size:auto 1000px;border-radius:20px;padding:16px 18px 0;color:#dbe4f5;overflow:hidden;' +
+      '#opsmap-slot{min-width:0;max-width:100%}#opsmap{position:relative;min-width:0;max-width:100%;contain:inline-size;content-visibility:auto;contain-intrinsic-size:auto 1000px;border-radius:20px;padding:16px 18px 18px;color:#dbe4f5;overflow:hidden;' +
         'background:radial-gradient(120% 90% at 50% -10%,rgba(56,189,248,.10),transparent 55%),linear-gradient(180deg,#0d1730 0%,#0a1224 100%);' +
         'border:1px solid #1d2a4a;box-shadow:0 18px 50px rgba(2,6,23,.35),inset 0 1px 0 rgba(255,255,255,.05)}' +
       '#opsmap::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(148,163,184,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.06) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(180deg,#000,transparent 85%)}' +
@@ -313,7 +293,7 @@
       '.om-flow{fill:none;stroke:var(--tone,#38bdf8);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:2 16;filter:drop-shadow(0 0 3px var(--tone,#38bdf8));animation:omFlow 1.6s linear infinite}' +
       '.om-flow.is-main{stroke:#7dd3fc}.om-flow.om-branch{stroke-width:2;animation-duration:2.4s}' +
       '@keyframes omFlow{to{stroke-dashoffset:-36}}' +
-      '#opsmap.is-still .om-flow,#opsmap.is-still .om-live i,#opsmap.is-still .om-track{animation:none}' +
+      '#opsmap.is-still .om-flow,#opsmap.is-still .om-live i{animation:none}' +
       '.om-row{position:relative;display:flex;justify-content:center;margin-bottom:22px}' +
       '.om-node{position:relative;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:14px;background:rgba(15,23,42,.88);border:1px solid rgba(125,211,252,.35);box-shadow:0 0 0 1px rgba(56,189,248,.06),0 10px 30px rgba(2,6,23,.45)}' +
       '.om-node small{display:block;font-size:11px;color:#94a3b8;letter-spacing:.04em}.om-node b{display:block;font-size:17px;color:#fff;letter-spacing:.02em}' +
@@ -349,14 +329,9 @@
       '.om-auto:hover{border-color:#a78bfa}.om-auto.is-warn{box-shadow:inset 3px 0 0 #f43f5e}' +
       '.om-auto b{font-size:13px;color:#f8fafc}.om-auto small{font-size:11px;color:#94a3b8}.om-auto em{display:flex;align-items:center;gap:5px;font-style:normal;font-size:11.5px;color:#cbd5e1}' +
       '.om-person{display:flex;align-items:center;gap:10px;padding:6px 4px}.om-person b{display:block;font-size:13px;color:#f8fafc}.om-person small{display:block;font-size:11px;color:#94a3b8}.om-person.is-off{opacity:.5}' +
-      '.om-ticker{position:relative;margin:0 -18px;padding:10px 0;border-top:1px solid rgba(148,163,184,.14);background:rgba(2,6,23,.45);overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}' +
-      '.om-track{display:inline-flex;gap:34px;white-space:nowrap;padding-left:18px;animation:omMarquee 70s linear infinite}' +
-      '.om-ticker:hover .om-track{animation-play-state:paused}' +
-      '@keyframes omMarquee{to{transform:translateX(-50%)}}' +
-      '.om-track span{font-size:12.5px;color:#cbd5e1}.om-track time{color:#7dd3fc;font-weight:700;margin-right:8px;font-variant-numeric:tabular-nums}.om-track b{color:#fff;margin-right:4px}.om-track i{font-style:normal;color:#22c55e;margin:0 6px}' +
       '@media (max-width:1499px){.om-body{grid-template-columns:minmax(0,1fr)}.om-side{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));align-items:start}.om-side h3{grid-column:1/-1}}' +
-      '@media (max-width:640px){#opsmap{padding:14px 12px 0;border-radius:16px}.om-clock{font-size:20px}.om-spark-w{display:none}.om-chip{min-width:0;flex:1 1 40%}.om-depts{grid-template-columns:minmax(0,1fr)}.om-dept ul{padding-left:18px}.om-ticker{margin:0 -12px}}' +
-      '@media (prefers-reduced-motion:reduce){.om-flow,.om-live i,.om-bubble,.om-track{animation:none!important}.om-ticker{overflow-x:auto}}';
+      '@media (max-width:640px){#opsmap{padding:14px 12px 14px;border-radius:16px}.om-clock{font-size:20px}.om-spark-w{display:none}.om-chip{min-width:0;flex:1 1 40%}.om-depts{grid-template-columns:minmax(0,1fr)}.om-dept ul{padding-left:18px}}' +
+      '@media (prefers-reduced-motion:reduce){.om-flow,.om-live i,.om-bubble{animation:none!important}}';
     document.head.appendChild(s);
   }
 
