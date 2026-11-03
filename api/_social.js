@@ -1004,16 +1004,20 @@ async function metricsFor(r, req, ctx) {
   }
   if (r.net === 'instagram') {
     const token = await igToken(req)
-    const [m, ins] = await Promise.all([
+    // 保存・送られた（shares）は、2026年に Instagram がいちばん重く見ている反応です。
+    // 投稿の種類によって取れないことがあるので、届いた数とは別に聞きます（片方が
+    // 断られても、もう片方は出せるように）。
+    const [m, ins, act] = await Promise.all([
       call(`${GRAPH}/${encodeURIComponent(r.id)}?fields=like_count,comments_count&access_token=${encodeURIComponent(token)}`, {}, 'Instagram', ctx),
       call(`${GRAPH}/${encodeURIComponent(r.id)}/insights?metric=reach,views&access_token=${encodeURIComponent(token)}`, {}, 'Instagram', ctx),
+      call(`${GRAPH}/${encodeURIComponent(r.id)}/insights?metric=saved,shares&access_token=${encodeURIComponent(token)}`, {}, 'Instagram', ctx),
     ])
     if (!m.ok) return { ok: false, message: m.message }
     const val = (name) => {
-      const row = ins.ok && (ins.data.data || []).find((x) => x.name === name)
+      const row = [ins, act].map((x) => x.ok && (x.data.data || []).find((y) => y.name === name)).find(Boolean)
       return row ? num((row.values && row.values[0] && row.values[0].value) ?? (row.total_value && row.total_value.value)) : null
     }
-    return { ok: true, likes: num(m.data.like_count), comments: num(m.data.comments_count), reach: val('reach'), impressions: val('views') }
+    return { ok: true, likes: num(m.data.like_count), comments: num(m.data.comments_count), saves: val('saved'), shares: val('shares'), reach: val('reach'), impressions: val('views') }
   }
   if (r.net === 'threads') {
     const token = await setting('THREADS_TOKEN', '', req)

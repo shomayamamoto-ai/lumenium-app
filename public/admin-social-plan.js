@@ -55,6 +55,10 @@
     return '<span class="spl-chip" style="background:' + p.color + '1f;color:' + p.color + ';border-color:' + p.color + '55">' +
       '<i style="background:' + p.color + '"></i>' + esc(p.name) + (p.promo ? '（宣伝）' : '') + '</span>';
   }
+  function phaseName(id) {
+    var ph = C && (C.PHASES || []).filter(function (x) { return x.id === id; })[0];
+    return ph ? ph.name : '';
+  }
   function band(r) {
     return r && r.label ? ' <span class="spl-band ' + r.level + '">' + esc(r.label) + '</span>' : '';
   }
@@ -101,6 +105,16 @@
     '.spl-list .why{font-size:11px;color:var(--sub)}' +
     '.spl-wide{min-width:540px}' +
     '.spl-kind{display:inline-block;font-size:10px;font-weight:800;padding:0 7px;border-radius:999px;background:#e7e4dc;margin-right:5px}' +
+    /* ファン循環（5つの段階） */
+    '.spl-cyc{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:6px 0 4px}' +
+    '.spl-ph{flex:1 1 130px;min-width:0;border:1px solid var(--border);border-top:4px solid var(--c);border-radius:10px;padding:8px 10px;background:#fbfaf7;font-size:11.5px;line-height:1.65}' +
+    '.spl-ph b{display:block;font-size:13px;color:var(--c)}.spl-ph .n{font-size:18px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}.spl-ph .n small{font-size:11px;font-weight:700;color:var(--sub);margin-left:3px}' +
+    '.spl-ph .ps{color:var(--sub);margin-top:2px}.spl-ph.off{opacity:.62}' +
+    '.spl-arrow{align-self:center;color:var(--sub);font-weight:800}' +
+    '.spl-loop{font-size:11.5px;color:var(--sub);margin:2px 0 8px}' +
+    '.spl-ptbl{width:100%;border-collapse:collapse;font-size:11.5px;line-height:1.65}.spl-ptbl th,.spl-ptbl td{border-top:1px solid var(--border);padding:6px 8px 6px 0;text-align:left;vertical-align:top}.spl-ptbl th{white-space:nowrap}' +
+    '.spl-week{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px}.spl-week div{border:1px solid var(--border);border-radius:9px;padding:6px 9px;font-size:11.5px;line-height:1.65;background:#fff}.spl-week div.today{border-color:var(--ui-accent);box-shadow:0 0 0 1px var(--ui-accent) inset}.spl-week b{font-size:12px}' +
+    '@media (max-width:560px){.spl-arrow{display:none}.spl-ph{flex:1 1 45%}.spl-ptbl thead{display:none}.spl-ptbl tr{display:block;border-top:1px solid var(--border);padding:6px 0}.spl-ptbl th,.spl-ptbl td{display:block;border:0;padding:1px 0}.spl-ptbl td::before{content:attr(data-l)"：";font-weight:700;color:var(--sub)}}' +
     '@media (max-width:560px){.spl-tabs{width:100%}.spl-tabs button{flex:1}.spl-sec{padding:11px 12px}}';
 
   function addCss() {
@@ -416,6 +430,7 @@
       var row = mix.rows.filter(function (r) { return r.id === p.id; })[0] || { n: 0, share: 0 };
       return '<div class="spl-card">' + chip(p) +
         (p.desc ? '<div>' + esc(p.desc) + '</div>' : '') +
+        (p.phase ? '<div class="spl-note" style="margin-top:2px">段階：<b>' + esc(phaseName(p.phase)) + '</b></div>' : '') +
         (p.ideas.length ? '<div class="spl-note">ネタの例：' + p.ideas.map(esc).join('／') + '</div>' : '') +
         '<div style="margin-top:4px;font-weight:700">直近30日＋予約：' + row.n + '本' + (mix.tagged ? '（' + pct(row.share) + '）' : '') + '</div></div>';
     }).join('') + '</div>';
@@ -467,6 +482,8 @@
           '<label for="spl-d' + i + '">どんな話か</label><input type="text" id="spl-d' + i + '" maxlength="80" value="' + esc(p.desc) + '">' +
           '<label for="spl-i' + i + '">ネタの例（1行に1つ）</label><textarea id="spl-i' + i + '" rows="2">' + esc((p.ideas || []).join('\n')) + '</textarea>' +
           '<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="spl-pr' + i + '"' + (p.promo ? ' checked' : '') + '> 宣伝の柱（新商品・セール・予約のお願いなど）</label>' +
+          '<label for="spl-ph' + i + '">ファンの輪の、どの段階のための話題か</label><select id="spl-ph' + i + '" class="spl-in" style="width:auto;max-width:100%"><option value="">決めない</option>' +
+            C.PHASES.map(function (ph) { return '<option value="' + ph.id + '"' + (p.phase === ph.id ? ' selected' : '') + '>' + esc(ph.name + '：' + ph.goal) + '</option>'; }).join('') + '</select>' +
           '<label>色</label>' + sw(i, p.color) +
           '<div class="spl-btns"><button type="button" class="ghost spl-p-del" data-i="' + i + '">この柱を消す</button></div></div>';
       }).join('') + '</div>' +
@@ -483,7 +500,8 @@
       var c = document.querySelector('input[name="spl-c' + i + '"]:checked');
       return {
         id: p.id, name: el('spl-n' + i).value, desc: el('spl-d' + i).value,
-        ideas: el('spl-i' + i).value.split('\n'), promo: el('spl-pr' + i).checked, color: c ? c.value : p.color
+        ideas: el('spl-i' + i).value.split('\n'), promo: el('spl-pr' + i).checked, color: c ? c.value : p.color,
+        phase: el('spl-ph' + i) ? el('spl-ph' + i).value : (p.phase || '')
       };
     });
   }
@@ -491,11 +509,11 @@
   function bindPillars() {
     var on = function (id, fn) { var b = el(id); if (b) b.addEventListener('click', fn); };
     on('spl-p-sample', function () {
-      S.draft = C.SAMPLE_PILLARS.map(function (p, i) { return { id: '', name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: C.PILLAR_COLORS[i] }; });
+      S.draft = C.SAMPLE_PILLARS.map(function (p, i) { return { id: '', name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: C.PILLAR_COLORS[i], phase: p.phase || '' }; });
       S.editing = true; render();
     });
     on('spl-p-edit', function () {
-      S.draft = pillars().map(function (p) { return { id: p.id, name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: p.color }; });
+      S.draft = pillars().map(function (p) { return { id: p.id, name: p.name, desc: p.desc, ideas: p.ideas.slice(), promo: p.promo, color: p.color, phase: p.phase || '' }; });
       if (!S.draft.length) S.draft.push({ id: '', name: '', desc: '', ideas: [], promo: false, color: C.PILLAR_COLORS[0] });
       S.editing = true; render();
     });
@@ -537,6 +555,47 @@
     });
   }
   SECTIONS.push({ id: 'pillars', html: pillarsHtml, bind: bindPillars });
+
+  /* ================================================================
+     1b. ファンの輪（発見 → 共感 → 対話 → コミュニティ化 → アンバサダー化）
+     ================================================================ */
+  function cycleHtml(it) {
+    if (S.editing || !C.fanCycle) return '';
+    var fc = C.fanCycle(it, pillars(), D.today);
+    var h = '<h3>ファンの輪（5つの段階）</h3>' +
+      '<p class="lead">SNSが分かれた今は、1つのSNSで知ってもらって来てもらう1本道が作りにくくなっています。' +
+      '見つけてもらう → 好きになってもらう → やり取りする → ファン同士がつながる → ファンが紹介してくれる、の輪で考え、' +
+      '最後の段階のファンが、次の「発見」の入り口になります。段階は柱（テーマ）ごとに選べます<span class="spl-meyasu">目安</span>。</p>';
+    h += '<div class="spl-cyc" role="list" aria-label="ファンの輪の段階">' + fc.rows.map(function (r, i) {
+      var ph = C.PHASES[i];
+      return (i ? '<span class="spl-arrow" aria-hidden="true">→</span>' : '') +
+        '<div class="spl-ph' + (r.pillars.length ? '' : ' off') + '" role="listitem" style="--c:' + ph.color + '">' +
+          '<b>' + (i + 1) + '　' + esc(ph.name) + '</b>' +
+          '<div class="n">' + r.n + '<small>本' + (fc.staged ? '・' + pct(r.share) : '') + '</small></div>' +
+          '<div>' + esc(ph.goal) + '</div>' +
+          '<div class="ps">' + (r.pillars.length ? '柱：' + r.pillars.map(esc).join('・') : 'この段階の柱はまだありません') + '</div>' +
+        '</div>';
+    }).join('') + '</div>' +
+      '<p class="spl-loop">↩ 5のファンの紹介や投稿が、1の「発見」の入り口になります。直近30日に出したもの＋予約の本数' + band(fc.reliability) + '</p>';
+    fc.warnings.forEach(function (w) { h += '<p class="spl-warn">' + esc(w) + '</p>'; });
+    fc.notes.forEach(function (w) { h += '<p class="spl-note">' + esc(w) + '</p>'; });
+    h += '<details style="margin-top:8px"><summary style="font-size:12px;cursor:pointer">段階ごとに向くSNS・投稿・見る数字</summary>' +
+      '<table class="spl-ptbl" style="margin-top:6px"><thead><tr><th>段階</th><th>向くSNS</th><th>投稿</th><th>見る数字</th></tr></thead><tbody>' +
+      C.PHASES.map(function (ph) {
+        return '<tr><th style="color:' + ph.color + '">' + esc(ph.name) + '</th><td data-l="向くSNS">' + esc(ph.nets) + '</td><td data-l="投稿">' + esc(ph.posts) + '</td><td data-l="見る数字">' + esc(ph.kpi) + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<p class="spl-note">数より質：毎日の薄い投稿より、週3回のよく練った投稿のほうが届くことがあります。数字で確かめ、ひらめきで作る、の両方を大事にします。</p></details>';
+    var wd = C.weekdayOf(D.today);
+    h += '<details style="margin-top:6px"><summary style="font-size:12px;cursor:pointer">曜日ごとの型（迷ったときの出発点）</summary><div class="spl-week">' +
+      [1, 2, 3, 4, 5, 6].map(function (d) {
+        var t = C.WEEKDAY_THEMES[d];
+        var label = d === 6 ? '土・日' : C.WEEKDAYS[d];
+        var today = d === wd || (d === 6 && wd === 0);
+        return '<div' + (today ? ' class="today"' : '') + '><b>' + label + '　' + esc(t.name) + '</b>' + (today ? '<span class="spl-meyasu">今日</span>' : '') + '<br>' + esc(t.text) + '</div>';
+      }).join('') + '</div><p class="spl-note">決まりではありません。業種・お客さま・人手に合わせて変えてください。大事なのは、段階ごとの投稿がかたよらないことです。</p></details>';
+    return h;
+  }
+  SECTIONS.push({ id: 'cycle', html: cycleHtml });
 
   /* ================================================================
      2. ペースの目標

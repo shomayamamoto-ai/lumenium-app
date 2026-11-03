@@ -31,7 +31,8 @@ const X_RULES = {
 const RULES = {
   x: { limit: 280, weighted: true, needText: true, maxImages: 4, image: 'optional' },
   facebook: { limit: 5000, needText: false, maxImages: 1, image: 'optional' },
-  instagram: { limit: 2200, needText: false, maxImages: 1, image: 'required', hashtags: 30 },
+  /* ハッシュタグは 2025年12月から1投稿5個まで（6個以上はエラーや無効の対象）。 */
+  instagram: { limit: 2200, needText: false, maxImages: 1, image: 'required', hashtags: 5 },
   threads: { limit: 500, needText: false, maxImages: 1, image: 'optional' },
   linkedin: { limit: 3000, needText: true, maxImages: 0, image: 'none' },
   line: { limit: 5000, needText: false, maxImages: 1, image: 'optional' },
@@ -756,7 +757,7 @@ function review(text, net, style) {
   // 投稿先の決まり（ハッシュタグの数）。
   var tags = hashtags(raw).length
   if (net === 'x' && tags > 2) push('platform', 'warn', tags + '個', 0, 'X ではハッシュタグは1〜2個が目安です。多いと読みにくく、宣伝目的の投稿として表示されにくくなることがあります。', '大事な1〜2個に減らす')
-  if (net === 'instagram' && tags > 5) push('platform', 'note', tags + '個', 0, 'Instagram は 3〜5個を勧めています（30個まで付けられますが、多いほど届くわけではありません）。', '内容に合う3〜5個に絞る')
+  if (net === 'instagram' && tags > 5) push('platform', 'warn', tags + '個', 0, 'Instagram のハッシュタグは、2025年12月から1投稿5個までになりました。6個以上はエラーや無効の対象です。いまは数より、本文に「地名＋ジャンル」（例：渋谷 ランチ）を自然に入れるほうが探されやすくなります。', '内容に合う3〜5個に絞り、地名とジャンルは本文にも書く')
   if (net === 'threads' && tags > 1) push('platform', 'note', tags + '個', 0, 'Threads のトピックタグは1投稿に1つだけです。2つ目からはタグになりません。', 'いちばん大事な1つだけ残す')
   if (net === 'bluesky' && tags > 3) push('platform', 'note', tags + '個', 0, 'Bluesky では、ハッシュタグは少なめ（1〜3個）が読みやすいとされます。', '1〜3個に減らす')
   if (net === 'gbp' && tags) push('platform', 'note', tags + '個', 0, 'Googleビジネスプロフィールの投稿では、ハッシュタグは検索にも表示にも使われません。', 'ハッシュタグを外し、地名やサービス名を文章で書く')

@@ -499,6 +499,13 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .vid-secs { margin-bottom: 14px; }
   .vid-secs .nq-chip { font-size: 12px; padding: 7px 12px; }
   .vid-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  /* 飲食店のジャンル別の型 */
+  .vg-card { margin-top: 10px; border: 1px solid var(--border); border-radius: 12px; background: #fbfaf7; padding: 12px 14px; }
+  .vg-catch { font-size: 14px; font-weight: 800; margin: 0 0 4px; line-height: 1.6; }
+  .vg-dl { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 6px 10px; margin: 8px 0; font-size: 12.5px; line-height: 1.75; }
+  .vg-dl dt { font-weight: 700; color: var(--sub); }
+  .vg-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  @media (max-width: 560px) { .vg-dl { grid-template-columns: 1fr; } .vg-dl dd { margin-bottom: 4px; } }
   .vid-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
   .vid-acts button { font-size: 12.5px; padding: 9px 16px; }
   .vid-grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
@@ -8235,7 +8242,9 @@ window.lumAdmin = {
     warns = warns.concat(f.warnings);
     if (id === 'instagram' && S.firstComment) {
       var fcTags = TX.hashtags(S.firstComment).length;
-      if (fcTags > 30) warns.push('最初のコメントのハッシュタグが ' + fcTags + ' 個あります。Instagram は30個までで、超えるとコメントが付きません。');
+      // 2025年12月から、ハッシュタグは本文・最初のコメントを合わせて5個までです。
+      var bodyTags = TX.hashtags(c.text).length;
+      if (fcTags + bodyTags > 5) warns.push('ハッシュタグが本文と最初のコメントで合わせて ' + (fcTags + bodyTags) + ' 個あります。Instagram は2025年12月から1投稿5個までになりました。最初のコメントに分けても、合わせて3〜5個に絞るのが安全です。');
     }
     return { c: c, count: k.count, limit: k.limit, errors: k.errors.concat(a.errors, b.errors), warnings: warns, fold: f };
   }
@@ -9542,9 +9551,11 @@ window.lumAdmin = {
     if (!m) return '';
     if (!m.ok) return m.message || '';
     var parts = [];
-    if (m.likes != null) parts.push('いいね ' + m.likes);
+    // 2026年の Instagram が重く見る順（送られた → 保存 → コメント → いいね）に並べます。
+    if (m.shares != null) parts.push('共有・送られた ' + m.shares);
+    if (m.saves != null) parts.push('保存 ' + m.saves);
     if (m.comments != null) parts.push('コメント ' + m.comments);
-    if (m.shares != null) parts.push('共有 ' + m.shares);
+    if (m.likes != null) parts.push('いいね ' + m.likes);
     if (m.reach != null) parts.push('届いた ' + m.reach);
     if (m.impressions != null) parts.push('表示 ' + m.impressions);
     if (m.clicks != null) parts.push('クリック ' + m.clicks);

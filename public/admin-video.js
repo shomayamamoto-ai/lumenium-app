@@ -663,6 +663,7 @@
         '<div class="vid-row" style="margin-top:6px">' +
           '<select id="vs-mode" aria-label="長さの種類">' + Object.keys(V.LENGTH_MODES).map(function (k) { return '<option value="' + k + '">' + V.LENGTH_MODES[k] + '</option>'; }).join('') + '</select>' +
           '<select id="vs-format" aria-label="企画の型"><option value="">企画の型（おまかせ）</option>' + V.FORMAT_KEYS.map(function (k) { return '<option value="' + k + '">' + V.FORMATS[k].label + '</option>'; }).join('') + '</select>' +
+          '<select id="vs-genre" aria-label="飲食店のジャンル（任意）"><option value="">飲食店のジャンル（任意）</option>' + V.RESTAURANT_GENRES.map(function (g) { return '<option value="' + g.id + '">' + esc(g.emoji + ' ' + g.name) + '</option>'; }).join('') + '</select>' +
           '<select id="vs-net" aria-label="投稿先"><option value="instagram">Instagram リール</option><option value="youtube">YouTube ショート</option><option value="tiktok">TikTok</option></select>' +
           '<input type="number" id="vs-dur" min="5" max="900" placeholder="長さ（秒）" style="width:120px" aria-label="長さ（秒）">' +
           '<button type="button" id="vs-gen" style="font-size:12.5px;padding:8px 14px"' + (S.ready.ai ? '' : ' disabled') + '>台本を作る</button>' +
@@ -672,6 +673,7 @@
         '作ったあと、禁止ワード・表記の統一・競合との言い回しの重なり（10文字以上）・テロップの速さを機械的に確かめます。重なりがあれば最大2回作り直します。' +
         (S.ready.ai ? '' : '<br>AI のキーが未設定です（「設定状況 › キーの入力」）。') + '</p>' +
       '</div></details>' +
+      genreBox() +
       scriptPicker() +
       '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="vs-blank" style="font-size:12px;padding:7px 12px">空の台本を作る</button>' +
         (currentScript() ? '<button type="button" class="ghost" id="vs-del" style="font-size:12px;padding:7px 12px">この台本を削除</button>' : '') + '</div>' +
@@ -682,13 +684,14 @@
       if (!topic) { say('テーマを入れてください。'); return; }
       this.disabled = true;
       say('AIが台本を書いています（30秒〜1分ほど）…', true);
-      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked, format: el('vs-format').value });
+      var r = await post({ action: 'script.generate', topic: topic, length_mode: el('vs-mode').value, platform: el('vs-net').value, duration: num(el('vs-dur').value), loop: el('vs-loop').checked, format: el('vs-format').value, genre: el('vs-genre').value });
       this.disabled = false;
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
       S.scriptId = r.data.script.id;
       await reload();
       say(r.data.message, true);
     });
+    bindGenreBox();
     el('vs-blank').addEventListener('click', async function () {
       var r = await post({ action: 'script.save', item: { title: '新しい台本', platform: 'instagram', lines: [{ start: 0, end: 3, narration: '', telop: '', visual: '' }] } });
       if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
@@ -706,6 +709,58 @@
     S.hookIdeas = null;
     if (s) editor(el('vs-edit'), JSON.parse(JSON.stringify(s)));
   };
+
+  /* 飲食店のジャンル別の型（13ジャンル）。選ぶと型の中身が出て、そのまま台本にできます。
+     型は人気投稿の傾向からの仮説なので、画面にもそう書きます。 */
+  function genrePreview(id) {
+    var g = V.RESTAURANT_GENRES.filter(function (x) { return x.id === id; })[0];
+    if (!g) return '';
+    var G = V.REEL_GUIDE;
+    return '<div class="vg-card">' +
+      '<p class="vg-catch">' + esc(g.emoji + ' ' + g.catch) + '</p>' +
+      '<p class="soc-small">伸びやすさ ' + '★★★★★'.slice(0, g.level) + '☆☆☆☆☆'.slice(0, 5 - g.level) + '（傾向からの仮説）・長さ ' + esc(g.length) + '・見せ場「' + esc(g.shape) + '」・投稿は' + esc(g.when) + '</p>' +
+      '<dl class="vg-dl">' +
+        '<dt>冒頭3秒</dt><dd>' + esc(g.hook) + '</dd>' +
+        '<dt>勝ち型</dt><dd>' + g.wins.map(esc).join('／') + '</dd>' +
+        '<dt>送りたくなる一押し</dt><dd>' + esc(g.share) + '</dd>' +
+        '<dt>撮影のコツ</dt><dd>' + esc(g.tips) + '</dd>' +
+        '<dt>やりがちな失敗</dt><dd>' + esc(g.fail) + '</dd>' +
+        '<dt>投稿文の例</dt><dd style="white-space:pre-line">' + esc(g.caption) + '<br><span style="color:var(--sub)">' + g.tags.map(function (t) { return '#' + esc(t); }).join(' ') + '</span></dd>' +
+      '</dl>' +
+      '<p class="soc-small">台本は ' + g.lines.length + ' 行（' + g.lines[g.lines.length - 1].end + '秒）。「○○」を店名・駅名に、テロップと投稿文をお店の本当の魅力に直してから使ってください。' +
+        'リールは ' + G.SWEET_SEC[0] + '〜' + G.SWEET_SEC[1] + '秒が基本で、宣伝の動画でも ' + G.MAX_RECOMMEND_SEC + '秒までが目安です。プロフィールの一覧では縦' + G.FEED_ASPECT + 'で見えるので、大事なものは画面の中央に。</p>' +
+    '</div>';
+  }
+  function genreBox() {
+    var G = V.REEL_GUIDE;
+    return '<details class="soc-ai" id="vs-genre-box"><summary>飲食店のジャンル別の型から作る（13ジャンル）</summary><div class="soc-ai-body">' +
+      '<p class="soc-small" style="margin-top:0">' + esc(G.SIGNALS) + ' 作る前に「これ、誰に送ってもらう？」を1人思い浮かべ、送りたくなる理由（' + G.TRIGGERS.map(esc).join('・') + '）を1つ入れます。</p>' +
+      '<p class="soc-small">伸びる構成：' + G.SHAPE.map(esc).join(' → ') + '</p>' +
+      '<div class="vid-row" style="margin-top:6px"><select id="vg-pick" aria-label="ジャンル"><option value="">ジャンルを選ぶ</option>' +
+        V.RESTAURANT_GENRES.map(function (g) { return '<option value="' + g.id + '">' + esc(g.emoji + ' ' + g.name) + '（' + g.level + '/5）</option>'; }).join('') + '</select>' +
+        '<button type="button" id="vg-make" style="font-size:12.5px;padding:8px 14px" disabled>この型で台本を作る</button></div>' +
+      '<div id="vg-preview"></div>' +
+    '</div></details>';
+  }
+  function bindGenreBox() {
+    var pick = el('vg-pick');
+    if (!pick) return;
+    pick.addEventListener('change', function () {
+      el('vg-preview').innerHTML = genrePreview(this.value);
+      el('vg-make').disabled = !this.value;
+    });
+    el('vg-make').addEventListener('click', async function () {
+      var item = V.genreScript(pick.value);
+      if (!item) return;
+      this.disabled = true;
+      var r = await post({ action: 'script.save', item: item });
+      this.disabled = false;
+      if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return; }
+      S.scriptId = r.data.item.id;
+      await reload();
+      say('型から台本を作りました。「○○」を店名・駅名に、テロップと投稿文をお店に合わせて直してください。', true);
+    });
+  }
 
   function res(ok, title, body) {
     return '<div class="soc-res ' + (ok === true ? 'ok' : ok === false ? 'ng' : '') + '"><b>' + title + '</b><span>' + body + '</span></div>';
@@ -816,7 +871,7 @@
       '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button></div>' +
       '<details class="vid-tap" id="ve-tap"><summary>再生しながらタップで、テロップの時間を合わせる</summary><div id="ve-tap-body"></div></details>' +
       '<div id="ve-checks" style="margin-top:10px"></div>' +
-      (s.rationale ? '<p class="soc-small">この構成にした理由（AI）: ' + esc(s.rationale) + '</p>' : '') +
+      (s.rationale ? '<p class="soc-small" style="white-space:pre-line">この構成にした理由: ' + esc(s.rationale) + '</p>' : '') +
       '<div class="vid-acts"><button type="button" id="ve-save">保存</button>' +
         '<button type="button" class="ghost ve-out" data-out="srt">テロップ（SRT）</button>' +
         '<button type="button" class="ghost ve-out" data-out="csv">台本（CSV）</button>' +

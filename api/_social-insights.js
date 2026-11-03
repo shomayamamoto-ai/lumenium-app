@@ -184,7 +184,10 @@ function topWeekdays(map, minN, count = 2) {
     .sort((a, b) => b[1].sum / b[1].n - a[1].sum / a[1].n).slice(0, count).map(([k]) => Number(k))
 }
 
-const score = (m) => (Number(m.likes) || 0) + (Number(m.comments) || 0) + (Number(m.shares) || 0)
+/* 反応の点数。2026年の Instagram は「送られた（DM・共有）」をいちばん重く、次に保存・
+   コメントを見て、いいねは補助として扱う、と公表されています。点数もその順に重くします
+   （共有3・保存2・コメント2・いいね1。重みは目安です）。保存の数が取れない投稿先は0で数えます。 */
+export const score = (m) => (Number(m.likes) || 0) + 2 * (Number(m.comments) || 0) + 2 * (Number(m.saves) || 0) + 3 * (Number(m.shares) || 0)
 
 /** posts: 投稿の記録、hourly: { [日付]: { 'x\t9': n } }、today: JST の日付、nets: 対象の投稿先。 */
 export function recommend(posts, hourly, today, nets) {
@@ -234,7 +237,7 @@ export function recommend(posts, hourly, today, nets) {
         hours: bh ? [BANDS[bh.key]] : g.hours,
         weekdays: wds.length ? wds : g.weekdays,
         text: (wds.length ? wds.map((w) => WEEKDAYS[w]).join('・') + '曜' : '') + (bh ? `の ${BANDS[bh.key][0]}〜${BANDS[bh.key][1]}時` : '') +
-          `に出した投稿の反応がいちばん大きい（この画面から出した ${rows.length} 件の いいね・コメント・共有 の平均）`,
+          `に出した投稿の反応がいちばん大きい（この画面から出した ${rows.length} 件の反応の平均。共有・保存を重く、いいねを軽く数えています）`,
         missing: [],
       }
     } else if (visits >= MIN_VISITS) {

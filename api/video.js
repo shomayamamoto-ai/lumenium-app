@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS, getItem, mergePubEdit,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs, RESTAURANT_GENRES, REEL_GUIDE } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 import { createWithFallback } from './_ai-create.js'
 
@@ -327,6 +327,8 @@ async function generate(req, cfg, project, b) {
   const M = RULES.modes[mode]
   const format = FORMAT_KEYS.indexOf(b.format) >= 0 ? b.format : ''
   const fstats = formatPerformance(posts).groups.filter((g) => g.reliability.band !== 'insufficient').slice(0, 2)
+  // 飲食店のジャンルの型（任意）。伸びやすい構成の参考として渡し、言い回しはお店に合わせて書かせます。
+  const genre = RESTAURANT_GENRES.find((g) => g.id === b.genre) || null
   const base = [
     `テーマ: ${topic}`,
     `投稿先: ${P.label}`,
@@ -337,6 +339,8 @@ async function generate(req, cfg, project, b) {
     '',
     format ? `企画の型: ${FORMATS[format].label}（${FORMATS[format].recipe} 小さなお店なら: ${FORMATS[format].small}）` : '',
     !format && fstats.length ? `競合でよく見られている企画の型（参考程度）: ${fstats.map((g) => g.label).join('、')}` : '',
+    genre ? `飲食店のジャンル「${genre.name}」の伸びやすい型（人気投稿の傾向からの仮説。構成の参考にし、お店の事実に合わせること）:\n- 見せ場: ${genre.shape}\n- 冒頭3秒: ${genre.hook}\n- 勝ち型: ${genre.wins.join('／')}\n- 送りたくなる一押し: ${genre.share}\n- やりがちな失敗: ${genre.fail}\n- 参考の流れ: ${genre.lines.map((l) => `${l.start}-${l.end}秒 ${l.visual}`).join(' / ')}` : '',
+    platform === 'instagram' && mode === 'short' ? `Instagram リールの目安: 基本は${REEL_GUIDE.SWEET_SEC[0]}〜${REEL_GUIDE.SWEET_SEC[1]}秒（最大${REEL_GUIDE.MAX_RECOMMEND_SEC}秒）。${REEL_GUIDE.SIGNALS} 見た人が誰かに送りたくなる理由（${REEL_GUIDE.TRIGGERS.join('・')}のどれか）を1つ必ず入れる。全部を平均点にするより1点を振り切る。` : '',
     '参考にする競合（構成の型だけを参考にし、言い回しはまねしないこと）:',
     ...top.map((p, i) => `${i + 1}. ${p.title}${p.analysis ? `（フック: ${p.analysis.hook_type}「${p.analysis.hook_text}」、構成: ${(p.analysis.beats || []).map((x) => x.label).join('→')}）` : ''}`),
     '',

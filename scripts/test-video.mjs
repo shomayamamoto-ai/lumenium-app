@@ -696,4 +696,23 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('6工程: 仕上げの確かめ（出典の無い数字・要確認の残り）と、次のAIへの指示書')
 }
 
+/* ---- 飲食店のジャンル別の型 ---- */
+{
+  assert.equal(V.RESTAURANT_GENRES.length, 13)
+  assert.equal(new Set(V.RESTAURANT_GENRES.map((g) => g.id)).size, 13)
+  assert.equal(V.PLATFORMS.instagram.maxTags, 5)
+  for (const g of V.RESTAURANT_GENRES) {
+    assert.ok(g.tags.length <= V.REEL_GUIDE.MAX_HASHTAGS, g.name + ' のタグが多すぎます')
+    assert.equal(g.lines[0].start, 0, g.name)
+    for (let i = 1; i < g.lines.length; i++) assert.equal(g.lines[i].start, g.lines[i - 1].end, g.name + ' の台本の時間がつながっていません')
+    const s = V.genreScript(g.id)
+    assert.equal(s.platform, 'instagram')
+    assert.equal(s.lines.length, g.lines.length)
+    assert.ok(s.target_duration_sec <= V.REEL_GUIDE.MAX_RECOMMEND_SEC, g.name + ' が60秒を超えています')
+    assert.ok(s.body && s.hashtags.length)
+  }
+  assert.equal(V.genreScript('nope'), null)
+  ok('飲食店の型: 13ジャンル・タグは5個まで・台本の時間がすき間なくつながり、60秒以内')
+}
+
 console.log(`\n動画まわり ${n} 件すべて通りました。`)

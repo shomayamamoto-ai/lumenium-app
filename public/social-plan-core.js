@@ -31,11 +31,39 @@ var NET_LABELS = {
 
 /* 柱の例（はじめての人が「おすすめの柱で始める」を押したとき）。お店向け。 */
 var SAMPLE_PILLARS = [
-  { name: 'お役立ち', desc: 'お客さまの困りごとに答える小さなコツ', ideas: ['よくある質問に答える', '選び方のコツを3つ', '季節の楽しみ方'], promo: false },
-  { name: '裏側', desc: '仕込み・準備・スタッフの様子', ideas: ['朝の仕込みの様子', 'こだわりの道具', 'スタッフ紹介'], promo: false },
-  { name: 'お客さまの声', desc: 'いただいた感想や、よく選ばれるもの', ideas: ['いただいた感想を紹介', '人気の組み合わせ'], promo: false },
-  { name: 'お知らせ・宣伝', desc: '新メニュー・イベント・営業日', ideas: ['新メニューのお知らせ', '定休日・営業時間'], promo: true },
+  { name: 'お役立ち', desc: 'お客さまの困りごとに答える小さなコツ', ideas: ['よくある質問に答える', '選び方のコツを3つ', '季節の楽しみ方'], promo: false, phase: 'discover' },
+  { name: '裏側', desc: '仕込み・準備・スタッフの様子', ideas: ['朝の仕込みの様子', 'こだわりの道具', 'スタッフ紹介'], promo: false, phase: 'empathy' },
+  { name: '質問・お返事', desc: '質問箱・アンケート・コメントへのお返事', ideas: ['今月いただいた質問に答える', '「どっちが好き？」のアンケート', 'コメントへのお返事を紹介'], promo: false, phase: 'dialog' },
+  { name: 'お客さまの声', desc: 'いただいた感想や、お客さまの投稿の紹介', ideas: ['いただいた感想を紹介', 'お客さまの投稿を紹介（許可をいただいて）', '人気の組み合わせ'], promo: false, phase: 'ambassador' },
+  { name: 'お知らせ・宣伝', desc: '新メニュー・イベント・営業日', ideas: ['新メニューのお知らせ', '定休日・営業時間'], promo: true, phase: '' },
 ]
+
+/* ファン循環モデル（発見 → 共感 → 対話 → コミュニティ化 → アンバサダー化 → また発見）。
+   SNSが分かれてしまった今は、1つのSNSで知ってもらって買ってもらう、という1本道が
+   作りにくいので、段階ごとに向くSNSと投稿を分け、最後の段階のファンが次の
+   「発見」の入り口になる輪として考えます。柱（テーマ）ごとに、どの段階のための
+   話題かを1つ選んでおくと、段階ごとの配分が出ます。
+   向くSNS・投稿・見る数字は、運用の考え方の目安です（このお店に当てはまるとは限りません）。 */
+var PHASES = [
+  { id: 'discover', name: '発見', goal: 'まだ知らない人に見つけてもらう', nets: 'Instagram リール・TikTok・YouTube ショート', posts: '短い動画・ハウツー・季節や流行の話題', kpi: '届いた数・表示・最後まで見た割合・フォロワーの増え方', color: '#e0565b' },
+  { id: 'empathy', name: '共感', goal: 'なぜこのお店なのかを知ってもらう', nets: 'Instagram（投稿）・X・note', posts: 'お店の物語・大事にしていること・裏側', kpi: '保存・共有（送られた数）・コメントの中身', color: '#c2410c' },
+  { id: 'dialog', name: '対話', goal: 'やり取りして信頼を深める', nets: 'Instagram ストーリーズ・LINE・X', posts: '質問箱・アンケート・ライブ・DMやコメントへのお返事', kpi: 'コメント・返信の数と早さ・DM', color: '#0f766e' },
+  { id: 'community', name: 'コミュニティ化', goal: 'ファン同士がつながる場をつくる', nets: 'LINE・会員の場・イベント', posts: '限定のお知らせ・常連さん向けの会・イベント', kpi: '参加する人の数・くり返し来る人の割合', color: '#3d3fbf' },
+  { id: 'ambassador', name: 'アンバサダー化', goal: 'ファンが自分から紹介してくれる', nets: 'すべてのSNS（お客さまの投稿）', posts: '口コミのお願い・お客さまの投稿の紹介・紹介の特典', kpi: 'お客さまの投稿の数・紹介から来た人・口コミ', color: '#6d28d9' },
+]
+var PHASE_IDS = PHASES.map(function (p) { return p.id })
+/** 対話の投稿の割合の目安（3割）。発信ばかりだと輪が回りません。 */
+var DIALOG_MIN = 0.3
+/** 曜日ごとの型の例（月〜日）。決まりではなく、迷ったときの出発点です。 */
+var WEEKDAY_THEMES = {
+  1: { name: '週のはじまり', text: '今週の予定と、お店の物語（共感）。短い動画で「今週も始まります」（発見）' },
+  2: { name: '役立つ話', text: 'ハウツー・選び方（発見・共感）。ストーリーズで質問を受ける（対話）' },
+  3: { name: 'ファンの日', text: 'お客さまの投稿や感想の紹介（アンバサダー化）。常連さん向けのお知らせ（コミュニティ化）' },
+  4: { name: '流行に乗る', text: '流行りの音・話題を使った短い動画（発見）' },
+  5: { name: 'やり取りの日', text: 'アンケート・質問箱（対話）。LINE で週末のお知らせ（対話・コミュニティ化）' },
+  6: { name: '週末の特別', text: 'ライブ・長めの動画・イベント（対話・コミュニティ化）' },
+  0: { name: '週末の特別', text: 'ライブ・長めの動画・イベント（対話・コミュニティ化）' },
+}
 
 function str(v, max) { return String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim().slice(0, max) }
 
@@ -71,7 +99,8 @@ function validatePlan(input) {
     var ideas = (Array.isArray(p.ideas) ? p.ideas : String(p.ideas || '').split(/\n/))
       .map(function (x) { return str(x, 60) }).filter(Boolean).slice(0, 10)
     var color = PILLAR_COLORS.indexOf(p.color) !== -1 ? p.color : PILLAR_COLORS[pillars.length % PILLAR_COLORS.length]
-    pillars.push({ id: id, name: name, desc: str(p.desc, 80), ideas: ideas, promo: p.promo === true, color: color })
+    var phase = PHASE_IDS.indexOf(p.phase) !== -1 ? p.phase : ''
+    pillars.push({ id: id, name: name, desc: str(p.desc, 80), ideas: ideas, promo: p.promo === true, color: color, phase: phase })
   }
   var targets = {}
   var t = b.targets && typeof b.targets === 'object' ? b.targets : {}
@@ -195,6 +224,71 @@ function pillarMix(items, pillars, today, days) {
     rows: rows, promoShare: promoShare, promoOver: tagged > 0 && promoShare > PROMO_MAX,
     reliability: reliability(tagged), warnings: warnings, notes: good,
   }
+}
+
+/* ------------------------------------------------------ 1b. fan cycle -- */
+
+/** 段階ごとの配分（直近30日に出したもの＋これからの予約）と、よくある失敗の確かめ。
+ *  段階は、投稿に付けた柱の「段階」から決めます（柱に段階が無い投稿は数えません）。
+ *  確かめること（どれも運用の目安で、件数が少ないうちは言いません）:
+ *   ・一方通行: 対話の投稿が3割に届かない
+ *   ・全部を同時に: 始めたばかり（30日で12本未満）なのに、発見・共感が半分に届かない
+ *   ・1つのSNSだけ: 直近30日の投稿の9割以上が1つの投稿先 */
+function fanCycle(items, pillars, today, days) {
+  var span = days || MIX_DAYS
+  var from = addDays(today, -(span - 1))
+  var phaseOf = {}
+  ;(pillars || []).forEach(function (p) { if (p.phase) phaseOf[p.id] = p.phase })
+  var rows = PHASES.map(function (ph) {
+    return { id: ph.id, name: ph.name, color: ph.color, pillars: (pillars || []).filter(function (p) { return p.phase === ph.id }).map(function (p) { return p.name }), n: 0, share: 0 }
+  })
+  var byId = {}
+  rows.forEach(function (r) { byId[r.id] = r })
+  var total = 0
+  var staged = 0
+  var nets = {}
+  var netPosts = 0
+  ;(items || []).forEach(function (it) {
+    if (it.day < from) return
+    if (!it.scheduled && it.day > today) return
+    total++
+    if (it.nets && it.nets.length) {
+      netPosts++
+      it.nets.forEach(function (n) { nets[n] = (nets[n] || 0) + 1 })
+    }
+    var ph = phaseOf[it.pillar]
+    if (ph && byId[ph]) { byId[ph].n++; staged++ }
+  })
+  rows.forEach(function (r) { r.share = staged ? r.n / staged : 0 })
+  var warnings = []
+  var notes = []
+  var hasPhase = Object.keys(phaseOf).length > 0
+  if (!hasPhase) {
+    notes.push('柱（テーマ）に「どの段階のための話題か」を付けると、ここに段階ごとの配分が出ます（「柱を直す」から選べます）。')
+  } else if (staged >= 5) {
+    var dialog = byId.dialog.share
+    if (dialog < DIALOG_MIN) {
+      warnings.push('対話の投稿が ' + Math.round(dialog * 100) + '% です（目安は3割）。お知らせばかりの一方通行だと、ファンの輪が回りません。質問箱・アンケート・コメントへのお返事を混ぜましょう。')
+    } else {
+      notes.push('対話の投稿は ' + Math.round(dialog * 100) + '% で、目安（3割）に届いています。')
+    }
+    var early = byId.discover.share + byId.empathy.share
+    if (total < 12 && early < 0.5) {
+      warnings.push('始めたばかりのうちは、「発見」と「共感」に集中するのが近道です（いまは合わせて ' + Math.round(early * 100) + '%）。全部の段階を同時に狙うと、どれも中途半端になりがちです。')
+    }
+    var empty = rows.filter(function (r) { return !r.pillars.length })
+    if (empty.length && empty.length < rows.length) {
+      notes.push('「' + empty.map(function (r) { return r.name }).join('」「') + '」の段階の柱はまだありません。急がなくて大丈夫です。人が増えてきたら足しましょう。')
+    }
+  }
+  var netKeys = Object.keys(nets)
+  if (netPosts >= 6 && netKeys.length) {
+    var topNet = netKeys.sort(function (a, b) { return nets[b] - nets[a] })[0]
+    if (netKeys.length === 1 || nets[topNet] / netPosts >= 0.9) {
+      warnings.push('直近30日の投稿の ' + Math.round((nets[topNet] / netPosts) * 100) + '% が ' + (NET_LABELS[topNet] || topNet) + ' だけです。1つのSNSに頼りきると、仕組みの変更で一気に届かなくなります。人手が限られるなら、2〜3つに絞って分けましょう。')
+    }
+  }
+  return { from: from, to: today, total: total, staged: staged, rows: rows, reliability: reliability(staged), warnings: warnings, notes: notes, hasPhase: hasPhase }
 }
 
 /* --------------------------------------------------------- reliability -- */
@@ -672,5 +766,5 @@ function weekChecklist(input) {
   return out
 }
 
-window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, lineBlockRate, blockBand, lineTrend, monthlyReview, isAnswered, REPLY_TARGET_MIN, replySpeed, FIRST_HOUR_MIN, firstHour, draftTopic, weekChecklist };
+window.lumSocialPlan = { PILLAR_COLORS, PILLAR_MIN, PILLAR_MAX, PROMO_MAX, MIX_DAYS, NET_LABELS, SAMPLE_PILLARS, PHASES, DIALOG_MIN, WEEKDAY_THEMES, cleanPillarId, validatePlan, WEEKDAYS, jstDay, addDays, weekdayOf, weekStart, monthStart, monthEnd, itemsOf, pillarMix, fanCycle, reliability, DEFAULT_TARGETS, cadence, suggestDays, LINE_MIN, LINE_MAX, lineMonth, CAROUSEL_MIN, CAROUSEL_MAX, SLIDE_CHARS, SAVE_CTA, saveShareScore, carouselCheck, carouselCaption, carouselText, lineBlockRate, blockBand, lineTrend, monthlyReview, isAnswered, REPLY_TARGET_MIN, replySpeed, FIRST_HOUR_MIN, firstHour, draftTopic, weekChecklist };
 })();

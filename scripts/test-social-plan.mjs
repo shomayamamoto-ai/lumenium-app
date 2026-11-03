@@ -452,4 +452,33 @@ t('topPosts: 問い合わせ＞訪問＞SNSの反応の順に重く、中身の�
   assert.equal(SE.topPosts(posts, ins, 1).length, 1)
 })
 
+/* ---- 1b. ファン循環 ---- */
+t('validatePlan: 柱の段階は決まった5つだけ残す', () => {
+  const r = P.validatePlan({ pillars: [{ name: 'a', phase: 'dialog' }, { name: 'b', phase: 'nope' }] })
+  assert.equal(r.plan.pillars[0].phase, 'dialog')
+  assert.equal(r.plan.pillars[1].phase, '')
+})
+t('fanCycle: 段階の無い柱だけなら、付け方を知らせる', () => {
+  const r = P.fanCycle([], [{ id: 'a', name: 'a', phase: '' }], '2026-11-03')
+  assert.equal(r.hasPhase, false)
+  assert.match(r.notes[0], /段階/)
+})
+t('fanCycle: 対話が3割に届かない・1つのSNSだけ・始めたばかりで発見と共感が少ない', () => {
+  const ps = [{ id: 'd', name: '対話', phase: 'dialog' }, { id: 'm', name: '声', phase: 'ambassador' }]
+  const items = []
+  for (let i = 0; i < 8; i++) items.push({ day: P.addDays('2026-11-03', -i), nets: ['instagram'], pillar: i < 2 ? 'd' : 'm', scheduled: false })
+  const r = P.fanCycle(items, ps, '2026-11-03')
+  assert.equal(r.staged, 8)
+  assert.equal(r.rows.find((x) => x.id === 'dialog').n, 2)
+  assert.ok(r.warnings.some((w) => /対話の投稿が 25%/.test(w)))
+  assert.ok(r.warnings.some((w) => /Instagram だけ/.test(w)))
+  assert.ok(r.warnings.some((w) => /発見」と「共感」/.test(w)))
+})
+t('fanCycle: 件数が少ないうち（5件未満）は、配分の注意を出さない', () => {
+  const ps = [{ id: 'm', name: '声', phase: 'ambassador' }]
+  const items = [0, 1, 2].map((i) => ({ day: P.addDays('2026-11-03', -i), nets: ['x', 'instagram'], pillar: 'm', scheduled: false }))
+  const r = P.fanCycle(items, ps, '2026-11-03')
+  assert.equal(r.warnings.length, 0)
+})
+
 console.log(`  運用プランのテスト ${n} 件すべて通りました。`)

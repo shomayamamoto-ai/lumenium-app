@@ -375,10 +375,12 @@ await test('アップロード：中身で形式を確かめる', async () => {
   assert.equal(sniff(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])), 'image/png')
   assert.equal(sniff(new TextEncoder().encode('<svg onload=alert(1)>')), '')
 })
-await test('AI下書き：ハッシュタグは3つまで、Xは日本語で収まる長さ', async () => {
+await test('AI下書き：ハッシュタグは3つまで（Instagram は5つまで）、Xは日本語で収まる長さ', async () => {
   const { assemble, budgetFor } = await import('../api/social-write.js')
   assert.equal(assemble('x', { text: '本文', hashtags: ['a', '#b', 'c', 'd'] }), '本文\n\n#a #b #c')
   assert.equal(assemble('linkedin', { text: '本文', hashtags: ['a'] }), '本文')
+  // Instagram は5個まで（2025年12月から）
+  assert.equal(assemble('instagram', { text: '本文', hashtags: ['a', 'b', 'c', 'd', 'e', 'f'] }), '本文\n\n#a #b #c #d #e')
   assert.ok(T.xLength('あ'.repeat(budgetFor('x', true)) + '\n\n#ab #cd #ef\nhttps://lumenium.net/') <= 280)
 })
 
@@ -422,12 +424,12 @@ await test('個人の情報：電話・メール・住所（URL の中は見な�
   assert.deepEqual(r.map((x) => x.kind), ['privacy', 'privacy', 'privacy'])
   assert.deepEqual(kinds('https://example.com/09012345678', 'facebook'), [])
 })
-await test('ハッシュタグの数：X は3個から、Instagram は6個から、Threads は2個から', () => {
+await test('ハッシュタグの数：X は3個から、Instagram は6個から（5個までになったので warn）、Threads は2個から', () => {
   assert.equal(T.hashtags('#a ＃b 本文 https://x.com/p#frag #1').length, 2)
   assert.deepEqual(kinds('#a #b 本文', 'x'), [])
   assert.deepEqual(kinds('#a #b #c 本文', 'x'), ['platform:warn'])
   assert.deepEqual(kinds('#a #b #c #d #e', 'instagram'), [])
-  assert.deepEqual(kinds('#a #b #c #d #e #f', 'instagram'), ['platform:note'])
+  assert.deepEqual(kinds('#a #b #c #d #e #f', 'instagram'), ['platform:warn'])
   assert.deepEqual(kinds('#a', 'threads'), [])
   assert.deepEqual(kinds('#a #b', 'threads'), ['platform:note'])
 })

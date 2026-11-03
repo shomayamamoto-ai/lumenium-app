@@ -1925,9 +1925,9 @@
   }
   function dayAfter(n) { return jst(now + n * DAY); }
   var PILLARS = [
-    { id: 'tips', name: 'お役立ち', desc: 'おうちでコーヒーをおいしく飲むコツ', ideas: ['豆の選び方3つ', '挽き方で味が変わる話', 'アイスコーヒーの淹れ方'], promo: false, color: '#0f766e' },
-    { id: 'ura', name: '裏側', desc: '焙煎・仕込み・スタッフの様子', ideas: ['朝の焙煎の様子', '新しい豆が届いた日', 'スタッフのおすすめ'], promo: false, color: '#3d3fbf' },
-    { id: 'koe', name: 'お客さまの声', desc: 'いただいた感想・人気の組み合わせ', ideas: ['常連さんの好きな一杯', 'いただいたお手紙'], promo: false, color: '#be185d' },
+    { id: 'tips', name: 'お役立ち', desc: 'おうちでコーヒーをおいしく飲むコツ', ideas: ['豆の選び方3つ', '挽き方で味が変わる話', 'アイスコーヒーの淹れ方'], promo: false, color: '#0f766e', phase: 'discover' },
+    { id: 'ura', name: '裏側', desc: '焙煎・仕込み・スタッフの様子', ideas: ['朝の焙煎の様子', '新しい豆が届いた日', 'スタッフのおすすめ'], promo: false, color: '#3d3fbf', phase: 'empathy' },
+    { id: 'koe', name: 'お客さまの声', desc: 'いただいた感想・人気の組み合わせ', ideas: ['常連さんの好きな一杯', 'いただいたお手紙'], promo: false, color: '#be185d', phase: 'ambassador' },
     { id: 'ad', name: 'お知らせ・宣伝', desc: '新メニュー・イベント・営業日', ideas: ['秋の限定メニュー', '臨時休業のお知らせ'], promo: true, color: '#9a3412' }
   ];
   var TEXT = {
