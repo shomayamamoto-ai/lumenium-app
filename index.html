@@ -280,9 +280,18 @@
         (function () {
           try {
             var l = location
-            // ページの途中（#contact など）を指して来たときは流しません。ほかのページの
-            // 「無料で相談する」から来た人が、ムービーを待たずにフォームへ行けるように。
-            var play = /[?&]intro\b/.test(l.search) || (l.pathname === '/' && !l.hash && !navigator.webdriver)
+            // ほかのページのリンク（記事の「無料で相談する」など）から、トップの途中
+            // （#contact など）を指して来たときだけ流しません。ムービーを待たずにフォームへ
+            // 行けるように。
+            // 以前は「# が付いていたら流さない」にしていたため、トップのメニューを一度押して
+            // アドレスに #services などが残ると、再読み込み・ブックマーク・戻るのたびに
+            // オープニングが出なくなっていました。いまは、リンクを押して来たとき（navigate で、
+            // 来た元のページがトップ以外）だけに絞っています。
+            var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {}
+            var from = ''
+            try { from = document.referrer ? new URL(document.referrer).pathname : '' } catch (e2) {}
+            var viaLink = !!l.hash && nav.type === 'navigate' && !!document.referrer && from !== '/'
+            var play = /[?&]intro\b/.test(l.search) || (l.pathname === '/' && !viaLink && !navigator.webdriver)
             if (!play) return
             window.__lumIntro = true
             var b = document.getElementById('boot-splash')
