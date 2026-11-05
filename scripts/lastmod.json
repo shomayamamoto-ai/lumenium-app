@@ -8,8 +8,8 @@
     "date": "2026-10-26"
   },
   "/blog/index.html": {
-    "hash": "4afa219623c02554",
-    "date": "2026-10-26"
+    "hash": "24350e3e5000d25f",
+    "date": "2026-11-05"
   },
   "/blog/post-1.html": {
     "hash": "19922e637bb9acda",
@@ -42,6 +42,18 @@
   "/blog/post-16.html": {
     "hash": "4e4e7f776f25dbef",
     "date": "2026-10-26"
+  },
+  "/blog/post-17.html": {
+    "hash": "897261951f357fce",
+    "date": "2026-11-05"
+  },
+  "/blog/post-18.html": {
+    "hash": "1433b1f077ee20fd",
+    "date": "2026-11-05"
+  },
+  "/blog/post-19.html": {
+    "hash": "0b24c0e9d11202e3",
+    "date": "2026-11-05"
   },
   "/blog/post-2.html": {
     "hash": "267969f15e7da454",
@@ -156,8 +168,8 @@
     "date": "2026-10-26"
   },
   "/sitemap.html": {
-    "hash": "3eff710ec2689d01",
-    "date": "2026-10-26"
+    "hash": "56e2fc6296174640",
+    "date": "2026-11-05"
   },
   "/story.html": {
     "hash": "554c946eb0507087",

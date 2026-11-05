@@ -122,6 +122,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -328,9 +337,42 @@ function publish(path, html, opts) {
 for (const a of articles) {
   const path = articlePath(a)
   const url = SITE + path
-  const others = articles.filter((o) => o.id !== a.id).slice(0, 4)
+  // 同じ分野の記事を先に、残りは新しい順。前は、内容に関係なく最初の4本を出していました
+  // （読み終えた人が次に読むものが見つからず、そのまま帰っていました）。
+  const byNew = (x, y) => isoDate(y.date).localeCompare(isoDate(x.date))
+  const others = [
+    ...articles.filter((o) => o.id !== a.id && o.category === a.category).sort(byNew),
+    ...articles.filter((o) => o.id !== a.id && o.category !== a.category).sort(byNew),
+  ].slice(0, 4)
   const svc = SVC[a.category]
-  const ld = {
+  // 見出し（##）に番号の印を付け、3つ以上あれば目次を出します。
+  let hn = 0
+  const bodyHtml = md(a.content).replace(/<h2>/g, () => `<h2 id="h${++hn}">`)
+  const heads = [...String(a.content).matchAll(/^## (.+)$/gm)].map((m) => m[1].replace(/\*\*/g, '').trim())
+  const toc = heads.length >= 3
+    ? `<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol>${heads.map((h, i) => `<li><a href="#h${i + 1}">${esc(h)}</a></li>`).join('')}</ol></nav>`
+    : ''
+  // 「よくある質問」の **問い** と、その次の段落を、FAQ の構造化データにもします
+  // （検索や AI の答えが、記事の問いと答えをそのまま拾えるように）。
+  const faq = []
+  const qa = String(a.content).split(/^## /m).find((sec) => /^よくある質問/.test(sec))
+  if (qa) {
+    const ls = qa.split('\n').map((x) => x.trim())
+    for (let i = 0; i < ls.length; i++) {
+      const q = /^\*\*(.+?)\*\*$/.exec(ls[i])
+      if (q && ls[i + 1] && !/^\*\*/.test(ls[i + 1])) faq.push({ q: q[1], a: ls[i + 1].replace(/\*\*/g, '') })
+    }
+  }
+  // 共有のリンク。?ref=share を付けておくと、アクセス解析の「流入元」に共有から来た人が出ます
+  // （開いた人のアドレスからは、印は自動で消えます）。
+  const shareUrl = encodeURIComponent(url + '?ref=share')
+  const shareText = encodeURIComponent(a.title)
+  const share = `<div class="share" aria-label="この記事を共有する"><span>この記事を送る</span>` +
+    `<a href="https://twitter.com/intent/tweet?url=${shareUrl}&amp;text=${shareText}" target="_blank" rel="noopener">X</a>` +
+    `<a href="https://social-plugins.line.me/lineit/share?url=${shareUrl}" target="_blank" rel="noopener">LINE</a>` +
+    `<a href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}" target="_blank" rel="noopener">Facebook</a>` +
+    `<button type="button" data-copy="${esc(url + '?ref=share')}">リンクをコピー</button></div>`
+  const ld0 = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: a.title,
@@ -343,20 +385,29 @@ for (const a of articles) {
     publisher: { '@id': `${SITE}/#organization` },
     mainEntityOfPage: url,
   }
+  const ld = faq.length
+    ? { '@context': 'https://schema.org', '@graph': [{ ...ld0, '@context': undefined }, {
+        '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+      }] }
+    : ld0
   const body = `
   <h1>${esc(a.title)}</h1>
   <p class="meta"><time datetime="${isoDate(a.date)}">${esc(a.date)}</time> ・ ${esc(a.category)}</p>
+  ${toc}
   <article>
-${md(a.content)}
+${bodyHtml}
   </article>
+  ${share}
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     ${svc ? `<a class="ghost" href="/services/${svc}.html">関連サービスを見る</a>` : `<a class="ghost" href="/#/info/services">サービス一覧を見る</a>`}
   </div>
   <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5">あわせて読みたい</h2>
   <ul class="list">
-    ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}</time><a href="${articlePath(o)}">${esc(o.title)}</a></li>`).join('\n    ')}
-  </ul>`
+    ${others.map((o) => `<li><time datetime="${isoDate(o.date)}">${esc(o.date)}・${esc(o.category)}</time><a href="${articlePath(o)}">${esc(o.title)}</a>${o.summary ? `<p>${esc(o.summary)}</p>` : ''}</li>`).join('\n    ')}
+  </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>`
   publish(path, shell({
     title: `${a.title} | Lumenium（ルメニウム）ブログ`,
     desc: articleDesc(a),

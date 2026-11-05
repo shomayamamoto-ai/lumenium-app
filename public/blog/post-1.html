@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,12 +117,13 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">はじめに</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「何を解決したいか」を先に決める</a></li><li><a href="#h3">2. いきなり全社導入しない。小さく始める</a></li><li><a href="#h4">3. 社内に「AI担当者」を1人置く</a></li><li><a href="#h5">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">はじめに</h2>
 <p>「AIを導入したいけど、何から始めればいいかわからない」——そんな声をよくいただきます。</p>
 <p>ChatGPTやCopilotなどのAIツールが話題になり、「うちも何かやらなきゃ」と感じている方も多いのではないでしょうか。</p>
 <p>しかし、ツールを入れればすぐに成果が出るわけではありません。この記事では、AI導入で失敗しないために最初に押さえるべき3つのポイントをお伝えします。</p>
-<h2 id="s2">1. 「何を解決したいか」を先に決める</h2>
+<h2 id="h2">1. 「何を解決したいか」を先に決める</h2>
 <p>AIは万能ではありません。まず「何を解決したいのか」を明確にしましょう。</p>
 <p>よくある失敗パターンは、「とりあえずAIを入れてみた」というケースです。目的が曖昧だと、ツール選びも運用も中途半端になります。</p>
 <p>具体的に考えるべきポイント：</p>
@@ -124,7 +134,7 @@ footer a:hover { color:var(--text); }
 <li>外注コストが高い業務は何か</li>
 </ul>
 <p>例えば「毎月の報告書作成に3日かかっている」のであれば、AIによる文章の下書き生成で1日に短縮できる可能性があります。</p>
-<h2 id="s3">2. いきなり全社導入しない。小さく始める</h2>
+<h2 id="h3">2. いきなり全社導入しない。小さく始める</h2>
 <p>AI導入で最も大切なのは「小さく始める」ことです。</p>
 <p>いきなり数百万円のシステムを導入するのではなく、まずは1つの業務、1人のチームから試しましょう。</p>
 <p>おすすめの始め方：</p>
@@ -135,7 +145,7 @@ footer a:hover { color:var(--text); }
 <li>定型レポートの自動生成</li>
 </ul>
 <p>これらはリスクが低く、効果が見えやすいので最初の一歩に最適です。小さな成功体験を積み重ねることで、社内の理解も得やすくなります。</p>
-<h2 id="s4">3. 社内に「AI担当者」を1人置く</h2>
+<h2 id="h4">3. 社内に「AI担当者」を1人置く</h2>
 <p>どんなに便利なツールでも、使いこなす人がいなければ定着しません。</p>
 <p>社内に1人でも「AIに詳しい人」を育てましょう。その人が社内の相談窓口になり、他のメンバーへの展開をスムーズにします。</p>
 <p>育成の方法：</p>
@@ -145,23 +155,26 @@ footer a:hover { color:var(--text); }
 <li>週1回「AI活用共有会」を開催する</li>
 </ul>
 <p>担当者が1人いるだけで、ツールの定着率は大きく変わります。</p>
-<h2 id="s5">まとめ</h2>
+<h2 id="h5">まとめ</h2>
 <p>AI導入は「課題の明確化 → 小さく始める → 担当者を育てる」の3ステップが鍵です。</p>
 <p>焦って大きな投資をする必要はありません。まずは身近な業務から、AIの力を試してみてください。</p>
 <p>Lumeniumでは企業向けAI研修や導入支援を行っています。「何から始めればいいかわからない」という段階からサポートしますので、お気軽にご相談ください。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-1.html%3Fref%3Dshare&amp;text=AI%E5%B0%8E%E5%85%A5%E5%89%8D%E3%81%AB%E7%9F%A5%E3%82%8B%E3%81%B9%E3%81%8D3%E3%81%A4%E3%81%AE%E3%81%93%E3%81%A8" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-1.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-1.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-1.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/services/ai.html">関連サービスを見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s6">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-5.html">SNS運用の外注ガイド</a></li>
+    <li><time datetime="2026-10-02">2026.10.02・AI活用</time><a href="/blog/post-16.html">社員向け生成AI研修の選び方｜申し込む前に確かめたい5つのこと</a><p>研修を受けたのに現場で使われない、を避けるために。依頼先を選ぶときの確認点。</p></li>
+    <li><time datetime="2026-09-21">2026.09.21・AI活用</time><a href="/blog/post-12.html">生成AI研修の費用相場は？東京で社員研修を頼むときの内訳</a><p>講師1回10万円〜が目安。見積りの内訳と、社内で先に決めておくことを実例で説明します。</p></li>
+    <li><time datetime="2026-04-01">2026.04.01・AI活用</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a><p>業務利用時のセキュリティと品質管理。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -173,7 +186,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s7">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -185,7 +198,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">はじめに</a></li><li><a href="#s2">1. 「何を解決したいか」を先に決める</a></li><li><a href="#s3">2. いきなり全社導入しない。小さく始める</a></li><li><a href="#s4">3. 社内に「AI担当者」を1人置く</a></li><li><a href="#s5">まとめ</a></li><li><a href="#s6">あわせて読みたい</a></li><li><a href="#s7">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「何を解決したいか」を先に決める</a></li><li><a href="#h3">2. いきなり全社導入しない。小さく始める</a></li><li><a href="#h4">3. 社内に「AI担当者」を1人置く</a></li><li><a href="#h5">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>

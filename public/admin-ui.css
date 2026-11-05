@@ -654,7 +654,8 @@ body #lum-demo-bar .stf-demo { font-size: var(--ui-fs-12); }
   #shell .panel { padding: var(--ui-s4); }
 }
 @media (max-width: 1023px), (pointer: coarse) {
-  #shell button:not(.linkish):not(.bk-ev):not(.ui-more):not(.d):not(.env-copy), #shell select { min-height: var(--ui-touch); }
+  /* グラフの下の出来事の印（.mk-dot）は小さな丸のまま。ここで高さ44pxにされると、縦長の楕円になって日付に重なっていました。 */
+  #shell button:not(.linkish):not(.bk-ev):not(.ui-more):not(.d):not(.env-copy):not(.mk-dot), #shell select { min-height: var(--ui-touch); }
   #shell .nq-row[role="tablist"] .nq-chip, #shell .spl-tabs button { min-height: 40px; }
 }
 

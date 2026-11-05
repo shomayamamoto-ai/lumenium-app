@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,12 +117,13 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">はじめに</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 最初の3秒で「つかむ」</a></li><li><a href="#h3">2. 1本の動画に詰め込みすぎない</a></li><li><a href="#h4">3. 「誰に見せるか」で内容を変える</a></li><li><a href="#h5">4. プロに頼むべきタイミング</a></li><li><a href="#h6">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">はじめに</h2>
 <p>企業PR動画は、会社の魅力を短時間で伝える最強のツールです。</p>
 <p>しかし「作ったけど全然見られない」「思ったような反応が得られない」という声も少なくありません。</p>
 <p>この記事では、効果的な企業PR動画を作るために押さえるべきポイントをお伝えします。</p>
-<h2 id="s2">1. 最初の3秒で「つかむ」</h2>
+<h2 id="h2">1. 最初の3秒で「つかむ」</h2>
 <p>視聴者は最初の3秒で「見る・見ない」を判断します。</p>
 <p>冒頭でやるべきこと：</p>
 <ul>
@@ -122,12 +132,12 @@ footer a:hover { color:var(--text); }
 <li>結論を先に言う</li>
 </ul>
 <p>冒頭で会社のロゴや挨拶を長々と流すのはNGです。視聴者が求めているのは「自分にとって価値のある情報」です。</p>
-<h2 id="s3">2. 1本の動画に詰め込みすぎない</h2>
+<h2 id="h3">2. 1本の動画に詰め込みすぎない</h2>
 <p>伝えたいことが多いのはわかりますが、1本の動画で伝えるメッセージは1つに絞りましょう。</p>
 <p>悪い例：「会社紹介＋サービス紹介＋社員インタビュー」を5分に詰め込む</p>
 <p>良い例：「私たちが解決する課題」に絞って90秒で伝える</p>
 <p>情報を詰め込むほど、何も伝わらなくなります。</p>
-<h2 id="s4">3. 「誰に見せるか」で内容を変える</h2>
+<h2 id="h4">3. 「誰に見せるか」で内容を変える</h2>
 <p>動画の使い道によって、内容は大きく変わります。</p>
 <p>使い道別のポイント：</p>
 <ul>
@@ -137,7 +147,7 @@ footer a:hover { color:var(--text); }
 <li>展示会向け → 製品・サービスのデモを中心に</li>
 </ul>
 <p>「全部に使える動画」を作ろうとすると、どの場面でも中途半端になります。</p>
-<h2 id="s5">4. プロに頼むべきタイミング</h2>
+<h2 id="h5">4. プロに頼むべきタイミング</h2>
 <p>すべての動画をプロに頼む必要はありません。しかし、以下のケースではプロの力を借りるのがおすすめです。</p>
 <ul>
 <li>会社の顔となるブランド動画</li>
@@ -145,23 +155,26 @@ footer a:hover { color:var(--text); }
 <li>商談や展示会で使う重要な動画</li>
 </ul>
 <p>日常的なSNS投稿用の動画は社内で制作し、ここぞという動画はプロに依頼するのが最もコストパフォーマンスの良い方法です。</p>
-<h2 id="s6">まとめ</h2>
+<h2 id="h6">まとめ</h2>
 <p>効果的なPR動画のポイントは「3秒でつかむ、メッセージは1つ、ターゲットを絞る」です。</p>
 <p>Lumeniumでは、企画構成から撮影・編集・納品までワンストップで対応しています。AI動画の制作や、パートナーのAdvoVisionsとの連携による映画品質の映像制作も可能です。</p>
 <p>お気軽にご相談ください。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-4.html%3Fref%3Dshare&amp;text=%E4%BC%81%E6%A5%ADPR%E5%8B%95%E7%94%BB%E3%81%AE%E3%82%B3%E3%83%84" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-4.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-4.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-4.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/services/video.html">関連サービスを見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s7">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-5.html">SNS運用の外注ガイド</a></li>
+    <li><time datetime="2026-11-05">2026.11.05・動画制作</time><a href="/blog/post-18.html">飲食店のInstagramリール、何から撮る？ジャンル別「最初の3秒」と台本の型</a><p>焼肉・ラーメン・カフェなど、ジャンルごとに伸びやすい見せ場は違います。撮る順番と台本の組み方をまとめました。</p></li>
+    <li><time datetime="2026-04-15">2026.04.15・動画制作</time><a href="/blog/post-8.html">SNS動画の「最初の3秒」で離脱を防ぐ設計</a><p>スマホ縦型動画で視聴維持率を上げるフック設計のコツ。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-19.html">SNSの導線がバラバラな時代の「ファンの輪」｜発見から紹介までの5段階と、やりがちな失敗</a><p>1つのSNSで知ってもらって買ってもらう1本道が作りにくい今、ファンが次のファンを連れてくる輪で考える方法。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -173,7 +186,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s8">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -185,7 +198,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">はじめに</a></li><li><a href="#s2">1. 最初の3秒で「つかむ」</a></li><li><a href="#s3">2. 1本の動画に詰め込みすぎない</a></li><li><a href="#s4">3. 「誰に見せるか」で内容を変える</a></li><li><a href="#s5">4. プロに頼むべきタイミング</a></li><li><a href="#s6">まとめ</a></li><li><a href="#s7">あわせて読みたい</a></li><li><a href="#s8">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 最初の3秒で「つかむ」</a></li><li><a href="#h3">2. 1本の動画に詰め込みすぎない</a></li><li><a href="#h4">3. 「誰に見せるか」で内容を変える</a></li><li><a href="#h5">4. プロに頼むべきタイミング</a></li><li><a href="#h6">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>

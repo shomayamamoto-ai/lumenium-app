@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,8 +117,9 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">生成AI研修の費用相場はいくらですか？</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">生成AI研修の費用相場はいくらですか？</a></li><li><a href="#h2">見積りの内訳はどうなっていますか？</a></li><li><a href="#h3">依頼する前に、社内で決めておくことは？</a></li><li><a href="#h4">中小企業がAIを導入するとき、どこに相談すればよいですか？</a></li><li><a href="#h5">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">生成AI研修の費用相場はいくらですか？</h2>
 <p><strong>講師派遣1回あたり10万円〜（教材費込・交通費別途）が目安です。</strong> ルメニウム（Lumenium）は東京都を拠点に、オンライン・対面のどちらでも全国の企業向けに実施しています。見積りは無料、お問い合わせから48時間以内に返信します。</p>
 <p>金額が動くのは主に3か所です。</p>
 <ul>
@@ -117,19 +127,19 @@ footer a:hover { color:var(--text); }
 <li><strong>教材を作るかどうか</strong>：既成の内容で足りるか、その会社の実際の業務を題材に作るか</li>
 <li><strong>実施後の伴走</strong>：質問対応やフォロー会を付けるか</li>
 </ul>
-<h2 id="s2">見積りの内訳はどうなっていますか？</h2>
+<h2 id="h2">見積りの内訳はどうなっていますか？</h2>
 <p>10万円の中に入っているのは、<strong>事前ヒアリング・教材作成・当日の講義・録画データの共有</strong>です。別になるのは交通費と、受講人数が大きい場合の運営補助です。</p>
 <p>安く見える見積りとの差は、たいてい「教材がその会社のものかどうか」に出ます。一般的なプロンプト集を配る研修は準備がほぼ要りませんが、翌週から使われないことが多いのが実情です。</p>
-<h2 id="s3">依頼する前に、社内で決めておくことは？</h2>
+<h2 id="h3">依頼する前に、社内で決めておくことは？</h2>
 <p>3つだけです。</p>
 <p>1. <strong>どの業務を軽くしたいか</strong>（議事録・下書き・問い合わせ返信など、繰り返し発生していて時間がかかっているもの）</p>
 <p>2. <strong>誰が受けるか</strong>（全社か、1チームからか）</p>
 <p>3. <strong>使ってよい範囲</strong>（社外に出せない情報の線引き）</p>
 <p>この3つが決まっていれば、初回のヒアリングは30分で終わります。決まっていない状態からのご相談も多く、その整理から一緒に行うこともできます。</p>
-<h2 id="s4">中小企業がAIを導入するとき、どこに相談すればよいですか？</h2>
+<h2 id="h4">中小企業がAIを導入するとき、どこに相談すればよいですか？</h2>
 <p><strong>業務の中身を聞いたうえで教材から作る会社</strong>に相談するのが近道です。ツールの販売だけを行う会社に相談すると、導入後に「で、何に使うのか」が残ります。</p>
 <p>ルメニウムは研修と導入支援の両方を1社で行っています。1業務・1チームの小さな範囲から始め、効果を見て広げる進め方をおすすめしています。</p>
-<h2 id="s5">まとめ</h2>
+<h2 id="h5">まとめ</h2>
 <ul>
 <li>生成AI研修の相場は、講師1回10万円〜（教材費込）</li>
 <li>金額は「人数×回数」「教材を作るか」「後のフォロー」で決まる</li>
@@ -139,17 +149,20 @@ footer a:hover { color:var(--text); }
 <p>具体的な業務を伺えば、その場で概算をお出しできます。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-12.html%3Fref%3Dshare&amp;text=%E7%94%9F%E6%88%90AI%E7%A0%94%E4%BF%AE%E3%81%AE%E8%B2%BB%E7%94%A8%E7%9B%B8%E5%A0%B4%E3%81%AF%EF%BC%9F%E6%9D%B1%E4%BA%AC%E3%81%A7%E7%A4%BE%E5%93%A1%E7%A0%94%E4%BF%AE%E3%82%92%E9%A0%BC%E3%82%80%E3%81%A8%E3%81%8D%E3%81%AE%E5%86%85%E8%A8%B3" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-12.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-12.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-12.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/services/ai.html">関連サービスを見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s6">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+    <li><time datetime="2026-10-02">2026.10.02・AI活用</time><a href="/blog/post-16.html">社員向け生成AI研修の選び方｜申し込む前に確かめたい5つのこと</a><p>研修を受けたのに現場で使われない、を避けるために。依頼先を選ぶときの確認点。</p></li>
+    <li><time datetime="2026-04-04">2026.04.04・AI活用</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a><p>AI導入で押さえるべきポイントを解説。</p></li>
+    <li><time datetime="2026-04-01">2026.04.01・AI活用</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a><p>業務利用時のセキュリティと品質管理。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -161,7 +174,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s7">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -173,7 +186,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">生成AI研修の費用相場はいくらですか？</a></li><li><a href="#s2">見積りの内訳はどうなっていますか？</a></li><li><a href="#s3">依頼する前に、社内で決めておくことは？</a></li><li><a href="#s4">中小企業がAIを導入するとき、どこに相談すればよいですか？</a></li><li><a href="#s5">まとめ</a></li><li><a href="#s6">あわせて読みたい</a></li><li><a href="#s7">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">生成AI研修の費用相場はいくらですか？</a></li><li><a href="#h2">見積りの内訳はどうなっていますか？</a></li><li><a href="#h3">依頼する前に、社内で決めておくことは？</a></li><li><a href="#h4">中小企業がAIを導入するとき、どこに相談すればよいですか？</a></li><li><a href="#h5">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>

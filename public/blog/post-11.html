@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,11 +117,12 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">はじめに</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「良い会社」ではなく「合う会社」を伝える</a></li><li><a href="#h3">2. 社長より、入社2〜3年目の社員をメインにする</a></li><li><a href="#h4">3. 「良い日」と「ふつうの日」を両方見せる</a></li><li><a href="#h5">4. 動画の最後は「次のアクション」を明確に</a></li><li><a href="#h6">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">はじめに</h2>
 <p>採用動画を作っても応募が来ない、来ても入社後にミスマッチで早期離職——この悩みは多くの会社で共通しています。</p>
 <p>原因は、<strong>「良さ」を伝えようとしすぎて情報が平均化してしまう</strong>こと。この記事では、応募数と定着率を同時に上げるために意識したい構成テクニックを共有します。</p>
-<h2 id="s2">1. 「良い会社」ではなく「合う会社」を伝える</h2>
+<h2 id="h2">1. 「良い会社」ではなく「合う会社」を伝える</h2>
 <p>採用広告では、ついオフィスの綺麗さ、福利厚生、社長のメッセージなど「良いところ」を並べがちです。</p>
 <p>ですが、候補者が本当に知りたいのは「自分に合う場所か」です。</p>
 <ul>
@@ -121,7 +131,7 @@ footer a:hover { color:var(--text); }
 <li>ランチの取り方 (個人/チーム/リモート)</li>
 </ul>
 <p>こうした「合う・合わない」の判断材料を見せた方が、結果的にミスマッチは減ります。</p>
-<h2 id="s3">2. 社長より、入社2〜3年目の社員をメインにする</h2>
+<h2 id="h3">2. 社長より、入社2〜3年目の社員をメインにする</h2>
 <p>候補者が感情移入しやすいのは、社長ではなく、自分の数歩先を歩いている社員です。</p>
 <ul>
 <li>入社1ヶ月でどこに戸惑ったか</li>
@@ -129,10 +139,10 @@ footer a:hover { color:var(--text); }
 <li>3年目で見えてきたキャリアの選択肢</li>
 </ul>
 <p>ここを具体的に語ってもらうだけで、応募書類の質が明らかに変わります。</p>
-<h2 id="s4">3. 「良い日」と「ふつうの日」を両方見せる</h2>
+<h2 id="h4">3. 「良い日」と「ふつうの日」を両方見せる</h2>
 <p>表彰式やキックオフのような「良い日」だけを撮ると、入社後に「こんなはずじゃなかった」と感じられやすくなります。</p>
 <p>ふつうの水曜日の午後、月末のバタバタ、金曜の退勤間際——そういった「ありのままの日常」を5秒でもいいので混ぜることで、定着率は大きく変わります。</p>
-<h2 id="s5">4. 動画の最後は「次のアクション」を明確に</h2>
+<h2 id="h5">4. 動画の最後は「次のアクション」を明確に</h2>
 <p>採用動画のラストには、必ず次の行動を1つだけ提示します。</p>
 <ul>
 <li>カジュアル面談の申込リンク</li>
@@ -140,22 +150,25 @@ footer a:hover { color:var(--text); }
 <li>現場社員との座談会の案内</li>
 </ul>
 <p>選択肢が多いほど応募は減ります。1つに絞ることで、興味を持った候補者を迷わず次のステップに誘導できます。</p>
-<h2 id="s6">まとめ</h2>
+<h2 id="h6">まとめ</h2>
 <p>採用動画は「かっこいい映像を作る」ではなく、「合う人に出会うための設計」です。</p>
 <p>Lumeniumでは企画・脚本・撮影・編集・配信戦略までワンストップで支援しています。採用広報にお悩みの方は、お気軽にご相談ください。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-11.html%3Fref%3Dshare&amp;text=%E6%8E%A1%E7%94%A8%E5%8B%95%E7%94%BB%E3%81%A7%E3%80%8C%E4%BC%9A%E7%A4%BE%E3%81%AE%E7%A9%BA%E6%B0%97%E3%80%8D%E3%81%BE%E3%81%A7%E4%BC%9D%E3%81%88%E3%82%8B%E6%A7%8B%E6%88%90%E3%83%86%E3%82%AF%E3%83%8B%E3%83%83%E3%82%AF" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-11.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-11.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-11.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s7">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・動画制作</time><a href="/blog/post-18.html">飲食店のInstagramリール、何から撮る？ジャンル別「最初の3秒」と台本の型</a><p>焼肉・ラーメン・カフェなど、ジャンルごとに伸びやすい見せ場は違います。撮る順番と台本の組み方をまとめました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-19.html">SNSの導線がバラバラな時代の「ファンの輪」｜発見から紹介までの5段階と、やりがちな失敗</a><p>1つのSNSで知ってもらって買ってもらう1本道が作りにくい今、ファンが次のファンを連れてくる輪で考える方法。</p></li>
+    <li><time datetime="2026-10-02">2026.10.02・Web制作</time><a href="/blog/post-14.html">ホームページ制作の費用相場は？LP30万円〜・企業サイト60万円〜の内訳</a><p>何にいくらかかるのか。見積りを比べる前に知っておきたい内訳と、費用を抑えるコツ。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -167,7 +180,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s8">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -179,7 +192,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">はじめに</a></li><li><a href="#s2">1. 「良い会社」ではなく「合う会社」を伝える</a></li><li><a href="#s3">2. 社長より、入社2〜3年目の社員をメインにする</a></li><li><a href="#s4">3. 「良い日」と「ふつうの日」を両方見せる</a></li><li><a href="#s5">4. 動画の最後は「次のアクション」を明確に</a></li><li><a href="#s6">まとめ</a></li><li><a href="#s7">あわせて読みたい</a></li><li><a href="#s8">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「良い会社」ではなく「合う会社」を伝える</a></li><li><a href="#h3">2. 社長より、入社2〜3年目の社員をメインにする</a></li><li><a href="#h4">3. 「良い日」と「ふつうの日」を両方見せる</a></li><li><a href="#h5">4. 動画の最後は「次のアクション」を明確に</a></li><li><a href="#h6">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>

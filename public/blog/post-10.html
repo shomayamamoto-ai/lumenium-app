@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,11 +117,12 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">はじめに</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「誰の、どの瞬間に見られるか」が言語化できているか</a></li><li><a href="#h3">2. 「1枚目で何を約束するか」が決まっているか</a></li><li><a href="#h4">3. 投稿後の「次の動線」があるか</a></li><li><a href="#h5">4. 数字は「3項目だけ」で評価する</a></li><li><a href="#h6">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">はじめに</h2>
 <p>SNS運用の相談で一番多いのは、「もっと伸びる投稿を作りたい」というものです。</p>
 <p>ただ、伸びない本当の原因は投稿1本の質ではなく、<strong>そもそもアカウント設計が曖昧なまま投稿を続けている</strong>ケースがほとんどです。この記事では、投稿改善の前に必ず立ち返りたい3項目を紹介します。</p>
-<h2 id="s2">1. 「誰の、どの瞬間に見られるか」が言語化できているか</h2>
+<h2 id="h2">1. 「誰の、どの瞬間に見られるか」が言語化できているか</h2>
 <p>ペルソナ設計ではなく、「視聴シチュエーション」まで落とし込めているかがポイントです。</p>
 <ul>
 <li>朝の通勤中に、片手でスクロールしながら</li>
@@ -120,7 +130,7 @@ footer a:hover { color:var(--text); }
 <li>休憩中にデスクから、小さめの音量で</li>
 </ul>
 <p>同じターゲットでも、見られる瞬間が違えば最適な長さも情報量も変わります。</p>
-<h2 id="s3">2. 「1枚目で何を約束するか」が決まっているか</h2>
+<h2 id="h3">2. 「1枚目で何を約束するか」が決まっているか</h2>
 <p>フィード形式のSNSでは、1枚目 (またはサムネイル) が9割です。</p>
 <ul>
 <li>この動画を見終えたら何が得られるのか</li>
@@ -128,7 +138,7 @@ footer a:hover { color:var(--text); }
 <li>この発信者はこのテーマで信頼できるか</li>
 </ul>
 <p>このどれかを1枚目で「約束」できていないと、2枚目以降は読まれません。</p>
-<h2 id="s4">3. 投稿後の「次の動線」があるか</h2>
+<h2 id="h4">3. 投稿後の「次の動線」があるか</h2>
 <p>投稿を見た人が次にとるべき行動を、事前に1つ決めておきます。</p>
 <ul>
 <li>プロフィールを見に行く</li>
@@ -137,7 +147,7 @@ footer a:hover { color:var(--text); }
 <li>保存しておく</li>
 </ul>
 <p>「いいね数」だけを追うと、動線がないまま投稿だけ増えていきます。CVまでの通り道が繋がっているかは定期的に点検が必要です。</p>
-<h2 id="s5">4. 数字は「3項目だけ」で評価する</h2>
+<h2 id="h5">4. 数字は「3項目だけ」で評価する</h2>
 <p>見るべき指標を絞らないと、改善の方向性が散漫になります。Lumeniumが最初に提案するのは次の3つです。</p>
 <ul>
 <li><strong>保存率</strong>: そのテーマで「また見たい」と思われているか</li>
@@ -145,22 +155,25 @@ footer a:hover { color:var(--text); }
 <li><strong>リンククリック率</strong>: CVの入口に辿り着いているか</li>
 </ul>
 <p>これだけで、改善の優先順位がかなり見えてきます。</p>
-<h2 id="s6">まとめ</h2>
+<h2 id="h6">まとめ</h2>
 <p>投稿の質を上げる前に、上の3項目がクリアになっているかを確認してみてください。</p>
 <p>Lumeniumでは企画・撮影・編集・分析まで伴走する運用代行を行っています。「最近なぜか伸びなくなった」「数値の見方が分からない」という方もお気軽にご相談ください。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-10.html%3Fref%3Dshare&amp;text=SNS%E3%81%A7%E3%80%8C%E5%88%BA%E3%81%95%E3%82%8B%E6%8A%95%E7%A8%BF%E3%80%8D%E3%82%92%E8%80%83%E3%81%88%E3%82%8B%E5%89%8D%E3%81%AB%E7%A2%BA%E8%AA%8D%E3%81%97%E3%81%9F%E3%81%843%E9%A0%85%E7%9B%AE" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-10.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-10.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-10.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/services/sns.html">関連サービスを見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s7">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-19.html">SNSの導線がバラバラな時代の「ファンの輪」｜発見から紹介までの5段階と、やりがちな失敗</a><p>1つのSNSで知ってもらって買ってもらう1本道が作りにくい今、ファンが次のファンを連れてくる輪で考える方法。</p></li>
+    <li><time datetime="2026-03-25">2026.03.25・SNS運用</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a><p>投稿前に整えるべきことを解説。</p></li>
+    <li><time datetime="2026-03-25">2026.03.25・SNS運用</time><a href="/blog/post-5.html">SNS運用の外注ガイド</a><p>外注のメリットと業者選びのコツ。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -172,7 +185,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s8">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -184,7 +197,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">はじめに</a></li><li><a href="#s2">1. 「誰の、どの瞬間に見られるか」が言語化できているか</a></li><li><a href="#s3">2. 「1枚目で何を約束するか」が決まっているか</a></li><li><a href="#s4">3. 投稿後の「次の動線」があるか</a></li><li><a href="#s5">4. 数字は「3項目だけ」で評価する</a></li><li><a href="#s6">まとめ</a></li><li><a href="#s7">あわせて読みたい</a></li><li><a href="#s8">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">はじめに</a></li><li><a href="#h2">1. 「誰の、どの瞬間に見られるか」が言語化できているか</a></li><li><a href="#h3">2. 「1枚目で何を約束するか」が決まっているか</a></li><li><a href="#h4">3. 投稿後の「次の動線」があるか</a></li><li><a href="#h5">4. 数字は「3項目だけ」で評価する</a></li><li><a href="#h6">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>

@@ -59,6 +59,15 @@ article li::before { content:'✓'; position:absolute; left:2px; color:#67e8f9; 
 .list li::after { content:''; display:block; clear:both; }
 figure.news-img { margin:0 0 22px; }
 figure.news-img img { display:block; width:100%; height:auto; border-radius:12px; }
+/* 記事の中の目次。広い画面では右側に「このページの内容」があるので、横の欄が消える幅でだけ出します。 */
+.toc { margin:0 0 26px; padding:14px 18px; border:1px solid var(--border); border-radius:12px; }
+@media (min-width:1024px) { .toc { display:none; } }
+.toc p { font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.toc ol { margin:0; padding-left:1.4em; font-size:13.5px; line-height:1.9; }
+.toc a { color:inherit; }
+.share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:30px 0 0; font-size:13px; }
+.share span { font-weight:700; margin-right:4px; }
+.share a, .share button { padding:7px 14px; border:1px solid var(--border); border-radius:999px; color:inherit; text-decoration:none; background:none; font:inherit; font-size:12.5px; cursor:pointer; }
 .qa { margin-bottom:8px; }
 .qa dt { font-weight:700; font-size:15px; margin:26px 0 8px; padding-left:12px; border-left:3px solid #4f46e5; }
 .qa dd { font-size:14px; color:var(--sub); }
@@ -108,10 +117,11 @@ footer a:hover { color:var(--text); }
 </div></section>
 <div class="site-in page-grid">
   <div class="page-main">
-<article>
-<h2 id="s1">公式LINEの構築を代行すると、いくらかかりますか？</h2>
+<nav class="toc" aria-label="この記事の内容"><p>この記事の内容</p><ol><li><a href="#h1">公式LINEの構築を代行すると、いくらかかりますか？</a></li><li><a href="#h2">初期20万円には何が含まれますか？</a></li><li><a href="#h3">月額10万円は何をしている費用ですか？</a></li><li><a href="#h4">自社で運用するのと、代行に出すのの分かれ目は？</a></li><li><a href="#h5">SNS運用もまとめて依頼できますか？</a></li><li><a href="#h6">まとめ</a></li></ol></nav>
+  <article>
+<h2 id="h1">公式LINEの構築を代行すると、いくらかかりますか？</h2>
 <p><strong>初期構築が20万円〜、運用代行が月額10万円〜が目安です。</strong> ルメニウム（Lumenium）は東京都を拠点に、オンラインで全国からのご依頼に対応しています。見積りは無料、48時間以内に返信します。</p>
-<h2 id="s2">初期20万円には何が含まれますか？</h2>
+<h2 id="h2">初期20万円には何が含まれますか？</h2>
 <p>開設から、実際に配信が回り始めるまでの一式です。</p>
 <ul>
 <li>アカウント開設と初期設定（あいさつ文・リッチメニュー・応答設定）</li>
@@ -120,19 +130,19 @@ footer a:hover { color:var(--text); }
 <li>タグ・セグメントの設計（誰に何を出し分けるか）</li>
 </ul>
 <p><strong>別になるのは、LINE社に支払うメッセージ配信料</strong>です（無料枠を超えた分）。Bot開発や外部システム連携が必要な場合も、範囲を決めたうえで別途お見積りします。</p>
-<h2 id="s3">月額10万円は何をしている費用ですか？</h2>
+<h2 id="h3">月額10万円は何をしている費用ですか？</h2>
 <p>配信を「出し続ける」ための費用です。配信文の作成、画像の制作、セグメントの調整、数値の振り返りが入ります。</p>
 <p>配信のたびに友だちが減るアカウントと、増え続けるアカウントの差は、<strong>送る本数ではなく、送る相手の絞り方</strong>に出ます。全員に同じものを送る運用は、短期的には楽でも、解除率が上がります。</p>
-<h2 id="s4">自社で運用するのと、代行に出すのの分かれ目は？</h2>
+<h2 id="h4">自社で運用するのと、代行に出すのの分かれ目は？</h2>
 <p><strong>月に何本配信するか</strong>で決まります。</p>
 <ul>
 <li>月1〜2本・内容が固定（例：定休日や新商品の案内）→ 自社運用で足ります。初期構築だけ依頼し、操作方法をお渡しする形が向いています</li>
 <li>月4本以上・出し分けをしたい → 代行のほうが結果的に安くなることが多いです</li>
 </ul>
 <p>ルメニウムは初期構築のみのご依頼も受けています。最低契約期間の縛りは設けていません。</p>
-<h2 id="s5">SNS運用もまとめて依頼できますか？</h2>
+<h2 id="h5">SNS運用もまとめて依頼できますか？</h2>
 <p>できます。Instagram・X・Facebook・Threads とあわせて、初期20万円〜／月額10万円〜の範囲で組みます。窓口が1つのままなので、SNSとLINEで言っていることがずれる、という事故が起きません。</p>
-<h2 id="s6">まとめ</h2>
+<h2 id="h6">まとめ</h2>
 <ul>
 <li>公式LINE構築は初期20万円〜、運用代行は月額10万円〜</li>
 <li>初期費用は「開設・導線・シナリオ・セグメント」の設計込み</li>
@@ -142,17 +152,20 @@ footer a:hover { color:var(--text); }
 <p>いまの友だち数と配信頻度を伺えれば、どちらが向いているかをその場でお答えできます。</p>
 
   </article>
+  <div class="share" aria-label="この記事を共有する"><span>この記事を送る</span><a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-13.html%3Fref%3Dshare&amp;text=%E5%85%AC%E5%BC%8FLINE%E3%81%AE%E6%A7%8B%E7%AF%89%E8%B2%BB%E7%94%A8%E3%81%AF%E3%81%84%E3%81%8F%E3%82%89%EF%BC%9F%E5%88%9D%E6%9C%9F20%E4%B8%87%E5%86%86%E3%83%BB%E6%9C%88%E9%A1%8D10%E4%B8%87%E5%86%86%E3%81%AE%E5%86%85%E8%A8%B3" target="_blank" rel="noopener">X</a><a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-13.html%3Fref%3Dshare" target="_blank" rel="noopener">LINE</a><a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Flumenium.net%2Fblog%2Fpost-13.html%3Fref%3Dshare" target="_blank" rel="noopener">Facebook</a><button type="button" data-copy="https://lumenium.net/blog/post-13.html?ref=share">リンクをコピー</button></div>
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>
     <a class="ghost" href="/#/info/services">サービス一覧を見る</a>
   </div>
-  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s7">あわせて読みたい</h2>
+  <h2 style="font-size:15px;font-weight:700;margin:36px 0 6px;padding-left:12px;border-left:3px solid #4f46e5" id="s1">あわせて読みたい</h2>
   <ul class="list">
-    <li><time datetime="2026-04-04">2026.04.04</time><a href="/blog/post-1.html">AI導入前に知るべき3つのこと</a></li>
-    <li><time datetime="2026-04-01">2026.04.01</time><a href="/blog/post-2.html">ChatGPT業務利用の注意点5選</a></li>
-    <li><time datetime="2026-03-25">2026.03.25</time><a href="/blog/post-3.html">SNS集客の始め方3ステップ</a></li>
-    <li><time datetime="2026-03-18">2026.03.18</time><a href="/blog/post-4.html">企業PR動画のコツ</a></li>
+    <li><time datetime="2026-03-20">2026.03.20・LINE構築</time><a href="/blog/post-6.html">公式LINEで売上を伸ばす方法</a><p>売上につながる具体的な活用法。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-17.html">Instagramのハッシュタグは5個まで｜2026年の付け方と、本文に入れるべき言葉</a><p>2025年12月からハッシュタグは1投稿5個までに。数を減らした分、何で見つけてもらうのかを整理しました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・動画制作</time><a href="/blog/post-18.html">飲食店のInstagramリール、何から撮る？ジャンル別「最初の3秒」と台本の型</a><p>焼肉・ラーメン・カフェなど、ジャンルごとに伸びやすい見せ場は違います。撮る順番と台本の組み方をまとめました。</p></li>
+    <li><time datetime="2026-11-05">2026.11.05・SNS運用</time><a href="/blog/post-19.html">SNSの導線がバラバラな時代の「ファンの輪」｜発見から紹介までの5段階と、やりがちな失敗</a><p>1つのSNSで知ってもらって買ってもらう1本道が作りにくい今、ファンが次のファンを連れてくる輪で考える方法。</p></li>
   </ul>
+  <p style="margin-top:14px;font-size:13px"><a href="/blog/index.html">ブログの記事をすべて見る →</a>　<a href="/pricing.html">料金の目安を見る →</a></p>
+  <script>document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-copy]');if(!b)return;var t=b.getAttribute('data-copy');(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='コピーしました'},function(){window.prompt('このリンクをコピーしてください',t)})})</script>
 
   
   <nav class="next-read" aria-label="次に読む">
@@ -164,7 +177,7 @@ footer a:hover { color:var(--text); }
     </div>
   </nav>
 <section class="contact-strip" id="contact">
-    <h2 id="s8">お問い合わせはこちら</h2>
+    <h2 id="s2">お問い合わせはこちら</h2>
     <p>ご相談・お見積りは無料です。「何をしたいかはっきりしていない」段階でも構いません。お問い合わせから48時間以内にご返信します。</p>
     <div class="cta">
       <a class="primary" href="/#/info/contact-form">お問い合わせフォームを開く →</a>
@@ -176,7 +189,7 @@ footer a:hover { color:var(--text); }
     <aside class="page-side" aria-label="このページについて">
       <nav class="side-toc" aria-label="このページの内容">
         <p class="side-title">このページの内容</p>
-        <ol><li><a href="#s1">公式LINEの構築を代行すると、いくらかかりますか？</a></li><li><a href="#s2">初期20万円には何が含まれますか？</a></li><li><a href="#s3">月額10万円は何をしている費用ですか？</a></li><li><a href="#s4">自社で運用するのと、代行に出すのの分かれ目は？</a></li><li><a href="#s5">SNS運用もまとめて依頼できますか？</a></li><li><a href="#s6">まとめ</a></li><li><a href="#s7">あわせて読みたい</a></li><li><a href="#s8">お問い合わせはこちら</a></li></ol>
+        <ol><li><a href="#h1">公式LINEの構築を代行すると、いくらかかりますか？</a></li><li><a href="#h2">初期20万円には何が含まれますか？</a></li><li><a href="#h3">月額10万円は何をしている費用ですか？</a></li><li><a href="#h4">自社で運用するのと、代行に出すのの分かれ目は？</a></li><li><a href="#h5">SNS運用もまとめて依頼できますか？</a></li><li><a href="#h6">まとめ</a></li><li><a href="#s1">あわせて読みたい</a></li><li><a href="#s2">お問い合わせはこちら</a></li></ol>
       </nav>
       <div class="side-cta">
         <p class="side-title">ご相談は無料です</p>
