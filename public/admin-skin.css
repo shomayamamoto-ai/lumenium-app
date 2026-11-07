@@ -263,12 +263,12 @@ body.is-in { font-feature-settings: "palt" 1; }          /* 和文の字間を�
   --ui-border-strong: #cfcac1;
   --ui-text: #2f2f35;
   --ui-text-2: #55555e;
-  --ui-text-3: #7a7a84;
-  --ui-accent: #e0565b;
-  --ui-accent-hover: #c7444a;
+  --ui-text-3: #66666f; /* ヒント（白地・灰色の地のどちらでも 4.5 以上） */
+  --ui-accent: #c23b42;
+  --ui-accent-hover: #a32f36;
   --ui-accent-weak: #fcecec;
   --ui-accent-line: #f3c3c5;
-  --ui-focus: #e0565b;
+  --ui-focus: #c23b42;
   --ui-r: 12px; --ui-r-lg: 18px;
   --ui-shadow: 0 1px 2px rgba(40, 40, 52, .04), 0 14px 36px -24px rgba(40, 40, 52, .35);
   --sk-ring: 0 0 0 3px rgba(224, 86, 91, .35);
@@ -276,8 +276,8 @@ body.is-in { font-feature-settings: "palt" 1; }          /* 和文の字間を�
   --sk-side-2: #faf9f7;
   --sk-side-line: #ece9e4;
   --sk-side-text: #45454f;
-  --sk-side-muted: #8a8a93;
-  --sk-side-active: linear-gradient(135deg, #e0565b 0%, #ea7469 100%);
+  --sk-side-muted: #66666f;
+  --sk-side-active: linear-gradient(135deg, #c23b42 0%, #d4565a 100%);
   --sk-script: 'Great Vibes', 'Snell Roundhand', 'Apple Chancery', cursive;
 }
 body { background: var(--ui-bg); }
@@ -292,7 +292,7 @@ body { background: var(--ui-bg); }
 .ui-nav-ic { color: #9a97a0; }
 .ui-nav-item:hover .ui-nav-ic { color: var(--ui-accent); }
 .ui-nav-item[aria-current="page"] .ui-nav-ic { color: #fff; }
-.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge, .ui-nav-item .nav-count { background: #e0565b; box-shadow: 0 0 0 2px #fff; }
+.ui-nav-item .inq-badge, .ui-nav-item .rev-badge, .ui-nav-item .bk-badge, .ui-nav-item .nav-count { background: #c23b42; box-shadow: 0 0 0 2px #fff; }
 .ui-nav-item[aria-current="page"] .inq-badge, .ui-nav-item[aria-current="page"] .rev-badge, .ui-nav-item[aria-current="page"] .bk-badge, .ui-nav-item[aria-current="page"] .nav-count { background: #fff; color: #c7444a; box-shadow: none; }
 .ui-side-close { color: var(--ui-text); }
 @media (min-width: 1024px) {
@@ -323,3 +323,39 @@ button.pri, .pri { border-radius: 999px; }
   .sk-en { font-size: 32px; }
 }
 .dk-hello h1::before { content: 'Welcome'; display: block; font-family: var(--sk-script); font-size: 40px; line-height: 1; font-weight: 400; color: var(--ui-accent); margin-bottom: 4px; letter-spacing: 0; }
+
+/* =====================================================================
+   読みやすさの仕上げ（UI/UX の点検で見つかったもの）
+   ・状態の札（未対応・送付済み・仮予約など）・補足・注記は 12px より小さくしない
+     （10.5〜11px が多く、スマホでは読めない大きさでした）
+   ・メニューの小見出しと補足の灰色は、白地で 4.5:1 以上の濃さに
+   ・数のバッジだけは、丸の大きさを保つため 11.5px
+   ===================================================================== */
+#shell :is(.inq-tag, .rev-tag, .qt-tag, .nw-badge, .vid-tag, .au-tag, .stf-tag, .adv-tag, .st-new, .sa-n,
+  .soc-small, .lv-note, .lv-when, .ui-side-pill, .ui-nav-label, .env-copy, button.linkish, .soc-net .sub,
+  .ui-stat-note, .cp-s, small, kbd, .dk-eyebrow, td.unsub, .adv-who, .mx, .when) { font-size: 12px !important; }
+#shell :is(.ui-badge, .nav-count, .inq-badge, .rev-badge, .bk-badge) { font-size: 11.5px !important; }
+.ui-nav-label { color: #5f5f69 !important; }
+.ui-nav-item:focus-visible, #shell :where(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 2px; }
+.sk-bell b { background: #c23b42 !important; }
+#shell :is(.inq-item .meta, div.meta, .deploy-state, .lv-sub, .soc-net .left, .rd-rows td, .rd-rows th) { font-size: 12px !important; }
+#shell .soc-step { font-size: 13px !important; }
+
+/* スマホ・タッチ操作: 指で押すものを大きく（チェック欄・書式ボタン・小さな文字のボタン） */
+@media (max-width: 1023px), (pointer: coarse) {
+  #shell input[type="checkbox"], #shell input[type="radio"] { width: 22px; height: 22px; }
+  #shell .rb button, #shell .rb select { min-height: 40px !important; height: 40px !important; min-width: 40px; justify-content: center; }
+  #shell button.linkish, #shell .env-copy { min-height: 40px !important; }
+  #shell .ui-more { min-height: 32px; display: inline-flex; align-items: center; }
+}
+#shell :is(.soc-lab, .soc-way, .cp-way) { font-size: 12px !important; }
+/* 状態の札: 淡い地の上の文字を、読みやすさの基準（4.5:1）を満たす濃さに */
+#shell .inq-tag.new { background: rgba(194, 59, 66, .1) !important; color: #a32f36 !important; }
+#shell .soc-rec .lab.own { color: #036646 !important; }
+/* 狭い画面: お知らせとログイン中の人は、上の帯の中（検索の左）に入れて1段に（admin-dash.js の placeTop） */
+.ui-top .sk-top.in-top { position: static; order: 0; margin: 0 !important; padding: 0 !important; gap: 4px; background: none !important; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; flex: none; }
+.ui-top .sk-top.in-top .sk-gap { display: none; }
+.ui-top .sk-top.in-top .sk-pop { top: calc(var(--ui-top-h) - 6px); }
+@media (max-width: 480px) {
+  .ui-top .ui-brand-name { display: none; }
+}

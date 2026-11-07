@@ -308,6 +308,18 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #b42318; display: none; }
   .msg.show { display: block; }
   .msg.info { color: var(--sub); }
+  /* 文章編集: 探す・数・保存の段を上に貼り付け、長い一覧を送っても保存がすぐ押せるように */
+  #copy-admin .copy-bar { position: sticky; top: calc(var(--ui-top-h, 56px) + 8px); z-index: 20; background: rgba(255,255,255,.96); backdrop-filter: blur(6px); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; box-shadow: 0 10px 24px -18px rgba(23,23,28,.45); }
+  @media (min-width: 1024px) { #copy-admin .copy-bar { top: 80px; } }
+  #copy-admin .copy-bar #copy-save:disabled { opacity: .45; cursor: default; }
+  #copy-admin .copy-bar input[type=search] { flex: 1 1 260px; min-width: 0; }
+  /* スマホ: 段は貼り付けず（画面の4分の1を占めるため）、変更があるときだけ下に保存のボタンを出す */
+  #copy-float { display: none; }
+  @media (max-width: 760px) {
+    #copy-admin .copy-bar { position: static; box-shadow: none; }
+    #copy-float:not([hidden]) { display: flex; position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 40; min-height: 50px; align-items: center; justify-content: center; border-radius: 999px; box-shadow: 0 14px 30px -12px rgba(194,59,66,.7); font-size: 15px; }
+    #copy-admin .rb { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  }
   /* 文章編集の見え方: 段落の書式（見出し・箇条書き・番号・表・画像） */
   .mk-prev > * + * { margin-top: 6px; }
   .mk-prev h3 { font-size: 1.1em; } .mk-prev h4 { font-size: 1.02em; }
@@ -1096,7 +1108,7 @@ input, select, textarea { color: var(--text); }
          panels below are unchanged; this sits in front of them. -->
     <div id="portal">
       <div class="portal-head">
-        <input type="search" id="portal-search" placeholder="機能を検索…（例: 会員、解析、文章）" autocomplete="off">
+        <input type="search" id="portal-search" aria-label="機能を検索" placeholder="機能を検索…（例: 会員、解析、文章）" autocomplete="off">
         <button type="button" id="portal-keys">APIキーを入力</button>
         <span id="portal-hub-sub">読み込み中…</span>
         <span id="portal-note"></span>
@@ -1213,7 +1225,7 @@ input, select, textarea { color: var(--text); }
         })();
       </script>
       <div class="toolbar">
-        <input type="search" id="search" placeholder="名前・メールで絞り込み">
+        <input type="search" id="search" aria-label="会員を名前・メールで絞り込み" placeholder="名前・メールで絞り込み">
         <span id="count"></span>
         <button id="xlsx-btn" type="button">Excel</button>
         <button class="ghost" id="csv-btn" type="button">CSV</button>
@@ -1277,18 +1289,20 @@ input, select, textarea { color: var(--text); }
     </div>
 
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
-      <p class="share-note ui-intro">サイト内のすべての文章をここから書き換えられます。打つと<strong>すぐ下の「見え方」</strong>に、サイトでの出方が出ます（記号を覚える必要はありません。太字は選んでボタンを押すだけです）。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
-      <div class="toolbar" style="margin-bottom:10px">
-        <select id="copy-group" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
-        <input type="search" id="copy-search" placeholder="サイト全体から文章を検索（例：ワンストップ）">
+      <p class="share-note ui-intro">サイト内のすべての文章をここから書き換えられます。欄の上のボタンで<strong>太字・斜体・リンク</strong>（説明文などでは見出し・箇条書き・表・画像も）を付けられ、打つと<strong>すぐ下の「見え方」</strong>にサイトでの出方が出ます。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
+      <div class="toolbar copy-bar" style="margin-bottom:10px">
+        <select id="copy-group" aria-label="文章の場所" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit"></select>
+        <input type="search" id="copy-search" aria-label="サイト全体から文章を検索" placeholder="サイト全体から文章を検索（例：ワンストップ）">
         <label class="copy-only"><input type="checkbox" id="copy-changed"> 変更したものだけ</label>
-        <span id="copy-count"></span>
-        <button id="copy-save" type="button">変更を保存</button>
+        <span id="copy-count" aria-live="polite"></span>
+        <button id="copy-save" type="button" disabled title="保存（⌘S / Ctrl+S）">変更を保存</button>
         <button class="ghost" id="copy-reload" type="button">再読込</button>
       </div>
       <p class="msg" id="copy-msg" style="margin-bottom:10px"></p>
       <p class="deploy-state" id="copy-state"></p>
-      <div id="copy-fields" style="max-height:62vh;overflow-y:auto;padding-right:4px"></div>
+      <!-- 一覧はページごと送ります（前は枠の中だけ送る作りで、スマホでは送りにくく、保存ボタンも見えなくなっていました）。
+           探す・数・保存の段は、上に貼り付いて付いてきます。 -->
+      <div id="copy-fields"></div>
     </div>
 
     <div class="panel" id="social-admin" style="display:none; margin-top:20px">
@@ -1353,15 +1367,15 @@ input, select, textarea { color: var(--text); }
           <span class="soc-busy" style="font-size:11px;color:var(--sub);display:none">書き直しています…</span>
         </div>
         <div class="soc-fields" style="margin-top:10px">
-          <input type="url" id="social-link" placeholder="リンク（任意 / https:// で始まるもの）" autocomplete="off">
-          <input type="text" id="social-campaign" placeholder="キャンペーン名（任意）" autocomplete="off" maxlength="40">
+          <input type="url" id="social-link" aria-label="リンク（任意）" placeholder="リンク（任意 / https:// で始まるもの）" autocomplete="off">
+          <input type="text" id="social-campaign" aria-label="キャンペーン名（任意）" placeholder="キャンペーン名（任意）" autocomplete="off" maxlength="40">
         </div>
         <div id="social-urlnote" style="margin-top:6px"></div>
         <div class="soc-images">
           <div class="soc-lab" style="margin-top:12px">画像（任意・4枚まで）</div>
           <div id="social-imgs"></div>
           <div class="soc-img-add">
-            <input type="url" id="social-image" placeholder="画像のURL（https:// で始まる、公開されているもの）" autocomplete="off">
+            <input type="url" id="social-image" aria-label="画像のURL" placeholder="画像のURL（https:// で始まる、公開されているもの）" autocomplete="off">
             <button type="button" class="ghost" id="social-image-add" style="font-size:12px;padding:8px 12px">URLを追加</button>
             <button type="button" class="ghost" id="social-upload" style="font-size:12px;padding:8px 12px">手元の画像をアップロード</button>
             <input type="file" id="social-file" accept="image/jpeg,image/png,image/webp" style="display:none">
@@ -1500,7 +1514,7 @@ input, select, textarea { color: var(--text); }
         <button class="ghost" id="seo-probe" type="button">1問だけ試す（1回分の料金）</button>
         <button class="ghost" id="seo-reload" type="button">前回の結果を表示</button>
         <button class="ghost" id="seo-resume" type="button" style="display:none">中断分を集計</button>
-        <select id="seo-pick" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
+        <select id="seo-pick" aria-label="表示する計測の回" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;display:none"></select>
         <span id="seo-cost"></span>
       </div>
       <!-- 計測の設定。始める前に決めて、始める前に費用が分かるように。
@@ -1614,7 +1628,7 @@ input, select, textarea { color: var(--text); }
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
       <div class="toolbar" style="margin-bottom:12px">
-        <select id="stats-range" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
+        <select id="stats-range" aria-label="集計する期間" style="padding:9px 10px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit">
           <option value="7">過去7日</option>
           <option value="30" selected>過去30日</option>
           <option value="90">過去90日</option>
@@ -3869,7 +3883,10 @@ window.lumAdmin = {
     ctaLabel: 'CTAラベル', ctaTitle: 'CTA見出し', ctaButton: 'CTAボタン',
     typingLabel: 'ラベル', reassure1: '安心材料1', reassure2: '安心材料2', reassure3: '安心材料3',
   };
+  /* 文章（text.*）の項目名。プログラム用の名前（lp · movieLabel など）では、どこの文章か分からないため。 */
+  var TEXT_NAMES = { "lp.title": "トップ › いちばん上の大きな見出し", "lp.lead": "トップ › 「Lumeniumについて」の紹介文", "lp.ctaPrimary": "トップ › 赤いボタン（無料で相談する）", "lp.ctaSecondary": "トップ › 白いボタン（サービスと料金）", "lp.assure1": "トップ › 安心の一言1", "lp.assure2": "トップ › 安心の一言2", "lp.assure3": "トップ › 安心の一言3", "lp.movieLabel": "トップ › 紹介ムービーの小見出し", "lp.movieTitle": "トップ › 紹介ムービーの題名", "lp.movieNote": "トップ › 紹介ムービーの下の注記", "lp.moviePlay": "トップ › 紹介ムービーの再生ボタン（読み上げ用）", "lp.aboutFacts": "トップ › 「Lumeniumについて」の囲み（拠点・料金の目安）", "lp.servicesTitle": "トップ › 事業内容の見出し", "lp.servicesLead": "トップ › 事業内容の説明文", "lp.servicesFor": "トップ › 事業内容「こんな方に」", "lp.servicesDone": "トップ › 事業内容「これまでの例」", "lp.servicesOther": "トップ › 「そのほかの事業」の見出し", "lp.mainMore": "トップ › 事業の「詳細を見る」ボタン", "lp.servicesMore": "トップ › そのほかの事業「詳しく」", "lp.nextTitle": "トップ › 「次に見る」の見出し", "lp.nextWorks": "トップ › 「次に見る」実績", "lp.nextPricing": "トップ › 「次に見る」料金", "lp.nextBook": "トップ › 「次に見る」相談の予約", "lp.systemsTitle": "トップ › システム制作実績の見出し", "lp.systemsLead": "トップ › システム制作実績の説明文", "lp.systemsWho": "トップ › システムの札「導入したお客様」", "lp.systemsPain": "システム紹介 › 「お困りごと」の見出し", "lp.systemsDoes": "システム紹介 › 「できること」の見出し", "lp.systemsAfter": "システム紹介 › 「導入後」の見出し", "lp.systemsAsk": "トップ › 「このシステムについて相談する」ボタン", "lp.systemsMore": "トップ › システムの「くわしく見る」", "lp.systemsAll": "トップ › 「すべてのシステムを見る」ボタン", "lp.systemsNote": "トップ › システム制作実績の注記", "lp.adminTitle": "トップ › 管理画面の見出し", "lp.adminLead": "トップ › 管理画面の説明文", "lp.adminNote": "トップ › 管理画面の補足", "lp.adminPitch": "トップ › 管理画面の一押し", "lp.adminCta": "トップ › 管理画面のボタン", "lp.worksTitle": "トップ › 実績の見出し", "lp.worksOther": "トップ › 「その他の実績」の見出し", "lp.worksMore": "トップ › 「実績をもっと見る」ボタン", "lp.flowTitle": "トップ › ご依頼の流れの見出し", "lp.faqTitle": "トップ › よくある質問の見出し", "lp.faqMore": "トップ › 「よくある質問をもっと見る」ボタン", "lp.consultTitle": "トップ › 相談の多い内容の見出し", "lp.consultLead": "トップ › 相談の多い内容の説明文", "contact.title": "お問い合わせ › 見出し", "contact.desc": "お問い合わせ › 説明文", "contact.systemsAskText": "お問い合わせ › システムから相談したときの本文の書き出し", "footer.tagline": "フッター › 一言", "footer.sub": "フッター › 補足", "footer.base": "フッター › 拠点", "footer.tel": "フッター › 電話番号", "footer.telHours": "フッター › 電話の受付時間", "footer.line": "フッター › LINE のリンク", "footer.consult": "フッター › 相談の案内", "footer.consultNote": "フッター › 相談の案内の補足", "home.yomi": "ロゴの下の読み（ルメニウム）", "lp.adminF1Title": "トップ › 管理画面の機能1の見出し", "lp.adminF1Desc": "トップ › 管理画面の機能1の説明", "lp.adminF2Title": "トップ › 管理画面の機能2の見出し", "lp.adminF2Desc": "トップ › 管理画面の機能2の説明", "lp.adminF3Title": "トップ › 管理画面の機能3の見出し", "lp.adminF3Desc": "トップ › 管理画面の機能3の説明", "lp.adminF4Title": "トップ › 管理画面の機能4の見出し", "lp.adminF4Desc": "トップ › 管理画面の機能4の説明", "lp.adminF5Title": "トップ › 管理画面の機能5の見出し", "lp.adminF5Desc": "トップ › 管理画面の機能5の説明", "lp.adminF6Title": "トップ › 管理画面の機能6の見出し", "lp.adminF6Desc": "トップ › 管理画面の機能6の説明" };
   function humanLabel(path) {
+    if (/^text\./.test(path) && TEXT_NAMES[path.slice(5)]) return TEXT_NAMES[path.slice(5)];
     var parts = path.split('.');
     var out = [];
     for (var i = 1; i < parts.length; i++) {
@@ -4102,7 +4119,7 @@ window.lumAdmin = {
       var label = document.createElement('span');
       label.textContent = humanLabel(f.path);
       label.title = f.path;
-      label.style.cssText = 'font-size:12px;font-weight:700;color:var(--ui-accent)';
+      label.style.cssText = 'font-size:13px;font-weight:700;color:var(--ui-accent)';
       head.appendChild(label);
 
       if (wide) {
@@ -4115,7 +4132,7 @@ window.lumAdmin = {
 
       var changedTag = document.createElement('span');
       changedTag.textContent = '変更あり';
-      changedTag.style.cssText = 'font-size:10px;font-weight:700;color:#0b1020;background:#b45309;padding:2px 7px;border-radius:999px';
+      changedTag.style.cssText = 'font-size:12px;font-weight:700;color:#fff;background:#b45309;padding:2px 8px;border-radius:999px';
       changedTag.hidden = val === f.value;
       head.appendChild(changedTag);
 
@@ -4123,11 +4140,12 @@ window.lumAdmin = {
       reset.type = 'button';
       reset.textContent = '元の文章に戻す';
       reset.className = 'ghost';
-      reset.style.cssText = 'font-size:10.5px;padding:3px 9px;margin-left:auto';
+      reset.style.cssText = 'font-size:12px;padding:5px 11px;margin-left:auto';
       head.appendChild(reset);
       wrap.appendChild(head);
 
       var ta = document.createElement('textarea');
+      ta.setAttribute('aria-label', humanLabel(f.path) + (wide ? '（' + entry.g.label + '）' : ''));
       ta.value = val;
       ta.rows = Math.min(10, Math.max(2, val.split('\n').length + (val.length > 110 ? 1 : 0)));
       ta.style.cssText = 'width:100%;padding:10px 12px;background:#faf9f6;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:13.5px;font-family:inherit;line-height:1.75;resize:vertical';
@@ -4142,9 +4160,9 @@ window.lumAdmin = {
       // 欄のすぐ上に並べます（admin-richbar.js）。ここには AI の書き直しと点検だけを置きます。
       var blockOk = !!(window.lumRichbar && window.lumRichbar.isBlock(f.path));
       tools.innerHTML = vkind !== 'prose' ? '' :
-        '<span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>' +
+        '<span style="font-size:12px;color:var(--sub)">AIに書き直してもらう:</span>' +
         Object.keys(WAYS).map(function (k) {
-          return (k === 'proof' ? '<span style="width:9px"></span><span style="font-size:10.5px;color:var(--sub)">点検:</span>' : '') +
+          return (k === 'proof' ? '<span style="width:9px"></span><span style="font-size:12px;color:var(--sub)">点検:</span>' : '') +
             '<button type="button" class="ghost cp-way" data-way="' + k + '" title="' + esc(WAYS[k][1]) +
             '" style="font-size:11px;padding:4px 10px">' + esc(WAYS[k][0]) + '</button>';
         }).join('') +
@@ -4243,6 +4261,20 @@ window.lumAdmin = {
     var base = (shown != null) ? (shown + ' / ' + total + ' 件') : countEl.dataset.base || '';
     if (shown != null) countEl.dataset.base = base;
     countEl.textContent = (countEl.dataset.base || '') + (d ? '（未保存 ' + d + ' 件）' : '');
+    // 保存のボタンに、保存されるものの数を出します。変更が無いときは押せません。
+    var sb = document.getElementById('copy-save');
+    if (sb && !sb.dataset.busy) { sb.disabled = !d; sb.textContent = d ? '変更を保存（' + d + '件）' : '変更を保存'; }
+    var fl = document.getElementById('copy-float');
+    if (!fl) {
+      fl = document.createElement('button');
+      fl.type = 'button';
+      fl.id = 'copy-float';
+      fl.hidden = true;
+      fl.addEventListener('click', save);
+      document.getElementById('copy-admin').appendChild(fl);
+    }
+    fl.hidden = !d;
+    fl.textContent = '変更を保存（' + d + '件）';
   }
 
   async function loadAll() {
@@ -4359,11 +4391,11 @@ window.lumAdmin = {
       }));
       data = await res.json();
     } catch (_) {
-      btn.disabled = false;
+      btn.disabled = false; updateCount();
       say('通信に失敗しました。時間をおいて再度お試しください。');
       return;
     }
-    btn.disabled = false;
+    btn.disabled = false; updateCount();
     if (!res.ok || data.ok !== true) {
       say(data && data.message ? data.message : '保存に失敗しました。');
       return;

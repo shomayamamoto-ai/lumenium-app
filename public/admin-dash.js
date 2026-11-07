@@ -60,6 +60,18 @@
       '<button type="button" class="sk-user" id="sk-user" title="ログインの安全（2段階認証）"><span class="sk-avatar" id="sk-avatar" aria-hidden="true">?</span><span class="sk-user-t"><b id="sk-user-name"></b><small id="sk-user-role"></small></span></button>' +
       '<div class="sk-pop" id="sk-pop" role="dialog" aria-label="要対応の一覧" hidden></div>';
     main.insertBefore(bar, main.firstChild);
+    /* 狭い画面では、お知らせとログイン中の人を上の帯（メニュー・ロゴ・検索の段）に入れ、
+       1段にまとめます。2段にすると、それだけで画面の上の約70pxが埋まっていました。
+       広い画面に戻したら、元の場所に戻します。 */
+    var narrow = window.matchMedia ? window.matchMedia('(max-width: 1023px)') : null;
+    var placeTop = function () {
+      var top = document.querySelector('.ui-top'), find = el('fd-open');
+      if (!top) return;
+      if (narrow && narrow.matches) { if (bar.parentNode !== top) top.insertBefore(bar, find && find.parentNode === top ? find : null); bar.classList.add('in-top'); }
+      else { if (bar.parentNode !== main) main.insertBefore(bar, main.firstChild); bar.classList.remove('in-top'); }
+    };
+    placeTop();
+    if (narrow) (narrow.addEventListener ? narrow.addEventListener('change', placeTop) : narrow.addListener(placeTop));
     el('sk-search').addEventListener('click', function () { if (window.lumFinder) window.lumFinder.open(); });
     el('sk-bell').addEventListener('click', function (e) { e.stopPropagation(); togglePop(); });
     el('sk-user').addEventListener('click', function () { if (window.lumOtp) window.lumOtp.open(); });
@@ -531,7 +543,7 @@
       '.dk-mini:hover{border-color:#bfd3fb}' +
       '.dk-goal{position:relative;display:block;width:100%;height:6px;border-radius:3px;background:#e8edf5;margin-top:10px;overflow:visible}' +
       '.dk-goal i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--ui-accent)}.dk-goal.done i{background:#16a34a}.dk-goal.behind i{background:#f59e0b}' +
-      '.dk-goal em{position:absolute;top:-3px;width:2px;height:12px;background:#94a3b8;border-radius:1px}' +
+      '.dk-goal em{position:absolute;top:-3px;width:2px;height:12px;background:#64748b;border-radius:1px}' +
       '.dk-goal-t{display:block;margin-top:4px}' +
       '.dk-range{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--ui-border);border-radius:12px;background:#fff;font-size:14px;font-weight:600;color:#1f2937;font-variant-numeric:tabular-nums}' +
       '.dk-card{background:#fff;border:1px solid var(--ui-border);border-radius:16px;box-shadow:var(--ui-shadow);padding:18px 20px;min-width:0}' +
@@ -543,7 +555,7 @@
       '.dk-first h2{font-size:20px;font-weight:800;margin:4px 0 0;line-height:1.4;color:#0f172a;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}' +
       '.dk-count{font-size:30px;font-weight:800;color:var(--ui-accent);font-variant-numeric:tabular-nums}' +
       '.dk-first p{margin:0;color:#475569;font-size:14px;line-height:1.75;max-width:60ch}' +
-      '.dk-eyebrow{position:absolute;top:18px;right:20px;color:#94a3b8;font-size:12px;letter-spacing:.12em}' +
+      '.dk-eyebrow{position:absolute;top:18px;right:20px;color:#64748b;font-size:12px;letter-spacing:.12em}' +
       '.dk-chip{align-self:flex-start;display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;background:#eaf1fe;color:#1d4ed8}' +
       '.dk-chip.lv-urgent{background:#fee2e2;color:#b91c1c}.dk-chip.lv-action{background:#fef3c7;color:#92400e}.dk-chip.lv-ok{background:#dcfce7;color:#166534}' +
       '.dk-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:6px}' +
@@ -555,7 +567,7 @@
       '.dk-quote{display:flex;flex-direction:column;justify-content:center;gap:10px;background:linear-gradient(135deg,#eef2f8,#e6ebf3);border-color:#dfe5ee}' +
       '.dk-quote blockquote{margin:0;font-size:19px;line-height:1.85;color:#334155;font-family:"Zen Old Mincho","Hiragino Mincho ProN",serif;letter-spacing:.04em}' +
       '.dk-quote p{margin:0;color:#64748b;font-size:14px;padding-left:24px;position:relative}' +
-      '.dk-quote p::before{content:"";position:absolute;left:0;top:50%;width:16px;height:1px;background:#94a3b8}' +
+      '.dk-quote p::before{content:"";position:absolute;left:0;top:50%;width:16px;height:1px;background:#64748b}' +
       '.dk-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}' +
       '.dk-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:16px 18px;border:1px solid var(--ui-border);border-radius:16px;background:#fff;box-shadow:var(--ui-shadow);font:inherit;color:#0f172a;cursor:pointer;min-width:0}' +
       '.dk-kpi:hover{border-color:#bfd3fb;box-shadow:0 10px 26px rgba(37,99,235,.1)}' +
@@ -566,7 +578,7 @@
       '.dk-kpi-x{font-size:12px;color:#64748b}' +
       '.dk-delta{display:inline-flex;align-items:center;gap:3px;margin-top:6px;font-size:14px;font-weight:800;color:#64748b}' +
       '.dk-delta.up{color:#15803d}.dk-delta.down{color:#b91c1c}' +
-      '.dk-kpi small{font-size:12px;color:#94a3b8}' +
+      '.dk-kpi small{font-size:12px;color:#64748b}' +
       '.dk-grid2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px}' +
       '.dk-grid2b{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}' +
       '.dk-seg{display:inline-flex;padding:3px;border:1px solid var(--ui-border);border-radius:10px;background:#f8fafc}' +
@@ -578,7 +590,7 @@
       '.dk-axis{fill:#64748b;font-size:11px;font-variant-numeric:tabular-nums}' +
       '.dk-line{fill:none;stroke:#2a78d6;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}' +
       '.dk-dot{fill:#fff;stroke:#2a78d6;stroke-width:2}' +
-      '.dk-cross{stroke:#94a3b8;stroke-width:1;stroke-dasharray:3 3}' +
+      '.dk-cross{stroke:#64748b;stroke-width:1;stroke-dasharray:3 3}' +
       '.dk-hot{fill:#2a78d6;stroke:#fff;stroke-width:3}' +
       '.dk-tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--ui-border);border-radius:10px;padding:6px 10px;box-shadow:0 8px 20px rgba(15,23,42,.12);font-size:12px;color:#0f172a;white-space:nowrap}' +
       '.dk-tip small{display:block;color:#64748b}.dk-tip b{font-size:15px;font-variant-numeric:tabular-nums}' +
@@ -594,10 +606,10 @@
       '.dk-rank{font-weight:800;color:#0f172a;text-align:center}' +
       '.dk-thumb{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:linear-gradient(135deg,#1e3a8a,#3b82f6)}' +
       '.dk-top li:nth-child(2) .dk-thumb{background:linear-gradient(135deg,#0f766e,#14b8a6)}.dk-top li:nth-child(3) .dk-thumb{background:linear-gradient(135deg,#9a3412,#f97316)}.dk-top li:nth-child(4) .dk-thumb{background:linear-gradient(135deg,#6d28d9,#a78bfa)}.dk-top li:nth-child(5) .dk-thumb{background:linear-gradient(135deg,#334155,#64748b)}' +
-      '.dk-top-t{min-width:0}.dk-top-t b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dk-top-t small{display:block;color:#94a3b8;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '.dk-top-t{min-width:0}.dk-top-t b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dk-top-t small{display:block;color:#64748b;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
       '.dk-top-v{font-variant-numeric:tabular-nums;font-weight:700;color:#334155}' +
       '.dk-top-s{display:flex;align-items:center;gap:6px;font-size:12px;color:#64748b;font-variant-numeric:tabular-nums}.dk-top-s i{display:block;height:6px;border-radius:3px;background:#2a78d6;opacity:.85}' +
-      '.dk-top-open{color:#94a3b8;text-decoration:none;font-weight:700}.dk-top-open:hover{color:var(--ui-accent)}' +
+      '.dk-top-open{color:#64748b;text-decoration:none;font-weight:700}.dk-top-open:hover{color:var(--ui-accent)}' +
       '.dk-bar path{fill:#1baf7a;opacity:.75}.dk-bar.is-now path{opacity:1}.dk-bar:hover path{opacity:1}' +
       '.dk-bar-v{font-size:12px;font-weight:800;fill:#0f172a}' +
       '.dk-bars-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;padding:12px 14px;border-radius:12px;background:#f8fafc}' +

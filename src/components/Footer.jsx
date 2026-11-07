@@ -28,7 +28,7 @@ export default function Footer({ onPrivacy }) {
         <div className="ft-main">
           <nav className="ft-links" aria-label="サイト内のリンク">
             <div className="ft-col">
-              <h4>サービス</h4>
+              <p className="ft-colh">サービス</p>
               <a href="/services/web.html">システム開発・HP制作</a>
               <a href="/services/ai.html">AI研修・AI導入支援</a>
               <a href="/services/video.html">動画制作・映像編集</a>
@@ -37,7 +37,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/services/creative.html">クリエイティブ制作</a>
             </div>
             <div className="ft-col">
-              <h4>ご依頼</h4>
+              <p className="ft-colh">ご依頼</p>
               <a href="/pricing.html">料金</a>
               <a href="/works.html">実績</a>
               <a href="/voice.html">お客様の声</a>
@@ -45,7 +45,7 @@ export default function Footer({ onPrivacy }) {
               <a href="/faq.html">よくある質問</a>
             </div>
             <div className="ft-col">
-              <h4>会社</h4>
+              <p className="ft-colh">会社</p>
               <a href="/about.html">会社概要（Lumeniumとは）</a>
               <a href="/profile.html">代表紹介</a>
               <a href="/blog/index.html">ブログ</a>
@@ -54,7 +54,7 @@ export default function Footer({ onPrivacy }) {
               </a>
             </div>
             <div className="ft-col">
-              <h4>その他</h4>
+              <p className="ft-colh">その他</p>
               <a href="#contact-form">お問い合わせ</a>
               <button type="button" className="ft-linkbtn" onClick={onPrivacy}>プライバシーポリシー</button>
               <a href="/specified-commerce.html">特定商取引法に基づく表記</a>
