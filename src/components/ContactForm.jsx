@@ -1,5 +1,6 @@
 import { SECTION } from '../data/text'
 import { rich } from '../lib/rich'
+import { plain } from '../lib/markup.js'
 import { useState, useRef, useEffect } from 'react'
 import { events, funnel, whenSeen } from '../lib/analytics'
 import BookingPicker from './BookingPicker'
@@ -58,9 +59,9 @@ export default function ContactForm() {
     const fill = (id) => {
       const sys = SYSTEMS.find((x) => x.id === id)
       if (!sys) return
-      const text = SECTION.contact.systemsAskText.replace('{name}', sys.name.replace(/\n/g, ''))
+      const text = plain(SECTION.contact.systemsAskText).replace('{name}', sys.name.replace(/\n/g, ''))
       setForm((f) => {
-        const blank = !f.message.trim() || SYSTEMS.some((x) => f.message === SECTION.contact.systemsAskText.replace('{name}', x.name.replace(/\n/g, '')))
+        const blank = !f.message.trim() || SYSTEMS.some((x) => f.message === plain(SECTION.contact.systemsAskText).replace('{name}', x.name.replace(/\n/g, '')))
         return {
           ...f,
           message: blank ? text : f.message,

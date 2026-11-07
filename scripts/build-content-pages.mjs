@@ -16,6 +16,7 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync
 import { liveNews, newsSlug, newsCategory, categoryLabel, NEWS_CATEGORIES } from '../src/lib/news.js'
 import { BEACON } from './_beacon.mjs'
 import { framePage } from './_page-frame.mjs'
+import { inlineHtml as tx, blockHtml, hasBlock, plain as plainText } from '../src/lib/markup.js'
 import { articles } from '../src/data/articles.js'
 import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
@@ -57,30 +58,12 @@ const isoDate = (d) => String(d || '').replace(/\./g, '-')
 // Category → related service page
 const SVC = { 'AI活用': 'ai', 'SNS運用': 'sns', '動画制作': 'video', 'Web制作': 'web', 'LINE活用': 'sns' }
 
-// Tiny markdown-lite → HTML (##, ###, "- " lists, paragraphs)
-function md(src) {
-  // **太字**。以前は対応しておらず、記事に「**」がそのまま出ていました。
-  const inl = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-  const lines = String(src).split('\n')
-  let html = ''
-  let inList = false
-  const closeList = () => { if (inList) { html += '</ul>\n'; inList = false } }
-  for (const raw of lines) {
-    const line = raw.trim()
-    if (!line) { closeList(); continue }
-    if (line.startsWith('### ')) { closeList(); html += `<h3>${inl(line.slice(4))}</h3>\n`; continue }
-    if (line.startsWith('## ')) { closeList(); html += `<h2>${inl(line.slice(3))}</h2>\n`; continue }
-    if (line.startsWith('- ')) {
-      if (!inList) { html += '<ul>\n'; inList = true }
-      html += `<li>${inl(line.slice(2))}</li>\n`
-      continue
-    }
-    closeList()
-    html += `<p>${inl(line)}</p>\n`
-  }
-  closeList()
-  return html
-}
+// ブログ記事の本文。見出し（##・###）・箇条書き・番号・表・画像・太字・斜体・リンクを
+// 読みます（読み方は src/lib/markup.js。文章編集の見え方とトップページと同じ）。
+// 1行が1段落です。
+function md(src) { return blockHtml(src, { h: 2, perLine: true }) + '\n' }
+/* 文章欄の中身: 段落の書式が入っていれば段落ごとに、無ければ文の中の書式だけ。 */
+const bx = (t) => (hasBlock(t) ? blockHtml(t) : tx(t))
 
 const STYLE = `
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -297,8 +280,8 @@ ${BEACON}
    the article's own opening gives a hundred-odd characters of what the page
    actually says, which is what that field is for. */
 function articleDesc(a) {
-  const plain = String(a.content || '')
-    .replace(/^##.*$/gm, ' ')
+  // 書式の印（リンク・太字など）を外した文から作ります。見出しの行は外します。
+  const plain = plainText(String(a.content || '').replace(/^##.*$/gm, ' '))
     .replace(/[#*`>\-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -387,7 +370,7 @@ for (const a of articles) {
   }
   const ld = faq.length
     ? { '@context': 'https://schema.org', '@graph': [{ ...ld0, '@context': undefined }, {
-        '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+        '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: plainText(f.a) } })),
       }] }
     : ld0
   const body = `
@@ -622,26 +605,26 @@ ${bodyHtml}
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: all.map((i) => ({
-      '@type': 'Question', name: i.q,
-      acceptedAnswer: { '@type': 'Answer', text: i.a },
+      '@type': 'Question', name: plainText(i.q),
+      acceptedAnswer: { '@type': 'Answer', text: plainText(i.a) },
     })),
   }
   const body = `
   <h1>よくある質問</h1>
   <p class="meta">ご相談・進行・料金についてよくいただく質問をまとめました。</p>
   ${FAQ_GROUPS.slice(1).map((g) => `
-  <p class="group">${esc(g.label)}</p>
+  <p class="group">${tx(g.label)}</p>
   <dl class="qa">
-    ${g.items.map((i) => `<dt>${esc(i.q)}</dt><dd>${esc(i.a)}</dd>`).join('\n    ')}
+    ${g.items.map((i) => `<dt>${tx(i.q)}</dt><dd>${bx(i.a)}</dd>`).join('\n    ')}
   </dl>`).join('\n')}
   <!-- 社名そのものについての質問（読み方・同名の別会社など）は、検索・AI
        向けの確認用。読む人の邪魔にならないよう畳んでおきます。畳んだ中身も
        ページの本文として読まれます。 -->
   ${FAQ_GROUPS.slice(0, 1).map((g) => `
   <details class="ref">
-    <summary>${esc(g.label)}</summary>
+    <summary>${tx(g.label)}</summary>
     <dl class="qa">
-      ${g.items.map((i) => `<dt>${esc(i.q)}</dt><dd>${esc(i.a)}</dd>`).join('\n      ')}
+      ${g.items.map((i) => `<dt>${tx(i.q)}</dt><dd>${bx(i.a)}</dd>`).join('\n      ')}
     </dl>
   </details>`).join('\n')}
   <div class="cta"><a class="primary" href="/#/info/contact-form">無料で相談する</a></div>`
@@ -776,7 +759,7 @@ ${bodyHtml}
 
     <h2>会社概要</h2>
     <dl class="facts">
-      ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v.startsWith('<a') ? v : esc(v)}</dd></div>`).join('\n      ')}
+      ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v.startsWith('<a') ? v : tx(v)}</dd></div>`).join('\n      ')}
     </dl>
 
     <h2>ルメニウムに依頼できること</h2>
@@ -879,7 +862,7 @@ const TOPIC_PAGES = [
     body: () => `
     <h2>サービス別の料金レンジ</h2>
     <dl class="facts">
-      ${PRICE_OPTIONS.map((o) => `<div><dt>${esc(o.label)}</dt><dd>${yen(o.min)} 〜 ${yen(o.max)}<br><span style="font-size:12.5px;opacity:.75">${esc(o.sub)}</span></dd></div>`).join('\n      ')}
+      ${PRICE_OPTIONS.map((o) => `<div><dt>${tx(o.label)}</dt><dd>${yen(o.min)} 〜 ${yen(o.max)}<br><span style="font-size:12.5px;opacity:.75">${tx(o.sub)}</span></dd></div>`).join('\n      ')}
     </dl>
     <p class="note">複数サービスをまとめてご依頼の場合、全部入りでも最小構成なら ${yen(priceMin)} 前後から組めます。ご予算を先に伺って、その中で優先順位をつけたプランを作ることも可能です。</p>`,
     /* The measured questions ask for a number — 「相場も教えてください」 is
@@ -915,10 +898,10 @@ const TOPIC_PAGES = [
     }),
     body: () => `
     <h2>主な事例</h2>
-    ${CASE_STUDIES.map((c) => `<h3>${esc(c.title)}（${esc(c.tag)}）</h3>\n    <p>${esc(c.desc)}${c.metric ? `　<strong>${c.metric.toLocaleString('ja-JP')} ${esc(c.metricLabel)}</strong>` : ''}</p>`).join('\n    ')}
+    ${CASE_STUDIES.map((c) => `<h3>${tx(c.title)}（${tx(c.tag)}）</h3>\n    ${hasBlock(c.desc) ? bx(c.desc) + (c.metric ? `<p><strong>${c.metric.toLocaleString('ja-JP')} ${esc(c.metricLabel)}</strong></p>` : '') : `<p>${tx(c.desc)}${c.metric ? `　<strong>${c.metric.toLocaleString('ja-JP')} ${esc(c.metricLabel)}</strong>` : ''}</p>`}`).join('\n    ')}
     <h2>その他の実績</h2>
     <ul>
-      ${ACHIEVEMENTS.map((a) => `<li>${esc(a)}</li>`).join('\n      ')}
+      ${ACHIEVEMENTS.map((a) => `<li>${tx(a)}</li>`).join('\n      ')}
     </ul>
     <p class="note">飲食・IT・美容・教育・広告・士業など12以上の業界で実績があります。同業種の実績がない領域でも、リサーチから入るため支援可能です。</p>`,
   },
@@ -952,24 +935,24 @@ const TOPIC_PAGES = [
     <h2>どんなシステムを作れますか？</h2>
     <p>業種を問わず、お客様の業務の流れに合わせたシステムを作ります。下は、これまでのシステム制作実績を、導入したお客様の例と一緒にまとめたものです。似た困りごとがあれば、そのまま「このシステムについて相談する」からご連絡ください。ITに詳しくなくても大丈夫です。</p>
     <ul>
-      ${SYSTEMS.map((x) => `<li><a href="#${esc(x.id)}">${esc(x.name.replace(/\n/g, ''))}</a>（${esc(x.tag)}）</li>`).join('\n      ')}
+      ${SYSTEMS.map((x) => `<li><a href="#${esc(x.id)}">${tx(x.name.replace(/\n/g, ''))}</a>（${tx(x.tag)}）</li>`).join('\n      ')}
     </ul>
     ${SYSTEMS.map((x) => `
-    <h2 id="${esc(x.id)}">${esc(x.name.replace(/\n/g, ''))}</h2>
-    <p class="note">${esc(x.tag)}</p>
-    <p>${esc(x.short)}</p>
-    <h3>${esc(SECTION.lp.systemsWho)}</h3>
-    <p>${esc(x.who)}</p>
-    <h3>${esc(SECTION.lp.systemsPain)}</h3>
-    <p>${esc(x.pain)}</p>
-    <h3>${esc(SECTION.lp.systemsDoes)}</h3>
+    <h2 id="${esc(x.id)}">${tx(x.name.replace(/\n/g, ''))}</h2>
+    <p class="note">${tx(x.tag)}</p>
+    <p>${tx(x.short)}</p>
+    <h3>${tx(SECTION.lp.systemsWho)}</h3>
+    <p>${tx(x.who)}</p>
+    <h3>${tx(SECTION.lp.systemsPain)}</h3>
+    <p>${tx(x.pain)}</p>
+    <h3>${tx(SECTION.lp.systemsDoes)}</h3>
     <ul>
-      ${x.does.map((d) => `<li>${esc(d)}</li>`).join('\n      ')}
+      ${x.does.map((d) => `<li>${tx(d)}</li>`).join('\n      ')}
     </ul>
-    <h3>${esc(SECTION.lp.systemsAfter)}</h3>
-    <p>${esc(x.after)}</p>
-    <p><a class="sys-ask" href="/?ask=${encodeURIComponent(x.id)}#contact">${esc(SECTION.lp.systemsAsk)} →</a></p>`).join('\n')}
-    <p class="note">${esc(SECTION.lp.systemsNote)}</p>`,
+    <h3>${tx(SECTION.lp.systemsAfter)}</h3>
+    <p>${tx(x.after)}</p>
+    <p><a class="sys-ask" href="/?ask=${encodeURIComponent(x.id)}#contact">${esc(plainText(SECTION.lp.systemsAsk))} →</a></p>`).join('\n')}
+    <p class="note">${tx(SECTION.lp.systemsNote)}</p>`,
     faq: [
       ['どんなシステムを作ってもらえますか？',
        'ホームページの管理画面、SNS運用の自動化、電話の自動応対、名刺からの営業リスト作成と一斉送信、会員制のマッチング、在庫・仕入れ管理、契約書の作成などを作ってきました。業務の流れを伺って、必要な形に合わせて作ります。'],
@@ -1008,7 +991,7 @@ const TOPIC_PAGES = [
     <h2>ルメニウム（Lumenium）の評判は？ 実際に利用した人の声はありますか？</h2>
     <p>あります。以下は、実際にルメニウム（Lumenium）へご依頼いただいた ${TESTIMONIALS.length} 件のお客様の声です。飲食店・IT企業・美容サロン・教育系企業・士業事務所など、業種はさまざまです。それぞれ、どの業種の方が何を依頼した結果なのかまで記載しています。</p>
     <p>評判を確かめる材料としては、このページの声のほかに、<a href="/works.html">実績・制作事例</a>（何をどの業種向けに作ったか）、<a href="/about.html#verify">この会社を確認する方法</a>（事業者情報と確認手段）、<a href="/pricing.html">料金の目安</a>（金額を公開しているか）があります。見積りは無料で、最低発注額もないため、小さな1件から試して判断していただけます。</p>
-    ${TESTIMONIALS.map((t) => `<h3>${esc(t.name)}</h3>\n    <p>「${esc(t.text)}」</p>\n    <p style="font-size:12.5px;opacity:.7">${esc(t.detail)}</p>`).join('\n    ')}`,
+    ${TESTIMONIALS.map((t) => `<h3>${tx(t.name)}</h3>\n    <p>「${tx(t.text)}」</p>\n    <p style="font-size:12.5px;opacity:.7">${tx(t.detail)}</p>`).join('\n    ')}`,
   },
   {
     file: 'flow.html',
@@ -1026,11 +1009,11 @@ const TOPIC_PAGES = [
       })),
     }),
     body: () => FLOW_STEPS.map((s, i) => `
-    <h2>STEP ${i + 1}｜${esc(s.title)}</h2>
-    <p>${esc(s.desc)}</p>
-    <p style="font-size:12.5px;opacity:.75">目安: ${esc(s.meta.time)}　／　ご準備: ${esc(s.meta.prep)}</p>
+    <h2>STEP ${i + 1}｜${tx(s.title)}</h2>
+    ${hasBlock(s.desc) ? bx(s.desc) : `<p>${tx(s.desc)}</p>`}
+    <p style="font-size:12.5px;opacity:.75">目安: ${tx(s.meta.time)}　／　ご準備: ${tx(s.meta.prep)}</p>
     <ul>
-      ${s.checks.map((c) => `<li>${esc(c)}</li>`).join('\n      ')}
+      ${s.checks.map((c) => `<li>${tx(c)}</li>`).join('\n      ')}
     </ul>`).join('\n'),
   },
   {
@@ -1200,9 +1183,9 @@ TOPIC_PAGES.push(
     body: () => `
     <p>その曖昧な想いを一緒に<strong>言語化</strong>し、動画・AI・Webという最適な打ち手に翻訳するのが、ルメニウム（Lumenium）の仕事です。</p>
     ${PAIN_POINTS.map((x) => `
-    <h2>${esc(x.num)}｜${esc(x.title)}</h2>
-    <p><strong>お困りごと:</strong> ${esc(x.pain)}</p>
-    <p><strong>ルメニウムの対応:</strong> ${esc(x.solution)}</p>`).join('\n')}
+    <h2>${esc(x.num)}｜${tx(x.title)}</h2>
+    <p><strong>お困りごと:</strong> ${tx(x.pain)}</p>
+    <p><strong>ルメニウムの対応:</strong> ${tx(x.solution)}</p>`).join('\n')}
     <p class="note">上のどれにも当てはまらないご相談も歓迎です。抽象的な段階からご一緒します。</p>`,
   },
   {
@@ -1221,7 +1204,7 @@ TOPIC_PAGES.push(
     body: () => `
     <p>ルメニウムは、<strong>クオリティ・対応力が高く、かつコストパフォーマンスも高い</strong>領域に立つことを狙っています。同じ課題を頼める先を並べると、違いは次のようになります。</p>
     <dl class="facts">
-      ${POSITIONING_NOTES.map((n) => `<div><dt style="flex:0 0 178px">${esc(n.k)}</dt><dd>${esc(n.v)}</dd></div>`).join('\n      ')}
+      ${POSITIONING_NOTES.map((n) => `<div><dt style="flex:0 0 178px">${tx(n.k)}</dt><dd>${tx(n.v)}</dd></div>`).join('\n      ')}
     </dl>
     <h2>なぜワンストップにこだわるのか</h2>
     <p>動画・AI・Web・SNSは、実際のプロジェクトでは一つの目的のもとで絡み合います。複数社に分けて発注すると、その調整をお客様側が抱えることになります。ルメニウムは窓口を一本化し、企画から納品・運用までを一貫して担当します。</p>
@@ -1250,8 +1233,8 @@ TOPIC_PAGES.push(
       publisher: { '@id': `${SITE}/#organization` },
     }),
     body: () => BRAND_CHAPTERS.map((c) => `
-    <h2>${esc(c.no)}｜${esc(c.title)}</h2>
-    ${c.body.map((line) => `<p>${esc(line)}</p>`).join('\n    ')}`).join('\n'),
+    <h2>${esc(c.no)}｜${tx(c.title)}</h2>
+    ${c.body.map((line) => (hasBlock(line) ? bx(line) : `<p>${tx(line)}</p>`)).join('\n    ')}`).join('\n'),
   },
   {
     file: 'profile.html',
@@ -1273,15 +1256,15 @@ TOPIC_PAGES.push(
     }),
     body: () => `
     ${PROFILE_BRICKS.map((k) => `
-    <p class="group" style="margin-bottom:-6px;font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,sans-serif">${esc(k.label)}</p>
-    <h2>${esc(k.title)}</h2>
-    <p>${esc(k.text)}</p>
+    <p class="group" style="margin-bottom:-6px;font-family:'Zen Kaku Gothic New','Hiragino Sans',system-ui,sans-serif">${tx(k.label)}</p>
+    <h2>${tx(k.title)}</h2>
+    ${hasBlock(k.text) ? bx(k.text) : `<p>${tx(k.text)}</p>`}
     <ul>
-      ${k.list.map((i) => `<li>${esc(i)}</li>`).join('\n      ')}
+      ${k.list.map((i) => `<li>${tx(i)}</li>`).join('\n      ')}
     </ul>`).join('\n')}
     <h2>経歴</h2>
     <dl class="facts">
-      ${CAREER.map((c) => `<div><dt>${esc(c.year)}</dt><dd>${esc(c.detail)}${c.sub ? `<br><span style="font-size:12.5px;opacity:.75">${esc(c.sub)}</span>` : ''}</dd></div>`).join('\n      ')}
+      ${CAREER.map((c) => `<div><dt>${tx(c.year)}</dt><dd>${tx(c.detail)}${c.sub ? `<br><span style="font-size:12.5px;opacity:.75">${tx(c.sub)}</span>` : ''}</dd></div>`).join('\n      ')}
     </dl>`,
     /* This page and /about.html are where the branded questions land, and the
        branded questions are the ones that came back 「実在が確認できない」.

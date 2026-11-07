@@ -11815,3 +11815,22 @@ body { color: var(--lp-ink); }
 @media (max-width: 600px) { .og-about-facts { text-align: left; } }
 /* フッターが明るい地になったので、ロゴの i の縦棒も濃い色に（淡い色のままだと消えて見えます） */
 .og .footer-wm .wm-iw > .wm-i.wm-t { -webkit-text-fill-color: var(--og-ink) !important; color: var(--og-ink) !important; }
+
+/* 文章編集で付けた段落の書式（見出し・箇条書き・番号・表・画像）。src/lib/markup.js */
+.mk-blocks > * + * { margin-top: .7em; }
+.mk-blocks h3, .mk-blocks h4 { font-weight: 700; line-height: 1.6; }
+.mk-blocks h3 { font-size: 1.12em; }
+.mk-blocks h4 { font-size: 1.04em; }
+.mk-blocks ul, .mk-blocks ol { padding-left: 1.4em; text-align: left; }
+.mk-blocks ul { list-style: disc; }
+.mk-blocks ol { list-style: decimal; }
+.mk-blocks li + li { margin-top: .25em; }
+.mk-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mk-table table { border-collapse: collapse; width: 100%; font-size: .94em; text-align: left; }
+.mk-table th, .mk-table td { border: 1px solid rgba(23, 23, 28, .14); padding: .45em .7em; vertical-align: top; }
+.mk-table th { background: rgba(23, 23, 28, .04); font-weight: 700; }
+.mk-img { margin: .9em 0; }
+.mk-img img { display: block; max-width: 100%; height: auto; border-radius: 12px; }
+.mk-img figcaption { font-size: .85em; opacity: .7; margin-top: .4em; }
+.mk-blocks a, .cl a { color: #b4232a; text-decoration: underline; text-underline-offset: 2px; }
+.mk-blocks a:hover, .cl a:hover { color: #7f1d1d; }

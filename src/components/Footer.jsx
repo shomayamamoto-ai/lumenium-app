@@ -1,5 +1,5 @@
 import { SECTION } from '../data/text'
-import { rich } from '../lib/rich'
+import { rich, ink } from '../lib/rich'
 import Wordmark from './Wordmark'
 
 // 左に会社のカード（ロゴ・社名・拠点・著作権）、右に4列のリンク、右下に連絡の帯
@@ -14,12 +14,12 @@ export default function Footer({ onPrivacy }) {
         <div className="ft-card">
           <a href="#top" className="footer-logo ft-logo">
             <img src="/lumenium-logo.svg?v=3" alt="Lumenium（ルメニウム）" className="nav-logo-img" loading="lazy" decoding="async" width="40" height="40" />
-            <span className="footer-logo-stack"><Wordmark className="footer-wm" /><small className="footer-logo-yomi">{SECTION.home.yomi}</small></span>
+            <span className="footer-logo-stack"><Wordmark className="footer-wm" /><small className="footer-logo-yomi">{ink(SECTION.home.yomi)}</small></span>
           </a>
           <p className="ft-tagline">{rich(SECTION.footer.tagline)}</p>
           <p className="ft-sub">{rich(SECTION.footer.sub)}</p>
           <dl className="ft-info">
-            <div><dt>拠点</dt><dd>{SECTION.footer.base}</dd></div>
+            <div><dt>拠点</dt><dd>{ink(SECTION.footer.base)}</dd></div>
             <div><dt>ご相談</dt><dd><a href="#contact-form">お問い合わせフォーム →</a></dd></div>
           </dl>
           <p className="ft-copy"><span aria-hidden="true">©</span> 2026 Lumenium（ルメニウム）. <span className="ft-nw">All rights reserved.</span></p>
@@ -67,12 +67,12 @@ export default function Footer({ onPrivacy }) {
             {SECTION.footer.tel ? (
               <a className="ft-call" href={telHref(SECTION.footer.tel)} data-cta="footer-tel">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 3.5h2.6l1.4 4-2 1.6a12 12 0 0 0 6.3 6.3l1.6-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z" /></svg>
-                <span><b>{SECTION.footer.tel}</b>{SECTION.footer.telHours ? <small>{SECTION.footer.telHours}</small> : null}</span>
+                <span><b>{ink(SECTION.footer.tel)}</b>{SECTION.footer.telHours ? <small>{ink(SECTION.footer.telHours)}</small> : null}</span>
               </a>
             ) : (
               <a className="ft-call" href="#contact" data-cta="footer-consult">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-9l-4.5 3.5v-3.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" /></svg>
-                <span><b className="ft-call-text">{SECTION.footer.consult}</b>{SECTION.footer.consultNote ? <small>{SECTION.footer.consultNote}</small> : null}</span>
+                <span><b className="ft-call-text">{ink(SECTION.footer.consult)}</b>{SECTION.footer.consultNote ? <small>{ink(SECTION.footer.consultNote)}</small> : null}</span>
               </a>
             )}
             {SECTION.footer.line ? (

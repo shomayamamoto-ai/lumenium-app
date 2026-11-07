@@ -321,3 +321,16 @@ article p.keypoint { border-left-color: var(--accent) !important; }
   .page-main { padding: 26px 18px; border-radius: 18px; }
   .ft-brand { padding: 22px 18px; }
 }
+
+/* 文章編集で付けた段落の書式（表・画像・番号付き）。読み方は src/lib/markup.js。 */
+article ol, .page-main ol:not(.side-toc ol) { padding-left: 1.5em; list-style: decimal; }
+article ol li, .page-main ol li { padding-left: .2em; }
+article ol li::before { content: none !important; }
+.mk-table { overflow-x: auto; margin: 0 0 18px; }
+.mk-table table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.mk-table th, .mk-table td { border: 1px solid var(--hair, rgba(23,23,28,.14)); padding: 8px 12px; text-align: left; vertical-align: top; color: var(--ink-soft); }
+.mk-table th { background: rgba(23,23,28,.04); color: var(--ink); font-weight: 700; }
+.mk-img { margin: 0 0 20px; }
+.mk-img img { display: block; max-width: 100%; height: auto; border-radius: 12px; }
+.mk-img figcaption { font-size: 12.5px; color: var(--ink-mute); margin-top: 6px; }
+article a:not(.primary):not(.ghost), dd a, .page-main p a { text-decoration: underline; text-underline-offset: 2px; }

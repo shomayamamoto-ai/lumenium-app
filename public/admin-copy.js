@@ -60,7 +60,8 @@
     'textarea.cp-in{resize:vertical}' +
     '.cp-prev{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;line-height:1.9;max-height:420px;overflow:auto;overflow-wrap:anywhere}' +
     '.cp-prev h2{font-size:18px;margin:0 0 4px}.cp-prev h3{font-size:15.5px;margin:16px 0 6px;padding-left:10px;border-left:3px solid #4f46e5}' +
-    '.cp-prev h4{font-size:14px;margin:12px 0 4px}.cp-prev p{margin:0 0 8px}.cp-prev ul{margin:0 0 8px 1.2em}' +
+    '.cp-prev h4{font-size:14px;margin:12px 0 4px}.cp-prev p{margin:0 0 8px}.cp-prev ul,.cp-prev ol{margin:0 0 8px 1.2em}.cp-prev ul{list-style:disc}.cp-prev ol{list-style:decimal}' +
+    '.cp-prev table{border-collapse:collapse;margin:0 0 8px;font-size:13px}.cp-prev th,.cp-prev td{border:1px solid var(--border);padding:5px 9px}.cp-prev th{background:#f3f1ec}.cp-prev .mk-img img{max-width:100%;border-radius:8px;display:block}.cp-prev figcaption{font-size:11.5px;color:var(--sub)}' +
     '.cp-serp{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:Arial,"Hiragino Sans","Noto Sans JP",sans-serif;max-width:600px}' +
     '.cp-serp .u{font-size:12px;color:#4d5156;overflow-wrap:anywhere}' +
     '.cp-serp .h{font-size:18px;line-height:1.35;color:#1a0dab;margin:3px 0;overflow-wrap:anywhere}' +
@@ -352,6 +353,8 @@
       lab.appendChild(counter(el, d[2], d[3]));
       f.appendChild(lab);
       inputs[d[0]] = el;
+      // 書式ボタン。FAQ の答えと実績の説明は段落の書式（見出し・箇条書き・表・画像）まで使えます。
+      if (window.lumRichbar) window.lumRichbar.attach(el, { block: (list === 'faq' && d[0] === 'a') || (list === 'cases' && d[0] === 'desc') });
     });
     var row = document.createElement('div');
     row.className = 'cp-row';
@@ -572,7 +575,10 @@
     return '';
   }
   /* ビルド（scripts/build-content-pages.mjs の md）と同じ書き方の見本。 */
+  /* 記事の本文の見え方。サイトと同じ読み方（/markup.js）。見本の欄は大きさの都合で、
+     ## を h3・### を h4 で出します。 */
   function mdLite(src) {
+    if (window.lumMarkup) return window.lumMarkup.blockHtml(src, { h: 3, perLine: true });
     var inl = function (t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); };
     var html = '', inList = false;
     var close = function () { if (inList) { html += '</ul>'; inList = false; } };
@@ -666,11 +672,6 @@
       '<datalist id="cp-b-cats">' + categories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
       '<label class="nq-label" for="cp-b-desc" style="margin-top:8px">説明（検索結果や一覧に出る1〜2文）<textarea id="cp-b-desc" class="cp-in" rows="2" maxlength="160"></textarea></label><p class="cp-s" id="cp-b-dn"></p>' +
       '<p class="nq-label" style="margin-top:8px">本文</p>' +
-      '<div class="nq-row" style="margin-bottom:6px">' +
-        '<button type="button" class="nq-chip" data-ins="## ">見出し</button>' +
-        '<button type="button" class="nq-chip" data-ins="### ">小見出し</button>' +
-        '<button type="button" class="nq-chip" data-ins="- ">箇条書き</button>' +
-        '<button type="button" class="nq-chip" data-bold="1">太字</button></div>' +
       '<textarea id="cp-b-body" class="cp-in" rows="12" maxlength="20000"></textarea><p class="cp-s" id="cp-b-bn"></p>' +
       '<label class="copy-only" style="display:block;margin:10px 0"><input type="checkbox" id="cp-b-draft"> 下書きにする（保存はしますが、サイトには出しません）</label>' +
       '<p class="cp-s" id="cp-b-autosave" aria-live="polite"></p>' +
@@ -734,23 +735,8 @@
     }
     KEYS.forEach(function (k) { f[k].addEventListener('input', changed); });
     f.draft.addEventListener('change', changed);
-    Array.prototype.forEach.call(host.querySelectorAll('[data-ins]'), function (b) {
-      b.addEventListener('click', function () {
-        var ta = f.body, s0 = ta.selectionStart, v = ta.value;
-        var ls = v.lastIndexOf('\n', s0 - 1) + 1;
-        ta.value = v.slice(0, ls) + b.getAttribute('data-ins') + v.slice(ls);
-        ta.focus();
-        ta.setSelectionRange(s0 + b.getAttribute('data-ins').length, s0 + b.getAttribute('data-ins').length);
-        changed();
-      });
-    });
-    host.querySelector('[data-bold]').addEventListener('click', function () {
-      var ta = f.body, s0 = ta.selectionStart, s1 = ta.selectionEnd, v = ta.value;
-      if (s0 === s1) { say('cp-b-msg', '太字にしたい言葉を選んでから押してください。', true); return; }
-      ta.value = v.slice(0, s0) + '**' + v.slice(s0, s1) + '**' + v.slice(s1);
-      ta.focus();
-      changed();
-    });
+    // 本文の書式ボタン（段落・見出し・太字・斜体・リンク・箇条書き・番号・表・画像・元に戻す／やり直す）。
+    if (window.lumRichbar) window.lumRichbar.attach(f.body, { block: true, onChange: changed });
     upd();
     $('cp-b-cancel').addEventListener('click', function () {
       if (blogDirty && !confirm('保存していない変更があります。やめますか？\n（書きかけはこの端末に残してあります。もう一度開くと戻せます）')) return;

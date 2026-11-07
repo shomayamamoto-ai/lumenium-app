@@ -9,6 +9,7 @@
 //             already ends with the contact block).
 //
 import { SECTION } from '../src/data/text.js'
+import { inlineHtml } from '../src/lib/markup.js'
 
 // It works on the finished HTML, so the page generators keep writing their
 // content exactly as they do; only the frame around it changes.
@@ -27,7 +28,8 @@ const LOGO = '<span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw
 const stripTags = (s) => s.replace(/<[^>]+>/g, '').trim()
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 // Admin-editable copy markers: "**bold**" and "\n".
-const copy = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+// 文章編集の書式（太字・斜体・リンク・改行）。読み方は src/lib/markup.js。
+const copy = (s) => inlineHtml(s)
 
 /* The footer, the same as the top page's: brand and a short note on the
    left, three columns of links. The note reads the admin-editable copy
@@ -106,7 +108,7 @@ function siteFooter() {
       <a class="ft-logo" href="/" aria-label="Lumenium（ルメニウム）トップへ"><img src="/lumenium-logo.svg?v=3" alt="" width="40" height="40"><span class="ft-name">${LOGO}<small>${esc((SECTION.home && SECTION.home.yomi) || 'ルメニウム')}</small></span></a>
       ${f.tagline ? `<p class="ft-tag">${copy(f.tagline)}</p>` : ''}
       ${f.sub ? `<p class="ft-sub">${copy(f.sub)}</p>` : ''}
-      <dl class="ft-facts"><div><dt>ご相談</dt><dd><a href="/#contact">お問い合わせフォーム →</a></dd></div>${f.base ? `<div><dt>拠点</dt><dd>${esc(f.base)}</dd></div>` : ''}</dl>
+      <dl class="ft-facts"><div><dt>ご相談</dt><dd><a href="/#contact">お問い合わせフォーム →</a></dd></div>${f.base ? `<div><dt>拠点</dt><dd>${copy(f.base)}</dd></div>` : ''}</dl>
     </div>${cols}
   </div>
   <div class="site-in ft-bottom">

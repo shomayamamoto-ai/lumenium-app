@@ -12,6 +12,7 @@ import { ORG_NODE } from '../src/data/org.js'
 import { DATE, stamp, saveLastmod } from './_lastmod.mjs'
 // 文章編集で変えた「検索結果の見え方」（タイトル・説明文）を当てる。
 import { seoPage, saveSeoPages } from './_seo.mjs'
+import { inlineHtml as tx, plain } from '../src/lib/markup.js'
 try { applyOverrides(JSON.parse(readFileSync('public/content.json', 'utf8'))) } catch (_) {}
 
 const SITE = 'https://lumenium.net'
@@ -251,10 +252,10 @@ function page(s) {
         '@type': 'Service',
         '@id': `${SITE}/services/${s.id}.html#service`,
         name: s.name,
-        description: s.desc,
+        description: plain(s.desc),
         provider: { '@id': `${SITE}/#organization` },
         areaServed: { '@type': 'Country', name: 'Japan' },
-        offers: { '@type': 'Offer', description: s.price, priceCurrency: 'JPY' },
+        offers: { '@type': 'Offer', description: plain(s.price), priceCurrency: 'JPY' },
         url: `${SITE}/services/${s.id}.html`,
         dateModified: DATE,
       },
@@ -263,8 +264,8 @@ function page(s) {
         '@id': `${SITE}/services/${s.id}.html#faq`,
         mainEntity: (FAQ[s.id] || []).map(([q, a]) => ({
           '@type': 'Question',
-          name: q,
-          acceptedAnswer: { '@type': 'Answer', text: a },
+          name: plain(q),
+          acceptedAnswer: { '@type': 'Answer', text: plain(a) },
         })),
       },
       {
@@ -282,12 +283,12 @@ function page(s) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(s.title)}</title>
-<meta name="description" content="${esc(s.desc)}">
+<title>${esc(plain(s.title))}</title>
+<meta name="description" content="${esc(plain(s.desc))}">
 <link rel="canonical" href="${SITE}/services/${s.id}.html">
 <meta property="og:site_name" content="Lumenium（ルメニウム）">
-<meta property="og:title" content="${esc(s.title)}">
-<meta property="og:description" content="${esc(s.desc)}">
+<meta property="og:title" content="${esc(plain(s.title))}">
+<meta property="og:description" content="${esc(plain(s.desc))}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}/services/${s.id}.html">
 <meta property="og:image" content="${SITE}/api/og">
@@ -305,9 +306,9 @@ function page(s) {
 <div class="wrap">
   <header class="brandbar"><a class="brand" href="/" aria-label="Lumenium（ルメニウム）トップへ"><span class="wm"><span class="wm-t">Lumen</span><span class="wm-iw"><span class="wm-t wm-i">i</span></span><span class="wm-t">um</span></span><small>ルメニウム</small></a><a class="home" href="/">トップへ →</a></header>
   <p class="eyebrow">サービス</p>
-  <h1>${esc(s.name)}</h1>
-  <p class="lead">${esc(s.lead)}</p>
-  ${s.tags && s.tags.length ? `<div class="others" aria-label="対応内容">${s.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+  <h1>${tx(s.name)}</h1>
+  <p class="lead">${tx(s.lead)}</p>
+  ${s.tags && s.tags.length ? `<div class="others" aria-label="対応内容">${s.tags.map((t) => `<span>${tx(t)}</span>`).join('')}</div>` : ''}
 
   <!-- 事業者情報。ディレクトリの1件分と同じ形を、ページの先頭に置きます。
        回答エンジンが「この会社に頼める」と判断するために要るのは、提供元・
@@ -317,7 +318,7 @@ function page(s) {
   <dl class="facts">
     <div><dt>提供元</dt><dd>Lumenium（ルメニウム）</dd></div>
     <div><dt>所在地</dt><dd>東京都（打ち合わせはオンライン、全国対応）</dd></div>
-    <div><dt>料金</dt><dd>${esc(s.price)}</dd></div>
+    <div><dt>料金</dt><dd>${tx(s.price)}</dd></div>
     ${LEAD_TIME[s.id] ? `<div><dt>納期</dt><dd>${esc(LEAD_TIME[s.id])}</dd></div>` : ''}
     <div><dt>最低発注額</dt><dd>なし（1本・1点からお受けしています）</dd></div>
     <div><dt>お見積り</dt><dd>無料。お問い合わせから48時間以内にご返信します</dd></div>
@@ -326,21 +327,21 @@ function page(s) {
 
   <h2>こんな方におすすめ</h2>
   <ul>
-    ${s.highlights.map((h) => `<li>${esc(h)}</li>`).join('\n    ')}
+    ${s.highlights.map((h) => `<li>${tx(h)}</li>`).join('\n    ')}
   </ul>
 
   <h2>代表的な実績</h2>
   <ul>
-    ${s.examples.map((e) => `<li>${esc(e)}</li>`).join('\n    ')}
+    ${s.examples.map((e) => `<li>${tx(e)}</li>`).join('\n    ')}
   </ul>
 
   <h2>料金目安</h2>
-  <div class="price">${esc(s.price)}<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
+  <div class="price">${tx(s.price)}<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
 
   <details class="ref">
   <summary>よくある質問（${(FAQ[s.id] || []).length}件）</summary>
-  ${(FAQ[s.id] || []).map(([q, a]) => `<h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">${esc(q)}</h3>
-  <p style="font-size:13.5px;line-height:2;color:var(--sub)">${esc(a)}</p>`).join('\n  ')}
+  ${(FAQ[s.id] || []).map(([q, a]) => `<h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">${tx(q)}</h3>
+  <p style="font-size:13.5px;line-height:2;color:var(--sub)">${tx(a)}</p>`).join('\n  ')}
   </details>
 
   <div class="cta">
@@ -350,7 +351,7 @@ function page(s) {
 
   <h2>その他のサービス</h2>
   <div class="others">
-    ${others.map((o) => `<a href="/services/${o.id}.html">${esc(o.name)}</a>`).join('\n    ')}
+    ${others.map((o) => `<a href="/services/${o.id}.html">${esc(plain(o.name))}</a>`).join('\n    ')}
   </div>
 
 ${CONTACT_STRIP}
@@ -461,10 +462,10 @@ function hub() {
        組み立てるため、下にしか無い事実は引用されません。 -->
   <p class="lead">東京都を拠点に、打ち合わせはオンラインで全国対応。動画1本・LP1枚から最低発注額なしでお受けし、短い制作なら2週間前後、企業サイトは1〜2ヶ月が納期の目安です。お見積りは無料で、お問い合わせから48時間以内にご返信します。</p>
 
-${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inherit;text-decoration:none">${esc(s.name)}</a></h2>
-  <p>${esc(s.lead)}</p>
-  <p class="price">${esc(s.price)}</p>
-  <p><a href="/services/${s.id}.html" style="color:#a5b4fc">${esc(s.name)}の詳細を見る →</a></p>`).join('\n\n')}
+${SERVICES.map((s) => `  <h2><a href="/services/${s.id}.html" style="color:inherit;text-decoration:none">${esc(plain(s.name))}</a></h2>
+  <p>${tx(s.lead)}</p>
+  <p class="price">${tx(s.price)}</p>
+  <p><a href="/services/${s.id}.html" style="color:#a5b4fc">${esc(plain(s.name))}の詳細を見る →</a></p>`).join('\n\n')}
 
   <div class="cta">
     <a class="primary" href="/#/info/contact-form">無料で相談する</a>

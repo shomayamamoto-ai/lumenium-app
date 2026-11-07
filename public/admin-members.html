@@ -308,6 +308,12 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .msg { margin-top: 14px; font-size: 12.5px; line-height: 1.7; color: #b42318; display: none; }
   .msg.show { display: block; }
   .msg.info { color: var(--sub); }
+  /* 文章編集の見え方: 段落の書式（見出し・箇条書き・番号・表・画像） */
+  .mk-prev > * + * { margin-top: 6px; }
+  .mk-prev h3 { font-size: 1.1em; } .mk-prev h4 { font-size: 1.02em; }
+  .mk-prev ul, .mk-prev ol { padding-left: 1.4em; } .mk-prev ul { list-style: disc; } .mk-prev ol { list-style: decimal; }
+  .mk-prev table { border-collapse: collapse; font-size: 12.5px; } .mk-prev th, .mk-prev td { border: 1px solid var(--border); padding: 4px 8px; } .mk-prev th { background: #f3f1ec; }
+  .mk-prev img { max-width: 100%; max-height: 220px; border-radius: 8px; display: block; } .mk-prev figcaption { font-size: 11px; color: var(--sub); }
   /* アクセス解析: 5つの指標の図（左）と、その読み方（右）。狭い画面では縦に並べます。 */
   .rd { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 14px; margin: 4px 0 14px; }
   .rd-fig, .rd-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; }
@@ -1821,6 +1827,8 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-news.js"></script>
 <!-- 文章編集の保存の履歴・項目の追加と非表示・SEO・ブログ記事。 -->
 <script src="/text-diff.js"></script>
+<script src="/markup.js"></script>
+<script src="/admin-richbar.js"></script>
 <script src="/admin-copy.js"></script>
 <!-- AIアドバイザー（相談・実行ボタン・保存した相談・ToDo・料金の目安）。 -->
 <script src="/admin-advisor.js"></script>
@@ -3970,56 +3978,16 @@ window.lumAdmin = {
   /* サイトと同じ読み方にする。**は太字、改行は改行。
      ここで HTML を作るので、先に必ず escape します——文章の中の < が
      タグとして効くと、見え方の欄だけ壊れて原因が分かりません。 */
-  function asSite(text) {
+  /* サイトでの見え方。読み方はサイトと同じ /markup.js（太字・斜体・リンク・改行、
+     段落の欄では見出し・箇条書き・番号・表・画像も）。 */
+  function asSite(text, block) {
     var v = String(text == null ? '' : text);
     if (!v.trim()) return '<span style="color:var(--sub)">（空欄。元の文章が使われます）</span>';
-    return esc(v)
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br>');
+    var M = window.lumMarkup;
+    if (!M) return esc(v).replace(/\n/g, '<br>');
+    return block && M.hasBlock(v) ? '<div class="mk-prev">' + M.blockHtml(v) + '</div>' : M.inlineHtml(v);
   }
 
-  /* 太字の入り切り。
-     以前は、何も選んでいないときに「ここを太字に」という文字を本文へ
-     入れていました。押した人が書いていない言葉が本文に混ざるので、
-     消し忘れればそのままサイトに出ます。実際そうなりました。
-
-     いまは、選んでいなければカーソルのある行を対象にします。押した
-     結果が必ず「いま書いてある文字が太字になる」になり、文章は増えません。
-     すでに太字なら外します——同じボタンで戻せないと、外し方を覚える
-     必要が出てきます。 */
-  function toggleBold(ta) {
-    var s0 = ta.selectionStart, s1 = ta.selectionEnd, v = ta.value;
-    if (s0 === s1) {
-      var ls = v.lastIndexOf('\n', s0 - 1) + 1;
-      var le = v.indexOf('\n', s0);
-      if (le < 0) le = v.length;
-      s0 = ls; s1 = le;
-    }
-    // 前後の空白は太字に含めない（「 太字 」だと見た目がずれます）
-    while (s0 < s1 && /\s/.test(v[s0])) s0++;
-    while (s1 > s0 && /\s/.test(v[s1 - 1])) s1--;
-    if (s0 === s1) { ta.focus(); return; }
-
-    var sel = v.slice(s0, s1);
-    if (/^\*\*[\s\S]+\*\*$/.test(sel)) {           // 選んだ範囲ごと太字
-      var inner = sel.slice(2, -2);
-      ta.value = v.slice(0, s0) + inner + v.slice(s1);
-      ta.setSelectionRange(s0, s0 + inner.length);
-    } else if (v.slice(Math.max(0, s0 - 2), s0) === '**' && v.slice(s1, s1 + 2) === '**') {
-      ta.value = v.slice(0, s0 - 2) + sel + v.slice(s1 + 2);   // 外側が太字
-      ta.setSelectionRange(s0 - 2, s0 - 2 + sel.length);
-    } else {
-      /* 中にすでに太字があるときは、その印を外してから囲みます。
-         外さずに囲むと **企画から**ワンストップ**で。** のように入れ子に
-         なり、読む側（** を太字に変える処理）は最初の組で切るので、
-         真ん中だけ太字が外れた妙な見た目になります。全部を太字にすると
-         決めた以上、中の印はもう要りません。 */
-      var flat = sel.replace(/\*\*/g, '');
-      ta.value = v.slice(0, s0) + '**' + flat + '**' + v.slice(s1);
-      ta.setSelectionRange(s0 + 2, s0 + 2 + flat.length);
-    }
-    ta.focus();
-  }
   /* リンク・メール・電話の見え方。文章ではないので、読ませるのではなく
      「これで本当に開くか」を見せます。開けない形なら、その場で言います
      ——保存してから気づくと、リンク切れが1〜2分間そのまま出ます。 */
@@ -4037,13 +4005,6 @@ window.lumAdmin = {
     return shown + (bad
       ? '<div style="font-size:11.5px;color:#8a4b06;margin-top:6px;line-height:1.7">注意：' + esc(bad) + '</div>'
       : '');
-  }
-
-  function insertAt(ta, t) {
-    var s0 = ta.selectionStart, v = ta.value;
-    ta.value = v.slice(0, s0) + t + v.slice(ta.selectionEnd);
-    ta.focus();
-    ta.setSelectionRange(s0 + t.length, s0 + t.length);
   }
 
   /* 書き直しの案。置き換えるかどうかは人が決めます。
@@ -4177,11 +4138,10 @@ window.lumAdmin = {
       /* 書式ボタン。** を手で打てというのは、覚えている人にしか使えません。 */
       var tools = document.createElement('div');
       tools.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px';
+      // 書式のボタン（段落・見出し・太字・斜体・リンク・箇条書き・番号・表・画像・元に戻す／やり直す）は
+      // 欄のすぐ上に並べます（admin-richbar.js）。ここには AI の書き直しと点検だけを置きます。
+      var blockOk = !!(window.lumRichbar && window.lumRichbar.isBlock(f.path));
       tools.innerHTML = vkind !== 'prose' ? '' :
-        '<button type="button" class="ghost cp-bold" title="文字を選んでから押すとその部分が、選ばずに押すとその行が太字になります。もう一度押すと戻ります。"' +
-          ' style="font-size:11px;padding:4px 10px;font-weight:800">太字にする／戻す</button>' +
-        '<button type="button" class="ghost cp-br" style="font-size:11px;padding:4px 10px">改行</button>' +
-        '<span style="width:9px"></span>' +
         '<span style="font-size:10.5px;color:var(--sub)">AIに書き直してもらう:</span>' +
         Object.keys(WAYS).map(function (k) {
           return (k === 'proof' ? '<span style="width:9px"></span><span style="font-size:10.5px;color:var(--sub)">点検:</span>' : '') +
@@ -4216,7 +4176,7 @@ window.lumAdmin = {
       wrap.appendChild(demo);
 
       function paint() {
-        if (vkind === 'prose') { demoBody.innerHTML = asSite(ta.value); return; }
+        if (vkind === 'prose') { demoBody.innerHTML = asSite(ta.value, blockOk); return; }
         demoBody.innerHTML = linkPreview(vkind, ta.value);
       }
       paint();
@@ -4234,9 +4194,8 @@ window.lumAdmin = {
       ta.addEventListener('input', function () { mark(); paint(); });
       reset.addEventListener('click', function () { ta.value = f.value; mark(); paint(); ta.focus(); });
 
-      if (vkind === 'prose') {
-        tools.querySelector('.cp-bold').addEventListener('click', function () { toggleBold(ta); mark(); paint(); });
-        tools.querySelector('.cp-br').addEventListener('click', function () { insertAt(ta, '\n'); mark(); paint(); });
+      if (vkind === 'prose' && window.lumRichbar) {
+        window.lumRichbar.attach(ta, { block: blockOk, onChange: function () { mark(); paint(); } });
       }
 
       Array.prototype.forEach.call(tools.querySelectorAll('.cp-way'), function (b) {

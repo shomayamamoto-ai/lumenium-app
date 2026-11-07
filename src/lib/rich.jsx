@@ -1,9 +1,10 @@
 import { Fragment } from 'react'
+import { inlineTokens, isExternal, hasBlock, blocks } from './markup.js'
 
 // Editable copy is stored as plain strings so the admin page can present it
-// in a textarea. These two markers are all the markup that copy needs:
-//   \n       -> line break
-//   **bold** -> <strong>
+// in a textarea. The markers it may carry (bold, italic, links, line breaks,
+// and in prose fields headings, lists, tables and images) are read by
+// ./markup.js, the same reader the static pages and the admin preview use.
 // Anything else is rendered as text, so an editor cannot inject markup.
 //
 // Lines are also cut into clauses at 。、！？ and each clause is rendered as
@@ -48,20 +49,35 @@ function phrases(text, k) {
   return out
 }
 
-/** Split a parsed line into clauses, keeping bold runs intact across the cut. */
-function clauses(parts) {
+/* 太字・斜体・リンクの中身（入れ子もあり）を描きます。 */
+function inner(list, k) {
+  return list.map((tk, i) => {
+    const key = k + '.' + i
+    if (tk.t === 'text') return <Fragment key={key}>{phrases(tk.v, key)}</Fragment>
+    if (tk.t === 'br') return <br key={key} />
+    if (tk.t === 'b') return <strong key={key}>{inner(tk.c, key)}</strong>
+    if (tk.t === 'i') return <em key={key}>{inner(tk.c, key)}</em>
+    return isExternal(tk.href)
+      ? <a key={key} href={tk.href} target="_blank" rel="noopener">{inner(tk.c, key)}</a>
+      : <a key={key} href={tk.href}>{inner(tk.c, key)}</a>
+  })
+}
+const textOf = (list) => list.map((tk) => (tk.t === 'text' ? tk.v : tk.c ? textOf(tk.c) : '')).join('')
+
+/** Split a parsed line into clauses, keeping bold / italic / link runs intact across the cut. */
+function clauses(tokens) {
   const out = []
   let cur = []
-  parts.forEach((part, pi) => {
-    const bold = part.startsWith('**') && part.endsWith('**') && part.length > 4
-    const text = bold ? part.slice(2, -2) : part
-    if (!text) return
-    if (bold) {
-      // A bold run is never split: the emphasis is on the whole phrase.
-      cur.push(<strong key={pi}>{phrases(text, pi + 'b')}</strong>)
-      if (CLOSERS.includes(text[text.length - 1])) { out.push(cur); cur = [] }
+  tokens.forEach((tk, pi) => {
+    if (tk.t !== 'text') {
+      // A bold run (or a link) is never split: the emphasis is on the whole phrase.
+      cur.push(inner([tk], 'r' + pi)[0])
+      const t = textOf([tk])
+      if (CLOSERS.includes(t[t.length - 1])) { out.push(cur); cur = [] }
       return
     }
+    const text = tk.v
+    if (!text) return
     let from = 0
     for (let i = 0; i < text.length; i++) {
       if (!CLOSERS.includes(text[i])) continue
@@ -78,14 +94,64 @@ function clauses(parts) {
   return out
 }
 
+/** 文の中の書式（太字・斜体・リンク・改行）。行は句読点で区切って、変な所で折れないように。 */
 export function rich(text) {
   const src = String(text ?? '')
   return src.split('\n').map((line, li) => (
     <Fragment key={li}>
       {li > 0 && <br />}
-      {clauses(line.split(/(\*\*[^*]+\*\*)/g)).map((cl, ci) => (
+      {clauses(inlineTokens(line)).map((cl, ci) => (
         <span className="cl" key={ci}>{cl}</span>
       ))}
     </Fragment>
   ))
+}
+
+/** 短い文（見出し・ボタン・ラベル）用。太字・斜体・リンク・改行だけを読み、
+ *  印の無い文章は文字のまま返します（見た目も中身も、前と同じ）。 */
+export function ink(text) {
+  const src = String(text ?? '')
+  if (!/[*\n[]/.test(src)) return src
+  const list = inlineTokens(src)
+  if (list.length === 1 && list[0].t === 'text') return list[0].v
+  return list.map((tk, i) => {
+    const key = 'k' + i
+    if (tk.t === 'text') return <Fragment key={key}>{tk.v}</Fragment>
+    if (tk.t === 'br') return <br key={key} />
+    const c = ink(textOfRaw(tk))
+    if (tk.t === 'b') return <strong key={key}>{c}</strong>
+    if (tk.t === 'i') return <em key={key}>{c}</em>
+    return isExternal(tk.href) ? <a key={key} href={tk.href} target="_blank" rel="noopener">{c}</a> : <a key={key} href={tk.href}>{c}</a>
+  })
+}
+// 入れ子の中身を、印の付いた元の形に戻します（ink の中でもう一度読むため）。
+function textOfRaw(tk) {
+  return (tk.c || []).map((x) => (x.t === 'text' ? x.v : x.t === 'br' ? '\n' : x.t === 'b' ? '**' + textOfRaw(x) + '**' : x.t === 'i' ? '*' + textOfRaw(x) + '*' : '[' + textOfRaw(x) + '](' + x.href + ')')).join('')
+}
+
+/** 段落の書式（見出し・箇条書き・番号・表・画像）まで読む文章欄。
+ *  段落の書式が無ければ、これまでどおり as（既定は p）の中に rich() で出します。
+ *  あれば、同じ className の div の中に段落ごとの部品を並べます（p の中に表や
+ *  箇条書きは置けないため）。h: いちばん上の見出し（##）の番号。 */
+export function Rich({ text, as: Tag = 'p', className, h = 3, ...rest }) {
+  if (!hasBlock(text)) return <Tag className={className} {...rest}>{rich(text)}</Tag>
+  return (
+    <div className={(className ? className + ' ' : '') + 'mk-blocks'} {...rest}>
+      {blocks(text).map((b, i) => {
+        if (b.t === 'h') { const H = 'h' + Math.min(6, h + b.level - 2); return <H key={i}>{rich(b.text)}</H> }
+        if (b.t === 'ul') return <ul key={i}>{b.items.map((x, j) => <li key={j}>{rich(x)}</li>)}</ul>
+        if (b.t === 'ol') return <ol key={i}>{b.items.map((x, j) => <li key={j}>{rich(x)}</li>)}</ol>
+        if (b.t === 'img') return <figure key={i} className="mk-img"><img src={b.src} alt={b.alt} loading="lazy" decoding="async" />{b.alt ? <figcaption>{b.alt}</figcaption> : null}</figure>
+        if (b.t === 'table') {
+          return (
+            <div key={i} className="mk-table"><table>
+              {b.head ? <thead><tr>{b.head.map((c, j) => <th key={j}>{rich(c)}</th>)}</tr></thead> : null}
+              <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{rich(c)}</td>)}</tr>)}</tbody>
+            </table></div>
+          )
+        }
+        return <p key={i}>{rich(b.text)}</p>
+      })}
+    </div>
+  )
 }

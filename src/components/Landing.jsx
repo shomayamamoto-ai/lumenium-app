@@ -1,6 +1,7 @@
 import { Fragment, useRef, useState } from 'react'
 import { SECTION } from '../data/text'
-import { rich } from '../lib/rich'
+import { rich, ink, Rich } from '../lib/rich'
+import { plain } from '../lib/markup.js'
 import { SERVICES } from '../data/services'
 import { CASE_STUDIES, ACHIEVEMENTS, FLOW_STEPS, SYSTEMS } from '../data/site'
 import { landingFaq, consultFaq } from '../data/faq'
@@ -74,17 +75,17 @@ function HeroMovie() {
             お使いのブラウザは動画の再生に対応していません。
           </video>
         ) : (
-          <button type="button" className="lp-movie-cover" onClick={() => setOn(true)} data-cta="hero-movie" aria-label={SECTION.lp.moviePlay}>
+          <button type="button" className="lp-movie-cover" onClick={() => setOn(true)} data-cta="hero-movie" aria-label={plain(SECTION.lp.moviePlay)}>
             <img className="lp-movie-mark" src="/lumenium-logo.svg?v=3" alt="" width="44" height="44" />
             <span className="lp-movie-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg></span>
             <span className="lp-movie-text">
-              <span className="lp-movie-label">{SECTION.lp.movieLabel}</span>
-              <span className="lp-movie-title">{SECTION.lp.movieTitle}</span>
+              <span className="lp-movie-label">{ink(SECTION.lp.movieLabel)}</span>
+              <span className="lp-movie-title">{ink(SECTION.lp.movieTitle)}</span>
             </span>
           </button>
         )}
       </div>
-      <figcaption className="lp-movie-note">{SECTION.lp.movieNote}</figcaption>
+      <figcaption className="lp-movie-note">{ink(SECTION.lp.movieNote)}</figcaption>
     </figure>
   )
 }
@@ -160,13 +161,13 @@ export default function Landing({ onPrivacy }) {
             <p className="og-en og-en--hero" aria-hidden="true">Lumenium</p>
             <h1 className="og-h1 lp-h1">{heroTitle(SECTION.lp.title)}</h1>
             <div className="og-actions">
-              <a href="#contact" className="og-btn og-btn--red" data-cta="hero-consult">{SECTION.lp.ctaPrimary}<Arrow /></a>
-              <a href="#services" className="og-btn og-btn--line" data-cta="hero-services">{SECTION.lp.ctaSecondary}<Arrow /></a>
+              <a href="#contact" className="og-btn og-btn--red" data-cta="hero-consult">{ink(SECTION.lp.ctaPrimary)}<Arrow /></a>
+              <a href="#services" className="og-btn og-btn--line" data-cta="hero-services">{ink(SECTION.lp.ctaSecondary)}<Arrow /></a>
             </div>
             <ul className="og-assure">
-              <li>{SECTION.lp.assure1}</li>
-              <li>{SECTION.lp.assure2}</li>
-              <li>{SECTION.lp.assure3}</li>
+              <li>{ink(SECTION.lp.assure1)}</li>
+              <li>{ink(SECTION.lp.assure2)}</li>
+              <li>{ink(SECTION.lp.assure3)}</li>
             </ul>
           </div>
           <HeroMovie />
@@ -180,15 +181,15 @@ export default function Landing({ onPrivacy }) {
         <svg className="og-deco og-deco--r" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" strokeWidth="1" /><circle cx="100" cy="100" r="54" fill="none" stroke="currentColor" strokeWidth="1" /><path d="M100 14v172M14 100h172" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
         <div className="og-wrap og-narrow">
           <Title en="About" id="og-about-h">Lumeniumについて</Title>
-          <p className="og-about-text">{rich(SECTION.lp.lead)}</p>
-          <p className="og-about-facts">{rich(SECTION.lp.aboutFacts)}</p>
+          <Rich className="og-about-text" text={SECTION.lp.lead} />
+          <Rich className="og-about-facts" text={SECTION.lp.aboutFacts} />
         </div>
       </section>
 
       {/* 3. Service：写真と白いカードを左右交互に */}
       <section className="og-sec og-service" id="services" aria-labelledby="lp-services-h">
         <div className="og-wrap">
-          <Title en="Service" id="lp-services-h" lead={rich(SECTION.lp.servicesLead)}>{SECTION.lp.servicesTitle}</Title>
+          <Title en="Service" id="lp-services-h" lead={rich(SECTION.lp.servicesLead)}>{ink(SECTION.lp.servicesTitle)}</Title>
         </div>
         {main.map((s, i) => {
           const pic = pics[s.id] || pics.web
@@ -200,17 +201,17 @@ export default function Landing({ onPrivacy }) {
               <div className="og-feature-card">
                 <p className="og-en og-en--card" aria-hidden="true">{pic.en}</p>
                 <h3 className="og-feature-name">
-                  <span className="og-ic" aria-hidden="true"><LineIcon name={s.id} size={20} /></span>{s.title}
+                  <span className="og-ic" aria-hidden="true"><LineIcon name={s.id} size={20} /></span>{ink(s.title)}
                 </h3>
-                <p className="og-feature-desc">{rich(s.desc)}</p>
+                <Rich className="og-feature-desc" text={s.desc} />
                 <div className="og-feature-cols">
                   <div>
-                    <p className="og-label">{SECTION.lp.servicesFor}</p>
-                    <ul>{s.highlights.map((h) => <li key={h}>{h}</li>)}</ul>
+                    <p className="og-label">{ink(SECTION.lp.servicesFor)}</p>
+                    <ul>{s.highlights.map((h) => <li key={h}>{ink(h)}</li>)}</ul>
                   </div>
                   <div>
-                    <p className="og-label">{SECTION.lp.servicesDone}</p>
-                    <ul>{s.examples.map((e) => <li key={e}>{e}</li>)}</ul>
+                    <p className="og-label">{ink(SECTION.lp.servicesDone)}</p>
+                    <ul>{s.examples.map((e) => <li key={e}>{ink(e)}</li>)}</ul>
                   </div>
                 </div>
                 <p className="og-price">
@@ -222,28 +223,28 @@ export default function Landing({ onPrivacy }) {
           )
         })}
         <nav className="og-wrap og-next" aria-label="次に見る">
-          <span className="og-next-h">{SECTION.lp.nextTitle}</span>
-          <a href="/works.html">{SECTION.lp.nextWorks}<Arrow /></a>
-          <a href="/pricing.html">{SECTION.lp.nextPricing}<Arrow /></a>
-          <a href="#contact">{SECTION.lp.nextBook}<Arrow /></a>
+          <span className="og-next-h">{ink(SECTION.lp.nextTitle)}</span>
+          <a href="/works.html">{ink(SECTION.lp.nextWorks)}<Arrow /></a>
+          <a href="/pricing.html">{ink(SECTION.lp.nextPricing)}<Arrow /></a>
+          <a href="#contact">{ink(SECTION.lp.nextBook)}<Arrow /></a>
         </nav>
       </section>
 
       {/* 4. ほかのサービス：淡い背景の上に白いカード */}
       <section className="og-sec og-soft og-soft--a" aria-labelledby="og-other-h">
         <div className="og-wrap">
-          <Title en="Other" id="og-other-h">{SECTION.lp.servicesOther}</Title>
+          <Title en="Other" id="og-other-h">{ink(SECTION.lp.servicesOther)}</Title>
           <ul className="og-cards og-cards--4">
             {other.map((s) => (
               <li key={s.id} className="og-card">
                 <span className="og-card-ic" aria-hidden="true"><LineIcon name={s.id} size={26} /></span>
-                <p className="og-card-t">{s.title}</p>
-                <p className="og-card-d">{rich(s.desc)}</p>
+                <p className="og-card-t">{ink(s.title)}</p>
+                <Rich className="og-card-d" text={s.desc} />
                 {s.partner && (
                   <p className="og-card-partner">制作パートナー：<a href={s.partnerUrl} target="_blank" rel="noopener noreferrer">{s.partner}</a></p>
                 )}
                 <p className="og-card-price">{priceHead(s.price)}</p>
-                <a href={`/services/${s.id}.html`} className="og-more" aria-label={`${s.title}を詳しく見る`}>{SECTION.lp.servicesMore}<Arrow /></a>
+                <a href={`/services/${s.id}.html`} className="og-more" aria-label={`${plain(s.title)}を詳しく見る`}>{ink(SECTION.lp.servicesMore)}<Arrow /></a>
               </li>
             ))}
           </ul>
@@ -253,10 +254,10 @@ export default function Landing({ onPrivacy }) {
       {/* 5. Works：作ってきたシステムを横に流す */}
       <section className="og-sec og-works" id="systems" aria-labelledby="lp-systems-h">
         <div className="og-wrap">
-          <Title en="Works" id="lp-systems-h" lead={rich(SECTION.lp.systemsLead)}>{SECTION.lp.systemsTitle}</Title>
+          <Title en="Works" id="lp-systems-h" lead={rich(SECTION.lp.systemsLead)}>{ink(SECTION.lp.systemsTitle)}</Title>
         </div>
         <div className="og-wrap og-wrap--wide">
-          <Carousel label={SECTION.lp.systemsTitle}>
+          <Carousel label={plain(SECTION.lp.systemsTitle)}>
             {SYSTEMS.map((sys, i) => (
               <article key={sys.id} className="og-sys-card" role="listitem">
                 <div className={`og-sys-art og-tone-${i % 4}`} aria-hidden="true">
@@ -264,13 +265,13 @@ export default function Landing({ onPrivacy }) {
                   <span>{String(i + 1).padStart(2, '0')}</span>
                 </div>
                 <div className="og-sys-body">
-                  <p className="og-sys-tag">{sys.tag}</p>
+                  <p className="og-sys-tag">{ink(sys.tag)}</p>
                   <h3 className="og-sys-name">{rich(sys.name)}</h3>
-                  <p className="og-sys-who"><span>{SECTION.lp.systemsWho}</span>{sys.who}</p>
+                  <p className="og-sys-who"><span>{ink(SECTION.lp.systemsWho)}</span>{ink(sys.who)}</p>
                   <p className="og-sys-desc">{rich(sys.short)}</p>
                   <div className="og-sys-acts">
-                    <a href={`/systems.html#${sys.id}`} className="og-more">{SECTION.lp.systemsMore}<Arrow /></a>
-                    <a href="#contact" className="og-btn og-btn--red og-btn--sm" data-cta={`system-${sys.id}`} onClick={() => askAbout(sys.id)}>{SECTION.lp.systemsAsk}</a>
+                    <a href={`/systems.html#${sys.id}`} className="og-more">{ink(SECTION.lp.systemsMore)}<Arrow /></a>
+                    <a href="#contact" className="og-btn og-btn--red og-btn--sm" data-cta={`system-${sys.id}`} onClick={() => askAbout(sys.id)}>{ink(SECTION.lp.systemsAsk)}</a>
                   </div>
                 </div>
               </article>
@@ -278,7 +279,7 @@ export default function Landing({ onPrivacy }) {
           </Carousel>
         </div>
         <div className="og-wrap og-center">
-          <p className="og-note">{SECTION.lp.systemsNote}</p>
+          <p className="og-note">{ink(SECTION.lp.systemsNote)}</p>
           <a href="/systems.html" className="og-btn og-btn--red">{SECTION.lp.systemsAll.replace('{n}', String(SYSTEMS.length))}<Arrow /></a>
         </div>
       </section>
@@ -291,10 +292,10 @@ export default function Landing({ onPrivacy }) {
             <div className="og-panel-top">
               <Shot src="/img/home/admin-portal.jpg" alt="管理画面のホーム（画面例）" note={SHOT_NOTE} className="og-panel-shot" />
               <div className="og-panel-copy">
-                <p className="og-panel-lead">{rich(SECTION.lp.adminLead)}</p>
-                <p className="og-panel-note">{rich(SECTION.lp.adminNote)}</p>
-                <p className="og-panel-pitch">{rich(SECTION.lp.adminPitch)}</p>
-                <a href="#contact" className="og-btn og-btn--red" data-cta="admin-consult">{SECTION.lp.adminCta}<Arrow /></a>
+                <Rich className="og-panel-lead" text={SECTION.lp.adminLead} />
+                <Rich className="og-panel-note" text={SECTION.lp.adminNote} />
+                <Rich className="og-panel-pitch" text={SECTION.lp.adminPitch} />
+                <a href="#contact" className="og-btn og-btn--red" data-cta="admin-consult">{ink(SECTION.lp.adminCta)}<Arrow /></a>
               </div>
             </div>
             <ul className="og-feats">
@@ -309,8 +310,8 @@ export default function Landing({ onPrivacy }) {
                 <li key={t}>
                   <span className="og-ic" aria-hidden="true"><LineIcon name={icon} size={20} /></span>
                   <div>
-                    <p className="og-feat-t">{t}</p>
-                    <p className="og-feat-d">{d}</p>
+                    <p className="og-feat-t">{ink(t)}</p>
+                    <Rich className="og-feat-d" text={d} />
                   </div>
                 </li>
               ))}
@@ -332,13 +333,13 @@ export default function Landing({ onPrivacy }) {
       {/* 7. これまでの仕事 */}
       <section className="og-sec og-achieve" id="works" aria-labelledby="lp-works-h">
         <div className="og-wrap">
-          <Title en="Achievement" id="lp-works-h">{SECTION.lp.worksTitle}</Title>
+          <Title en="Achievement" id="lp-works-h">{ink(SECTION.lp.worksTitle)}</Title>
           <div className="og-cards og-cards--3">
             {CASE_STUDIES.map((c) => (
               <article key={c.title} className="og-card og-card--case">
-                <p className="og-card-tag">{c.tag}</p>
-                <h3 className="og-card-t">{c.title}</h3>
-                <p className="og-card-d">{rich(c.desc)}</p>
+                <p className="og-card-tag">{ink(c.tag)}</p>
+                <h3 className="og-card-t">{ink(c.title)}</h3>
+                <Rich className="og-card-d" text={c.desc} />
                 {c.metric ? (
                   <p className="og-card-metric"><span>{Number(c.metric).toLocaleString('ja-JP')}</span> {c.metricLabel}</p>
                 ) : null}
@@ -346,25 +347,25 @@ export default function Landing({ onPrivacy }) {
             ))}
           </div>
           <div className="og-box">
-            <h3 className="og-box-h">{SECTION.lp.worksOther}</h3>
+            <h3 className="og-box-h">{ink(SECTION.lp.worksOther)}</h3>
             <ul className="og-achieve-list">
-              {ACHIEVEMENTS.slice(0, 5).map((a) => <li key={a}>{a}</li>)}
+              {ACHIEVEMENTS.slice(0, 5).map((a) => <li key={a}>{ink(a)}</li>)}
             </ul>
           </div>
-          <div className="og-center"><a href="/works.html" className="og-btn og-btn--line">{SECTION.lp.worksMore}<Arrow /></a></div>
+          <div className="og-center"><a href="/works.html" className="og-btn og-btn--line">{ink(SECTION.lp.worksMore)}<Arrow /></a></div>
         </div>
       </section>
 
       {/* 8. ご依頼の流れ */}
       <section className="og-sec og-soft og-soft--c" id="flow" aria-labelledby="og-flow-h">
         <div className="og-wrap">
-          <Title en="Flow" id="og-flow-h">{SECTION.lp.flowTitle}</Title>
+          <Title en="Flow" id="og-flow-h">{ink(SECTION.lp.flowTitle)}</Title>
           <ol className="og-flow">
             {FLOW_STEPS.map((s, i) => (
               <li key={s.title}>
                 <span className="og-flow-no">{String(i + 1).padStart(2, '0')}</span>
-                <p className="og-flow-t">{s.title}</p>
-                <p className="og-flow-d">{s.desc}</p>
+                <p className="og-flow-t">{ink(s.title)}</p>
+                <Rich className="og-flow-d" text={s.desc} />
               </li>
             ))}
           </ol>
@@ -375,27 +376,27 @@ export default function Landing({ onPrivacy }) {
       <section className="og-sec og-qa" aria-label="よくある質問とご相談の多い内容">
         <div className="og-wrap og-narrow">
           <div id="faq">
-            <Title en={"Q&A"} id="og-faq-h">{SECTION.lp.faqTitle}</Title>
+            <Title en={"Q&A"} id="og-faq-h">{ink(SECTION.lp.faqTitle)}</Title>
             <div className="og-list">
               {faqs.map((f) => (
                 <details key={f.q}>
-                  <summary>{f.q}</summary>
-                  <p>{f.a}</p>
+                  <summary>{ink(f.q)}</summary>
+                  <Rich text={f.a} />
                 </details>
               ))}
             </div>
-            <div className="og-center"><a href="/faq.html" className="og-btn og-btn--line">{SECTION.lp.faqMore}<Arrow /></a></div>
+            <div className="og-center"><a href="/faq.html" className="og-btn og-btn--line">{ink(SECTION.lp.faqMore)}<Arrow /></a></div>
           </div>
           {/* 依頼先を探している人が、AIや検索にそのまま打つ質問と、その答え。
               トップは検索エンジンが最初に読むページなので、答えをここに置きます
               （閉じていても、文章はページの中にあります）。 */}
           <div id="consult" className="og-consult">
-            <Title en="Consultation" id="og-consult-h" lead={SECTION.lp.consultLead}>{SECTION.lp.consultTitle}</Title>
+            <Title en="Consultation" id="og-consult-h" lead={rich(SECTION.lp.consultLead)}>{ink(SECTION.lp.consultTitle)}</Title>
             <div className="og-list og-list--2">
               {consultFaq().map((f) => (
                 <details key={f.q}>
-                  <summary>{f.q}</summary>
-                  <p>{f.a}</p>
+                  <summary>{ink(f.q)}</summary>
+                  <Rich text={f.a} />
                 </details>
               ))}
             </div>
@@ -409,10 +410,10 @@ export default function Landing({ onPrivacy }) {
           <div className="og-banner">
             <div className="og-banner-copy">
               <p className="og-en og-en--banner" aria-hidden="true">Contact</p>
-              <p className="og-banner-t">{SECTION.lp.assure1}・{SECTION.lp.assure2}</p>
+              <p className="og-banner-t">{ink(SECTION.lp.assure1)}・{ink(SECTION.lp.assure2)}</p>
               <div className="og-actions">
-                <a href="#contact-form" className="og-btn og-btn--red" data-cta="banner-form">{SECTION.lp.ctaPrimary}<Arrow /></a>
-                <a href="/pricing.html" className="og-btn og-btn--white">{SECTION.lp.nextPricing}<Arrow /></a>
+                <a href="#contact-form" className="og-btn og-btn--red" data-cta="banner-form">{ink(SECTION.lp.ctaPrimary)}<Arrow /></a>
+                <a href="/pricing.html" className="og-btn og-btn--white">{ink(SECTION.lp.nextPricing)}<Arrow /></a>
               </div>
             </div>
             <img className="og-banner-mark" src="/lumenium-logo.svg?v=3" alt="" width="200" height="200" loading="lazy" decoding="async" />
