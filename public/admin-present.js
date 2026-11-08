@@ -4,7 +4,7 @@
    比率の 1920×1358 の枠で、画面の幅に合わせて縮めて表示します。できること:
    ・前後に送る（← → キー・スペース）、一覧から選ぶ
    ・全画面で発表（F キー）。話す内容のメモ（ノート）は、全画面にしない画面の下に出ます
-   ・印刷・PDF（1枚ずつ A4横 297×210mm のページに）
+   ・印刷・PDF（1枚ずつ A4横のページに。どのブラウザでも1枚が1ページに収まる大きさで中央に）
    ・デザインの切り替え：サイトと同じデザインに作り直した版（/proposal-deck-site.js）と、元の資料
      （/proposal-deck.js）。「元のデザインに戻す」で、元の資料がそのまま出ます（選んだ方を覚えます）。
      中身（文章・並び・ノート）はどちらも同じです。 */
@@ -13,6 +13,8 @@
   var el = function (id) { return document.getElementById(id); };
   /* A4横（297×210mm）と同じ比率。1920 × 210 / 297 = 1357.6 → 1358 */
   var W = 1920, H = 1358;
+  /* 印刷するときの1枚の大きさ（mm）。A4横と同じ比率で、余白のあるブラウザでも1ページに収まる大きさ。 */
+  var PRINT_W = 252, PRINT_H = Math.floor(252 * H / W * 10) / 10;
   var S = { started: false, i: 0, notes: true, deck: null, style: 'site' };
   /* デザインの種類。site: サイトと同じデザイン（既定） / classic: 元の資料 */
   var STYLES = {
@@ -55,11 +57,16 @@
       '.pd-show{position:fixed;inset:0;background:#0b0d16;z-index:4000;display:flex;align-items:center;justify-content:center;cursor:none}' +
       '.pd-show .pd-frame{border-radius:0;box-shadow:none;width:auto;height:auto;aspect-ratio:auto}' +
       '.pd-show-hint{position:fixed;right:16px;bottom:12px;color:rgba(255,255,255,.55);font-size:12px;z-index:4001;font-family:system-ui,sans-serif;pointer-events:none}' +
-      /* 印刷・PDF（1枚ずつ A4横。1920px の枠を 297mm の幅に縮めます） */
+      /* 印刷・PDF（1枚ずつ A4横）。
+         前は1枚を用紙いっぱい（297×210mm・余白なし）にしていました。用紙の指定を守らず自分の
+         余白を足すブラウザ（Safari・ヘッダとフッタを印刷する設定など）では、1枚が印刷できる高さより
+         大きくなり、はみ出した下の帯が次のページに送られて、1枚おきに白いページが出ていました。
+         いまは 252×178mm（A4横に余白を残す大きさ・同じ比率）にして中央に置きます。A4・レター、
+         余白なし・余白あり（約13mmまで）のどれでも、1枚が1ページに収まります。 */
       '#pd-print{display:none}' +
       '@media print{body.pd-printing>*:not(#pd-print){display:none!important}body.pd-printing #pd-print{display:block}' +
-      'body.pd-printing{background:#fff!important;margin:0}#pd-print .pd-page{position:relative;width:297mm;height:210mm;overflow:hidden;break-after:page;page-break-after:always}' +
-      '#pd-print .pd-page:last-child{break-after:auto;page-break-after:auto}#pd-print .pd-slide{transform:scale(' + (297 / 25.4 * 96 / W).toFixed(6) + ')}' +
+      'body.pd-printing{background:#fff!important;margin:0}#pd-print .pd-page{position:relative;width:' + PRINT_W + 'mm;height:' + PRINT_H + 'mm;margin:0 auto;overflow:hidden;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}' +
+      '#pd-print .pd-page:last-child{break-after:auto;page-break-after:auto}#pd-print .pd-slide{transform:scale(' + (PRINT_W / 25.4 * 96 / W).toFixed(6) + ')}' +
       '#pd-print *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
     document.head.appendChild(s);
   }
@@ -243,7 +250,8 @@
     wrap.innerHTML = S.deck.slides.map(function (x) { return '<div class="pd-page">' + slideHtml(x) + '</div>'; }).join('');
     var page = document.createElement('style');
     page.id = 'pd-page';
-    page.textContent = '@page{size:297mm 210mm;margin:0}';
+    // 用紙は A4横。余白は、上の大きさを中央に置く分（Chrome など、この指定を守るブラウザ向け）。
+    page.textContent = '@page{size:A4 landscape;margin:' + ((210 - PRINT_H) / 2).toFixed(1) + 'mm ' + ((297 - PRINT_W) / 2).toFixed(1) + 'mm}';
     document.body.appendChild(wrap);
     document.head.appendChild(page);
     document.body.classList.add('pd-printing');
