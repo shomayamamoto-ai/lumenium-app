@@ -468,6 +468,8 @@
         '<section class="dk-card dk-quote"><blockquote>“ サイトは、どこかの誰かの<br>今日を、少しだけ変えていく。 ”</blockquote><p>' + esc(brand || 'あなたのサイト') + '</p></section>' +
       '</div>' +
       kpiHtml(kpis()) +
+      // 成長の記録（伸びている・落ちている TOP3／週ごとの推移／今週の成長）。admin-growth.js
+      (window.lumGrowth ? window.lumGrowth.html(D) : '') +
       '<div id="opsmap-slot"></div>' +
       '<div class="dk-grid2">' +
         '<section class="dk-card"><div class="dk-card-h"><h2>訪問の推移</h2><div class="dk-seg" role="tablist" aria-label="まとめ方">' +
@@ -525,6 +527,7 @@
     if (all) all.addEventListener('click', function (e) { e.preventDefault(); var t = el('lp-today'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     var chart = host.querySelector('.dk-grid2 .dk-chart');
     if (chart && line) bindLine(chart, line);
+    if (window.lumGrowth) window.lumGrowth.bind(host, paint);
     if (!D.revealed) { reveal(host); D.revealed = true; }   // ふわっと出すのは最初の1回だけ
   }
 
