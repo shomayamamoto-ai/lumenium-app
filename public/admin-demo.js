@@ -1558,7 +1558,8 @@
     short: ['短く', 'ホームページ制作から公開後の運用まで、1社でまとめてお受けします。'],
     plain: ['やさしく', 'ホームページを作るところから、作ったあとの手入れまで、まとめてお手伝いします。'],
     concrete: ['具体的に', 'ホームページ制作（30万円〜・約6週間）から公開後の更新まで、1社でお受けします。'],
-    polish: ['整える', 'ホームページの制作から公開後の運用まで、一貫してお任せいただけます。']
+    polish: ['整える', 'ホームページの制作から公開後の運用まで、一貫してお任せいただけます。'],
+    human: ['人間らしく', '作って終わり、にはしたくない。公開した次の週に、どこを直すか一緒に迷うところまでが、私たちの仕事だと思っています。']
   };
   /* 誤字・表記ゆれ（shape: api/rewrite.js way:'proof'）。AIは呼ばず、よくある
      直しを決まった規則で当てます。直すところが無ければ、元の文のまま返します。 */
@@ -1582,6 +1583,18 @@
     if (body && body.way === 'proof') return proof(body);
     var w = WAYS[body && body.way] ? body.way : 'polish';
     return { ok: true, text: WAYS[w][1] + '（デモ用の書き直し例）', way: w, label: WAYS[w][0] };
+  }
+
+  /* ---- 人間らしい文章 (shape: api/human-write.js) ----
+     AIは呼ばず、決まった見本を返します。点検は画面の側（/rhythm.js）で本物が動きます。 */
+  var HW = {
+    write: '火曜の午後三時、店の電話が二回鳴って、切れた。\n\nかけ直すべきか、少し迷った。予約の時間帯でもないし、間違い電話かもしれない。結局、かけなかった。\n\nあとで分かったのは、予約のページが携帯で開いていなかったことだ。開こうとして、開けなくて、電話をかけて、それでもつながらなかった人がいた。そう考えると、二回の呼び出し音の長さが急に気になってくる。\n\n直すこと自体は簡単だった。三十分で終わった。\n\nでも、どこまで確かめれば「開ける」と言えるのか。自分の携帯で開いた、では足りない気がしている。',
+    rewrite: '作って終わり、にはしたくない。\n\n公開した次の週、最初に開くのはアクセスの数ではなく、問い合わせのフォームまでたどり着いた人の数を並べた表で、そこが少ないときの原因は、たいてい一つではない。\n\nどこから直すか。毎回すこし迷う。\n\n迷ったまま、お客様と一緒に画面を見た日のほうが、あとでよく効いた。それが私たちの仕事だと思う。',
+    fix: '作って終わり、にはしたくない。\n\n公開した次の週、最初に開くのはアクセスの数ではない。問い合わせのフォームまでたどり着いた人の数を並べた表のほうだ。地味な表だ。\n\nそこが少ないときの原因は、たいてい一つではなく、どこから直すかは毎回すこし迷う。\n\n迷ったまま、お客様と一緒に画面を見た日のほうが、あとでよく効いた。\n\nそれで本当に足りているのかは、まだ分からない。'
+  };
+  function humanWrite(body) {
+    var m = body && HW[body.mode] ? body.mode : 'write';
+    return { ok: true, mode: m, text: HW[m], note: 'デモ表示：AIは呼んでいません（決まった見本です）。実際は、渡した材料や文章からAIが書きます。点検は本物が動いています。' };
   }
 
   /* ---- advisor: the AIアドバイザー block at the end of this file. ---- */
@@ -1808,6 +1821,7 @@
       if (p === '/api/aio') return reply(aioPost(body));
       if (p === '/api/listing-check') return reply(listingCheck(body));
       if (p === '/api/rewrite') return reply(rewrite(body));
+      if (p === '/api/human-write') return reply(humanWrite(body));
       // The SNS panel redraws its history from the reply; without `recent`
       // a refused post would blank the sample log.
       if (p === '/api/social') return reply(socialPost(body));

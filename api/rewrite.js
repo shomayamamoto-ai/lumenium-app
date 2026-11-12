@@ -13,6 +13,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { BRAND } from './_brand.js'
+import { rulesText } from '../src/lib/rhythm.js'
 
 const MODEL = 'claude-sonnet-5'
 const MAX_IN = 1200
@@ -39,6 +40,17 @@ export const WAYS = {
     label: '整える',
     note: '意味はそのままに、読みやすく直します。',
     rule: '意味と長さはできるだけ変えず、読点の位置、語順、重複した言い回しだけを直してください。新しい情報を足さないこと。',
+  },
+  /* 人間らしく。書き方の決まりは「人間らしい文章」の画面と同じ（src/lib/rhythm.js）。 */
+  human: {
+    label: '人間らしく',
+    note: '解説の声ではなく、その場で考えている人の声に直します。',
+    rule: [
+      '解説する人の声ではなく、その場で考えている当事者の声に書き直してください。次の決まりに沿うこと。',
+      rulesText(),
+      '書いてある事実・数字・固有名詞は変えず、足さないこと。長さは元の±3割まで。',
+      '見出しや短いラベルのような一言なら、言い回しだけを変え、文を増やさないこと。',
+    ].join('\n'),
   },
   /* 誤字・表記ゆれ。ほかの4つと違い、言い回しは変えません。直したところを
      一つずつ返すので、案を採る前に「何が直ったか」を読めます。このサイトで

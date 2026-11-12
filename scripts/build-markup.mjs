@@ -5,22 +5,30 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-const SRC = new URL('../src/lib/markup.js', import.meta.url)
-const OUT = new URL('../public/markup.js', import.meta.url)
+// 同じやり方で写すファイル。rhythm.js は「人間らしい文章」の書き方の決まりと点検
+// （api/human-write.js と管理画面の両方が読みます）。
+export const FILES = {
+  markup: { name: 'markup.js', global: 'lumMarkup' },
+  rhythm: { name: 'rhythm.js', global: 'lumRhythm' },
+}
 
-export function build() {
-  const src = readFileSync(SRC, 'utf8')
-  if (/^\s*import\s/m.test(src)) throw new Error('markup.js は import を持てません（画面でも読むため）')
+export function build(which = 'markup') {
+  const f = FILES[which]
+  const src = readFileSync(new URL(`../src/lib/${f.name}`, import.meta.url), 'utf8')
+  if (/^\s*import\s/m.test(src)) throw new Error(`${f.name} は import を持てません（画面でも読むため）`)
   const names = []
   const body = src.replace(/^export\s+(function|const)\s+([A-Za-z0-9_$]+)/gm, (_, kind, name) => { names.push(name); return `${kind} ${name}` })
-  return '/* 自動生成: scripts/build-markup.mjs が src/lib/markup.js から作ります。直接は直さないでください。 */\n' +
-    '(function () {\n' + body + '\nwindow.lumMarkup = { ' + names.join(', ') + ' };\n})();\n'
+  return `/* 自動生成: scripts/build-markup.mjs が src/lib/${f.name} から作ります。直接は直さないでください。 */\n` +
+    '(function () {\n' + body + `\nwindow.${f.global} = { ` + names.join(', ') + ' };\n})();\n'
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const text = build()
-  let old = ''
-  try { old = readFileSync(OUT, 'utf8') } catch (_) {}
-  if (old !== text) writeFileSync(OUT, text)
-  console.log('  public/markup.js を作りました')
+  for (const which of Object.keys(FILES)) {
+    const out = new URL(`../public/${FILES[which].name}`, import.meta.url)
+    const text = build(which)
+    let old = ''
+    try { old = readFileSync(out, 'utf8') } catch (_) {}
+    if (old !== text) writeFileSync(out, text)
+    console.log(`  public/${FILES[which].name} を作りました`)
+  }
 }

@@ -7,11 +7,11 @@
 // 1回だけ送り直します。
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }
 
-export async function createWithFallback(client, params) {
+export async function createWithFallback(client, params, opts) {
   try {
-    return await client.beta.messages.create({ ...params, ...FALLBACK })
+    return await client.beta.messages.create({ ...params, ...FALLBACK }, opts)
   } catch (e) {
-    if (e && e.status === 400) return client.messages.create(params)
+    if (e && e.status === 400) return client.messages.create(params, opts)
     throw e
   }
 }

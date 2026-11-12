@@ -241,6 +241,9 @@ const CALLS = [
   // 文章編集の「AIに書き直してもらう」。押すのが手軽なぶん、壊れていると
   // 編集の手が止まります。
   ['rewrite', 'POST', '', JSONH, { text: 'とても豊富な実績があります。', way: 'short', where: 'hero · リード文' }],
+  // 人間らしい文章（書く・書き直す・指摘を直す）。
+  ['human-write', 'POST', '', JSONH, { mode: 'write', material: '火曜の午後、予約ページが携帯で開かないと電話があった。', purpose: 'blog', length: 'short' }],
+  ['human-write', 'POST', '', JSONH, { mode: 'fix', text: '本記事では重要なポイントを解説します。とても大切です。', purpose: 'blog' }],
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
   ['verify', 'GET', '', {}],
