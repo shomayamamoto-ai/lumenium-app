@@ -1597,6 +1597,36 @@
     return { ok: true, mode: m, text: HW[m], note: 'デモ表示：AIは呼んでいません（決まった見本です）。実際は、渡した材料や文章からAIが書きます。点検は本物が動いています。' };
   }
 
+  /* ---- CM制作キット (shape: api/cm-plan.js) ---- 決まった見本を返します（AIは呼びません）。 */
+  function cmPlan(body) {
+    if (body && body.action === 'check') {
+      return { verdict: 'fix', overall: 'デモ表示：AIは呼んでいません（決まった見本です）。実際は、切り出した各カットの1コマを Claude が見て点検します。',
+        shots: (body.frames || []).map(function (f, i) { return { no: f.no, ok: i !== 1, comment: i === 1 ? '字幕が画面の下端に近く、スマホの操作ボタンと重なりそうです。少し上げてください。' : '構成案どおりの場面です。人物の髪型と服装もそろっています。' }; }),
+        fixes: ['S02 の字幕を、画面の高さの 8 割あたりまで上げる', '最後のカットの商品名を 0.3 秒早く出す'] };
+    }
+    var sec = +(body && body.seconds) || 17, name = (body && body.product) || '駅前の美容室';
+    var cuts = [[0, 2.5], [2.5, 5], [5, 8], [8, 11], [11, 14], [14, sec]];
+    if (sec !== 17) cuts = cuts.map(function (c) { return [Math.round(c[0] / 17 * sec * 10) / 10, Math.round(c[1] / 17 * sec * 10) / 10]; });
+    var P = 'a Japanese woman in her early 30s, shoulder-length dark brown hair, beige trench coat over a navy knit, slim build, soft natural makeup';
+    var rows = [
+      ['夕方の駅の改札。仕事帰りの人の流れ', '引きの固定', '', '今日も、一日おつかれさま。', 'Evening train station ticket gates in Tokyo, commuters flowing past'],
+      ['人物が髪をかき上げて、少し重そうな顔をする', '胸から上・ゆっくり寄る', '', '', P + ', touching her hair, slightly tired expression'],
+      ['駅前の通りに、灯りのついたお店が見える', '人物の肩越し', '21時まで', '帰り道に、寄れる場所があります。', P + ', seen from behind, warm shop lights on a street near the station'],
+      ['鏡の前でカットされている。会話して笑う', '横から・手持ち', '', '', P + ', getting a haircut in a bright salon, smiling in conversation'],
+      ['店を出て、軽くなった髪が風で揺れる', '正面・スローモーション', '', '少し軽くなって、明日へ。', P + ', with a fresh lighter haircut, hair moving in the wind, walking out of a salon at night'],
+      ['店の外観と店名・ひとこと', '固定', name, '', 'Exterior of a small modern hair salon at night, warm light, empty street']
+    ];
+    var shots = rows.map(function (r, i) { return { no: i + 1, start: cuts[i][0], end: cuts[i][1], scene: r[0], camera: r[1], onscreen_text: r[2], narration: r[3],
+      video_prompt_en: r[4] + ', cinematic, 35mm lens, shallow depth of field, ' + ((body && body.aspect) || '16:9') + ' aspect ratio, no text, no captions',
+      image_prompt_en: r[4] + ', still frame, cinematic lighting, ' + ((body && body.aspect) || '16:9') + ' aspect ratio, no text' }; });
+    return { concept: 'デモ表示：AIは呼んでいません（決まった見本です）。帰り道の「ついで」に、気分まで軽くなる場所。', tagline: '帰り道に、髪を軽くしていこう。',
+      person: { description: '30代前半の女性。肩までの濃い茶色の髪、ベージュのトレンチコートに紺のニット。全カットで同じ服装。', prompt_en: P },
+      shots: shots,
+      voice: { direction: '30代の女性。落ち着いて、少しだけ笑みのある声。ゆっくりめ。', prompt_en: 'Japanese female voice, early 30s, calm and warm with a slight smile, unhurried pace' },
+      bgm: { direction: 'アコースティックギターとピアノ。11秒目から少し明るく', bpm: 92, prompt_en: 'Warm acoustic guitar and soft piano, 92 BPM, gentle start, brightens at 11 seconds, clean ending at ' + sec + ' seconds' },
+      checks: ['人物の髪型と服装が全カットで同じか', '字幕がスマホの操作ボタンと重ならないか', 'ナレーションが BGM に埋もれていないか', '最後の店名が 2 秒以上見えているか'] };
+  }
+
   /* ---- advisor: the AIアドバイザー block at the end of this file. ---- */
 
 
@@ -1822,6 +1852,7 @@
       if (p === '/api/listing-check') return reply(listingCheck(body));
       if (p === '/api/rewrite') return reply(rewrite(body));
       if (p === '/api/human-write') return reply(humanWrite(body));
+      if (p === '/api/cm-plan') return reply(cmPlan(body));
       // The SNS panel redraws its history from the reply; without `recent`
       // a refused post would blank the sample log.
       if (p === '/api/social') return reply(socialPost(body));

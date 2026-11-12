@@ -1291,6 +1291,7 @@ input, select, textarea { color: var(--text); }
     <div class="panel" id="custmap-admin" style="display:none; margin-top:20px"></div>
     <div class="panel" id="human-admin" style="display:none; margin-top:20px"></div>
     <div class="panel" id="lyricpv-admin" style="display:none; margin-top:20px"></div>
+    <div class="panel" id="cmkit-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイト内のすべての文章をここから書き換えられます。欄の上のボタンで<strong>太字・斜体・リンク</strong>（説明文などでは見出し・箇条書き・表・画像も）を付けられ、打つと<strong>すぐ下の「見え方」</strong>にサイトでの出方が出ます。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
@@ -1868,6 +1869,7 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-custmap.js"></script>
 <script src="/admin-human.js"></script>
 <script src="/admin-lyricpv.js"></script>
+<script src="/admin-cmkit.js"></script>
 <script src="/admin-dash.js"></script>
 <script>
 // Dependency-free .xlsx writer (real Excel file: ZIP/STORE + SpreadsheetML
@@ -2137,6 +2139,10 @@ window.lumAdmin = {
        check half runs in the browser (/rhythm.js) with no key at all. */
     /* Nothing at all: the song, the lyrics and the recording never leave this
        browser (the project, without the song, is kept in localStorage). */
+    /* The key, for the plan and the check. The video itself is read in this
+       browser; only small stills of each cut are sent for the check. */
+    { id: 'cmkit-admin', icon: 'clapper', label: 'CM制作キット', init: 'lumCmKitInit', needs: 'ai',
+      desc: 'AIで人物・声・BGMを作り、After Effectsで組み、Claudeが点検する', accent: '#9f1239', tint: 'rgba(225,29,72,0.10)' },
     { id: 'lyricpv-admin', icon: 'letters', label: '文字PV', init: 'lumLyricPvInit', show: 'lumLyricPvShow',
       desc: '歌詞を打って、聴きながらタップして、文字が動く動画にする', accent: '#0f172a', tint: 'rgba(15,23,42,0.10)' },
     { id: 'human-admin', icon: 'quill', label: '人間らしい文章', init: 'lumHumanInit', needs: 'ai',
@@ -2193,7 +2199,7 @@ window.lumAdmin = {
   var NAV_GROUPS = [
     { label: '', ids: [PORTAL] },
     { label: 'お客様対応', ids: ['custmap-admin', 'inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'bills-admin', 'list-view'] },
-    { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin', 'lyricpv-admin', 'human-admin'] },
+    { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin', 'cmkit-admin', 'lyricpv-admin', 'human-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
     { label: '資料', ids: ['present-admin'] },
@@ -2201,7 +2207,7 @@ window.lumAdmin = {
   ];
   /* 画面の見出しの上の、筆記体の英語（飾り）。 */
   var PAGE_EN = {
-    portal: 'Home', 'custmap-admin': 'Map', 'human-admin': 'Writing', 'lyricpv-admin': 'Lyric Video', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
+    portal: 'Home', 'custmap-admin': 'Map', 'human-admin': 'Writing', 'lyricpv-admin': 'Lyric Video', 'cmkit-admin': 'Commercial', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
     'quotes-admin': 'Estimate', 'bills-admin': 'Invoice', 'list-view': 'Members', 'news-admin': 'News',
     'social-admin': 'Social', 'video-admin': 'Movie', 'copy-admin': 'Writing', 'seo-admin': 'Search',
     'stats-admin': 'Analytics', 'auto-admin': 'Improve', 'advisor-admin': 'Advisor', 'present-admin': 'Proposal',
@@ -2212,6 +2218,7 @@ window.lumAdmin = {
     portal: '今日やることと、今週の数字をまとめて見ます。',
     'health-admin': 'サイトの機能が動いているか、足りない設定はどれかを確かめます。',
     'setup-admin': 'このサイトの機能を使い始めるための設定を、上から順に済ませます。',
+    'cmkit-admin': '人物の映像・声・BGM は生成AIで、編集は After Effects で。Claude が構成案と指示文を作り、組み立てのスクリプトを書き、仕上がりを点検します。',
     'lyricpv-admin': '歌詞を打ち、曲を聴きながらタップして、文字が動く動画を作ります。曲も歌詞も、この端末の外には出ません。',
     'human-admin': '解説の声ではなく、その場で考えている人の声で書きます。書いたものは機械で点検し、機械っぽく読まれやすい所を指します。',
     'custmap-admin': '相談・見積・受注を1枚の地図に並べました。コマをドラッグして別のエリアに置くと、状態が変わります。',

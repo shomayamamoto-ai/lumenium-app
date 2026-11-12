@@ -96,6 +96,20 @@ globalThis.fetch = async (input, init = {}) => {
     let req = {}
     try { req = JSON.parse(init.body || '{}') } catch (_) {}
     const fmt = req.output_config && req.output_config.format
+    // CM制作キット（api/cm-plan.js）は返事を流して受け取るので、SSE で返します。
+    if (req.stream && fmt && fmt.type === 'json_schema' && (fmt.schema.properties.shots || fmt.schema.properties.verdict)) {
+      const body = fmt.schema.properties.verdict
+        ? { verdict: 'ok', overall: 'スモーク', shots: [{ no: 1, ok: true, comment: 'よい' }], fixes: [] }
+        : { concept: 'スモーク', tagline: 'ひとこと', person: { description: '30代', prompt_en: 'a person' }, shots: [{ no: 1, start: 0, end: 17, scene: '店', camera: '寄り', onscreen_text: '字幕', narration: '声', video_prompt_en: 'v', image_prompt_en: 'i' }], voice: { direction: '落ち着いた声', prompt_en: 'calm' }, bgm: { direction: '明るい', bpm: 100, prompt_en: 'pop' }, checks: ['長さ'] }
+      const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`
+      const sse = ev('message_start', { message: { id: 'm', type: 'message', role: 'assistant', model: req.model, content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 1 } } }) +
+        ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }) +
+        ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: JSON.stringify(body) } }) +
+        ev('content_block_stop', { index: 0 }) +
+        ev('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } }) +
+        ev('message_stop', {})
+      return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    }
     // SNS（動画）の構成分析と台本づくり。形だけ合った返事を返します。
     if (fmt && fmt.type === 'json_schema' && fmt.schema.properties.analyses) {
       const ids = [...String(req.messages[0].content).matchAll(/post_id: (\S+)/g)].map((m) => m[1])
@@ -243,6 +257,9 @@ const CALLS = [
   ['rewrite', 'POST', '', JSONH, { text: 'とても豊富な実績があります。', way: 'short', where: 'hero · リード文' }],
   // 人間らしい文章（書く・書き直す・指摘を直す）。
   ['human-write', 'POST', '', JSONH, { mode: 'write', material: '火曜の午後、予約ページが携帯で開かないと電話があった。', purpose: 'blog', length: 'short' }],
+  // CM制作キット（構成案・仕上がりの点検。返事は流して返す）。
+  ['cm-plan', 'POST', '', JSONH, { action: 'plan', product: '駅前の美容室', seconds: 17, aspect: '16:9' }],
+  ['cm-plan', 'POST', '', JSONH, { action: 'check', plan: { shots: [] }, frames: [{ no: 1, t: 1, data: 'AAAA' }], facts: '長さ 17.0秒' }],
   ['human-write', 'POST', '', JSONH, { mode: 'fix', text: '本記事では重要なポイントを解説します。とても大切です。', purpose: 'blog' }],
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
@@ -464,6 +481,12 @@ for (const [name, method, query, headers, body] of CALLS) {
       console.error(`✗ ${label} — ${res.status}: ${(await res.text()).slice(0, 160)}`)
       failed++
       continue
+    }
+    // 流して返す窓口（CM制作キット）は、途中で失敗すると最後に \u0000 と理由を書きます。
+    if (name === 'cm-plan' && /text\/plain/.test(res.headers.get('content-type') || '')) {
+      const text = await res.text()
+      if (text.includes('\u0000')) { console.error(`✗ ${label} — stream ended with an error: ${text.split('\u0000').pop().slice(0, 160)}`); failed++; continue }
+      try { JSON.parse(text) } catch (_) { console.error(`✗ ${label} — stream is not JSON: ${text.slice(0, 120)}`); failed++; continue }
     }
     console.log(`  ${label} → ${res.status}`)
   } catch (e) {
