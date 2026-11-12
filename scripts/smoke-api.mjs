@@ -97,9 +97,17 @@ globalThis.fetch = async (input, init = {}) => {
     try { req = JSON.parse(init.body || '{}') } catch (_) {}
     const fmt = req.output_config && req.output_config.format
     // CM制作キット（api/cm-plan.js）は返事を流して受け取るので、SSE で返します。
-    if (req.stream && fmt && fmt.type === 'json_schema' && (fmt.schema.properties.shots || fmt.schema.properties.verdict)) {
-      const body = fmt.schema.properties.verdict
+    // キャラクター工房（api/char-plan.js）も同じく流して受け取ります。
+    if (req.stream && fmt && fmt.type === 'json_schema') {
+      const pr = fmt.schema.properties
+      const body = pr.verdict
         ? { verdict: 'ok', overall: 'スモーク', shots: [{ no: 1, ok: true, comment: 'よい' }], fixes: [] }
+        : pr.palette
+        ? { name: 'スモーク', summary: '要約', appearance: { face: '丸顔', hair: '黒髪', eyes: '茶色', body: '小柄', outfit: '制服', shoes: '靴' }, accessories: [{ name: '髪留め', detail: '赤' }], palette: [{ name: '髪', hex: '#222222', where: '髪' }], expressions: [{ label: '笑顔', detail: '目を細める' }], must_keep: ['赤い髪留め'], fixed_prompt_en: 'a girl', negative_en: 'blurry', sheets: [{ kind: 'turnaround', title: '三面図', prompt_en: 'turnaround' }] }
+        : pr.scenes
+        ? { scenes: [{ title: '朝', prompt_en: 'a girl, morning', note: '注意' }], panel_prompt_en: 'panels' }
+        : pr.images
+        ? { images: [{ name: 'a.jpg', score: 90, matches: ['髪'], differences: [], fix_en: '' }], overall: 'よい' }
         : { concept: 'スモーク', tagline: 'ひとこと', person: { description: '30代', prompt_en: 'a person' }, shots: [{ no: 1, start: 0, end: 17, scene: '店', camera: '寄り', onscreen_text: '字幕', narration: '声', video_prompt_en: 'v', image_prompt_en: 'i' }], voice: { direction: '落ち着いた声', prompt_en: 'calm' }, bgm: { direction: '明るい', bpm: 100, prompt_en: 'pop' }, checks: ['長さ'] }
       const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`
       const sse = ev('message_start', { message: { id: 'm', type: 'message', role: 'assistant', model: req.model, content: [], stop_reason: null, usage: { input_tokens: 1, output_tokens: 1 } } }) +
@@ -260,6 +268,10 @@ const CALLS = [
   // CM制作キット（構成案・仕上がりの点検。返事は流して返す）。
   ['cm-plan', 'POST', '', JSONH, { action: 'plan', product: '駅前の美容室', seconds: 17, aspect: '16:9' }],
   ['cm-plan', 'POST', '', JSONH, { action: 'check', plan: { shots: [] }, frames: [{ no: 1, t: 1, data: 'AAAA' }], facts: '長さ 17.0秒' }],
+  // キャラクター工房（設定資料・場面の指示文・描いた絵の点検。返事は流して返す）。
+  ['char-plan', 'POST', '', JSONH, { action: 'design', brief: { name: 'ミナ', personality: '明るい', style: 'anime' } }],
+  ['char-plan', 'POST', '', JSONH, { action: 'scenes', design: { name: 'ミナ' }, scenes: ['朝の通学路'], layout: '4' }],
+  ['char-plan', 'POST', '', JSONH, { action: 'check', design: { name: 'ミナ' }, images: [{ name: 'a.jpg', data: 'AAAA' }] }],
   ['human-write', 'POST', '', JSONH, { mode: 'fix', text: '本記事では重要なポイントを解説します。とても大切です。', purpose: 'blog' }],
   // 検索エンジンへの登録まわり。確認ファイルは鍵を持たない相手（Google /
   // Bing のクローラー）が読みに来るので、認証なしで呼ぶ。
@@ -483,7 +495,7 @@ for (const [name, method, query, headers, body] of CALLS) {
       continue
     }
     // 流して返す窓口（CM制作キット）は、途中で失敗すると最後に \u0000 と理由を書きます。
-    if (name === 'cm-plan' && /text\/plain/.test(res.headers.get('content-type') || '')) {
+    if ((name === 'cm-plan' || name === 'char-plan') && /text\/plain/.test(res.headers.get('content-type') || '')) {
       const text = await res.text()
       if (text.includes('\u0000')) { console.error(`✗ ${label} — stream ended with an error: ${text.split('\u0000').pop().slice(0, 160)}`); failed++; continue }
       try { JSON.parse(text) } catch (_) { console.error(`✗ ${label} — stream is not JSON: ${text.slice(0, 120)}`); failed++; continue }

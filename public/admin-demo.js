@@ -1627,6 +1627,32 @@
       checks: ['人物の髪型と服装が全カットで同じか', '字幕がスマホの操作ボタンと重ならないか', 'ナレーションが BGM に埋もれていないか', '最後の店名が 2 秒以上見えているか'] };
   }
 
+  /* ---- キャラクター工房 (shape: api/char-plan.js) ---- 決まった見本を返します（AIは呼びません）。 */
+  function charPlan(body) {
+    var a = body && body.action;
+    var FIX = 'anime style illustration of Mina, a 16-year-old Japanese girl, short wavy cream-blonde bob with a single mint-green streak on the left bangs, round amber eyes, small star earring on her left ear only, mint-green apron over a cream knit sweater, brown corduroy skirt, white sneakers, clean cel shading, soft outlines';
+    if (a === 'scenes') {
+      var sc = (body.scenes || []).map(function (t, i) { return { title: t, prompt_en: FIX + ', scene: ' + ['opening the shop shutter at morning, stretching, soft sunrise light', 'handing a fresh bread to an elderly regular customer, warm smile', 'frozen in front of over-baked bread, comedic shock expression', 'putting a sold-out sign at dusk, cheerful laugh'][i % 4] + ', ' + ((body && body.aspect) || '1:1') + ' aspect ratio, no text', note: '左耳だけの星のイヤリングと、前髪左側のミントのメッシュを必ず入れる' }; });
+      return { scenes: sc, panel_prompt_en: FIX + ', ' + (body.layout === '4' ? 'vertical 4-panel comic' : '2x2 panel comic page') + ', ' + sc.length + ' panels showing a day at a small bakery, consistent character in every panel, no text, no speech bubbles' };
+    }
+    if (a === 'check') {
+      return { overall: 'デモ表示：AIは呼んでいません（決まった見本です）。実際は、Claude が設定資料と1枚ずつ比べます。',
+        images: (body.images || []).map(function (im, i) { return { name: im.name, score: i % 2 ? 72 : 91, matches: ['髪の色と長さ', 'エプロンの色', '目の色'], differences: i % 2 ? ['星のイヤリングが右耳についている', '前髪のメッシュが無い'] : [], fix_en: i % 2 ? 'star earring on her LEFT ear only, mint-green streak on the left side of her bangs' : '' }; }) };
+    }
+    return { name: 'ミナ', summary: 'デモ表示：AIは呼んでいません（決まった見本です）。商店街のパン屋の看板娘。明るいけれど、人前では少し照れる16歳。',
+      appearance: { face: '丸みのある輪郭、小さめの鼻、笑うと片方だけえくぼ', hair: 'クリーム色がかった金髪の、ゆるい波のボブ。前髪の左側にミントグリーンのメッシュが1本', eyes: '丸い琥珀色の目。下まつ毛は短め', body: '小柄（150cm）、華奢', outfit: 'クリーム色のニットに、ミントグリーンのエプロン（胸に小さなパンの刺しゅう）。茶色のコーデュロイのスカート', shoes: '白いスニーカー' },
+      accessories: [{ name: '星のイヤリング', detail: '左耳だけ。金色の小さな星' }, { name: 'パンの刺しゅう', detail: 'エプロンの左胸。茶色の糸' }, { name: 'ヘアピン', detail: '右側に1本、ミントグリーン' }],
+      palette: [{ name: 'クリームブロンド', hex: '#F2DFA7', where: '髪' }, { name: 'ミント', hex: '#7FD1B9', where: 'メッシュ・エプロン・ヘアピン' }, { name: 'アンバー', hex: '#D9902F', where: '目' }, { name: 'クリーム', hex: '#FFF4DE', where: 'ニット' }, { name: 'ブラウン', hex: '#7A5136', where: 'スカート・刺しゅう' }, { name: 'ゴールド', hex: '#E8B931', where: 'イヤリング' }],
+      expressions: [{ label: 'いつもの顔', detail: '口角を少し上げ、目はまっすぐ' }, { label: 'にっこり', detail: '目を細めて、えくぼが出る' }, { label: 'むっ', detail: '頬をふくらませ、眉を寄せる' }, { label: 'びっくり', detail: '目を丸くし、メッシュが跳ねる' }, { label: '照れ', detail: '目をそらし、頬が赤い' }, { label: 'しょんぼり', detail: '眉を下げ、肩が落ちる' }],
+      must_keep: ['前髪の左側のミントグリーンのメッシュ', '左耳だけの星のイヤリング', 'エプロンの左胸のパンの刺しゅう', '琥珀色の目'],
+      fixed_prompt_en: FIX, negative_en: 'extra fingers, deformed hands, earring on right ear, text, watermark, realistic photo',
+      sheets: [{ kind: 'turnaround', title: '三面図', prompt_en: FIX + ', character turnaround sheet, front view, side view, back view, full body, plain white background, consistent proportions' },
+        { kind: 'expressions', title: '表情集', prompt_en: FIX + ', expression sheet, six head shots: neutral, big smile, pouting, surprised, embarrassed, sad, white background' },
+        { kind: 'accessories', title: '小物', prompt_en: 'close-up detail sheet of a small gold star earring, mint-green hairpin, mint apron with a small embroidered bread on the chest, white background, anime style' },
+        { kind: 'palette', title: '配色見本', prompt_en: 'color palette swatches for an anime character: cream blonde #F2DFA7, mint #7FD1B9, amber #D9902F, cream #FFF4DE, brown #7A5136, gold #E8B931, labeled swatches, clean layout' },
+        { kind: 'full', title: '全身', prompt_en: FIX + ', full body, cheerful pose holding a basket of bread, bakery storefront background, soft morning light' }] };
+  }
+
   /* ---- advisor: the AIアドバイザー block at the end of this file. ---- */
 
 
@@ -1853,6 +1879,7 @@
       if (p === '/api/rewrite') return reply(rewrite(body));
       if (p === '/api/human-write') return reply(humanWrite(body));
       if (p === '/api/cm-plan') return reply(cmPlan(body));
+      if (p === '/api/char-plan') return reply(charPlan(body));
       // The SNS panel redraws its history from the reply; without `recent`
       // a refused post would blank the sample log.
       if (p === '/api/social') return reply(socialPost(body));
