@@ -1413,6 +1413,23 @@
     if (leaveOk()) openNew(pre, kind);
   }
 
+  /* 問い合わせから見積書の下書きを作る（お客様マップで、相談のコマを「見積中」へ動かしたとき）。 */
+  window.lumQuoteFromInquiry = async function (inquiryId) {
+    if (!(await boot())) return false;
+    if (S.mode !== 'quote' || !S.mounted) {
+      if (window.lumShowTab && window.lumShowTab(HOSTS.quote) === false) return false;
+      mount('quote');
+    }
+    if (!leaveOk()) return false;
+    var x = await send({ action: 'from-inquiry', inquiryId: inquiryId });
+    if (!x.data || !x.data.ok) { say((x.data && x.data.message) || '下書きを作れませんでした。'); return false; }
+    S.pick = false;
+    S.cur = x.data.draft;
+    S.dirty = true;
+    go('list');
+    say(x.data.draft.items.length ? '問い合わせから下書きを作りました。金額は概算の下限です。内容を確かめて直してから保存してください。' : '問い合わせから宛先と件名を入れました。品目を足して保存してください。', true);
+    return true;
+  };
   window.lumQuotesInit = function () { boot(); };
   window.lumBillsInit = function () { boot(); };
   window.lumQuotesShow = function () { show('quote'); };

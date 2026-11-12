@@ -1288,6 +1288,8 @@ input, select, textarea { color: var(--text); }
       </div>
     </div>
 
+    <div class="panel" id="custmap-admin" style="display:none; margin-top:20px"></div>
+
     <div class="panel" id="copy-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイト内のすべての文章をここから書き換えられます。欄の上のボタンで<strong>太字・斜体・リンク</strong>（説明文などでは見出し・箇条書き・表・画像も）を付けられ、打つと<strong>すぐ下の「見え方」</strong>にサイトでの出方が出ます。書き直しに迷ったら<strong>AIのボタン</strong>を押すと案が出ます——案のまま出るので、採るかどうかは見てから決められます。保存すると自動デプロイが走り、<strong>約1〜2分後に反映</strong>されます。空欄のままにすると元の文章が使われます。</p>
       <div class="toolbar copy-bar" style="margin-bottom:10px">
@@ -1859,6 +1861,7 @@ input, select, textarea { color: var(--text); }
 <!-- 上の帯（検索・お知らせ・ログイン中の人）と、ホームのダッシュボード。 -->
 <script src="/admin-opsmap.js"></script>
 <script src="/admin-growth.js"></script>
+<script src="/admin-custmap.js"></script>
 <script src="/admin-dash.js"></script>
 <script>
 // Dependency-free .xlsx writer (real Excel file: ZIP/STORE + SpreadsheetML
@@ -2096,6 +2099,8 @@ window.lumAdmin = {
     /* The store: without it enquiries arrive by mail only and there is no
        list to keep. The unread count on this tab and its card comes from
        /admin-inquiries.js (lumInqBadge, called from buildTabs). */
+    { id: 'custmap-admin', icon: 'map', label: 'お客様マップ', init: 'lumCustMapInit', show: 'lumCustMapShow', needs: 'store',
+      desc: '相談から受注までを地図で見渡して動かす', accent: '#c23b42', tint: 'rgba(194,59,66,0.12)' },
     { id: 'inquiries-admin', icon: 'inbox', label: '問い合わせ管理', init: 'lumInquiriesInit', needs: 'store',
       desc: '届いた問い合わせと返信', accent: '#1d4ed8', tint: 'rgba(59,130,246,0.13)' },
     /* The store: the reviews are kept there between syncs. The unreplied count
@@ -2173,7 +2178,7 @@ window.lumAdmin = {
      （項目が1つも残らない見出しは、見出しごと出しません）。 */
   var NAV_GROUPS = [
     { label: '', ids: [PORTAL] },
-    { label: 'お客様対応', ids: ['inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'bills-admin', 'list-view'] },
+    { label: 'お客様対応', ids: ['custmap-admin', 'inquiries-admin', 'booking-admin', 'reviews-admin', 'quotes-admin', 'bills-admin', 'list-view'] },
     { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
@@ -2182,7 +2187,7 @@ window.lumAdmin = {
   ];
   /* 画面の見出しの上の、筆記体の英語（飾り）。 */
   var PAGE_EN = {
-    portal: 'Home', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
+    portal: 'Home', 'custmap-admin': 'Map', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
     'quotes-admin': 'Estimate', 'bills-admin': 'Invoice', 'list-view': 'Members', 'news-admin': 'News',
     'social-admin': 'Social', 'video-admin': 'Movie', 'copy-admin': 'Writing', 'seo-admin': 'Search',
     'stats-admin': 'Analytics', 'auto-admin': 'Improve', 'advisor-admin': 'Advisor', 'present-admin': 'Proposal',
@@ -2193,6 +2198,7 @@ window.lumAdmin = {
     portal: '今日やることと、今週の数字をまとめて見ます。',
     'health-admin': 'サイトの機能が動いているか、足りない設定はどれかを確かめます。',
     'setup-admin': 'このサイトの機能を使い始めるための設定を、上から順に済ませます。',
+    'custmap-admin': '相談・見積・受注を1枚の地図に並べました。コマをドラッグして別のエリアに置くと、状態が変わります。',
     'inquiries-admin': 'フォームから届いた問い合わせを読み、返信の状況を管理します。',
     'reviews-admin': 'Google の口コミを読み、返信します。',
     'quotes-admin': '見積書を作って送り、受注したら請求書にします。',
