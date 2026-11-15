@@ -125,9 +125,28 @@ export async function busy(c, fromMs, toMs) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error?.message || `freeBusy ${res.status}`)
-  const cal = (data.calendars || {})[c.calendarId] || {}
+  // 返事は聞いたカレンダーの名前（既定は "primary"）で入っています。名前が違って
+  // 返ってきても、1つだけならそれを使います。1つも無いときは「予定なし」ではなく
+  // 「読めなかった」として扱います（空きとして見せると、先約と重なるため）。
+  const cals = data.calendars || {}
+  const keys = Object.keys(cals)
+  const cal = cals[c.calendarId] || (keys.length === 1 ? cals[keys[0]] : null)
+  if (!cal) throw new Error('カレンダーの空き時間が返ってきませんでした')
   if (cal.errors && cal.errors.length) throw new Error(cal.errors[0].reason || 'freeBusy error')
   return (cal.busy || []).map((b) => ({ start: Date.parse(b.start), end: Date.parse(b.end) }))
+}
+
+/** いま読んでいるカレンダーが誰のどれか（管理画面の確認用）。
+ *  「接続済み」と出ていても、別のアカウントのカレンダーを読んでいると、
+ *  予約ページの空きは自分の予定と合いません。名前を見せて気づけるようにします。 */
+export async function calendarInfo(c) {
+  const token = await accessToken(c)
+  const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error?.message || `calendar ${res.status}`)
+  return { id: String(data.id || c.calendarId), name: String(data.summary || '') }
 }
 
 /** Meet 付きの予定を作り、相手にも招待を送る。 */

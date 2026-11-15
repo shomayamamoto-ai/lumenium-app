@@ -26,7 +26,7 @@ import { setting } from './_settings.js'
 import { requireAdmin } from './_admin-auth.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { pickTopics } from './_form-options.js'
-import { creds, connected, busy as gcalBusy, createEvent } from './_google-cal.js'
+import { creds, connected, busy as gcalBusy, createEvent, calendarInfo } from './_google-cal.js'
 import { busyFromUrl } from './_ics.js'
 import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
@@ -46,6 +46,18 @@ const BURST = { max: 4, windowS: 15 * 60 }
 const SLOT_CACHE = `${KV}bk:cache`
 // 管理画面で予約一覧を最後に開いた時刻（ミリ秒）。これより後に入った予約が「新しい予約」です。
 const SEEN = `${KV}bk:seen`
+// カレンダーを読めなかった記録（{ at, why }）。読めたら消します。管理画面のタブの印と注意書きに使います。
+const CAL_ERR = `${KV}bk:cal:err`
+async function noteCalendar(store, why) {
+  if (!store) return
+  try {
+    await pipeline(store, [why ? ['SET', CAL_ERR, JSON.stringify({ at: Date.now(), why: String(why).slice(0, 160) }), 'EX', 7 * 86400] : ['DEL', CAL_ERR]])
+  } catch (_) { /* 記録できなくても予約は動かす */ }
+}
+async function calendarError(store) {
+  if (!store) return null
+  try { const [raw] = await pipeline(store, [['GET', CAL_ERR]]); return raw ? JSON.parse(raw) : null } catch (_) { return null }
+}
 
 async function readSeen(store) {
   if (!store) return 0
@@ -62,8 +74,15 @@ const json = (payload, status = 200, extra) => new Response(JSON.stringify(paylo
 })
 
 /** いま提示できる枠と、どの仕組みで動いているか。
- *  ignoreId は日時の変更のときの自分の予約（自分の今の枠は空きとして見る）。 */
-export async function openSlots(req, wanted, rules, svc, ignoreId = '') {
+ *  ignoreId は日時の変更のときの自分の予約（自分の今の枠は空きとして見る）。
+ *
+ *  カレンダーをつないであるのに読めなかったときは、枠を出しません（mode: 'off'）。
+ *  以前は「受付時間の決まりだけ」で全部の枠を出していましたが、それだと先約のある
+ *  時間まで空きとして見え、予約が重なります。つないだ以上、見せる空きはカレンダーと
+ *  同じでなければなりません。訪問者には「日時を選ばずに相談内容だけ送る」道が残ります。
+ *  opts.blind は管理画面からの手入力（店の人が自分で空きを見て入れる）で、
+ *  このときだけ決まりの枠で受けます。 */
+export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {}) {
   const c = await creds(req)
   const store = storeConfig()
   const all = candidates(Date.now(), rules, svc.minutes)
@@ -77,26 +96,43 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '') {
     ? (await bookingsBetween(store, pipeline, from - 86400000, to)).filter((r) => occupies(r) && r.id !== ignoreId).map(recSpan)
     : [])
 
+  const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
+  // 読めなかったとき: 管理画面の手入力だけは決まりの枠で受け、訪問者には枠を出しません。
+  const unreadable = async (why) => {
+    await noteCalendar(store, why)
+    if (opts.blind && store) {
+      const free = removeBusy(all, await taken(), buf)
+      return { mode: 'local', slots: free.slice(0, wanted), total: free.length, warn: why }
+    }
+    return { mode: 'off', slots: [], reason: why }
+  }
+
   if (connected(c)) {
     try {
       const [busy, mine] = await Promise.all([gcalBusy(c, from, to), taken()])
       const free = removeBusy(all, busy.concat(mine), buf)
+      await noteCalendar(store, '')
       return { mode: 'google', slots: free.slice(0, wanted), total: free.length }
     } catch (e) {
-      // 接続が切れている・Googleが落ちている。枠を出さないのではなく、
-      // 保存先があれば仮予約として受ける。理由は管理画面に出ます。
-      if (!store) return { mode: 'off', slots: [], reason: String(e.message || e).slice(0, 120) }
-      const free = removeBusy(all, await taken(), buf)
-      return { mode: 'local', slots: free.slice(0, wanted), total: free.length, warn: String(e.message || e).slice(0, 120) }
+      // 接続が切れている・Googleが落ちている。簡易接続（非公開iCal URL）も入れて
+      // あれば、そちらの空きで続けます（仮予約）。無ければ枠は出しません。
+      const why = String(e.message || e).slice(0, 120)
+      const viaIcs = icsUrl ? await busyFromUrl(icsUrl, from, to) : null
+      if (!viaIcs) return unreadable(why)
+      await noteCalendar(store, why)
+      const free = removeBusy(all, viaIcs.concat(await taken()), buf)
+      return { mode: 'ics', slots: free.slice(0, wanted), total: free.length, warn: why }
     }
   }
 
   /* 簡易接続（非公開iCal URL）。Cloud Console を通さずに、空きだけ本物に
      します。書き込みはできないので、確定は仮予約のままです。 */
-  const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
   let icsBusy = null
   if (icsUrl) {
     icsBusy = await busyFromUrl(icsUrl, from, to)
+    // URL を入れてあるのに読めない（URLの作り直し・Google側の不調）。
+    if (!icsBusy) return unreadable('カレンダーの非公開URLを読めませんでした')
+    await noteCalendar(store, '')
   }
 
   if (!store && !icsBusy) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
@@ -104,6 +140,33 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '') {
   // 簡易接続ではカレンダーに書き込めないので、入った予約はここで見るしかありません。
   const open = removeBusy(all, (icsBusy || []).concat(await taken()), buf)
   return { mode: icsBusy ? 'ics' : 'local', slots: open.slice(0, wanted), total: open.length }
+}
+
+/** 管理画面用: カレンダーをいま実際に読めるかを確かめます。
+ *  ok: 読めた / name: 読んでいるカレンダーの名前 / busy: この先14日の埋まっている時間帯の数
+ *  読めたのに busy が 0 のときは、別のアカウントにつないでいる疑いがあります（画面で知らせます）。 */
+async function calendarCheck(req, c, store) {
+  const from = Date.now()
+  const to = from + 14 * 86400000
+  if (connected(c)) {
+    try {
+      const [info, list] = await Promise.all([calendarInfo(c), gcalBusy(c, from, to)])
+      await noteCalendar(store, '')
+      return { kind: 'google', ok: true, id: info.id, name: info.name, busy: list.length }
+    } catch (e) {
+      const why = String(e.message || e).slice(0, 160)
+      await noteCalendar(store, why)
+      return { kind: 'google', ok: false, error: why }
+    }
+  }
+  const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
+  if (icsUrl) {
+    const list = await busyFromUrl(icsUrl, from, to)
+    if (!list) { await noteCalendar(store, 'カレンダーの非公開URLを読めませんでした'); return { kind: 'ics', ok: false, error: 'カレンダーの非公開URLを読めませんでした' } }
+    await noteCalendar(store, '')
+    return { kind: 'ics', ok: true, busy: list.length }
+  }
+  return { kind: 'none', ok: false }
 }
 
 export async function GET(req) {
@@ -119,7 +182,9 @@ export async function GET(req) {
     // 初めて数えるとき: いまを「見た時刻」にして、昔の予約を新しい扱いにしない。
     if (!seen) { seen = Date.now(); await writeSeen(store, seen) }
     const { freshIds, ...counts } = bookingAttention(await recentBookings(store, pipeline, 300), seen)
-    return json({ ok: true, ...counts, stored: true })
+    // カレンダーを読めていないと、予約ページに枠が出ません。件数に1つ足して、タブに印を出します。
+    const calDown = !!(await calendarError(store))
+    return json({ ok: true, ...counts, total: (counts.total || 0) + (calDown ? 1 : 0), calendarDown: calDown, stored: true })
   }
 
   // 管理画面からの一覧。
@@ -141,6 +206,8 @@ export async function GET(req) {
       // 食い違いを、画面の側で説明できるようにするためです。
       storedHere: !!(await storeFor(req)),
       calendarId: c.calendarId,
+      // 実際に読めているか・どのカレンダーを読んでいるか（キーが入っているだけでは分かりません）。
+      calendar: await calendarCheck(req, c, store),
       rules: await readRules(store, pipeline),
       // 予約管理の画面は、一覧・週の表・数字をこの記録から作ります（直近300件）。
       bookings: await recentBookings(store, pipeline, url.searchParams.get('recent') === 'all' ? 300 : 20),
@@ -427,7 +494,7 @@ async function createByOwner(req, store, body) {
   if (email && (!EMAIL_RE.test(email) || email.length > LIMITS.email)) return json({ ok: false, message: 'メールアドレスの形が正しくありません（空でもかまいません）。' }, 400)
   const rules = await readRules(store, pipeline)
   const svc = pickService(rules, String(body?.service ?? ''))
-  const { mode, slots } = await openSlots(req, 500, rules, svc)
+  const { mode, slots } = await openSlots(req, 500, rules, svc, '', { blind: true })
   const slot = slots.find((s) => new Date(s.start).toISOString() === String(body?.key || ''))
   if (!slot) return json({ ok: false, message: 'その日時は空いていません（先に埋まったか、受付時間の外です）。別の日時を選んでください。' }, 409)
   const id = `bk_${slot.start}_${Math.random().toString(36).slice(2, 8)}`

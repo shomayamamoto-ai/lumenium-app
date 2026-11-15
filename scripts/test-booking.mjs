@@ -473,4 +473,81 @@ await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを�
   assert.ok([401, 503].includes(res.status))
 })
 
+/* ---- 予約ページの空きは、カレンダーと同じでなければならない ----
+   Google の返事を作り物にして、openSlots（予約ページ・予約の確定が使う入口）を通します。 */
+{
+  const realFetch = globalThis.fetch
+  const env0 = { ...process.env }
+  Object.assign(process.env, { GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'sec', GOOGLE_REFRESH_TOKEN: 'refresh-token-for-test' })
+  const { openSlots } = await import('../api/booking.js')
+  const { rules } = B.normalizeRules({ leadHours: 0 })
+  const svc = B.pickService(rules, '')
+  const req = new Request('https://x.test/api/booking')
+  const reply = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
+  // 火曜（2026-10-06）の 11:00〜12:00 と 13:00〜14:30 に先約。
+  const BUSY = [
+    { start: new Date(jst('2026-10-06 11:00')).toISOString(), end: new Date(jst('2026-10-06 12:00')).toISOString() },
+    { start: new Date(jst('2026-10-06 13:00')).toISOString(), end: new Date(jst('2026-10-06 14:30')).toISOString() },
+  ]
+  const overlaps = (slots) => slots.filter((x) => BUSY.some((b) => x.start < Date.parse(b.end) && x.end > Date.parse(b.start)))
+  let freeBusy = () => reply({ calendars: { primary: { busy: BUSY } } })
+  let ics = null
+  globalThis.fetch = async (input) => {
+    const u = String(input && input.url ? input.url : input)
+    if (u.includes('oauth2.googleapis.com')) return reply({ access_token: 'at', expires_in: 3600 })
+    if (u.includes('/freeBusy')) return freeBusy()
+    if (u.includes('ical.test')) return ics ? new Response(ics, { status: 200 }) : new Response('nf', { status: 404 })
+    return reply({}, 404)
+  }
+  try {
+    await t('カレンダーを読めたら、先約のある時間は枠に出さない', async () => {
+      const r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'google')
+      assert.ok(r.slots.length > 0)
+      assert.equal(overlaps(r.slots).length, 0)
+    })
+    await t('返事のカレンダー名が違っても（メールアドレスで返る）、1つだけならそれを使う', async () => {
+      freeBusy = () => reply({ calendars: { 'owner@example.com': { busy: BUSY } } })
+      const r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'google')
+      assert.equal(overlaps(r.slots).length, 0)
+    })
+    await t('空き時間が返ってこない・接続が切れているときは、枠を1つも出さない（全部空きとして見せない）', async () => {
+      freeBusy = () => reply({ calendars: {} })
+      let r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'off'); assert.equal(r.slots.length, 0)
+      freeBusy = () => reply({ error: { message: 'Invalid Credentials' } }, 401)
+      r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'off'); assert.equal(r.slots.length, 0); assert.ok(r.reason)
+      freeBusy = () => reply({ calendars: { primary: { errors: [{ reason: 'notFound' }] } } })
+      r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'off')
+    })
+    await t('Google を読めなくても、簡易接続（非公開URL）があれば、その空きで続ける', async () => {
+      process.env.GOOGLE_CALENDAR_ICS_URL = 'https://ical.test/basic.ics'
+      const z = (iso) => iso.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
+      ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', ...BUSY.flatMap((b, i) => ['BEGIN:VEVENT', `UID:t${i}@x`, `DTSTART:${z(b.start)}`, `DTEND:${z(b.end)}`, 'SUMMARY:x', 'END:VEVENT']), 'END:VCALENDAR'].join('\r\n')
+      freeBusy = () => reply({ error: { message: 'Invalid Credentials' } }, 401)
+      const r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'ics')
+      assert.ok(r.slots.length > 0)
+      assert.equal(overlaps(r.slots).length, 0)
+      // 非公開URLも読めなければ、枠は出さない。
+      ics = null
+      const r2 = await openSlots(req, 500, rules, svc)
+      assert.equal(r2.mode, 'off')
+    })
+    await t('簡易接続だけのとき、URL を読めなければ枠を出さない', async () => {
+      delete process.env.GOOGLE_REFRESH_TOKEN
+      ics = null
+      const r = await openSlots(req, 500, rules, svc)
+      assert.equal(r.mode, 'off'); assert.equal(r.slots.length, 0)
+    })
+  } finally {
+    globalThis.fetch = realFetch
+    for (const k of Object.keys(process.env)) if (!(k in env0)) delete process.env[k]
+    Object.assign(process.env, env0)
+  }
+}
+
 console.log(`✓ test-booking: ${n} 件`)

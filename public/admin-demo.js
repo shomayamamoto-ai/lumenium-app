@@ -1301,7 +1301,7 @@
         at: ago((out.length + 1) * 9 * 3600000)
       });
     }
-    return { ok: true, connected: true, ics: false, stored: true, storedHere: true, calendarId: 'primary', bookings: out };
+    return { ok: true, connected: true, ics: false, stored: true, storedHere: true, calendarId: 'primary', calendar: { kind: 'google', ok: true, id: 'demo@example.com', name: 'デモのカレンダー', busy: 8 }, bookings: out };
   }
 
   /* ---- social (shape: api/social.js GET; networks from _social.js) ---- */
@@ -2407,7 +2407,7 @@
   }
   function admin() {
     return {
-      ok: true, connected: false, ics: true, stored: true, storedHere: true, calendarId: 'primary',
+      ok: true, connected: false, ics: true, stored: true, storedHere: true, calendarId: 'primary', calendar: { kind: 'ics', ok: true, busy: 6 },
       rules: RULES, bookings: bookings(), holidayLast: '2027-12-31', holidays: {},
       mail: { resend: true, sandbox: false, from: 'info@example.com' }, links: true,
       cron: { secret: true, last: { at: new Date(t0 + 9 * 3600000 - (Date.now() < t0 + 9 * 3600000 ? DAY : 0)).toISOString(), reminders: { due: 2, sent: 2, failed: 0 } } },

@@ -121,6 +121,7 @@
     if (c && c.fresh) parts.push('新しい予約 ' + c.fresh + '件');
     if (c && c.tentative) parts.push('確定待ち ' + c.tentative + '件');
     if (c && c.unmarked) parts.push('来た・来なかったが未記入 ' + c.unmarked + '件');
+    if (c && c.calendarDown) parts.push('カレンダーを読めていません（予約ページに枠が出ていません）');
     ['tab-' + BTAB, 'pnode-' + BTAB].forEach(function (id) {
       var host = el(id);
       if (!host) return;
@@ -213,9 +214,31 @@
 
   /* ---------------- 注意（メールが届かない・保存先が無い） ---------------- */
 
+  /* カレンダーを実際に読めているか（api/booking.js の calendarCheck）。
+     キーが入っているだけで「接続済み」と出すと、接続が切れていても気づけません。 */
+  function calWarn() {
+    var c = (S.data && S.data.calendar) || null;
+    if (!c || c.kind === 'none') return '';
+    if (!c.ok) {
+      return c.kind === 'google'
+        ? 'Googleカレンダーを読めていません（' + esc(c.error || '理由不明') + '）。このあいだ、予約ページには日時の枠を出していません（先約のある時間まで空きとして見せないためです）。「つながり・お知らせ」の「接続し直す」を押してください。'
+        : 'カレンダーの非公開URLを読めていません。このあいだ、予約ページには日時の枠を出していません。Googleカレンダーの設定で URL を確かめ、設定状況の「カレンダーの非公開URL（簡易接続）」に貼り直してください。';
+    }
+    if (c.busy === 0) {
+      return 'カレンダーは読めていますが、この先14日に予定が1つも見つかりません' + (c.name ? '（読んでいるカレンダー: ' + esc(c.name) + '）' : '') +
+        '。ふだん使っているカレンダーと違う場合は、予定の入っている Google アカウントで「接続し直す」を押してください。終日の予定と「予定なし」にした予定は、空きとして扱われます。';
+    }
+    return '';
+  }
+
   function mailWarn() {
     var d = S.data, m = d.mail || {};
     var out = [];
+    var cw = calWarn();
+    if (cw) out.push(cw);
+    else if (d.stored && d.calendar && d.calendar.kind === 'none') {
+      out.push('カレンダーとつながっていないため、予約ページの空きは「受付時間の決まり」だけで出ています。あなたのカレンダーに予定がある時間も、空きとして表示されます。「つながり・お知らせ」から Googleカレンダーに接続してください。');
+    }
     if (!d.stored) {
       out.push('保存先（Upstash Redis）が Vercel の環境変数に無いため、予約は記録されず、二重予約も防げません。' +
         (d.ics ? '' : 'この状態では、サイトに予約欄は出ません。') + '「つながり・お知らせ」に直し方があります。');
@@ -660,9 +683,13 @@
        2. 簡易接続   … 本当の空きから候補を出す（仮予約のまま）
        3. 通常の接続 … 空きの反映に加えて、予定の登録とMeetの発行まで */
     var level = d.connected ? 3 : d.ics ? 2 : 1;
-    var levelText = level === 3 ? '✓ Googleカレンダーに接続済み（' + esc(d.calendarId || 'primary') + '）'
-      : level === 2 ? '✓ 簡易接続（カレンダーの空きのみ反映）' : '未接続（受付時間の決まりだけで枠を出しています）';
-    var fix = level === 3
+    var cal = d.calendar || null, calBad = !!(cal && cal.kind !== 'none' && !cal.ok);
+    var levelText = calBad ? '✗ ' + (level === 3 ? 'Googleカレンダーを読めていません（接続が切れています）' : 'カレンダーの非公開URLを読めていません')
+      : level === 3 ? '✓ Googleカレンダーに接続済み（' + esc((cal && cal.name) || d.calendarId || 'primary') + (cal && cal.ok ? '・この先14日の予定 ' + cal.busy + '件を反映中' : '') + '）'
+      : level === 2 ? '✓ 簡易接続（カレンダーの空きのみ反映' + (cal && cal.ok ? '・この先14日の予定 ' + cal.busy + '件' : '') + '）' : '未接続（受付時間の決まりだけで枠を出しています。あなたのカレンダーの予定は見ていません）';
+    var fix = calBad
+      ? calWarn()
+      : level === 3
       ? 'お客様が予約すると、このカレンダーに予定が入り、お客様にも招待が届きます（オンラインにしていれば Meet のURL付き）。取り消し・日時の変更も、カレンダーの予定に反映されます。'
       : level === 2
         ? '候補日時は、あなたのカレンダーの本当の空きから、予定の前後をあけて出ています。ただし簡易接続は読み取り専用のため、予約はカレンダーに自動では入りません（予約一覧の「Googleカレンダーに追加」か、届くメールの添付ファイルから1回で入れられます）。' +
@@ -695,7 +722,7 @@
         '<div class="vid-acts"><button type="button" class="ghost" id="bk-embed-copy">埋め込みのコードをコピー</button></div>' +
       '</div>' +
       '<h3 class="soc-h" style="margin-top:18px">カレンダー</h3>' +
-      '<div class="bk-conn"><b style="color:' + (level === 3 ? '#0e7490' : level === 2 ? '#b45309' : 'var(--sub)') + '">' + levelText + '</b><p>' + fix + '</p>' +
+      '<div class="bk-conn"><b style="color:' + (calBad ? '#b42318' : level === 3 ? '#0e7490' : level === 2 ? '#b45309' : 'var(--sub)') + '">' + levelText + '</b><p>' + fix + '</p>' +
         '<div class="vid-acts" style="margin-top:6px">' +
           '<button type="button" id="bk-gconnect" class="ghost">' + (d.connected ? '接続し直す' : 'Googleカレンダーに接続') + '</button>' +
           '<button type="button" id="bk-keys" class="ghost">設定状況でキーを入れる</button>' +
