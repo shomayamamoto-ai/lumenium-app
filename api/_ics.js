@@ -122,16 +122,16 @@ export function busyFromIcs(text, fromMs, toMs) {
     .slice(0, 500)
 }
 
-/** 非公開URLを読めるか確かめ、読めないときは理由を言葉で返します。
+/** カレンダーのURLを読めるか確かめ、読めないときは理由を言葉で返します。
  *  { ok: true, busy: [...] } か { ok: false, why: '…' }。
- *  いちばん多い取り違えは「公開URL」を貼ることです（カレンダーを一般公開して
- *  いなければ Google は 404 を返します）。URL の形で先に見分けて、そう言います。 */
+ *  「公開URL」でも、カレンダーを一般公開（時間枠のみで足ります）にしてあれば読めます。
+ *  会社用の Google アカウントでは非公開URLが出ないことがあり、そのときはこの道しか
+ *  ありません。なので URL の形だけでは断らず、必ず実際に読んでから判断します
+ *  （形だけで「公開URLは読めない」と決めつけ、正しく公開した人を通さなかったことがあります）。 */
 export async function probeIcs(url, fromMs, toMs) {
   const u = String(url || '').trim()
   if (!/^https:\/\//i.test(u)) return { ok: false, why: 'https:// で始まるURLではありません。Googleカレンダーの「非公開の iCal 形式の URL」をそのまま貼ってください。' }
-  if (/\/public\/[^/]*\.ics/i.test(u)) {
-    return { ok: false, why: '貼ってあるのは「公開URL」です（カレンダーを一般公開していないと読めません）。そのすぐ下にある「非公開の iCal 形式の URL」（…/private-…/basic.ics）を貼ってください。' }
-  }
+  const isPublic = /\/public\/[^/]*\.ics/i.test(u)
   if (!/\.ics(\?|$)/i.test(u)) {
     return { ok: false, why: 'カレンダーの画面や埋め込みのURLのようです。必要なのは、末尾が basic.ics の「非公開の iCal 形式の URL」です。' }
   }
@@ -143,6 +143,9 @@ export async function probeIcs(url, fromMs, toMs) {
     })
   } catch (e) {
     return { ok: false, why: /abort|timeout/i.test(String((e && e.message) || e)) ? 'Google からの返事が時間内に来ませんでした。少しおいてもう一度お試しください。' : 'URL に接続できませんでした。' }
+  }
+  if (!res.ok && isPublic) {
+    return { ok: false, why: `貼ってあるのは「公開URL」で、いまは Google が読ませてくれません（${res.status}）。Googleカレンダーの設定 › 自分のカレンダー › 「予定のアクセス権限」で「一般公開して誰でも利用できるようにする」にチェックを入れ、右の選択を「予定の表示（時間枠のみ、詳細は非表示）」にしてください（公開されるのは埋まっている時間だけです。チェックを入れた直後は、反映まで数分かかることがあります）。「非公開の iCal 形式の URL」が表示されるアカウントなら、そちらを貼っても構いません。` }
   }
   if (!res.ok) {
     return { ok: false, why: `Google がこのURLを受け付けませんでした（${res.status}）。URLをリセットした場合や、コピーが途中で切れた場合に起こります。Googleカレンダーでコピーし直して、貼り直してください。` }

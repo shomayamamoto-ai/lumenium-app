@@ -540,8 +540,14 @@ await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを�
     await t('非公開URLの確かめ: 公開URL・画面のURL・404 を、理由つきで見分ける', async () => {
       const { probeIcs } = await import('../api/_ics.js')
       const now = Date.now()
-      let r = await probeIcs('https://calendar.google.com/calendar/ical/someone%40example.com/public/basic.ics', now, now + 86400000)
-      assert.equal(r.ok, false); assert.match(r.why, /公開URL/)
+      // 公開URL: カレンダーを公開していなければ 404。理由と直し方（時間枠のみ公開）を言う。
+      let r = await probeIcs('https://ical.test/calendar/ical/someone%40example.com/public/basic.ics', now, now + 86400000)
+      assert.equal(r.ok, false); assert.match(r.why, /公開URL/); assert.match(r.why, /時間枠のみ/)
+      // 公開URLでも、公開してあれば読める（形だけで断らない）。時間枠のみの公開は題が「予定あり」になる。
+      const z2 = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
+      ics = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:p1@x', `DTSTART:${z2(now + 3600000)}`, `DTEND:${z2(now + 7200000)}`, 'SUMMARY:予定あり', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+      r = await probeIcs('https://ical.test/calendar/ical/someone%40example.com/public/basic.ics', now, now + 86400000)
+      assert.equal(r.ok, true); assert.equal(r.busy.length, 1)
       r = await probeIcs('https://calendar.google.com/calendar/embed?src=someone%40example.com', now, now + 86400000)
       assert.equal(r.ok, false); assert.match(r.why, /basic\.ics/)
       ics = null
