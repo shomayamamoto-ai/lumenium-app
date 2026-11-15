@@ -92,6 +92,20 @@
       return list.filter(function (b) { var st = bkSpan(b).start; return st >= from && st < from + DAY && live(b); });
     };
     var today = on(t0), tomorrow = on(t0 + DAY);
+    /* カレンダーを読めていないあいだ、予約ページに日時の枠は出ません（先約と重ならないように）。
+       つないでいないときは、枠は出ますが、あなたの予定を見ていません。どちらも気づけるように出します。 */
+    var cal = s.data.calendar;
+    if (cal && cal.kind !== 'none' && !cal.ok) {
+      out.push({ id: 'bk-cal-down', level: 'urgent', tab: 'booking-admin', count: 1, unit: '件',
+        title: '予約のカレンダーを読めていません',
+        why: 'このあいだ、予約ページに日時の枠が出ていません。' + (cal.kind === 'google' ? '「つながり・お知らせ」で「接続し直す」を押してください。' : '貼ってあるURLを確かめてください（' + (cal.error || '') + '）'),
+        go: { label: '直し方を見る', sec: 'conn' } });
+    } else if (cal && cal.kind === 'none' && s.data.stored) {
+      out.push({ id: 'bk-cal-none', level: 'action', tab: 'booking-admin', count: 1, unit: '件',
+        title: '予約ページが、あなたのカレンダーを見ていません',
+        why: 'カレンダーとつながっていないため、予定のある時間も空きとして出ています。つなぐと、空きが本当の予定に合います。',
+        go: { label: 'つなぎ方を見る', sec: 'conn' } });
+    }
     if (today.length) {
       var next = today.filter(function (b) { return bkSpan(b).end >= now && bkStatus(b) !== 'visited'; })[0];
       out.push({ id: 'bk-today', level: 'today', tab: 'booking-admin', count: today.length, unit: '件',
@@ -430,8 +444,9 @@
       why: 'SEO / AIO 分析と AIアドバイザーに使います。使った分だけ料金がかかります。',
       go: { name: 'ANTHROPIC_API_KEY', env: 'ANTHROPIC_API_KEY' } },
     { id: 'google', title: 'Google カレンダーとつなぐ（予約）', test: 'google', optional: true,
-      why: '予約の候補を、カレンダーの本当の空きに合わせます。二重予約を防げます。',
-      go: { name: 'GOOGLE_REFRESH_TOKEN', env: 'GOOGLE_REFRESH_TOKEN' } },
+      why: '予約の候補を、カレンダーの本当の空きに合わせます。二重予約を防げます。' +
+        'いちばん簡単なつなぎ方：パソコンで Googleカレンダーを開き、右上の歯車 › 設定 › 左の「マイカレンダーの設定」で自分のカレンダー › 「カレンダーの統合」 › 「非公開の iCal 形式の URL」をコピーして、「設定する」で開く欄に貼ります（「公開URL」ではなく、その下の「非公開」のほうです）。',
+      go: { name: 'GOOGLE_CALENDAR_ICS_URL', env: 'GOOGLE_REFRESH_TOKEN' } },
     { id: 'cron', title: '毎朝の仕事の合言葉を決める（CRON_SECRET）', optional: true, where: 'Vercel の環境変数 CRON_SECRET',
       why: '予約の前日のお知らせ・予約投稿・週のまとめメールは、これがあると毎朝自動で動きます。',
       go: { env: 'CRON_SECRET' } },
@@ -492,6 +507,16 @@
       ai: function () { return hOk ? [isOk('ai') ? 'done' : 'todo', ''] : null; },
       google: function () {
         var b = ok(src.booking) ? src.booking.data : null;
+        /* 値が入っているかではなく、実際に読めているか（api/booking.js の calendarCheck）で決めます。
+           以前は URL が入っているだけで「済み」と出し、読めていなくても気づけませんでした。 */
+        var cal = b && b.calendar;
+        if (cal && cal.kind !== 'none') {
+          var how = cal.kind === 'google' ? 'Googleカレンダー' + (cal.name ? '（' + cal.name + '）' : '') : '簡易接続（カレンダーの非公開URL）';
+          if (!cal.ok) return ['todo', (cal.kind === 'google' ? 'Googleカレンダーを読めていません: ' : '貼ってあるURLでカレンダーを読めていません: ') + (cal.error || '') + ' 読めないあいだ、予約ページに日時の枠は出ません。'];
+          if (!cal.busy) return ['todo', how + 'は読めていますが、この先14日に予定が1つも見つかりません。ふだん使っているカレンダーと違うものをつないでいないか、確かめてください。'];
+          return ['done', how + 'を読めています（この先14日の予定 ' + cal.busy + '件を反映中）。' + (cal.kind === 'ics' ? '簡易接続は読み取りだけなので、入った予約はカレンダーに自動では入りません。' : '')];
+        }
+        if (cal && cal.kind === 'none') return ['todo', 'まだつながっていません。予約ページの空きは、あなたの予定を見ずに出ています。'];
         if (by.google || (set && set.GOOGLE_REFRESH_TOKEN && set.GOOGLE_REFRESH_TOKEN.set) || (b && b.connected)) return ['done', ''];
         if ((set && set.GOOGLE_CALENDAR_ICS_URL && set.GOOGLE_CALENDAR_ICS_URL.set) || (b && b.ics)) {
           return ['done', '簡易接続（カレンダーの非公開URL）です。空きは見えますが、予約はカレンダーに自動では入りません。'];
@@ -537,7 +562,7 @@
       var state = j ? j[0] : 'unknown';
       if (state !== 'done' && st.optional && skipped[st.id]) state = 'skipped';
       return { id: st.id, n: i + 1, title: st.title, why: st.why, where: st.where || '', optional: !!st.optional,
-        test: st.id === 'google' && state !== 'done' ? '' : (st.test || ''), go: st.go, state: state, note: j ? j[1] : '' };
+        test: st.test || '', go: st.go, state: state, note: j ? j[1] : '' };
     });
     var known = steps.filter(function (x) { return x.state !== 'unknown'; }).length;
     var done = steps.filter(function (x) { return x.state === 'done' || x.state === 'skipped'; }).length;
@@ -1032,9 +1057,12 @@
     (function look() {
       var hit = null;
       if (label) {
+        /* 見出しには名前のあとに「未設定」などの札とキーの名前が付くので、先頭の文字だけを比べます
+           （全体で比べていたため一致せず、どの項目でも設定状況の先頭に飛ぶだけになっていました）。 */
         document.querySelectorAll('#set-list .set-row').forEach(function (row) {
           var h = row.querySelector('h4');
-          if (!hit && h && h.textContent.trim() === label) hit = row;
+          var name = h && h.firstChild ? String(h.firstChild.textContent || '').trim() : '';
+          if (!hit && name === label) hit = row;
         });
       }
       if (!hit && g.env) {
@@ -1044,8 +1072,12 @@
       if (!hit && tries++ < 30) { setTimeout(look, 150); return; }
       document.querySelectorAll('.lp-target').forEach(function (x) { x.classList.remove('lp-target'); });
       if (hit) hit.classList.add('lp-target');
+      // 折りたたまれた中にあれば開いてから、その欄まで動かして、入力欄にカーソルを置きます。
+      for (var p = hit && hit.parentNode; p && p !== document.body; p = p.parentNode) { if (p.tagName === 'DETAILS') p.open = true; }
       var target = hit || el('health-admin');
       if (target) target.scrollIntoView({ block: hit ? 'center' : 'start' });
+      var box = hit && hit.querySelector('input,textarea');
+      if (box && !box.disabled) { try { box.focus({ preventScroll: true }); } catch (_) {} }
     })();
   }
 

@@ -537,6 +537,20 @@ await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを�
       const r2 = await openSlots(req, 500, rules, svc)
       assert.equal(r2.mode, 'off')
     })
+    await t('非公開URLの確かめ: 公開URL・画面のURL・404 を、理由つきで見分ける', async () => {
+      const { probeIcs } = await import('../api/_ics.js')
+      const now = Date.now()
+      let r = await probeIcs('https://calendar.google.com/calendar/ical/someone%40example.com/public/basic.ics', now, now + 86400000)
+      assert.equal(r.ok, false); assert.match(r.why, /公開URL/)
+      r = await probeIcs('https://calendar.google.com/calendar/embed?src=someone%40example.com', now, now + 86400000)
+      assert.equal(r.ok, false); assert.match(r.why, /basic\.ics/)
+      ics = null
+      r = await probeIcs('https://ical.test/private-abc/basic.ics', now, now + 86400000)
+      assert.equal(r.ok, false); assert.match(r.why, /404/)
+      ics = 'BEGIN:VCALENDAR\r\nEND:VCALENDAR'
+      r = await probeIcs('https://ical.test/private-abc/basic.ics', now, now + 86400000)
+      assert.equal(r.ok, true); assert.deepEqual(r.busy, [])
+    })
     await t('簡易接続だけのとき、URL を読めなければ枠を出さない', async () => {
       delete process.env.GOOGLE_REFRESH_TOKEN
       ics = null

@@ -27,7 +27,7 @@ import { requireAdmin } from './_admin-auth.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { pickTopics } from './_form-options.js'
 import { creds, connected, busy as gcalBusy, createEvent, calendarInfo } from './_google-cal.js'
-import { busyFromUrl } from './_ics.js'
+import { busyFromUrl, probeIcs } from './_ics.js'
 import {
   SHOW, candidates, removeBusy, toWire, label, gcalAddUrl,
   cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS, bookingAttention,
@@ -145,7 +145,7 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
 /** 管理画面用: カレンダーをいま実際に読めるかを確かめます。
  *  ok: 読めた / name: 読んでいるカレンダーの名前 / busy: この先14日の埋まっている時間帯の数
  *  読めたのに busy が 0 のときは、別のアカウントにつないでいる疑いがあります（画面で知らせます）。 */
-async function calendarCheck(req, c, store) {
+export async function calendarCheck(req, c, store) {
   const from = Date.now()
   const to = from + 14 * 86400000
   if (connected(c)) {
@@ -161,10 +161,10 @@ async function calendarCheck(req, c, store) {
   }
   const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
   if (icsUrl) {
-    const list = await busyFromUrl(icsUrl, from, to)
-    if (!list) { await noteCalendar(store, 'カレンダーの非公開URLを読めませんでした'); return { kind: 'ics', ok: false, error: 'カレンダーの非公開URLを読めませんでした' } }
+    const pr = await probeIcs(icsUrl, from, to)
+    if (!pr.ok) { await noteCalendar(store, pr.why); return { kind: 'ics', ok: false, error: pr.why } }
     await noteCalendar(store, '')
-    return { kind: 'ics', ok: true, busy: list.length }
+    return { kind: 'ics', ok: true, busy: pr.busy.length }
   }
   return { kind: 'none', ok: false }
 }

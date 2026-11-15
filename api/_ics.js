@@ -122,19 +122,39 @@ export function busyFromIcs(text, fromMs, toMs) {
     .slice(0, 500)
 }
 
-/** URLを読んで、埋まっている時間を返す。読めなければ null（空いている、とは
- *  言いません——嘘の空き枠を出すくらいなら、営業時間のルールだけで出します）。 */
-export async function busyFromUrl(url, fromMs, toMs) {
+/** 非公開URLを読めるか確かめ、読めないときは理由を言葉で返します。
+ *  { ok: true, busy: [...] } か { ok: false, why: '…' }。
+ *  いちばん多い取り違えは「公開URL」を貼ることです（カレンダーを一般公開して
+ *  いなければ Google は 404 を返します）。URL の形で先に見分けて、そう言います。 */
+export async function probeIcs(url, fromMs, toMs) {
+  const u = String(url || '').trim()
+  if (!/^https:\/\//i.test(u)) return { ok: false, why: 'https:// で始まるURLではありません。Googleカレンダーの「非公開の iCal 形式の URL」をそのまま貼ってください。' }
+  if (/\/public\/[^/]*\.ics/i.test(u)) {
+    return { ok: false, why: '貼ってあるのは「公開URL」です（カレンダーを一般公開していないと読めません）。そのすぐ下にある「非公開の iCal 形式の URL」（…/private-…/basic.ics）を貼ってください。' }
+  }
+  if (!/\.ics(\?|$)/i.test(u)) {
+    return { ok: false, why: 'カレンダーの画面や埋め込みのURLのようです。必要なのは、末尾が basic.ics の「非公開の iCal 形式の URL」です。' }
+  }
+  let res
   try {
-    const res = await fetch(url, {
+    res = await fetch(u, {
       headers: { 'user-agent': `${BRAND.name}Booking/1 (+${BRAND.url}/)` },
       signal: AbortSignal.timeout(8000),
     })
-    if (!res.ok) return null
-    const text = await res.text()
-    if (!/BEGIN:VCALENDAR/.test(text)) return null
-    return busyFromIcs(text, fromMs, toMs)
-  } catch (_) {
-    return null
+  } catch (e) {
+    return { ok: false, why: /abort|timeout/i.test(String((e && e.message) || e)) ? 'Google からの返事が時間内に来ませんでした。少しおいてもう一度お試しください。' : 'URL に接続できませんでした。' }
   }
+  if (!res.ok) {
+    return { ok: false, why: `Google がこのURLを受け付けませんでした（${res.status}）。URLをリセットした場合や、コピーが途中で切れた場合に起こります。Googleカレンダーでコピーし直して、貼り直してください。` }
+  }
+  const text = await res.text()
+  if (!/BEGIN:VCALENDAR/.test(text)) return { ok: false, why: '返ってきたものがカレンダーの形式ではありませんでした。「非公開の iCal 形式の URL」を貼り直してください。' }
+  return { ok: true, busy: busyFromIcs(text, fromMs, toMs) }
+}
+
+/** URLを読んで、埋まっている時間を返す。読めなければ null（空いている、とは
+ *  言いません。呼ぶ側は、読めないあいだ枠を出しません）。 */
+export async function busyFromUrl(url, fromMs, toMs) {
+  const r = await probeIcs(url, fromMs, toMs)
+  return r.ok ? r.busy : null
 }

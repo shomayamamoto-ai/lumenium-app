@@ -15,7 +15,7 @@ import { requireAdmin, json } from './_admin-auth.js'
 import { setting } from './_settings.js'
 import { storeFor, storePing } from './_analytics-store.js'
 import { hit } from './_ratelimit.js'
-import { creds, connected, accessToken } from './_google-cal.js'
+import { creds } from './_google-cal.js'
 import { BRAND, KV } from './_brand.js'
 import { senderInfo, SANDBOX_NOTE, DNS_STEPS } from './_sender.js'
 
@@ -127,15 +127,30 @@ async function storeTest(req) {
     : { state: 'error', message: `保存先に接続できません（${p.message}）。URL とトークンが同じデータベースのものか、Upstash の画面で確認してください。` }
 }
 
+/* 予約のカレンダー。つなぎ方は2つあり（Googleにログインして接続／非公開URLを貼る簡易接続）、
+   いま使われているほうを実際に読んで確かめます。以前は前者しか見ておらず、簡易接続で
+   「済み」と出ている行のテストが「接続されていません」と答えていました。 */
 async function googleTest(req) {
   const c = await creds(req)
-  if (!connected(c)) return { state: 'error', message: 'Google と接続されていません。「キーの入力」の Google の欄から接続してください。' }
-  try {
-    await accessToken(c)
-    return { state: 'ok', message: 'Google との接続は有効です（予約カレンダー・Search Console が使えます）。' }
-  } catch (e) {
-    return { state: 'error', message: `Google との接続が使えません: ${String((e && e.message) || e).slice(0, 120)}。管理画面から接続し直してください。` }
+  const { calendarCheck } = await import('./booking.js')
+  const r = await calendarCheck(req, c, await storeFor(req))
+  const WHERE = 'この行の「設定する」を押すと、URLを貼る欄（カレンダーの非公開URL（簡易接続））が開きます。'
+  if (r.kind === 'none') {
+    return { state: 'error', message: `カレンダーとつながっていません。予約ページの空きは、あなたの予定を見ずに出ています。${WHERE}` }
   }
+  const how = r.kind === 'google' ? 'Googleカレンダー' + (r.name ? `（${r.name}）` : '') : '簡易接続（非公開URL）'
+  if (!r.ok) {
+    return {
+      state: 'error',
+      message: r.kind === 'google'
+        ? `Googleカレンダーを読めていません: ${r.error}。予約管理の「つながり・お知らせ」で「接続し直す」を押してください。読めないあいだ、予約ページに日時の枠は出ません。`
+        : `カレンダーを読めていません: ${r.error} 読めないあいだ、予約ページに日時の枠は出ません。${WHERE}`,
+    }
+  }
+  if (!r.busy) {
+    return { state: 'warn', message: `${how}は読めていますが、この先14日に予定が1つも見つかりません。ふだん使っているカレンダーと違うものをつないでいないか、確かめてください（終日の予定と「予定なし」にした予定は数えません）。` }
+  }
+  return { state: 'ok', message: `${how}を読めています。この先14日の予定 ${r.busy}件を、予約ページの空きに反映しています。` + (r.kind === 'ics' ? '（簡易接続は読み取りだけなので、入った予約はカレンダーに自動では入りません）' : '') }
 }
 
 const RUN = { resend: resendTest, github: githubTest, ai: aiTest, store: storeTest, google: googleTest }

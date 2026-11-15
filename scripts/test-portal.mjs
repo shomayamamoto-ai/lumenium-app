@@ -260,7 +260,7 @@ test('設定: 一部まだ・試用の送信元・使わない', () => {
   assert.equal(r.pct, 44, 'お店の準備（4つ）は読めていないので、済みに数えない')
 })
 
-test('設定: メールが無いと送信元も「まだ」、Google のテストはつないでから', () => {
+test('設定: メールが無いと送信元も「まだ」、Google のテストはつなぐ前でも押せる', () => {
   const r = setup({
     health: ok({ ok: true, checks: [chk('resend', 'error')] }),
     settings: ok({ ok: true, settings: [] }),
@@ -269,8 +269,31 @@ test('設定: メールが無いと送信元も「まだ」、Google のテス�
   assert.equal(st(r, 'sender').state, 'todo')
   assert.match(st(r, 'sender').note, /先に/)
   assert.equal(st(r, 'google').state, 'todo')
-  assert.equal(st(r, 'google').test, '')
+  // テストは、いまの状態（未接続・読めていない・読めている）をそのまま言うので、いつでも押せます。
+  assert.equal(st(r, 'google').test, 'google')
   assert.equal(st(r, 'brand').state, 'unknown', 'SNS が読めないと社名は分からない')
+})
+
+test('設定: カレンダーは「値が入っているか」ではなく「実際に読めているか」で決まる', () => {
+  const base = { health: ok({ ok: true, checks: [] }), settings: ok({ ok: true, settings: [{ name: 'GOOGLE_CALENDAR_ICS_URL', set: true }] }) }
+  const g = (calendar, extra) => st(setup({ ...base, booking: ok({ ok: true, connected: false, ics: true, ...extra, calendar }) }, { host: 'x.example' }), 'google')
+  // URL は入っているが読めない → 「済み」にしない。理由を出す。
+  const bad = g({ kind: 'ics', ok: false, error: '貼ってあるのは「公開URL」です。' })
+  assert.equal(bad.state, 'todo')
+  assert.match(bad.note, /公開URL/)
+  assert.match(bad.note, /枠は出ません/)
+  // 読めていて予定もある → 済み。件数を出す。
+  const good = g({ kind: 'ics', ok: true, busy: 7 })
+  assert.equal(good.state, 'done')
+  assert.match(good.note, /7件/)
+  // 読めているのに予定が0件 → 別のカレンダーの疑い。
+  assert.equal(g({ kind: 'ics', ok: true, busy: 0 }).state, 'todo')
+  // Google で接続していて切れている → 「済み」にしない。
+  const cut = g({ kind: 'google', ok: false, error: 'Googleとの接続が切れています' }, { connected: true, ics: false })
+  assert.equal(cut.state, 'todo')
+  assert.match(cut.note, /読めていません/)
+  // つないでいない
+  assert.equal(g({ kind: 'none', ok: false }, { ics: false }).state, 'todo')
 })
 
 test('設定: 本家のドメインなら社名は既定のままで済み', () => {
