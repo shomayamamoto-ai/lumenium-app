@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { funnel, whenSeen } from '../lib/analytics'
 import { bookingCopy } from './bookingCopy'
+import SlotPicker from './SlotPicker'
 
 // フォームを送った直後に出る日程ピッカー。
 //
@@ -20,32 +21,31 @@ import { bookingCopy } from './bookingCopy'
 export default function BookingPicker({ contact }) {
   const [state, setState] = useState('loading') // loading | open | done | off
   const [slots, setSlots] = useState([])
-  const [total, setTotal] = useState(0)
-  const [expanded, setExpanded] = useState(false)
+  // 押した枠。時刻のボタンが細かく並ぶので、押しただけでは予約せず、下の確認のボタンで決めます。
+  const [picked, setPicked] = useState(null)
   const [busyKey, setBusyKey] = useState('')
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState(null)
   const boxRef = useRef(null)
 
-  const load = async (all = false, service = '') => {
+  const load = async (service = '') => {
     try {
-      const q = new URLSearchParams()
-      if (all) q.set('all', '1')
+      const q = new URLSearchParams({ all: '1' })
       if (service) q.set('service', service)
-      const res = await fetch('/api/booking' + (q.toString() ? '?' + q.toString() : ''))
+      const res = await fetch('/api/booking?' + q.toString())
       const data = await res.json()
       if (!data.ok || !data.enabled || (!data.slots.length && !service)) { setState('off'); return }
       setInfo({ minutes: data.minutes, wording: data.wording, online: data.online, mode: data.mode, services: data.services || [], service: data.service })
       setSlots(data.slots)
-      setTotal(data.total || data.slots.length)
+      setPicked(null)
       setState('open')
     } catch (_) {
       setState('off')
     }
   }
 
-  useEffect(() => { load(false) }, [])
+  useEffect(() => { load() }, [])
   // 画面に入ったときに1回だけ（QuickBook と同じ数え方）。
   useEffect(() => (state === 'open' ? whenSeen(boxRef.current, funnel.bookingView) : undefined), [state])
 
@@ -74,7 +74,7 @@ export default function BookingPicker({ contact }) {
       if (res.status === 409) {
         // 先に取られた。押した人に選び直してもらうには、新しい一覧が要る。
         setError(data.message || 'その枠は埋まりました。別の日時をお選びください。')
-        await load(expanded, info && info.service)
+        await load(info && info.service)
         return
       }
       if (!res.ok || !data.ok) throw new Error(data.message || `status ${res.status}`)
@@ -120,7 +120,7 @@ export default function BookingPicker({ contact }) {
               type="button"
               className={`booking-slot ${info.service === s.id ? 'is-on' : ''}`}
               aria-pressed={info.service === s.id}
-              onClick={() => { setExpanded(false); setInfo((x) => ({ ...x, service: s.id })); load(false, s.id) }}
+              onClick={() => { setInfo((x) => ({ ...x, service: s.id })); load(s.id) }}
             >
               <span className="booking-day">{s.name}</span>
               <span className="booking-time">{s.minutes}分{s.price ? `・${s.price}` : ''}</span>
@@ -129,31 +129,15 @@ export default function BookingPicker({ contact }) {
         </div>
       ) : null}
       {error ? <p className="booking-error" role="alert">{error}</p> : null}
-      <div className="booking-slots">
-        {!slots.length ? <p className="booking-skip">このメニューは、いま予約できる空きがありません。</p> : null}
-        {slots.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            className="booking-slot"
-            disabled={!!busyKey}
-            aria-busy={busyKey === s.key}
-            onClick={() => choose(s)}
-          >
-            <span className="booking-day">{s.day}</span>
-            <span className="booking-time">{s.time}</span>
-            {busyKey === s.key ? <span className="booking-slot-state">予約中…</span> : null}
+      {!slots.length ? <p className="booking-skip">このメニューは、いま予約できる空きがありません。</p> : null}
+      <SlotPicker slots={slots} value={picked ? picked.key : ''} onPick={(s) => { setError(''); setPicked(picked && picked.key === s.key ? null : s) }} busyKey={busyKey} />
+      {picked ? (
+        <div className="booking-confirm">
+          <p className="booking-when">{picked.day} {picked.time}<span>（{picked.minutes || copy.minutes}分・日本時間）</span></p>
+          <button type="button" className="booking-go" disabled={!!busyKey} aria-busy={!!busyKey} onClick={() => choose(picked)}>
+            {busyKey ? '予約しています…' : 'この日時で予約する'}
           </button>
-        ))}
-      </div>
-      {!expanded && total > slots.length ? (
-        <button
-          type="button"
-          className="booking-more"
-          onClick={() => { setExpanded(true); load(true, info && info.service) }}
-        >
-          全ての候補日程を見る（残り {total - slots.length} 件）
-        </button>
+        </div>
       ) : null}
       <p className="booking-skip">
         日程は後日でも構いません。その場合もこちらから48時間以内にご返信します。<br />

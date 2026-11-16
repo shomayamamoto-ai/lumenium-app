@@ -80,16 +80,18 @@ function fakeStore() {
 }
 
 /* ---- 1. 決まり → 枠 ---- */
-await t('既定の決まりは以前と同じ（平日10〜18時・60分・30分刻み・20時間後から）', () => {
+await t('既定の決まり（平日7〜26時・60分・30分刻み・20時間後から）', () => {
   const rules = B.normalizeRules(null).rules
   // 2026-10-05 は月曜。日曜の朝9時から見る。
   const s = B.candidates(jst('2026-10-04 09:00'), rules, 60)
   assert.equal(ymd(s[0].start), '2026-10-05')
-  assert.equal(hhmm(s[0].start), '10:00')
+  assert.equal(hhmm(s[0].start), '07:00')
   const mon = s.filter((x) => ymd(x.start) === '2026-10-05')
-  assert.equal(mon.length, 15)                       // 10:00 … 17:00、30分刻み
-  assert.equal(hhmm(mon[mon.length - 1].end), '18:00')
-  assert.ok(!s.some((x) => [0, 6].includes(new Date(x.start + JST).getUTCDay())))
+  assert.equal(mon.length, 34)                       // 7:00 … 23:30（この日のうちに始まる分）
+  // 土日は休み。ただし金曜の深夜（26時まで）は、土曜の午前2時までに終わる枠として出る。
+  assert.ok(!s.some((x) => new Date(x.start + JST).getUTCDay() === 0))
+  const sat = s.filter((x) => new Date(x.start + JST).getUTCDay() === 6)
+  assert.ok(sat.length && sat.every((x) => hhmm(x.end) <= '02:00'))
 })
 
 await t('1日に複数の時間帯（昼休み）と、長さの違うメニュー', () => {
@@ -473,6 +475,48 @@ await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを�
   assert.ok([401, 503].includes(res.status))
 })
 
+await t('受付時間: 7:00〜26:00（翌日の午前2時まで）を書ける。枠は時刻順で、同じ開始は1つ', async () => {
+  // 既定: 平日 7:00〜26:00・60分・前後30分・30分刻み
+  const D = B.normalizeRules(null).rules
+  assert.deepEqual(D.week[1], [[420, 1560]])
+  assert.deepEqual(D.week[0], []); assert.deepEqual(D.week[6], [])
+  assert.equal(D.bufferMin, 30); assert.equal(D.stepMin, 30); assert.equal(D.services[0].minutes, 60)
+  // 24時を越える終わりは通り、30:00 を越えるもの・24時以降に始まるものは除く
+  const { rules, problems } = B.normalizeRules({ week: [[], [[420, 1560]], [[420, 1860]], [[1500, 1560]], [], [], []], leadHours: 0 })
+  assert.deepEqual(rules.week[1], [[420, 1560]])
+  assert.deepEqual(rules.week[2], []); assert.deepEqual(rules.week[3], [])
+  assert.ok(problems.length >= 2)
+  // 月曜（2026-10-05）: 最初は 7:00、最後は 火曜 1:00〜2:00（25:00 開始）
+  const one = B.normalizeRules({ week: [[], [[420, 1560]], [], [], [], [], []], leadHours: 0, horizonDays: 14 }).rules
+  const mon = B.candidates(jst('2026-10-04 12:00'), one, 60).filter((x) => x.start < jst('2026-10-06 06:00'))
+  assert.equal(ymd(mon[0].start) + ' ' + hhmm(mon[0].start), '2026-10-05 07:00')
+  const lastSlot = mon[mon.length - 1]
+  assert.equal(ymd(lastSlot.start) + ' ' + hhmm(lastSlot.start), '2026-10-06 01:00')
+  assert.equal(hhmm(lastSlot.end), '02:00')
+  assert.equal(mon.length, 37) // 7:00〜25:00 の30分刻み
+  assert.equal(B.toWire(lastSlot).day, '10/6(火)') // お客様には本当の日付で見せる
+  // 毎日 7:00〜26:00 と 0:00〜3:00 を両方書いても、同じ開始の枠は1つ。時刻順。
+  const both = B.normalizeRules({ week: Array.from({ length: 7 }, () => [[0, 180], [420, 1560]]), leadHours: 0, horizonDays: 3 }).rules
+  const all = B.candidates(jst('2026-10-04 12:00'), both, 60)
+  assert.equal(new Set(all.map((x) => x.start)).size, all.length)
+  assert.ok(all.every((x, i) => !i || x.start > all[i - 1].start))
+  // 先約（11:00〜12:00）の前後30分は出さない: 9:30 開始は可、10:00〜12:00 開始は不可、12:30 開始は可
+  const free = B.removeBusy(mon, [{ start: jst('2026-10-05 11:00'), end: jst('2026-10-05 12:00') }], 30).map((x) => hhmm(x.start))
+  assert.ok(free.includes('09:30') && free.includes('12:30'))
+  for (const h of ['10:00', '10:30', '11:00', '11:30', '12:00']) assert.ok(!free.includes(h), h)
+})
+
+await t('受付時間: 保存されているのが以前の既定（平日10〜18時）のままなら、いまの既定に読み替える', async () => {
+  const S = fakeStore()
+  await S.pipeline(S.cfg, [['SET', B.RULES_KEY, JSON.stringify({ ...B.normalizeRules(null).rules, week: [[], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], []], leadHours: 5 })]])
+  const r = await B.readRules(S.cfg, S.pipeline)
+  assert.deepEqual(r.week[1], [[420, 1560]])
+  assert.equal(r.leadHours, 5) // ほかの決まりはそのまま
+  // 自分で決めた時間（平日9〜17時）は変えない
+  await S.pipeline(S.cfg, [['SET', B.RULES_KEY, JSON.stringify({ week: [[], [[540, 1020]], [[540, 1020]], [[540, 1020]], [[540, 1020]], [[540, 1020]], []] })]])
+  assert.deepEqual((await B.readRules(S.cfg, S.pipeline)).week[1], [[540, 1020]])
+})
+
 /* ---- 予約ページの空きは、カレンダーと同じでなければならない ----
    Google の返事を作り物にして、openSlots（予約ページ・予約の確定が使う入口）を通します。 */
 {
@@ -505,6 +549,32 @@ await t('通し: 毎朝の仕事が明日の予約にだけ1回お知らせを�
       assert.equal(r.mode, 'google')
       assert.ok(r.slots.length > 0)
       assert.equal(overlaps(r.slots).length, 0)
+    })
+    await t('Google につないだあと、仮予約を「確定にする」と、カレンダーに予定が入る（Meet 付き）', async () => {
+      const ops = await import('../api/_booking-ops.js')
+      let sent = null
+      const f0 = globalThis.fetch
+      globalThis.fetch = async (input, init) => {
+        const u = String(input && input.url ? input.url : input)
+        if (/\/calendars\/[^/]+\/events/.test(u) && init && init.method === 'POST') { sent = JSON.parse(init.body); return reply({ id: 'ev_1', hangoutLink: 'https://meet.google.com/abc-defg-hij' }) }
+        return f0(input, init)
+      }
+      try {
+        const start = jst('2026-10-08 11:30')
+        const rec = { id: 'bk_t1', start, end: start + 3600000, when: '10月8日(木) 11:30〜12:30', status: 'tentative', mode: 'ics', name: '山田', email: 'yamada@example.com', addUrl: 'https://calendar.google.com/x', service: { id: 'default', name: 'オンライン相談', minutes: 60 } }
+        const r = await ops.markBooking(req, rec, rules, 'confirmed')
+        assert.equal(r.calendar, 'added')
+        assert.equal(r.rec.eventId, 'ev_1')
+        assert.equal(r.rec.meet, 'https://meet.google.com/abc-defg-hij')
+        assert.equal(r.rec.mode, 'google'); assert.equal(r.rec.addUrl, '')
+        assert.equal(sent.attendees[0].email, 'yamada@example.com')
+        assert.equal(new Date(sent.start.dateTime).getTime(), start)
+        // すでに予定がある予約・終わった予約では、作らない
+        sent = null
+        assert.equal((await ops.markBooking(req, { ...rec, eventId: 'ev_0' }, rules, 'confirmed')).calendar, '')
+        assert.equal((await ops.markBooking(req, { ...rec, start: jst('2026-10-01 10:00'), end: jst('2026-10-01 11:00') }, rules, 'confirmed')).calendar, '')
+        assert.equal(sent, null)
+      } finally { globalThis.fetch = f0 }
     })
     await t('返事のカレンダー名が違っても（メールアドレスで返る）、1つだけならそれを使う', async () => {
       freeBusy = () => reply({ calendars: { 'owner@example.com': { busy: BUSY } } })

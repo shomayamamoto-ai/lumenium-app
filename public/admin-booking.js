@@ -81,7 +81,7 @@
       var m = /^(\d{1,2})[:：](\d{2})[-〜~ー－](\d{1,2})[:：](\d{2})$/.exec(part);
       if (!m) { bad.push(part); return; }
       var s = Number(m[1]) * 60 + Number(m[2]), e = Number(m[3]) * 60 + Number(m[4]);
-      if (s >= e || e > 1440 || s % 15 || e % 15) { bad.push(part); return; }
+      if (s >= e || s >= 1440 || e > 1800 || s % 15 || e % 15) { bad.push(part); return; }
       out.push([s, e]);
     });
     return { ranges: out, bad: bad };
@@ -542,7 +542,7 @@
         return '<option' + (r.wording === w ? ' selected' : '') + '>' + w + '</option>';
       }).join('') + '</select>', '例: 「来店」なら、お客様へのメールは「来店のご予約」になります。') +
       '<h3 class="soc-h" style="margin-top:18px">曜日ごとの受付時間</h3>' +
-      '<p class="soc-small" style="margin-bottom:6px">「10:00-18:00」のように書きます。昼休みがあるときは「10:00-12:00, 13:00-18:00」。空にした曜日は休みです。15分単位で書いてください。</p>' +
+      '<p class="soc-small" style="margin-bottom:6px">「10:00-18:00」のように書きます。昼休みがあるときは「10:00-12:00, 13:00-18:00」。空にした曜日は休みです。15分単位で書いてください。深夜まで受けるときは「7:00-26:00」のように 24時を越えて書けます（26:00 は翌日の午前2時。30:00 まで）。</p>' +
       '<div class="bk-hours">' + order.map(function (d) {
         return '<label class="bk-hr"><span>' + WD[d] + '曜日</span><input type="text" class="vid-in" data-dow="' + d + '" value="' + esc(rangesText(r.week[d])) + '" placeholder="休み" autocomplete="off"></label>';
       }).join('') + '</div>' +
@@ -726,7 +726,21 @@
         '<div class="vid-acts" style="margin-top:6px">' +
           '<button type="button" id="bk-gconnect" class="ghost">' + (d.connected ? '接続し直す' : 'Googleカレンダーに接続') + '</button>' +
           '<button type="button" id="bk-keys" class="ghost">設定状況でキーを入れる</button>' +
-        '</div><p id="bk-gsay" class="soc-small" style="margin-top:6px"></p></div>' +
+        '</div><p id="bk-gsay" class="soc-small" style="margin-top:6px"></p>' +
+        (level === 3 ? '' :
+          '<details class="bk-guide"' + (level === 2 ? ' open' : '') + '><summary>予約をカレンダーに自動で入れるには（Google に接続・10分ほど）</summary>' +
+          '<p class="soc-small">いまは、予約が入ってもカレンダーには自動で入りません。下の手順で一度つなぐと、予約が入った時点でカレンダーに予定が入り、お客様に招待が届きます（オンラインなら Meet のURL付き）。</p>' +
+          '<ol>' +
+            '<li><a class="linkish" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud のプロジェクトを作る →</a>（予定の入っている Google アカウントで開き、名前は「lumenium-booking」など。「作成」を押す）</li>' +
+            '<li><a class="linkish" href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener">Google Calendar API を開く →</a> ›「有効にする」を押す（上の欄で、いま作ったプロジェクトが選ばれていることを確かめる）</li>' +
+            '<li><a class="linkish" href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">OAuth 同意画面を開く →</a> ›「開始」。アプリ名は「予約」など、メールは自分のもの。<b>対象は「内部」</b>を選ぶ（会社用の Google アカウントの場合。「外部」しか選べないときは、作ったあと「アプリを公開」を押す。「テスト」のままだと7日で接続が切れます）</li>' +
+            '<li><a class="linkish" href="https://console.cloud.google.com/auth/clients/create" target="_blank" rel="noopener">OAuth クライアントを作る →</a>。種類は<b>「ウェブ アプリケーション」</b>。「承認済みのリダイレクト URI」に下のアドレスを足して「作成」<div class="vid-row" style="margin:6px 0"><input type="text" class="vid-in" id="bk-redirect" readonly value="' + esc(location.origin + '/api/google-oauth') + '" style="flex:1 1 240px"><button type="button" class="ghost" id="bk-redirect-copy">コピー</button></div></li>' +
+            '<li>表示された<b>クライアント ID</b>と<b>クライアント シークレット</b>を、<button type="button" class="linkish" id="bk-keys2" style="background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--ui-accent);cursor:pointer;text-decoration:underline">設定状況の「予約管理（Googleカレンダー）」</button>の上2つの欄に貼って、それぞれ「保存」</li>' +
+            '<li>この画面に戻り、上の<b>「Googleカレンダーに接続」</b>を押して、Google の画面で「許可」</li>' +
+          '</ol>' +
+          '<p class="soc-small">つないだあとは、空きの確認もこの接続で行います。簡易接続のためにカレンダーを一般公開にしていた場合は、公開をやめて構いません。つなぐ前に入った仮予約は、「確定にする」を押したときにカレンダーに入ります。</p>' +
+          '</details>') +
+        '</div>' +
       '<h3 class="soc-h" style="margin-top:18px">メール</h3>' +
       row(m.resend && !m.sandbox ? true : false, 'お客様へのメール',
         !m.resend ? 'RESEND_API_KEY が未設定です。予約の知らせも、お客様への確認メールも送られていません。設定状況の「問い合わせメール送信」から設定してください。'
@@ -755,6 +769,12 @@
       setTimeout(function () { var h = el('set-list'); if (h) h.scrollIntoView({ block: 'start' }); }, 90);
     });
     el('bk-gconnect').addEventListener('click', connectGoogle);
+    if (el('bk-keys2')) el('bk-keys2').addEventListener('click', function () { el('bk-keys').click(); });
+    if (el('bk-redirect-copy')) el('bk-redirect-copy').addEventListener('click', async function () {
+      var okc = false;
+      try { await navigator.clipboard.writeText(el('bk-redirect').value); okc = true; } catch (_) { el('bk-redirect').select(); }
+      say(okc ? 'コピーしました。' : '選んだ状態にしました。コピーしてください。', okc);
+    });
     var copy = async function (text, btn) {
       var ok = false;
       try { await navigator.clipboard.writeText(text); ok = true; } catch (_) {}

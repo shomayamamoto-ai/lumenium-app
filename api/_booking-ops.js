@@ -7,9 +7,9 @@
 //   状態     … 確定・来店済み・無断キャンセルと、メモ。
 
 import { storeConfig, pipeline } from './_analytics-store.js'
-import { creds, connected, moveEvent, deleteEvent } from './_google-cal.js'
+import { creds, connected, moveEvent, deleteEvent, createEvent } from './_google-cal.js'
 import { recCells, releaseCells, takeCells, cellsFor, saveBooking, label, recSpan, recStatus } from './_booking.js'
-import { mailCancelled, mailMoved, mailConfirmed } from './_booking-mail.js'
+import { mailCancelled, mailMoved, mailConfirmed, summaryOf, descriptionOf } from './_booking-mail.js'
 
 const now = () => new Date().toISOString()
 const log = (rec, what, by, extra) => [...(rec.history || []), { at: now(), what, by, ...(extra || {}) }].slice(-30)
@@ -65,12 +65,37 @@ export async function markBooking(req, rec, rules, status, memo) {
   const store = storeConfig()
   const next = { ...rec }
   let mail = null
+  // calendar: 'added'（この操作でカレンダーに入れた）/ 'failed'（入れられなかった）/ ''（対象外）
+  let calendar = ''
   if (status && status !== recStatus(rec)) {
     next.status = status
     next.history = log(rec, status, 'owner')
-    if (status === 'confirmed') mail = await mailConfirmed(req, next, rules)
+    if (status === 'confirmed') {
+      /* 仮予約（カレンダーに入っていない予約）を確定するとき、Google とつながっていれば、
+         ここで予定を作ります（オンラインなら Meet のURLも）。簡易接続のあいだに入った予約を、
+         あとから手で入れ直さなくて済むように。予定を作れなくても、確定は止めません。 */
+      if (!next.eventId) {
+        const c = await creds(req)
+        const span = recSpan(rec)
+        if (connected(c) && span.end > Date.now()) {
+          try {
+            const ev = await createEvent(c, {
+              startMs: span.start, endMs: span.end,
+              summary: summaryOf({ ...next, start: span.start, end: span.end }, rules), description: descriptionOf({ ...next, start: span.start, end: span.end }),
+              attendee: next.email || '', attendeeName: next.name, online: rules.online,
+            })
+            next.eventId = ev.id
+            if (ev.meet) next.meet = ev.meet
+            next.mode = 'google'
+            next.addUrl = ''
+            calendar = 'added'
+          } catch (_) { calendar = 'failed' }
+        }
+      }
+      mail = await mailConfirmed(req, next, rules)
+    }
   }
   if (typeof memo === 'string') next.memo = memo.slice(0, 1000)
   await saveBooking(store, pipeline, next, false)
-  return { rec: next, mail }
+  return { rec: next, mail, calendar }
 }

@@ -24,8 +24,10 @@ export const WORDINGS = ['商談', '予約', '来店', '相談']
 export const DEFAULT_RULES = {
   wording: '商談',
   // 曜日ごとの受付時間（日〜土）。1日に複数の時間帯を持てます（昼休みなど）。
-  // 値は 0時からの分。[600, 1080] は 10:00〜18:00。
-  week: [[], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], []],
+  // 値は 0時からの分。[600, 1080] は 10:00〜18:00。終わりは 30:00（翌朝6時）まで書けて、
+  // [420, 1560] は 7:00〜26:00（翌日の午前2時まで）。日付をまたぐ枠は、始まる日の曜日の
+  // 決まりに従い、お客様には本当の日付（翌日の 0:30 など）で見せます。
+  week: [[], [[420, 1560]], [[420, 1560]], [[420, 1560]], [[420, 1560]], [[420, 1560]], []],
   // 祝日（下の表）を休みにするか。以前は祝日を見ていなかったので既定は off。
   holidays: false,
   // 臨時休業の日（YYYY-MM-DD）。
@@ -55,8 +57,10 @@ export const DEFAULT_RULES = {
   services: [{ id: 'default', name: 'オンライン相談', minutes: 60, desc: '', price: '', active: true }],
 }
 
-// 最初に見せる数と、「全ての候補日程を見る」で出す数。
-export const SHOW = { first: 6, max: 24 }
+// 最初に見せる数と、日にちを選ぶ画面（?all=1）に渡す数。
+// 日にち → 時刻で選ぶので、受け付けている期間の枠をまとめて渡します。
+// 7時〜26時・30分刻みで1日37枠、2週間の平日で約370枠。余裕を見た上限です。
+export const SHOW = { first: 6, max: 900 }
 
 /** 以前の名前。値は DEFAULT_RULES と同じ意味です。 */
 export const RULES = { slotMin: 60, ...SHOW }
@@ -121,13 +125,18 @@ const int = (v, lo, hi, def) => {
   return Number.isFinite(n) && n >= lo && n <= hi ? n : def
 }
 const q15 = (n) => n % 15 === 0
+/** 終わりの時刻の上限（分）。30:00 = 翌朝6時。深夜まで受ける店のために 24:00 を越えて書けます。 */
+export const DAY_END_MAX = 1800
+/** 以前の既定（平日 10:00〜18:00）。保存されている決まりがこれと同じなら、
+ *  自分で決めたものではなく既定のままなので、いまの既定に読み替えます（readRules）。 */
+const OLD_DEFAULT_WEEK = JSON.stringify([[], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], [[600, 1080]], []])
 
 function cleanRanges(list) {
   const out = []
   for (const r of Array.isArray(list) ? list : []) {
     const s = Math.round(Number(r && r[0]))
     const e = Math.round(Number(r && r[1]))
-    if (!Number.isFinite(s) || !Number.isFinite(e) || s < 0 || e > 1440 || s >= e) continue
+    if (!Number.isFinite(s) || !Number.isFinite(e) || s < 0 || s >= 1440 || e > DAY_END_MAX || s >= e) continue
     if (!q15(s) || !q15(e)) continue
     out.push([s, e])
   }
@@ -244,7 +253,10 @@ export function candidates(now = Date.now(), rules = DEFAULT_RULES, minutes = 60
       }
     }
   }
-  return out
+  // 深夜まで受ける日（終わりが 24:00 より後）の枠は翌日の朝の枠より後に作られ、
+  // 翌日にも同じ時刻の決まりがあると重なります。時刻順に並べ、同じ開始は1つにします。
+  out.sort((a, b) => a.start - b.start)
+  return out.filter((x, i) => !i || x.start !== out[i - 1].start)
 }
 
 /** 埋まっている時間帯と重なる枠を落とす。予定の前後には bufferMin 分の
@@ -283,7 +295,9 @@ export async function readRules(cfg, pipeline) {
   if (!cfg) return normalizeRules(null).rules
   try {
     const [raw] = await pipeline(cfg, [['GET', RULES_KEY]])
-    return normalizeRules(raw ? JSON.parse(raw) : null).rules
+    const saved = raw ? JSON.parse(raw) : null
+    if (saved && JSON.stringify(saved.week) === OLD_DEFAULT_WEEK) delete saved.week
+    return normalizeRules(saved).rules
   } catch (_) {
     return normalizeRules(null).rules
   }

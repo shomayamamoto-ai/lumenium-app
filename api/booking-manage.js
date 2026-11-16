@@ -37,6 +37,7 @@ h1{font-size:19px;margin:0 0 4px}.who{color:var(--sub);font-size:12.5px;margin:0
 .card h2{font-size:15px;margin:0 0 8px}dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}dt{color:var(--sub);font-size:13px}dd{margin:0;overflow-wrap:anywhere}
 .msg{border-radius:10px;padding:12px 14px;margin:0 0 16px;background:#ecfdf5;color:var(--ok);font-weight:600}.msg.ng{background:#fef3f2;color:var(--ng)}
 .day{font-weight:700;font-size:13px;margin:12px 0 6px}.slots{display:flex;flex-wrap:wrap;gap:6px}
+.dayfold{border-top:1px solid var(--line)}.dayfold summary{cursor:pointer;padding:10px 0;margin:0;font-size:14px}.dayfold summary span{font-weight:400;color:#77778a;margin-left:4px}.dayfold .slots{padding-bottom:12px}
 .slots label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;cursor:pointer}
 button{font:inherit;font-weight:700;border-radius:9px;padding:11px 16px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;margin-top:12px;width:100%}
 button.ng{background:#fff;color:var(--ng);border-color:var(--ng)}.note{color:var(--sub);font-size:13px;margin:8px 0 0}
@@ -94,7 +95,9 @@ async function view(req, rec, rules, token, flash) {
   }
   const svc = pickService(rules, rec.service?.id)
   const minutes = rec.service?.minutes || svc.minutes
-  const { slots } = await openSlots(req, 60, rules, { ...svc, minutes }, rec.id)
+  // 日にちごとに畳んで出すので、受け付けている期間の枠をまとめて取ります
+  // （受付が長い店では、60枠だと2日ぶんにも足りません）。
+  const { slots } = await openSlots(req, 500, rules, { ...svc, minutes }, rec.id)
   const days = []
   for (const s of slots.map(toWire)) {
     const last = days[days.length - 1]
@@ -102,7 +105,7 @@ async function view(req, rec, rules, token, flash) {
   }
   body += `<form class="card" method="post" action="/api/booking-manage"><h2>日時を変更する</h2>
 <input type="hidden" name="t" value="${esc(token)}"><input type="hidden" name="action" value="move">
-${days.length ? days.map((d) => `<p class="day">${esc(d.day)}</p><div class="slots">${d.list.map((s) => `<label><input type="radio" name="key" value="${esc(s.key)}" required>${esc(s.time)}</label>`).join('')}</div>`).join('')
+${days.length ? days.map((d, i) => `<details class="dayfold"${i === 0 ? ' open' : ''}><summary class="day">${esc(d.day)}<span>（${d.list.length}枠）</span></summary><div class="slots">${d.list.map((s) => `<label><input type="radio" name="key" value="${esc(s.key)}" required>${esc(s.time)}</label>`).join('')}</div></details>`).join('')
     + '<button type="submit">この日時に変更する</button>'
     : '<p class="note">いま変更できる空きがありません。日を改めてお試しいただくか、メールに返信してご連絡ください。</p>'}
 </form>

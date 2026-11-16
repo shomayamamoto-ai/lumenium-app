@@ -36,13 +36,25 @@ h1{font-size:24px;font-weight:800;letter-spacing:.02em;margin-top:2px}
 .svc b{font-size:15px}.svc small{display:block;font-size:12.5px;color:var(--ink3)}
 .svc .p{font-size:13px;font-weight:700;white-space:nowrap;color:var(--ink2)}
 .svc[aria-pressed=true]{border-color:var(--accent);background:#eef0ff;box-shadow:0 0 0 1px var(--accent) inset}
-.days{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:thin}
-.day{flex:none;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);cursor:pointer;min-height:40px}
+.days{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px 8px;scrollbar-width:thin;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.day{flex:none;scroll-snap-align:start;display:grid;justify-items:center;gap:1px;min-width:64px;padding:8px 10px 7px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;color:var(--ink);cursor:pointer}
+.day .wd{font-size:12px;font-weight:700;color:var(--ink2)}.day.sat .wd{color:#1d4ed8}.day.sun .wd{color:var(--ng)}
+.day .md{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.25}
+.day .n{font-size:11px;color:var(--ink3)}
+.day:hover{border-color:var(--ink)}
 .day[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
-.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
-.time{padding:12px 8px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer;min-height:48px;font-variant-numeric:tabular-nums}
+.day[aria-pressed=true] .wd,.day[aria-pressed=true] .n{color:rgba(255,255,255,.88)}
+.period{margin-top:12px}
+.ph{display:flex;align-items:baseline;gap:8px;margin:0 0 7px;font-size:13px;font-weight:800}
+.ph::after{content:"";flex:1;height:1px;background:var(--line);align-self:center}
+.ph span{font-size:11.5px;font-weight:500;color:var(--ink3)}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.time{padding:0 6px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-size:15.5px;font-weight:700;color:var(--ink);cursor:pointer;min-height:46px;font-variant-numeric:tabular-nums}
 .time:hover{border-color:var(--ink)}
-.time[aria-pressed=true]{border-color:var(--accent);background:#eef0ff;color:var(--accent2);box-shadow:0 0 0 1px var(--accent) inset}
+.time[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:#fff}
+.late{margin:12px 0 0;font-size:12.5px;color:var(--ink3)}
+.late button{background:none;border:0;padding:0;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+@media (max-width:480px){.times{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.time{font-size:14.5px;min-height:44px}.day{min-width:60px}}
 .picked{font-size:14px;font-weight:700;margin-bottom:12px;padding:10px 12px;border-radius:10px;background:#eef0ff;color:var(--accent2)}
 label{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin:12px 0 6px}
 label span{font-weight:400;color:var(--ink3)}
@@ -129,11 +141,25 @@ textarea{resize:vertical;min-height:84px}
     if (!S.slots.length) {
       html += '<p class="empty">いまご案内できる空きがありません。' + (svcs.length > 1 ? 'ほかのメニューもお試しください。' : 'お手数ですが、お問い合わせフォームからご相談ください。') + '</p>';
     } else {
+      /* 日にちを横に並べ、その日の時刻を「深夜・午前・午後・夜」に分けて出します
+         （受付が長いと1日に数十枠になるため）。日付は本当の日付で、火曜の深夜1時は水曜の「深夜」に出ます。 */
+      var PERIODS = [['深夜', '0時〜5時', 0, 5], ['午前', '', 5, 12], ['午後', '', 12, 17], ['夜', '17時〜', 17, 24]];
+      var hourOf = function (s) { return Number(String(s.time).slice(0, 2)) || 0; };
+      var count = {}; S.slots.forEach(function (s) { count[s.day] = (count[s.day] || 0) + 1; });
+      var todays = S.slots.filter(function (s) { return s.day === S.day; });
+      var nextDay = days[days.indexOf(S.day) + 1] || '';
+      var nextLate = nextDay && S.slots.some(function (s) { return s.day === nextDay && hourOf(s) < 5; });
       html += '<div class="days" role="group" aria-label="日にち">' + days.map(function (d) {
-        return '<button type="button" class="day" data-day="' + esc(d) + '" aria-pressed="' + (d === S.day) + '">' + esc(d) + '</button>';
-      }).join('') + '</div><div class="times" role="group" aria-label="時刻">' + S.slots.filter(function (s) { return s.day === S.day; }).map(function (s) {
-        return '<button type="button" class="time" data-key="' + esc(s.key) + '" aria-pressed="' + (!!S.slot && S.slot.key === s.key) + '">' + esc(s.time.split(/[〜~]/)[0]) + '</button>';
-      }).join('') + '</div>';
+        var m = /^(\d+\/\d+)\((.)\)$/.exec(d) || [null, d, ''];
+        return '<button type="button" class="day' + (m[2] === '土' ? ' sat' : m[2] === '日' ? ' sun' : '') + '" data-day="' + esc(d) + '" aria-pressed="' + (d === S.day) + '" aria-label="' + esc(d) + '（' + count[d] + '枠）">' +
+          '<span class="wd">' + esc(m[2]) + '</span><span class="md">' + esc(m[1]) + '</span><span class="n">' + count[d] + '枠</span></button>';
+      }).join('') + '</div>' + PERIODS.map(function (p) {
+        var list = todays.filter(function (s) { var h = hourOf(s); return h >= p[2] && h < p[3]; });
+        if (!list.length) return '';
+        return '<div class="period"><p class="ph">' + p[0] + (p[1] ? '<span>' + p[1] + '</span>' : '') + '</p><div class="times" role="group" aria-label="' + esc(S.day + ' ' + p[0]) + '">' + list.map(function (s) {
+          return '<button type="button" class="time" data-key="' + esc(s.key) + '" aria-label="' + esc(s.day + ' ' + s.time) + '" aria-pressed="' + (!!S.slot && S.slot.key === s.key) + '">' + esc(s.time.split(/[〜~]/)[0]) + '</button>';
+        }).join('') + '</div></div>';
+      }).join('') + (nextLate ? '<p class="late">' + esc(S.day.replace(/\(.*$/, '')) + 'の深夜（24時以降）は、<button type="button" data-day="' + esc(nextDay) + '">' + esc(nextDay) + 'の「深夜」</button>にあります。</p>' : '');
     }
     html += '</section>';
     if (S.slot) {
@@ -155,7 +181,11 @@ textarea{resize:vertical;min-height:84px}
       b.addEventListener('click', function () { app.innerHTML = '<div class="card"><div class="skel"></div></div>'; load(b.getAttribute('data-svc')); });
     });
     app.querySelectorAll('[data-day]').forEach(function (b) {
-      b.addEventListener('click', function () { S.day = b.getAttribute('data-day'); S.slot = null; draw(); });
+      b.addEventListener('click', function () {
+        S.day = b.getAttribute('data-day'); S.slot = null; draw();
+        var on = app.querySelector('.day[aria-pressed="true"]');
+        if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+      });
     });
     app.querySelectorAll('[data-key]').forEach(function (b) {
       b.addEventListener('click', function () {

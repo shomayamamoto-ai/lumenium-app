@@ -451,7 +451,8 @@ export async function PATCH(req) {
   }
   if (['confirmed', 'visited', 'noshow', 'memo'].includes(action)) {
     const r = await markBooking(req, rec, rules, action === 'memo' ? '' : action, memo)
-    return json({ ok: true, booking: r.rec, message: action === 'memo' ? 'メモを保存しました。' : `「${STATUS[action]}」にしました。` + (action === 'confirmed' ? mailNote(r.mail) || 'お客様に確定のメールを送りました。' : '') })
+    const calNote = r.calendar === 'added' ? 'Googleカレンダーに予定を入れました。' : r.calendar === 'failed' ? 'Googleカレンダーには予定を入れられませんでした（「Googleカレンダーに追加」から入れてください）。' : ''
+    return json({ ok: true, booking: r.rec, message: action === 'memo' ? 'メモを保存しました。' : `「${STATUS[action]}」にしました。` + calNote + (action === 'confirmed' ? mailNote(r.mail) || 'お客様に確定のメールを送りました。' : '') })
   }
   return json({ ok: false, message: '知らない操作です。' }, 400)
 }
