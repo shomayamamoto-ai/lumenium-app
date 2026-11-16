@@ -45,6 +45,29 @@
     return String(t == null ? '' : t).replace(/\r\n?/g, '\n').replace(/[ \t\u00a0\u3000]+\n/g, '\n')
       .replace(/\n[ \t\u00a0\u3000]{3,}/g, '\n').replace(/[ \t\u00a0\u3000]{3,}/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   }
+  // 本文を段落に分ける（読みやすい表示）。空行で段落を分け、文の途中で切れている行（「、」や
+  // 「〜と」「〜て」「〜ので」などで終わる行）は次の行につなぐ。箇条書き・番号の行はつながない。
+  // 行の切れ方が送ってきた人の意図と違うことがあるので、画面では「元の文のまま」にも切り替えられる
+  var MID = /(?:[、,，]|[とてでがをに]|ので|から|けど|たら|れば)$/;
+  var ITEM = /^(?:[・\-‐―ー•*＊■□●○◆◇▼▶※#＃(（\[【「『<＜]|\d+[.．)）、]|[①-⑳])/;
+  function paragraphs(t) {
+    var out = [], cur = [];
+    tidy(t).split('\n').forEach(function (raw) {
+      var ln = raw.replace(/^[ \t\u00a0]+|[ \t\u00a0\u3000]+$/g, '');
+      if (!ln) { if (cur.length) out.push(cur); cur = []; return; }
+      var last = cur.length ? cur[cur.length - 1] : '';
+      // 「…、」で終わる行は、次が「 で始まっていてもつなぐ（引用の途中で切れているだけなので）
+      if (last && MID.test(last) && (!ITEM.test(ln) || (/[、,，とて]$/.test(last) && /^[「『（(]/.test(ln)))) {
+        cur[cur.length - 1] = last + (/[A-Za-z0-9,]$/.test(last) && /^[A-Za-z0-9]/.test(ln) ? ' ' : '') + ln;
+      } else cur.push(ln);
+    });
+    if (cur.length) out.push(cur);
+    return out;
+  }
+  function bodyHtml(t, raw) {
+    if (raw) return '<div class="inq-raw">' + esc(String(t == null ? '' : t).replace(/\r\n?/g, '\n')) + '</div>';
+    return paragraphs(t).map(function (p) { return '<p>' + p.map(esc).join('<br>') + '</p>'; }).join('');
+  }
   // 一覧の書き出し: 空白と改行をまとめて、1つの空白に
   function flat(t) { return String(t == null ? '' : t).replace(/[\s\u3000]+/g, ' ').trim(); }
   function esc(t) {
@@ -123,7 +146,7 @@
     '.inq-open{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;color:var(--text);font:inherit;font-weight:400;cursor:pointer;letter-spacing:0}' +
     '.inq-open:hover{filter:none}.inq-open:focus-visible{outline:2px solid var(--ui-accent);outline-offset:3px;border-radius:4px}' +
     '.inq-open .who{font-size:13.5px;overflow-wrap:anywhere}.inq-open .meta{font-size:11.5px;color:var(--sub);line-height:1.7;overflow-wrap:anywhere}' +
-    '.inq-open .snip{font-size:12.5px;line-height:1.7;color:#33333b;overflow-wrap:anywhere;margin-top:2px}' +
+    '.inq-open .snip{font-size:12.5px;line-height:1.7;color:#33333b;overflow-wrap:anywhere;margin-top:2px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}' +
     '.inq-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:#f3f1ec;color:var(--sub);margin:0 4px 2px 0;white-space:nowrap}' +
     '.inq-tag.new{background:rgba(61,63,191,.12);color:var(--ui-accent)}.inq-tag.ok{background:rgba(16,185,129,.16);color:#047857}' +
     '.inq-tag.warn{background:rgba(251,191,36,.22);color:#92400e}.inq-tag.late,.inq-tag.ng{background:rgba(248,113,113,.17);color:#b42318}' +
@@ -133,6 +156,13 @@
     '.inq-sec{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:12px;background:#fff;min-width:0}' +
     '.inq-sec h4{font-size:12px;letter-spacing:.08em;color:var(--sub);font-weight:700;margin:0 0 8px}' +
     '.inq-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13.5px;line-height:1.85}' +
+    // 問い合わせの本文: 読みやすい大きさ・行の長さで、段落ごとに間をあける
+    '.inq-msghead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;margin-bottom:8px}.inq-msghead h4{margin:0}' +
+    '.inq-mini{font-size:11.5px;padding:6px 11px}' +
+    '.inq-msg{white-space:normal;font-size:15px;line-height:2;max-width:44em;padding:16px 20px;border-radius:12px;background:#fbfaf7;border:1px solid var(--border);border-left:4px solid var(--ui-accent);color:var(--text)}' +
+    '.inq-msg p{margin:0 0 .9em}.inq-msg p:last-child{margin-bottom:0}' +
+    '.inq-msg .inq-raw{white-space:pre-wrap;font-size:13.5px;line-height:1.85}' +
+    '@media(max-width:640px){.inq-msg{font-size:14.5px;line-height:1.95;padding:13px 14px}}' +
     '.inq-dl{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:4px 10px;font-size:12.5px;line-height:1.7;margin:0}' +
     '.inq-dl dt{color:var(--sub);font-weight:700}.inq-dl dd{margin:0;overflow-wrap:anywhere}' +
     '.inq-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}' +
@@ -504,7 +534,11 @@
         (it.followUpAt ? '<button type="button" class="ghost" data-fu="">外す</button>' : '') + '</div>' +
       '</div></div></div>' +
 
-      '<div class="inq-sec"><h4>問い合わせの内容</h4><div class="inq-body">' + esc(tidy(it.message)) + '</div></div>' +
+      '<div class="inq-sec"><div class="inq-msghead"><h4>問い合わせの内容</h4>' +
+        '<span class="inq-acts"><button type="button" class="ghost inq-mini" id="inq-mcopy">本文をコピー</button>' +
+        '<button type="button" class="ghost inq-mini" id="inq-mraw" aria-pressed="false">元の文のまま見る</button></span></div>' +
+        '<div class="inq-body inq-msg" id="inq-mbody">' + bodyHtml(it.message, false) + '</div>' +
+        '<p class="soc-small" id="inq-mnote" style="margin-top:6px">読みやすいように、行の切れ目と余分な空白を整えて表示しています。</p></div>' +
 
       '<div class="inq-sec"><h4>送ってきた人</h4><dl class="inq-dl">' +
         '<dt>お名前</dt><dd>' + esc(it.name) + '</dd>' +
@@ -556,6 +590,20 @@
       '</div>';
 
     el('inq-back').addEventListener('click', closeItem);
+    // 本文: 読みやすい表示 ⇔ 元の文のまま
+    el('inq-mraw').addEventListener('click', function () {
+      var raw = this.getAttribute('aria-pressed') !== 'true';
+      this.setAttribute('aria-pressed', raw ? 'true' : 'false');
+      this.textContent = raw ? '読みやすい表示に戻す' : '元の文のまま見る';
+      el('inq-mbody').innerHTML = bodyHtml(raw && it.messageRaw != null ? it.messageRaw : it.message, raw);
+      el('inq-mnote').textContent = raw ? '送られてきた文を、そのまま表示しています。' : '読みやすいように、行の切れ目と余分な空白を整えて表示しています。';
+    });
+    el('inq-mcopy').addEventListener('click', async function () {
+      var b = this, text = paragraphs(it.message).map(function (p) { return p.join('\n'); }).join('\n\n'), ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { ok = false; }
+      b.textContent = ok ? 'コピーしました' : 'コピーできませんでした';
+      setTimeout(function () { b.textContent = '本文をコピー'; }, 1800);
+    });
     if (el('inq-customer')) el('inq-customer').addEventListener('click', function () { if (window.lumCustomer) window.lumCustomer.open({ email: it.email, name: it.name, company: it.company }); });
     body.querySelectorAll('[data-ist]').forEach(function (b) {
       b.addEventListener('click', function () { patch({ status: b.getAttribute('data-ist') }, b); });

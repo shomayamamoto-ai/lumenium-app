@@ -84,7 +84,7 @@ export async function GET(req) {
       if (!rec) return json({ ok: false, message: 'その問い合わせは見つかりませんでした（保存期間を過ぎて消えたか、削除されたかもしれません）。' }, 404)
       const st = await loadSettings(cfg)
       // 本文は整えてから返す（前に届いた分は、空白のすき間が入ったまま保存されているため）
-      return json({ ok: true, stored: true, item: Object.assign(rec, { message: tidyMessage(rec.message), overdue: overdue(rec, now, st.replyHours), replyH: replyHours(rec) }), promised: st.replyHours, sender: await sender() })
+      return json({ ok: true, stored: true, item: Object.assign(rec, { messageRaw: rec.message, message: tidyMessage(rec.message), overdue: overdue(rec, now, st.replyHours), replyH: replyHours(rec) }), promised: st.replyHours, sender: await sender() })
     }
     if (view === 'settings') {
       const [settings, templates] = await Promise.all([loadSettings(cfg), loadTemplates(cfg)])
