@@ -21,7 +21,7 @@ import { BRAND } from './_brand.js'
 import { setting } from './_settings.js'
 import {
   NO_STORE_MSG, SANDBOX_MSG, CAPS, STATUS_LABEL, PROMISED_H, WARN_H, TEMPLATE_VARS, idOk,
-  allSummaries, prune, metrics, stats, overdue, replyHours, getRecord, getRecords, putRecord, applyPatch, summary,
+  allSummaries, prune, metrics, stats, overdue, replyHours, getRecord, getRecords, putRecord, applyPatch, summary, tidyMessage,
   inquiryAttention, needsReply, followUpDue, IK,
   loadSettings, saveSettings, loadTemplates, saveTemplates, cleanTemplate, toCsv, isSandboxSender, str,
 } from './_inquiries.js'
@@ -83,7 +83,8 @@ export async function GET(req) {
       const rec = await getRecord(cfg, id)
       if (!rec) return json({ ok: false, message: 'その問い合わせは見つかりませんでした（保存期間を過ぎて消えたか、削除されたかもしれません）。' }, 404)
       const st = await loadSettings(cfg)
-      return json({ ok: true, stored: true, item: Object.assign(rec, { overdue: overdue(rec, now, st.replyHours), replyH: replyHours(rec) }), promised: st.replyHours, sender: await sender() })
+      // 本文は整えてから返す（前に届いた分は、空白のすき間が入ったまま保存されているため）
+      return json({ ok: true, stored: true, item: Object.assign(rec, { message: tidyMessage(rec.message), overdue: overdue(rec, now, st.replyHours), replyH: replyHours(rec) }), promised: st.replyHours, sender: await sender() })
     }
     if (view === 'settings') {
       const [settings, templates] = await Promise.all([loadSettings(cfg), loadTemplates(cfg)])

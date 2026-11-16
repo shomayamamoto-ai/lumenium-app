@@ -118,6 +118,23 @@ export const DEFAULT_TEMPLATES = [
 
 export const str = (v, n) => (v == null ? '' : String(v)).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, n || 500)
 const one = (v, n) => str(v, n).replace(/\s+/g, ' ').trim()
+
+/** 本文を読みやすく整える。
+ *
+ *  改行の代わりに空白をたくさん入れて送ってくる入力があります（1行ぶんを空白で埋める
+ *  アプリからの貼り付けなど）。そのまま出すと、文の途中に大きなすき間ができ、
+ *  どこが行の切れ目か分からなくなります。
+ *  3つ以上続く空白（全角・タブを含む）は改行に、行のはじめと終わりの余分な空白は消し、
+ *  空行は1つまでにします。1〜2個の空白（英単語のあいだ・全角1文字の字下げ）はそのまま。 */
+export function tidyMessage(v) {
+  return String(v == null ? '' : v)
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t\u00a0\u3000]+\n/g, '\n')
+    .replace(/\n[ \t\u00a0\u3000]{3,}/g, '\n')
+    .replace(/[ \t\u00a0\u3000]{3,}/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 export const idOk = (v) => /^[a-z0-9_-]{1,40}$/.test(String(v || ''))
 const isoOk = (v) => typeof v === 'string' && !isNaN(Date.parse(v))
 const tok = (v, n) => String(v || '').toLowerCase().trim().slice(0, n).replace(/[^a-z0-9._-]/g, '')
@@ -179,7 +196,7 @@ export function newRecord(input, now = Date.now()) {
     email: one(i.email, 100),
     phone: cleanPhone(i.phone),
     topics: (Array.isArray(i.topics) ? i.topics : []).map((t) => one(t, 30)).filter(Boolean).slice(0, 7),
-    message: str(i.message, 1000).trim(),
+    message: tidyMessage(str(i.message, 1000)),
     page: one(i.page, 120),
     estimate: !!i.estimate,
     source: sourceInfo(i.source),
@@ -201,7 +218,7 @@ export function newRecord(input, now = Date.now()) {
 export function summary(r) {
   return {
     id: r.id, receivedAt: r.receivedAt, name: r.name, company: r.company, email: r.email,
-    topics: r.topics || [], snippet: String(r.message || '').slice(0, 160), status: r.status,
+    topics: r.topics || [], snippet: tidyMessage(r.message).replace(/\s+/g, ' ').slice(0, 160), status: r.status,
     spam: !!r.spam, readAt: r.readAt || '', repliedAt: r.repliedAt || '', assignee: r.assignee || '',
     source: r.source ? r.source.short : '', kind: r.source ? r.source.kind : 'direct',
     campaign: r.source ? r.source.c : '', estimate: !!r.estimate,
@@ -495,7 +512,7 @@ export function csvCell(v) {
 export const CSV_COLUMNS = [
   ['受信日時', (r) => jst(r.receivedAt)], ['状態', (r) => (r.spam ? '迷惑' : STATUS_LABEL[r.status] || r.status)],
   ['お名前', (r) => r.name], ['会社名', (r) => r.company], ['メール', (r) => r.email], ['電話', (r) => r.phone || ''],
-  ['ご相談の内容', (r) => (r.topics || []).join('、')], ['本文', (r) => r.message],
+  ['ご相談の内容', (r) => (r.topics || []).join('、')], ['本文', (r) => tidyMessage(r.message)],
   ['どこから', (r) => (r.source ? r.source.label : '')], ['キャンペーン', (r) => (r.source ? r.source.c : '')],
   ['送られたページ', (r) => r.page], ['見積り付き', (r) => (r.estimate ? 'はい' : '')],
   ['返信した日時', (r) => jst(r.repliedAt)], ['返信までの時間', (r) => { const h = replyHours(r); return h == null ? '' : h.toFixed(1) }],

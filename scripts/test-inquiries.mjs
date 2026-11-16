@@ -332,5 +332,24 @@ await t('要対応の数: 返信がまだ・通知未送信・新着・期限（
   assert.equal(I.metrics(list, now, 24).counts.mailFailed, 2)
 })
 
+await t('本文の整え方（空白のすき間は改行に、行の前後の空白は消す。ふつうの空白はそのまま）', async () => {
+  const sp = (k) => ' '.repeat(k)
+  // 行を空白で区切って送ってきた文
+  assert.equal(
+    I.tidyMessage('お話しできてうれしかったです。' + sp(40) + '\nプロフィールを拝見して、' + sp(30) + '「高校生の親」と\nつながりたいです。'),
+    'お話しできてうれしかったです。\nプロフィールを拝見して、\n「高校生の親」と\nつながりたいです。')
+  // 全角の空白・タブの連なりも同じ。空行は1つまで
+  assert.equal(I.tidyMessage('一行目\u3000\u3000\u3000二行目\t\t\t三行目\n\n\n\n四行目'), '一行目\n二行目\n三行目\n\n四行目')
+  // 1〜2個の空白は触らない（英単語のあいだ・全角1文字の字下げ）
+  assert.equal(I.tidyMessage('260 Steps English を  販売\n\u3000字下げの行'), '260 Steps English を  販売\n\u3000字下げの行')
+  assert.equal(I.tidyMessage(null), '')
+  // 保存する1件と、一覧の書き出しにも効く
+  const r = I.newRecord({ name: '山田', email: 'a@example.com', message: 'こんにちは。' + sp(20) + 'お願いします。' })
+  assert.equal(r.message, 'こんにちは。\nお願いします。')
+  assert.equal(I.summary(r).snippet, 'こんにちは。 お願いします。')
+  // 前に届いた分（すき間が入ったまま保存されている）も、一覧の書き出しでは1つの空白に
+  assert.equal(I.summary(Object.assign({}, r, { message: 'A。' + sp(12) + 'B。' })).snippet, 'A。 B。')
+})
+
 console.error = quiet
 console.log(`✓ test-inquiries: ${n} checks`)

@@ -40,6 +40,13 @@
     try { sessionStorage.setItem('lum_admin_tab', TAB); } catch (_) {}
   })();
 
+  // 本文の表示: 3つ以上続く空白（改行の代わりに入っていることがある）は改行に。行の前後の余分な空白は消す
+  function tidy(t) {
+    return String(t == null ? '' : t).replace(/\r\n?/g, '\n').replace(/[ \t\u00a0\u3000]+\n/g, '\n')
+      .replace(/\n[ \t\u00a0\u3000]{3,}/g, '\n').replace(/[ \t\u00a0\u3000]{3,}/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  // 一覧の書き出し: 空白と改行をまとめて、1つの空白に
+  function flat(t) { return String(t == null ? '' : t).replace(/[\s\u3000]+/g, ' ').trim(); }
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -329,7 +336,7 @@
               (it.topics && it.topics.length ? '・' + esc(it.topics.join('、')) : '') + '・' + esc(it.source || '直接・不明') +
               (it.assignee ? '・担当 ' + esc(it.assignee) : '') + '</div>' +
             '<div>' + tags + '</div>' +
-            '<div class="snip">' + esc(it.snippet) + '</div>' +
+            '<div class="snip">' + esc(flat(it.snippet)) + '</div>' +
           '</button></li>';
       }).join('');
     }
@@ -497,7 +504,7 @@
         (it.followUpAt ? '<button type="button" class="ghost" data-fu="">外す</button>' : '') + '</div>' +
       '</div></div></div>' +
 
-      '<div class="inq-sec"><h4>問い合わせの内容</h4><div class="inq-body">' + esc(it.message) + '</div></div>' +
+      '<div class="inq-sec"><h4>問い合わせの内容</h4><div class="inq-body">' + esc(tidy(it.message)) + '</div></div>' +
 
       '<div class="inq-sec"><h4>送ってきた人</h4><dl class="inq-dl">' +
         '<dt>お名前</dt><dd>' + esc(it.name) + '</dd>' +

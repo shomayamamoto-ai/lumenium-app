@@ -5,7 +5,7 @@ import { setting } from './_settings.js'
 import { hit, seenBefore, digest } from './_ratelimit.js'
 import { orgLabel, pickTopics } from './_form-options.js'
 import { BRAND, KV } from './_brand.js'
-import { newRecord, putRecord, loadSettings, blockedBy, fillTemplate, isSandboxSender, looksLikeLink } from './_inquiries.js'
+import { newRecord, putRecord, loadSettings, blockedBy, fillTemplate, isSandboxSender, looksLikeLink, tidyMessage } from './_inquiries.js'
 
 // Per IP. Three enquiries in ten minutes is well past what a real person
 // sends; the daily cap stops a slow drip from adding up to a flooded inbox
@@ -59,7 +59,8 @@ export async function POST(req) {
 
   const name = String(payload?.name ?? '').trim()
   const email = String(payload?.email ?? '').trim()
-  const message = String(payload?.message ?? '').trim()
+  // 空白で行を区切って送られてきた文は、改行に直してから扱う（通知メール・LINE・保存のどれも同じ文になるように）
+  const message = tidyMessage(payload?.message)
   const company = String(payload?.company ?? '').trim().slice(0, LIMITS.company)
   const org = orgLabel(payload?.orgType)
   const topics = pickTopics(payload?.topics)
