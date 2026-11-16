@@ -404,6 +404,9 @@
     if (live && sp.start > t) {
       acts.push(['move', '日時を変更', 'ghost']);
       acts.push(['cancel', '取り消す', 'ghost bk-danger']);
+    } else if (st !== 'cancelled') {
+      // 終わった予約も、実際に面談した日時・長さに直せます（話が延びたときなど）。
+      acts.push(['move', '日時・長さを直す', 'ghost']);
     }
     return '<div class="bk-detail">' +
       '<dl class="bk-dl">' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + (r[2] ? r[1] : esc(r[1])) + '</dd>'; }).join('') + '</dl>' +
@@ -451,19 +454,40 @@
     for (var i = 0; i < arr.length; i++) if (arr[i].id === nb.id) arr[i] = nb;
   }
 
-  /* 日時の変更。候補はサイトの予約欄と同じ決まりで作ったもの（直前の枠は出ません）。 */
+  /* 日時の変更。2つの入り方があります。
+     ・空いている日時から選ぶ … サイトの予約欄と同じ決まりで作った候補（直前の枠は出ません）。お客様にメールが届きます。
+     ・自分で入れる … 日付・始まり・終わりをそのまま入れます。予約と別の日時に面談した、話が延びた、
+       というときに使います（過ぎた日時も入れられます）。Google とつないであれば、カレンダーの予定も同じ日時になります。 */
   async function pickMove(b, cardEl) {
     var host = cardEl.querySelector('[data-move]');
     host.innerHTML = '<p class="soc-small" style="margin-top:8px">空いている日時を探しています…</p>';
     var r = await api('/api/booking?all=1&service=' + encodeURIComponent((b.service && b.service.id) || ''));
     var slots = (r.data && r.data.slots) || [];
-    if (!slots.length) { host.innerHTML = '<p class="soc-small" style="margin-top:8px">いま変更できる空きがありません。</p>'; return; }
-    host.innerHTML = '<div class="vid-row" style="margin-top:10px">' +
-      '<label class="soc-lab" for="bk-mv" style="margin:0">新しい日時</label>' +
-      '<select id="bk-mv">' + slots.map(function (s) { return '<option value="' + esc(s.key) + '">' + esc(s.label) + '</option>'; }).join('') + '</select>' +
-      '<button type="button" id="bk-mv-go" style="font-size:12.5px;padding:9px 16px">この日時に変更</button></div>' +
-      '<p class="soc-small">お客様に変更のメールが届きます。</p>';
-    el('bk-mv-go').addEventListener('click', async function () {
+    var sp = span(b), p0 = jp(sp.start), p1 = jp(sp.end);
+    var connected = !!(S.data && S.data.connected);
+    host.innerHTML =
+      '<div class="bk-mv">' +
+        '<p class="bk-mv-h">空いている日時から選ぶ</p>' +
+        (slots.length
+          ? '<div class="vid-row"><label class="soc-lab" for="bk-mv" style="margin:0">新しい日時</label>' +
+            '<select id="bk-mv">' + slots.map(function (s) { return '<option value="' + esc(s.key) + '">' + esc(s.label) + '</option>'; }).join('') + '</select>' +
+            '<button type="button" id="bk-mv-go" style="font-size:12.5px;padding:9px 16px">この日時に変更</button></div>' +
+            '<p class="soc-small">お客様に変更のメールが届きます。</p>'
+          : '<p class="soc-small">いま変更できる空きがありません。</p>') +
+        '<p class="bk-mv-h" style="margin-top:14px">日時と長さを自分で入れる</p>' +
+        '<p class="soc-small">予約とは別の日時に面談した・話が延びた、というときに使います。空き枠に無い日時や、過ぎた日時も入れられます。</p>' +
+        '<div class="bk-mv-grid">' +
+          '<label>日付<input type="date" id="bk-set-date" value="' + ymd(sp.start) + '"></label>' +
+          '<label>始まり<input type="time" id="bk-set-start" step="300" value="' + pad(p0.h) + ':' + pad(p0.mi) + '"></label>' +
+          '<label>終わり<input type="time" id="bk-set-end" step="300" value="' + pad(p1.h) + ':' + pad(p1.mi) + '"></label>' +
+          '<span id="bk-set-len" class="bk-mv-len"></span>' +
+        '</div>' +
+        '<label class="bk-check"><input type="checkbox" id="bk-set-done"> 終わった面談として記録する（「来店済み」にする）</label>' +
+        '<label class="bk-check"><input type="checkbox" id="bk-set-notify"> お客様に変更のメールを送る</label>' +
+        '<p class="soc-small" id="bk-set-note"></p>' +
+        '<div class="vid-acts"><button type="button" id="bk-set-go">この日時・長さに変更する</button></div>' +
+      '</div>';
+    if (el('bk-mv-go')) el('bk-mv-go').addEventListener('click', async function () {
       this.disabled = true;
       var res = await send('PATCH', { id: b.id, action: 'move', key: el('bk-mv').value });
       this.disabled = false;
@@ -471,6 +495,48 @@
       replace(res.data.booking);
       draw();
       say(res.data.message, true);
+    });
+    /* 入れた日時から、長さと「過ぎた日時かどうか」を出します。過ぎた日時なら「来店済み」を既定でオンに、
+       メールは既定でオフに（終わった面談の時刻直しを、お客様に知らせる必要はふつう無いため）。 */
+    var touched = { done: false, notify: false };
+    function reading() {
+      var d = el('bk-set-date').value, a = el('bk-set-start').value, z = el('bk-set-end').value;
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d), sa = /^(\d{2}):(\d{2})/.exec(a), sz = /^(\d{2}):(\d{2})/.exec(z);
+      if (!m || !sa || !sz) return null;
+      var s0 = Number(sa[1]) * 60 + Number(sa[2]), e0 = Number(sz[1]) * 60 + Number(sz[2]);
+      var over = e0 <= s0; if (over) e0 += 1440;
+      var base = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) - 9 * 3600000;
+      return { len: e0 - s0, over: over, start: base + s0 * 60000, end: base + e0 * 60000 };
+    }
+    function refresh() {
+      var x = reading(), len = el('bk-set-len'), note = el('bk-set-note'), go = el('bk-set-go');
+      if (!x || x.len < 15 || x.len > 720) { len.textContent = ''; note.textContent = '日付と、始まり・終わりの時刻を入れてください（長さは15分〜12時間）。'; go.disabled = true; return; }
+      go.disabled = false;
+      var h = Math.floor(x.len / 60), mi = x.len % 60;
+      len.textContent = '長さ ' + (h ? h + '時間' : '') + (mi ? mi + '分' : '') + (x.over ? '（終わりは翌日）' : '');
+      var past = x.end <= now();
+      if (!touched.done) el('bk-set-done').checked = past;
+      el('bk-set-done').disabled = !past;
+      if (!past) el('bk-set-done').checked = false;
+      if (!touched.notify) el('bk-set-notify').checked = !past;
+      note.textContent = (past ? 'もう過ぎた日時です。' : '') +
+        (connected ? 'Googleカレンダーの予定も、この日時になります' + (b.eventId ? '。' : '（予定がまだ無ければ作ります）。')
+          : 'Googleカレンダーとつないでいないため、カレンダーの予定は自動では変わりません。変更後に出る「Googleカレンダーに追加」から、新しい日時で入れられます。');
+    }
+    ['bk-set-date', 'bk-set-start', 'bk-set-end'].forEach(function (id) { el(id).addEventListener('input', refresh); el(id).addEventListener('change', refresh); });
+    el('bk-set-done').addEventListener('change', function () { touched.done = true; });
+    el('bk-set-notify').addEventListener('change', function () { touched.notify = true; });
+    refresh();
+    el('bk-set-go').addEventListener('click', async function () {
+      var x = reading(); if (!x) return;
+      this.disabled = true;
+      var res = await send('PATCH', { id: b.id, action: 'set', date: el('bk-set-date').value, start: el('bk-set-start').value.slice(0, 5), end: el('bk-set-end').value.slice(0, 5), done: el('bk-set-done').checked, notify: el('bk-set-notify').checked });
+      this.disabled = false;
+      if (!res.data || !res.data.ok) { say((res.data && res.data.message) || '変更できませんでした。'); return; }
+      replace(res.data.booking);
+      draw();
+      say(res.data.message, true);
+      if (window.lumBookBadge) window.lumBookBadge();
     });
   }
 

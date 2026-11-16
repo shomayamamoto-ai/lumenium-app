@@ -576,6 +576,61 @@ await t('受付時間: 保存されているのが以前の既定（平日10〜1
         assert.equal(sent, null)
       } finally { globalThis.fetch = f0 }
     })
+    await t('日時と長さを自分で入れて直す: 過ぎた日時・90分でも入り、カレンダーの予定も同じ日時になる', async () => {
+      const ops = await import('../api/_booking-ops.js')
+      const bk = await import('../api/booking.js')
+      // 入れた値の読み方（日本時間）。終わりが始まり以下なら翌日。
+      const sp = bk.manualSpan('2026-10-05', '14:00', '15:30')
+      assert.equal(sp.start, jst('2026-10-05 14:00')); assert.equal(sp.end, jst('2026-10-05 15:30'))
+      assert.equal(bk.manualSpan('2026-10-05', '23:30', '00:30').end, jst('2026-10-06 00:30'))
+      for (const bad of [['2026-02-30', '10:00', '11:00'], ['2026-10-05', '10:00', '10:05'], ['2026-10-05', '25:00', '26:00'], ['x', '10:00', '11:00'], ['2026-10-05', '', '']]) assert.equal(bk.manualSpan(...bad), null, bad.join(' '))
+      const calls = []
+      const f0 = globalThis.fetch
+      globalThis.fetch = async (input, init) => {
+        const u = String(input && input.url ? input.url : input)
+        if (/\/calendars\/[^/]+\/events/.test(u) && init && (init.method === 'PATCH' || init.method === 'POST')) { calls.push({ method: init.method, url: u, body: JSON.parse(init.body) }); return reply({ id: 'ev_9' }) }
+        return f0(input, init)
+      }
+      try {
+        const start = jst('2026-10-08 11:30')
+        const rec = { id: 'bk_s1', start, end: start + 3600000, when: '10月8日(木) 11:30〜12:30', status: 'confirmed', mode: 'google', eventId: 'ev_9', name: '山田', email: 'yamada@example.com', service: { id: 'default', name: 'オンライン相談', minutes: 60 } }
+        // 実際は 10/5（過ぎた日）の 14:00〜15:30 に面談した。知らせずに直して「来店済み」に。
+        const r = await ops.setBookingTime(req, rec, rules, sp, { notify: false, done: true })
+        assert.equal(r.calendar, 'moved')
+        assert.equal(r.rec.start, sp.start); assert.equal(r.rec.end, sp.end)
+        assert.equal(r.rec.when, '10月5日(月) 14:00〜15:30')
+        assert.equal(r.rec.status, 'visited')
+        assert.equal(r.mail, null)
+        assert.equal(calls[0].method, 'PATCH'); assert.match(calls[0].url, /sendUpdates=none/)
+        assert.equal(new Date(calls[0].body.end.dateTime).getTime(), sp.end)
+        // カレンダーに予定が無い予約は、作る。過ぎた日時には招待も会議URLも付けない。
+        calls.length = 0
+        const r2 = await ops.setBookingTime(req, { ...rec, eventId: '', mode: 'ics', status: 'tentative' }, rules, sp, { notify: false, done: true })
+        assert.equal(r2.calendar, 'added'); assert.equal(r2.rec.eventId, 'ev_9'); assert.equal(r2.rec.addUrl, '')
+        assert.equal(calls[0].method, 'POST'); assert.deepEqual(calls[0].body.attendees, []); assert.ok(!calls[0].body.conferenceData)
+        // 先の日時に延ばす（90分）。知らせる。
+        calls.length = 0
+        const later = bk.manualSpan('2026-10-09', '10:00', '11:30')
+        const r3 = await ops.setBookingTime(req, rec, rules, later, { notify: true })
+        assert.equal(r3.calendar, 'moved'); assert.match(calls[0].url, /sendUpdates=all/)
+        assert.equal(r3.rec.status, 'confirmed'); assert.equal(r3.rec.end - r3.rec.start, 90 * 60000)
+      } finally { globalThis.fetch = f0 }
+    })
+    await t('日時を自分で入れて直す: Google とつないでいないときは、「Googleカレンダーに追加」のリンクを新しい日時に作り直す', async () => {
+      const ops = await import('../api/_booking-ops.js')
+      const bk = await import('../api/booking.js')
+      const keep = process.env.GOOGLE_REFRESH_TOKEN; delete process.env.GOOGLE_REFRESH_TOKEN
+      try {
+        const start = jst('2026-10-08 11:30')
+        const rec = { id: 'bk_s2', start, end: start + 3600000, status: 'tentative', mode: 'ics', name: '山田', email: 'yamada@example.com', addUrl: 'old', service: { id: 'default', name: 'オンライン相談', minutes: 60 } }
+        const sp = bk.manualSpan('2026-10-05', '14:00', '15:30')
+        const r = await ops.setBookingTime(req, rec, rules, sp, { done: true })
+        assert.equal(r.calendar, '')
+        const f = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+        assert.ok(decodeURIComponent(r.rec.addUrl).includes(`${f(sp.start)}/${f(sp.end)}`))
+        assert.equal(r.rec.status, 'visited')
+      } finally { process.env.GOOGLE_REFRESH_TOKEN = keep }
+    })
     await t('返事のカレンダー名が違っても（メールアドレスで返る）、1つだけならそれを使う', async () => {
       freeBusy = () => reply({ calendars: { 'owner@example.com': { busy: BUSY } } })
       const r = await openSlots(req, 500, rules, svc)

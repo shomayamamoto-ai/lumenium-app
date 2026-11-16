@@ -8,7 +8,7 @@
 
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { creds, connected, moveEvent, deleteEvent, createEvent } from './_google-cal.js'
-import { recCells, releaseCells, takeCells, cellsFor, saveBooking, label, recSpan, recStatus } from './_booking.js'
+import { recCells, releaseCells, takeCells, cellsFor, saveBooking, label, recSpan, recStatus, gcalAddUrl } from './_booking.js'
 import { mailCancelled, mailMoved, mailConfirmed, summaryOf, descriptionOf } from './_booking-mail.js'
 
 const now = () => new Date().toISOString()
@@ -57,6 +57,72 @@ export async function moveBooking(req, rec, rules, slot, by) {
   }
   await saveBooking(store, pipeline, next, false)
   const mail = await mailMoved(req, next, rules, oldWhen, by)
+  return { rec: next, calendar, mail }
+}
+
+/** 管理画面で、日時と長さを自分で入れて直す（空いている枠からは選ばない）。
+ *
+ *  使いどころ: 予約とは別の日時に面談した・話が延びて長くなった・電話で日時を決め直した。
+ *  店の人が自分で決めた日時なので、受付時間・何時間後から・カレンダーの空きは見ません。
+ *  ただし、ほかの予約と重なる先の日時は断ります（二重予約を作らないため）。
+ *
+ *  opts.notify: お客様に変更のメールを送る（カレンダーの招待の更新も送る）
+ *  opts.done:   終わった面談として記録する（来店済み）
+ *  返す calendar: 'moved'（予定を動かした）/ 'added'（予定を作った）/ 'failed' / ''（つないでいない） */
+export async function setBookingTime(req, rec, rules, span, opts = {}) {
+  const store = storeConfig()
+  const now = Date.now()
+  const future = span.end > now
+  const cells = future ? cellsFor(span.start, span.end, rules.bufferMin) : []
+  if (cells.length && !(await takeCells(store, pipeline, cells, rec.id, span.end))) return { error: 'slot_taken' }
+  const oldCells = recCells(rec, rules.bufferMin)
+  const old = recSpan(rec)
+  const oldWhen = label(old.start, old.end)
+  const notify = !!opts.notify
+
+  const next = {
+    ...rec,
+    start: span.start, end: span.end, key: new Date(span.start).toISOString(), when: label(span.start, span.end),
+    seq: (rec.seq || 0) + 1, reminded: !future,
+    history: log(rec, 'move', 'owner', { from: oldWhen, manual: true }),
+  }
+  if (cells.length) next.cells = [cells[0], cells[cells.length - 1]]; else delete next.cells
+
+  // Google とつながっていれば、カレンダーの予定も同じ日時にします。予定がまだ無ければ作ります。
+  let calendar = ''
+  try {
+    const c = await creds(req)
+    if (connected(c)) {
+      if (rec.eventId) {
+        await moveEvent(c, rec.eventId, { startMs: span.start, endMs: span.end, notify })
+        calendar = 'moved'
+      } else {
+        const ev = await createEvent(c, {
+          startMs: span.start, endMs: span.end,
+          summary: summaryOf(next, rules), description: descriptionOf(next),
+          // 終わった面談に、あとから招待や会議URLは付けません。
+          attendee: notify && future ? next.email || '' : '', attendeeName: next.name,
+          online: future && rules.online, notify,
+        })
+        next.eventId = ev.id
+        if (ev.meet) next.meet = ev.meet
+        next.mode = 'google'
+        calendar = 'added'
+      }
+    }
+  } catch (_) {
+    calendar = 'failed'
+  }
+  // カレンダーに入っていない予約は、「Googleカレンダーに追加」のリンクを新しい日時に作り直します。
+  next.addUrl = next.eventId ? '' : gcalAddUrl({ startMs: span.start, endMs: span.end, summary: summaryOf(next, rules), description: descriptionOf(next) })
+
+  if (opts.done) {
+    next.status = 'visited'
+    next.history = [...next.history, { at: new Date().toISOString(), what: 'visited', by: 'owner' }].slice(-30)
+  }
+  await releaseCells(store, pipeline, oldCells.filter((n) => !cells.includes(n)), rec.id)
+  await saveBooking(store, pipeline, next, false)
+  const mail = notify ? await mailMoved(req, next, rules, oldWhen, 'owner') : null
   return { rec: next, calendar, mail }
 }
 

@@ -36,7 +36,7 @@ import {
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 import { mailBooked, mailConfirmed, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
-import { cancelBooking, moveBooking, markBooking } from './_booking-ops.js'
+import { cancelBooking, moveBooking, markBooking, setBookingTime } from './_booking-ops.js'
 
 const LIMITS = { name: 50, email: 100, message: 500 }
 /** 電話番号。数字と + - ( ) と空白だけを残し、20文字まで（空でもよい）。 */
@@ -140,6 +140,23 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   // 簡易接続ではカレンダーに書き込めないので、入った予約はここで見るしかありません。
   const open = removeBusy(all, (icsBusy || []).concat(await taken()), buf)
   return { mode: icsBusy ? 'ics' : 'local', slots: open.slice(0, wanted), total: open.length }
+}
+
+/** 管理画面で入れた日付と時刻（日本時間）を、始まりと終わりのミリ秒に。読めなければ null。 */
+export function manualSpan(date, start, end) {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''))
+  const s = /^(\d{1,2}):(\d{2})$/.exec(String(start || ''))
+  const e = /^(\d{1,2}):(\d{2})$/.exec(String(end || ''))
+  if (!d || !s || !e) return null
+  const sm = Number(s[1]) * 60 + Number(s[2])
+  let em = Number(e[1]) * 60 + Number(e[2])
+  if (Number(s[1]) > 23 || Number(s[2]) > 59 || Number(e[1]) > 29 || Number(e[2]) > 59) return null
+  if (em <= sm) em += 1440
+  const base = Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3])) - 9 * 3600000
+  if (!Number.isFinite(base) || new Date(base + 9 * 3600000).getUTCDate() !== Number(d[3])) return null
+  const len = em - sm
+  if (len < 15 || len > 720) return null
+  return { start: base + sm * 60000, end: base + em * 60000 }
 }
 
 /** 管理画面用: カレンダーをいま実際に読めるかを確かめます。
@@ -448,6 +465,23 @@ export async function PATCH(req) {
     if (r.error) return json({ ok: false, message: r.error === 'slot_taken' ? 'その日時は先に埋まりました。' : 'Googleカレンダーの予定を動かせませんでした。少しおいてからもう一度お試しください。' }, 409)
     await invalidateSlots(store)
     return json({ ok: true, booking: r.rec, message: '日時を変更しました。' + mailNote(r.mail) })
+  }
+  /* 日時と長さを自分で入れて直す（空き枠からは選ばない）。date: 'YYYY-MM-DD'、start / end: 'HH:MM'。
+     終わりが始まり以下なら、翌日の時刻として読みます（23:30〜00:30 など）。 */
+  if (action === 'set') {
+    const span = manualSpan(body?.date, body?.start, body?.end)
+    if (!span) return json({ ok: false, message: '日付と、始まり・終わりの時刻を入れてください（長さは15分〜12時間）。' }, 400)
+    if (recStatus(rec) === 'cancelled') return json({ ok: false, message: '取り消した予約の日時は変えられません。' }, 409)
+    if (body?.done && span.end > Date.now()) return json({ ok: false, message: 'まだ終わっていない日時は「来店済み」にできません。チェックを外してください。' }, 400)
+    const r = await setBookingTime(req, rec, rules, span, { notify: !!body?.notify, done: !!body?.done })
+    if (r.error) return json({ ok: false, message: 'その時間には、ほかの予約が入っています（前後の空き時間を含みます）。' }, 409)
+    await invalidateSlots(store)
+    const cal = r.calendar === 'moved' ? 'Googleカレンダーの予定も同じ日時にしました。'
+      : r.calendar === 'added' ? 'Googleカレンダーに予定を入れました。'
+        : r.calendar === 'failed' ? 'Googleカレンダーの予定は直せませんでした。カレンダーで手で直してください。'
+          : 'Googleカレンダーとつないでいないため、カレンダーの予定は変わっていません（「Googleカレンダーに追加」から、新しい日時で入れられます）。'
+    const mailed = body?.notify ? (mailNote(r.mail) || 'お客様に変更のメールを送りました。') : 'お客様には知らせていません。'
+    return json({ ok: true, booking: r.rec, message: `日時を ${r.rec.when} にしました。` + (body?.done ? '「来店済み」にしました。' : '') + cal + mailed })
   }
   if (['confirmed', 'visited', 'noshow', 'memo'].includes(action)) {
     const r = await markBooking(req, rec, rules, action === 'memo' ? '' : action, memo)

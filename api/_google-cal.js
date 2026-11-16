@@ -150,7 +150,7 @@ export async function calendarInfo(c) {
 }
 
 /** Meet 付きの予定を作り、相手にも招待を送る。 */
-export async function createEvent(c, { startMs, endMs, summary, description, attendee, attendeeName, online = true }) {
+export async function createEvent(c, { startMs, endMs, summary, description, attendee, attendeeName, online = true, notify = true }) {
   const token = await accessToken(c)
   const body = {
     summary,
@@ -172,7 +172,7 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
     } : {}),
     reminders: { useDefault: true },
   }
-  const q = new URLSearchParams({ conferenceDataVersion: online ? '1' : '0', sendUpdates: 'all' })
+  const q = new URLSearchParams({ conferenceDataVersion: online ? '1' : '0', sendUpdates: notify ? 'all' : 'none' })
   const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events?${q}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -187,9 +187,10 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
 }
 
 /** 予約の日時を変えた。相手にも変更の知らせが届きます。 */
-export async function moveEvent(c, eventId, { startMs, endMs }) {
+export async function moveEvent(c, eventId, { startMs, endMs, notify = true }) {
   const token = await accessToken(c)
-  const q = new URLSearchParams({ sendUpdates: 'all' })
+  // notify: false は、相手に知らせずに予定だけ直すとき（終わった面談の時刻を実際に合わせる など）。
+  const q = new URLSearchParams({ sendUpdates: notify ? 'all' : 'none' })
   const res = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events/${encodeURIComponent(eventId)}?${q}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
