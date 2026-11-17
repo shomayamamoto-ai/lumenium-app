@@ -149,6 +149,10 @@ export async function calendarInfo(c) {
   return { id: String(data.id || c.calendarId), name: String(data.summary || '') }
 }
 
+/** 予定の中の Meet の参加URL（無ければ ''）。 */
+const meetOf = (ev) => (ev && (ev.hangoutLink
+  || ((ev.conferenceData && ev.conferenceData.entryPoints) || []).find((e) => e.entryPointType === 'video')?.uri)) || ''
+
 /** Meet 付きの予定を作り、相手にも招待を送る。 */
 export async function createEvent(c, { startMs, endMs, summary, description, attendee, attendeeName, online = true, notify = true }) {
   const token = await accessToken(c)
@@ -180,9 +184,22 @@ export async function createEvent(c, { startMs, endMs, summary, description, att
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error?.message || `events.insert ${res.status}`)
-  const meet = data.hangoutLink
-    || (data.conferenceData?.entryPoints || []).find((e) => e.entryPointType === 'video')?.uri
-    || ''
+  let meet = meetOf(data)
+  /* Meet の発行は、予定を作った返事に間に合わないことがあります（状態が pending のまま返る）。
+     そのまま進むと、予約のメールに参加URLが載りません。少し待って予定を読み直し、URLを取ります
+     （2回まで。合わせて約2秒。取れなければ空のままにして、予約は止めません）。 */
+  if (online && !meet && data.id) {
+    for (const wait of [700, 1300]) {
+      await new Promise((r) => setTimeout(r, wait))
+      try {
+        const again = await fetch(`${CAL}/calendars/${encodeURIComponent(c.calendarId)}/events/${encodeURIComponent(data.id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (again.ok) meet = meetOf(await again.json().catch(() => ({})))
+      } catch (_) { /* 次で読み直す */ }
+      if (meet) break
+    }
+  }
   return { id: data.id, meet, link: data.htmlLink || '' }
 }
 
