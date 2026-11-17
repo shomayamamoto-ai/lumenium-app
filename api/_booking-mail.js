@@ -51,6 +51,9 @@ async function sender(req) {
 const word = (rec, rules) => rec.wording || rules.wording
 const svcName = (rec) => (rec.service && rec.service.name) || ''
 const svcLine = (rec) => (rec.service ? `メニュー: ${rec.service.name}（${rec.service.minutes}分）` : null)
+/** お客様あてのメールに入れる、参加URLのまとまり（Meet があるときだけ）。
+ *  文の途中に置くと見落とされるので、見出しを付けて1行にURLだけを置きます。 */
+const meetBlock = (rec) => (rec.meet ? ['', '■ 参加URL（Google Meet）', rec.meet, 'お時間になりましたら、上のURLからご参加ください。'] : [])
 const whenOf = (rec) => { const { start, end } = recSpan(rec); return label(start, end) }
 
 export function summaryOf(rec, rules) {
@@ -111,7 +114,7 @@ export async function mailBooked(req, rec, rules) {
       `メール: ${rec.email}`,
       rec.phone ? `電話: ${rec.phone}` : null,
       (rec.topics || []).length ? `ご相談の内容: ${rec.topics.join('、')}` : null,
-      rec.meet ? `Meet: ${rec.meet}` : null,
+      rec.meet ? `参加URL（Google Meet）: ${rec.meet}` : null,
       rec.page ? `申し込みページ: ${rec.page}` : null,
       google ? 'カレンダーに登録済み・相手にも招待を送信しました。' : '仮予約です（カレンダーへの自動登録は未接続）。折り返し確定のご連絡が要ります。管理画面の「予約管理」から「確定にする」を押すと、お客様に確定のメールが届きます。',
       rec.addUrl ? `\nGoogleカレンダーに追加（押して保存するだけ）:\n${rec.addUrl}` : null,
@@ -129,8 +132,9 @@ export async function mailBooked(req, rec, rules) {
       '',
       `${rec.when}（日本時間）で「${svcName(rec)}」のお時間を確保しました。`,
       google
-        ? (rec.meet ? `当日はこちらからご参加ください: ${rec.meet}` : 'カレンダーの招待も別にお送りしています。')
+        ? (rec.meet ? 'カレンダーの招待も別にお送りしています。' : (rules.online ? 'カレンダーの招待を別にお送りしています（参加用のURLは、その招待に入っています）。' : 'カレンダーの招待も別にお送りしています。'))
         : (rules.online ? '担当より、接続用のURLを添えて確定のご連絡を差し上げます。' : '担当より、確定のご連絡を差し上げます。'),
+      ...meetBlock(rec),
       rules.place ? `場所: ${rules.place}` : null,
       file ? '添付のファイルを開くと、そのままカレンダーに登録できます。' : null,
       '',
@@ -206,7 +210,7 @@ export async function mailMoved(req, rec, rules, oldWhen, by) {
       `${rec.name} 様`, '',
       `${noun}の日時を変更しました。`,
       `変更前: ${oldWhen}`, `変更後: ${rec.when}（日本時間）`,
-      rec.meet ? `参加URL: ${rec.meet}` : null,
+      rec.meet ? `参加URL（Google Meet）: ${rec.meet}` : null,
       rules.place ? `場所: ${rules.place}` : null,
       file ? '添付のファイルを開くと、カレンダーの予定が新しい日時に変わります。' : null,
       '', ...manageLines(link, rules), '', ...sign(),
@@ -230,7 +234,7 @@ export async function mailReminder(req, rec, rules) {
     text: [
       `${rec.name} 様`, '',
       `明日 ${rec.when}（日本時間）に「${svcName(rec)}」のご予約をいただいています。`,
-      rec.meet ? `参加URL: ${rec.meet}` : null,
+      rec.meet ? `参加URL（Google Meet）: ${rec.meet}` : null,
       rules.place ? `場所: ${rules.place}` : null,
       'お会いできるのを楽しみにしています。', '',
       ...manageLines(link, rules), '', ...sign(),
@@ -252,7 +256,7 @@ export async function mailConfirmed(req, rec, rules) {
     text: [
       `${rec.name} 様`, '',
       `${rec.when}（日本時間）の${noun}が確定しました。`,
-      rec.meet ? `参加URL: ${rec.meet}` : null,
+      rec.meet ? `参加URL（Google Meet）: ${rec.meet}` : null,
       rules.place ? `場所: ${rules.place}` : null,
       '', ...manageLines(link, rules), '', ...sign(),
     ].filter((x) => x !== null).join('\n'),

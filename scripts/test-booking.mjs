@@ -631,6 +631,51 @@ await t('受付時間: 保存されているのが以前の既定（平日10〜1
         assert.equal(r.rec.status, 'visited')
       } finally { process.env.GOOGLE_REFRESH_TOKEN = keep }
     })
+    await t('予約のメールに、発行した Google Meet の参加URLが載る（お客様あて・自分あて）', async () => {
+      const gcal = await import('../api/_google-cal.js')
+      const mail = await import('../api/_booking-mail.js')
+      const MEET = 'https://meet.google.com/abc-defg-hij'
+      const mails = []
+      let gets = 0
+      const f0 = globalThis.fetch
+      process.env.RESEND_API_KEY = 're_test'
+      process.env.CONTACT_TO_EMAIL = 'owner@example.com'
+      globalThis.fetch = async (input, init) => {
+        const u = String(input && input.url ? input.url : input)
+        if (u.includes('api.resend.com')) { mails.push(JSON.parse(init.body)); return reply({ id: 'm' }) }
+        // 予定を作った返事には Meet がまだ無く（発行待ち）、読み直すと入っている
+        if (/\/calendars\/[^/]+\/events\?/.test(u) && init && init.method === 'POST') return reply({ id: 'ev_m', conferenceData: { createRequest: { status: { statusCode: 'pending' } } } })
+        if (/\/calendars\/[^/]+\/events\/ev_m$/.test(u)) { gets++; return reply(gets < 2 ? { id: 'ev_m' } : { id: 'ev_m', hangoutLink: MEET }) }
+        return f0(input, init)
+      }
+      try {
+        const c = await gcal.creds(req)
+        const start = jst('2026-10-08 11:30')
+        const ev = await gcal.createEvent(c, { startMs: start, endMs: start + 3600000, summary: 's', description: 'd', attendee: 'yamada@example.com', attendeeName: '山田', online: true })
+        assert.equal(ev.meet, MEET, '発行待ちでも、読み直して参加URLを取る')
+        assert.equal(gets, 2)
+        const rec = { id: 'bk_m1', start, end: start + 3600000, when: '10月8日(木) 11:30〜12:30', status: 'confirmed', mode: 'google', eventId: ev.id, meet: ev.meet, name: '山田', email: 'yamada@example.com', service: { id: 'default', name: 'オンライン相談', minutes: 60 } }
+        const r = await mail.mailBooked(req, rec, rules)
+        assert.deepEqual(r, { owner: true, customer: true })
+        const toCustomer = mails.find((m) => m.to[0] === 'yamada@example.com')
+        const toOwner = mails.find((m) => m.to[0] !== 'yamada@example.com')
+        assert.ok(toCustomer.text.includes('■ 参加URL（Google Meet）\n' + MEET), toCustomer.text)
+        assert.ok(toOwner.text.includes('参加URL（Google Meet）: ' + MEET), toOwner.text)
+        // 確定・日時変更・前日のお知らせにも載る
+        mails.length = 0
+        await mail.mailConfirmed(req, rec, rules)
+        await mail.mailMoved(req, rec, rules, '10月7日(水) 10:00〜11:00', 'owner')
+        await mail.mailReminder(req, rec, rules)
+        const cust = mails.filter((m) => m.to[0] === 'yamada@example.com')
+        assert.equal(cust.length, 3)
+        for (const m of cust) assert.ok(m.text.includes(MEET), m.subject)
+        // つないでいない（簡易接続）の予約には Meet が無いので、URLは載せず、確定の連絡で送ると伝える
+        mails.length = 0
+        await mail.mailBooked(req, { ...rec, mode: 'ics', meet: '', eventId: '' }, rules)
+        const t2 = mails.find((m) => m.to[0] === 'yamada@example.com').text
+        assert.ok(!t2.includes('meet.google.com')); assert.match(t2, /接続用のURLを添えて/)
+      } finally { globalThis.fetch = f0; delete process.env.RESEND_API_KEY; delete process.env.CONTACT_TO_EMAIL }
+    })
     await t('返事のカレンダー名が違っても（メールアドレスで返る）、1つだけならそれを使う', async () => {
       freeBusy = () => reply({ calendars: { 'owner@example.com': { busy: BUSY } } })
       const r = await openSlots(req, 500, rules, svc)
