@@ -22,7 +22,7 @@ import { BRAND } from './_brand.js'
 import { sandboxFrom, manageSecret } from './_booking-mail.js'
 import {
   readPrefs, savePrefs, readMeta, readItems, readSeen, writeSeen, reviewBadge, locationsFor, connection, syncReviews, setReply, draftReply, aiStatus,
-  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData,
+  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData, readWeekly, recordWeek,
 } from './_reviews.js'
 import { REPLY_MAX_BYTES, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS } from './_reviews-core.js'
 
@@ -46,6 +46,9 @@ async function state(req) {
     connection(req, prefs, meta), readItems(cfg, locs), aiStatus(req, prefs),
     requestCandidates(req, prefs, meta), requestLog(cfg), setting('MAIL_SENDER_ADDRESS', '', req),
   ])
+  // 件数と評価の毎週の記録。この画面を開いたときにも今週の分を書くので、連携した週から記録が始まります。
+  if (cfg && conn.ok) { try { await recordWeek(cfg, prefs, meta, locs) } catch (_) {} }
+  const weekly = await readWeekly(cfg)
   return {
     ok: true,
     stored: !!cfg,
@@ -56,6 +59,7 @@ async function state(req) {
     seenAt: await readSeen(cfg),
     reviews,
     prefs,
+    weekly,
     ai,
     limits: { replyBytes: REPLY_MAX_BYTES, gapDays: REQUEST_GAP_DAYS, maxAgeDays: REQUEST_MAX_AGE_DAYS },
     requests: {

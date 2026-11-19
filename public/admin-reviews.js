@@ -460,7 +460,7 @@
     var list = S.loc ? S.data.reviews.filter(function (r) { return r.location === S.loc; }) : S.data.reviews;
     var st = C.reviewStats(list);
     if (!list.length) {
-      body.innerHTML = connectNote(S.data) + '<p class="soc-small">口コミがまだ無いため、数字は出せません。</p>';
+      body.innerHTML = connectNote(S.data) + '<p class="soc-small">口コミがまだ無いため、数字は出せません。</p>' + weeklyHtml(S.data);
       bindConnect();
       return;
     }
@@ -494,6 +494,7 @@
           return '<span class="' + (k.avgStars <= 2.5 ? 'low' : '') + '">' + esc(k.word) + '<small>' + k.count + '件・平均★' + k.avgStars + '</small></span>';
         }).join('') + '</div>' : '<p class="soc-small">まだ目立つ言葉はありません。</p>') +
         '<p class="soc-small" style="margin-top:8px">言葉の区切りは簡単なやり方（よく出る言い方の一覧と、漢字・カタカナの続き）で数えています。赤い枠は、その言葉が出た口コミの平均が★2.5以下のもの＝気にされている点の手がかりです。</p></div>' +
+      weeklyHtml(S.data) +
       '<p class="soc-small" style="margin-top:10px">返信までの時間は、Google に残る「返信を最後に直した時刻」から数えます。あとで返信を直すと、そのぶん長く出ます。数字は、この画面に読み込んだ口コミ（最大1,500件/店舗）から計算しています。</p>';
     bindConnect();
   }
@@ -543,6 +544,7 @@
             : '<p class="soc-small">リンクがまだ無いため、QRコードを作れません。</p>') +
         '</div>' +
       '</div>' +
+      assistHtml(d) +
       '<div class="rev-sec"><h4>来店済みの予約（来店から' + lim.maxAgeDays + '日以内）</h4>' + candidatesTable(q) + '</div>' +
       '<div class="rev-sec"><h4>送った記録</h4>' + (q.log && q.log.length ? '<table class="rev-tbl"><tbody>' + q.log.map(function (l) {
         return '<tr><td style="white-space:nowrap">' + when(l.at) + '</td><td>' + esc(l.name || '') + ' 様</td><td>' + (l.ok ? '<span class="rev-tag ok">送りました</span>' : '<span class="rev-tag new">送れませんでした</span>') + '</td></tr>';
@@ -556,6 +558,7 @@
         (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(function () { b.textContent = 'コピーしました'; }, function () { prompt('コピーしてください', link); });
       });
     }
+    bindAssist(body);
     el('rev-mode-save').addEventListener('click', async function () {
       var v = (body.querySelector('input[name=rev-mode]:checked') || {}).value || 'off';
       if (v === 'auto' && !confirm('来店済みにした予約へ、翌朝自動でお願いのメールを送ります（全員に同じ文面・1日5件まで）。よろしいですか？')) return;
@@ -581,6 +584,72 @@
       });
     });
   }
+  /* 口コミを書きやすくするページ（QR → タップで答える → 下書き → ご本人が投稿）。
+     お客様の画面は /review.html、決まりは api/_review-assist.js。 */
+  function assistUrl() { return location.origin + '/review.html'; }
+  function assistHtml(d) {
+    var a = (d.prefs && d.prefs.assist) || { on: false, intro: '', services: [], aspects: [] };
+    var url = assistUrl();
+    return '<div class="rev-sec"><h4>口コミを書きやすくするページ（QR → タップで答える → 下書き → ご本人が投稿）</h4>' +
+      '<p class="soc-small" style="margin-bottom:8px">お客様がQRを読み、いくつかの質問にタップで答えると、その答えだけを材料に下書きができます。読んで直し、ご本人が Google に投稿します。</p>' +
+      '<ul class="rev-steps" style="margin-bottom:10px">' +
+        '<li><b>作り話をさせません。</b>下書きに入るのは、お客様が選んだ答えと、打ったひとことだけです。答えにない数字・名前・ほめ言葉が入った下書きは、機械の点検で外します。</li>' +
+        '<li><b>良くなかった点も選べます。</b>どの項目も「よかった・ふつう・いまひとつ」を同じ並びで出し、どの答えでも同じ Google の画面へ進みます。</li>' +
+        '<li><b>店名・スタッフ名・検索向けの言葉は入れません。</b>書く内容を店が決めないためです（Google の「評価の操作」の決まり）。</li>' +
+        '<li>見返りは付けないでください。答えと下書きは保存しません。残るのは、週ごとの数だけです。</li>' +
+      '</ul>' +
+      '<label class="rev-radio"><input type="checkbox" id="rev-as-on"' + (a.on ? ' checked' : '') + '><span><b>このページを使う</b><br><span class="soc-small">外すと、QRを読んでも「いま使えません」と出ます。</span></span></label>' +
+      '<label class="soc-lab" for="rev-as-services" style="margin-top:10px">「何を利用しましたか？」の選択肢（1行に1つ・12個まで。空なら、この質問は出しません）</label>' +
+      '<textarea id="rev-as-services" rows="4" placeholder="例）&#10;ホームページ制作&#10;AI研修&#10;動画制作">' + esc((a.services || []).join('\n')) + '</textarea>' +
+      '<label class="soc-lab" for="rev-as-aspects" style="margin-top:10px">「それぞれ、どうでしたか？」の項目（1行に1つ・8個まで。良い・悪いを含まない名前で）</label>' +
+      '<textarea id="rev-as-aspects" rows="5">' + esc((a.aspects || []).join('\n')) + '</textarea>' +
+      '<label class="soc-lab" for="rev-as-intro" style="margin-top:10px">ページの最初に出す一言（任意・120字まで）</label>' +
+      '<input type="text" id="rev-as-intro" maxlength="120" style="width:100%;box-sizing:border-box;min-height:42px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:14px" value="' + esc(a.intro || '') + '" placeholder="空なら、決まった案内文が出ます">' +
+      '<div class="rev-acts" style="margin-top:10px"><button type="button" id="rev-as-save">この内容で保存</button><a class="ghost" href="' + esc(url) + '" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:700;min-height:38px">ページを見る ↗</a><span id="rev-as-state" class="soc-small" role="status"></span></div>' +
+      (a.on ? '<div class="rev-qr" style="margin-top:12px"><div class="box" id="rev-as-qr"></div><div class="txt">読み取ると、質問のページが開きます。<br><span class="soc-small">' + esc(url) + '</span>' +
+        '<div class="rev-acts" style="margin-top:8px"><button type="button" class="ghost" id="rev-as-print">印刷する</button><button type="button" class="ghost" id="rev-as-copy">リンクをコピー</button></div>' +
+        (((d.requests || {}).link) ? '' : '<div class="soc-small" style="margin-top:6px;color:#b3261e">Google の口コミを書く画面のリンクがまだ無いため、お客様は文のコピーまでしかできません。連携して一度同期するか、「設定」でプレイスIDを入れてください。</div>') +
+        '</div></div>' : '') +
+    '</div>';
+  }
+  function bindAssist(body) {
+    var save = el('rev-as-save');
+    if (!save) return;
+    save.addEventListener('click', async function () {
+      var st = el('rev-as-state');
+      st.textContent = '保存しています…';
+      var ok = await savePrefs({ assist: { on: el('rev-as-on').checked, services: el('rev-as-services').value, aspects: el('rev-as-aspects').value, intro: el('rev-as-intro').value } });
+      if (ok === false) { st.textContent = ''; return; }
+      askView(body);
+      var st2 = el('rev-as-state'); if (st2) st2.textContent = '保存しました。';
+    });
+    var url = assistUrl();
+    if (el('rev-as-qr')) {
+      try { el('rev-as-qr').innerHTML = core().qrSvg(core().qrEncode(url), { label: '口コミを書きやすくするページのQRコード' }); }
+      catch (e) { el('rev-as-qr').textContent = 'QRコードを作れませんでした。'; }
+      el('rev-as-print').addEventListener('click', function () { printQr(url); });
+      el('rev-as-copy').addEventListener('click', function () {
+        var b = this;
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () { b.textContent = 'コピーしました'; }, function () { prompt('コピーしてください', url); });
+      });
+    }
+  }
+
+  /* 件数と評価の、毎週の記録（毎朝の同期のあとに、その週の分を書きます）。 */
+  function weeklyHtml(d) {
+    var rows = d.weekly || [];
+    var wk = function (w) { var m = /^(\d+)-(\d+)-(\d+)$/.exec(w); return m ? (+m[2]) + '/' + (+m[3]) + ' の週' : w; };
+    return '<div class="rev-sec"><h4>毎週の記録（件数と評価）</h4>' +
+      (rows.length
+        ? '<div style="overflow-x:auto"><table class="rev-tbl" style="min-width:520px"><thead><tr><th>週（月曜はじまり）</th><th style="text-align:right">件数</th><th style="text-align:right">前の週から</th><th style="text-align:right">評価</th><th style="text-align:right">QRを開いた</th><th style="text-align:right">下書き</th><th style="text-align:right">Googleを開いた</th></tr></thead><tbody>' +
+          rows.map(function (r) {
+            return '<tr><td style="white-space:nowrap">' + esc(wk(r.w)) + '</td><td class="n">' + r.total + '</td><td class="n">' + (r.diff == null ? '—' : (r.diff > 0 ? '+' : '') + r.diff) + '</td><td class="n">' + (r.avg == null ? '—' : r.avg.toFixed(1)) + '</td><td class="n">' + r.open + '</td><td class="n">' + r.draft + '</td><td class="n">' + r.google + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<p class="soc-small" style="margin-top:6px">Google に出ている件数と評価を、週に1行ずつ残しています。右の3つは、口コミを書きやすくするページの数です（「Googleを開いた」は投稿した数ではありません）。</p>'
+        : '<p class="soc-small">まだ記録がありません。Googleビジネスプロフィールとつなぐと、その週から毎週1行ずつ増えていきます。</p>') +
+    '</div>';
+  }
+
   function candidatesTable(q) {
     var list = q.candidates || [];
     if (!list.length) return '<p class="soc-small">「予約管理」で「来店済み」にした予約が、ここに並びます。</p>';

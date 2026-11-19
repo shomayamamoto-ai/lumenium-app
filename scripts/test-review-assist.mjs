@@ -1,0 +1,199 @@
+// 口コミを書きやすくするページの決まり（api/_review-assist.js）。
+//   node scripts/test-review-assist.mjs
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {
+  normalizeAssist, defaultAssist, normalizeAnswers, enough, composeDraft, checkDraft, cleanDraft, systemText, promptText,
+  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS,
+} from '../api/_review-assist.js'
+import { normalizePrefs, defaultPrefs } from '../api/_reviews.js'
+
+let n = 0
+const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name) }
+const CFG = normalizeAssist({ on: true, services: 'ホームページ制作\nAI研修\n動画制作', aspects: '対応の早さ\n説明の分かりやすさ\n仕上がり\n料金' })
+const BRAND = { names: ['Lumenium', 'ルメニウム'] }
+const ans = (x) => normalizeAnswers(x, CFG)
+
+t('設定: 既定は「使わない」。選択肢は数と長さを絞り、項目が空なら既定に戻す', () => {
+  assert.equal(defaultAssist().on, false)
+  assert.deepEqual(defaultAssist().aspects, DEFAULT_ASPECTS)
+  const a = normalizeAssist({ on: 1, services: Array.from({ length: 30 }, (_, i) => 'サービス' + i), aspects: '', intro: 'あ'.repeat(500) })
+  assert.equal(a.on, true)
+  assert.equal(a.services.length, LIMITS.services)
+  assert.deepEqual(a.aspects, DEFAULT_ASPECTS)
+  assert.equal(a.intro.length, LIMITS.intro)
+  assert.deepEqual(normalizeAssist({ services: 'A、B,A\n\nC' }).services, ['A', 'B', 'C'])
+})
+
+t('設定: 口コミ管理の設定（prefs）に入り、ほかの項目を保存しても消えない', () => {
+  assert.equal(defaultPrefs().assist.on, false)
+  const p = normalizePrefs({ assist: { on: true, services: 'カット' } })
+  assert.equal(p.assist.on, true)
+  assert.deepEqual(p.assist.services, ['カット'])
+  const q = normalizePrefs({ tone: 'warm' }, p)
+  assert.equal(q.assist.on, true)
+  assert.deepEqual(normalizePrefs({ assist: { intro: 'ようこそ' } }, p).assist.services, ['カット'])
+})
+
+t('答え: 設定にある選択肢だけを通す（画面を書きかえて送っても、材料は増えない）', () => {
+  const a = ans({ services: ['AI研修', '月額100万円のプラン'], aspects: { 料金: 'good', 仕上がり: 'bad', 立地: 'good', 対応の早さ: 'great' }, overall: 9, style: 'x', memo: '  助かった\n\u0000  ' })
+  assert.deepEqual(a.services, ['AI研修'])
+  assert.deepEqual(a.aspects, { 仕上がり: 'bad', 料金: 'good' })
+  assert.equal(a.overall, 0)
+  assert.equal(a.style, 'polite')
+  assert.equal(a.memo, '助かった')
+  assert.equal(enough(a), true)
+  assert.equal(enough(ans({ services: ['AI研修'] })), false)
+})
+
+t('良くなかった点も選べる: どの項目も「よかった・ふつう・いまひとつ」の3つ。全体も5段階', () => {
+  assert.deepEqual(LEVELS.map((l) => l[0]), ['good', 'ok', 'bad'])
+  assert.deepEqual(OVERALL.map((o) => o[0]), [5, 4, 3, 2, 1])
+})
+
+/* 作り話の点検。答えの組み合わせ16通りで、答えから作った下書きに作り話が1つも無いこと。 */
+const CASES = [
+  { overall: 5 },
+  { overall: 1 },
+  { memo: '急ぎの相談だったのに、その日のうちに返事が来た' },
+  { services: ['AI研修'], overall: 4 },
+  { services: ['ホームページ制作', '動画制作'], aspects: { 仕上がり: 'good' } },
+  { aspects: { 対応の早さ: 'good', 料金: 'bad' }, overall: 3 },
+  { aspects: { 対応の早さ: 'bad', 説明の分かりやすさ: 'bad', 仕上がり: 'bad', 料金: 'bad' }, overall: 1, style: 'casual' },
+  { aspects: { 対応の早さ: 'ok', 料金: 'ok' }, overall: 3 },
+  { aspects: { 仕上がり: 'good', 説明の分かりやすさ: 'good' }, overall: 5, style: 'casual' },
+  { services: ['AI研修'], aspects: { 説明の分かりやすさ: 'good', 料金: 'ok', 対応の早さ: 'bad' }, overall: 4, memo: '社員が翌日から使い始めた' },
+  { services: ['動画制作'], aspects: { 仕上がり: 'bad' }, overall: 2, memo: '修正に3回かかった' },
+  { memo: '料金が30万円と聞いて迷ったが、頼んでよかった', overall: 4 },
+  { aspects: { 料金: 'bad' }, style: 'casual' },
+  { services: ['ホームページ制作'], overall: 2, style: 'casual' },
+  { aspects: { 対応の早さ: 'good' }, memo: 'Lumeniumの山本さんに相談した', overall: 5 },
+  { services: ['ホームページ制作', 'AI研修', '動画制作'], aspects: { 対応の早さ: 'good', 説明の分かりやすさ: 'ok', 仕上がり: 'good', 料金: 'bad' }, overall: 4, memo: 'また頼みたい' },
+]
+
+t(`作り話をさせない: 答えから作った下書き ${CASES.length}本 × 言い回し8通りで、作り話0件`, () => {
+  assert.equal(CASES.length, 16)
+  let made = 0
+  for (const c of CASES) {
+    const a = ans(c)
+    for (let seed = 0; seed < 8; seed++) {
+      const text = composeDraft(a, seed * 7 + 3)
+      const r = checkDraft(text, a, CFG, BRAND)
+      assert.equal(r.ok, true, `${JSON.stringify(c)} → 「${text}」: ${r.reasons.join(' / ')}`)
+      made++
+    }
+  }
+  assert.equal(made, 128)
+})
+
+t('下書き: 同じ答えでも、言い回しが変わる（全員が同じ文にならない）', () => {
+  const a = ans({ services: ['AI研修'], aspects: { 説明の分かりやすさ: 'good', 料金: 'bad' }, overall: 4, memo: '質問しやすかった' })
+  const set = new Set(Array.from({ length: 24 }, (_, i) => composeDraft(a, i)))
+  assert.ok(set.size >= 6, `言い回しが ${set.size} 通りしかありません`)
+  for (const s of set) { assert.ok(s.includes('質問しやすかった')); assert.ok(s.includes('料金')) }
+})
+
+t('下書き: 答えていないことは、1つも文に出ない', () => {
+  const text = composeDraft(ans({ aspects: { 料金: 'good' } }), 1)
+  for (const w of ['対応', '説明', '仕上がり', 'ホームページ', 'AI研修', '動画', '満足']) assert.ok(!text.includes(w), w)
+})
+
+const base = ans({ services: ['AI研修'], aspects: { 説明の分かりやすさ: 'good', 料金: 'bad' }, overall: 4 })
+const bad = (text, a = base) => checkDraft(text, a, CFG, BRAND)
+
+t('点検: 答えにない数字・金額・日数を見つける', () => {
+  assert.equal(bad('AI研修をお願いしました。説明が分かりやすく、料金は少し気になりましたが満足です。').ok, true)
+  assert.equal(bad('AI研修をお願いしました。3日で終わり、説明が分かりやすかったです。料金は気になりました。').ok, false)
+  assert.equal(bad('AI研修は十万円でした。説明が分かりやすかったです。料金は気になりました。').ok, false)
+  // ひとことに本人が書いた数字は、そのまま使ってよい
+  const a = ans({ aspects: { 料金: 'bad' }, memo: '見積りが30万円だった' })
+  assert.equal(checkDraft('見積りが30万円だった。料金は少し気になりました。', a, CFG, BRAND).ok, true)
+})
+
+t('点検: 答えていない項目・選んでいない利用内容に触れたら外す', () => {
+  assert.equal(bad('AI研修をお願いしました。説明が分かりやすく、対応も早かったです。料金は気になりました。').ok, false)
+  assert.equal(bad('AI研修と動画制作をお願いしました。説明が分かりやすかったです。料金は気になりました。').ok, false)
+  assert.match(bad('AI研修で利用。説明がよかった。仕上がりもよい。料金は気になった。').reasons.join(), /仕上がり/)
+})
+
+t('点検: 「いまひとつ」を消したり、弱めて書かなかったりしたら外す', () => {
+  assert.equal(bad('AI研修をお願いしました。説明が分かりやすく、満足しています。').ok, false)
+  const low = ans({ overall: 1 })
+  assert.equal(checkDraft('全体として、とても満足しています。', low, CFG, BRAND).ok, false)
+  assert.equal(checkDraft('全体としては、不満でした。', low, CFG, BRAND).ok, true)
+})
+
+t('点検: 「よかった」が無いのに、ほめたら外す', () => {
+  const a = ans({ aspects: { 料金: 'ok' }, overall: 3 })
+  assert.equal(checkDraft('料金はふつうでした。全体としても、ふつうです。', a, CFG, BRAND).ok, true)
+  assert.equal(checkDraft('料金はふつうでしたが、安心してお願いできました。', a, CFG, BRAND).ok, false)
+})
+
+t('点検: 店名・あおる言葉・「おすすめ」・絵文字・ハッシュタグを外す', () => {
+  for (const s of [
+    'Lumeniumさんで、AI研修をお願いしました。説明が分かりやすかったです。料金は気になりました。',
+    'AI研修をお願いしました。説明が非常に分かりやすかったです。料金は気になりました。',
+    'AI研修をお願いしました。説明が分かりやすかったです。料金は気になりましたが、おすすめです。',
+    'AI研修をお願いしました。スタッフの皆様の説明が分かりやすかったです。料金は気になりました。',
+    'AI研修をお願いしました😊説明が分かりやすかったです。料金は気になりました。',
+    'AI研修をお願いしました。説明が分かりやすかったです。料金は気になりました。#AI研修',
+    'AI研修をお願いしました！説明が分かりやすかったです！料金は気になりました。',
+    '「AI研修をお願いしました。説明が分かりやすかったです。料金は気になりました。」',
+  ]) assert.equal(bad(s).ok, false, s)
+  // 本人がひとことに書いた言葉は通す
+  const a = ans({ aspects: { 説明の分かりやすさ: 'good' }, memo: '知り合いにもおすすめしたい' })
+  assert.equal(checkDraft('説明が分かりやすかったです。知り合いにもおすすめしたい。', a, CFG, BRAND).ok, true)
+})
+
+t('AIへの頼み方: 材料は答えだけ。良くない答えは弱めない。店名・スタッフ名・検索向けの言葉を入れない', () => {
+  const s = systemText()
+  for (const w of ['答えにない事実は1つも足さない', '弱めず、消さず', '店名、スタッフの名前、地名', 'そのまま生かす', '60〜140字', '強める言葉']) assert.ok(s.includes(w), w)
+  const p = promptText(ans({ services: ['AI研修'], aspects: { 料金: 'bad' }, overall: 2, memo: '高かった' }))
+  assert.match(p, /利用したもの: AI研修/)
+  assert.match(p, /・料金: いまひとつ/)
+  assert.match(p, /全体として: やや不満/)
+  assert.match(p, /ひとこと（本人の言葉）: 高かった/)
+  assert.match(promptText(ans({ overall: 5 })), /利用したもの: （答えなし。触れない）/)
+  assert.ok(!s.includes('Lumenium') && !p.includes('Lumenium'))
+})
+
+t('下書きの後始末: かぎかっこ・前置き・改行を外す', () => {
+  assert.equal(cleanDraft('「説明がよかったです。」'), '説明がよかったです。')
+  assert.equal(cleanDraft('下書き：説明がよかったです。\n\n料金は気になりました。'), '説明がよかったです。料金は気になりました。')
+  assert.equal(coreOf('説明の分かりやすさ'), '説明')
+  assert.equal(coreOf('料金'), '料金')
+})
+
+t('毎週の記録: 月曜はじまり（日本時間）。同じ週は上書き、前の週は残る', () => {
+  assert.equal(weekOf(Date.UTC(2026, 10, 19, 3)), '2026-11-16')      // 木曜の昼
+  assert.equal(weekOf(Date.UTC(2026, 10, 15, 14, 59)), '2026-11-09') // 日曜 23:59（日本時間）
+  assert.equal(weekOf(Date.UTC(2026, 10, 15, 15, 0)), '2026-11-16')  // 月曜 0:00（日本時間）
+  let list = putWeek([], { total: 20, avg: 4.04 }, Date.UTC(2026, 10, 10))
+  list = putWeek(list, { total: 21, avg: 4.1 }, Date.UTC(2026, 10, 12))
+  list = putWeek(list, { total: 24, avg: 4.2 }, Date.UTC(2026, 10, 18))
+  assert.deepEqual(list.map((r) => [r.w, r.total, r.avg]), [['2026-11-09', 21, 4.1], ['2026-11-16', 24, 4.2]])
+  const many = Array.from({ length: 200 }, (_, i) => i).reduce((l, i) => putWeek(l, { total: i, avg: 4 }, Date.UTC(2023, 0, 2) + i * 7 * 86400000), [])
+  assert.equal(many.length, 104)
+})
+
+t('毎週の記録: 画面には新しい週から。前の週からの増え方と、ページの数を付ける', () => {
+  const list = [{ w: '2026-11-02', total: 18, avg: 4 }, { w: '2026-11-09', total: 21, avg: 4.1 }, { w: '2026-11-16', total: 24, avg: 4.2 }]
+  const rows = weeklyRows(list, { '2026-11-16': { open: '9', draft: '6', google: '4' } })
+  assert.deepEqual(rows.map((r) => [r.w, r.total, r.diff]), [['2026-11-16', 24, 3], ['2026-11-09', 21, 3], ['2026-11-02', 18, null]])
+  assert.deepEqual([rows[0].open, rows[0].draft, rows[0].google], [9, 6, 4])
+  assert.deepEqual([rows[1].open, rows[1].draft, rows[1].google], [0, 0, 0])
+  assert.deepEqual(weeklyRows(null, null), [])
+})
+
+t('お客様のページ: 見返りなし・全員が同じ画面へ・検索に載せない', () => {
+  const h = fs.readFileSync(new URL('../public/review.html', import.meta.url), 'utf8')
+  assert.match(h, /<meta name="robots" content="noindex">/)
+  assert.match(h, /見返りは、ありません/)
+  assert.match(h, /良くなかった点も、そのまま選んでください/)
+  assert.match(h, /投稿するのは、あなたです/)
+  assert.match(h, /自分で書く（Google の投稿画面を開く）/)
+  // 満足度で行き先を変えていない（overall を見てリンクを変える処理が無い）
+  assert.doesNotMatch(h, /overall\s*[<>]=?\s*\d[\s\S]{0,80}(href|link)/)
+})
+
+console.log(`\n${n} 件すべて通りました。`)

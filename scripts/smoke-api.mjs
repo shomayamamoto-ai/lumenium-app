@@ -72,6 +72,7 @@ function redis(cmds) {
     if (op === 'HGET') { const h = hashes.get(k); return { result: h?.get(String(c[2])) ?? null } }
     if (op === 'HGETALL') { const h = hashes.get(k); return { result: h ? [...h].flat() : [] } }
     if (op === 'LRANGE') return { result: [] }
+    if (op === 'HINCRBY') { const h = hashes.get(k) || new Map(); const v = (Number(h.get(String(c[2]))) || 0) + Number(c[3]); h.set(String(c[2]), String(v)); hashes.set(k, h); return { result: v } }
     if (op === 'HDEL') { const h = hashes.get(k); return { result: h && h.delete(String(c[2])) ? 1 : 0 } }
     if (op === 'HLEN') { const h = hashes.get(k); return { result: h ? h.size : 0 } }
     return { result: null }
@@ -461,6 +462,13 @@ const CALLS = [
   ['reviews', 'GET', '', KEY],
   ['reviews', 'GET', '?view=badge', KEY],
   ['reviews', 'GET', '?optout=bad', {}],
+  // 口コミを書きやすくするページ（お客様が使う。管理キーなし）。使う設定にしてから、下書きと数え。
+  ['review-assist', 'GET', '', {}],
+  ['reviews', 'POST', '', JSONH, { action: 'prefs', prefs: { assist: { on: true, services: 'AI研修', aspects: '料金\n仕上がり' } } }],
+  ['review-assist', 'GET', '', {}],
+  ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'draft', answers: { services: ['AI研修'], aspects: { 料金: 'bad' }, overall: 2 }, seed: 3 }],
+  ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'event', kind: 'open' }],
+  ['reviews', 'GET', '', KEY],
   ['reviews', 'POST', '', JSONH, { action: 'prefs', prefs: { shopName: 'スモーク', tone: 'warm', requests: 'manual' } }],
   ['reviews', 'POST', '', JSONH, { action: 'sync' }],
   ['reviews', 'POST', '', JSONH, { action: 'draft', id: 'none' }],

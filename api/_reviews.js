@@ -40,6 +40,7 @@ import {
   cleanPhrases, widgetItems, lowStarNew, lowStarText,
 } from './_reviews-core.js'
 import { createWithFallback } from './_ai-create.js'
+import { normalizeAssist, defaultAssist, putWeek, weeklyRows } from './_review-assist.js'
 
 const GBP_INFO = 'https://mybusinessbusinessinformation.googleapis.com/v1'
 export const MODEL = 'claude-opus-5-5'
@@ -63,6 +64,10 @@ export const RK = {
   sent: (h) => `${KV}rev:sent:${h}`,
   optout: (h) => `${KV}rev:optout:${h}`,
   booked: (id) => `${KV}rev:bk:${id}`,
+  // 件数と評価の、週ごとの記録（毎朝の同期のあとに、その週の分を書きます）。
+  weekly: `${KV}rev:weekly`,
+  // 口コミを書きやすくするページの、週ごとの数（開いた・下書き・Google を開いた）。
+  assist: (w) => `${KV}rev:assist:${w}`,
 }
 
 const label = 'Googleビジネスプロフィール'
@@ -88,6 +93,8 @@ export function normalizePrefs(input, base) {
   if ('lowAlert' in x) p.lowAlert = !!x.lowAlert
   if ('widget' in x) p.widget = !!x.widget
   if ('widgetMin' in x) p.widgetMin = Number(x.widgetMin) === 5 ? 5 : 4
+  // 口コミを書きやすくするページ（QR → タップ → 下書き）。決まりは _review-assist.js。
+  if ('assist' in x) p.assist = normalizeAssist(x.assist, p.assist)
   return p
 }
 export function defaultPrefs() {
@@ -95,6 +102,7 @@ export function defaultPrefs() {
     shopName: BRAND.name, tone: 'polite', signature: '', notes: '', placeId: '', requests: 'off', contact: '', monthlyYen: DEFAULT_MONTHLY_YEN, locations: [],
     // 定型の返信文・低い評価のお知らせ（LINE）・サイトに載せる口コミ（既定は載せない）
     phrases: [], lowAlert: true, widget: false, widgetMin: 4,
+    assist: defaultAssist(),
   }
 }
 
@@ -528,6 +536,8 @@ export async function runReviewsCron(req, budget = 6000) {
     try { sync = await syncReviews(req, { maxPages: 2, budget: Math.max(2000, budget - 2500) }) }
     catch (e) { sync = { ok: false, message: errText(e) } }
   }
+  // 件数と評価を、週ごとに記録します（同じ週は上書き。前の週の数字は残ります）。
+  if (sync && sync.ok) { try { await recordWeek(cfg, prefs, await readMeta(cfg), await locationsFor(prefs, req)) } catch (_) {} }
   let lowAlert = null
   if (sync && sync.ok && prefs.lowAlert) {
     const low = lowStarNew(sync.addedItems, 2)
@@ -568,6 +578,39 @@ async function pushLow(req, cfg, low, prefs) {
   } catch (e) {
     return { ok: false, message: errText(e) }
   }
+}
+
+/** いまの件数と評価（連携している店舗の合計）。 */
+export function totalsOf(meta, locs) {
+  let sum = 0, n = 0
+  for (const l of locs) { const m = (meta.locs && meta.locs[l]) || {}; if (m.avg && m.total) { sum += m.avg * m.total; n += m.total } }
+  return { total: n, avg: n ? Math.round((sum / n) * 10) / 10 : null }
+}
+
+/** 今週の件数と評価を記録します。件数がまだ読めていないときは、何も書きません。 */
+export async function recordWeek(cfg, prefs, meta, locs, now = Date.now()) {
+  const t = totalsOf(meta, locs)
+  if (!t.total) return null
+  const [raw] = await pipeline(cfg, [['GET', RK.weekly]])
+  const list = putWeek(parse(raw, []), t, now)
+  await pipeline(cfg, [['SET', RK.weekly, JSON.stringify(list)]])
+  return list[list.length - 1]
+}
+
+/** 週ごとの記録（新しい週が上）。口コミを書きやすくするページの数も、同じ行に付けます。 */
+export async function readWeekly(cfg, max = 12) {
+  if (!cfg) return []
+  try {
+    const [raw] = await pipeline(cfg, [['GET', RK.weekly]])
+    const list = parse(raw, [])
+    const weeks = list.slice(-max).map((r) => r.w)
+    const counts = {}
+    if (weeks.length) {
+      const got = await pipeline(cfg, weeks.map((w) => ['HGETALL', RK.assist(w)]))
+      weeks.forEach((w, i) => { const flat = Array.isArray(got[i]) ? got[i] : []; const o = {}; for (let j = 0; j + 1 < flat.length; j += 2) o[flat[j]] = Number(flat[j + 1]) || 0; counts[w] = o })
+    }
+    return weeklyRows(list, counts, max)
+  } catch (_) { return [] }
 }
 
 /** サイトに載せる口コミ（設定で「載せる」にしたときだけ）。管理キーは要りません。 */

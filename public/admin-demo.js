@@ -2980,15 +2980,26 @@
   });
   var PREFS = { shopName: 'サロン・ルミエ', tone: 'warm', signature: 'サロン・ルミエ 店長', notes: '電話 03-0000-0000（10〜19時・火曜定休）', placeId: '', requests: 'manual', contact: '03-0000-0000', monthlyYen: 500, locations: [LOC],
     lowAlert: true, widget: true, widgetMin: 4,
+    assist: { on: true, intro: '', services: ['カット', 'カラー', 'パーマ', 'トリートメント'], aspects: ['仕上がり', '接客', '待ち時間', '料金', '店内の居心地'] },
     phrases: [
       { id: 'thanks5', name: '星4〜5へのお礼', stars: 'high', body: '{name}、このたびはご来店いただき、うれしいお言葉をありがとうございます。\nスタッフ一同とても励みになります。またのお越しを心よりお待ちしております。' },
       { id: 'sorry12', name: '星1〜2へのお詫び', stars: 'low', body: '{name}、このたびはご期待に沿えず、申し訳ございませんでした。\nいただいたご意見はスタッフ全員で共有し、改善に努めます。\nよろしければ、詳しいお話をお聞かせいただけますと幸いです（お電話 03-0000-0000）。' },
       { id: 'mid3', name: '星3へのお礼', stars: 'mid', body: '{name}、ご来店とご感想をありがとうございます。\n次はもっとご満足いただけるよう、いただいた点を見直してまいります。' }
     ] };
   var LINK = 'https://search.google.com/local/writereview?placeid=ChIJDEMO_salon_lumiere0';
+  /* 毎週の記録（件数と評価）。新しい週が上。数字は架空です。 */
+  function weekly() {
+    var out = [], total = 25, base = [[25, 4.1, 9, 6, 4], [24, 4.1, 7, 5, 3], [22, 4.0, 11, 7, 5], [20, 4.0, 4, 2, 1], [19, 3.9, 0, 0, 0], [19, 3.9, 0, 0, 0]];
+    var d = new Date(Date.now() + 9 * 3600000); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    base.forEach(function (b, i) {
+      var w = new Date(d.getTime() - i * 7 * 86400000).toISOString().slice(0, 10);
+      out.push({ w: w, total: b[0], avg: b[1], diff: base[i + 1] ? b[0] - base[i + 1][0] : null, open: b[2], draft: b[3], google: b[4] });
+    });
+    return out;
+  }
   function state() {
     return {
-      ok: true, stored: true,
+      ok: true, stored: true, weekly: weekly(),
       connection: { state: 'ready', ok: true, message: 'つながっています', steps: [] },
       locations: [{ name: LOC, title: 'サロン・ルミエ 表参道店', avg: 4.1, total: 25, placeId: 'ChIJDEMO_salon_lumiere0', syncedAt: iso(0, -2), complete: true }],
       lastSync: iso(0, -2), reviews: REVIEWS, prefs: PREFS,

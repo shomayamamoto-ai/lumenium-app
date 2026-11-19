@@ -104,6 +104,7 @@ export const TABLE = {
   // お客様ごとのメモ・タグ・次に連絡する日（会員リストの「お客様（全員）」とお客様カルテ）
   customers: { area: 'members', read: 'viewer', write: 'staff' },
   'shop-profile': { area: 'advisor', read: 'viewer', write: 'manager' },
+  // 口コミを書きやすくするページ（お客様が使う。管理キーなし。api/review-assist.js が自分で制限します）
   // AI用語図鑑: 読むのはだれでも。取り込み・消すのは管理者から。
   'ai-terms': { area: 'other', read: 'viewer', write: 'manager' },
 }
