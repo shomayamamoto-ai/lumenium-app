@@ -171,10 +171,6 @@
     {
       "source": "/hitblow.html",
       "destination": "/hitblow.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ],
   "headers": [

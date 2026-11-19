@@ -1039,8 +1039,7 @@ await test('関数のページ用の計測（api/_beacon-snippet.js）が元と�
 await test('/links は vercel.json で関数につながっている', () => {
   const v = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
   const i = v.rewrites.findIndex((r) => r.source === '/links' && r.destination === '/api/links')
-  const all = v.rewrites.findIndex((r) => r.source === '/(.*)')
-  assert.ok(i !== -1 && i < all)
+  assert.ok(i !== -1)
 })
 
 console.log('承認の流れ')

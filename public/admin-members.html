@@ -1562,6 +1562,8 @@ input, select, textarea { color: var(--text); }
         <p id="seo-progress-text" style="font-size:12px;color:var(--sub);margin-top:7px"></p>
       </div>
       <p class="msg" id="seo-msg" style="margin-bottom:12px"></p>
+      <!-- 掲載キット：サイトの外でやること（/admin-seo-kit.js）。 -->
+      <div id="seo-kit"></div>
       <!-- 検索での見え方。AIの回答に出るかどうかとは別の話で、こちらは
            Search Console にしか無い実測値です。 -->
       <div id="gsc-body" style="margin-bottom:18px"></div>
@@ -1882,6 +1884,7 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-growth.js"></script>
 <script src="/admin-custmap.js"></script>
 <script src="/admin-terms.js"></script>
+<script src="/admin-seo-kit.js"></script>
 <script src="/admin-human.js"></script>
 <script src="/admin-lyricpv.js"></script>
 <script src="/admin-cmkit.js"></script>
@@ -7595,6 +7598,7 @@ window.lumAdmin = {
 
   window.lumSeoInit = function () {
     if (loaded) return; loaded = true; load();
+    if (window.lumSeoKit) window.lumSeoKit(el('seo-kit'));
     // Free and fast, so it runs without being asked — the panel should say
     // something useful before any money has been spent on a measurement.
     if (!auditDone) { auditDone = true; auditFirst(); crawlBox(); loadSearchConsole(); }

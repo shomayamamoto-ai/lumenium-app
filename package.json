@@ -28,6 +28,7 @@
     "test:advisor": "node scripts/test-advisor.mjs",
     "test:content": "node scripts/test-content.mjs",
     "test:terms": "node scripts/test-terms.mjs",
+    "test:seo": "node scripts/test-seo-kit.mjs",
     "audit:local": "node scripts/audit-local.mjs"
   },
   "dependencies": {
