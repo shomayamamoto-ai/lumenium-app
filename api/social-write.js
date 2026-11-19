@@ -23,6 +23,7 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { BRAND } from './_brand.js'
 import { RULES, lengthFor, xLength } from './_social-text.js'
 import { createWithFallback } from './_ai-create.js'
+import { termBlock } from './_ai-terms.js'
 
 const MODEL = 'claude-opus-5-5'
 const TIMEOUT_MS = 22000
@@ -120,10 +121,14 @@ export async function POST(req) {
   const guard = await spendGuard('social-write', 60)
   if (guard) return guard
 
+  // 「使う型・用語」の欄。図鑑の用語が入っていれば、その意味も足します。
+  const terms = await termBlock(body && body.hints, req)
+
   const ask = [
     source ? `元にするお知らせ:\nタイトル: ${source.title}\n${source.date ? `日付: ${source.date}\n` : ''}本文: ${source.body}` : '',
     topic ? `書きたいこと・メモ:\n${topic}` : '',
     hasLink ? '（リンクは本文の後ろに自動で付きます）' : '',
+    terms,
     '',
     '書くSNSと、それぞれの書き方・文字数の上限:',
     ...nets.map((n) => `- ${n}: ${TONE[n]}（本文は${budgetFor(n, hasLink)}文字以内${n === 'x' ? '。Xは日本語1文字を2と数えるため短めに' : ''}）`),

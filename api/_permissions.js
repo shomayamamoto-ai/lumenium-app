@@ -104,6 +104,8 @@ export const TABLE = {
   // お客様ごとのメモ・タグ・次に連絡する日（会員リストの「お客様（全員）」とお客様カルテ）
   customers: { area: 'members', read: 'viewer', write: 'staff' },
   'shop-profile': { area: 'advisor', read: 'viewer', write: 'manager' },
+  // AI用語図鑑: 読むのはだれでも。取り込み・消すのは管理者から。
+  'ai-terms': { area: 'other', read: 'viewer', write: 'manager' },
 }
 
 /** 記録しない操作: 「見た」「開いた（既読）」の印だけを付けるもの。毎回記録すると、

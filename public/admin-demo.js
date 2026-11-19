@@ -1585,6 +1585,40 @@
     return { ok: true, text: WAYS[w][1] + '（デモ用の書き直し例）', way: w, label: WAYS[w][0] };
   }
 
+  /* ---- AI用語図鑑 (shape: api/ai-terms.js) ----
+     見本です。図鑑そのものは入っていません（実際の画面では、取り込んだ図鑑が出ます）。
+     ここにあるのは、広く知られた用語を、この見本のために書いたものです。 */
+  function aiTerms() {
+    var S = function (id, label, tip, items) { return { id: id, label: label, title: label, tip: tip, groups: [{ title: '見本', items: items }] }; };
+    var sections = [
+      S('expl', '説明の型', '話の組み立て方です。AIへの頼み方に、型の名前を1つ足します。', [
+        ['PREP法', '「PREP法」（結論 → 理由 → 具体例 → 結論）で書いて', '例を出して、納得してもらいたいときに。'],
+        ['ビフォーアフター', '導入前と導入後を並べて、何が変わったかを説明して', 'やってみる気にさせたいときに。'],
+        ['3つにしぼる', '大事な点を3つにしぼって、番号をつけて説明して', '手順や注意点を覚えてほしいときに。']
+      ]),
+      S('copyt', 'キャッチコピーの型', '見出しを考えるときの型です。数字や声は、事実だけを使います。', [
+        ['数字で言う', '見出しに数字を1つ入れて', '確かめた数字だけを使う。'],
+        ['質問にする', '見出しを質問の形にして', '読む人が、自分に当てはめて考える。'],
+        ['相手を呼ぶ', '「〇〇の方へ」で始めて', '読んでほしい人をしぼる。']
+      ]),
+      S('cam', 'カメラワーク', '動画AIへの指示に使う、カメラの動きの名前です。', [
+        ['パン', 'pan', '三脚に置いたまま、カメラを左右に振る。'],
+        ['ティルト', 'tilt', '三脚に置いたまま、カメラを上下に振る。'],
+        ['ドリーイン', 'dolly in', 'カメラを台車に乗せて、前へ進む。'],
+        ['クローズアップ', 'close-up', '顔や商品を、画面いっぱいに映す。']
+      ]),
+      S('art', '画風の名前', '絵の雰囲気を伝える名前です。', [
+        ['水彩', 'watercolor', 'にじみと、紙の白を生かした淡い塗り。'],
+        ['フラットデザイン', 'flat design', '影や立体感をつけず、面と色で描く。'],
+        ['線画', 'line art', '線だけで描く。色は付けないか、少しだけ。']
+      ])
+    ];
+    var count = 0;
+    sections.forEach(function (s) { count += s.groups[0].items.length; });
+    return { ok: true, sections: sections, meta: { v: 1, name: 'AI用語図鑑（見本）', copyright: '', importedAt: new Date().toISOString(), by: 'デモ', count: count,
+      sections: sections.map(function (s) { return { id: s.id, label: s.label, title: s.title, count: s.groups[0].items.length }; }) } };
+  }
+
   /* ---- 人間らしい文章 (shape: api/human-write.js) ----
      AIは呼ばず、決まった見本を返します。点検は画面の側（/rhythm.js）で本物が動きます。 */
   var HW = {
@@ -1915,6 +1949,7 @@
           : { ok: true, state: 'live', url: null, message: 'サイトに反映済みです。' });
       // /api/members-list and /api/members: the 会員リスト block at the end of this file.
       case '/api/health': return reply(health());
+      case '/api/ai-terms': return reply(aiTerms());
       case '/api/news-post': return reply({ ok: true, items: newsItems(), commit: commit(3, 'お知らせを更新') });
       case '/api/share-links': return reply(shares());
       case '/api/content-save':

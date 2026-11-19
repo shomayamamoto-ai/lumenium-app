@@ -52,7 +52,8 @@
                 '<label class="hw-lab sm">書いている人（任意）<input id="hw-voice" type="text" maxlength="80" placeholder="例）小さな美容室の店主"></label>' +
                 '<label class="hw-lab sm">用途<select id="hw-purpose">' + opts(PURPOSES, 'blog') + '</select></label>' +
                 '<label class="hw-lab sm">長さ<select id="hw-length">' + opts(LENGTHS, 'medium') + '</select></label>' +
-              '</div>'
+              '</div>' +
+              (window.lumTerms ? window.lumTerms.field('hw-hints', ['expl', 'write', 'copyt', 'snsty', 'idea'], { placeholder: '例）PREP法で。最初の一文は質問にする' }) : '')
             : '<label class="hw-lab" for="hw-text">' + (m === 'check' ? '点検する文章' : '直したい文章') + '<span>' + (m === 'check' ? '打つたびに点検します。AIは使いません。' : '書いてある事実・数字・固有名詞は変えずに書き直します。') + '</span></label>' +
               '<textarea id="hw-text" rows="9" placeholder="ここに文章を貼ってください"></textarea>' +
               (m === 'rewrite' ? '<div class="hw-row"><label class="hw-lab sm">用途<select id="hw-purpose">' + opts(PURPOSES, 'blog') + '</select></label></div>' : '')) +
@@ -139,6 +140,7 @@
 
   function wire() {
     var host = el(TAB);
+    if (window.lumTerms) window.lumTerms.bind(host);
     Array.prototype.forEach.call(host.querySelectorAll('.hw-segb'), function (b) {
       b.addEventListener('click', function () { if (S.mode !== b.dataset.m) { S.mode = b.dataset.m; S.before = null; paint(); } });
     });
@@ -158,7 +160,7 @@
       if (S.mode === 'write') {
         var mat = el('hw-material').value.trim();
         if (!mat) { el('hw-state').textContent = 'その場の材料を書いてください。'; el('hw-material').focus(); return; }
-        body = { mode: 'write', material: mat, voice: el('hw-voice').value.trim(), purpose: el('hw-purpose').value, length: el('hw-length').value };
+        body = { mode: 'write', material: mat, voice: el('hw-voice').value.trim(), purpose: el('hw-purpose').value, length: el('hw-length').value, hints: el('hw-hints') ? el('hw-hints').value.trim() : '' };
         S.before = null;
       } else {
         var src = text.value.trim();

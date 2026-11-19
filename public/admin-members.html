@@ -1364,6 +1364,7 @@ input, select, textarea { color: var(--text); }
             <select id="social-ai-news"><option value="">使わない</option></select>
             <label class="soc-lab" for="social-ai-topic">何について書くか（メモ）</label>
             <textarea id="social-ai-topic" rows="3" placeholder="例：10月から秋の限定メニューを始めます。栗のモンブラン 680円。"></textarea>
+            <div id="social-ai-terms"></div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px">
               <button type="button" id="social-ai-go" style="font-size:12.5px;padding:8px 14px">選んだSNSの下書きを作る</button>
               <span id="social-ai-state" class="soc-small"></span>
@@ -1641,6 +1642,8 @@ input, select, textarea { color: var(--text); }
 
     <!-- 資料：提案資料（自己紹介とご提案）。中身は /admin-present.js と /proposal-deck.js。 -->
     <div class="panel" id="present-admin" style="display:none; margin-top:20px"></div>
+    <!-- 資料：AI用語図鑑。用語は保存先から読みます（/admin-terms.js と /api/ai-terms）。 -->
+    <div class="panel" id="terms-admin" style="display:none; margin-top:20px"></div>
 
     <div class="panel" id="stats-admin" style="display:none; margin-top:20px">
       <p class="share-note ui-intro">サイトの閲覧数を集計しています。Cookieは使わず、IPアドレスも保存していません（訪問者数は日ごとの概数）。管理ページ・ログイン・会員ページは集計対象外です。</p>
@@ -1878,6 +1881,7 @@ input, select, textarea { color: var(--text); }
 <script src="/admin-opsmap.js"></script>
 <script src="/admin-growth.js"></script>
 <script src="/admin-custmap.js"></script>
+<script src="/admin-terms.js"></script>
 <script src="/admin-human.js"></script>
 <script src="/admin-lyricpv.js"></script>
 <script src="/admin-cmkit.js"></script>
@@ -2187,7 +2191,11 @@ window.lumAdmin = {
       desc: 'だれが何をしたか', accent: '#5b5b66', tint: 'rgba(91,91,102,0.12)' },
     /* 資料：過去に作った提案資料（自己紹介とご提案・14枚）を見る・発表する（/admin-present.js）。 */
     { id: 'present-admin', icon: 'present', label: '提案資料', init: 'lumPresentInit',
-      desc: '自己紹介とご提案のスライド（発表・印刷）', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' }
+      desc: '自己紹介とご提案のスライド（発表・印刷）', accent: '#3d3fbf', tint: 'rgba(61,63,191,0.12)' },
+    /* 資料：AI用語図鑑。取り込んだ用語を、さがす・写す。文章・SNS・CM・キャラクターの画面の
+       「使う型・用語」の欄も、同じ用語を使います（/admin-terms.js）。 */
+    { id: 'terms-admin', icon: 'book', label: 'AI用語図鑑', init: 'lumTermsInit', needs: 'store',
+      desc: 'AIへの指示に使う用語をさがす・写す', accent: '#1d4ed8', tint: 'rgba(29,78,216,0.11)' }
   ];
   var PORTAL = 'portal';
   var NAV = [{ id: PORTAL, label: 'ホーム', icon: 'home' }].concat(TABS);
@@ -2218,7 +2226,7 @@ window.lumAdmin = {
     { label: '発信', ids: ['news-admin', 'social-admin', 'video-admin', 'cmkit-admin', 'lyricpv-admin', 'charstudio-admin', 'human-admin'] },
     { label: 'サイト', ids: ['copy-admin', 'seo-admin', 'stats-admin'] },
     { label: '改善', ids: ['auto-admin', 'advisor-admin'] },
-    { label: '資料', ids: ['present-admin'] },
+    { label: '資料', ids: ['present-admin', 'terms-admin'] },
     { label: '管理', ids: ['setup-admin', 'health-admin', 'staff-admin', 'audit-admin'] }
   ];
   /* 画面の見出しの上の、筆記体の英語（飾り）。 */
@@ -2226,7 +2234,7 @@ window.lumAdmin = {
     portal: 'Home', 'custmap-admin': 'Map', 'human-admin': 'Writing', 'lyricpv-admin': 'Lyric Video', 'cmkit-admin': 'Commercial', 'charstudio-admin': 'Character', 'inquiries-admin': 'Inquiry', 'booking-admin': 'Booking', 'reviews-admin': 'Review',
     'quotes-admin': 'Estimate', 'bills-admin': 'Invoice', 'list-view': 'Members', 'news-admin': 'News',
     'social-admin': 'Social', 'video-admin': 'Movie', 'copy-admin': 'Writing', 'seo-admin': 'Search',
-    'stats-admin': 'Analytics', 'auto-admin': 'Improve', 'advisor-admin': 'Advisor', 'present-admin': 'Proposal',
+    'stats-admin': 'Analytics', 'auto-admin': 'Improve', 'advisor-admin': 'Advisor', 'present-admin': 'Proposal', 'terms-admin': 'Glossary',
     'setup-admin': 'Setup', 'health-admin': 'Status', 'staff-admin': 'Staff', 'audit-admin': 'Record'
   };
   /* 画面の見出しの下に出す一行の説明。長い説明は「？」の中です。 */
@@ -2237,6 +2245,7 @@ window.lumAdmin = {
     'cmkit-admin': '人物の映像・声・BGM は生成AIで、編集は After Effects で。Claude が構成案と指示文を作り、組み立てのスクリプトを書き、仕上がりを点検します。',
     'charstudio-admin': 'キャラクター設定 → 設定資料 → 場面の絵。設定資料の決まりをどの絵の指示文にも入れ、描いた絵が設定どおりかを照合します。',
     'lyricpv-admin': '歌詞を打ち、曲を聴きながらタップして、文字が動く動画を作ります。曲も歌詞も、この端末の外には出ません。',
+    'terms-admin': 'AIへの指示に使う用語を、分野や言葉でさがして写します。文章・SNS・CM・キャラクターの画面からも選べます。',
     'human-admin': '解説の声ではなく、その場で考えている人の声で書きます。書いたものは機械で点検し、機械っぽく読まれやすい所を指します。',
     'custmap-admin': '相談・見積・受注を1枚の地図に並べました。コマをドラッグして別のエリアに置くと、状態が変わります。',
     'inquiries-admin': 'フォームから届いた問い合わせを読み、返信の状況を管理します。',
@@ -10620,6 +10629,7 @@ window.lumAdmin = {
     try {
       var r = await postJson('/api/social-write', {
         topic: topic, nets: ids, link: el('social-link').value.trim(),
+        hints: el('social-ai-hints') ? el('social-ai-hints').value.trim() : '',
         source: src ? { title: src.title, body: src.body, date: src.date } : null
       });
       var d = r.data || {};
@@ -10817,6 +10827,12 @@ window.lumAdmin = {
     if (started) return;
     if (!TX) { say('画面の部品（social-text.js）を読み込めませんでした。再読み込みしてください。'); return; }
     started = true;
+    /* AIの下書きに足す「使う型・用語」の欄（/admin-terms.js）。 */
+    var tzh = el('social-ai-terms');
+    if (tzh && window.lumTerms) {
+      tzh.innerHTML = window.lumTerms.field('social-ai-hints', ['snsty', 'copyt', 'expl', 'write'], { placeholder: '例）結論から書く。最初の一文は質問にする' });
+      window.lumTerms.bind(tzh);
+    }
     load().then(function () { if (focusPost) showPost(focusPost); });
   };
 

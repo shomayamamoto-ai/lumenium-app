@@ -14,6 +14,7 @@ export const config = { runtime: 'edge' }
 
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
+import { termBlock } from './_ai-terms.js'
 
 const MODEL = 'claude-opus-5-5'
 const ERR = '\n\u0000'
@@ -68,6 +69,7 @@ export function designPrompt(b) {
     `好きな色・雰囲気: ${b.colors || '（おまかせ）'}`,
     `絵柄: ${STYLES[b.style] || STYLES.anime}`,
     b.notes ? `ほかの希望: ${b.notes}` : '',
+    b.terms || '',
   ].filter(Boolean).join('\n')
 }
 
@@ -97,7 +99,7 @@ export async function POST(req) {
     const br = b.brief || {}
     const brief = { name: clip(br.name, 40), age: clip(br.age, 80), personality: clip(br.personality, 200), world: clip(br.world, 200), colors: clip(br.colors, 120), style: clip(br.style, 20), notes: clip(br.notes, 400) }
     if (!Object.values(brief).some((v) => v && v !== 'anime')) return json({ ok: false, message: 'キャラクターの手がかりを1つ以上書いてください。' }, 400)
-    params = { system: designSystem(), messages: [{ role: 'user', content: designPrompt(brief) }], output_config: { effort: 'medium', format: { type: 'json_schema', schema: DESIGN_SCHEMA } }, max_tokens: 6000 }
+    params = { system: designSystem(), messages: [{ role: 'user', content: designPrompt({ ...brief, terms: await termBlock(b.hints, req) }) }], output_config: { effort: 'medium', format: { type: 'json_schema', schema: DESIGN_SCHEMA } }, max_tokens: 6000 }
   } else if (b.action === 'scenes') {
     const scenes = (Array.isArray(b.scenes) ? b.scenes : []).map((s) => clip(s, 200).trim()).filter(Boolean).slice(0, 8)
     if (!scenes.length) return json({ ok: false, message: '描きたい場面を1つ以上書いてください。' }, 400)

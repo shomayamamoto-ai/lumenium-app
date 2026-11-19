@@ -65,7 +65,8 @@ function redis(cmds) {
     const k = c[1]
     if (op === 'GET') return { result: store.get(k) ?? null }
     if (op === 'SET') { store.set(k, c[2]); return { result: 'OK' } }
-    if (op === 'DEL') { store.delete(k); hashes.delete(k); return { result: 1 } }
+    if (op === 'DEL') { for (const x of c.slice(1)) { store.delete(x); hashes.delete(x) } return { result: 1 } }
+    if (op === 'MGET') return { result: c.slice(1).map((x) => store.get(x) ?? null) }
     if (op === 'INCR') { const v = (Number(store.get(k)) || 0) + 1; store.set(k, String(v)); return { result: v } }
     if (op === 'HSET') { const h = hashes.get(k) || new Map(); h.set(String(c[2]), String(c[3])); hashes.set(k, h); return { result: 1 } }
     if (op === 'HGET') { const h = hashes.get(k); return { result: h?.get(String(c[2])) ?? null } }
@@ -263,6 +264,12 @@ const CALLS = [
   // 文章編集の「AIに書き直してもらう」。押すのが手軽なぶん、壊れていると
   // 編集の手が止まります。
   ['rewrite', 'POST', '', JSONH, { text: 'とても豊富な実績があります。', way: 'short', where: 'hero · リード文' }],
+  // AI用語図鑑（取り込む → 読む → 用語つきで書いてもらう → 消す）。
+  ['ai-terms', 'GET', '', KEY],
+  ['ai-terms', 'POST', '', JSONH, { action: 'import', data: { name: '見本', sections: [{ id: 'expl', chip: '説明の型 1', title: '説明の型', tip: '', groups: [{ title: '見本', items: [['PREP法', '「PREP法」（結論 → 理由 → 具体例 → 結論）で書いて', '']] }] }] } }],
+  ['ai-terms', 'GET', '', KEY],
+  ['human-write', 'POST', '', JSONH, { mode: 'write', material: '火曜の午後、電話があった。', purpose: 'blog', length: 'short', hints: 'PREP法で' }],
+  ['ai-terms', 'POST', '', JSONH, { action: 'clear' }],
   // 人間らしい文章（書く・書き直す・指摘を直す）。
   ['human-write', 'POST', '', JSONH, { mode: 'write', material: '火曜の午後、予約ページが携帯で開かないと電話があった。', purpose: 'blog', length: 'short' }],
   // CM制作キット（構成案・仕上がりの点検。返事は流して返す）。

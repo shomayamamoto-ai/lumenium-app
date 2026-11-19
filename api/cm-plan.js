@@ -20,6 +20,7 @@ export const config = { runtime: 'edge' }
 import Anthropic from '@anthropic-ai/sdk'
 import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { BRAND } from './_brand.js'
+import { termBlock } from './_ai-terms.js'
 
 const MODEL = 'claude-opus-5-5'
 const ERR = '\n\u0000'
@@ -60,6 +61,7 @@ export function planPrompt(b) {
     b.tone ? `雰囲気: ${b.tone}` : '',
     `長さ: ちょうど${sec}秒`,
     `画面の形: ${ASPECTS.includes(b.aspect) ? b.aspect : '16:9'}`,
+    b.terms || '',
   ].filter(Boolean).join('\n')
 }
 
@@ -118,7 +120,7 @@ export async function POST(req) {
     if (!product) return json({ ok: false, message: '何のCMかを書いてください。' }, 400)
     params = {
       system: planSystem(),
-      messages: [{ role: 'user', content: planPrompt({ ...b, product, target: String(b.target || '').slice(0, 200), message: String(b.message || '').slice(0, 200), tone: String(b.tone || '').slice(0, 120) }) }],
+      messages: [{ role: 'user', content: planPrompt({ ...b, product, target: String(b.target || '').slice(0, 200), message: String(b.message || '').slice(0, 200), terms: await termBlock(b.hints, req), tone: String(b.tone || '').slice(0, 120) }) }],
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: PLAN_SCHEMA } },
       max_tokens: 6000,
     }

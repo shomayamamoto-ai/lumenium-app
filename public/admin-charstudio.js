@@ -125,15 +125,17 @@
         field('colors', '好きな色・雰囲気', '例）ミントグリーンとクリーム色、さわやか') +
         '<div class="cs-lab">絵柄<div class="cs-chips">' + STYLES.map(function (s) { return '<button type="button" class="cs-chip' + (s[0] === S.brief.style ? ' on' : '') + '" data-style="' + s[0] + '" aria-pressed="' + (s[0] === S.brief.style) + '">' + s[1] + '</button>'; }).join('') + '</div></div>' +
         '<label class="cs-lab">ほかの希望<textarea id="cs-notes" rows="3" maxlength="400" placeholder="例）左耳にだけ星のイヤリング。エプロン姿が基本">' + esc(S.brief.notes) + '</textarea></label>' +
+        (window.lumTerms ? window.lumTerms.field('cs-hints', ['art', 'pal', 'comp', 'brk', 'imgcmd', 'light'], { placeholder: '例）水彩ふうに。色数は3色までにしぼる' }) : '') +
         '<div class="cs-acts"><button type="button" id="cs-make" class="cs-b pri">設定資料を作る</button>' + (d ? '<button type="button" id="cs-tosheet" class="cs-b">いまの設定資料を見る</button>' : '') + '<span id="cs-state" class="cs-state" role="status"></span></div></div>';
       ['name', 'age', 'personality', 'world', 'colors'].forEach(function (k) { el('cs-' + k).addEventListener('input', function () { S.brief[k] = this.value; save(); }); });
       el('cs-notes').addEventListener('input', function () { S.brief.notes = this.value; save(); });
+      if (window.lumTerms) window.lumTerms.bind(b);
       Array.prototype.forEach.call(b.querySelectorAll('.cs-chip'), function (c) { c.addEventListener('click', function () { S.brief.style = c.dataset.style; save(); body(); }); });
       if (el('cs-tosheet')) el('cs-tosheet').addEventListener('click', function () { go(2); });
       el('cs-make').addEventListener('click', async function () {
         if (V.busy) return; V.busy = true; this.disabled = true;
         var st = el('cs-state'); st.textContent = 'Claude が設定資料を書いています…（30秒〜1分ほど）';
-        var r = await stream({ action: 'design', brief: S.brief }, function (len) { st.textContent = 'Claude が設定資料を書いています…（' + len.toLocaleString() + '字）'; });
+        var r = await stream({ action: 'design', brief: S.brief, hints: el('cs-hints') ? el('cs-hints').value.trim() : '' }, function (len) { st.textContent = 'Claude が設定資料を書いています…（' + len.toLocaleString() + '字）'; });
         V.busy = false; this.disabled = false;
         if (r.error) { st.textContent = r.error; return; }
         S.design = r.data; S.scenes = null; S.check = null; save(); go(2);

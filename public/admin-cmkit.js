@@ -219,8 +219,10 @@
             '<label class="ck-lab">長さ<select id="ck-sec">' + [15, 17, 30].map(function (s) { return '<option value="' + s + '"' + (s === +B.seconds ? ' selected' : '') + '>' + s + '秒</option>'; }).join('') + '</select></label>' +
             '<label class="ck-lab">画面の形<select id="ck-aspect">' + [['16:9', '横（16:9・テレビ / YouTube）'], ['9:16', '縦（9:16・ショート / リール）'], ['1:1', '正方形（1:1）']].map(function (a) { return '<option value="' + a[0] + '"' + (a[0] === B.aspect ? ' selected' : '') + '>' + a[1] + '</option>'; }).join('') + '</select></label>' +
           '</div>' +
+          (window.lumTerms ? window.lumTerms.field('ck-hints', ['vhook', 'cam', 'prod', 'cut', 'telop', 'light', 'shopv', 'proc'], { placeholder: '例）冒頭は商品のクローズアップから。ドリーインで寄る' }) : '') +
           '<div class="ck-acts"><button type="button" id="ck-make" class="ck-b pri">構成案を作る</button>' + (p ? '<button type="button" id="ck-toplan" class="ck-b">いまの構成案を見る</button>' : '') + '<span id="ck-state" class="ck-state" role="status"></span></div>' +
         '</div>';
+      if (window.lumTerms) window.lumTerms.bind(b);
       ['product', 'target', 'message'].forEach(function (k) { el('ck-' + k).addEventListener('input', function () { B[k] = this.value; save(); }); });
       el('ck-sec').addEventListener('change', function () { B.seconds = +this.value; save(); });
       el('ck-aspect').addEventListener('change', function () { B.aspect = this.value; save(); });
@@ -230,7 +232,7 @@
         if (!B.product.trim()) { say('何のCMかを書いてください。'); el('ck-product').focus(); return; }
         if (V.busy) return; V.busy = true; this.disabled = true;
         var st = el('ck-state'); st.textContent = 'Claude が構成案を書いています…（30秒〜1分ほど）';
-        var r = await stream({ action: 'plan', product: B.product, target: B.target, message: B.message, tone: B.tone, seconds: B.seconds, aspect: B.aspect }, function (len) { st.textContent = 'Claude が構成案を書いています…（' + len.toLocaleString() + '字）'; });
+        var r = await stream({ action: 'plan', product: B.product, target: B.target, message: B.message, tone: B.tone, seconds: B.seconds, aspect: B.aspect, hints: el('ck-hints') ? el('ck-hints').value.trim() : '' }, function (len) { st.textContent = 'Claude が構成案を書いています…（' + len.toLocaleString() + '字）'; });
         V.busy = false; this.disabled = false;
         if (r.error) { st.textContent = r.error; return; }
         S.plan = normalize(r.data); S.check = null; save(); go(2);

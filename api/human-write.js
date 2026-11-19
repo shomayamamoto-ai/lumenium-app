@@ -21,6 +21,7 @@ import { requireAdmin, json, apiKey, NO_AI, spendGuard } from './_admin-auth.js'
 import { BRAND } from './_brand.js'
 import { createWithFallback } from './_ai-create.js'
 import { rulesText, analyze, issuesText } from '../src/lib/rhythm.js'
+import { termBlock } from './_ai-terms.js'
 
 const MODEL = 'claude-opus-5-5'
 const TIMEOUT_MS = 23000
@@ -62,6 +63,7 @@ export function buildPrompt(b) {
     lines.push(`長さ: ${lo}〜${hi}字くらい`)
     if (b.voice) lines.push(`書いている人: ${b.voice}`)
     lines.push('', 'その場の材料（ここに書いてあることだけを使ってください）:', b.material)
+    if (b.terms) lines.push(b.terms)
   } else if (b.mode === 'fix') {
     lines.push('', '次の文章を、下の「点検で見つかったこと」だけを直してください。', '直さなくてよい所はそのまま残すこと。事実・固有名詞・数字は変えないこと。長さは元の±2割まで。',
       '', '点検で見つかったこと:', b.issues || '（なし。読みにくい所だけを最小限に）', '', '元の文章:', b.text)
@@ -110,6 +112,8 @@ export async function POST(req) {
     length: String(body.length || ''),
     voice: String(body.voice || '').slice(0, 80),
     issues: mode === 'fix' ? issuesText(before) : '',
+    // 「使う型・用語」の欄（材料から書くときだけ）。図鑑の用語が入っていれば、その意味も足します。
+    terms: mode === 'write' ? await termBlock(body.hints, req) : '',
   })
 
   const client = new Anthropic({ apiKey: key, maxRetries: 0 })

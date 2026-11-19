@@ -27,6 +27,7 @@
     "test:auto": "node scripts/test-auto.mjs",
     "test:advisor": "node scripts/test-advisor.mjs",
     "test:content": "node scripts/test-content.mjs",
+    "test:terms": "node scripts/test-terms.mjs",
     "audit:local": "node scripts/audit-local.mjs"
   },
   "dependencies": {
