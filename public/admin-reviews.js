@@ -460,7 +460,7 @@
     var list = S.loc ? S.data.reviews.filter(function (r) { return r.location === S.loc; }) : S.data.reviews;
     var st = C.reviewStats(list);
     if (!list.length) {
-      body.innerHTML = connectNote(S.data) + '<p class="soc-small">口コミがまだ無いため、数字は出せません。</p>' + weeklyHtml(S.data);
+      body.innerHTML = connectNote(S.data) + '<p class="soc-small">口コミがまだ無いため、数字は出せません。</p>' + weeklyHtml(S.data) + talliesHtml(S.data);
       bindConnect();
       return;
     }
@@ -494,7 +494,7 @@
           return '<span class="' + (k.avgStars <= 2.5 ? 'low' : '') + '">' + esc(k.word) + '<small>' + k.count + '件・平均★' + k.avgStars + '</small></span>';
         }).join('') + '</div>' : '<p class="soc-small">まだ目立つ言葉はありません。</p>') +
         '<p class="soc-small" style="margin-top:8px">言葉の区切りは簡単なやり方（よく出る言い方の一覧と、漢字・カタカナの続き）で数えています。赤い枠は、その言葉が出た口コミの平均が★2.5以下のもの＝気にされている点の手がかりです。</p></div>' +
-      weeklyHtml(S.data) +
+      weeklyHtml(S.data) + talliesHtml(S.data) +
       '<p class="soc-small" style="margin-top:10px">返信までの時間は、Google に残る「返信を最後に直した時刻」から数えます。あとで返信を直すと、そのぶん長く出ます。数字は、この画面に読み込んだ口コミ（最大1,500件/店舗）から計算しています。</p>';
     bindConnect();
   }
@@ -596,11 +596,12 @@
         '<li><b>作り話をさせません。</b>下書きに入るのは、お客様が選んだ答えと、打ったひとことだけです。答えにない数字・名前・ほめ言葉が入った下書きは、機械の点検で外します。</li>' +
         '<li><b>良くなかった点も選べます。</b>どの項目も「よかった・ふつう・いまひとつ」を同じ並びで出し、どの答えでも同じ Google の画面へ進みます。</li>' +
         '<li><b>店名・スタッフ名・検索向けの言葉は入れません。</b>書く内容を店が決めないためです（Google の「評価の操作」の決まり）。</li>' +
-        '<li>見返りは付けないでください。答えと下書きは保存しません。残るのは、週ごとの数だけです。</li>' +
+        '<li>見返りは付けないでください。下書きの文とひとことは保存しません。残るのは、週ごとの数と、選ばれた答えの数だけです（だれの答えかは分かりません）。</li>' +
       '</ul>' +
       '<label class="rev-radio"><input type="checkbox" id="rev-as-on"' + (a.on ? ' checked' : '') + '><span><b>このページを使う</b><br><span class="soc-small">外すと、QRを読んでも「いま使えません」と出ます。</span></span></label>' +
       '<label class="soc-lab" for="rev-as-services" style="margin-top:10px">「何を利用しましたか？」の選択肢（1行に1つ・12個まで。空なら、この質問は出しません）</label>' +
       '<textarea id="rev-as-services" rows="4" placeholder="例）&#10;ホームページ制作&#10;AI研修&#10;動画制作">' + esc((a.services || []).join('\n')) + '</textarea>' +
+      (d.assistSuggest && d.assistSuggest.services && d.assistSuggest.services.length ? '<div class="rev-acts" style="margin-top:6px"><button type="button" class="ghost" id="rev-as-fill" style="font-size:12px">サイトのサービス名を入れる</button><span class="soc-small">入れたあと、自由に直せます。</span></div>' : '') +
       '<label class="soc-lab" for="rev-as-aspects" style="margin-top:10px">「それぞれ、どうでしたか？」の項目（1行に1つ・8個まで。良い・悪いを含まない名前で）</label>' +
       '<textarea id="rev-as-aspects" rows="5">' + esc((a.aspects || []).join('\n')) + '</textarea>' +
       '<label class="soc-lab" for="rev-as-intro" style="margin-top:10px">ページの最初に出す一言（任意・120字まで）</label>' +
@@ -669,6 +670,8 @@
       askView(body);
       var st2 = el('rev-as-state'); if (st2) st2.textContent = '保存しました。';
     });
+    var fill = el('rev-as-fill');
+    if (fill) fill.addEventListener('click', function () { el('rev-as-services').value = ((S.data.assistSuggest || {}).services || []).join('\n'); el('rev-as-services').focus(); });
     ['rev-as-test', 'rev-as-test2'].forEach(function (id) {
       var b = el(id);
       if (!b) return;
@@ -690,6 +693,24 @@
         (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () { b.textContent = 'コピーしました'; }, function () { prompt('コピーしてください', url); });
       });
     }
+  }
+
+  /* お客様が選んだ答えの数（口コミを書きやすくするページ）。どこが良くて、どこが気になられているか。 */
+  function talliesHtml(d) {
+    var t = d.tallies || { n: 0, aspects: [], overall: {} };
+    if (!t.n) return '<div class="rev-sec"><h4>お客様が選んだ答え</h4><p class="soc-small">まだありません。口コミを書きやすくするページで下書きが作られると、項目ごとの「よかった・ふつう・いまひとつ」の数がここに出ます（文は残りません）。</p></div>';
+    var bar = function (r) {
+      var sum = r.good + r.ok + r.bad || 1;
+      var seg = function (n, c) { return n ? '<span style="display:inline-block;height:12px;width:' + (n / sum * 100).toFixed(1) + '%;background:' + c + '"></span>' : ''; };
+      return '<span style="display:flex;border-radius:6px;overflow:hidden;background:#eee;min-width:80px">' + seg(r.good, '#3f9d6f') + seg(r.ok, '#b9b9c2') + seg(r.bad, '#c8553d') + '</span>';
+    };
+    var OV = [[5, 'とても満足'], [4, '満足'], [3, 'ふつう'], [2, 'やや不満'], [1, '不満']];
+    return '<div class="rev-sec"><h4>お客様が選んだ答え（直近' + (t.weeks || 8) + '週・' + t.n + '人）</h4>' +
+      (t.aspects.length ? '<div style="overflow-x:auto"><table class="rev-tbl" style="min-width:420px"><thead><tr><th>項目</th><th style="text-align:right">よかった</th><th style="text-align:right">ふつう</th><th style="text-align:right">いまひとつ</th><th style="width:30%"></th></tr></thead><tbody>' +
+        t.aspects.map(function (r) { return '<tr><td>' + esc(r.label) + '</td><td class="n">' + r.good + '</td><td class="n">' + r.ok + '</td><td class="n"' + (r.bad ? ' style="color:#b3261e;font-weight:700"' : '') + '>' + r.bad + '</td><td>' + bar(r) + '</td></tr>'; }).join('') +
+        '</tbody></table></div>' : '') +
+      '<p class="soc-small" style="margin-top:8px">全体として：' + OV.map(function (o) { return o[1] + ' ' + ((t.overall || {})[o[0]] || 0); }).join('／') + '</p>' +
+      '<p class="soc-small" style="margin-top:4px">口コミを書きやすくするページで下書きを作った方が、選んだ答えの数です。投稿された口コミの数ではありません。文とひとことは残していません。</p></div>';
   }
 
   /* 件数と評価の、毎週の記録（毎朝の同期のあとに、その週の分を書きます）。 */

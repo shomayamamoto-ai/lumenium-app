@@ -40,7 +40,7 @@ import {
   cleanPhrases, widgetItems, lowStarNew, lowStarText,
 } from './_reviews-core.js'
 import { createWithFallback } from './_ai-create.js'
-import { normalizeAssist, defaultAssist, putWeek, weeklyRows } from './_review-assist.js'
+import { normalizeAssist, defaultAssist, putWeek, weeklyRows, tallyRows, weekOf } from './_review-assist.js'
 
 const GBP_INFO = 'https://mybusinessbusinessinformation.googleapis.com/v1'
 export const MODEL = 'claude-opus-5-5'
@@ -611,6 +611,18 @@ export async function readWeekly(cfg, max = 12) {
     }
     return weeklyRows(list, counts, max)
   } catch (_) { return [] }
+}
+
+/** お客様が選んだ答えの数（直近の週の合計）。口コミを書きやすくするページで下書きを作った方の分です。 */
+export async function readTallies(cfg, aspects, weeks = 8, now = Date.now()) {
+  if (!cfg) return { n: 0, overall: {}, aspects: [], weeks }
+  try {
+    const keys = Array.from({ length: weeks }, (_, i) => weekOf(now - i * 7 * 86400000))
+    const got = await pipeline(cfg, keys.map((w) => ['HGETALL', RK.assist(w)]))
+    const counts = {}
+    keys.forEach((w, i) => { const flat = Array.isArray(got[i]) ? got[i] : []; const o = {}; for (let j = 0; j + 1 < flat.length; j += 2) o[flat[j]] = Number(flat[j + 1]) || 0; counts[w] = o })
+    return { ...tallyRows(counts, aspects), weeks }
+  } catch (_) { return { n: 0, overall: {}, aspects: [], weeks } }
 }
 
 /** サイトに載せる口コミ（設定で「載せる」にしたときだけ）。管理キーは要りません。 */

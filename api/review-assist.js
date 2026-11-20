@@ -21,7 +21,7 @@ import { BRAND } from './_aio-catalog.js'
 import { createWithFallback } from './_ai-create.js'
 import { readPrefs, readMeta, linkFor, RK } from './_reviews.js'
 import {
-  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, retryText, checkDraft, cleanDraft, weekOf,
+  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, retryText, checkDraft, cleanDraft, weekOf, tallyFields,
 } from './_review-assist.js'
 
 const MODEL = 'claude-haiku-5-5'
@@ -116,5 +116,11 @@ export async function POST(req) {
   const { text, by } = await makeDraft(req, ans, a, seed)
 
   await count(cfg, 'draft')
+  // 選ばれた答えの数（項目ごとの よかった・ふつう・いまひとつ）。文もひとことも残しません。
+  // 「別の言い回し」で作り直したときは数えません。
+  if (body.first && cfg) {
+    const key = RK.assist(weekOf())
+    try { await pipeline(cfg, tallyFields(ans).map((f) => ['HINCRBY', key, f, 1])) } catch (_) {}
+  }
   return json({ ok: true, text, by })
 }

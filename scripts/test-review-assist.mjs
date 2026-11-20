@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
   normalizeAssist, defaultAssist, normalizeAnswers, enough, composeDraft, checkDraft, cleanDraft, systemText, promptText,
-  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers,
+  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers, naturalOf, tallyFields, tallyRows,
 } from '../api/_review-assist.js'
 import { normalizePrefs, defaultPrefs } from '../api/_reviews.js'
 
@@ -184,6 +184,56 @@ t('下書き: 良い点と気になった点を、1つの文につなぐ言い�
   for (const s of all) assert.equal(checkDraft(s, a, CFG, BRAND).ok, true, s)
 })
 
+t('ふつうの言い方: 名前を言いかえるだけで、意味は足さない', () => {
+  assert.equal(naturalOf('対応の早さ').good, '対応が早かったです。')
+  assert.equal(naturalOf('対応の早さ').bad, '対応は、もう少し早くしてほしかったです。')
+  assert.equal(naturalOf('説明の分かりやすさ', true).bad, '説明は少し分かりにくかった。')
+  assert.equal(naturalOf('相談のしやすさ').good, '相談しやすかったです。')
+  assert.equal(naturalOf('接客の丁寧さ', true).good, '接客が丁寧だった。')
+  assert.equal(naturalOf('接客の丁寧さ').bad, null)
+  // 言いかえると意味が足されるものは、そのまま（「料金がよかった」を「安かった」とは書かない）
+  for (const k of ['料金', '仕上がり', '味', '店内の居心地', 'Aの早さ']) assert.equal(naturalOf(k), null, k)
+})
+
+t('ふつうの言い方を使った下書きも、点検を通る（言いかえられる名前を混ぜた項目で 96本）', () => {
+  const cfg = normalizeAssist({ on: true, services: 'AI研修', aspects: '対応の早さ\n説明の分かりやすさ\n相談のしやすさ\n接客の丁寧さ\n料金\n仕上がり' })
+  const sets = [
+    { aspects: { 対応の早さ: 'good', 説明の分かりやすさ: 'good', 相談のしやすさ: 'good', 接客の丁寧さ: 'good' }, overall: 5 },
+    { aspects: { 対応の早さ: 'bad', 説明の分かりやすさ: 'bad', 相談のしやすさ: 'bad', 接客の丁寧さ: 'bad' }, overall: 1 },
+    { aspects: { 対応の早さ: 'good', 料金: 'bad', 仕上がり: 'good', 説明の分かりやすさ: 'ok' }, overall: 4 },
+    { aspects: { 相談のしやすさ: 'bad' } },
+    { services: ['AI研修'], aspects: { 説明の分かりやすさ: 'bad', 接客の丁寧さ: 'good' }, overall: 2, memo: '資料が多すぎた' },
+    { aspects: { 対応の早さ: 'ok', 相談のしやすさ: 'ok' }, overall: 3 },
+  ]
+  let made = 0
+  for (const x of sets) for (const style of ['polite', 'casual']) {
+    const a = normalizeAnswers({ ...x, style }, cfg)
+    for (let seed = 0; seed < 8; seed++) {
+      const text = composeDraft(a, seed * 5 + 1)
+      const r = checkDraft(text, a, cfg, BRAND)
+      assert.equal(r.ok, true, `「${text}」: ${r.reasons.join(' / ')}`)
+      made++
+    }
+  }
+  assert.equal(made, 96)
+  const one = composeDraft(normalizeAnswers(sets[0], cfg), 1)
+  assert.match(one, /対応が早く、説明が分かりやすく、相談しやすく、接客が丁寧でした。/)
+})
+
+t('選ばれた答えの数: 文もひとことも入れず、項目と全体だけを数える', () => {
+  const a = ans({ services: ['AI研修'], aspects: { 料金: 'bad', 仕上がり: 'good' }, overall: 4, memo: '山田さんに助けてもらった' })
+  assert.deepEqual(tallyFields(a), ['n', 'a|仕上がり|good', 'a|料金|bad', 'o|4'])
+  assert.ok(!tallyFields(a).join().includes('山田'))
+  const rows = tallyRows({
+    '2026-11-16': { n: '3', 'a|料金|bad': '2', 'a|料金|good': '1', 'a|仕上がり|good': '3', 'o|4': '2', 'o|2': '1', open: '9', draft: '4' },
+    '2026-11-09': { n: '1', 'a|料金|ok': '1', 'a|むかしの項目|good': '1', 'o|5': '1' },
+  }, ['仕上がり', '料金'])
+  assert.equal(rows.n, 4)
+  assert.deepEqual(rows.aspects, [{ label: '仕上がり', good: 3, ok: 0, bad: 0 }, { label: '料金', good: 1, ok: 1, bad: 2 }, { label: 'むかしの項目', good: 1, ok: 0, bad: 0 }])
+  assert.deepEqual(rows.overall, { 5: 1, 4: 2, 3: 0, 2: 1, 1: 0 })
+  assert.deepEqual(tallyRows(null, []).aspects, [])
+})
+
 t('下書きの後始末: かぎかっこ・前置き・改行を外す', () => {
   assert.equal(cleanDraft('「説明がよかったです。」'), '説明がよかったです。')
   assert.equal(cleanDraft('下書き：説明がよかったです。\n\n料金は気になりました。'), '説明がよかったです。料金は気になりました。')
@@ -218,6 +268,7 @@ t('お客様のページ: 見返りなし・全員が同じ画面へ・検索に
   assert.match(h, /見返りは、ありません/)
   assert.match(h, /良くなかった点も、そのまま選んでください/)
   assert.match(h, /投稿するのは、あなたです/)
+  assert.match(h, /お店に届くのは、選ばれた答えの数だけです/)
   assert.match(h, /自分で書く（Google の投稿画面を開く）/)
   assert.match(h, /1\. 選んで答える[\s\S]*2\. 下書きを読む[\s\S]*3\. Googleで投稿/)
   // 満足度で行き先を変えていない（overall を見てリンクを変える処理が無い）

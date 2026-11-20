@@ -23,11 +23,12 @@ import { BRAND } from './_brand.js'
 import { sandboxFrom, manageSecret } from './_booking-mail.js'
 import {
   readPrefs, savePrefs, readMeta, readItems, readSeen, writeSeen, reviewBadge, locationsFor, connection, syncReviews, setReply, draftReply, aiStatus,
-  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData, readWeekly, recordWeek,
+  requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData, readWeekly, recordWeek, readTallies,
 } from './_reviews.js'
 import { REPLY_MAX_BYTES, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS } from './_reviews-core.js'
 import { makeDraft } from './review-assist.js'
 import { sampleAnswers, composeDraft } from './_review-assist.js'
+import { PRICE_OPTIONS } from '../src/data/site.js'
 
 function page(title, body, status = 200) {
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -52,6 +53,7 @@ async function state(req) {
   // 件数と評価の毎週の記録。この画面を開いたときにも今週の分を書くので、連携した週から記録が始まります。
   if (cfg && conn.ok) { try { await recordWeek(cfg, prefs, meta, locs) } catch (_) {} }
   const weekly = await readWeekly(cfg)
+  const tallies = await readTallies(cfg, prefs.assist.aspects)
   return {
     ok: true,
     stored: !!cfg,
@@ -63,6 +65,9 @@ async function state(req) {
     reviews,
     prefs,
     weekly,
+    tallies,
+    // 「何を利用しましたか？」の選択肢の例（このサイトの料金表にあるサービス名）。
+    assistSuggest: { services: PRICE_OPTIONS.map((o) => o.label).concat(['相談・見積り']) },
     ai,
     limits: { replyBytes: REPLY_MAX_BYTES, gapDays: REQUEST_GAP_DAYS, maxAgeDays: REQUEST_MAX_AGE_DAYS },
     requests: {

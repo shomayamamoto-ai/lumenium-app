@@ -3000,6 +3000,9 @@
   function state() {
     return {
       ok: true, stored: true, weekly: weekly(),
+      assistSuggest: { services: ['カット', 'カラー', 'パーマ', 'トリートメント', 'ヘッドスパ'] },
+      tallies: { n: 20, weeks: 8, overall: { 5: 7, 4: 8, 3: 3, 2: 2, 1: 0 }, aspects: [
+        { label: '仕上がり', good: 16, ok: 3, bad: 1 }, { label: '接客', good: 13, ok: 5, bad: 2 }, { label: '待ち時間', good: 5, ok: 8, bad: 6 }, { label: '料金', good: 8, ok: 9, bad: 2 }, { label: '店内の居心地', good: 11, ok: 4, bad: 0 }] },
       connection: { state: 'ready', ok: true, message: 'つながっています', steps: [] },
       locations: [{ name: LOC, title: 'サロン・ルミエ 表参道店', avg: 4.1, total: 25, placeId: 'ChIJDEMO_salon_lumiere0', syncedAt: iso(0, -2), complete: true }],
       lastSync: iso(0, -2), reviews: REVIEWS, prefs: PREFS,

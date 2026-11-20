@@ -466,7 +466,7 @@ const CALLS = [
   ['review-assist', 'GET', '', {}],
   ['reviews', 'POST', '', JSONH, { action: 'prefs', prefs: { assist: { on: true, services: 'AI研修', aspects: '料金\n仕上がり' } } }],
   ['review-assist', 'GET', '', {}],
-  ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'draft', answers: { services: ['AI研修'], aspects: { 料金: 'bad' }, overall: 2 }, seed: 3 }],
+  ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'draft', answers: { services: ['AI研修'], aspects: { 料金: 'bad' }, overall: 2 }, seed: 3, first: true }],
   ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'event', kind: 'open' }],
   ['reviews', 'POST', '', JSONH, { action: 'assist-test', style: 'casual' }],
   ['reviews', 'GET', '', KEY],

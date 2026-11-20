@@ -108,6 +108,41 @@ const WORDS = {
   },
 }
 
+/** 項目の名前から作れる、ふつうの言い方。「対応の早さ」が「よかった」なら「対応が早かったです」。
+ *
+ *  名前そのものを言いかえるだけで、意味は足しません（「料金がよかった」を「安かった」とは書きません）。
+ *  言いかえられる形の名前だけに使い、ほかは「〇〇がよかったです」のままにします。
+ *  返すのは { good, stem, bad }（stem は「対応が早く、」と次へつなぐ形）。無ければ null。 */
+export function naturalOf(label, casual) {
+  const s = String(label || '')
+  let m
+  if ((m = /^(.{2,})の(早|速)さ$/.exec(s))) {
+    const [, x, adj] = m
+    return casual
+      ? { good: `${x}が${adj}かった。`, stem: `${x}が${adj}く`, bad: `${x}はもう少し${adj}くしてほしかった。` }
+      : { good: `${x}が${adj}かったです。`, stem: `${x}が${adj}く`, bad: `${x}は、もう少し${adj}くしてほしかったです。` }
+  }
+  if ((m = /^(.{2,})の(分かり|わかり)やすさ$/.exec(s))) {
+    const [, x, w] = m
+    return casual
+      ? { good: `${x}が${w}やすかった。`, stem: `${x}が${w}やすく`, bad: `${x}は少し${w}にくかった。` }
+      : { good: `${x}が${w}やすかったです。`, stem: `${x}が${w}やすく`, bad: `${x}は、少し${w}にくかったです。` }
+  }
+  if ((m = /^(.{2,})のしやすさ$/.exec(s))) {
+    const x = m[1]
+    return casual
+      ? { good: `${x}しやすかった。`, stem: `${x}しやすく`, bad: `${x}は少ししにくかった。` }
+      : { good: `${x}しやすかったです。`, stem: `${x}しやすく`, bad: `${x}は、少ししにくかったです。` }
+  }
+  if ((m = /^(.{2,})の(丁寧|ていねい|清潔|親切)さ$/.exec(s))) {
+    const [, x, adj] = m
+    return casual
+      ? { good: `${x}が${adj}だった。`, stem: `${x}が${adj}で`, bad: null }
+      : { good: `${x}が${adj}でした。`, stem: `${x}が${adj}で`, bad: null }
+  }
+  return null
+}
+
 /** seed を変えると、言い回しと並びが変わります（同じ答えの人が同じ文にならないように）。 */
 export function composeDraft(a, seed = 0) {
   const w = WORDS[a.style === 'casual' ? 'casual' : 'polite']
@@ -116,17 +151,24 @@ export function composeDraft(a, seed = 0) {
   const parts = []
   if (a.services.length) parts.push(pick(w.used, n)(join(a.services)))
   const memo = a.memo ? (/[。！？!?]$/.test(a.memo) ? a.memo : a.memo + '。') : ''
+  const casual = a.style === 'casual'
   const good = by('good'), ok = by('ok'), bad = by('bad')
   const body = []
-  // 良い点と気になった点の両方があるときは、3回に2回、1つの文につなぎます（文末が同じ形で並ばないように）。
-  if (good.length && bad.length && n % 3 !== 0) {
-    body.push(pick(w.mix, n >> 1)(join(good), join(bad)))
+  // 言いかえられる名前（「対応の早さ」→「対応が早かった」）は、ふつうの言い方で書きます。
+  const nat = (k) => naturalOf(k, casual)
+  const goodN = good.filter((k) => nat(k)), goodG = good.filter((k) => !nat(k))
+  const badN = bad.filter((k) => nat(k) && nat(k).bad), badG = bad.filter((k) => !(nat(k) && nat(k).bad))
+  if (goodN.length) body.push(goodN.slice(0, -1).map((k) => nat(k).stem + '、').join('') + nat(goodN[goodN.length - 1]).good)
+  // 残りの良い点と気になった点は、3回に2回、1つの文につなぎます（文末が同じ形で並ばないように）。
+  if (goodG.length && badG.length && n % 3 !== 0) {
+    body.push(pick(w.mix, n >> 1)(join(goodG), join(badG)))
     if (ok.length) body.push(pick(w.ok, n >> 2)(join(ok)))
   } else {
-    if (good.length) body.push(pick(w.good, n >> 1)(join(good)))
+    if (goodG.length) body.push(pick(w.good, n >> 1)(join(goodG)))
     if (ok.length) body.push(pick(w.ok, n >> 2)(join(ok)))
-    if (bad.length) body.push(pick(w.bad, n >> 3)(join(bad)))
+    if (badG.length) body.push(pick(w.bad, n >> 3)(join(badG)))
   }
+  for (const k of badN) body.push(nat(k).bad)
   // ひとことは本人の言葉なので、前のほうに置きます（一覧に出るのは最初の数十字のため）。
   if (memo && n % 2 === 0) parts.push(memo)
   parts.push(...body)
@@ -190,7 +232,7 @@ export function retryText(draft, reasons) {
 /* ---- 作り話と、誘導になる言葉の点検 ---- */
 
 const POSITIVE = /よかった|良かった|満足|助か|ありがた|安心|気持ちよ|うれし|嬉し|好印象/
-const NEGATIVE = /いまひとつ|今ひとつ|気にな|不満|残念|物足り|もう少し|改善|遅|分かりにく|わかりにく|高い/
+const NEGATIVE = /いまひとつ|今ひとつ|気にな|不満|残念|物足り|もう少し|改善|遅|分かりにく|わかりにく|しにく|高い/
 const HYPE = ['非常に', '大変', '素晴らし', '最高', '感動', '間違いな', 'ぜひ', '心から', '皆様', 'スタッフ', 'することができ', '総じて', 'プロフェッショナル', 'クオリティ', 'ホスピタリティ', 'おすすめ', 'オススメ', 'また利用', 'リピート']
 const NUMBER = /[0-9０-９]|[一二三四五六七八九十百千万]+(?:円|日|回|年|か月|ヶ月|時間|分|人|名|件|倍|割|％|%)/
 
@@ -269,6 +311,33 @@ export function putWeek(list, snap, ms = Date.now(), keep = 104) {
   const out = (Array.isArray(list) ? list : []).filter((r) => r && r.w && r.w !== w)
   out.push({ w, total: Math.max(0, Math.floor(Number(snap.total) || 0)), avg: snap.avg == null ? null : Math.round(Number(snap.avg) * 10) / 10, at: new Date(ms).toISOString() })
   return out.sort((x, y) => (x.w < y.w ? -1 : 1)).slice(-keep)
+}
+
+/** 選ばれた答えを数えるときの名前。項目は「a|名前|よさ」、全体は「o|5」。 */
+export function tallyFields(a) {
+  const out = ['n']
+  for (const k of Object.keys(a.aspects)) out.push(`a|${k}|${a.aspects[k]}`)
+  if (a.overall) out.push(`o|${a.overall}`)
+  return out
+}
+
+/** 週ごとの数をまとめて、項目ごとの「よかった・ふつう・いまひとつ」と、全体の答えの数にします。
+ *  いま設定にある項目を先に、その並びで出します。 */
+export function tallyRows(counts, aspects) {
+  const asp = {}
+  const overall = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  let n = 0
+  for (const o of Object.values(counts || {})) {
+    for (const f of Object.keys(o || {})) {
+      const v = Number(o[f]) || 0
+      const p = f.split('|')
+      if (f === 'n') n += v
+      else if (p[0] === 'a' && p.length === 3 && ['good', 'ok', 'bad'].includes(p[2])) { (asp[p[1]] = asp[p[1]] || { good: 0, ok: 0, bad: 0 })[p[2]] += v }
+      else if (p[0] === 'o' && overall[p[1]] != null) overall[p[1]] += v
+    }
+  }
+  const order = (aspects || []).filter((k) => asp[k]).concat(Object.keys(asp).filter((k) => !(aspects || []).includes(k)))
+  return { n, overall, aspects: order.map((k) => ({ label: k, ...asp[k] })) }
 }
 
 /** 画面に出す形。新しい週が上。前の週からの増え方と、このページの数を付けます。 */

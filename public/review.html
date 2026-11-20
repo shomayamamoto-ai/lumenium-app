@@ -115,7 +115,7 @@
   <ul class="rules" id="rules" hidden>
     <li>お礼や割引などの見返りは、ありません。</li>
     <li>良かった点も、気になった点も、感じたとおりに書いてください。</li>
-    <li>答えと下書きは、このお店には保存されません。</li>
+    <li>下書きの文と、ひとことは保存されません。お店に届くのは、選ばれた答えの数だけです（だれの答えかは分かりません）。</li>
   </ul>
 </main>
 
@@ -127,6 +127,7 @@
   var A = { services: [], aspects: {}, overall: 0, style: 'polite', memo: '' };
   var seed = Math.floor(Math.random() * 100000);
   var busy = false;
+  var first = true;                               // 最初の下書きか（選ばれた答えを数えるのは最初だけ）
 
   function post(body, keep) {
     return fetch('/api/review-assist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: !!keep })
@@ -190,8 +191,9 @@
     busy = true; $('msg').textContent = '';
     $('make').disabled = true; $('again').disabled = true;
     $('make').textContent = '下書きを作っています…';
-    post({ action: 'draft', answers: A, seed: seed }).then(function (d) {
+    post({ action: 'draft', answers: A, seed: seed, first: first }).then(function (d) {
       if (!d || !d.ok) { $('msg').textContent = (d && d.message) || '下書きを作れませんでした。少しおいて、もう一度お試しください。'; return; }
+      first = false;
       $('draft').value = d.text; countDraft(); step(2);
       $('form').hidden = true; $('result').hidden = false; $('copied').textContent = '';
       $('result').scrollIntoView({ block: 'start' });
@@ -227,7 +229,7 @@
   $('memo').addEventListener('input', function () { $('memo-n').textContent = String($('memo').value.length); });
   $('again').addEventListener('click', function () { seed = (seed + 1 + Math.floor(Math.random() * 97)) % 100000; make(); });
   $('draft').addEventListener('input', countDraft);
-  $('back').addEventListener('click', function () { $('result').hidden = true; $('form').hidden = false; step(1); $('form').scrollIntoView({ block: 'start' }); });
+  $('back').addEventListener('click', function () { first = true; $('result').hidden = true; $('form').hidden = false; step(1); $('form').scrollIntoView({ block: 'start' }); });
   $('go').addEventListener('click', function (e) {
     copyDraft();
     if (!C || !C.link) { e.preventDefault(); return; }
