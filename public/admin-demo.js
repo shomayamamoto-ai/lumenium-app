@@ -3056,6 +3056,14 @@
       return { ok: true, draft: draftFor(r), cost: { yen: 38, cap: 500, calls: 11 }, message: 'デモ版のため、AIは呼ばずに見本の下書きを出しています。実際は、口コミに合わせてAIが書きます。読んで直してから出してください。' };
     }
     if (b.action === 'sync') return Object.assign(state(), { ok: true, message: 'デモ版のため、Google からは読み直していません（見本の口コミです）。' });
+    // 口コミを書きやすくするページの見本（AI は呼ばず、決まった文を出します）。
+    if (b.action === 'assist-test') {
+      var casual = b.style === 'casual';
+      return { ok: true, by: 'ai', ai: true, tried: 1, reasons: [],
+        answers: { services: ['カット'], aspects: { 仕上がり: 'good', 接客: 'bad', 待ち時間: 'ok', 料金: 'good' }, overall: 4, style: casual ? 'casual' : 'polite', memo: '' },
+        text: casual ? 'カットで利用。仕上がりと料金はよかったけど、接客は少し気になった。待ち時間はふつう。気になる点はあったけど、全体としては満足。'
+          : 'カットをお願いしました。仕上がりと料金はよかったのですが、接客は少し気になりました。待ち時間はふつうでした。全体としては満足しています。' };
+    }
     return { ok: false, demo: true, message: MSG };
   }
   var inner = window.fetch;

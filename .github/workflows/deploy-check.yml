@@ -89,7 +89,7 @@ jobs:
   live:
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 8
+    timeout-minutes: 16
     permissions:
       contents: read
     steps:
@@ -113,7 +113,7 @@ jobs:
             echo '配信元: 判別できませんでした（上のヘッダを見てください）'
           fi
 
-      - name: このコミットが公開されるまで待つ（最大5分）
+      - name: このコミットが公開されるまで待つ（最大12分）
         env:
           WANT: ${{ github.sha }}
           BUILT: ${{ needs.build.outputs.css }}
@@ -128,10 +128,10 @@ jobs:
           # CSS のファイル名で見る方式は、CSS に触れない変更だと前と同じ名前の
           # ままで、公開が終わる前に「届いた」と答えてしまいました。
           FOUND=no
-          for i in $(seq 1 15); do
+          for i in $(seq 1 36); do
             GOT=$(curl -sS --max-time 20 "https://lumenium.net/build.json?cb=$(date +%s)" | grep -o '"commit":"[0-9a-f]*"' | grep -o '[0-9a-f]\{7,\}' || true)
             [ "$GOT" = "$WANT" ] && FOUND=yes
-            echo "[$i/15] 公開中のコミット=${GOT:-まだ不明}  一致=${FOUND}"
+            echo "[$i/36] 公開中のコミット=${GOT:-まだ不明}  一致=${FOUND}"
             [ "$FOUND" = yes ] && break
             sleep 20
           done
@@ -139,7 +139,7 @@ jobs:
           if [ "$FOUND" = yes ]; then
             echo ' 結果: このコミットが公開されています。'
           else
-            echo ' 結果: 5分待っても、このコミットは公開されていません。'
+            echo ' 結果: 12分待っても、このコミットは公開されていません。'
             echo ' Vercel の Deployments で、このコミットのビルドが Error になっていないか確認してください。'
             echo ' （後から別のコミットを push した場合は、そちらが公開されていれば問題ありません）'
           fi

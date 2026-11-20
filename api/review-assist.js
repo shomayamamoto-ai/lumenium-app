@@ -21,11 +21,11 @@ import { BRAND } from './_aio-catalog.js'
 import { createWithFallback } from './_ai-create.js'
 import { readPrefs, readMeta, linkFor, RK } from './_reviews.js'
 import {
-  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, checkDraft, cleanDraft, weekOf,
+  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, retryText, checkDraft, cleanDraft, weekOf,
 } from './_review-assist.js'
 
 const MODEL = 'claude-haiku-5-5'
-const TIMEOUT_MS = 15000
+const TIMEOUT_MS = 12000
 const DAILY_AI = 200
 
 async function count(cfg, kind) {
@@ -41,6 +41,41 @@ async function load() {
   let link = ''
   if (a.on && cfg) { try { link = linkFor(prefs, await readMeta(cfg)) } catch (_) {} }
   return { cfg, prefs, a, link }
+}
+
+/** 下書きを1つ作ります。{ text, by:'ai'|'rule', tried, reasons }
+ *
+ *  まず、答えをそのまま文にした下書き（作り話が入りようがない）を用意します。AI が使えるときは
+ *  AI に頼み、点検（作り話・誘導）を通ったらそちらを返します。通らなければ、理由を添えて
+ *  もう一度だけ頼みます。それでも通らないとき・AI が返らないときは、用意した下書きを返します。
+ *  reasons は、AI の下書きを外した理由です（お客様の画面には出しません。お店の「見本」で見ます）。 */
+export async function makeDraft(req, ans, a, seed) {
+  const plain = composeDraft(ans, seed)
+  const res = { text: plain, by: 'rule', tried: 0, reasons: [], ai: false }
+  const key = await apiKey(req)
+  if (!key) { res.reasons.push('AI のキーが無いため、答えをそのまま文にしました。'); return res }
+  res.ai = true
+  if (await spendGuard('review-assist', DAILY_AI)) { res.reasons.push('今日の AI の上限に達したため、答えをそのまま文にしました。'); return res }
+  try {
+    const client = new Anthropic({ apiKey: key, maxRetries: 0 })
+    const started = Date.now()
+    const messages = [{ role: 'user', content: promptText(ans) }]
+    for (let i = 0; i < 2; i++) {
+      // 2回目は、残り時間があるときだけ（お客様を待たせすぎないため）。
+      if (i === 1 && Date.now() - started > 9000) break
+      res.tried++
+      const out = await createWithFallback(client, { model: MODEL, max_tokens: 500, system: systemText(), messages }, { signal: AbortSignal.timeout(i ? 9000 : TIMEOUT_MS) })
+      if (out.stop_reason === 'refusal') { res.reasons.push('AI が下書きを断りました。'); break }
+      const got = cleanDraft((out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(''))
+      const chk = checkDraft(got, ans, a, BRAND)
+      if (chk.ok) { res.text = got; res.by = 'ai'; res.reasons = []; return res }
+      res.reasons = chk.reasons
+      messages.push({ role: 'assistant', content: got || '（空）' }, { role: 'user', content: retryText(got, chk.reasons) })
+    }
+  } catch (e) {
+    res.reasons.push(`AI が返りませんでした（${String((e && e.message) || e).slice(0, 80)}）。`)
+  }
+  return res
 }
 
 export async function GET() {
@@ -78,23 +113,7 @@ export async function POST(req) {
   const rl = await hit(`${KV}rev:as:rl:${ip}`, 6, 600)
   if (rl.limited) return json({ ok: false, message: '続けて作りすぎています。少しおいてからお試しください。' }, 429, { 'retry-after': String(rl.retryAfter) })
 
-  // 答えをそのまま文にした下書き。AI が使えないとき・点検を通らないときは、これを返します。
-  const plain = composeDraft(ans, seed)
-  let text = plain
-  let by = 'rule'
-
-  const key = await apiKey(req)
-  if (key && !(await spendGuard('review-assist', DAILY_AI))) {
-    try {
-      const client = new Anthropic({ apiKey: key, maxRetries: 0 })
-      const out = await createWithFallback(client, {
-        model: MODEL, max_tokens: 500, system: systemText(),
-        messages: [{ role: 'user', content: promptText(ans) }],
-      }, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-      const got = cleanDraft((out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(''))
-      if (out.stop_reason !== 'refusal' && checkDraft(got, ans, a, BRAND).ok) { text = got; by = 'ai' }
-    } catch (_) { /* AI が返らなくても、答えから作った下書きがあります */ }
-  }
+  const { text, by } = await makeDraft(req, ans, a, seed)
 
   await count(cfg, 'draft')
   return json({ ok: true, text, by })

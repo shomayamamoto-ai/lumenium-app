@@ -57,6 +57,14 @@ export function normalizeAnswers(input, cfg) {
   return { services, aspects, overall, style, memo }
 }
 
+/** 見本の答え。設定にある選択肢から、良い点・ふつう・気になった点を1つずつ入れます。 */
+export function sampleAnswers(cfg, style) {
+  const aspects = {}
+  const lv = ['good', 'bad', 'ok', 'good']
+  cfg.aspects.slice(0, 4).forEach((k, i) => { aspects[k] = lv[i] })
+  return normalizeAnswers({ services: cfg.services.slice(0, 1), aspects, overall: 4, style }, cfg)
+}
+
 /** 下書きを作れるだけの答えがあるか。 */
 export function enough(a) {
   return !!(a.overall || a.memo || Object.keys(a.aspects).length)
@@ -73,6 +81,8 @@ const WORDS = {
     good: [(s) => `${s}がよかったです。`, (s) => `よかったのは、${s}です。`, (s) => `${s}は、よかったと思います。`],
     ok: [(s) => `${s}は、ふつうでした。`, (s) => `${s}は、可もなく不可もなくです。`],
     bad: [(s) => `${s}は、いまひとつでした。`, (s) => `${s}は、少し気になりました。`, (s) => `気になったのは、${s}です。`],
+    mix: [(g, b) => `${g}はよかったのですが、${b}は少し気になりました。`, (g, b) => `${g}がよかった一方で、${b}はいまひとつでした。`],
+    but: ['気になる点はありましたが、全体としては満足しています。', '気になった所もありますが、お願いしてよかったです。'],
     overall: {
       5: ['全体として、とても満足しています。', 'お願いしてよかったです。とても満足しています。'],
       4: ['全体として、満足しています。', '全体的には満足です。'],
@@ -86,6 +96,8 @@ const WORDS = {
     good: [(s) => `${s}がよかった。`, (s) => `よかったのは${s}。`, (s) => `${s}はよかったと思う。`],
     ok: [(s) => `${s}はふつう。`, (s) => `${s}は可もなく不可もなく。`],
     bad: [(s) => `${s}はいまひとつ。`, (s) => `${s}は少し気になった。`, (s) => `気になったのは${s}。`],
+    mix: [(g, b) => `${g}はよかったけど、${b}は少し気になった。`, (g, b) => `${g}はよかった。ただ、${b}はいまひとつ。`],
+    but: ['気になる点はあったけど、全体としては満足。', '気になった所もあるけど、頼んでよかった。'],
     overall: {
       5: ['全体として、とても満足。', '頼んでよかった。とても満足している。'],
       4: ['全体として満足。', '全体的には満足している。'],
@@ -106,14 +118,22 @@ export function composeDraft(a, seed = 0) {
   const memo = a.memo ? (/[。！？!?]$/.test(a.memo) ? a.memo : a.memo + '。') : ''
   const good = by('good'), ok = by('ok'), bad = by('bad')
   const body = []
-  if (good.length) body.push(pick(w.good, n >> 1)(join(good)))
-  if (ok.length) body.push(pick(w.ok, n >> 2)(join(ok)))
-  if (bad.length) body.push(pick(w.bad, n >> 3)(join(bad)))
+  // 良い点と気になった点の両方があるときは、3回に2回、1つの文につなぎます（文末が同じ形で並ばないように）。
+  if (good.length && bad.length && n % 3 !== 0) {
+    body.push(pick(w.mix, n >> 1)(join(good), join(bad)))
+    if (ok.length) body.push(pick(w.ok, n >> 2)(join(ok)))
+  } else {
+    if (good.length) body.push(pick(w.good, n >> 1)(join(good)))
+    if (ok.length) body.push(pick(w.ok, n >> 2)(join(ok)))
+    if (bad.length) body.push(pick(w.bad, n >> 3)(join(bad)))
+  }
   // ひとことは本人の言葉なので、前のほうに置きます（一覧に出るのは最初の数十字のため）。
   if (memo && n % 2 === 0) parts.push(memo)
   parts.push(...body)
   if (memo && n % 2 === 1) parts.push(memo)
-  if (a.overall) parts.push(pick(w.overall[a.overall], n >> 4))
+  // 気になった点を選んだうえで「満足」と答えた人は、そのとおりの締めにします。
+  if (a.overall >= 4 && bad.length && (n >> 4) % 2 === 0) parts.push(pick(w.but, n >> 5))
+  else if (a.overall) parts.push(pick(w.overall[a.overall], n >> 4))
   return parts.join('')
 }
 
@@ -152,6 +172,19 @@ export function promptText(a) {
   out.push(`ひとこと（本人の言葉）: ${a.memo || '（なし）'}`)
   out.push('', 'この答えだけを材料に、口コミの下書きを1つ書いてください。')
   return out.join('\n')
+}
+
+/** 点検を通らなかった下書きを、理由を添えて書き直してもらう文。 */
+export function retryText(draft, reasons) {
+  return [
+    '前の下書きは、決まりに合っていませんでした。',
+    ...reasons.slice(0, 5).map((r) => `・${r}`),
+    '',
+    '前の下書き:',
+    draft,
+    '',
+    '同じ答えだけを材料に、上の点を直した下書きを1つ書いてください。返すのは本文だけです。',
+  ].join('\n')
 }
 
 /* ---- 作り話と、誘導になる言葉の点検 ---- */

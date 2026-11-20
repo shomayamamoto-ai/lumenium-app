@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' }
 //   POST { action:'prefs', prefs }           -> 口調・署名・店名・お願いメールなどの設定
 //   POST { action:'locations' }              -> 連携したアカウントの店舗の一覧
 //   POST { action:'request-send', id }       -> 来店済みの予約1件に、お願いのメールを送る
+//   POST { action:'assist-test', style }      -> 口コミを書きやすくするページの、下書きの見本
 //
 // 管理キーはヘッダーでだけ受けます（お店のアカウントで返信を出せるため）。
 
@@ -25,6 +26,8 @@ import {
   requestCandidates, requestLog, sendRequest, linkFor, checkOptout, recordOptout, gbpLocations, pub, widgetData, readWeekly, recordWeek,
 } from './_reviews.js'
 import { REPLY_MAX_BYTES, REQUEST_GAP_DAYS, REQUEST_MAX_AGE_DAYS } from './_reviews-core.js'
+import { makeDraft } from './review-assist.js'
+import { sampleAnswers, composeDraft } from './_review-assist.js'
 
 function page(title, body, status = 200) {
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -134,6 +137,15 @@ export async function POST(req) {
   if (action === 'locations') {
     const r = await gbpLocations(req)
     return json(r, r.ok ? 200 : 400)
+  }
+  // 口コミを書きやすくするページの見本。お客様と同じ作り方で下書きを1つ作り、
+  // AI が書いたのか・外したならなぜかを、お店に見せます（保存はしません）。
+  if (action === 'assist-test') {
+    const prefs = await readPrefs()
+    const ans = sampleAnswers(prefs.assist, body.style === 'casual' ? 'casual' : 'polite')
+    const seed = Math.floor(Math.random() * 100000)
+    const d = await makeDraft(req, ans, prefs.assist, seed)
+    return json({ ok: true, answers: ans, text: d.text, by: d.by, ai: d.ai, tried: d.tried, reasons: d.reasons, plain: composeDraft(ans, seed) })
   }
   if (action === 'request-send') {
     const r = await sendRequest(req, String(body.id || ''))

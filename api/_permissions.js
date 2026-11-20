@@ -60,7 +60,7 @@ export const TABLE = {
   booking: { area: 'booking', read: 'viewer', write: 'manager', methods: { PATCH: 'staff' } },
   reviews: {
     area: 'reviews', read: 'viewer', write: 'manager',
-    actions: { sync: 'staff', reply: 'staff', 'reply-delete': 'staff', draft: 'staff', 'request-send': 'staff' },
+    actions: { sync: 'staff', reply: 'staff', 'reply-delete': 'staff', draft: 'staff', 'request-send': 'staff', 'assist-test': 'staff' },
   },
   social: {
     area: 'sns', read: 'viewer', write: 'manager',

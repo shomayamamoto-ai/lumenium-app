@@ -607,10 +607,56 @@
       '<input type="text" id="rev-as-intro" maxlength="120" style="width:100%;box-sizing:border-box;min-height:42px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:#faf9f6;font:inherit;font-size:14px" value="' + esc(a.intro || '') + '" placeholder="空なら、決まった案内文が出ます">' +
       '<div class="rev-acts" style="margin-top:10px"><button type="button" id="rev-as-save">この内容で保存</button><a class="ghost" href="' + esc(url) + '" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;padding:0 14px;border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:700;min-height:38px">ページを見る ↗</a><span id="rev-as-state" class="soc-small" role="status"></span></div>' +
       (a.on ? '<div class="rev-qr" style="margin-top:12px"><div class="box" id="rev-as-qr"></div><div class="txt">読み取ると、質問のページが開きます。<br><span class="soc-small">' + esc(url) + '</span>' +
-        '<div class="rev-acts" style="margin-top:8px"><button type="button" class="ghost" id="rev-as-print">印刷する</button><button type="button" class="ghost" id="rev-as-copy">リンクをコピー</button></div>' +
+        '<div class="rev-acts" style="margin-top:8px"><button type="button" class="ghost" id="rev-as-print">店頭用のカードを印刷</button><button type="button" class="ghost" id="rev-as-copy">リンクをコピー</button></div>' +
         (((d.requests || {}).link) ? '' : '<div class="soc-small" style="margin-top:6px;color:#b3261e">Google の口コミを書く画面のリンクがまだ無いため、お客様は文のコピーまでしかできません。連携して一度同期するか、「設定」でプレイスIDを入れてください。</div>') +
         '</div></div>' : '') +
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)"><b style="font-size:13px">下書きの見本（お客様と同じ作り方で、1つ作ります）</b>' +
+        '<p class="soc-small" style="margin:4px 0 8px">いまの選択肢で、良い点・ふつう・気になった点を1つずつ選んだ場合の下書きです。AI が書けているかも、ここで分かります。保存はしません。</p>' +
+        '<div class="rev-acts"><button type="button" class="ghost" id="rev-as-test" data-style="polite">見本を作る（ていねい）</button><button type="button" class="ghost" id="rev-as-test2" data-style="casual">見本を作る（くだけて）</button></div>' +
+        '<div id="rev-as-sample" style="margin-top:10px"></div></div>' +
     '</div>';
+  }
+  /* 見本の表示。AI が書いたのか、答えをそのまま文にしたのか、外したなら理由も出します。 */
+  function sampleHtml(d) {
+    var a = d.answers || {};
+    var LV = { good: 'よかった', ok: 'ふつう', bad: 'いまひとつ' }, OV = { 5: 'とても満足', 4: '満足', 3: 'ふつう', 2: 'やや不満', 1: '不満' };
+    var picked = [].concat(
+      (a.services || []).map(function (s) { return '利用: ' + s; }),
+      Object.keys(a.aspects || {}).map(function (k) { return k + ': ' + LV[a.aspects[k]]; }),
+      a.overall ? ['全体: ' + OV[a.overall]] : []);
+    var how = d.by === 'ai'
+      ? '<span class="rev-tag ok">AI が書きました</span>' + (d.tried > 1 ? '<span class="soc-small">　1回目は点検で外し、書き直しました。</span>' : '')
+      : '<span class="rev-tag new">答えをそのまま文にしました</span>';
+    return '<div class="soc-small" style="margin-bottom:6px">選んだ答え：' + picked.map(esc).join('／') + '</div>' +
+      '<div class="rev-body" style="background:#faf9f6;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.9">' + esc(d.text) + '</div>' +
+      '<div style="margin-top:6px">' + how + '</div>' +
+      (d.reasons && d.reasons.length ? '<ul class="rev-steps" style="margin-top:6px">' + d.reasons.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' : '') +
+      (d.by !== 'ai' && d.ai === false ? '<p class="soc-small" style="margin-top:4px">AI のキー（ANTHROPIC_API_KEY）を入れると、同じ答えからもっと自然な文になります。入れなくても、このまま使えます。</p>' : '');
+  }
+  /* 店頭に置くカード。QR と、4つの手順（読む → 答える → 下書き → ご本人が投稿）。 */
+  function printAssist(url) {
+    var svg = core().qrSvg(core().qrEncode(url), { label: 'QRコード' });
+    var shop = (S.data.prefs && S.data.prefs.shopName) || '';
+    var w = window.open('', '_blank');
+    if (!w) { say('印刷用の画面を開けませんでした（ポップアップを許可してください）。'); return; }
+    var steps = [['1', 'QRを読む', 'スマホのカメラで読み取ります'], ['2', 'タップで答える', 'いくつかの質問に、選んで答えます'], ['3', '下書きができる', '答えをもとに、文の下書きができます'], ['4', 'ご自身で投稿', '読んで直して、Google に投稿します']];
+    w.document.write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>口コミのご案内</title><style>' +
+      '@page{size:A5;margin:10mm}*{box-sizing:border-box}body{font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;color:#111;margin:0;padding:18px;max-width:148mm;margin:0 auto}' +
+      '.card{border:2px solid #1f6f4f;border-radius:14px;padding:18px 16px;text-align:center}' +
+      '.shop{font-size:13px;color:#555;margin:0 0 4px}h1{font-size:22px;line-height:1.4;margin:0 0 4px;color:#1f6f4f}.lead{font-size:13px;line-height:1.7;margin:0 0 12px}' +
+      '.qr svg{width:52mm;height:52mm}.qr{margin:4px 0 12px}' +
+      '.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;margin:0 0 12px;padding:0;list-style:none}' +
+      '.steps li{background:#eef5f1;border-radius:10px;padding:8px 4px}.steps b{display:block;font-size:12.5px;line-height:1.4}.steps i{display:block;font-style:normal;font-weight:800;color:#d9772b;font-size:15px}.steps span{display:block;font-size:9.5px;line-height:1.5;color:#444;margin-top:2px}' +
+      '.rule{font-size:11px;line-height:1.7;color:#444;margin:0}' +
+      'button{margin-top:14px;font-size:14px;padding:8px 18px}@media print{button{display:none}body{padding:0}}</style></head><body><div class="card">' +
+      (shop ? '<p class="shop">' + esc(shop) + '</p>' : '') +
+      '<h1>ご感想を、お聞かせください</h1>' +
+      '<p class="lead">いくつか選ぶだけで、口コミの下書きができます。</p>' +
+      '<div class="qr">' + svg + '</div>' +
+      '<ol class="steps">' + steps.map(function (s) { return '<li><i>' + s[0] + '</i><b>' + s[1] + '</b><span>' + s[2] + '</span></li>'; }).join('') + '</ol>' +
+      '<p class="rule">良かった点も、気になった点も、感じたとおりにお書きください。<br>お礼や割引などの見返りは、ありません。</p>' +
+      '</div><div style="text-align:center"><button onclick="print()">印刷する</button></div></body></html>');
+    w.document.close();
   }
   function bindAssist(body) {
     var save = el('rev-as-save');
@@ -623,11 +669,22 @@
       askView(body);
       var st2 = el('rev-as-state'); if (st2) st2.textContent = '保存しました。';
     });
+    ['rev-as-test', 'rev-as-test2'].forEach(function (id) {
+      var b = el(id);
+      if (!b) return;
+      b.addEventListener('click', async function () {
+        var box = el('rev-as-sample');
+        box.innerHTML = '<p class="soc-small">作っています…（数秒かかることがあります）</p>';
+        var x = await send({ action: 'assist-test', style: b.getAttribute('data-style') });
+        var d = x.data || {};
+        box.innerHTML = d.ok ? sampleHtml(d) : '<p class="soc-small" style="color:#b3261e">' + esc(d.message || '見本を作れませんでした。') + '</p>';
+      });
+    });
     var url = assistUrl();
     if (el('rev-as-qr')) {
       try { el('rev-as-qr').innerHTML = core().qrSvg(core().qrEncode(url), { label: '口コミを書きやすくするページのQRコード' }); }
       catch (e) { el('rev-as-qr').textContent = 'QRコードを作れませんでした。'; }
-      el('rev-as-print').addEventListener('click', function () { printQr(url); });
+      el('rev-as-print').addEventListener('click', function () { printAssist(url); });
       el('rev-as-copy').addEventListener('click', function () {
         var b = this;
         (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () { b.textContent = 'コピーしました'; }, function () { prompt('コピーしてください', url); });

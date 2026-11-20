@@ -46,6 +46,9 @@
   .note{font-size:13px;color:var(--sub);line-height:1.8}
   .box{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:11px 13px;font-size:13.5px;font-weight:700;line-height:1.7}
   .rules{font-size:13px;color:var(--sub);padding-left:18px;display:grid;gap:3px}
+  .steps{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12.5px;font-weight:700;text-align:center}
+  .steps li{padding:8px 4px;border-radius:10px;background:#ebe8e0;color:var(--sub);line-height:1.4}
+  .steps li[aria-current="step"]{background:var(--go);color:#fff}
   :focus-visible{outline:3px solid #2563eb;outline-offset:2px}
   [hidden]{display:none!important}
 </style>
@@ -56,6 +59,12 @@
     <h1 id="title">口コミを書く</h1>
     <p class="lead" id="lead">読み込んでいます…</p>
   </header>
+
+  <ol class="steps" id="steps" hidden aria-label="進みぐあい">
+    <li id="st1" aria-current="step">1. 選んで答える</li>
+    <li id="st2">2. 下書きを読む</li>
+    <li id="st3">3. Googleで投稿</li>
+  </ol>
 
   <form id="form" hidden novalidate>
     <div style="display:grid;gap:16px">
@@ -90,6 +99,7 @@
   <section class="card" id="result" hidden>
     <label class="q" for="draft">下書き<small>あなたの答えだけから作りました。ちがう所は、自由に直してください。</small></label>
     <textarea id="draft" rows="6" maxlength="1000"></textarea>
+    <p class="cnt"><span id="draft-n">0</span> 字</p>
     <p class="box">投稿するのは、あなたです。星の数は、Google の画面でご自身が選びます。</p>
     <a class="pri" id="go" href="#" target="_blank" rel="noopener">文をコピーして、Google の投稿画面を開く</a>
     <p class="note" id="copied" role="status"></p>
@@ -168,6 +178,11 @@
     });
   }
 
+  function step(n) {
+    [1, 2, 3].forEach(function (i) { if (i === n) $('st' + i).setAttribute('aria-current', 'step'); else $('st' + i).removeAttribute('aria-current'); });
+  }
+  function countDraft() { $('draft-n').textContent = String($('draft').value.length); }
+
   function make() {
     if (busy) return;
     A.memo = $('memo').value.trim();
@@ -177,7 +192,7 @@
     $('make').textContent = '下書きを作っています…';
     post({ action: 'draft', answers: A, seed: seed }).then(function (d) {
       if (!d || !d.ok) { $('msg').textContent = (d && d.message) || '下書きを作れませんでした。少しおいて、もう一度お試しください。'; return; }
-      $('draft').value = d.text;
+      $('draft').value = d.text; countDraft(); step(2);
       $('form').hidden = true; $('result').hidden = false; $('copied').textContent = '';
       $('result').scrollIntoView({ block: 'start' });
     }, function () { $('msg').textContent = '通信できませんでした。電波のよい所で、もう一度お試しください。'; })
@@ -198,7 +213,7 @@
     document.title = $('title').textContent;
     $('lead').textContent = d.intro || 'いくつか選ぶだけで、口コミの下書きができます。読んで直してから、ご自身で Google に投稿してください。';
     draw();
-    $('form').hidden = false; $('rules').hidden = false;
+    $('form').hidden = false; $('rules').hidden = false; $('steps').hidden = false;
     if (d.link) {
       $('go').href = d.link; $('own').href = d.link; $('self').hidden = false;
     } else {
@@ -211,10 +226,12 @@
   $('form').addEventListener('submit', function (e) { e.preventDefault(); make(); });
   $('memo').addEventListener('input', function () { $('memo-n').textContent = String($('memo').value.length); });
   $('again').addEventListener('click', function () { seed = (seed + 1 + Math.floor(Math.random() * 97)) % 100000; make(); });
-  $('back').addEventListener('click', function () { $('result').hidden = true; $('form').hidden = false; $('form').scrollIntoView({ block: 'start' }); });
+  $('draft').addEventListener('input', countDraft);
+  $('back').addEventListener('click', function () { $('result').hidden = true; $('form').hidden = false; step(1); $('form').scrollIntoView({ block: 'start' }); });
   $('go').addEventListener('click', function (e) {
     copyDraft();
     if (!C || !C.link) { e.preventDefault(); return; }
+    step(3);
     post({ action: 'event', kind: 'google' }, true).catch(function () {});
   });
   $('own').addEventListener('click', function () { post({ action: 'event', kind: 'google' }, true).catch(function () {}); });

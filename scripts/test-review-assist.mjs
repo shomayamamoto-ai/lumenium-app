@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
   normalizeAssist, defaultAssist, normalizeAnswers, enough, composeDraft, checkDraft, cleanDraft, systemText, promptText,
-  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS,
+  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers,
 } from '../api/_review-assist.js'
 import { normalizePrefs, defaultPrefs } from '../api/_reviews.js'
 
@@ -157,6 +157,33 @@ t('AIへの頼み方: 材料は答えだけ。良くない答えは弱めない�
   assert.ok(!s.includes('Lumenium') && !p.includes('Lumenium'))
 })
 
+t('書き直しの頼み方: 外した理由と、前の下書きを渡す', () => {
+  const r = retryText('AI研修は十万円でした。', ['答えにない数字が入っています', '店名が入っています'])
+  assert.match(r, /・答えにない数字が入っています\n・店名が入っています/)
+  assert.match(r, /前の下書き:\nAI研修は十万円でした。/)
+  assert.match(r, /同じ答えだけを材料に/)
+})
+
+t('見本の答え: 良い点・気になった点・ふつうを入れる。見本の下書きも、点検を通る', () => {
+  const a = sampleAnswers(CFG, 'casual')
+  assert.deepEqual(a.services, ['ホームページ制作'])
+  assert.deepEqual(Object.values(a.aspects), ['good', 'bad', 'ok', 'good'])
+  assert.equal(a.overall, 4)
+  assert.equal(a.style, 'casual')
+  for (let i = 0; i < 40; i++) { const text = composeDraft(a, i); const r = checkDraft(text, a, CFG, BRAND); assert.equal(r.ok, true, text + ' / ' + r.reasons.join()) }
+  // 選択肢が少ないお店でも作れる
+  const small = normalizeAssist({ aspects: '接客' })
+  assert.equal(checkDraft(composeDraft(sampleAnswers(small), 3), sampleAnswers(small), small, BRAND).ok, true)
+})
+
+t('下書き: 良い点と気になった点を、1つの文につなぐ言い回しがある（文末が同じ形で並ばない）', () => {
+  const a = ans({ aspects: { 仕上がり: 'good', 料金: 'bad' }, overall: 4 })
+  const all = Array.from({ length: 48 }, (_, i) => composeDraft(a, i))
+  assert.ok(all.some((s) => /よかったのですが|よかった一方で/.test(s)))
+  assert.ok(all.some((s) => /気になる点はありましたが|気になった所もありますが/.test(s)))
+  for (const s of all) assert.equal(checkDraft(s, a, CFG, BRAND).ok, true, s)
+})
+
 t('下書きの後始末: かぎかっこ・前置き・改行を外す', () => {
   assert.equal(cleanDraft('「説明がよかったです。」'), '説明がよかったです。')
   assert.equal(cleanDraft('下書き：説明がよかったです。\n\n料金は気になりました。'), '説明がよかったです。料金は気になりました。')
@@ -192,6 +219,7 @@ t('お客様のページ: 見返りなし・全員が同じ画面へ・検索に
   assert.match(h, /良くなかった点も、そのまま選んでください/)
   assert.match(h, /投稿するのは、あなたです/)
   assert.match(h, /自分で書く（Google の投稿画面を開く）/)
+  assert.match(h, /1\. 選んで答える[\s\S]*2\. 下書きを読む[\s\S]*3\. Googleで投稿/)
   // 満足度で行き先を変えていない（overall を見てリンクを変える処理が無い）
   assert.doesNotMatch(h, /overall\s*[<>]=?\s*\d[\s\S]{0,80}(href|link)/)
 })
