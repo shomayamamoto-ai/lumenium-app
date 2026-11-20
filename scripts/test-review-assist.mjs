@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
   normalizeAssist, defaultAssist, normalizeAnswers, enough, composeDraft, checkDraft, cleanDraft, systemText, promptText,
-  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers, naturalOf, tallyFields, tallyRows,
+  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers, naturalOf, tallyFields, tallyRows, richness,
 } from '../api/_review-assist.js'
 import { normalizePrefs, defaultPrefs } from '../api/_reviews.js'
 
@@ -147,7 +147,7 @@ t('点検: 店名・あおる言葉・「おすすめ」・絵文字・ハッシ
 
 t('AIへの頼み方: 材料は答えだけ。良くない答えは弱めない。店名・スタッフ名・検索向けの言葉を入れない', () => {
   const s = systemText()
-  for (const w of ['答えにない事実は1つも足さない', '弱めず、消さず', '店名、スタッフの名前、地名', 'そのまま生かす', '60〜140字', '強める言葉']) assert.ok(s.includes(w), w)
+  for (const w of ['答えにない事実は1つも足さない', '弱めず、消さず', '店名、スタッフの名前、地名', '一字も変えずにそのまま入れる', '1つも落とさず全部に触れる', '時期や回数', '60〜140字', '強める言葉']) assert.ok(s.includes(w), w)
   const p = promptText(ans({ services: ['AI研修'], aspects: { 料金: 'bad' }, overall: 2, memo: '高かった' }))
   assert.match(p, /利用したもの: AI研修/)
   assert.match(p, /・料金: いまひとつ/)
@@ -234,6 +234,85 @@ t('選ばれた答えの数: 文もひとことも入れず、項目と全体だ
   assert.deepEqual(tallyRows(null, []).aspects, [])
 })
 
+/* ---- 精度を上げる仕組み（本人の言葉・落とさない・逆に書かない） ---- */
+
+t('どのあたりが？: 答えた項目にだけ付けられ、長さを切る', () => {
+  const a = ans({ aspects: { 料金: 'bad', 仕上がり: 'good' }, details: { 料金: '見積りより高くなった', 仕上がり: 'あ'.repeat(99), 対応の早さ: '答えていない項目' } })
+  assert.equal(a.details.料金, '見積りより高くなった')
+  assert.equal(a.details.仕上がり.length, LIMITS.detail)
+  assert.equal(a.details.対応の早さ, undefined)
+  assert.deepEqual(ans({ overall: 5 }).details, {})
+})
+
+t('下書き: 本人の言葉は、その項目の文のすぐ後ろに、一字も変えずに入る', () => {
+  const a = ans({ services: ['AI研修'], aspects: { 対応の早さ: 'good', 料金: 'bad', 仕上がり: 'ok' }, details: { 対応の早さ: 'その日のうちに返事が来た', 料金: '見積りより高くなった' }, overall: 4 })
+  for (let seed = 0; seed < 24; seed++) {
+    const text = composeDraft(a, seed)
+    assert.match(text, /対応が早かったです。その日のうちに返事が来た。/, text)
+    assert.match(text, /料金[^。]*。見積りより高くなった。/, text)
+    const r = checkDraft(text, a, CFG, BRAND)
+    assert.equal(r.ok, true, text + ' / ' + r.reasons.join())
+  }
+})
+
+t('点検: 本人の言葉を言いかえたり、落としたりしたら外す', () => {
+  const a = ans({ aspects: { 料金: 'bad' }, details: { 料金: '見積りより高くなった' }, memo: '担当の方が変わって戸惑った' })
+  assert.equal(checkDraft('料金は、いまひとつでした。見積りより高くなった。担当の方が変わって戸惑った。', a, CFG, BRAND).ok, true)
+  assert.match(checkDraft('料金は、見積りを上回ったのが気になりました。担当の方が変わって戸惑った。', a, CFG, BRAND).reasons.join(), /本人の言葉（見積りより高くなった）/)
+  assert.match(checkDraft('料金は、いまひとつでした。見積りより高くなった。', a, CFG, BRAND).reasons.join(), /本人の言葉（担当の方が変わって戸惑った）/)
+})
+
+t('点検: 答えた項目・選んだ利用内容・全体の答えを、1つでも落としたら外す', () => {
+  const a = ans({ services: ['AI研修'], aspects: { 説明の分かりやすさ: 'good', 仕上がり: 'ok', 料金: 'bad' }, overall: 4 })
+  assert.equal(checkDraft('AI研修をお願いしました。説明が分かりやすかったです。仕上がりは、ふつうでした。料金は少し気になりました。全体として、満足しています。', a, CFG, BRAND).ok, true)
+  assert.match(checkDraft('AI研修をお願いしました。説明が分かりやすかったです。料金は少し気になりました。全体として、満足しています。', a, CFG, BRAND).reasons.join(), /「ふつう」と答えた項目（仕上がり）が抜けています/)
+  assert.match(checkDraft('説明が分かりやすかったです。仕上がりは、ふつうでした。料金は少し気になりました。全体として、満足しています。', a, CFG, BRAND).reasons.join(), /選んだ利用内容（AI研修）が抜けています/)
+  assert.match(checkDraft('AI研修をお願いしました。説明が分かりやすかったです。仕上がりは、ふつうでした。料金は少し気になりました。', a, CFG, BRAND).reasons.join(), /全体の答え（満足）が、文に出ていません/)
+  assert.match(checkDraft('料金はふつうでした。', ans({ aspects: { 料金: 'ok' }, overall: 3 }), CFG, BRAND).ok ? 'ok' : 'ng', /ok/)
+  assert.match(checkDraft('料金について書きます。', ans({ aspects: { 料金: 'ok' }, overall: 3 }), CFG, BRAND).reasons.join(), /全体の答え（ふつう）/)
+})
+
+t('点検: 項目ごとの良し悪しを、逆に書いたら外す', () => {
+  const a = ans({ aspects: { 説明の分かりやすさ: 'good', 料金: 'bad' }, overall: 3 })
+  assert.equal(checkDraft('説明が分かりやすかったです。料金は、少し気になりました。全体としては、ふつうでした。', a, CFG, BRAND).ok, true)
+  // 「いまひとつ」の料金を、ほめている
+  assert.match(checkDraft('説明は少し分かりにくかったです。料金には満足しています。全体としては、ふつうでした。', a, CFG, BRAND).reasons.join(), /（料金）が、そう書かれていません/)
+  // 「よかった」の説明を、悪く書いている
+  assert.match(checkDraft('説明は少し分かりにくかったです。料金は、少し気になりました。全体としては、ふつうでした。', a, CFG, BRAND).reasons.join(), /（説明の分かりやすさ）が、悪く書かれています/)
+  // 1つの文につないだ形は通す
+  assert.equal(checkDraft('説明の分かりやすさはよかったのですが、料金は少し気になりました。全体としては、ふつうでした。', a, CFG, BRAND).ok, true)
+})
+
+t('点検: 答えにない時期・回数・比べ・予定・人の名前を見つける', () => {
+  const a = ans({ aspects: { 仕上がり: 'good' }, overall: 5 })
+  const ok = '仕上がりがよかったです。全体として、とても満足しています。'
+  assert.equal(checkDraft(ok, a, CFG, BRAND).ok, true)
+  for (const [add, why] of [
+    ['初めてお願いしました。', /時期や回数/], ['いつもお世話になっています。', /時期や回数/], ['先月お願いしました。', /時期や回数/],
+    ['他社より早かったです。', /比べ/], ['ほかの会社と比べても安心でした。', /比べ/],
+    ['またお願いしたいです。', /予定/], ['次回も頼みます。', /予定/],
+    ['担当の佐藤さんが親切でした。', /人の名前/],
+  ]) assert.match(checkDraft(add + ok, a, CFG, BRAND).reasons.join(), why, add)
+  // 本人が書いたものは通す
+  const b = ans({ aspects: { 仕上がり: 'good' }, overall: 5, memo: '初めてだったが、佐藤さんに助けられた。またお願いしたい' })
+  assert.equal(checkDraft('初めてだったが、佐藤さんに助けられた。またお願いしたい。' + ok, b, CFG, BRAND).ok, true)
+  // 選んだ名前に入っている言葉は、足したものではない
+  const cfg2 = normalizeAssist({ on: true, services: '初めての方向け相談', aspects: '仕上がり' })
+  const c = normalizeAnswers({ services: ['初めての方向け相談'], aspects: { 仕上がり: 'good' } }, cfg2)
+  assert.equal(checkDraft('初めての方向け相談を頼みました。仕上がりがよかったです。', c, cfg2, BRAND).ok, true)
+})
+
+t('答えの充実度: 材料が多いほど点が上がり、足りないものが分かる', () => {
+  const r0 = richness(ans({ overall: 5 }), CFG)
+  assert.equal(r0.score, 1)
+  assert.ok(r0.missing.includes('あなたの言葉（ひとこと・どのあたりが）'))
+  const r1 = richness(ans({ services: ['AI研修'], aspects: { 料金: 'bad', 仕上がり: 'good' }, overall: 4, details: { 料金: '高かった' } }), CFG)
+  assert.equal(r1.score, 5)
+  assert.deepEqual(r1.missing, [])
+  // 利用内容の選択肢が無いお店では、その分は数えない
+  assert.equal(richness(normalizeAnswers({ overall: 3 }, normalizeAssist({ aspects: '接客' })), normalizeAssist({ aspects: '接客' })).score, 2)
+})
+
 t('下書きの後始末: かぎかっこ・前置き・改行を外す', () => {
   assert.equal(cleanDraft('「説明がよかったです。」'), '説明がよかったです。')
   assert.equal(cleanDraft('下書き：説明がよかったです。\n\n料金は気になりました。'), '説明がよかったです。料金は気になりました。')
@@ -269,6 +348,8 @@ t('お客様のページ: 見返りなし・全員が同じ画面へ・検索に
   assert.match(h, /良くなかった点も、そのまま選んでください/)
   assert.match(h, /投稿するのは、あなたです/)
   assert.match(h, /お店に届くのは、選ばれた答えの数だけです/)
+  assert.match(h, /どのあたりが？（任意・40字まで）/)
+  assert.match(h, /答えの充実度/)
   assert.match(h, /自分で書く（Google の投稿画面を開く）/)
   assert.match(h, /1\. 選んで答える[\s\S]*2\. 下書きを読む[\s\S]*3\. Googleで投稿/)
   // 満足度で行き先を変えていない（overall を見てリンクを変える処理が無い）

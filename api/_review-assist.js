@@ -16,7 +16,7 @@ export const LEVELS = [['good', 'よかった'], ['ok', 'ふつう'], ['bad', '�
 export const OVERALL = [[5, 'とても満足'], [4, '満足'], [3, 'ふつう'], [2, 'やや不満'], [1, '不満']]
 export const STYLES = [['polite', 'ていねいに'], ['casual', 'くだけて']]
 export const DEFAULT_ASPECTS = ['対応の早さ', '説明の分かりやすさ', '仕上がり', '料金', '相談のしやすさ']
-export const LIMITS = { services: 12, aspects: 8, label: 24, memo: 200, intro: 120, draftMin: 6, draftMax: 240 }
+export const LIMITS = { services: 12, aspects: 8, label: 24, memo: 200, detail: 40, intro: 120, draftMin: 6, draftMax: 240 }
 
 const clean = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n)
 const lines = (v, max) => {
@@ -54,7 +54,11 @@ export function normalizeAnswers(input, cfg) {
   const overall = OVERALL.some((o) => o[0] === Number(x.overall)) ? Number(x.overall) : 0
   const style = x.style === 'casual' ? 'casual' : 'polite'
   const memo = clean(x.memo, LIMITS.memo)
-  return { services, aspects, overall, style, memo }
+  // 項目ごとの「どのあたりが？」。答えた項目にだけ付けられます（本人の言葉。そのまま下書きに入ります）。
+  const details = {}
+  const dsrc = x.details && typeof x.details === 'object' ? x.details : {}
+  for (const k of Object.keys(aspects)) { const d = clean(dsrc[k], LIMITS.detail); if (d) details[k] = d }
+  return { services, aspects, overall, style, memo, details }
 }
 
 /** 見本の答え。設定にある選択肢から、良い点・ふつう・気になった点を1つずつ入れます。 */
@@ -66,6 +70,21 @@ export function sampleAnswers(cfg, style) {
 }
 
 /** 下書きを作れるだけの答えがあるか。 */
+/** 答えの充実度（0〜5）と、次に足すとよいもの。お客様の画面と同じ数え方です。
+ *  材料が多いほど、下書きが本人の体験どおりになります。 */
+export function richness(a, cfg) {
+  const n = Object.keys(a.aspects).length
+  const own = !!a.memo || Object.keys(a.details || {}).length > 0
+  const items = [
+    ['利用したもの', !cfg.services.length || a.services.length > 0],
+    ['項目を2つ以上', n >= 2],
+    ['全体として', !!a.overall],
+    ['気になった点か、ふつうだった点', Object.values(a.aspects).some((v) => v !== 'good') || n >= 3],
+    ['あなたの言葉（ひとこと・どのあたりが）', own],
+  ]
+  return { score: items.filter((i) => i[1]).length, max: items.length, missing: items.filter((i) => !i[1]).map((i) => i[0]) }
+}
+
 export function enough(a) {
   return !!(a.overall || a.memo || Object.keys(a.aspects).length)
 }
@@ -152,7 +171,9 @@ export function composeDraft(a, seed = 0) {
   if (a.services.length) parts.push(pick(w.used, n)(join(a.services)))
   const memo = a.memo ? (/[。！？!?]$/.test(a.memo) ? a.memo : a.memo + '。') : ''
   const casual = a.style === 'casual'
-  const good = by('good'), ok = by('ok'), bad = by('bad')
+  const det = a.details || {}
+  const sentence = (t) => (/[。！？!?]$/.test(t) ? t : t + '。')
+  const good = by('good').filter((k) => !det[k]), ok = by('ok').filter((k) => !det[k]), bad = by('bad').filter((k) => !det[k])
   const body = []
   // 言いかえられる名前（「対応の早さ」→「対応が早かった」）は、ふつうの言い方で書きます。
   const nat = (k) => naturalOf(k, casual)
@@ -169,6 +190,13 @@ export function composeDraft(a, seed = 0) {
     if (badG.length) body.push(pick(w.bad, n >> 3)(join(badG)))
   }
   for (const k of badN) body.push(nat(k).bad)
+  // 本人の言葉がある項目。項目の文と、本人の言葉を、続けて置きます。
+  for (const k of Object.keys(a.aspects)) {
+    if (!det[k]) continue
+    const lv = a.aspects[k], x = nat(k)
+    const head = lv === 'good' ? (x ? x.good : pick(w.good, n >> 1)(k)) : lv === 'bad' ? (x && x.bad ? x.bad : pick(w.bad, n >> 3)(k)) : pick(w.ok, n >> 2)(k)
+    body.push(head + sentence(det[k]))
+  }
   // ひとことは本人の言葉なので、前のほうに置きます（一覧に出るのは最初の数十字のため）。
   if (memo && n % 2 === 0) parts.push(memo)
   parts.push(...body)
@@ -190,7 +218,9 @@ export function systemText() {
     '・「いまひとつ」「不満」と答えた項目は、弱めず、消さず、そのまま書く。',
     '・「よかった」と答えていない項目をほめない。答えのない項目には触れない。',
     '・店名、スタッフの名前、地名、検索されやすそうな言葉を入れない。「おすすめ」「また利用したい」は、答えにあるときだけ。',
-    '・「ひとこと」は本人の言葉。言い回しを変えずに、そのまま生かす。',
+    '・「ひとこと」と、項目の「本人の言葉」は、一字も変えずにそのまま入れる。言いかえ・要約・敬語への直しをしない。',
+    '・答えた項目と、選んだ利用内容と、全体の答えは、1つも落とさず全部に触れる。',
+    '・時期や回数（初めて、いつも、先月、何度も）、ほかの店との比べ、これからの予定（また利用したい、次回も）、人の名前は、答えにあるときだけ。',
     '',
     '書き方の決まり（実際の口コミは、短く、ふつうの言葉で書かれています）。',
     '・本人が書いた、短い文。60〜140字が目安。答えが多いときでも200字まで。',
@@ -209,7 +239,7 @@ export function promptText(a) {
   out.push(`利用したもの: ${a.services.length ? a.services.join('、') : '（答えなし。触れない）'}`)
   const asp = Object.keys(a.aspects)
   out.push('項目ごとの答え:' + (asp.length ? '' : ' （答えなし。触れない）'))
-  for (const k of asp) out.push(`・${k}: ${lv[a.aspects[k]]}`)
+  for (const k of asp) out.push(`・${k}: ${lv[a.aspects[k]]}${(a.details || {})[k] ? `（本人の言葉:「${a.details[k]}」）` : ''}`)
   out.push(`全体として: ${a.overall ? Object.fromEntries(OVERALL)[a.overall] : '（答えなし。触れない）'}`)
   out.push(`ひとこと（本人の言葉）: ${a.memo || '（なし）'}`)
   out.push('', 'この答えだけを材料に、口コミの下書きを1つ書いてください。')
@@ -243,41 +273,88 @@ export function coreOf(label) {
   return head.length >= 2 ? head : s
 }
 
-/** 下書きが、答えだけからできているか。{ ok, reasons:[…] } */
+const GOODISH = /早かった|速かった|早く|速く|やすかった|やすく|丁寧|清潔|親切/
+const MIDDLE = /ふつう|普通|可もなく|まずまず|それなり/
+const WHEN = /初めて|はじめて|何度|毎回|いつも|長年|昨日|先日|先週|先月|去年|昨年|今年|年前|か月前|ヶ月前|常連/
+const COMPARE = /他社|他店|ほかの(店|会社)|他の(店|会社)|と比べ|に比べ|より(安|早|速|良|よ|高)/
+const FUTURE = /また(お願い|利用|来|頼|伺|行)|次回|次も|今後も|これからも/
+const NAMED = /[一-龠ぁ-んァ-ヶA-Za-z]{1,8}(さん|様|氏)(?![ざ々])/
+
+const withoutAll = (t, list) => list.filter(Boolean).sort((x, y) => y.length - x.length).reduce((acc, w) => acc.split(w).join(''), t)
+const bare = (w) => String(w || '').replace(/[。！？!?\s]+$/, '')
+
+/** 下書きが、答えだけからできていて、答えを1つも落としていないか。{ ok, reasons:[…] }
+ *
+ *  見ること（完成の条件）:
+ *   1. 本人の言葉（ひとこと・どのあたりが）が、一字も変わらずに入っている
+ *   2. 答えにない数字・時期や回数・ほかの店との比べ・これからの予定・人の名前が無い
+ *   3. 答えていない項目・選んでいない利用内容に触れていない
+ *   4. 答えた項目・選んだ利用内容・全体の答えに、全部触れている（落としていない）
+ *   5. 項目ごとの良し悪しが、答えと逆になっていない
+ *   6. 店名・あおる言葉・飾りが無い */
 export function checkDraft(text, a, cfg, brand) {
   const t = String(text || '').trim()
   const memo = a.memo || ''
+  const details = a.details || {}
+  const own = [memo, ...Object.values(details)].filter(Boolean)
   const reasons = []
-  const inMemo = (w) => memo.includes(w)
+  const inOwn = (w) => own.some((o) => o.includes(w))
   if (t.length < LIMITS.draftMin) reasons.push('短すぎます')
-  if (t.length > LIMITS.draftMax) reasons.push('長すぎます')
+  if (t.length > LIMITS.draftMax + own.join('').length) reasons.push('長すぎます')
 
-  // 1. 数字（金額・日数・回数など）は、ひとことにあるものだけ。
-  const strip = memo ? t.split(memo).join('') : t
+  // 1. 本人の言葉は、そのまま。
+  for (const o of own) if (!t.includes(bare(o))) reasons.push(`本人の言葉（${o.slice(0, 14)}${o.length > 14 ? '…' : ''}）が、変えられているか抜けています`)
+
+  // 本人の言葉を除いた残り（＝下書きが足した文）で、足してはいけないものを見ます。
+  const strip = withoutAll(t, own.map(bare))
+  // 選んだ名前そのものに入っている言葉（「初めての方向けプラン」など）は、足したものではありません。
+  const rest = withoutAll(strip, [...a.services, ...Object.keys(a.aspects)])
+
+  // 2. 数字、時期や回数、比べ、予定、人の名前。
   if (NUMBER.test(strip)) reasons.push('答えにない数字が入っています')
+  if (WHEN.test(rest)) reasons.push('答えにない時期や回数が入っています')
+  if (COMPARE.test(rest)) reasons.push('答えにない、ほかの店との比べが入っています')
+  if (FUTURE.test(rest)) reasons.push('答えにない、これからの予定が入っています')
+  if (NAMED.test(rest)) reasons.push('答えにない人の名前が入っています')
 
-  // 2. 答えていない項目・選んでいない利用内容に触れていないか。
+  // 3. 答えていない項目・選んでいない利用内容。
   for (const k of cfg.aspects) {
     if (a.aspects[k]) continue
     const c = coreOf(k)
-    if ((t.includes(k) || t.includes(c)) && !inMemo(c)) reasons.push(`答えていない項目（${k}）に触れています`)
+    if ((strip.includes(k) || strip.includes(c))) reasons.push(`答えていない項目（${k}）に触れています`)
   }
   for (const s of cfg.services) {
     if (a.services.includes(s)) continue
-    if (t.includes(s) && !inMemo(s)) reasons.push(`選んでいない利用内容（${s}）が入っています`)
+    if (strip.includes(s)) reasons.push(`選んでいない利用内容（${s}）が入っています`)
   }
 
-  // 3. 「いまひとつ」は消さない。「よかった」が1つも無いのに、ほめない。
+  // 4. 落としていないか。
+  const LV = Object.fromEntries(LEVELS)
+  for (const k of Object.keys(a.aspects)) if (!strip.includes(k) && !strip.includes(coreOf(k))) reasons.push(`「${LV[a.aspects[k]]}」と答えた項目（${k}）が抜けています`)
+  for (const s of a.services) if (!strip.includes(s)) reasons.push(`選んだ利用内容（${s}）が抜けています`)
   const bad = Object.keys(a.aspects).filter((k) => a.aspects[k] === 'bad')
   const good = Object.keys(a.aspects).filter((k) => a.aspects[k] === 'good')
-  for (const k of bad) if (!t.includes(k) && !t.includes(coreOf(k))) reasons.push(`「いまひとつ」と答えた項目（${k}）が抜けています`)
-  if ((bad.length || (a.overall && a.overall <= 2)) && !NEGATIVE.test(t)) reasons.push('良くなかった答えが、文に出ていません')
+  if ((bad.length || (a.overall && a.overall <= 2)) && !NEGATIVE.test(strip)) reasons.push('良くなかった答えが、文に出ていません')
+  if (a.overall >= 4 && !POSITIVE.test(strip.replace(/不満/g, ''))) reasons.push('全体の答え（満足）が、文に出ていません')
+  if (a.overall === 3 && !MIDDLE.test(strip)) reasons.push('全体の答え（ふつう）が、文に出ていません')
+
+  // 5. 良し悪しが逆になっていないか。項目に触れている文ごとに見ます。
+  const sentences = strip.split(/[。！？!?]/).map((x) => x.trim()).filter(Boolean)
+  const pos = (x) => POSITIVE.test(x.replace(/不満/g, '')) || GOODISH.test(x)
+  for (const k of Object.keys(a.aspects)) {
+    const mine = sentences.filter((x) => x.includes(k) || x.includes(coreOf(k)))
+    if (!mine.length) continue
+    const lv = a.aspects[k]
+    if (lv === 'bad' && !mine.some((x) => NEGATIVE.test(x))) reasons.push(`「いまひとつ」と答えた項目（${k}）が、そう書かれていません`)
+    if (lv === 'good' && mine.every((x) => NEGATIVE.test(x) && !pos(x))) reasons.push(`「よかった」と答えた項目（${k}）が、悪く書かれています`)
+    if (lv === 'ok' && mine.every((x) => (pos(x) !== NEGATIVE.test(x)) && !MIDDLE.test(x)) && Object.keys(a.aspects).length === 1) reasons.push(`「ふつう」と答えた項目（${k}）が、そう書かれていません`)
+  }
   if (!good.length && !(a.overall >= 4) && POSITIVE.test(strip.replace(/不満/g, ''))) reasons.push('答えにないほめ言葉が入っています')
   if (a.overall && a.overall <= 2 && /満足しています|満足です|大満足/.test(strip.replace(/不満[^。]*。/g, ''))) reasons.push('全体の答えと逆のことを書いています')
 
-  // 4. 店名・あおる言葉・飾り。ひとことにあるものは本人の言葉なので通します。
-  for (const w of HYPE) if (t.includes(w) && !inMemo(w)) { reasons.push(`答えにない言葉（${w}）が入っています`); break }
-  for (const n of (brand && brand.names) || []) if (n && t.toLowerCase().includes(String(n).toLowerCase()) && !memo.toLowerCase().includes(String(n).toLowerCase())) { reasons.push('店名が入っています'); break }
+  // 6. 店名・あおる言葉・飾り。本人の言葉にあるものは通します。
+  for (const w of HYPE) if (rest.includes(w)) { reasons.push(`答えにない言葉（${w}）が入っています`); break }
+  for (const n of (brand && brand.names) || []) if (n && strip.toLowerCase().includes(String(n).toLowerCase())) { reasons.push('店名が入っています'); break }
   if (/[#＃]|https?:|[\u{1F300}-\u{1FAFF}☀-➿]/u.test(strip)) reasons.push('記号・絵文字・リンクが入っています')
   if ((strip.match(/[!！]/g) || []).length >= 2) reasons.push('「！」が続いています')
   if (/^[「『]|[」』]$/.test(t) || /^(下書き|案|本文)[:：]/.test(t)) reasons.push('本文以外が付いています')

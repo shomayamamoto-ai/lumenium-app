@@ -49,6 +49,11 @@
   .steps{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12.5px;font-weight:700;text-align:center}
   .steps li{padding:8px 4px;border-radius:10px;background:#ebe8e0;color:var(--sub);line-height:1.4}
   .steps li[aria-current="step"]{background:var(--go);color:#fff}
+  .detail{width:100%;min-height:44px;font:inherit;font-size:15px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;background:#faf9f6;color:var(--ink)}
+  .meter{display:grid;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .meter b{font-size:13.5px}
+  .dots{display:flex;gap:5px}.dots i{flex:1;height:8px;border-radius:99px;background:#e3e0d8}.dots i.on{background:var(--go)}
+  .meter span{font-size:13px;color:var(--sub);line-height:1.7}
   :focus-visible{outline:3px solid #2563eb;outline-offset:2px}
   [hidden]{display:none!important}
 </style>
@@ -91,6 +96,11 @@
         <div class="chips" id="styles" role="group" aria-label="文の調子"></div>
       </section>
 
+      <div class="meter" id="meter" aria-live="polite">
+        <b id="meter-t">答えの充実度</b>
+        <div class="dots" id="meter-d" aria-hidden="true"></div>
+        <span id="meter-h"></span>
+      </div>
       <p class="msg" id="msg" role="alert"></p>
       <button type="submit" class="pri" id="make">下書きを作る</button>
     </div>
@@ -124,7 +134,7 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var C = null;                                   // 設定（質問の選択肢・Google のリンク）
-  var A = { services: [], aspects: {}, overall: 0, style: 'polite', memo: '' };
+  var A = { services: [], aspects: {}, details: {}, overall: 0, style: 'polite', memo: '' };
   var seed = Math.floor(Math.random() * 100000);
   var busy = false;
   var first = true;                               // 最初の下書きか（選ばれた答えを数えるのは最初だけ）
@@ -160,10 +170,19 @@
       var three = document.createElement('div'); three.className = 'three'; three.setAttribute('role', 'group'); three.setAttribute('aria-label', k);
       C.levels.forEach(function (lv) {
         var b = chip(lv[1], A.aspects[k] === lv[0], 'lv'); b.setAttribute('data-v', lv[0]);
-        b.addEventListener('click', function () { if (A.aspects[k] === lv[0]) delete A.aspects[k]; else A.aspects[k] = lv[0]; draw(); });
+        b.addEventListener('click', function () { if (A.aspects[k] === lv[0]) { delete A.aspects[k]; delete A.details[k]; } else A.aspects[k] = lv[0]; draw(); });
         three.appendChild(b);
       });
-      row.appendChild(three); $('aspects').appendChild(row);
+      row.appendChild(three);
+      // 答えた項目には「どのあたりが？」を書けます（任意）。書いた言葉は、そのまま下書きに入ります。
+      if (A.aspects[k]) {
+        var d = document.createElement('input');
+        d.type = 'text'; d.className = 'detail'; d.maxLength = 40; d.value = A.details[k] || '';
+        d.placeholder = 'どのあたりが？（任意・40字まで）'; d.setAttribute('aria-label', k + '：どのあたりが？');
+        d.addEventListener('input', function () { var v = d.value.trim(); if (v) A.details[k] = v; else delete A.details[k]; meter(); });
+        row.appendChild(d);
+      }
+      $('aspects').appendChild(row);
     });
     $('overall').textContent = '';
     C.overall.forEach(function (o) {
@@ -177,12 +196,31 @@
       b.addEventListener('click', function () { A.style = s[0]; draw(); });
       $('styles').appendChild(b);
     });
+    meter();
   }
 
   function step(n) {
     [1, 2, 3].forEach(function (i) { if (i === n) $('st' + i).setAttribute('aria-current', 'step'); else $('st' + i).removeAttribute('aria-current'); });
   }
   function countDraft() { $('draft-n').textContent = String($('draft').value.length); }
+
+  /* 答えの充実度。材料が多いほど、下書きがあなたの体験どおりになります（数え方は api/_review-assist.js の richness と同じ）。 */
+  function meter() {
+    var n = Object.keys(A.aspects).length;
+    var own = !!$('memo').value.trim() || Object.keys(A.details).length > 0;
+    var items = [
+      ['「何を利用したか」を選ぶ', !C.services.length || A.services.length > 0],
+      ['項目を2つ以上答える', n >= 2],
+      ['「全体として」を選ぶ', !!A.overall],
+      ['ふつうだった点・気になった点も選ぶ', Object.keys(A.aspects).some(function (k) { return A.aspects[k] !== 'good'; }) || n >= 3],
+      ['「ひとこと」か「どのあたりが？」を、あなたの言葉で書く', own]
+    ];
+    var score = items.filter(function (i) { return i[1]; }).length;
+    $('meter-t').textContent = '答えの充実度 ' + score + ' / ' + items.length;
+    $('meter-d').innerHTML = items.map(function (i, x) { return '<i' + (x < score ? ' class="on"' : '') + '></i>'; }).join('');
+    var next = items.filter(function (i) { return !i[1]; })[0];
+    $('meter-h').textContent = next ? '次は：' + next[0] + '。答えが多いほど、あなたの体験どおりの文になります。' : '十分です。あなたの体験どおりの下書きが作れます。';
+  }
 
   function make() {
     if (busy) return;
@@ -226,7 +264,7 @@
   }, function () { $('lead').textContent = '読み込めませんでした。電波のよい所で、もう一度開いてください。'; });
 
   $('form').addEventListener('submit', function (e) { e.preventDefault(); make(); });
-  $('memo').addEventListener('input', function () { $('memo-n').textContent = String($('memo').value.length); });
+  $('memo').addEventListener('input', function () { $('memo-n').textContent = String($('memo').value.length); if (C) meter(); });
   $('again').addEventListener('click', function () { seed = (seed + 1 + Math.floor(Math.random() * 97)) % 100000; make(); });
   $('draft').addEventListener('input', countDraft);
   $('back').addEventListener('click', function () { first = true; $('result').hidden = true; $('form').hidden = false; step(1); $('form').scrollIntoView({ block: 'start' }); });
