@@ -32,12 +32,14 @@ const lines = (v, max) => {
 
 /** 設定（口コミ管理の prefs.assist）。 */
 export function defaultAssist() {
-  return { on: false, intro: '', services: [], aspects: DEFAULT_ASPECTS.slice() }
+  return { on: false, mail: false, intro: '', services: [], aspects: DEFAULT_ASPECTS.slice() }
 }
 export function normalizeAssist(input, base) {
   const p = { ...defaultAssist(), ...(base || {}) }
   const x = input && typeof input === 'object' ? input : {}
   if ('on' in x) p.on = !!x.on
+  // お願いメールからも、このページを開けるようにするか（Google の画面へのリンクも、同じメールに並べます）。
+  if ('mail' in x) p.mail = !!x.mail
   if ('intro' in x) p.intro = clean(x.intro, LIMITS.intro)
   if ('services' in x) p.services = lines(x.services, LIMITS.services)
   if ('aspects' in x) { const a = lines(x.aspects, LIMITS.aspects); p.aspects = a.length ? a : DEFAULT_ASPECTS.slice() }
@@ -414,7 +416,20 @@ export function tallyRows(counts, aspects) {
     }
   }
   const order = (aspects || []).filter((k) => asp[k]).concat(Object.keys(asp).filter((k) => !(aspects || []).includes(k)))
-  return { n, overall, aspects: order.map((k) => ({ label: k, ...asp[k] })) }
+  const rows = order.map((k) => ({ label: k, ...asp[k] }))
+  return { n, overall, aspects: rows, insight: insightOf(rows, n) }
+}
+
+/** いちばん喜ばれている項目と、いちばん気になられている項目。答えが5人に満たないうちは出しません
+ *  （1人の答えで入れ替わる数字を、傾向のように見せないため）。 */
+export function insightOf(rows, n, min = 5) {
+  if (!(n >= min) || !rows.length) return null
+  const top = rows.slice().sort((x, y) => y.good - x.good)[0]
+  const worst = rows.slice().sort((x, y) => y.bad - x.bad)[0]
+  return {
+    top: top && top.good ? { label: top.label, count: top.good } : null,
+    worst: worst && worst.bad ? { label: worst.label, count: worst.bad } : null,
+  }
 }
 
 /** 画面に出す形。新しい週が上。前の週からの増え方と、このページの数を付けます。 */
@@ -427,7 +442,7 @@ export function weeklyRows(list, counts, max = 12) {
     return {
       w: r.w, total: r.total, avg: r.avg,
       diff: prev ? r.total - prev.total : null,
-      open: Number(u.open) || 0, draft: Number(u.draft) || 0, google: Number(u.google) || 0,
+      open: Number(u.open) || 0, draft: Number(u.draft) || 0, google: Number(u.google) || 0, posted: Number(u.posted) || 0,
     }
   }).reverse().slice(0, max)
 }

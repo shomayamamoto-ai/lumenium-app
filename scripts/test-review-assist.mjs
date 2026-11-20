@@ -4,9 +4,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
   normalizeAssist, defaultAssist, normalizeAnswers, enough, composeDraft, checkDraft, cleanDraft, systemText, promptText,
-  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers, naturalOf, tallyFields, tallyRows, richness,
+  coreOf, weekOf, putWeek, weeklyRows, LEVELS, OVERALL, DEFAULT_ASPECTS, LIMITS, retryText, sampleAnswers, naturalOf, tallyFields, tallyRows, richness, insightOf,
 } from '../api/_review-assist.js'
-import { normalizePrefs, defaultPrefs } from '../api/_reviews.js'
+import { normalizePrefs, defaultPrefs, assistLink } from '../api/_reviews.js'
+import { requestMail } from '../api/_reviews-core.js'
 
 let n = 0
 const t = (name, fn) => { fn(); n++; console.log('  ok  ' + name) }
@@ -313,6 +314,28 @@ t('答えの充実度: 材料が多いほど点が上がり、足りないもの
   assert.equal(richness(normalizeAnswers({ overall: 3 }, normalizeAssist({ aspects: '接客' })), normalizeAssist({ aspects: '接客' })).score, 2)
 })
 
+t('お願いメール: 設定したときだけ、下書きのページを並べる。Google の画面へのリンクは、いつも残す', () => {
+  assert.equal(defaultAssist().mail, false)
+  assert.equal(assistLink(normalizePrefs({ assist: { on: true, mail: false } })), '')
+  assert.equal(assistLink(normalizePrefs({ assist: { on: false, mail: true } })), '')
+  assert.match(assistLink(normalizePrefs({ assist: { on: true, mail: true } })), /^https:\/\/[^/]+\/review\.html$/)
+  const plain = requestMail({ shop: '店', name: '山田', link: 'https://g.example/write', optout: 'https://x/opt' }).text
+  assert.match(plain, /▼ Google に口コミを書く\nhttps:\/\/g\.example\/write/)
+  assert.doesNotMatch(plain, /下書きを作る/)
+  const both = requestMail({ shop: '店', name: '山田', link: 'https://g.example/write', assist: 'https://s.example/review.html', optout: 'https://x/opt' }).text
+  assert.match(both, /▼ いくつか選ぶだけで、下書きを作る（投稿はご自身で）\nhttps:\/\/s\.example\/review\.html\n\n▼ 自分の言葉で書く（Google の画面が開きます）\nhttps:\/\/g\.example\/write/)
+  // 文面は、どちらも「良かった点も、気になった点も」のまま。見返りの言葉は無い
+  for (const m of [plain, both]) { assert.match(m, /良かった点も、気になった点も/); assert.doesNotMatch(m, /割引|プレゼント|特典|クーポン/) }
+})
+
+t('気づき: いちばん喜ばれている項目と、気になられている項目。5人に満たないうちは出さない', () => {
+  const rows = [{ label: '仕上がり', good: 16, ok: 3, bad: 1 }, { label: '待ち時間', good: 5, ok: 8, bad: 6 }, { label: '料金', good: 8, ok: 9, bad: 2 }]
+  assert.deepEqual(insightOf(rows, 20), { top: { label: '仕上がり', count: 16 }, worst: { label: '待ち時間', count: 6 } })
+  assert.equal(insightOf(rows, 4), null)
+  assert.deepEqual(insightOf([{ label: '接客', good: 6, ok: 0, bad: 0 }], 6), { top: { label: '接客', count: 6 }, worst: null })
+  assert.deepEqual(tallyRows({ w: { n: '5', 'a|料金|bad': '3', 'a|料金|good': '2' } }, ['料金']).insight, { top: { label: '料金', count: 2 }, worst: { label: '料金', count: 3 } })
+})
+
 t('下書きの後始末: かぎかっこ・前置き・改行を外す', () => {
   assert.equal(cleanDraft('「説明がよかったです。」'), '説明がよかったです。')
   assert.equal(cleanDraft('下書き：説明がよかったです。\n\n料金は気になりました。'), '説明がよかったです。料金は気になりました。')
@@ -334,7 +357,9 @@ t('毎週の記録: 月曜はじまり（日本時間）。同じ週は上書き
 
 t('毎週の記録: 画面には新しい週から。前の週からの増え方と、ページの数を付ける', () => {
   const list = [{ w: '2026-11-02', total: 18, avg: 4 }, { w: '2026-11-09', total: 21, avg: 4.1 }, { w: '2026-11-16', total: 24, avg: 4.2 }]
-  const rows = weeklyRows(list, { '2026-11-16': { open: '9', draft: '6', google: '4' } })
+  const rows = weeklyRows(list, { '2026-11-16': { open: '9', draft: '6', google: '4', posted: '3' } })
+  assert.equal(rows[0].posted, 3)
+  assert.equal(rows[1].posted, 0)
   assert.deepEqual(rows.map((r) => [r.w, r.total, r.diff]), [['2026-11-16', 24, 3], ['2026-11-09', 21, 3], ['2026-11-02', 18, null]])
   assert.deepEqual([rows[0].open, rows[0].draft, rows[0].google], [9, 6, 4])
   assert.deepEqual([rows[1].open, rows[1].draft, rows[1].google], [0, 0, 0])
@@ -350,6 +375,7 @@ t('お客様のページ: 見返りなし・全員が同じ画面へ・検索に
   assert.match(h, /お店に届くのは、選ばれた答えの数だけです/)
   assert.match(h, /どのあたりが？（任意・40字まで）/)
   assert.match(h, /答えの充実度/)
+  assert.match(h, /Google に投稿できましたか？/)
   assert.match(h, /自分で書く（Google の投稿画面を開く）/)
   assert.match(h, /1\. 選んで答える[\s\S]*2\. 下書きを読む[\s\S]*3\. Googleで投稿/)
   // 満足度で行き先を変えていない（overall を見てリンクを変える処理が無い）

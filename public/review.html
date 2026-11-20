@@ -117,6 +117,15 @@
     <button type="button" class="sec" id="back">答えを選び直す</button>
   </section>
 
+  <section class="card" id="after" hidden>
+    <p class="q">Google に投稿できましたか？<small>お店が、このページがどれだけ役に立ったかを数えるためだけに使います。</small></p>
+    <div class="chips">
+      <button type="button" class="chip" id="posted-yes">投稿した</button>
+      <button type="button" class="chip" id="posted-no">まだ・やめた</button>
+    </div>
+    <p class="note" id="after-msg" role="status"></p>
+  </section>
+
   <section class="card" id="self" hidden>
     <p class="note">下書きを使わずに、自分の言葉で書くこともできます。</p>
     <a class="sec" id="own" href="#" target="_blank" rel="noopener">自分で書く（Google の投稿画面を開く）</a>
@@ -271,10 +280,25 @@
   $('go').addEventListener('click', function (e) {
     copyDraft();
     if (!C || !C.link) { e.preventDefault(); return; }
-    step(3);
+    step(3); went = true;
     post({ action: 'event', kind: 'google' }, true).catch(function () {});
   });
-  $('own').addEventListener('click', function () { post({ action: 'event', kind: 'google' }, true).catch(function () {}); });
+  $('own').addEventListener('click', function () { went = true; post({ action: 'event', kind: 'google' }, true).catch(function () {}); });
+  // Google の画面から戻ってきたら、投稿できたかを聞きます（1回だけ）。
+  var went = false, asked = false;
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible' || !went || asked) return;
+    asked = true; $('after').hidden = false; $('after').scrollIntoView({ block: 'center' });
+  });
+  $('posted-yes').addEventListener('click', function () {
+    post({ action: 'event', kind: 'posted' }, true).catch(function () {});
+    $('posted-yes').disabled = true; $('posted-no').disabled = true;
+    $('after-msg').textContent = 'ありがとうございました。';
+  });
+  $('posted-no').addEventListener('click', function () {
+    $('posted-yes').disabled = true; $('posted-no').disabled = true;
+    $('after-msg').textContent = '下書きはこのまま残しています。あとで続きができます。';
+  });
 })();
 </script>
 </body>

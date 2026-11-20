@@ -2980,7 +2980,7 @@
   });
   var PREFS = { shopName: 'サロン・ルミエ', tone: 'warm', signature: 'サロン・ルミエ 店長', notes: '電話 03-0000-0000（10〜19時・火曜定休）', placeId: '', requests: 'manual', contact: '03-0000-0000', monthlyYen: 500, locations: [LOC],
     lowAlert: true, widget: true, widgetMin: 4,
-    assist: { on: true, intro: '', services: ['カット', 'カラー', 'パーマ', 'トリートメント'], aspects: ['仕上がり', '接客', '待ち時間', '料金', '店内の居心地'] },
+    assist: { on: true, mail: true, intro: '', services: ['カット', 'カラー', 'パーマ', 'トリートメント'], aspects: ['仕上がり', '接客', '待ち時間', '料金', '店内の居心地'] },
     phrases: [
       { id: 'thanks5', name: '星4〜5へのお礼', stars: 'high', body: '{name}、このたびはご来店いただき、うれしいお言葉をありがとうございます。\nスタッフ一同とても励みになります。またのお越しを心よりお待ちしております。' },
       { id: 'sorry12', name: '星1〜2へのお詫び', stars: 'low', body: '{name}、このたびはご期待に沿えず、申し訳ございませんでした。\nいただいたご意見はスタッフ全員で共有し、改善に努めます。\nよろしければ、詳しいお話をお聞かせいただけますと幸いです（お電話 03-0000-0000）。' },
@@ -2993,7 +2993,7 @@
     var d = new Date(Date.now() + 9 * 3600000); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
     base.forEach(function (b, i) {
       var w = new Date(d.getTime() - i * 7 * 86400000).toISOString().slice(0, 10);
-      out.push({ w: w, total: b[0], avg: b[1], diff: base[i + 1] ? b[0] - base[i + 1][0] : null, open: b[2], draft: b[3], google: b[4] });
+      out.push({ w: w, total: b[0], avg: b[1], diff: base[i + 1] ? b[0] - base[i + 1][0] : null, open: b[2], draft: b[3], google: b[4], posted: Math.max(0, b[4] - 1) });
     });
     return out;
   }
@@ -3001,7 +3001,7 @@
     return {
       ok: true, stored: true, weekly: weekly(),
       assistSuggest: { services: ['カット', 'カラー', 'パーマ', 'トリートメント', 'ヘッドスパ'] },
-      tallies: { n: 20, weeks: 8, overall: { 5: 7, 4: 8, 3: 3, 2: 2, 1: 0 }, aspects: [
+      tallies: { n: 20, weeks: 8, insight: { top: { label: '仕上がり', count: 16 }, worst: { label: '待ち時間', count: 6 } }, overall: { 5: 7, 4: 8, 3: 3, 2: 2, 1: 0 }, aspects: [
         { label: '仕上がり', good: 16, ok: 3, bad: 1 }, { label: '接客', good: 13, ok: 5, bad: 2 }, { label: '待ち時間', good: 5, ok: 8, bad: 6 }, { label: '料金', good: 8, ok: 9, bad: 2 }, { label: '店内の居心地', good: 11, ok: 4, bad: 0 }] },
       connection: { state: 'ready', ok: true, message: 'つながっています', steps: [] },
       locations: [{ name: LOC, title: 'サロン・ルミエ 表参道店', avg: 4.1, total: 25, placeId: 'ChIJDEMO_salon_lumiere0', syncedAt: iso(0, -2), complete: true }],

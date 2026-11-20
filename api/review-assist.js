@@ -97,7 +97,7 @@ export async function POST(req) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
   if (body.action === 'event') {
-    const kind = body.kind === 'google' ? 'google' : body.kind === 'open' ? 'open' : ''
+    const kind = ['google', 'open', 'posted'].includes(body.kind) ? body.kind : ''
     if (!kind) return json({ ok: false }, 400)
     const rl = await hit(`${KV}rev:as:ev:${ip}`, 12, 600)
     if (!rl.limited) await count(cfg, kind)

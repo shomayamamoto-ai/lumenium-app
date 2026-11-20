@@ -567,7 +567,8 @@
     });
     el('rev-preview').addEventListener('click', function () {
       var pre = el('rev-mail');
-      var m = core().requestMail({ shop: S.data.prefs.shopName, name: '〇〇', link: link || '（口コミを書く画面のリンク）', optout: '（配信停止のリンク）', address: q.address ? '（設定状況の住所）' : '', contact: S.data.prefs.contact });
+      var as = (S.data.prefs.assist || {});
+      var m = core().requestMail({ shop: S.data.prefs.shopName, name: '〇〇', assist: as.on && as.mail ? assistUrl() : '', link: link || '（口コミを書く画面のリンク）', optout: '（配信停止のリンク）', address: q.address ? '（設定状況の住所）' : '', contact: S.data.prefs.contact });
       pre.textContent = '件名：' + m.subject + '\n\n' + m.text;
       pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
     });
@@ -600,6 +601,7 @@
         '<li>見返りは付けないでください。下書きの文とひとことは保存しません。残るのは、週ごとの数と、選ばれた答えの数だけです（だれの答えかは分かりません）。</li>' +
       '</ul>' +
       '<label class="rev-radio"><input type="checkbox" id="rev-as-on"' + (a.on ? ' checked' : '') + '><span><b>このページを使う</b><br><span class="soc-small">外すと、QRを読んでも「いま使えません」と出ます。</span></span></label>' +
+      '<label class="rev-radio" style="margin-top:6px"><input type="checkbox" id="rev-as-mail"' + (a.mail ? ' checked' : '') + '><span><b>来店後のお願いメールにも、このページのリンクを入れる</b><br><span class="soc-small">メールには「下書きを作る」と「自分の言葉で書く（Google の画面）」の2つが並びます。どちらを選んでも、見返りはありません。</span></span></label>' +
       '<label class="soc-lab" for="rev-as-services" style="margin-top:10px">「何を利用しましたか？」の選択肢（1行に1つ・12個まで。空なら、この質問は出しません）</label>' +
       '<textarea id="rev-as-services" rows="4" placeholder="例）&#10;ホームページ制作&#10;AI研修&#10;動画制作">' + esc((a.services || []).join('\n')) + '</textarea>' +
       (d.assistSuggest && d.assistSuggest.services && d.assistSuggest.services.length ? '<div class="rev-acts" style="margin-top:6px"><button type="button" class="ghost" id="rev-as-fill" style="font-size:12px">サイトのサービス名を入れる</button><span class="soc-small">入れたあと、自由に直せます。</span></div>' : '') +
@@ -666,7 +668,7 @@
     save.addEventListener('click', async function () {
       var st = el('rev-as-state');
       st.textContent = '保存しています…';
-      var ok = await savePrefs({ assist: { on: el('rev-as-on').checked, services: el('rev-as-services').value, aspects: el('rev-as-aspects').value, intro: el('rev-as-intro').value } });
+      var ok = await savePrefs({ assist: { on: el('rev-as-on').checked, mail: el('rev-as-mail').checked, services: el('rev-as-services').value, aspects: el('rev-as-aspects').value, intro: el('rev-as-intro').value } });
       if (ok === false) { st.textContent = ''; return; }
       askView(body);
       var st2 = el('rev-as-state'); if (st2) st2.textContent = '保存しました。';
@@ -706,7 +708,11 @@
       return '<span style="display:flex;border-radius:6px;overflow:hidden;background:#eee;min-width:80px">' + seg(r.good, '#3f9d6f') + seg(r.ok, '#b9b9c2') + seg(r.bad, '#c8553d') + '</span>';
     };
     var OV = [[5, 'とても満足'], [4, '満足'], [3, 'ふつう'], [2, 'やや不満'], [1, '不満']];
-    return '<div class="rev-sec"><h4>お客様が選んだ答え（直近' + (t.weeks || 8) + '週・' + t.n + '人）</h4>' +
+    var ins = t.insight;
+    var insHtml = ins && (ins.top || ins.worst) ? '<div class="rev-note gray" style="margin-bottom:10px">' +
+      (ins.top ? 'いちばん喜ばれているのは<b>「' + esc(ins.top.label) + '」</b>（よかった ' + ins.top.count + '件）。' : '') +
+      (ins.worst ? 'いちばん気になられているのは<b>「' + esc(ins.worst.label) + '」</b>（いまひとつ ' + ins.worst.count + '件）。' : '') + '</div>' : '';
+    return '<div class="rev-sec"><h4>お客様が選んだ答え（直近' + (t.weeks || 8) + '週・' + t.n + '人）</h4>' + insHtml +
       (t.aspects.length ? '<div style="overflow-x:auto"><table class="rev-tbl" style="min-width:420px"><thead><tr><th>項目</th><th style="text-align:right">よかった</th><th style="text-align:right">ふつう</th><th style="text-align:right">いまひとつ</th><th style="width:30%"></th></tr></thead><tbody>' +
         t.aspects.map(function (r) { return '<tr><td>' + esc(r.label) + '</td><td class="n">' + r.good + '</td><td class="n">' + r.ok + '</td><td class="n"' + (r.bad ? ' style="color:#b3261e;font-weight:700"' : '') + '>' + r.bad + '</td><td>' + bar(r) + '</td></tr>'; }).join('') +
         '</tbody></table></div>' : '') +
@@ -720,11 +726,11 @@
     var wk = function (w) { var m = /^(\d+)-(\d+)-(\d+)$/.exec(w); return m ? (+m[2]) + '/' + (+m[3]) + ' の週' : w; };
     return '<div class="rev-sec"><h4>毎週の記録（件数と評価）</h4>' +
       (rows.length
-        ? '<div style="overflow-x:auto"><table class="rev-tbl" style="min-width:520px"><thead><tr><th>週（月曜はじまり）</th><th style="text-align:right">件数</th><th style="text-align:right">前の週から</th><th style="text-align:right">評価</th><th style="text-align:right">QRを開いた</th><th style="text-align:right">下書き</th><th style="text-align:right">Googleを開いた</th></tr></thead><tbody>' +
+        ? '<div style="overflow-x:auto"><table class="rev-tbl" style="min-width:620px"><thead><tr><th>週（月曜はじまり）</th><th style="text-align:right">件数</th><th style="text-align:right">前の週から</th><th style="text-align:right">評価</th><th style="text-align:right">QRを開いた</th><th style="text-align:right">下書き</th><th style="text-align:right">Googleを開いた</th><th style="text-align:right">投稿した（本人の答え）</th></tr></thead><tbody>' +
           rows.map(function (r) {
-            return '<tr><td style="white-space:nowrap">' + esc(wk(r.w)) + '</td><td class="n">' + r.total + '</td><td class="n">' + (r.diff == null ? '—' : (r.diff > 0 ? '+' : '') + r.diff) + '</td><td class="n">' + (r.avg == null ? '—' : r.avg.toFixed(1)) + '</td><td class="n">' + r.open + '</td><td class="n">' + r.draft + '</td><td class="n">' + r.google + '</td></tr>';
+            return '<tr><td style="white-space:nowrap">' + esc(wk(r.w)) + '</td><td class="n">' + r.total + '</td><td class="n">' + (r.diff == null ? '—' : (r.diff > 0 ? '+' : '') + r.diff) + '</td><td class="n">' + (r.avg == null ? '—' : r.avg.toFixed(1)) + '</td><td class="n">' + r.open + '</td><td class="n">' + r.draft + '</td><td class="n">' + r.google + '</td><td class="n">' + (r.posted || 0) + '</td></tr>';
           }).join('') + '</tbody></table></div>' +
-          '<p class="soc-small" style="margin-top:6px">Google に出ている件数と評価を、週に1行ずつ残しています。右の3つは、口コミを書きやすくするページの数です（「Googleを開いた」は投稿した数ではありません）。</p>'
+          '<p class="soc-small" style="margin-top:6px">Google に出ている件数と評価を、週に1行ずつ残しています。右の4つは、口コミを書きやすくするページの数です。「投稿した」は、Google から戻ったお客様が「投稿した」を押した数で、押さずに閉じた方は入りません。</p>'
         : '<p class="soc-small">まだ記録がありません。Googleビジネスプロフィールとつなぐと、その週から毎週1行ずつ増えていきます。</p>') +
     '</div>';
   }

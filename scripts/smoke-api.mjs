@@ -469,6 +469,7 @@ const CALLS = [
   ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'draft', answers: { services: ['AI研修'], aspects: { 料金: 'bad' }, details: { 料金: '見積りより高くなった' }, overall: 2, memo: '説明は助かった' }, seed: 3, first: true }],
   ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'event', kind: 'open' }],
   ['reviews', 'POST', '', JSONH, { action: 'assist-test', style: 'casual' }],
+  ['review-assist', 'POST', '', { 'content-type': 'application/json' }, { action: 'event', kind: 'posted' }],
   ['reviews', 'GET', '', KEY],
   ['reviews', 'POST', '', JSONH, { action: 'prefs', prefs: { shopName: 'スモーク', tone: 'warm', requests: 'manual' } }],
   ['reviews', 'POST', '', JSONH, { action: 'sync' }],

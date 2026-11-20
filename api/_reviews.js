@@ -477,6 +477,7 @@ async function sendOne(req, c, prefs, meta) {
   const optout = `${BRAND.url}/api/reviews?optout=${await optoutToken(c._hash, secret)}`
   const mail = requestMail({
     shop: prefs.shopName || BRAND.name, name: c._rec.name, link: linkFor(prefs, meta), optout,
+    assist: assistLink(prefs),
     address: await setting('MAIL_SENDER_ADDRESS', '', req), contact: prefs.contact,
   })
   let ok = false
@@ -578,6 +579,11 @@ async function pushLow(req, cfg, low, prefs) {
   } catch (e) {
     return { ok: false, message: errText(e) }
   }
+}
+
+/** お願いメールに並べる、口コミを書きやすくするページのリンク（設定で「メールからも開く」にしたときだけ）。 */
+export function assistLink(prefs) {
+  return prefs.assist && prefs.assist.on && prefs.assist.mail ? `${BRAND.url}/review.html` : ''
 }
 
 /** いまの件数と評価（連携している店舗の合計）。 */
