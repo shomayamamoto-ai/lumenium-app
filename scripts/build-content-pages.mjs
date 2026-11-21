@@ -22,6 +22,7 @@ import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
   PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS, PROFILES, SYSTEMS } from '../src/data/site.js'
 import { SECTION } from '../src/data/text.js'
+import { TRAINING_PLANS, SALON, PARTNER, SUBSIDY, yen as yenOf } from '../src/data/offers.js'
 
 // Admin copy overrides are applied to the shared data modules before any
 // page is rendered, so the static pages always match what the site shows.
@@ -1286,6 +1287,218 @@ TOPIC_PAGES.push(
   },
 )
 
+/* ---- 申込を受けるページ（研修・美容室・社労士の先生へ） ----
+   料金と中身は src/data/offers.js。フォームは public/lead-form.js が /api/contact へ送り、
+   管理画面の「問い合わせ管理」に入ります。助成金の数字は SUBSIDY（出典つき）だけを使います。 */
+const LF_STYLE = `
+.lf { margin:18px 0 8px; padding:18px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+.lf label { display:block; font-size:13px; font-weight:700; margin:12px 0 4px; color:var(--text); }
+.lf label small { font-weight:400; color:var(--sub); margin-left:6px; }
+.lf input, .lf select, .lf textarea { width:100%; min-height:44px; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#fff; color:inherit; font:inherit; font-size:15px; }
+.lf textarea { min-height:96px; line-height:1.7; }
+.lf .two { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+@media (max-width:560px) { .lf .two { grid-template-columns:1fr; } }
+.lf button { margin-top:16px; width:100%; min-height:50px; border:0; border-radius:12px; background:var(--grad); color:#fff; font:inherit; font-weight:800; font-size:15.5px; cursor:pointer; }
+.lf button:disabled { opacity:.6; }
+.lf-out { margin-top:10px; font-size:14px; line-height:1.8; min-height:1em; }
+.lf-out.ok { color:#15803d; font-weight:700; } .lf-out.ng { color:#b91c1c; font-weight:700; }
+.lf-small, .lf .note { font-size:12.5px; color:var(--sub); line-height:1.8; }
+.lf .hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+.plans { display:grid; gap:12px; margin:14px 0; }
+.plan { border:1px solid var(--border); border-radius:14px; padding:16px 18px; background:var(--card); }
+.plan h3 { margin:0 0 4px !important; }
+.plan .pl-price { font-size:17px; font-weight:800; margin:4px 0 8px; }
+.plan .tag { display:inline-block; font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(103,232,249,.12); color:#67e8f9; margin-left:6px; vertical-align:2px; }
+.lf-calc { margin:14px 0; padding:16px 18px; border:1px dashed #5a628a; border-radius:14px; }
+.lf-calc .two { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 10px; }
+@media (max-width:560px) { .lf-calc .two { grid-template-columns:1fr; } }
+.lf-calc label { display:block; font-size:12.5px; font-weight:700; margin:8px 0 4px; }
+.lf-calc input, .lf-calc select { width:100%; min-height:42px; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:#fff; color:inherit; font:inherit; }
+.lf-calc-out { margin-top:12px; font-size:14.5px; line-height:1.85; }
+.src { font-size:12px; color:var(--sub); line-height:1.8; }
+.src a { word-break:break-all; }
+`
+const lfField = (name, label, input) => `<label for="lf-${name}">${label}</label>${input}`
+const lfText = (name, label, opt = {}) => lfField(name, label + (opt.req ? '' : ' <small>任意</small>'),
+  `<input id="lf-${name}" name="${name}" type="${opt.type || 'text'}"${opt.req ? ' required' : ''}${opt.ac ? ` autocomplete="${opt.ac}"` : ''}${opt.ph ? ` placeholder="${esc(opt.ph)}"` : ''}${opt.min != null ? ` min="${opt.min}"` : ''}${opt.inputmode ? ` inputmode="${opt.inputmode}"` : ''}>`)
+const lfSelect = (name, label, options) => lfField(name, label,
+  `<select id="lf-${name}" name="${name}">${options.map((o) => (Array.isArray(o) ? `<option value="${esc(o[0])}">${esc(o[1])}</option>` : `<option>${esc(o)}</option>`)).join('')}</select>`)
+const lfArea = (name, label, ph) => lfField(name, label + ' <small>任意</small>', `<textarea id="lf-${name}" name="${name}" maxlength="500" placeholder="${esc(ph)}"></textarea>`)
+const lfForm = (kind, offer, inner, button) => `
+    <form class="lf" data-kind="${kind}" data-offer="${esc(JSON.stringify(offer))}" novalidate>
+      ${inner}
+      <div class="hp" aria-hidden="true"><label>空けておいてください<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button type="submit">${esc(button)}</button>
+      <p class="lf-out" role="status" aria-live="polite"></p>
+      <p class="note">いただいた情報は、このご相談への返信とご提案のためだけに使います。返信は2営業日以内にメールでお送りします。</p>
+    </form>
+    <script src="/lead-form.js" defer></script>`
+const whoFields = (companyLabel = '会社名') => `<div class="two">${lfText('company', companyLabel, { req: true, ac: 'organization' })}${lfText('name', 'お名前', { req: true, ac: 'name' })}</div>
+      <div class="two">${lfText('email', 'メールアドレス', { req: true, type: 'email', ac: 'email', inputmode: 'email' })}${lfText('phone', '電話番号', { type: 'tel', ac: 'tel', inputmode: 'tel' })}</div>`
+const srcList = (items) => `<p class="src">出典: ${items.map(([label, url]) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`).join('／')}（${esc(SUBSIDY.checked)}時点で確認）</p>`
+
+TOPIC_PAGES.push(
+  {
+    file: 'training.html',
+    eyebrow: '生成AI研修のお申込み',
+    title: '生成AI研修のお申込み・助成金の目安 | Lumenium（ルメニウム）',
+    h1: '生成AI研修のお申込み',
+    desc: `中小企業向けの生成AI研修。入門（2時間）、部署の仕事を題材にした実務研修（10時間）、研修＋業務の自動化。人材開発支援助成金を使う場合の目安の計算と、申込書。東京拠点・オンラインで全国対応。`,
+    lead: '研修の題材は、受講する方ご自身の仕事です。終わったときに、明日から使う手順が部署に残ることを目標にしています。',
+    style: LF_STYLE,
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Lumenium の生成AI研修',
+      itemListElement: TRAINING_PLANS.map((p, i) => ({
+        '@type': 'ListItem', position: i + 1,
+        item: {
+          '@type': 'Course', name: p.name, description: p.goal,
+          provider: { '@id': `${SITE}/#organization` },
+          offers: { '@type': 'Offer', price: String(p.price), priceCurrency: 'JPY', category: p.priceNote },
+          hasCourseInstance: { '@type': 'CourseInstance', courseMode: ['online', 'onsite'], courseWorkload: `PT${p.hours}H` },
+        },
+      })),
+    }),
+    body: () => `
+    <h2>研修は3つから選べます</h2>
+    <div class="plans">
+    ${TRAINING_PLANS.map((p) => `<div class="plan">
+      <h3>${esc(p.name)}${p.subsidy ? '<span class="tag">助成金の対象になりうる長さ</span>' : ''}</h3>
+      <p style="margin:0 0 6px">${esc(p.short)}・${esc(p.who)}</p>
+      <p class="pl-price">${esc(p.priceNote)}</p>
+      <p>${esc(p.goal)}</p>
+      <ul>${p.does.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>
+    </div>`).join('\n    ')}
+    </div>
+    <p class="note">オンライン（Zoom・Teams・Google Meet）と訪問のどちらでも行います。訪問は東京23区は交通費込み、それ以外は実費をいただきます。</p>
+
+    <h2>これまでの研修・教材づくり</h2>
+    ${CASE_STUDIES.filter((c) => /AI/.test(c.tag)).map((c) => `<h3>${tx(c.title)}（${tx(c.tag)}）</h3>\n    <p>${tx(c.desc)}</p>`).join('\n    ')}
+    <h3>研修で作り直しやすい仕事（試算の例）</h3>
+    <p>下は、よくある仕事でAIを使ったときの<strong>試算の例</strong>です。実在の会社の結果ではありません。研修の第1回で、御社の仕事で同じ計算をします。</p>
+    <dl class="facts">
+      <div><dt style="flex:0 0 150px">見積書・提案書の下書き</dt><dd>1件40分 → 15分。月30件なら、月に約12時間</dd></div>
+      <div><dt style="flex:0 0 150px">日報・議事録のまとめ</dt><dd>1日15分 → 5分。10人・月20日なら、月に約33時間</dd></div>
+      <div><dt style="flex:0 0 150px">問い合わせへの返信</dt><dd>1件10分 → 4分。月100件なら、月に約10時間</dd></div>
+    </dl>
+    <p class="note">短くなった時間は、AIの出したものを人が確かめる時間を入れて計算しています。</p>
+
+    <h2>人材開発支援助成金を使う場合の目安</h2>
+    <p>${esc(SUBSIDY.summary)}</p>
+    <div class="lf-calc" data-subsidy="${esc(JSON.stringify({ plans: TRAINING_PLANS.map((p) => ({ id: p.id, hours: p.hours, price: p.price })), rate: SUBSIDY.rate, caps: SUBSIDY.caps, wage: SUBSIDY.wage, minHours: SUBSIDY.minHours, note: SUBSIDY.calcNote }))}">
+      <div class="two">
+        <div><label for="c-plan">研修</label><select id="c-plan" name="cplan">${TRAINING_PLANS.map((p) => `<option value="${p.id}"${p.id === 'practice' ? ' selected' : ''}>${esc(p.short)}</option>`).join('')}</select></div>
+        <div><label for="c-people">受講する人数</label><input id="c-people" name="cpeople" type="number" min="1" max="200" value="8" inputmode="numeric"></div>
+        <div><label for="c-fee">受講料（税別・円）</label><input id="c-fee" name="cfee" type="number" min="0" step="10000" value="${TRAINING_PLANS.find((p) => p.id === 'practice').price}" inputmode="numeric"></div>
+      </div>
+      <div class="lf-calc-out" aria-live="polite">計算しています…</div>
+    </div>
+    <ul>
+      ${SUBSIDY.rules.map((r) => `<li>${esc(r)}</li>`).join('\n      ')}
+    </ul>
+    <p class="note">${esc(SUBSIDY.disclaimer)}</p>
+    ${srcList(SUBSIDY.sources)}
+
+    <h2 id="apply">申込書</h2>
+    <p>送っていただいたら、2営業日以内に、日程・内容・お見積りをメールでお送りします。助成金を使う場合は、研修を始める日から逆算した日程をご提案します。</p>
+    ${lfForm('training', { plans: TRAINING_PLANS.map((p) => ({ id: p.id, name: p.name, short: p.short, price: p.price, priceNote: p.priceNote })) }, `
+      ${whoFields()}
+      <div class="two">${lfSelect('plan', '研修', TRAINING_PLANS.map((p) => [p.id, p.short]).map((o, i) => o))}${lfText('people', '受講予定の人数', { type: 'number', min: 1, ph: '例: 8', inputmode: 'numeric' })}</div>
+      <div class="two">${lfSelect('staff', '社員数', ['1〜20人', '21〜50人', '51〜100人', '101〜300人', '301人以上'])}${lfSelect('when', '希望の時期', ['1か月以内', '2〜3か月後', '4〜6か月後', '未定'])}</div>
+      <div class="two">${lfSelect('subsidy', '助成金', ['使いたい（顧問の社労士がいる）', '使いたい（社労士はいない）', '使わない', 'まだ分からない'])}${lfSelect('style', '形式', ['オンライン', '訪問', 'どちらでも'])}</div>
+      ${lfArea('goal', '研修で解決したいこと', '例: 営業の提案書づくりに時間がかかっている。若手がAIを使ってよいのか分からず止まっている')}`, '申込書を送る')}`,
+    faq: [
+      ['研修にパソコンは必要ですか？', '受講する方1人につき1台をご用意ください。オンラインの場合も同じです。生成AIのサービスは、無料版でも受けられる内容にしています。'],
+      ['助成金の申請も代わりにしてもらえますか？', '申請の代行はしていません。申請は会社（または顧問の社会保険労務士）が行います。こちらは、計画に添付するカリキュラムと受講の記録をそろえてお渡しします。'],
+      ['会社の情報をAIに入れても大丈夫ですか？', '研修の最初に「入れてはいけない情報」と社内ルールのひな形をお渡しします。実習は、入れてよい情報だけで行います。'],
+      ['1回だけでも頼めますか？', 'できます。入門研修（2時間）は1回でお受けしています。'],
+    ],
+  },
+  {
+    file: 'salon.html',
+    eyebrow: '美容室・ヘアサロンの方へ',
+    title: '美容室の予約・口コミ・SNS動画まとめパック | Lumenium（ルメニウム）',
+    h1: '美容室の予約・口コミ・SNS動画を、まとめて月額で',
+    desc: `スタッフ1〜5人の美容室・ヘアサロン向け。自店の予約ページ、Googleの口コミを書いてもらう仕組み、SNS動画の台本とテロップ、月1回の数字の報告をまとめて月額${SALON.monthly.toLocaleString('ja-JP')}円（税別）。最初の${SALON.monitor.slots}店はモニター価格。`,
+    lead: '予約サイトの手数料、増えない口コミ、続かないSNS。小さなサロンが毎月かかえている3つを、1つの月額にまとめました。',
+    style: LF_STYLE,
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'Service',
+      name: SALON.name,
+      serviceType: '美容室向け 予約・口コミ・SNS運用支援',
+      audience: { '@type': 'BusinessAudience', audienceType: SALON.who },
+      provider: { '@id': `${SITE}/#organization` },
+      offers: { '@type': 'Offer', price: String(SALON.monthly), priceCurrency: 'JPY', category: '月額（税別）' },
+    }),
+    body: () => `
+    <h2>まとめパックに入っているもの</h2>
+    <dl class="facts">
+      ${SALON.parts.map(([k, v]) => `<div><dt style="flex:0 0 150px">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('\n      ')}
+    </dl>
+    <h2>料金</h2>
+    <div class="plans">
+      <div class="plan"><h3>通常</h3><p class="pl-price">月額 ${yenOf(SALON.monthly)}（税別）</p><p>初期費用 ${yenOf(SALON.setup)}（税別）。予約ページ・QR・最初の台本の用意を含みます。</p></div>
+      <div class="plan"><h3>モニター（先着${SALON.monitor.slots}店）<span class="tag">募集中</span></h3><p class="pl-price">最初の${SALON.monitor.months}か月 月額 ${yenOf(SALON.monitor.monthly)}（税別）・初期費用 ${yenOf(SALON.monitor.setup)}</p><p>${SALON.monitor.months}か月のあいだ、使ってみた感想のアンケートと、数字の変化をこのサイトの事例に載せることにご協力ください（店名を出すかはお選びいただけます）。${SALON.monitor.months + 1}か月目からは通常の月額です。</p></div>
+    </div>
+    <ul>
+      ${SALON.notes.map((n) => `<li>${esc(n)}</li>`).join('\n      ')}
+    </ul>
+    <h2 id="apply">モニターに申し込む</h2>
+    <p>送っていただいたら、2営業日以内にご連絡し、30分ほどオンラインでお店の様子を伺います。合わないと思われたら、そこでやめていただいて構いません。</p>
+    ${lfForm('salon', { salon: { monitor: SALON.monitor } }, `
+      ${whoFields('店名')}
+      <div class="two">${lfText('area', '地域（市区町村）', { ph: '例: 世田谷区' })}${lfSelect('staff', 'スタッフの人数', ['1人', '2〜3人', '4〜5人', '6人以上'])}</div>
+      <div class="two">${lfSelect('booking', 'いまの予約の受け方', ['予約サイト（ホットペッパーなど）が中心', '電話・LINEが中心', '自店の予約ページがある', 'いろいろ混ざっている'])}${lfText('insta', 'InstagramのID', { ph: '例: @salon_example' })}</div>
+      ${lfArea('goal', 'いちばん困っていること', '例: 予約サイトの手数料が高い。口コミが増えない。動画を撮る時間がない')}`, 'モニターに申し込む')}`,
+    faq: [
+      ['ホットペッパービューティーをやめないといけませんか？', 'やめなくて大丈夫です。併用から始めて、自店の予約ページからの予約が増えたら、予約サイトに出す枠を減らすかをご一緒に決めます。'],
+      ['口コミをお願いすると、Googleの決まりに反しませんか？', '書くかどうか・何を書くかはお客様が決め、ご本人の端末から投稿します。点数で選り分けたり、割引やお礼の品と引き換えにしたりはしません。'],
+      ['動画を撮るのが苦手です。', '台本と「どこを撮るか」をお送りします。スマホで施術の手元を30秒ほど撮るだけで足ります。顔を出さない形でも作れます。'],
+    ],
+  },
+  {
+    file: 'partners.html',
+    eyebrow: '社会保険労務士の先生へ',
+    title: '社労士の先生へ｜生成AI研修の提携のご案内 | Lumenium（ルメニウム）',
+    h1: '社会保険労務士の先生へ — 顧問先の生成AI研修をお任せください',
+    desc: '人材開発支援助成金の要件に合わせて、顧問先の生成AI研修を設計・実施します。カリキュラムと受講の記録はこちらでそろえます。紹介料ではなく、相互紹介でのお付き合いをお願いしています。',
+    lead: '「AIを使いたいが、何から」という顧問先はありませんか。研修の設計と実施はこちらで、助成金の申請はこれまでどおり先生と会社で。役割を分けてご一緒できればと考えています。',
+    style: LF_STYLE,
+    ld: () => ({
+      '@context': 'https://schema.org',
+      '@type': 'Service',
+      name: '社会保険労務士向け 生成AI研修の提携',
+      provider: { '@id': `${SITE}/#organization` },
+      audience: { '@type': 'BusinessAudience', audienceType: '社会保険労務士事務所' },
+    }),
+    body: () => `
+    <h2>こちらでお引き受けすること</h2>
+    <ul>
+      ${PARTNER.give.map((x) => `<li>${esc(x)}</li>`).join('\n      ')}
+    </ul>
+    <h2>先生にお願いしたいこと</h2>
+    <ul>
+      ${PARTNER.ask.map((x) => `<li>${esc(x)}</li>`).join('\n      ')}
+    </ul>
+    <h2>紹介料について</h2>
+    <p>紹介料はお支払いしていません。研修の受講料の一部が、助成金を受ける側に戻る形と受け取られることを避けるためです。代わりに、${esc(PARTNER.back)}</p>
+    <h2>研修の中身と料金</h2>
+    <p>実務研修は2時間×5回（計10時間）、${esc(TRAINING_PLANS.find((p) => p.id === 'practice').priceNote)}です。内容と、助成金を使う場合の目安は<a href="/training.html">研修のページ</a>に載せています。</p>
+    <h2 id="apply">提携のご相談</h2>
+    ${lfForm('partner', {}, `
+      ${whoFields('事務所名')}
+      <div class="two">${lfText('area', '所在地', { ph: '例: 東京都千代田区' })}${lfSelect('clients', '顧問先の主な規模', ['20人以下が中心', '21〜100人が中心', '101人以上が中心', 'さまざま'])}</div>
+      ${lfSelect('want', 'ご希望', ['まず30分、オンラインで話を聞きたい', '資料（カリキュラム例）がほしい', '顧問先を紹介したい'])}
+      ${lfArea('goal', 'ご質問など', '例: 事業展開等リスキリング支援コースで使えるカリキュラムの例が見たい')}`, '提携の相談を送る')}`,
+    faq: [
+      ['助成金の申請を代行してもらえますか？', 'しません。申請は会社、または先生が代理で行ってください。こちらは研修を行う側として、カリキュラムと受講の記録をお渡しします。'],
+      ['研修は助成金の要件に合いますか？', '実務研修は10時間で、職務に関係する内容を、通常の業務と分けて（OFF-JT）行う形にしています。対象になるかは、会社ごとの計画と最新の要件で、先生のご判断をお願いします。'],
+    ],
+  },
+)
+
 for (const t of TOPIC_PAGES) {
   const url = `${SITE}/${t.file}`
   /* Written twice on purpose: once as a <dl> for a reader, once as FAQPage
@@ -1344,7 +1557,7 @@ ${t.body()}${faqHtml}
     ],
   }
   publish('/' + t.file, shell({
-    title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body,
+    title: t.title, desc: t.desc, canonical: url, ld, eyebrow: t.eyebrow, body, style: t.style || '',
   }))
 }
 
@@ -1369,6 +1582,9 @@ ${t.body()}${faqHtml}
       ['/onestop.html', '動画・Web・AI研修を一社にまとめる'],
       ['/pricing.html', '料金・費用の目安'],
       ['/systems.html', 'システム制作実績と導入例'],
+      ['/training.html', '生成AI研修のお申込み・助成金の目安'],
+      ['/salon.html', '美容室の予約・口コミ・SNS動画まとめパック'],
+      ['/partners.html', '社会保険労務士の先生へ（研修の提携）'],
       ['/works.html', '実績・制作事例'],
       ['/voice.html', 'お客様の声・評判'],
       ['/flow.html', 'ご依頼の流れ・進め方'],

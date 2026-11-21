@@ -337,7 +337,9 @@ function page(s) {
 
   <h2>料金目安</h2>
   <div class="price">${tx(s.price)}<small>お見積り無料・ご相談から48時間以内にご提案します。</small></div>
-
+${s.id === 'ai' ? `  <p style="margin-top:14px"><a href="/training.html">研修の内容・助成金の目安・申込書はこちら →</a></p>
+` : s.id === 'sns' ? `  <p style="margin-top:14px"><a href="/salon.html">美容室・ヘアサロンの方へ：予約・口コミ・SNS動画のまとめパック →</a></p>
+` : ''}
   <details class="ref">
   <summary>よくある質問（${(FAQ[s.id] || []).length}件）</summary>
   ${(FAQ[s.id] || []).map(([q, a]) => `<h3 style="font-size:14.5px;font-weight:700;margin:18px 0 6px">${tx(q)}</h3>

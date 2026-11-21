@@ -92,20 +92,20 @@
     "date": "2026-04-12"
   },
   "/choose.html": {
-    "hash": "ea8a2ca94a68106a",
-    "date": "2026-10-26"
+    "hash": "d7a48e5acc9beb4d",
+    "date": "2026-11-22"
   },
   "/contact.html": {
-    "hash": "02d3d3dae836e685",
-    "date": "2026-10-26"
+    "hash": "f3612bf65026d632",
+    "date": "2026-11-22"
   },
   "/faq.html": {
     "hash": "c5009f4741cf3343",
     "date": "2026-10-26"
   },
   "/flow.html": {
-    "hash": "516ad8e8b0e1009e",
-    "date": "2026-10-26"
+    "hash": "65b1518dc6879375",
+    "date": "2026-11-22"
   },
   "/news.html": {
     "hash": "5927e800bae2577e",
@@ -124,28 +124,36 @@
     "date": "2026-10-05"
   },
   "/onestop.html": {
-    "hash": "83fde3c22ef510ee",
-    "date": "2026-10-26"
+    "hash": "b929c6bb1d931296",
+    "date": "2026-11-22"
   },
   "/pain.html": {
-    "hash": "4f8c60aef0776258",
-    "date": "2026-10-26"
+    "hash": "66f49683fc02c5fa",
+    "date": "2026-11-22"
+  },
+  "/partners.html": {
+    "hash": "1a8b8f1876c0004f",
+    "date": "2026-11-22"
   },
   "/positioning.html": {
-    "hash": "04f044719d626440",
-    "date": "2026-10-26"
+    "hash": "45ef135fb089f87a",
+    "date": "2026-11-22"
   },
   "/pricing.html": {
-    "hash": "ba58a30e8193dcfb",
-    "date": "2026-10-26"
+    "hash": "09f7720346912fe7",
+    "date": "2026-11-22"
   },
   "/profile.html": {
-    "hash": "6f6057b65b7b05e5",
-    "date": "2026-10-26"
+    "hash": "a3596e2fffd4104e",
+    "date": "2026-11-22"
+  },
+  "/salon.html": {
+    "hash": "cca81512974204d1",
+    "date": "2026-11-22"
   },
   "/services/ai.html": {
-    "hash": "6e13d6ce4ca07d27",
-    "date": "2026-10-26"
+    "hash": "05b0f960cfff1e83",
+    "date": "2026-11-22"
   },
   "/services/cast.html": {
     "hash": "366302d88b713cca",
@@ -160,8 +168,8 @@
     "date": "2026-10-26"
   },
   "/services/sns.html": {
-    "hash": "e75d493fe5b6467d",
-    "date": "2026-10-26"
+    "hash": "8e38d831e3399d43",
+    "date": "2026-11-22"
   },
   "/services/video.html": {
     "hash": "658f58fea60662ec",
@@ -172,23 +180,27 @@
     "date": "2026-10-26"
   },
   "/sitemap.html": {
-    "hash": "4c0604d12446745c",
-    "date": "2026-11-20"
+    "hash": "656aff5476892ef9",
+    "date": "2026-11-22"
   },
   "/story.html": {
-    "hash": "554c946eb0507087",
-    "date": "2026-10-26"
+    "hash": "3740ea7661bc28db",
+    "date": "2026-11-22"
   },
   "/systems.html": {
-    "hash": "90136adc352e7fe1",
-    "date": "2026-10-26"
+    "hash": "8664c6eda36bf153",
+    "date": "2026-11-22"
+  },
+  "/training.html": {
+    "hash": "52f34dcefd8ee270",
+    "date": "2026-11-22"
   },
   "/voice.html": {
-    "hash": "4564238a95d949f1",
-    "date": "2026-10-26"
+    "hash": "28779a18831ffcc9",
+    "date": "2026-11-22"
   },
   "/works.html": {
-    "hash": "247330907d761c5a",
-    "date": "2026-10-26"
+    "hash": "c304d1ccd0286e15",
+    "date": "2026-11-22"
   }
 }
