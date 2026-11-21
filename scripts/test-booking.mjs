@@ -126,6 +126,45 @@ await t('予定は8割まで: 重なった予定は1回だけ数え、受付時�
   assert.deepEqual([d.capMin, d.busyMin, d.pct, d.limitMin, d.full], [600, 330, 55, 480, false])
 })
 
+await t('予定は8割まで: 「上限に達した」は、いちばん短いメニューがもう入らない日（数字と枠が食い違わない）', () => {
+  // 10:00〜20:00（600分）・上限480分・メニューは60分だけ
+  const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []], leadHours: 0, stepMin: 30, bufferMin: 0 })
+  const at = (busyMin) => [{ start: jst('2026-10-05 10:00'), end: jst('2026-10-05 10:00') + busyMin * 60000 }]
+  const day = (busyMin) => B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-06 00:00'), at(busyMin), rules).find((x) => x.day === '2026-10-05')
+  const slotsLeft = (busyMin) => B.capByLoad(B.removeBusy(B.candidates(jst('2026-10-04 09:00'), rules, 60), at(busyMin), 0), at(busyMin), rules).filter((x) => ymd(x.start) === '2026-10-05').length
+  // 420分: あと60分入る → 枠が出る・full ではない
+  assert.deepEqual([day(420).leftMin, day(420).full, slotsLeft(420) > 0], [60, false, true])
+  // 450分: あと30分しかない → 60分の枠は出ない・full（以前は「もうすぐ上限」と出て、枠は0だった）
+  assert.deepEqual([day(450).leftMin, day(450).full, slotsLeft(450)], [30, true, 0])
+  // 30分のメニューを足すと、450分の日にもまだ入る → full ではない
+  const r2 = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []], leadHours: 0, bufferMin: 0, services: [{ name: '60分', minutes: 60 }, { name: '30分', minutes: 30 }] }).rules
+  assert.equal(B.shortestMin(r2), 30)
+  assert.equal(B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-06 00:00'), at(450), r2).find((x) => x.day === '2026-10-05').full, false)
+})
+
+await t('予定は8割まで: Googleの予定と、同じ時間の予約は、1回だけ数える', () => {
+  const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []], leadHours: 0 })
+  const g = { start: jst('2026-10-05 13:00'), end: jst('2026-10-05 14:00') }
+  const d = B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-06 00:00'), [g, { ...g }], rules).find((x) => x.day === '2026-10-05')
+  assert.equal(d.busyMin, 60)
+})
+
+await t('朝のLINE: 上限に近い・超えた日だけ、一言を足す', () => {
+  const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []] })
+  const now = jst('2026-10-05 08:00')
+  const rec = { id: 'a', name: '山田', status: 'confirmed', start: jst('2026-10-05 13:00'), end: jst('2026-10-05 14:00') }
+  const list = [rec]
+  const base = B.agendaText(list, now)
+  assert.ok(base.startsWith('今日の予約'))
+  const L = (pct, busyMin, full) => ({ pct, busyMin, limitMin: 480, capMin: 600, leftMin: Math.max(0, 480 - busyMin), full })
+  assert.equal(B.agendaText(list, now, L(30, 180, false), rules), base)                       // 余裕あり → 足さない
+  assert.match(B.agendaText(list, now, L(75, 450, false), rules), /今日の予定は受付時間の75%です（上限80%）/)
+  assert.match(B.agendaText(list, now, L(80, 450, true), rules), /上限（80%）に達しました。今日の予約は、もう受け付けていません/)
+  assert.match(B.agendaText(list, now, L(92, 550, true), rules), /上限（80%）を超えています。延びたときの余裕がありません/)
+  assert.equal(B.agendaText(list, now, L(92, 550, true), { ...rules, loadCap: 100 }), base)    // 上限なしなら足さない
+  assert.equal(B.agendaText([], now, L(92, 550, true), rules), '')                              // 予約が無い日は送らない
+})
+
 await t('予定は8割まで: 深夜まで受ける日（7:00〜26:00）は、始まる日の予定として数える', () => {
   const rules = B.normalizeRules(null).rules              // 平日 7:00〜26:00（1140分）。80% = 912分
   const busy = [{ start: jst('2026-10-05 08:00'), end: jst('2026-10-05 23:00') }]   // 900分
@@ -135,7 +174,7 @@ await t('予定は8割まで: 深夜まで受ける日（7:00〜26:00）は、�
   assert.ok(late(free).length > 0)                       // 23:30〜25:00 開始の枠は、予定とは重ならない
   assert.equal(late(B.capByLoad(free, busy, rules)).length, 0)   // 900+60 = 960 > 912 なので出さない
   const d = B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-07 00:00'), busy, rules).find((x) => x.day === '2026-10-05')
-  assert.deepEqual([d.capMin, d.busyMin, d.full], [1140, 900, false])
+  assert.deepEqual([d.capMin, d.busyMin, d.leftMin, d.full], [1140, 900, 12, true])   // あと12分 → 60分の予約はもう入らない
 })
 
 await t('既定の決まり（平日7〜26時・60分・30分刻み・20時間後から）', () => {

@@ -2483,7 +2483,7 @@
       var ranges = RULES.week[d.getUTCDay()];
       if (!ranges.length || RULES.closed.indexOf(key) >= 0) continue;
       var cap = ranges.reduce(function (a, r) { return a + r[1] - r[0]; }, 0), pct = PCT[k++ % PCT.length];
-      days.push({ day: key, label: key.slice(5).replace('-', '/'), capMin: cap, busyMin: Math.round(cap * pct / 100), pct: pct, limitMin: Math.floor(cap * 0.8), full: pct >= 80 });
+      days.push({ day: key, label: key.slice(5).replace('-', '/'), capMin: cap, busyMin: Math.round(cap * pct / 100), pct: pct, limitMin: Math.floor(cap * 0.8), leftMin: Math.max(0, Math.floor(cap * 0.8) - Math.round(cap * pct / 100)), full: Math.floor(cap * 0.8) - Math.round(cap * pct / 100) < 45 });
     }
     return { ok: true, mode: 'ics', loadCap: 80, factor: 4, days: days };
   }

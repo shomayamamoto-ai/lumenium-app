@@ -33,7 +33,7 @@ import {
   cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS, bookingAttention,
   saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
-  capByLoad, dayLoads, queueFactor,
+  capByLoad, dayLoads, queueFactor, dayStart,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 import { mailBooked, mailConfirmed, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
@@ -92,12 +92,16 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   // 管理画面の手入力（opts.blind）は、オーナーが決めることなので上限をかけません。
   const fit = (slots, busy) => (opts.blind ? removeBusy(slots, busy, buf) : capByLoad(removeBusy(slots, busy, buf), busy, rules))
   if (!all.length) return { mode: 'off', slots: [], reason: 'NO_SLOTS' }
-  const from = all[0].start
+  // 予定を読む範囲は、最初の枠の「前の日の0時」から。最初の枠より前の予定も、その日の
+  // 埋まり具合（予定は8割まで）に入るためです。前の日からにするのは、深夜まで受ける日
+  // （7:00〜26:00）の予定が、日付をまたいで次の日の枠の前にあるからです。
+  // opts.busyFrom を渡すと、そこからも読みます（管理画面の「今日」の埋まり具合など）。
+  const from = Math.min(dayStart(all[0].start) - 86400000, opts.busyFrom || Infinity)
   const to = all[all.length - 1].end
   // 既に入った予約は、どの方式でも前後の空きごと除きます。Google に入って
   // いる分は向こうの空きにも出ますが、作った直後の行き違いをここで防ぎます。
   const taken = async () => (store
-    ? (await bookingsBetween(store, pipeline, from - 86400000, to)).filter((r) => occupies(r) && r.id !== ignoreId).map(recSpan)
+    ? (await bookingsBetween(store, pipeline, from, to)).filter((r) => occupies(r) && r.id !== ignoreId).map(recSpan)
     : [])
 
   const icsUrl = await setting('GOOGLE_CALENDAR_ICS_URL', '', req)
@@ -220,9 +224,10 @@ export async function GET(req) {
     const store = storeConfig()
     const rules = await readRules(store, pipeline)
     const svc = pickService(rules)
-    const r = await openSlots(req, 0, rules, svc)
+    const now0 = Date.now()
+    const r = await openSlots(req, 0, rules, svc, '', { busyFrom: dayStart(now0) })
     if (!r.busy) return json({ ok: true, mode: r.mode, reason: r.reason || '', days: [], loadCap: rules.loadCap })
-    const now = Date.now()
+    const now = now0
     const days = dayLoads(now, now + rules.horizonDays * 86400000, r.busy, rules)
       .filter((d) => d.base + 86400000 > now)
       .map(({ base, ...d }) => ({ ...d, label: new Date(base + 9 * 3600000).toISOString().slice(5, 10).replace('-', '/') }))

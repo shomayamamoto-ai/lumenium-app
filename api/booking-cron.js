@@ -17,7 +17,8 @@ import { json } from './_admin-auth.js'
 import { storeConfig, pipeline } from './_analytics-store.js'
 import { setting } from './_settings.js'
 import { KV } from './_brand.js'
-import { readRules, bookingsBetween, dueReminders, agendaText, tomorrowRange, dayStart, saveBooking } from './_booking.js'
+import { readRules, bookingsBetween, dueReminders, agendaText, tomorrowRange, dayStart, saveBooking, dayLoads, pickService } from './_booking.js'
+import { openSlots } from './booking.js'
 import { mailReminder } from './_booking-mail.js'
 
 export const BOOKING_CRON_LAST = `${KV}bk:cron:last`
@@ -53,7 +54,16 @@ export async function runBookingCron(req, now = Date.now()) {
   }
 
   let line = null
-  const text = rules.lineUserId ? agendaText(list, now) : ''
+  // 今日の埋まり具合（予定は8割まで）。上限に近いときだけ、LINE の最後に一言を足します。
+  // カレンダーを読めないときは、一覧だけを送ります。
+  let load = null
+  if (rules.lineUserId && agendaText(list, now)) {
+    try {
+      const r = await openSlots(req, 0, rules, pickService(rules), '', { busyFrom: dayStart(now) })
+      if (r.busy) load = dayLoads(dayStart(now), dayStart(now) + 3600000, r.busy, rules).find((d) => d.base === dayStart(now)) || null
+    } catch (_) { /* 一覧だけでも送ります */ }
+  }
+  const text = rules.lineUserId ? agendaText(list, now, load, rules) : ''
   if (text) {
     const token = await setting('LINE_CHANNEL_TOKEN', '', req)
     line = token ? await pushLine(token, rules.lineUserId, text) : { ok: false, message: 'LINE_CHANNEL_TOKEN がありません。' }

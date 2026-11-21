@@ -229,12 +229,26 @@
     var d = S.load && S.load.days ? S.load.days.filter(function (x) { return x.day === key; })[0] : null;
     return d || null;
   }
+  /* その時刻が、どの日の受付時間に入るか（深夜まで受ける日は、始まる日の受付）。'2026-11-24' か ''。 */
+  function businessDayOf(ms) {
+    var rules = S.data && S.data.rules;
+    if (!rules) return '';
+    var t0 = dayStart(ms);
+    for (var k = 0; k < 2; k++) {
+      var base = dayStart(t0 - k * DAY + 12 * 3600000), p = jp(base);
+      var ranges = rules.week[p.dow] || [];
+      for (var i = 0; i < ranges.length; i++) {
+        if (ms >= base + ranges[i][0] * 60000 && ms < base + ranges[i][1] * 60000) return ymd(base);
+      }
+    }
+    return '';
+  }
   function hrs(min) { var h = Math.floor(min / 60), m = Math.round(min % 60); return h + '時間' + (m ? m + '分' : ''); }
   function loadBar(d, cap) {
     if (!d) return '';
     var lim = cap || 100;
     var tone = d.full ? 'full' : d.pct >= lim - 10 ? 'near' : 'ok';
-    return '<div class="bk-load ' + tone + '" title="予定 ' + hrs(d.busyMin) + ' ／ 受付 ' + hrs(d.capMin) + '">' +
+    return '<div class="bk-load ' + tone + '" title="予定 ' + hrs(d.busyMin) + ' ／ 受付 ' + hrs(d.capMin) + (lim < 100 ? '（上限まであと ' + hrs(d.leftMin || 0) + '）' : '') + '">' +
       '<span class="bar"><i style="width:' + Math.min(100, d.pct) + '%"></i>' + (lim < 100 ? '<b style="left:' + lim + '%"></b>' : '') + '</span>' +
       '<span class="txt">' + d.pct + '%' + (d.full ? '・満' : '') + '</span></div>';
   }
@@ -250,7 +264,7 @@
       '<b>予定は受付時間の' + (cap < 100 ? cap + '%まで' : '上限なし') + '</b>' +
       (cap < 100 ? '<span>超える日は、お客様に枠を出していません。予定がぎっしりだと、1つ延びただけで後ろが全部ずれるためです（埋まり具合' + cap + '%で、待ちは空いているときの約' + Math.round(L.factor || 0) + '倍）。</span>' : '<span>上限をかけていません。「受付の決まり」で、1日の予定の上限を決められます。</span>') +
       (full.length ? '<span class="hot">上限に達した日: ' + full.map(function (d) { return esc(d.label); }).join('、') + '</span>' : '') +
-      (near.length ? '<span class="warm">もうすぐ上限: ' + near.map(function (d) { return esc(d.label) + '（' + d.pct + '%）'; }).join('、') + '</span>' : '') +
+      (near.length ? '<span class="warm">もうすぐ上限: ' + near.map(function (d) { return esc(d.label) + '（あと' + hrs(d.leftMin || 0) + '）'; }).join('、') + '</span>' : '') +
       (easy.length && (full.length || near.length) ? '<span>ゆとりのある日: ' + easy.map(function (d) { return esc(d.label); }).join('、') + '。急ぎでない予定は、こちらにずらせます。</span>' : '') +
     '</div>';
   }
@@ -528,6 +542,7 @@
         '<label class="bk-check"><input type="checkbox" id="bk-set-done"> 終わった面談として記録する（「来店済み」にする）</label>' +
         '<label class="bk-check"><input type="checkbox" id="bk-set-notify"> お客様に変更のメールを送る</label>' +
         '<p class="soc-small" id="bk-set-note"></p>' +
+        '<p class="soc-small" id="bk-set-load" style="font-weight:700"></p>' +
         '<div class="vid-acts"><button type="button" id="bk-set-go">この日時・長さに変更する</button></div>' +
       '</div>';
     if (el('bk-mv-go')) el('bk-mv-go').addEventListener('click', async function () {
@@ -562,10 +577,26 @@
       el('bk-set-done').disabled = !past;
       if (!past) el('bk-set-done').checked = false;
       if (!touched.notify) el('bk-set-notify').checked = !past;
+      loadHint(x);
       note.textContent = (past ? 'もう過ぎた日時です。' : '') +
         (connected ? 'Googleカレンダーの予定も、この日時になります' + (b.eventId ? '。' : '（予定がまだ無ければ作ります）。')
           : 'Googleカレンダーとつないでいないため、カレンダーの予定は自動では変わりません。変更後に出る「Googleカレンダーに追加」から、新しい日時で入れられます。');
     }
+    /* その日の予定が、この変更で受付時間の何割になるか（予定は8割まで）。止めはしません。 */
+    function loadHint(x) {
+      var box = el('bk-set-load');
+      if (!box) return;
+      var key = businessDayOf(x.start), d = key && loadOf(key);
+      var cap = (S.load && S.load.loadCap) || 100;
+      if (!d || x.end <= now()) { box.textContent = ''; return; }
+      var own = businessDayOf(sp.start) === key ? (sp.end - sp.start) / 60000 : 0;
+      var after = Math.max(0, d.busyMin - own) + x.len;
+      var pctAfter = Math.round(after / d.capMin * 100);
+      box.style.color = cap < 100 && after > d.limitMin ? '#b3261e' : '';
+      box.textContent = 'この日の予定は、変更後に受付時間の' + pctAfter + '%' +
+        (cap < 100 ? (after > d.limitMin ? 'になり、上限（' + cap + '%）を超えます。延びたときの余裕がなくなります（変更はできます）。' : '（上限' + cap + '%）。') : '。');
+    }
+    if (!S.load) loadLoad().then(function () { var x = reading(); if (x) loadHint(x); });
     ['bk-set-date', 'bk-set-start', 'bk-set-end'].forEach(function (id) { el(id).addEventListener('input', refresh); el(id).addEventListener('change', refresh); });
     el('bk-set-done').addEventListener('change', function () { touched.done = true; });
     el('bk-set-notify').addEventListener('change', function () { touched.notify = true; });

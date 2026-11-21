@@ -308,13 +308,20 @@ function busyMinutes(windows, busy) {
   return total / MIN
 }
 
-/** 日ごとの埋まり具合。[{ day, capMin, busyMin, pct, limitMin, full }]（full = 上限に達した） */
+/** いちばん短いメニューの長さ（分）。「もう1件も入らない日」を決めるのに使います。 */
+export const shortestMin = (rules) => Math.min(...activeServices(rules).map((s) => s.minutes).concat([480]))
+
+/** 日ごとの埋まり具合。[{ day, capMin, busyMin, pct, limitMin, leftMin, full }]
+ *  leftMin = 上限まであと何分入れられるか。full = いちばん短いメニューも、もう入らない
+ *  （「480分の上限に450分」の日は、60分のメニューがもう入らないので full です）。 */
 export function dayLoads(fromMs, toMs, busy, rules = DEFAULT_RULES) {
   const cap = rules.loadCap || 100
+  const need = shortestMin(rules)
   return businessDays(fromMs, toMs, rules).map((d) => {
     const busyMin = busyMinutes(d.windows, busy)
     const limitMin = Math.floor(d.capMin * cap / 100)
-    return { day: d.day, base: d.base, capMin: d.capMin, busyMin, pct: d.capMin ? Math.round(busyMin / d.capMin * 100) : 0, limitMin, full: cap < 100 && busyMin >= limitMin }
+    const leftMin = cap < 100 ? Math.max(0, limitMin - busyMin) : Math.max(0, d.capMin - busyMin)
+    return { day: d.day, base: d.base, capMin: d.capMin, busyMin, pct: d.capMin ? Math.round(busyMin / d.capMin * 100) : 0, limitMin, leftMin, full: cap < 100 && leftMin < need }
   })
 }
 
@@ -651,8 +658,19 @@ export function dueReminders(list, now = Date.now()) {
   })
 }
 
-/** オーナーに LINE で送る、今日の予定の一覧。予定が無い日は空文字（送らない）。 */
-export function agendaText(list, now = Date.now()) {
+/** 今日の埋まり具合の一言（朝の LINE の最後に付けます）。上限に近い・超えた日だけ。 */
+export function loadLine(d, rules = DEFAULT_RULES) {
+  const cap = rules.loadCap || 100
+  if (!d || cap >= 100) return ''
+  if (d.busyMin > d.limitMin) return `今日の予定は受付時間の${d.pct}%で、上限（${cap}%）を超えています。延びたときの余裕がありません。急がない予定は、別の日にずらせないか見てください。`
+  if (d.full) return `今日の予定は受付時間の${d.pct}%で、上限（${cap}%）に達しました。今日の予約は、もう受け付けていません。`
+  if (d.pct >= cap - 10) return `今日の予定は受付時間の${d.pct}%です（上限${cap}%）。`
+  return ''
+}
+
+/** オーナーに LINE で送る、今日の予定の一覧。予定が無い日は空文字（送らない）。
+ *  load は今日の埋まり具合（dayLoads の1日分）。上限に近いときだけ一言を足します。 */
+export function agendaText(list, now = Date.now(), load = null, rules = DEFAULT_RULES) {
   const t0 = dayStart(now)
   const today = list
     .filter((r) => { const s = recSpan(r).start; return s >= t0 && s < t0 + DAY && ['confirmed', 'tentative'].includes(recStatus(r)) })
@@ -662,7 +680,8 @@ export function agendaText(list, now = Date.now()) {
     const { start, end } = recSpan(r)
     return `${timeLabel(start, end)} ${r.service ? `${r.service.name} ` : ''}${r.name}様${recStatus(r) === 'tentative' ? '（仮予約）' : ''}`
   })
-  return [`今日の予約 ${dayLabel(t0)}　${today.length}件`, ...lines].join('\n').slice(0, 4900)
+  const warn = loadLine(load, rules)
+  return [`今日の予約 ${dayLabel(t0)}　${today.length}件`, ...lines, ...(warn ? ['', warn] : [])].join('\n').slice(0, 4900)
 }
 
 /* ---- 数字（管理画面の「数字」） ---------------------------------------- */
