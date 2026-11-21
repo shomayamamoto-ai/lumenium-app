@@ -849,4 +849,166 @@ const others = [0, 1, 2, 3, 4, 5].map((i) => pubOf('p' + i, { views: 900 + i * 4
   ok('連想: 経験メモから、テーマに近い経験と、遠い経験（意外なつなぎ）を選ぶ')
 }
 
+/* ---- 台本を先に固める（FIX）→ 音声 → 句ごとのタイミング ---- */
+{
+  const s0 = { title: 't', promise: '', lines: [{ start: 0, end: 3, narration: '編集ソフトを開かずに、この動画を作りました。', telop: '編集ソフトなし' }, { start: 3, end: 6, narration: '手順は4つ。', telop: '手順は4つ' }] }
+  assert.equal(V.fixState(s0).state, 'draft')
+  const s1 = V.freezeScript(s0, Date.UTC(2026, 10, 21))
+  assert.deepEqual([s1.fixed.v, V.fixState(s1).state], [1, 'fixed'])
+  // 行の時間や印を変えても、言葉が同じなら固めたまま
+  const moved = { ...s1, lines: s1.lines.map((l) => ({ ...l, start: l.start + 1, mark: 'switch_visual' })) }
+  assert.equal(V.fixState(moved).state, 'fixed')
+  assert.equal(V.freezeScript(moved).fixed.v, 1)              // 言葉が同じなら、版は上げない
+  // 言葉を直すと「直っています」。固め直すと v2
+  const edited = { ...s1, lines: [{ ...s1.lines[0], narration: '編集ソフトを使わずに、この動画を作りました。' }, s1.lines[1]] }
+  assert.equal(V.fixState(edited).state, 'changed')
+  assert.match(V.fixState(edited).label, /v2 になり/)
+  assert.equal(V.freezeScript(edited).fixed.v, 2)
+  // 固める前の確かめ: 話す言葉が無い・空の行・禁止ワードは固められない
+  assert.equal(V.freezeCheck({ lines: [] }, {}).ok, false)
+  assert.match(V.freezeCheck({ lines: [{ narration: 'a' }, { narration: '', telop: '' }] }, {}).blockers.join(), /2行目/)
+  assert.match(V.freezeCheck({ lines: [{ narration: '日本一のパン' }] }, { banned_words: ['日本一'] }).blockers.join(), /禁止ワード/)
+  assert.equal(V.freezeCheck(s0, {}).ok, true)
+  // タイミングは、取った台本の指紋と今の台本が同じときだけ新しい
+  const withWords = { ...s1, words: { hash: V.scriptHash(s1), v: 1, items: [] } }
+  assert.equal(V.timingFresh(withWords).state, 'fresh')
+  assert.equal(V.timingFresh({ ...withWords, lines: edited.lines }).state, 'stale')
+  assert.equal(V.timingFresh(s1).state, 'none')
+  ok('台本を固める: 版（v1, v2…）と指紋。言葉を直すと「固め直し・取り直し」になり、時間や印の変更では外れない')
+}
+{
+  // 句と拍
+  assert.equal(V.moraOf('ちょっと'), 3)                // 小さい「ょ」は数えない
+  assert.equal(V.moraOf('、。！'), 0)
+  assert.equal(V.moraOf('水'), 1.6)
+  const P = V.phrasesOf([{ narration: '編集ソフトを開かずに、この動画を作りました。' }, { narration: '' }, { narration: '手順は4つ。台本を書く。' }])
+  assert.deepEqual(P.map((p) => [p.text, p.line]), [['編集ソフトを開かずに、', 0], ['この動画を作りました。', 0], ['手順は4つ。', 2], ['台本を書く。', 2]])
+  // 合成した音声（句ごとに話し、句の間0.25秒・行の間0.5秒、2句目に息つぎ0.2秒）
+  const fs = 0.01
+  const segs = [[0.3, 1.8], [2.05, 2.7], [2.9, 3.6], [4.1, 4.9], [5.15, 6.0]]   // 2句目は 2.05〜3.6 を息つぎで2つに
+  const n = 700
+  const full = new Array(n).fill(-60)
+  segs.forEach(([a, b]) => { for (let k = Math.round(a / fs); k < Math.round(b / fs); k++) full[k] = -20 })
+  const spans = V.voicedSpans({ full, high: full, frameSec: fs })
+  assert.equal(spans.length, 5)
+  const al = V.alignPhrases(P, spans)
+  assert.equal(al.ok, true)
+  assert.deepEqual(al.words.map((w) => [w.start, w.end]), [[0.3, 1.8], [2.05, 3.6], [4.1, 4.9], [5.15, 6]])   // 息つぎは句の中に残す
+  assert.deepEqual(al.lines.map((l) => [l.line, l.start]), [[0, 0.3], [2, 4.1]])
+  assert.equal(al.quality.lineSnap, 1)
+  // 台本の行に入れる: 行の始まり＝最初の句、終わり＝次の行の始まり（話していない行はそのまま）
+  const applied = V.applyAlignment({ lines: [{ start: 0, end: 3, narration: 'a' }, { start: 3, end: 5, narration: '' }, { start: 5, end: 9, narration: 'b' }] }, al)
+  assert.deepEqual(applied.lines.map((l) => [l.start, l.end]), [[0.3, 4.1], [3, 5], [4.1, 6]])
+  const wj = V.wordsJson({ title: 't', fixed: { v: 2 }, lines: [{ narration: 'a' }] }, al)
+  assert.equal(wj.script.version, 2)
+  assert.equal(wj.words[0].line, 1)                   // 書き出しでは、行は1から数える
+  // 音声が無い・台本が空
+  assert.equal(V.alignPhrases(P, []).ok, false)
+  assert.equal(V.alignPhrases([], spans).ok, false)
+  ok('音声から句ごとのタイミング: 句の切れ目を音声の間にそろえ、句の途中の息つぎでは切らない')
+}
+{
+  // 精度: 人ごとの速さ・句ごとのばらつき±30%・息つぎ・詰めて読む行を混ぜた音声 200本（種固定）
+  const rng = (seed) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
+  const scripts = [
+    ['編集ソフトを開かずに、この動画を作りました。', '使ったのは、Claude Codeだけ。', '手順は4つ。台本を書く。', 'AIで音声にする。', '単語ごとのタイミングを取る。', 'あとは書き出し。'],
+    ['この穴、どうやってできると思います？', '答えは、生地に入れる水の量なんです。', 'うちでは粉の重さの8割の水を入れます。', '扱いにくい生地ですが、そのぶん軽く焼けます。'],
+    ['朝4時、店の明かりがつく。', '最初にするのは、石窯に火を入れること。', '温度が上がるまで、2時間かかります。', '焼き上がりは、7時ちょうど。'],
+  ]
+  const errs = []
+  for (let trial = 0; trial < 200; trial++) {
+    const r = rng(trial * 7 + 3)
+    const P = V.phrasesOf(scripts[trial % scripts.length].map((x) => ({ narration: x })))
+    const fs = 0.01
+    let t = 0.2 + r() * 0.4
+    const segs = [], truth = []
+    const rate = 0.1 + r() * 0.07
+    P.forEach((p, i) => {
+      const d = p.mora * rate * (0.7 + r() * 0.6)
+      if (d > 0.8 && r() < 0.4) { const cut = t + d * (0.25 + r() * 0.5), gap = 0.16 + r() * 0.12; segs.push([t, cut], [cut + gap, t + d + gap]); truth.push(t); t += d + gap }
+      else { segs.push([t, t + d]); truth.push(t); t += d }
+      const lb = i + 1 < P.length && P[i + 1].line !== p.line
+      t += lb ? (r() < 0.12 ? 0.1 : 0.3 + r() * 0.4) : (r() < 0.3 ? 0.08 : 0.16 + r() * 0.22)
+    })
+    const full = new Array(Math.ceil((t + 0.3) / fs)).fill(-55)
+    segs.forEach(([a, b]) => { for (let k = Math.floor(a / fs); k < Math.ceil(b / fs) && k < full.length; k++) full[k] = -22 })
+    const al = V.alignPhrases(P, V.voicedSpans({ full, high: full, frameSec: fs }))
+    const first = {}
+    P.forEach((p, i) => { if (first[p.line] == null) first[p.line] = truth[i] })
+    for (const l of al.lines) errs.push(Math.abs(l.start - first[l.line]))
+  }
+  const within = errs.filter((e) => e <= 0.1).length / errs.length
+  const mean = errs.reduce((a, x) => a + x, 0) / errs.length
+  assert.ok(within >= 0.9, `0.1秒以内 ${(within * 100).toFixed(1)}%`)
+  assert.ok(mean <= 0.06, `平均 ${mean.toFixed(3)}秒`)
+  ok(`音声の割り振りの精度: 行の始まりの ${(within * 100).toFixed(1)}% が0.1秒以内（平均のずれ ${mean.toFixed(3)}秒・${errs.length}行）`)
+}
+
+// ---- 構図・テロップの書体・AI動画の直し ----
+{
+  const L = (a) => a.map((x, i) => ({ start: i * 3, end: i * 3 + 3, narration: x[0], telop: x[0], visual: '', mark: x[1] || '', layout: x[2] || '', tone: x[3] || '' }))
+  // 上下分割が4行（12秒）続く → 注意。山場が上下分割 → 注意。
+  let s = { lines: L([['あ', '', 'split'], ['い', '', 'split'], ['う', 'peak_reveal', 'split'], ['え', '', 'split'], ['お', '', 'full_view'], ['か', '', 'wipe']]) }
+  let c = V.layoutCheck(s)
+  assert.equal(c.ok, false)
+  assert.equal(c.runs.length, 1); assert.equal(c.runs[0].from, 0); assert.equal(c.runs[0].to, 3)
+  assert.ok(c.notes.some((n) => /山場（3行目）/.test(n)))
+  assert.ok(c.notes.some((n) => /66%|67%/.test(n)), c.notes.join('|'))
+  // 散らばっていれば通る
+  s = { lines: L([['あ', '', 'full_view'], ['い', '', 'split'], ['う', 'peak_reveal', 'full_person'], ['え', '', 'split'], ['お', '', 'wipe'], ['か', '', 'side']]) }
+  c = V.layoutCheck(s)
+  assert.equal(c.ok, true, c.notes.join('|')); assert.equal(c.kinds, 5)
+  // 1行が長い（8秒以上）同じ構図
+  c = V.layoutCheck({ lines: [{ start: 0, end: 5, layout: 'split' }, { start: 5, end: 10, layout: 'split' }, { start: 10, end: 12, layout: 'wipe' }] })
+  assert.equal(c.runs.length, 1)
+  // 未定は「決まっていない」と出す
+  assert.ok(V.layoutCheck({ lines: L([['あ'], ['い', '', 'split']]) }).notes[0].includes('1行'))
+  ok('構図: 同じ構図の続き・偏り・山場の構図を見つける')
+
+  // テロップの書体
+  const plain = { length_mode: 'short', lines: L([['a'], ['b'], ['c'], ['d'], ['e'], ['f']]) }
+  assert.ok(V.telopToneCheck(plain).notes.some((n) => /全部同じ/.test(n)))
+  const many = { length_mode: 'short', lines: L([['a', '', '', 'talk'], ['b', '', '', 'explain'], ['c', '', '', 'hint'], ['d', '', '', 'shout'], ['e', '', '', 'quote'], ['f', '', '', 'creepy']]) }
+  assert.ok(V.telopToneCheck(many).notes.some((n) => /6種類/.test(n)))
+  const peak = { length_mode: 'short', lines: L([['a'], ['b', 'peak_twist'], ['c', '', '', 'explain']]) }
+  assert.ok(V.telopToneCheck(peak).notes.some((n) => /2行目/.test(n)))
+  const good = { length_mode: 'short', lines: L([['a'], ['b', 'peak_twist', '', 'quote'], ['c', '', '', 'explain'], ['d'], ['e'], ['f', '', '', 'hint']]) }
+  assert.equal(V.telopToneCheck(good).ok, true, V.telopToneCheck(good).notes.join('|'))
+  ok('テロップの書体: 単調・多すぎ・山場がふつうのまま、を見つける')
+
+  // 案（言葉と印から）
+  assert.equal(V.guessLayout({ narration: 'えっ、まさか！', mark: '' }, 3), 'full_person')
+  assert.equal(V.guessLayout({ narration: 'ビフォーとアフターを比べると', mark: '' }, 2), 'side')
+  assert.equal(V.guessLayout({ narration: '手元を見てください', mark: '' }, 2), 'full_view')
+  assert.equal(V.guessLayout({ narration: '今日はパンの話です', mark: '' }, 2), 'split')
+  assert.equal(V.guessTone({ narration: 'なんでやねん', mark: '' }), 'tsukkomi')
+  assert.equal(V.guessTone({ narration: '答えは、生地に入れる水の量なんです。', mark: 'switch_question' }), 'talk')
+  assert.equal(V.guessTone({ narration: 'いや、ちょっと待って', mark: '' }), 'tsukkomi')
+  assert.equal(V.guessTone({ narration: 'うわーーー！', mark: '' }), 'shout')
+  assert.equal(V.guessTone({ narration: '粉の8割が水です', mark: '' }), 'explain')
+  assert.equal(V.guessTone({ narration: '実はこのあと…', mark: '' }), 'hint')
+  assert.equal(V.guessTone({ narration: 'しまった、焦がした', mark: '' }), 'blunder')
+  assert.equal(V.guessTone({ narration: '今日もいい天気', mark: '' }), 'talk')
+  ok('構図・書体の案: 言葉と印から選ぶ')
+
+  // 直しの一言
+  assert.equal(V.VIDEO_FIXES.length, 4)
+  assert.equal(V.VIDEO_FIXES.reduce((a, c) => a + c.items.length, 0), 36)
+  V.VIDEO_FIXES.filter((c) => !c.edit).forEach((c) => c.items.forEach((it) => assert.ok(it[2] && /^[ -~]+$/.test(it[2]), it[0])))
+  const hand = V.VIDEO_FIXES[0].items.find((x) => x[0] === '手指')[2]
+  let p = V.addVideoFix('Baker kneading dough. No text, no letters, no logos, no watermark.', hand)
+  assert.equal(p, `Baker kneading dough. ${hand}. No text, no letters, no logos, no watermark.`)
+  assert.equal(V.addVideoFix('Baker kneading dough', hand), `Baker kneading dough. ${hand}.`)
+  assert.equal(V.addVideoFix(p, hand), p)
+  assert.equal(V.addVideoFix('', hand), hand + '.')
+  ok('AI動画の直し: 4章36項目・英語の一言を二度足さない')
+
+  // 保存: 決まった値だけ残す
+  const st = await import('../api/_video-store.js')
+  const cl = st.cleanScript({ title: 't', lines: [{ start: 0, end: 3, narration: 'a', layout: 'wipe', tone: 'quote' }, { start: 3, end: 6, narration: 'b', layout: 'xx', tone: '<b>' }] })
+  assert.equal(cl.lines[0].layout, 'wipe'); assert.equal(cl.lines[0].tone, 'quote')
+  assert.equal(cl.lines[1].layout, ''); assert.equal(cl.lines[1].tone, '')
+  ok('保存: 構図・書体は決まった値だけ残す')
+}
+
 console.log(`\n動画まわり ${n} 件すべて通りました。`)

@@ -3518,5 +3518,429 @@ function associationSeeds(theme, episodes, n = 3) {
   return { near, far: Array.from(new Set(far)).slice(0, n) }
 }
 
-window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, REEL_GUIDE, RESTAURANT_GENRES, genreScript, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, ATTENTION, jstDay, attentionKind, attentionKey, videoAttention, attentionParts, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, stampStart, stampEnd, lineAt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts, PIPE_STEPS, cleanPipe, markStale, stepDone, dataProblems, dataJson, storyMd, timingFromStory, packTiming, timingTotal, timingTs, sceneTsx, pipeChecks, pipeHandoff, PLAN_VARS, PLAN_VAR_LABEL, wordOverlap, planSignature, compareVar, compareKnown, experimentCheck, FUNNEL, DROP_GAP, percentileOf, diagnoseFlop, experimentVerdict, purityCheck, surpriseCheck, associationSeeds };
+/* ================= 台本を先に固める（FIX）→ 音声 → 単語ごとのタイミング → 書き出し =================
+ * コツは、台本を先に固めること。固めた台本（v1, v2 …）からだけ音声を作り、タイミングを取ります。
+ * 固めたあとで台本を直すと、音声とタイミングは古い台本のものになります。それを指紋（hash）で見分け、
+ * 「固め直して、音声とタイミングを取り直す」ように知らせます。 */
+
+/** 台本の本体（話す言葉とテロップ）の指紋。行の時間や印が変わっても、言葉が同じなら同じです。 */
+function scriptHash(s) {
+  const body = ((s && s.lines) || []).map((l) => `${normText(l.narration)}|${normText(l.telop)}`).join('\n')
+  let h = 0x811c9dc5
+  for (let i = 0; i < body.length; i++) { h ^= body.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+  return ('0000000' + h.toString(16)).slice(-8)
+}
+
+/** 固める前の確かめ。blockers があると固められません（あとから直すと、音声を作り直すことになるため）。 */
+function freezeCheck(s, brand) {
+  const blockers = []
+  const warnings = []
+  const lines = (s && s.lines) || []
+  if (!lines.length || !lines.some((l) => String(l.narration || '').trim())) blockers.push('話す言葉（ナレーション）が1行もありません。')
+  const empty = lines.map((l, i) => (String(l.narration || '').trim() || String(l.telop || '').trim() ? -1 : i)).filter((i) => i >= 0)
+  if (empty.length) blockers.push(`中身の無い行があります（${empty.map((i) => i + 1).join('・')}行目）。消すか、言葉を入れてください。`)
+  const c = checkScript(s, brand, [])
+  if (c.banned.length) blockers.push(`禁止ワードがあります（${c.banned.map((b) => b.word).join('・')}）。`)
+  if (c.notation.length) warnings.push(`表記をそろえられる所が${c.notation.length}か所あります（固める前にそろえると、音声の読みも安定します）。`)
+  const pc = promiseCheck(s)
+  if (pc.status === 'ng') warnings.push(`冒頭に約束の言葉（${pc.missing.join('・')}）がありません。`)
+  if (c.speed && c.speed.some && c.speed.some((x) => x.over)) warnings.push('読むのが速すぎるテロップがあります。')
+  return { ok: !blockers.length, blockers, warnings }
+}
+
+/** 固めた状態。draft（まだ固めていない）・fixed（固めたまま）・changed（固めたあとで言葉が直った）。 */
+function fixState(s) {
+  const f = s && s.fixed
+  if (!f || !f.v) return { state: 'draft', v: 0, label: 'まだ固めていません' }
+  const same = f.hash === scriptHash(s)
+  return same
+    ? { state: 'fixed', v: f.v, label: `v${f.v} で固めました（この台本から音声とタイミングを作ります）` }
+    : { state: 'changed', v: f.v, label: `v${f.v} で固めたあとに、言葉が直っています。固め直すと v${f.v + 1} になり、音声とタイミングは取り直しになります。` }
+}
+
+/** 台本を固めます（版を1つ上げる）。言葉が同じなら、版は上げません。 */
+function freezeScript(s, now) {
+  const f = (s && s.fixed) || null
+  const hash = scriptHash(s)
+  if (f && f.hash === hash) return { ...s }
+  return { ...s, fixed: { v: (f && f.v ? f.v : 0) + 1, hash, at: new Date(now == null ? Date.now() : now).toISOString() } }
+}
+
+/* ---- 音声から、句ごとのタイミングを取る（words.json） ----
+ * 音声認識は使いません。台本の言葉はもう決まっている（固めてある）ので、決まっている言葉を、
+ * 音声の「話している所」と「間（ポーズ）」に合わせるだけです。
+ *   1. 台本を句（、。！？で区切る）に分け、句ごとに話す長さの目安（拍の数）を出す
+ *   2. 音声から、話している所と間を探す（無音カットと同じ計測）
+ *   3. 句を、話している時間に拍の数で割り振り、句の切れ目を近くの間にそろえる
+ * 間にそろえられた切れ目は、ほぼ正確です。そろえられなかった切れ目は、拍の数からの見込みです。 */
+
+/** 話す長さの目安（拍）。かな1・漢字1.6・数字1.2・英字0.5。記号は0。 */
+function moraOf(text) {
+  let m = 0
+  for (const ch of String(text || '')) {
+    if (/[ぁ-んァ-ヶー]/.test(ch)) m += /[ゃゅょャュョぁぃぅぇぉァィゥェォ]/.test(ch) ? 0 : 1
+    else if (/[一-龠々]/.test(ch)) m += 1.6
+    else if (/[0-9０-９]/.test(ch)) m += 1.2
+    else if (/[A-Za-zＡ-Ｚａ-ｚ]/.test(ch)) m += 0.5
+  }
+  return Math.round(m * 10) / 10
+}
+
+/** 台本の行を、句に分けます。[{ text, line, mora }] */
+function phrasesOf(lines) {
+  const out = []
+  ;(lines || []).forEach((l, li) => {
+    const t = String(l.narration || '').trim()
+    if (!t) return
+    const parts = t.match(/[^、。！？!?…]+[、。！？!?…]*/g) || [t]
+    for (const p of parts) { const text = p.trim(); if (text && moraOf(text) > 0) out.push({ text, line: li, mora: moraOf(text) }) }
+  })
+  return out
+}
+
+/** 話している所（[{start,end}]）。minGap 秒より短い間はつなげます。 */
+function voicedSpans(meter, opts) {
+  const R = { ...RULES.silence, MIN_GAP_SEC: 0.15, ...(opts || {}) }
+  const { full, frameSec } = meter
+  const spans = []
+  let s = -1
+  for (let i = 0; i <= full.length; i++) {
+    const on = i < full.length && full[i] >= R.NOISE_FLOOR_DB
+    if (on && s < 0) s = i
+    if (!on && s >= 0) { spans.push({ start: s * frameSec, end: i * frameSec }); s = -1 }
+  }
+  const merged = []
+  for (const x of spans) {
+    const last = merged[merged.length - 1]
+    if (last && x.start - last.end < R.MIN_GAP_SEC) last.end = x.end
+    else merged.push({ ...x })
+  }
+  // 30ms に満たない音（クリック音など）は、話している所に数えません。
+  return merged.filter((x) => x.end - x.start >= 0.03).map((x) => ({ start: round3(x.start), end: round3(x.end) }))
+}
+
+/** 割り振りの重み（scripts/test-video.mjs の試験の音声で選んだ値）。
+ *  phrase: 句の長さのずれ / inside: 句の中に残した間 / breath: これより短い間は息つぎとして重くしない
+ *  lineBonus・pauseBonus: 行・句の切れ目を間に置いたときの得点 / inner・innerLine: 間の無い所で切るときの重さ */
+const ALIGN_WEIGHTS = { phrase: 8, inside: 3, breath: 0.12, lineBonus: 2.5, pauseBonus: 1, inner: 0.7, innerLine: 1.6 }
+
+/** 句を、話している所に割り振ります。{ ok, words:[{text,line,start,end,snapped}], lines:[{line,start,end}], quality }
+ *
+ *  切れ目の候補は、音声の「間」と、話している所の中の点（0.08秒ごと）。その中から、全体で一番
+ *  つじつまが合う切れ目の組を選びます（動的計画法）。つじつまの決め方:
+ *    ・句の長さが、拍の数からの見込みと大きくずれない（ずれの比の対数の2乗）
+ *    ・長い間は切れ目になりやすい。行の切れ目は、とくに長い間になりやすい
+ *    ・句の途中の短い間（息つぎ）は、切れ目にしなくてよい。長い間を句の中に残すのは不自然
+ *    ・間の無い所で切るのは、ほかに無いときだけ */
+function alignPhrases(phrases, spans, opts) {
+  const P = phrases || [], S = spans || []
+  if (!P.length) return { ok: false, message: '台本に、話す言葉がありません。' }
+  if (!S.length) return { ok: false, message: '音声の中に、話している所が見つかりませんでした（音が小さすぎるか、無音のファイルです）。' }
+  const voiced = S.reduce((a, x) => a + (x.end - x.start), 0)
+  const mora = P.reduce((a, x) => a + x.mora, 0)
+  const rate = voiced / mora
+  const T0 = S[0].start, T1 = S[S.length - 1].end
+  // 時刻 t までに話していた秒数（間を除く）
+  const cum = [0]
+  for (const x of S) cum.push(cum[cum.length - 1] + (x.end - x.start))
+  const voicedAt = (t) => {
+    let lo = 0, hi = S.length - 1, k = -1
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (S[m].start <= t) { k = m; lo = m + 1 } else hi = m - 1 }
+    if (k < 0) return 0
+    return cum[k] + Math.min(Math.max(0, t - S[k].start), S[k].end - S[k].start)
+  }
+  // 切れ目の候補: 間（a=前の句の終わり, b=次の句の始まり）と、話している所の中の点
+  const STEP = (opts && opts.step) || 0.08
+  const pts = []
+  for (let k = 0; k < S.length; k++) {
+    for (let t = S[k].start + STEP; t < S[k].end - STEP / 2; t += STEP) pts.push({ a: t, b: t, len: 0, pause: false })
+    if (k + 1 < S.length) pts.push({ a: S[k].end, b: S[k + 1].start, len: S[k + 1].start - S[k].end, pause: true })
+  }
+  pts.sort((x, y) => x.a - y.a)
+  const M = pts.length
+  // 句の中に残した間の重さ（前から足した値）。短い息つぎは軽く、長い間ほど重い。
+  const W = { ...ALIGN_WEIGHTS, ...((opts && opts.weights) || {}) }
+  const pauseW = (len) => Math.max(0, len - W.breath) * W.inside
+  const pw = [0]
+  for (const q of pts) pw.push(pw[pw.length - 1] + (q.pause ? pauseW(q.len) : 0))
+  const inside = (j1, j2) => pw[j2] - pw[j1 + 1]   // j1 と j2 の間（両端を除く）の間の重さ
+  const phraseCost = (k, va, vb) => {
+    const d = vb - va
+    if (d <= 0.04) return Infinity
+    const e = P[k].mora * rate
+    const r = Math.log(d / e)
+    return r * r * W.phrase
+  }
+  const lineBreak = (k) => k + 1 < P.length && P[k + 1].line !== P[k].line
+  const pointCost = (q, k) => (q.pause ? -Math.min(q.len, 1) * (lineBreak(k) ? W.lineBonus : W.pauseBonus) : (lineBreak(k) ? W.innerLine : W.inner))
+  const vA = pts.map((q) => voicedAt(q.a)), vB = pts.map((q) => voicedAt(q.b))
+  const v0 = voicedAt(T0), v1 = voicedAt(T1)
+  if (P.length === 1) {
+    const w = [{ text: P[0].text, line: P[0].line, start: round3(T0), end: round3(T1), snapped: true }]
+    return { ok: true, words: w, lines: [{ line: P[0].line, start: w[0].start, end: w[0].end }], quality: { level: 'ok', lineSnap: 1, speed: Math.round((mora / voiced) * 10) / 10, voiced: round3(voiced), notes: [] } }
+  }
+  const INF = Infinity
+  let prev = new Array(M).fill(INF)
+  const back = []
+  // 1つ目の句: 音声の最初から、切れ目 j まで
+  for (let j = 0; j < M; j++) prev[j] = phraseCost(0, v0, vA[j]) + inside(-1, j) + pointCost(pts[j], 0)
+  back.push(new Array(M).fill(-1))
+  for (let k = 1; k < P.length - 1; k++) {
+    const cur = new Array(M).fill(INF), bk = new Array(M).fill(-1)
+    const e = P[k].mora * rate
+    for (let j = 0; j < M; j++) {
+      // 前の切れ目は、この句の長さが見込みの 0.3〜3倍に入る範囲だけを見ます（長い動画でも速く終わるように）
+      for (let i2 = j - 1; i2 >= 0; i2--) {
+        const d = vA[j] - vB[i2]
+        if (d > e * 3) break
+        if (d < e * 0.3 || prev[i2] === INF) continue
+        const c = prev[i2] + phraseCost(k, vB[i2], vA[j]) + inside(i2, j) + pointCost(pts[j], k)
+        if (c < cur[j]) { cur[j] = c; bk[j] = i2 }
+      }
+    }
+    prev = cur
+    back.push(bk)
+  }
+  // 最後の句: 切れ目 j から、音声の終わりまで
+  let best = -1, bestC = INF
+  const kL = P.length - 1
+  for (let j = 0; j < M; j++) {
+    if (prev[j] === INF) continue
+    const c = prev[j] + phraseCost(kL, vB[j], v1) + inside(j, M)
+    if (c < bestC) { bestC = c; best = j }
+  }
+  let cuts
+  if (best < 0) {
+    // つじつまが合う組が無い（台本と音声が大きく違う）。拍の数だけで割り振ります。
+    cuts = []
+    let acc = 0
+    for (let k = 0; k + 1 < P.length; k++) {
+      acc += P[k].mora
+      const tv = (acc / mora) * voiced
+      let jj = 0
+      while (jj + 1 < M && vA[jj] < tv) jj++
+      cuts.push(jj)
+    }
+  } else {
+    cuts = new Array(P.length - 1)
+    let j = best
+    for (let k = P.length - 2; k >= 0; k--) { cuts[k] = j; j = back[k][j] }
+  }
+  const words = P.map((p, k) => {
+    const start = k === 0 ? T0 : pts[cuts[k - 1]].b
+    const end = k === P.length - 1 ? T1 : pts[cuts[k]].a
+    return { text: p.text, line: p.line, start: round3(start), end: round3(Math.max(start, end)), snapped: k === P.length - 1 || pts[cuts[k]].pause }
+  })
+  const lineIds = Array.from(new Set(words.map((w) => w.line)))
+  const lines = lineIds.map((li) => {
+    const ws = words.filter((w) => w.line === li)
+    return { line: li, start: ws[0].start, end: ws[ws.length - 1].end }
+  })
+  // 確からしさ: 行の切れ目のうち、間にそろえられた割合と、話す速さ（1秒あたりの拍）
+  const lineBreaks = words.filter((w, k) => k + 1 < words.length && words[k + 1].line !== w.line)
+  const lineSnap = lineBreaks.length ? lineBreaks.filter((w) => w.snapped).length / lineBreaks.length : 1
+  const speed = Math.round((mora / voiced) * 10) / 10
+  const notes = []
+  if (best < 0) notes.push('台本と音声が大きく違うようです（台本にない言葉が多い・台本の一部が読まれていない）。拍の数だけで割り振りました。')
+  if (speed < 4) notes.push(`話す速さが遅すぎます（1秒に${speed}拍）。台本にない言葉が多いか、間が長い音声かもしれません。`)
+  if (speed > 11) notes.push(`話す速さが速すぎます（1秒に${speed}拍）。台本の一部が音声に入っていないかもしれません。`)
+  if (lineSnap < 0.7) notes.push(`行の切れ目のうち、音声の間にそろえられたのは${Math.round(lineSnap * 100)}%です。行の終わりで少し間をあけて読むと、ぴったり合います。`)
+  const level = notes.length ? (best < 0 || lineSnap < 0.5 || speed < 3 || speed > 13 ? 'ng' : 'mid') : 'ok'
+  return { ok: true, words, lines, quality: { level, lineSnap: Math.round(lineSnap * 100) / 100, speed, voiced: round3(voiced), notes } }
+}
+
+/** 割り振った時刻を、台本の行に入れます（行の始まり＝その行の最初の句、終わり＝次の行の始まり）。 */
+function applyAlignment(s, aligned) {
+  const lines = ((s && s.lines) || []).map((l) => ({ ...l }))
+  const byLine = {}
+  for (const x of (aligned && aligned.lines) || []) byLine[x.line] = x
+  const timed = lines.map((l, i) => byLine[i] || null)
+  for (let i = 0; i < lines.length; i++) {
+    const t = timed[i]
+    if (!t) continue
+    let next = null
+    for (let k = i + 1; k < lines.length; k++) if (timed[k]) { next = timed[k]; break }
+    lines[i].start = round3(t.start)
+    lines[i].end = round3(next ? next.start : t.end)
+  }
+  return { ...s, lines }
+}
+
+/** words.json の中身（どの版の台本から取ったかを付けます）。 */
+function wordsJson(s, aligned) {
+  const f = (s && s.fixed) || {}
+  return {
+    script: { title: (s && s.title) || '', version: f.v || 0, hash: scriptHash(s) },
+    words: ((aligned && aligned.words) || []).map((w) => ({ text: w.text, line: w.line + 1, start: w.start, end: w.end, snapped: !!w.snapped })),
+    quality: (aligned && aligned.quality) || null,
+  }
+}
+
+/** いまの台本と、取ってあるタイミングが合っているか（台本を直したら取り直し）。 */
+function timingFresh(s) {
+  const w = s && s.words
+  if (!w || !w.hash) return { state: 'none', label: 'まだタイミングを取っていません。' }
+  return w.hash === scriptHash(s)
+    ? { state: 'fresh', label: `v${w.v || '?'} の台本から取ったタイミングです。` }
+    : { state: 'stale', label: 'タイミングを取ったあとに台本の言葉が直っています。音声を作り直して、タイミングを取り直してください。' }
+}
+
+/* ================= 構図（6つ）・テロップの書体（8つの調子）・AI動画が化けたときの直し =================
+ * 同じ構図が続くと、画面に変化がなくなって途中で飛ばされます。行ごとに構図を決め、続きすぎていないかを見ます。
+ * テロップの書体は、話の調子（ふつう・解説・含み・ツッコミ・叫び・名言・やらかし・不気味）で変えます。
+ * 書体の名前は例です。お店の世界観に合うものを選び、1本の動画で使う書体は3〜4つまでにします。 */
+const LAYOUTS = [
+  { id: 'split', label: '上下分割', use: 'いちばん定番。上に見せたいもの、下に話す人。だれにでもすんなり伝わる' },
+  { id: 'full_view', label: '全面の画面', use: '何が起きているかを大きく見せたいとき（商品・作業の手元・画面）' },
+  { id: 'full_person', label: '全面の人物', use: '感情が大きく動いた、その瞬間に' },
+  { id: 'wipe', label: 'ワイプ', use: '見せたいものを大きく出しつつ、小窓で反応も残す' },
+  { id: 'side', label: '縦割り', use: '比べたいとき・いつもと違う画にしたいとき' },
+  { id: 'cutout', label: '切り抜き', use: '人物を切り抜いて背景を差し替える。印象がガラッと変わる' },
+]
+const LAYOUT_IDS = LAYOUTS.map((x) => x.id)
+const LAYOUT_LABEL = LAYOUTS.reduce((o, x) => { o[x.id] = x.label; return o }, {})
+
+const TELOP_TONES = [
+  { id: 'talk', label: 'ふつうの話', look: '太めの丸ゴシック・白文字に色のフチ', example: 'ルイカ など' },
+  { id: 'explain', label: '解説・情報', look: '読みやすい太字のゴシック。色は控えめに', example: '' },
+  { id: 'hint', label: '含み・伏線', look: '明朝体。白黒で静かに', example: '源ノ明朝 など' },
+  { id: 'tsukkomi', label: 'ツッコミ・驚き', look: '崩したポップ体・傾けて大きく', example: 'Reggae One（レゲエOne）など' },
+  { id: 'shout', label: '叫び', look: 'かすれ・ひびの入ったゴシック。濁点を足しても', example: '零ゴシック など' },
+  { id: 'quote', label: '力強い発言・名言', look: '筆文字・グラデーション', example: '' },
+  { id: 'blunder', label: 'とんちんかん・やらかし', look: '手書き風の細い文字・寒色', example: 'あずきフォント など' },
+  { id: 'creepy', label: '不気味・ホラー', look: '細い明朝・にじんだ書体・暗い色', example: '' },
+]
+const TONE_IDS = TELOP_TONES.map((x) => x.id)
+const TONE_LABEL = TELOP_TONES.reduce((o, x) => { o[x.id] = x.label; return o }, {})
+
+/** 行の言葉と印から、構図の候補を出します（決めるのは人。これは最初の案です）。 */
+function guessLayout(line, i) {
+  const t = `${line && line.narration || ''}${line && line.telop || ''}`
+  const m = line && line.mark
+  if (m === 'peak_twist' || m === 'peak_reveal' || /[!！]{1,}|えっ|うわ|まさか|やった/.test(t)) return 'full_person'
+  if (/比べ|対決|ビフォー|アフター|どっち|vs|ＶＳ|左|右/i.test(t)) return 'side'
+  if (m === 'switch_visual' || /手元|見て|ここ|こちら|画面|完成|焼き上が/.test(t)) return 'full_view'
+  if (m === 'peak_trouble' || m === 'peak_rule') return 'wipe'
+  return i === 0 ? 'full_view' : 'split'
+}
+
+/** 行の言葉と印から、テロップの調子の候補を出します。 */
+function guessTone(line) {
+  const t = `${line && line.narration || ''}${line && line.telop || ''}`
+  const m = line && line.mark
+  if (/ー[!！]|[!！]{2,}|[ぁ-んァ-ヶ][ーっ]+[!！]/.test(t)) return 'shout'
+  if (/なんでやねん|なんで(?!す|しょう)|(^|[、。])いや[、!！]|いやいや|ちょっと待|おいおい/.test(t) || (m === 'peak_trouble' && /[!！?？]/.test(t))) return 'tsukkomi'
+  if (/(怖|こわ|不気味|ゾッ|誰も|夜中|真っ暗)/.test(t)) return 'creepy'
+  if (/(しまった|やらかし|間違え|焦が|失敗|忘れ)/.test(t)) return 'blunder'
+  if (/…$|\.\.\.$|実は|まだ知らない|このあと/.test(t) || m === 'peak_reveal') return 'hint'
+  if (m === 'peak_twist' || /(大事なのは|だから|これが)/.test(t)) return 'quote'
+  if (/[0-9０-９]|%|割|円|分|秒|個/.test(t)) return 'explain'
+  return 'talk'
+}
+
+/** 構図の点検: 同じ構図が続いていないか（3行・8秒以上）、1つの構図に偏っていないか、山場の構図。 */
+function layoutCheck(s) {
+  const lines = (s && s.lines) || []
+  const set = lines.map((l) => l.layout || '')
+  const filled = set.filter(Boolean).length
+  const notes = []
+  if (!lines.length) return { ok: true, filled: 0, notes, runs: [] }
+  if (filled < lines.length) notes.push(`構図が決まっていない行が${lines.length - filled}行あります。`)
+  const runs = []
+  let i = 0
+  while (i < lines.length) {
+    let j = i
+    while (j + 1 < lines.length && set[j + 1] && set[j + 1] === set[i]) j++
+    const sec = (Number(lines[j].end) || 0) - (Number(lines[i].start) || 0)
+    if (set[i] && (j - i + 1 >= 3 || sec >= 8)) runs.push({ from: i, to: j, layout: set[i], sec: Math.round(sec * 10) / 10 })
+    i = j + 1
+  }
+  for (const r of runs) notes.push(`${r.from + 1}〜${r.to + 1}行目は「${LAYOUT_LABEL[r.layout]}」が続いています（${r.to - r.from + 1}行・${r.sec}秒）。途中で別の構図をはさむと、飛ばされにくくなります。`)
+  const count = {}
+  set.filter(Boolean).forEach((x) => { count[x] = (count[x] || 0) + 1 })
+  const top = Object.keys(count).sort((a, b) => count[b] - count[a])[0]
+  if (filled >= 6 && top && count[top] / filled > 0.5) notes.push(`「${LAYOUT_LABEL[top]}」が全体の${Math.round((count[top] / filled) * 100)}%です。構図を3種類以上に散らすと、画面に変化が出ます。`)
+  const flatPeaks = lines.map((l, k) => (/^peak_(twist|reveal)$/.test(l.mark || '') && set[k] === 'split' ? k : -1)).filter((k) => k >= 0)
+  if (flatPeaks.length) notes.push(`山場（${flatPeaks.map((k) => k + 1).join('・')}行目）が「上下分割」のままです。感情が動く瞬間は「全面の人物」や「切り抜き」にすると伝わります。`)
+  return { ok: !notes.length, filled, runs, kinds: Object.keys(count).length, notes }
+}
+
+/** テロップの調子の点検: ずっと同じ調子でないか、書体が多すぎないか、山場が「ふつう」のままでないか。 */
+function telopToneCheck(s) {
+  const lines = ((s && s.lines) || []).filter((l) => String(l.telop || '').trim())
+  const notes = []
+  if (!lines.length) return { ok: true, kinds: 0, notes }
+  const tones = lines.map((l) => l.tone || 'talk')
+  const kinds = new Set(tones).size
+  const dur = scriptDuration(s)
+  if (lines.length >= 6 && kinds === 1) notes.push('テロップが全部同じ調子です。驚き・含み・名言などの行だけ書体を変えると、感情の動きが伝わります。')
+  const max = dur && dur <= 90 ? 4 : 5
+  if (kinds > max) notes.push(`書体の調子が${kinds}種類あります。${dur && dur <= 90 ? 'ショートは' : '1本の動画では'}${max}種類までにすると、まとまって見えます。`)
+  const plainPeaks = ((s && s.lines) || []).map((l, k) => (/^peak_/.test(l.mark || '') && String(l.telop || '').trim() && (l.tone || 'talk') === 'talk' ? k : -1)).filter((k) => k >= 0)
+  if (plainPeaks.length) notes.push(`山場（${plainPeaks.map((k) => k + 1).join('・')}行目）のテロップが「ふつうの話」の書体です。その瞬間に合う調子にします。`)
+  return { ok: !notes.length, kinds, notes }
+}
+
+/* ---- AI動画が化けたときの直し（絵コンテの「映す画」に足す一言） ----
+ * 画像・動画の生成AIは、手の指・足元・顔の一貫性・光で崩れやすい。崩れた所を選ぶと、英語の一言を
+ * 指示文に足します（en）。編集で直すもの（edit: true）は、指示文ではなく編集の手順として出します。 */
+const VIDEO_FIXES = [
+  { ch: '人物・動き', items: [
+    ['表情', '感情に合わせて表情を変える', 'facial expression changes naturally with the emotion of the moment'],
+    ['目線', '見る方向と、見ている物をはっきりさせる', 'clear eye line, looking at a specific object in the scene'],
+    ['まばたき', '続けてまばたきしない', 'natural blinking at relaxed intervals, no rapid repeated blinks'],
+    ['口元', '話す言葉に合わせて口を開け閉めする', 'mouth movement matches the spoken words naturally'],
+    ['手指', '指の数・関節・向きを正しく', 'anatomically correct hands, five fingers, natural joints'],
+    ['歩き', '足運びと重心をそろえる', 'stable natural walking gait with consistent weight shift'],
+    ['足元', '足裏を地面につけ、浮かせない', 'feet firmly planted on the ground, no floating or sliding'],
+    ['衣装', '服を風や動きに合わせて自然に揺らす', 'clothing moves naturally with the wind and body motion'],
+    ['同じ人物', '顔・髪型・雰囲気をカットをまたいでそろえる', 'same person across shots, consistent face, hairstyle and outfit'],
+  ] },
+  { ch: 'カメラ・構図', items: [
+    ['手ブレ', '意図しないブレを抑える', 'stable camera, no unintended shake'],
+    ['ズーム', 'ズームをゆっくり滑らかに', 'slow smooth zoom toward the subject'],
+    ['追いかけ', '被写体の動きに合わせて滑らかに追う', 'smooth tracking shot following the subject'],
+    ['画角', '場面の意図に合う広さで撮る', 'framing that matches the intent of the scene'],
+    ['奥行き', '手前・中・奥の三層で奥行きを出す', 'layered composition with foreground, midground and background'],
+    ['余白', '被写体の位置と余白のバランス', 'balanced framing with intentional negative space'],
+    ['水平', 'カメラの傾きを直し、水平を保つ', 'level horizon, camera not tilted'],
+    ['被写体の大きさ', '目的に合わせて被写体の大きさを決める', 'subject size in frame suits the purpose of the shot'],
+    ['動きの緩急', '動きに緩急をつける（ずっと同じ速さにしない）', 'motion with ease-in and ease-out, varied rhythm'],
+  ] },
+  { ch: '光・質感', items: [
+    ['主光源', '光の向き・強さ・位置をはっきり', 'clear key light direction and intensity'],
+    ['影', '自然な影で立体感を出す', 'natural shadows that give depth'],
+    ['反射', '水面やガラスの映り込みを整える', 'realistic reflections on water and glass'],
+    ['明るさ', '白飛び・黒つぶれを防ぐ', 'balanced exposure, no blown highlights or crushed blacks'],
+    ['肌', 'のっぺりさせず、自然な肌の質感', 'natural skin texture with visible pores, not plastic'],
+    ['色温度', '場面に合う色温度で雰囲気を作る', 'color temperature that matches the mood of the scene'],
+    ['背景の質感', '背景の情報量と質感を整える', 'detailed, coherent background texture'],
+    ['ぼかし', '背景をほどよくぼかし、被写体を立てる', 'shallow depth of field, subject in sharp focus'],
+    ['ノイズ', 'ノイズや粒を抑えてクリアに', 'clean image, low noise and grain'],
+  ] },
+  { ch: '編集・仕上げ', edit: true, items: [
+    ['冒頭3秒', '最初の3秒で一番強い画を出す', ''],
+    ['間延び', '要らない間を削ってテンポを上げる', ''],
+    ['つなぎ', 'カットのつなぎを自然にする', ''],
+    ['音ハメ', 'BGMや効果音にカットと動きを合わせる', ''],
+    ['テロップ', '情報を絞り、読める大きさと位置に', ''],
+    ['視線誘導', '光・動き・構図で見せたい所に目を集める', ''],
+    ['世界観の統一', '色・書体・トーンをそろえる', ''],
+    ['情報整理', '伝えることを絞り、番号で区切る', ''],
+    ['ラストカット', '印象に残る締めで余韻を残す', ''],
+  ] },
+]
+
+/** 映す画の指示文に、直しの一言を足します（同じ一言は二度足さない）。
+ *  最後の「文字・ロゴを入れない」指示は、最後のままにします（直しはその前に入れます）。 */
+function addVideoFix(prompt, en) {
+  const p = String(prompt || '').trim()
+  if (!en) return p
+  if (p.toLowerCase().indexOf(String(en).toLowerCase()) >= 0) return p
+  const m = p.match(/^(.*?)(\s*No text\b[^]*)$/i)
+  if (m && m[1].trim()) return `${m[1].trim().replace(/[.\s]+$/, '')}. ${en}.${m[2].replace(/^\s*/, ' ')}`
+  return p ? `${p.replace(/[.\s]+$/, '')}. ${en}.` : `${en}.`
+}
+
+window.lumVideoCore = { RULES, LENGTH_MODES, lengthMode, modeRules, scriptDuration, lengthModeCheck, PLATFORMS, HOOK_TYPES, HOOK_LABELS, STRONG_HOOKS, BEAT_LABELS, REEL_GUIDE, RESTAURANT_GENRES, genreScript, charLen, longestCommon, originality, findBanned, normalizeNotation, telopSpeed, checkScript, normText, promiseKeywords, openingText, promiseCheck, classifyHook, hookCheck, postMetrics, SCORE_WEIGHTS, scorePosts, quantile, durationBand, captionStats, fitCaption, rng, bootstrapCI, RELIABILITY_LABELS, reliability, METRICS, metricValue, latestSnapshot, ATTENTION, jstDay, attentionKind, attentionKey, videoAttention, attentionParts, pdcaVerdict, RETENTION, BENCH, avp, holdAt, hold3, benchmarks, retentionDrops, mapDropsToLines, nextHypotheses, attributeInsight, durationBucket, jstParts, NO_TEXT, shotsFromLines, MARKS, MARK_LABELS, isPeak, isSwitch, ANGLES, shotLengthCheck, splitShot, splitLongShots, storyboardEdl, markEvents, rhythmCheck, timelineData, endingCheck, FORMATS, FORMAT_KEYS, guessFormat, formatPerformance, csv, parseCsv, srtTime, toSrt, stampStart, stampEnd, lineAt, timecode, toEdl, kWeighting, integratedLoudness, loudnessAdvice, frameMeter, silenceCuts, SCENE, SPEECH, frameSignature, frameDiff, scenePlan, sceneCuts, sceneSummary, speechStart, shipChecks, crc32, zipEntries, readZip, SNSAUTO_TABLES, snsautoTables, mapSnsauto, snsautoCounts, PIPE_STEPS, cleanPipe, markStale, stepDone, dataProblems, dataJson, storyMd, timingFromStory, packTiming, timingTotal, timingTs, sceneTsx, pipeChecks, pipeHandoff, PLAN_VARS, PLAN_VAR_LABEL, wordOverlap, planSignature, compareVar, compareKnown, experimentCheck, FUNNEL, DROP_GAP, percentileOf, diagnoseFlop, experimentVerdict, purityCheck, surpriseCheck, associationSeeds, scriptHash, freezeCheck, fixState, freezeScript, moraOf, phrasesOf, voicedSpans, ALIGN_WEIGHTS, alignPhrases, applyAlignment, wordsJson, timingFresh, LAYOUTS, LAYOUT_IDS, LAYOUT_LABEL, TELOP_TONES, TONE_IDS, TONE_LABEL, guessLayout, guessTone, layoutCheck, telopToneCheck, VIDEO_FIXES, addVideoFix };
 })();

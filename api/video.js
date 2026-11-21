@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS, getItem, mergePubEdit,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs, RESTAURANT_GENRES, REEL_GUIDE , PLAN_VARS, PLAN_VAR_LABEL, planSignature, experimentCheck, purityCheck, surpriseCheck, associationSeeds } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs, RESTAURANT_GENRES, REEL_GUIDE , PLAN_VARS, PLAN_VAR_LABEL, planSignature, experimentCheck, purityCheck, surpriseCheck, associationSeeds, LAYOUTS, LAYOUT_IDS, TELOP_TONES, TONE_IDS, layoutCheck, telopToneCheck } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 import { createWithFallback } from './_ai-create.js'
 
@@ -253,8 +253,8 @@ const SCRIPT_SCHEMA = {
     lines: {
       type: 'array',
       items: {
-        type: 'object', additionalProperties: false, required: ['start', 'end', 'narration', 'telop', 'visual', 'mark'],
-        properties: { start: { type: 'number' }, end: { type: 'number' }, narration: { type: 'string' }, telop: { type: 'string' }, visual: { type: 'string' }, mark: { type: 'string', enum: MARKS } },
+        type: 'object', additionalProperties: false, required: ['start', 'end', 'narration', 'telop', 'visual', 'mark', 'layout', 'tone'],
+        properties: { layout: { type: 'string', enum: LAYOUT_IDS }, tone: { type: 'string', enum: TONE_IDS }, start: { type: 'number' }, end: { type: 'number' }, narration: { type: 'string' }, telop: { type: 'string' }, visual: { type: 'string' }, mark: { type: 'string', enum: MARKS } },
       },
     },
     hashtags: { type: 'array', items: { type: 'string' } },
@@ -392,6 +392,8 @@ async function generate(req, cfg, project, b) {
       ? `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は2〜3秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。約${M.INTERRUPT_TARGET_SEC}秒ごとに新しい画・音・問いを入れる。`
       : `- lines は時間順に隙間なく並べ、最後の end を目標の長さに合わせる。1行は5〜10秒（同じ画は${M.SHOT_MAX_SEC}秒まで）。`,
     `- 各行の mark: 新しい画・音・問いで注意を戻す行は switch_visual / switch_sound / switch_question、話が一段動く山場は peak_rule（ルール変更）/ peak_trouble（トラブル）/ peak_reveal（発表）/ peak_twist（どんでん返し）。それ以外は空文字。${mode === 'short' ? `約${M.INTERRUPT_TARGET_SEC}秒ごとに切り替えを置く。` : `約${M.PEAK_TARGET_SEC / 60}分ごとに山場を置く。`}`,
+    `- 各行の layout（構図）: ${LAYOUTS.map((x) => `${x.id}=${x.label}（${x.use}）`).join(' / ')}。同じ構図を3行以上・8秒以上続けない。3種類以上を使う。山場（peak_twist・peak_reveal）は full_person か cutout。`,
+    `- 各行の tone（テロップの書体の調子）: ${TELOP_TONES.map((x) => `${x.id}=${x.label}`).join(' / ')}。ふだんは talk、話の調子が変わる行だけ変える。1本で4種類まで。`,
     `- telop（画面の文字）は1秒あたり${RULES.telop.MAX_CPS}文字以内で読める長さに。narration は話す言葉、visual は映す画（英語で具体的に。文字やロゴは入れない）。`,
     mode === 'short' && loop
       ? '- 最後はループにする: CTA（保存・フォローなど行動を1つだけ）は最後から2行目に短く1回。最後の行は1行目につながる言葉で終える（1行目の言葉をくり返す、「答えは…」と言いかけて1行目へ戻るなど）。「以上です」「またね」で締めない。'
@@ -456,7 +458,8 @@ async function generate(req, cfg, project, b) {
   if (!saved.ok) return json(saved, 400)
   return json({
     ok: true, script: saved.items[0], checks: { banned: checks.banned, notation: checks.notation, originality: checks.originality, speed: checks.speed,
-      purity: purityCheck(saved.items[0]), surprise: surpriseCheck(saved.items[0]), variant: variantCheck },
+      purity: purityCheck(saved.items[0]), surprise: surpriseCheck(saved.items[0]), variant: variantCheck,
+      layout: layoutCheck(saved.items[0]), tone: telopToneCheck(saved.items[0]) },
     seeds,
     attempts: attempt, band,
     message: checks.originality.clean

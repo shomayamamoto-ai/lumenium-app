@@ -487,6 +487,13 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-res b { flex: none; }
   /* 本文は縮められるように（長いボタンの文や英数字で、横にはみ出さない）。 */
   .soc-res > span { min-width: 0; overflow-wrap: anywhere; }
+  /* 台本を固める → 音声 → タイミング → 書き出し（SNS（動画）） */
+  .ve-sel select{display:block;width:100%;min-width:118px;margin:0 0 4px;font-size:12px}
+.vx-steps { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+  .vx-step { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-size: 12.5px; line-height: 1.5; }
+  .vx-step b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--border); font-size: 12px; }
+  .vx-step.done b { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+  .vx-step small { display: block; font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--sub); }
   .soc-res a { color: var(--ui-accent); }
   .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; }
   .soc-post .when { font-size: 11px; color: var(--sub); }

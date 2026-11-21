@@ -801,6 +801,13 @@
     return '<select class="' + cls + '" data-k="mark" aria-label="印（切り替え・山場）">' + V.MARKS.map(function (m) { return '<option value="' + m + '"' + ((v || '') === m ? ' selected' : '') + '>' + V.MARK_LABELS[m] + '</option>'; }).join('') + '</select>';
   }
 
+  function layoutSelect(v) {
+    return '<select class="ve-f" data-k="layout" aria-label="構図"><option value="">構図: 未定</option>' + V.LAYOUTS.map(function (x) { return '<option value="' + x.id + '"' + (v === x.id ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('') + '</select>';
+  }
+  function toneSelect(v) {
+    return '<select class="ve-f" data-k="tone" aria-label="テロップの書体の調子"><option value="">書体: ふつう</option>' + V.TELOP_TONES.filter(function (x) { return x.id !== 'talk'; }).map(function (x) { return '<option value="' + x.id + '"' + (v === x.id ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('') + '</select>';
+  }
+
   /** 見続けてもらう工夫（約束・冒頭・テンポ・山場・最後）。どれも目安の判定です。 */
   function retentionHtml(s) {
     var h = timelineHtml(s);
@@ -855,6 +862,12 @@
       esc(pu.message) + (pu.padding.length ? '<br>' + pu.padding.slice(0, 5).map(function (x) { return (x.line + 1) + '行目（' + esc(x.why) + '）: ' + esc(x.text); }).join('<br>') : '') +
       (pu.notes.length ? '<br>' + pu.notes.map(esc).join('<br>') : ''));
     h += res(su.ok, '予想しない着地', su.ok ? esc(su.message) : su.notes.map(esc).join('<br>'));
+    var lc = V.layoutCheck(s), tc = V.telopToneCheck(s);
+    h += '<h4 class="vid-sub">画面の変化</h4>';
+    h += res(lc.filled ? lc.ok : null, '構図', mark(lc.filled ? lc.ok : null) + (lc.filled
+      ? '使っている構図: ' + lc.kinds + '種類。' + (lc.notes.length ? '<br>' + lc.notes.map(esc).join('<br>') : '同じ構図が続きすぎていません。')
+      : 'まだ構図が決まっていません。行の「構図」で決めるか、「空いている構図・書体に案を入れる」を押してください。'));
+    h += res(tc.ok, 'テロップの書体', mark(tc.ok) + '書体の調子: ' + tc.kinds + '種類。' + (tc.notes.length ? '<br>' + tc.notes.map(esc).join('<br>') : '話の調子に合わせて変わっています。'));
     return h;
   }
   /* 変数固定の作り直し: この台本のうち、1つだけを変えた台本をAIに作ってもらいます。 */
@@ -868,6 +881,94 @@
       '<p class="soc-small">「出す条件」（曜日・時間帯）を変えるときは、台本はそのままで、投稿の予約の日時だけを変えます。</p>' +
       '</div></details>';
   }
+  /* 台本を先に固める → 音声 → 句ごとのタイミング（words.json）→ 書き出し。
+     固めた台本からだけ音声とタイミングを作ります。固めたあとで言葉を直すと、指紋が合わなくなり、
+     「固め直して、取り直す」ように出ます。 */
+  function fixBox(s) {
+    if (!s.id) return '';
+    var fx = V.fixState(s), tf = V.timingFresh(s);
+    var step = function (no, done, label, file) {
+      return '<li class="vx-step' + (done ? ' done' : '') + '"><b>' + (done ? '✓' : no) + '</b><span>' + esc(label) + '<small>' + esc(file) + '</small></span></li>';
+    };
+    var hasWords = tf.state === 'fresh';
+    return '<details class="soc-ai" id="vx-box" style="margin-top:10px"' + (fx.state !== 'draft' ? ' open' : '') + '><summary>台本を先に固める → 音声 → タイミング → 書き出し</summary><div class="soc-ai-body">' +
+      '<p class="soc-small">コツは、台本を先に固めることです。固めた台本からだけ音声を作り、その音声から句ごとのタイミングを取ります。あとで言葉を直すと、音声もタイミングも作り直しになります。</p>' +
+      '<ol class="vx-steps">' +
+        step(1, fx.state === 'fixed', '台本を固める' + (fx.v ? '（v' + fx.v + '）' : ''), 'script.md') +
+        step(2, hasWords, '音声にする（録音か、読み上げAI）', 'voice.wav') +
+        step(3, hasWords, '句ごとのタイミングを取る', 'words.json') +
+        step(4, false, '書き出し（テロップを音声に合わせる）', 'final.mp4') +
+      '</ol>' +
+      '<div class="soc-res' + (fx.state === 'fixed' ? ' ok' : fx.state === 'changed' ? ' ng' : '') + '"><b>台本</b><span>' + esc(fx.label) + '</span></div>' +
+      '<div class="vid-acts"><button type="button" id="vx-fix">' + (fx.state === 'draft' ? '台本を固める' : fx.state === 'changed' ? 'v' + (fx.v + 1) + ' として固め直す' : '固めました（v' + fx.v + '）') + '</button>' +
+        '<button type="button" class="ghost" id="vx-voice-txt">読み上げ用の原稿（voice.txt）</button></div>' +
+      '<div id="vx-fix-msg"></div>' +
+      '<div class="soc-res' + (tf.state === 'fresh' ? ' ok' : tf.state === 'stale' ? ' ng' : '') + '" style="margin-top:8px"><b>タイミング</b><span>' + esc(tf.label) + '</span></div>' +
+      '<div class="vid-row" style="margin-top:6px"><label class="soc-lab" for="vx-audio" style="margin:0">音声（wav・mp3・m4a・動画も可）</label><input type="file" id="vx-audio" accept="audio/*,video/*"' + (fx.state === 'fixed' ? '' : ' disabled') + '></div>' +
+      (fx.state === 'fixed' ? '' : '<p class="soc-small">音声からタイミングを取るのは、台本を固めてからです。</p>') +
+      '<p class="soc-small">音声はこのブラウザの中だけで読み、どこにも送りません。行の終わりで少し間をあけて読むと、ぴったり合います。</p>' +
+      '<div id="vx-out"></div>' +
+      '</div></details>';
+  }
+  function bindFix(s, redraw) {
+    if (!el('vx-fix')) return;
+    el('vx-fix').addEventListener('click', async function () {
+      var st = V.fixState(s);
+      if (st.state === 'fixed') return;
+      var ck = V.freezeCheck(s, project().brand);
+      el('vx-fix-msg').innerHTML = (ck.blockers.length ? '<div class="soc-res ng"><b>まだ固められません</b><span>' + ck.blockers.map(esc).join('<br>') + '</span></div>' : '') +
+        (ck.warnings.length ? '<div class="soc-res"><b>固める前に見ておくこと</b><span>' + ck.warnings.map(esc).join('<br>') + '</span></div>' : '');
+      if (!ck.ok) return;
+      var next = V.freezeScript(s);
+      this.disabled = true;
+      var r = await post({ action: 'script.save', item: next });
+      this.disabled = false;
+      if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+      Object.assign(s, r.data.item);
+      say('台本を v' + s.fixed.v + ' で固めました。この台本から音声を作ってください。', true);
+      redraw();
+    });
+    el('vx-voice-txt').addEventListener('click', function () {
+      var f = s.fixed || {};
+      var txt = (s.lines || []).map(function (l) { return String(l.narration || '').trim(); }).filter(Boolean).join('\n\n');
+      download((s.title || 'script').slice(0, 30) + '_v' + (f.v || 0) + '_voice.txt', txt);
+    });
+    var input = el('vx-audio');
+    if (!input) return;
+    input.addEventListener('change', async function () {
+      var file = this.files[0];
+      if (!file) return;
+      var out = el('vx-out');
+      var say2 = function (t) { out.innerHTML = '<p class="soc-small">' + esc(t) + '</p>'; };
+      try {
+        var buf = await decodeAudio(file, say2);
+        var meter = await meterOf(buf, function (p) { say2('音声を調べています… ' + p + '%'); });
+        var aligned = V.alignPhrases(V.phrasesOf(s.lines), V.voicedSpans(meter));
+        if (!aligned.ok) { say2(aligned.message); return; }
+        var q = aligned.quality;
+        out.innerHTML = '<div class="soc-res' + (q.level === 'ok' ? ' ok' : q.level === 'ng' ? ' ng' : '') + '"><b>合わせた結果</b><span>' +
+            '話す速さ 1秒に' + q.speed + '拍・行の切れ目のうち、音声の間にそろえられたもの ' + Math.round(q.lineSnap * 100) + '%' + (q.notes.length ? '<br>' + q.notes.map(esc).join('<br>') : '') + '</span></div>' +
+          '<div class="tbl vid-scroll"><table class="vid-table"><thead><tr><th>行</th><th>句</th><th>始まり</th><th>終わり</th><th></th></tr></thead><tbody>' +
+          aligned.words.map(function (w) { return '<tr><td>' + (w.line + 1) + '</td><td>' + esc(w.text) + '</td><td>' + w.start.toFixed(2) + '</td><td>' + w.end.toFixed(2) + '</td><td class="soc-small">' + (w.snapped ? '' : '見込み') + '</td></tr>'; }).join('') +
+          '</tbody></table></div>' +
+          '<div class="vid-acts"><button type="button" id="vx-apply">この時間を台本の行に入れて保存</button><button type="button" class="ghost" id="vx-words">words.json を書き出す</button></div>';
+        el('vx-words').addEventListener('click', function () { download((s.title || 'script').slice(0, 30) + '_words.json', JSON.stringify(V.wordsJson(s, aligned), null, 2), 'application/json'); });
+        el('vx-apply').addEventListener('click', async function () {
+          var next = V.applyAlignment(s, aligned);
+          next.words = { hash: V.scriptHash(s), v: (s.fixed || {}).v || 0, at: new Date().toISOString(), source: file.name.slice(0, 120),
+            items: aligned.words.map(function (w) { return { text: w.text, line: w.line, start: w.start, end: w.end, snapped: w.snapped }; }), quality: { level: q.level, lineSnap: q.lineSnap, speed: q.speed } };
+          this.disabled = true;
+          var r = await post({ action: 'script.save', item: next });
+          this.disabled = false;
+          if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+          Object.assign(s, r.data.item);
+          say('音声に合わせて、行の時間を入れました。テロップ（SRT）の書き出しも、この時間になります。', true);
+          redraw();
+        });
+      } catch (e) { say2('音声を読めませんでした（' + String((e && e.message) || e).slice(0, 80) + '）。wav か mp3 でお試しください。'); }
+    });
+  }
+
   async function makeVariant(base, variable) {
     say('AIが「' + V.PLAN_VAR_LABEL[variable] + '」だけを変えた台本を書いています（30秒〜1分ほど）…', true);
     var r = await post({
@@ -904,6 +1005,7 @@
       (s.variant_of ? '<p class="soc-small" style="margin-top:6px">変数固定の作り直しです（元の台本から「' + esc(V.PLAN_VAR_LABEL[s.variable] || '') + '」だけを変えています）。</p>' : '') +
       '</div></div>' +
       variantBox(s) +
+      fixBox(s) +
       '<div class="soc-fields" style="margin-top:10px">' +
         fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
@@ -914,8 +1016,13 @@
         fld('投稿先', '<select id="ve-net">' + Object.keys(NET_LABEL).map(function (n) { return '<option value="' + n + '"' + (s.platform === n ? ' selected' : '') + '>' + NET_LABEL[n] + '</option>'; }).join('') + '</select>') +
       '</div>' +
       '<label class="soc-lab">行（時間・ナレーション・テロップ・映す画・印）</label>' +
-      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th>印</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
-      '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button></div>' +
+      '<div class="tbl vid-scroll"><table class="vid-table vid-lines"><thead><tr><th>開始</th><th>終了</th><th>ナレーション</th><th>テロップ</th><th>映す画（英語）</th><th>印・構図・書体</th><th></th></tr></thead><tbody id="ve-rows"></tbody></table></div>' +
+      '<div class="vid-row" style="margin-top:6px"><button type="button" class="ghost" id="ve-add" style="font-size:12px;padding:7px 12px">行を足す</button>' +
+        '<button type="button" class="ghost" id="ve-guess" style="font-size:12px;padding:7px 12px">空いている構図・書体に案を入れる</button></div>' +
+      '<details class="vid-tap"><summary>構図6つ・テロップの書体8つの使い分け</summary><div class="soc-small" style="line-height:1.8">' +
+        '<b>構図</b>（同じ構図が3行・8秒続いたら、別の構図をはさむ）<br>' + V.LAYOUTS.map(function (x) { return '・' + esc(x.label) + '：' + esc(x.use); }).join('<br>') +
+        '<br><b>テロップの書体</b>（ふだんは「ふつう」。話の調子が変わる行だけ変える。1本で4種類まで）<br>' + V.TELOP_TONES.map(function (x) { return '・' + esc(x.label) + '：' + esc(x.look) + (x.example ? '（' + esc(x.example) + '）' : ''); }).join('<br>') +
+        '<br>書体の名前は例です。商用で使えるか、それぞれの配布元の決まりを確かめてください。</div></details>' +
       '<details class="vid-tap" id="ve-tap"><summary>再生しながらタップで、テロップの時間を合わせる</summary><div id="ve-tap-body"></div></details>' +
       '<div id="ve-checks" style="margin-top:10px"></div>' +
       (s.rationale ? '<p class="soc-small" style="white-space:pre-line">この構成にした理由: ' + esc(s.rationale) + '</p>' : '') +
@@ -931,7 +1038,7 @@
           '<td><textarea rows="2" class="ve-f" data-k="narration" aria-label="ナレーション">' + esc(l.narration) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="telop" aria-label="テロップ">' + esc(l.telop) + '</textarea></td>' +
           '<td><textarea rows="2" class="ve-f" data-k="visual" aria-label="映す画">' + esc(l.visual) + '</textarea></td>' +
-          '<td>' + markSelect('ve-f', l.mark) + '</td>' +
+          '<td class="ve-sel">' + markSelect('ve-f', l.mark) + layoutSelect(l.layout || '') + toneSelect(l.tone || '') + '</td>' +
           '<td><button type="button" class="ghost ve-x" style="font-size:11px;padding:4px 8px" aria-label="この行を消す">消す</button></td></tr>';
       }).join('');
     }
@@ -993,8 +1100,8 @@
     });
     host.addEventListener('change', function (e) {
       var t = e.target;
-      if (t.classList.contains('ve-f') && t.getAttribute('data-k') === 'mark') {
-        s.lines[Number(t.closest('tr').getAttribute('data-i'))].mark = t.value;
+      if (t.classList.contains('ve-f') && /^(mark|layout|tone)$/.test(t.getAttribute('data-k'))) {
+        s.lines[Number(t.closest('tr').getAttribute('data-i'))][t.getAttribute('data-k')] = t.value;
         check();
         return;
       }
@@ -1029,17 +1136,27 @@
         var kind = t.getAttribute('data-out');
         var name = (s.title || 'script').replace(/[\\/:*?"<>|]/g, '_');
         if (kind === 'srt') download(name + '.srt', V.toSrt(s.lines), 'application/x-subrip;charset=utf-8');
-        if (kind === 'csv') download(name + '.csv', V.csv([['開始', '終了', 'ナレーション', 'テロップ', '映す画']].concat(s.lines.map(function (l) { return [l.start, l.end, l.narration, l.telop, l.visual]; }))), 'text/csv;charset=utf-8');
+        if (kind === 'csv') download(name + '.csv', V.csv([['開始', '終了', 'ナレーション', 'テロップ', '映す画', '構図', 'テロップの書体']].concat(s.lines.map(function (l) { return [l.start, l.end, l.narration, l.telop, l.visual, V.LAYOUT_LABEL[l.layout] || '', V.TONE_LABEL[l.tone || 'talk']]; }))), 'text/csv;charset=utf-8');
         if (kind === 'txt') download(name + '_ナレーション.txt', s.lines.map(function (l) { return l.narration; }).filter(Boolean).join('\n'));
       }
     });
     tapper(s, function () { rows(); check(); });
+    el('ve-guess').addEventListener('click', function () {
+      var n = 0;
+      s.lines.forEach(function (l, i) {
+        if (!l.layout) { l.layout = V.guessLayout(l, i); n++; }
+        if (!l.tone) { var g = V.guessTone(l); if (g !== 'talk') { l.tone = g; n++; } }
+      });
+      rows(); check();
+      say(n ? n + 'か所に案を入れました。言葉と印から選んだ案なので、映像に合わせて直してください（保存するまで台本は変わりません）。' : '空いている所はありませんでした。', true);
+    });
     el('ve-add').addEventListener('click', function () {
       var last = s.lines[s.lines.length - 1];
       var st = last ? Number(last.end) || 0 : 0;
       s.lines.push({ start: st, end: Math.round((st + 3) * 10) / 10, narration: '', telop: '', visual: '' });
       rows(); check();
     });
+    bindFix(s, function () { editor(host, s); });
     if (el('ve-var-go')) el('ve-var-go').addEventListener('click', async function () { this.disabled = true; await makeVariant(collect(), el('ve-var').value); this.disabled = false; });
     el('ve-save').addEventListener('click', async function () {
       collect();
@@ -1155,6 +1272,22 @@
 
   /* ---------------- 4. 絵コンテ ---------------- */
 
+  /* AI動画が化けたときの直し（人物・カメラ・光）。編集で直すもの（仕上げ）は、表の下に点検として出します。 */
+  function fixSelect() {
+    return '<select class="vb-fix" aria-label="化けたときの直しを足す" style="margin-top:4px;font-size:12px"><option value="">化けたら: 直しを足す…</option>' +
+      V.VIDEO_FIXES.map(function (c, ci) {
+        if (c.edit) return '';
+        return '<optgroup label="' + esc(c.ch) + '">' + c.items.map(function (it, ii) { return '<option value="' + ci + '|' + ii + '">' + esc(it[0]) + '：' + esc(it[1]) + '</option>'; }).join('') + '</optgroup>';
+      }).join('') + '</select>';
+  }
+  function editFixHtml() {
+    var ed = V.VIDEO_FIXES.filter(function (c) { return c.edit; })[0];
+    if (!ed) return '';
+    return '<details class="vid-tap" style="margin-top:8px"><summary>仕上げで直すこと（編集の点検）</summary><ul class="soc-small" style="margin:6px 0 0;padding-left:18px;line-height:1.8">' +
+      ed.items.map(function (it) { return '<li><b>' + esc(it[0]) + '</b>：' + esc(it[1]) + '</li>'; }).join('') +
+      '</ul><p class="soc-small">人物の崩れ（指・足元・顔）は、映す画の欄の「化けたら」で直しの一言を足し、そのカットだけ作り直します。</p></details>';
+  }
+
   R.board = function (host) {
     if (needProject(host)) return;
     var s = currentScript();
@@ -1189,11 +1322,12 @@
           var over = len > V.modeRules(s).SHOT_MAX_SEC;
           return '<tr data-i="' + i + '"><td>' + (i + 1) + (x.part ? '<br><span class="soc-small">' + (Number(x.parent) + 1) + x.part + '</span>' : '') + '</td><td style="white-space:nowrap">' + sec(x.start) + '〜' + sec(x.end) + '</td>' +
             '<td style="white-space:nowrap">' + len + '秒' + (over ? ' <span class="vid-tag warn">長い</span>' : '') + (x.angle ? '<br><span class="vid-tag">' + esc(x.angle) + '</span>' : '') + '</td><td>' + esc(x.telop) + '</td>' +
-            '<td><textarea rows="3" class="vb-f" data-k="visual_prompt" aria-label="映す画">' + esc(x.visual_prompt) + '</textarea></td>' +
+            '<td><textarea rows="3" class="vb-f" data-k="visual_prompt" aria-label="映す画">' + esc(x.visual_prompt) + '</textarea>' + fixSelect() + '</td>' +
             '<td><input type="text" class="vb-f" data-k="camera" value="' + esc(x.camera) + '" aria-label="カメラ"></td>' +
             '<td><input type="text" class="vb-f" data-k="transition" value="' + esc(x.transition) + '" aria-label="つなぎ"><br>' + markSelect('vb-f', x.mark) + '</td></tr>';
         }).join('') : '<tr><td colspan="7" class="empty">まだありません。「台本から作り直す」を押してください。</td></tr>') +
         '</tbody></table></div>' +
+        editFixHtml() +
         '<div class="vid-acts"><button type="button" id="vb-save">保存</button><button type="button" class="ghost" id="vb-csv">絵コンテ（CSV）</button><button type="button" class="ghost" id="vb-edl">絵コンテ（EDL）</button></div>';
       el('vb-split').addEventListener('click', function () {
         var r = V.splitLongShots(shots, s);
@@ -1211,6 +1345,20 @@
         draw();
       });
       el('vb-style').addEventListener('input', function () { style = this.value; });
+      // 化けたカットの直し: 選んだ一言を、そのカットの「映す画」に足します。
+      el('vb-body').onchange = function (e) {
+        var t = e.target;
+        if (t.classList.contains('vb-fix') && t.value) {
+          var i = Number(t.closest('tr').getAttribute('data-i'));
+          var p = t.value.split('|');
+          var item = (V.VIDEO_FIXES[+p[0]] || { items: [] }).items[+p[1]];
+          if (!item) return;
+          shots[i].visual_prompt = V.addVideoFix(shots[i].visual_prompt, item[2]);
+          t.closest('td').querySelector('textarea').value = shots[i].visual_prompt;
+          t.value = '';
+          say('#' + (i + 1) + ' の映す画に「' + item[0] + '」の直しを足しました。作り直して確かめてください。', true);
+        }
+      };
       // draw() のたびに呼ばれるので、足し続けないよう代入で置きます。
       el('vb-body').oninput = function (e) {
         var t = e.target;

@@ -19,7 +19,7 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS, PLAN_VARS } from './_video-core.js'
+import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS, PLAN_VARS, LAYOUT_IDS, TONE_IDS } from './_video-core.js'
 
 const PLAN_VAR_IDS = PLAN_VARS.map((v) => v.id)
 
@@ -151,6 +151,9 @@ function cleanLine(l) {
     narration: str(l && l.narration, 300), telop: str(l && l.telop, 120), visual: str(l && l.visual, 300),
     // 切り替え（新しい画・音・問い）か山場（ルール変更・トラブル・発表・どんでん返し）
     mark: MARKS.indexOf(l && l.mark) >= 0 ? l.mark : '',
+    // 構図（上下分割・全面の画面 …）と、テロップの調子（ふつう・解説・含み …）
+    layout: LAYOUT_IDS.indexOf(l && l.layout) >= 0 ? l.layout : '',
+    tone: TONE_IDS.indexOf(l && l.tone) >= 0 ? l.tone : '',
   }
 }
 
@@ -172,6 +175,14 @@ export function cleanScript(s) {
     character: str(s && s.character, 200), fan_expect: str(s && s.fan_expect, 300), landing: str(s && s.landing, 300),
     // 変数固定の作り直し: どの台本の、どの変数だけを変えたか。
     variant_of: idOk(s && s.variant_of) ? s.variant_of : '', variable: PLAN_VAR_IDS.indexOf(s && s.variable) >= 0 ? s.variable : '',
+    // 台本を固めた版（v1, v2 …）と、そのときの言葉の指紋。固めたあとで言葉が直ると、指紋が合わなくなります。
+    fixed: s && s.fixed && num(s.fixed.v, 1, 999) ? { v: num(s.fixed.v, 1, 999), hash: str(s.fixed.hash, 16), at: iso(s.fixed.at) } : null,
+    // 音声から取った句ごとのタイミング（words.json）。どの台本（指紋）から取ったかも残します。
+    words: s && s.words && Array.isArray(s.words.items) ? {
+      hash: str(s.words.hash, 16), v: num(s.words.v, 0, 999) || 0, at: iso(s.words.at), source: str(s.words.source, 120),
+      items: list(s.words.items, 800, (w) => ({ text: str(w && w.text, 120), line: num(w && w.line, 0, 1000) || 0, start: num(w && w.start, 0, 36000) || 0, end: num(w && w.end, 0, 36000) || 0, snapped: !!(w && w.snapped) })),
+      quality: s.words.quality && typeof s.words.quality === 'object' ? { level: str(s.words.quality.level, 8), lineSnap: num(s.words.quality.lineSnap, 0, 1), speed: num(s.words.quality.speed, 0, 100) } : null,
+    } : null,
     lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),
     rationale: str(s && s.rationale, 1500),

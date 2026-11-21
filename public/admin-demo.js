@@ -1747,13 +1747,14 @@
   function videoScript() {
     // ショート。冒頭3秒に約束の「カンパーニュ」が無い・長いカットがある、を見せる例です。
     var lines = [
-      [0, 3, 'この穴、どうやってできると思います？', 'この穴、どうやってできる？', 'Close-up of a sliced country loaf showing open crumb', ''],
-      [3, 8, '答えは、生地に入れる水の量なんです。', '答えは「水の量」', 'Baker pouring water into a large mixing bowl', 'switch_question'],
-      [8, 14, 'うちでは粉の重さの8割の水を入れます。', '粉の8割が水', 'Hands folding a wet, glossy dough on a wooden table', 'switch_visual'],
-      [14, 18, '扱いにくい生地ですが、そのぶん軽く焼けます。', 'だから軽い', 'Loaf coming out of a stone oven, steam rising', 'peak_reveal'],
-      [18, 21, '気になったら保存して、朝に見返してね。', '保存して朝に見返してね', 'Warm bakery counter at sunrise with bread on display', ''],
-      [21, 24, 'で、この穴の答えは…', 'この穴の答えは…', 'Close-up of the crumb again, slow push-in', '']
-    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4], mark: l[5] }; });
+      // 構図: 3〜14秒が「上下分割」のまま続く・山場も上下分割、を見せる例です（点検で注意が出ます）。
+      [0, 3, 'この穴、どうやってできると思います？', 'この穴、どうやってできる？', 'Close-up of a sliced country loaf showing open crumb', '', 'full_view', 'hint'],
+      [3, 8, '答えは、生地に入れる水の量なんです。', '答えは「水の量」', 'Baker pouring water into a large mixing bowl', 'switch_question', 'split', ''],
+      [8, 14, 'うちでは粉の重さの8割の水を入れます。', '粉の8割が水', 'Hands folding a wet, glossy dough on a wooden table', 'switch_visual', 'split', 'explain'],
+      [14, 18, '扱いにくい生地ですが、そのぶん軽く焼けます。', 'だから軽い', 'Loaf coming out of a stone oven, steam rising', 'peak_reveal', 'split', ''],
+      [18, 21, '気になったら保存して、朝に見返してね。', '保存して朝に見返してね', 'Warm bakery counter at sunrise with bread on display', '', 'wipe', ''],
+      [21, 24, 'で、この穴の答えは…', 'この穴の答えは…', 'Close-up of the crumb again, slow push-in', '', 'full_view', 'hint']
+    ].map(function (l) { return { start: l[0], end: l[1], narration: l[2], telop: l[3], visual: l[4], mark: l[5], layout: l[6], tone: l[7] }; });
     var sc = {
       id: 'demo-script', title: 'カンパーニュの穴のひみつ', platform: 'instagram', length_mode: 'short', target_duration_sec: 24, hook: lines[0].narration, body: '水の量で食感が変わる', cta: '保存して朝に見返してね',
       thumb_text: '穴のひみつは水', promise: 'カンパーニュの大きな穴ができる理由が分かる', promise_keywords: [], wow: '15年使っている石窯から出す瞬間と、粉の8割の水',
