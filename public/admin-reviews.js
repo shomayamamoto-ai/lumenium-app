@@ -629,7 +629,7 @@
       Object.keys(a.aspects || {}).map(function (k) { return k + ': ' + LV[a.aspects[k]]; }),
       a.overall ? ['全体: ' + OV[a.overall]] : []);
     var how = d.by === 'ai'
-      ? '<span class="rev-tag ok">AI が書きました</span>' + (d.tried > 1 ? '<span class="soc-small">　1回目は点検で外し、書き直しました。</span>' : '')
+      ? '<span class="rev-tag ok">AI が書きました</span><span class="soc-small">　' + (d.judged ? '言葉の決まりと、AIによる2回目の確認を通っています。' : '言葉の決まりを通っています（2回目の確認は、時間の都合で省きました）。') + (d.tried > 1 ? '1回目は点検で外し、書き直しました。' : '') + '</span>'
       : '<span class="rev-tag new">答えをそのまま文にしました</span>';
     return '<div class="soc-small" style="margin-bottom:6px">選んだ答え：' + picked.map(esc).join('／') + '</div>' +
       '<div class="rev-body" style="background:#faf9f6;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.9">' + esc(d.text) + '</div>' +

@@ -150,7 +150,7 @@ export async function POST(req) {
     const ans = sampleAnswers(prefs.assist, body.style === 'casual' ? 'casual' : 'polite')
     const seed = Math.floor(Math.random() * 100000)
     const d = await makeDraft(req, ans, prefs.assist, seed)
-    return json({ ok: true, answers: ans, text: d.text, by: d.by, ai: d.ai, tried: d.tried, reasons: d.reasons, plain: composeDraft(ans, seed) })
+    return json({ ok: true, answers: ans, text: d.text, by: d.by, ai: d.ai, tried: d.tried, judged: d.judged, reasons: d.reasons, plain: composeDraft(ans, seed) })
   }
   if (action === 'request-send') {
     const r = await sendRequest(req, String(body.id || ''))

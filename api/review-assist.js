@@ -21,11 +21,13 @@ import { BRAND } from './_aio-catalog.js'
 import { createWithFallback } from './_ai-create.js'
 import { readPrefs, readMeta, linkFor, RK } from './_reviews.js'
 import {
-  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, retryText, checkDraft, cleanDraft, weekOf, tallyFields,
+  LEVELS, OVERALL, STYLES, normalizeAnswers, enough, composeDraft, systemText, promptText, retryText, checkDraft, cleanDraft, weekOf, tallyFields, judgeSystem, judgePrompt, readJudge,
 } from './_review-assist.js'
 
 const MODEL = 'claude-haiku-5-5'
-const TIMEOUT_MS = 12000
+const TIMEOUT_MS = 11000
+// 1回の下書きにかけてよい時間（edge は約25秒で返し始める必要があるため、余裕を残します）。
+const BUDGET_MS = 20000
 const DAILY_AI = 200
 
 async function count(cfg, kind) {
@@ -49,28 +51,41 @@ async function load() {
  *  AI に頼み、点検（作り話・誘導）を通ったらそちらを返します。通らなければ、理由を添えて
  *  もう一度だけ頼みます。それでも通らないとき・AI が返らないときは、用意した下書きを返します。
  *  reasons は、AI の下書きを外した理由です（お客様の画面には出しません。お店の「見本」で見ます）。 */
-export async function makeDraft(req, ans, a, seed) {
+export async function makeDraft(req, ans, a, seed, opts) {
   const plain = composeDraft(ans, seed)
-  const res = { text: plain, by: 'rule', tried: 0, reasons: [], ai: false }
-  const key = await apiKey(req)
+  const res = { text: plain, by: 'rule', tried: 0, reasons: [], ai: false, judged: false }
+  const key = (opts && opts.client) ? 'test' : await apiKey(req)
   if (!key) { res.reasons.push('AI のキーが無いため、答えをそのまま文にしました。'); return res }
   res.ai = true
-  if (await spendGuard('review-assist', DAILY_AI)) { res.reasons.push('今日の AI の上限に達したため、答えをそのまま文にしました。'); return res }
+  if (!(opts && opts.client) && await spendGuard('review-assist', DAILY_AI)) { res.reasons.push('今日の AI の上限に達したため、答えをそのまま文にしました。'); return res }
   try {
-    const client = new Anthropic({ apiKey: key, maxRetries: 0 })
+    const client = (opts && opts.client) || new Anthropic({ apiKey: key, maxRetries: 0 })
     const started = Date.now()
+    const left = () => BUDGET_MS - (Date.now() - started)
+    const textOf = (out) => (out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('')
     const messages = [{ role: 'user', content: promptText(ans) }]
     for (let i = 0; i < 2; i++) {
       // 2回目は、残り時間があるときだけ（お客様を待たせすぎないため）。
-      if (i === 1 && Date.now() - started > 9000) break
+      if (i === 1 && left() < 7000) break
       res.tried++
-      const out = await createWithFallback(client, { model: MODEL, max_tokens: 500, system: systemText(), messages }, { signal: AbortSignal.timeout(i ? 9000 : TIMEOUT_MS) })
+      const out = await createWithFallback(client, { model: MODEL, max_tokens: 500, system: systemText(), messages }, { signal: AbortSignal.timeout(Math.max(3000, Math.min(TIMEOUT_MS, left() - 1000))) })
       if (out.stop_reason === 'refusal') { res.reasons.push('AI が下書きを断りました。'); break }
-      const got = cleanDraft((out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(''))
-      const chk = checkDraft(got, ans, a, BRAND)
-      if (chk.ok) { res.text = got; res.by = 'ai'; res.reasons = []; return res }
-      res.reasons = chk.reasons
-      messages.push({ role: 'assistant', content: got || '（空）' }, { role: 'user', content: retryText(got, chk.reasons) })
+      const got = cleanDraft(textOf(out))
+      // 1つ目の点検: 言葉の決まり。
+      let reasons = checkDraft(got, ans, a, BRAND).reasons
+      // 2つ目の点検: 決まりを通った下書きを、AI にもう一度「答えにない話が足されていないか」だけ読ませます。
+      // 時間が足りないとき・返事が読めないときは、1つ目の点検だけで決めます。
+      if (!reasons.length && left() > 6000) {
+        try {
+          const jo = await createWithFallback(client, { model: MODEL, max_tokens: 200, system: judgeSystem(), messages: [{ role: 'user', content: judgePrompt(ans, got) }] }, { signal: AbortSignal.timeout(Math.min(6000, left() - 1000)) })
+          const j = readJudge(textOf(jo))
+          res.judged = true
+          if (!j.ok) reasons = j.added.map((x) => `答えにない話（${x}）が入っています`)
+        } catch (_) { /* 2つ目の点検ができなくても、1つ目は通っています */ }
+      }
+      if (!reasons.length) { res.text = got; res.by = 'ai'; res.reasons = []; return res }
+      res.reasons = reasons
+      messages.push({ role: 'assistant', content: got || '（空）' }, { role: 'user', content: retryText(got, reasons) })
     }
   } catch (e) {
     res.reasons.push(`AI が返りませんでした（${String((e && e.message) || e).slice(0, 80)}）。`)
