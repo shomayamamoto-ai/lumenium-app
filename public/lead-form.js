@@ -133,6 +133,56 @@
     calc();
   }
 
+  /* 日程の目安。計画届は研修を始める日の1か月前まで、支給申請は研修が終わった次の日から2か月以内。
+     1か月前の同じ日が無いとき（3月31日の1か月前など）は、その月の末日にします。 */
+  function addMonths(d, m) {
+    var y = d.getFullYear(), mo = d.getMonth() + m, day = d.getDate();
+    var last = new Date(y, mo + 1, 0).getDate();
+    return new Date(y, mo, Math.min(day, last));
+  }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  var WD = '日月火水木金土';
+  function fmt(d) { return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日（' + WD[d.getDay()] + '）'; }
+  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function parse(v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+  function bindSched(box) {
+    var input = box.querySelector('[name=sstart]');
+    var out = box.querySelector('.lf-sched-out');
+    var end = parse(box.getAttribute('data-end'));
+    var weeks = Number(box.getAttribute('data-weeks')) || 4;
+    var now = new Date(); var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // 初めは「いちばん早く始められる日」の目安: 6週間後の月曜。
+    var first = addDays(today, 42); while (first.getDay() !== 1) first = addDays(first, 1);
+    if (!input.value) input.value = iso(first);
+    input.min = iso(addDays(today, 1));
+    function calc() {
+      var st = parse(input.value);
+      if (!st) { out.innerHTML = ''; return; }
+      var plan = addMonths(st, -1);
+      var apply = addDays(st, -42);
+      var last = addDays(st, weeks * 7);
+      var claim = addMonths(last, 2);
+      var rows = [
+        ['当社へのお申込み（目安）', apply],
+        ['会社が計画届を出す期限', plan],
+        ['研修 第1回', st],
+        ['研修 第5回（最終回）', last],
+        ['会社が支給申請をする期限', claim]
+      ];
+      var warn = [];
+      if (plan < today) warn.push('計画届の期限（' + fmt(plan) + '）を過ぎています。助成金を使うなら、始める日を遅らせてください。');
+      else if (apply < today) warn.push('日程がつまっています。計画届の期限まで ' + Math.round((plan - today) / 86400000) + '日です。すぐにご相談ください。');
+      if (end && last > end) warn.push('研修の終わりが、制度の期限（' + fmt(end) + '）を過ぎます。年度をまたぐ研修の扱いと、2027年4月以降の制度は、管轄の労働局でご確認ください。');
+      out.innerHTML = rows.map(function (r) { return '<div><span>' + r[0] + '</span><b>' + fmt(r[1]) + '</b></div>'; }).join('') +
+        warn.map(function (w) { return '<p class="warn">' + w + '</p>'; }).join('');
+    }
+    input.addEventListener('input', calc);
+    input.addEventListener('change', calc);
+    calc();
+  }
+
+  window.lumLeadDates = { addMonths: addMonths, addDays: addDays, parse: parse };
   document.querySelectorAll('form.lf').forEach(bind);
-  document.querySelectorAll('.lf-calc').forEach(bindCalc);
+  document.querySelectorAll('.lf-sched').forEach(bindSched);
+  document.querySelectorAll('.lf-calc[data-subsidy]').forEach(bindCalc);
 })();

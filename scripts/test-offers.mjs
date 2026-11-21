@@ -50,4 +50,21 @@ for (const f of ['training', 'salon', 'partners']) {
 }
 ok('3ページに申込フォームがあり、「実質無料」などの言い方がない')
 
+{
+  // 日程の計算（ページの public/lead-form.js をそのまま動かします）
+  const vm = await import('node:vm')
+  const ctx = { window: {}, document: { querySelectorAll: () => [] }, sessionStorage: { getItem: () => null } }
+  vm.runInNewContext(readFileSync('public/lead-form.js', 'utf8'), ctx)
+  const D = ctx.window.lumLeadDates
+  const ymd = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+  assert.equal(ymd(D.addMonths(D.parse('2027-02-01'), -1)), '2027-1-1')   // 計画届の期限
+  assert.equal(ymd(D.addMonths(D.parse('2027-03-31'), -1)), '2027-2-28')  // 1か月前に同じ日が無い
+  assert.equal(ymd(D.addMonths(D.parse('2027-01-31'), -1)), '2026-12-31') // 年をまたぐ
+  assert.equal(ymd(D.addMonths(D.addDays(D.parse('2027-02-01'), 28), 2)), '2027-5-1') // 最終回の2か月後
+  ok('日程: 計画届は1か月前（末日に寄せる）、支給申請は最終回から2か月')
+  const t = readFileSync('public/training.html', 'utf8')
+  assert.ok(t.includes('id="curriculum"') && t.includes('data-end="2027-03-31"'))
+  ok('研修ページに時間割と日程の計算がある')
+}
+
 console.log(`\n申込ページ ${n} 件すべて通りました。`)

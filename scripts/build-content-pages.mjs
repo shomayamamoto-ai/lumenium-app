@@ -22,7 +22,7 @@ import { FAQ_GROUPS } from '../src/data/faq.js'
 import { CASE_STUDIES, ACHIEVEMENTS, TESTIMONIALS, FLOW_STEPS, PRICE_OPTIONS,
   PAIN_POINTS, BRAND_CHAPTERS, POSITIONING_NOTES, CAREER, PROFILE_BRICKS, PROFILES, SYSTEMS } from '../src/data/site.js'
 import { SECTION } from '../src/data/text.js'
-import { TRAINING_PLANS, SALON, PARTNER, SUBSIDY, yen as yenOf } from '../src/data/offers.js'
+import { TRAINING_PLANS, SALON, PARTNER, SUBSIDY, CURRICULUM, yen as yenOf } from '../src/data/offers.js'
 
 // Admin copy overrides are applied to the shared data modules before any
 // page is rendered, so the static pages always match what the site shows.
@@ -1316,6 +1316,15 @@ const LF_STYLE = `
 .lf-calc input, .lf-calc select { width:100%; min-height:42px; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:#fff; color:inherit; font:inherit; }
 .lf-calc-out { margin-top:12px; font-size:14.5px; line-height:1.85; }
 .src { font-size:12px; color:var(--sub); line-height:1.8; }
+.lf-sched-out { margin-top:10px; display:grid; gap:6px; }
+.lf-sched-out div { display:flex; gap:12px; justify-content:space-between; border-bottom:1px dashed var(--border); padding:6px 0; font-size:14px; }
+.lf-sched-out div b { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.lf-sched-out .warn { color:#b45309; font-weight:700; border:0; display:block; }
+.tt { overflow-x:auto; margin:12px 0; }
+.tt table { border-collapse:collapse; width:100%; min-width:520px; font-size:13.5px; }
+.tt td:nth-child(2) { min-width:220px; }
+.tt th, .tt td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.7; }
+.tt th { font-size:12.5px; }
 .src a { word-break:break-all; }
 `
 const lfField = (name, label, input) => `<label for="lf-${name}">${label}</label>${input}`
@@ -1400,6 +1409,23 @@ TOPIC_PAGES.push(
     <p class="note">${esc(SUBSIDY.disclaimer)}</p>
     ${srcList(SUBSIDY.sources)}
 
+    <h3>いつまでに何をするか（日程の目安）</h3>
+    <p>研修を始めたい日を入れると、会社が出す書類の期限が分かります。</p>
+    <div class="lf-calc lf-sched" data-end="${esc(SUBSIDY.endDate)}" data-weeks="${TRAINING_PLANS.find((p) => p.id === 'practice').sessions - 1}">
+      <label for="s-start">研修を始めたい日（1回目）</label>
+      <input id="s-start" name="sstart" type="date">
+      <div class="lf-sched-out" aria-live="polite"></div>
+    </div>
+
+    <h2 id="curriculum">実務研修の時間割（10時間）</h2>
+    <p>1回2時間を週1回、5回で行います。どの回も通常の仕事と分けて行う研修（OFF-JT）です。計画届に添付するカリキュラムは、この形を御社の仕事に合わせて当社が作ります。</p>
+    <div class="tt"><table>
+      <thead><tr><th>回</th><th>内容</th><th>終わったときに残るもの</th></tr></thead>
+      <tbody>
+      ${CURRICULUM.map((c) => `<tr><td style="white-space:nowrap">第${c.no}回<br><small>2時間</small></td><td><strong>${esc(c.title)}</strong><br>${esc(c.body)}</td><td>${esc(c.out)}</td></tr>`).join('\n      ')}
+      </tbody>
+    </table></div>
+
     <h2 id="apply">申込書</h2>
     <p>送っていただいたら、2営業日以内に、日程・内容・お見積りをメールでお送りします。助成金を使う場合は、研修を始める日から逆算した日程をご提案します。</p>
     ${lfForm('training', { plans: TRAINING_PLANS.map((p) => ({ id: p.id, name: p.name, short: p.short, price: p.price, priceNote: p.priceNote })) }, `
@@ -1413,6 +1439,7 @@ TOPIC_PAGES.push(
       ['助成金の申請も代わりにしてもらえますか？', '申請の代行はしていません。申請は会社（または顧問の社会保険労務士）が行います。こちらは、計画に添付するカリキュラムと受講の記録をそろえてお渡しします。'],
       ['会社の情報をAIに入れても大丈夫ですか？', '研修の最初に「入れてはいけない情報」と社内ルールのひな形をお渡しします。実習は、入れてよい情報だけで行います。'],
       ['1回だけでも頼めますか？', 'できます。入門研修（2時間）は1回でお受けしています。'],
+      ['助成金を使う場合、いつまでに申し込めばよいですか？', '会社が研修を始める日の1か月前までに計画届を出す必要があります。日程の調整と書類の準備を入れると、研修を始めたい日の6週間前までにお申込みいただくと安心です。この制度は令和8年度末（2027年3月31日）までのため、年度内に終えるなら2月中に始めるのが目安です。'],
     ],
   },
   {
@@ -1485,7 +1512,11 @@ TOPIC_PAGES.push(
     <h2>紹介料について</h2>
     <p>紹介料はお支払いしていません。研修の受講料の一部が、助成金を受ける側に戻る形と受け取られることを避けるためです。代わりに、${esc(PARTNER.back)}</p>
     <h2>研修の中身と料金</h2>
-    <p>実務研修は2時間×5回（計10時間）、${esc(TRAINING_PLANS.find((p) => p.id === 'practice').priceNote)}です。内容と、助成金を使う場合の目安は<a href="/training.html">研修のページ</a>に載せています。</p>
+    <p>実務研修は2時間×5回（計10時間）、${esc(TRAINING_PLANS.find((p) => p.id === 'practice').priceNote)}です。</p>
+    <ul>
+      <li><a href="/training.html#curriculum">5回の時間割（計画届のカリキュラムの元）</a></li>
+      <li><a href="/training.html">助成の目安の計算と、日程（計画届・支給申請の期限）の計算</a></li>
+    </ul>
     <h2 id="apply">提携のご相談</h2>
     ${lfForm('partner', {}, `
       ${whoFields('事務所名')}
