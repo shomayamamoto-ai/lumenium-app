@@ -340,6 +340,47 @@ export function capByLoad(slots, busy, rules = DEFAULT_RULES) {
   })
 }
 
+/** 予約だけで埋めたときの、1日の予定の上限（割合）。予約と予約のあいだには必ず bufferMin の
+ *  空きが入るので、60分のメニュー・前後30分なら 60 ÷ (60+30) ≒ 67% より上にはなりません。
+ *  これより高い上限（80%など）が効くのは、カレンダーのほかの予定が多い日だけです。 */
+export function bookingOnlyMax(rules = DEFAULT_RULES) {
+  const m = Math.max(...activeServices(rules).map((s) => s.minutes).concat([15]))
+  const b = rules.bufferMin || 0
+  return Math.round(m / (m + b) * 100)
+}
+
+/* ---- 延びた面談（ばらつき） ------------------------------------------------
+ * 待ち行列では、混み具合だけでなく「時間のばらつき」でも詰まります。予定どおり終わる面談
+ * ばかりなら前後の空きは少なくて済み、よく延びるなら多く要ります。管理画面で「日時・長さを直す」
+ * をすると、最初の予定（planned）が残るので、実際にどれだけ延びたかを数えられます。 */
+export function overrunStats(list, rules = DEFAULT_RULES, now = Date.now(), days = 120) {
+  const since = now - days * DAY
+  const done = (list || []).filter((r) => recStatus(r) === 'visited' && recSpan(r).end > since && recSpan(r).end <= now)
+  const over = []
+  for (const r of done) {
+    const a = recSpan(r)
+    const p = r.planned && Number(r.planned.start) && Number(r.planned.end) ? { start: Number(r.planned.start), end: Number(r.planned.end) } : null
+    // 別の日に面談した（日時の決め直し）は、延びたのではないので数えません。
+    if (!p || Math.abs(a.start - p.start) > 3 * 3600 * 1000) { over.push(0); continue }
+    over.push(Math.max(0, Math.round(((a.end - a.start) - (p.end - p.start)) / MIN)))
+  }
+  const n = over.length
+  const ran = over.filter((x) => x > 0)
+  const sorted = over.slice().sort((x, y) => x - y)
+  // 8割の面談が、延びても次に響かない空き（延びた分の80パーセンタイル。15分単位で切り上げ）。
+  const p80 = n ? sorted[Math.min(n - 1, Math.ceil(n * 0.8) - 1)] : 0
+  const suggest = Math.min(120, Math.ceil(p80 / 15) * 15)
+  const buf = rules.bufferMin || 0
+  return {
+    n, overran: ran.length,
+    avgOver: ran.length ? Math.round(ran.reduce((a, x) => a + x, 0) / ran.length) : 0,
+    maxOver: ran.length ? Math.max(...ran) : 0,
+    p80, suggestBuffer: suggest,
+    // 数が少ないうちは、すすめません（1件の延長で決めないため）。
+    advice: n < 5 ? 'few' : suggest > buf ? 'raise' : (buf - suggest >= 30 && ran.length / n < 0.2 ? 'lower' : 'ok'),
+  }
+}
+
 /** 埋まっている時間帯と重なる枠を落とす。予定の前後には bufferMin 分の
  *  余白をとります（直前・直後に詰めて入れない）。 */
 export function removeBusy(slots, busy, bufferMin = DEFAULT_RULES.bufferMin) {

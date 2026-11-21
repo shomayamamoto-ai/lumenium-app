@@ -33,7 +33,7 @@ import {
   cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS, bookingAttention,
   saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
-  capByLoad, dayLoads, queueFactor, dayStart,
+  capByLoad, dayLoads, queueFactor, dayStart, overrunStats, bookingOnlyMax,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 import { mailBooked, mailConfirmed, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
@@ -240,8 +240,13 @@ export async function GET(req) {
     if (denied) return denied
     const store = storeConfig()
     const c = await creds(req)
+    const rulesNow = await readRules(store, pipeline)
+    const allBookings = await recentBookings(store, pipeline, url.searchParams.get('recent') === 'all' ? 300 : 20)
     return json({
       ok: true,
+      // 延びた面談の実績と、前後の空きの目安（予定は8割まで・ばらつき）。
+      overrun: overrunStats(allBookings, rulesNow),
+      bookingOnlyMax: bookingOnlyMax(rulesNow),
       connected: connected(c),
       // 簡易接続（非公開iCal URL）だけの状態も、はっきり分けて返します。
       ics: !!(await setting('GOOGLE_CALENDAR_ICS_URL', '', req)),
@@ -255,9 +260,9 @@ export async function GET(req) {
       calendarId: c.calendarId,
       // 実際に読めているか・どのカレンダーを読んでいるか（キーが入っているだけでは分かりません）。
       calendar: await calendarCheck(req, c, store),
-      rules: await readRules(store, pipeline),
+      rules: rulesNow,
       // 予約管理の画面は、一覧・週の表・数字をこの記録から作ります（直近300件）。
-      bookings: await recentBookings(store, pipeline, url.searchParams.get('recent') === 'all' ? 300 : 20),
+      bookings: allBookings,
       // 前回この一覧を開いた時刻。これより後に入った予約に「新着」の印を付けます。
       seenAt: await readSeen(store),
       holidayLast: HOLIDAY_LAST,

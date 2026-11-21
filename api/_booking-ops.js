@@ -85,6 +85,9 @@ export async function setBookingTime(req, rec, rules, span, opts = {}) {
     start: span.start, end: span.end, key: new Date(span.start).toISOString(), when: label(span.start, span.end),
     seq: (rec.seq || 0) + 1, reminded: !future,
     history: log(rec, 'move', 'owner', { from: oldWhen, manual: true }),
+    // 最初に予定していた日時（1回目の直しのときだけ残します）。延びた面談の実績を数えるのに使います
+    // （_booking.js の overrunStats）。
+    planned: rec.planned || { start: old.start, end: old.end },
   }
   if (cells.length) next.cells = [cells[0], cells[cells.length - 1]]; else delete next.cells
 

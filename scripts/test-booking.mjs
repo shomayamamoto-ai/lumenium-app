@@ -142,6 +142,39 @@ await t('予定は8割まで: 「上限に達した」は、いちばん短い�
   assert.equal(B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-06 00:00'), at(450), r2).find((x) => x.day === '2026-10-05').full, false)
 })
 
+await t('予約だけで埋めたときの上限: 60分・前後30分なら約67%（それより高い上限は、ほかの予定が多い日にだけ効く）', () => {
+  assert.equal(B.bookingOnlyMax(B.normalizeRules(null).rules), 67)
+  assert.equal(B.bookingOnlyMax(B.normalizeRules({ bufferMin: 0 }).rules), 100)
+  assert.equal(B.bookingOnlyMax(B.normalizeRules({ bufferMin: 15, services: [{ name: '90分', minutes: 90 }] }).rules), 86)
+})
+
+await t('延びた面談: 最初の予定との差を数え、8割が次に響かない前後の空きをすすめる', () => {
+  const rules = B.normalizeRules({ bufferMin: 15 }).rules
+  const now = jst('2026-10-31 12:00')
+  const mk = (i, overMin, opts = {}) => {
+    const start = jst('2026-10-05 13:00') + i * 86400000
+    const plannedEnd = start + 60 * 60000
+    return { id: 'r' + i, status: 'visited', start: opts.moved ? start + 86400000 : start, end: (opts.moved ? start + 86400000 : start) + (60 + overMin) * 60000,
+      planned: opts.noPlan ? undefined : { start, end: plannedEnd } }
+  }
+  // 10件: 延びていない6件、延びた4件（10・20・30・45分）
+  const list = [0, 0, 0, 0, 0, 0, 10, 20, 30, 45].map((m, i) => mk(i, m, { noPlan: m === 0 && i % 2 === 0 }))
+  const o = B.overrunStats(list, rules, now)
+  assert.deepEqual([o.n, o.overran, o.avgOver, o.maxOver], [10, 4, 26, 45])
+  assert.equal(o.p80, 20)                                    // 小さい順に8番目
+  assert.deepEqual([o.suggestBuffer, o.advice], [30, 'raise'])   // 20分 → 15分単位で切り上げて30分。いまは15分
+  // 別の日に面談した（日時の決め直し）は、延びたと数えない
+  const moved = B.overrunStats([mk(0, 30, { moved: true })], rules, now)
+  assert.equal(moved.overran, 0)
+  // 5件に満たないうちは、すすめない
+  assert.equal(B.overrunStats(list.slice(0, 4), rules, now).advice, 'few')
+  // 延びることが少なく、空きが多すぎるとき
+  const calm = B.overrunStats(Array.from({ length: 10 }, (_, i) => mk(i, 0)), { ...rules, bufferMin: 60 }, now)
+  assert.deepEqual([calm.suggestBuffer, calm.advice], [0, 'lower'])
+  // 取り消し・まだ終わっていない予約は数えない
+  assert.equal(B.overrunStats([{ ...mk(0, 30), status: 'cancelled' }, { ...mk(40, 30) }], rules, now).n, 0)
+})
+
 await t('予定は8割まで: Googleの予定と、同じ時間の予約は、1回だけ数える', () => {
   const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []], leadHours: 0 })
   const g = { start: jst('2026-10-05 13:00'), end: jst('2026-10-05 14:00') }
@@ -711,6 +744,10 @@ await t('受付時間: 保存されているのが以前の既定（平日10〜1
         const r3 = await ops.setBookingTime(req, rec, rules, later, { notify: true })
         assert.equal(r3.calendar, 'moved'); assert.match(calls[0].url, /sendUpdates=all/)
         assert.equal(r3.rec.status, 'confirmed'); assert.equal(r3.rec.end - r3.rec.start, 90 * 60000)
+        // 最初の予定は、1回目の直しのときだけ残る（2回直しても、元の予定のまま）。延びた実績を数えるのに使う。
+        assert.deepEqual(r.rec.planned, { start, end: start + 3600000 })
+        const again = await ops.setBookingTime(req, r.rec, rules, bk.manualSpan('2026-10-05', '14:00', '16:00'), { notify: false, done: true })
+        assert.deepEqual(again.rec.planned, { start, end: start + 3600000 })
       } finally { globalThis.fetch = f0 }
     })
     await t('日時を自分で入れて直す: Google とつないでいないときは、「Googleカレンダーに追加」のリンクを新しい日時に作り直す', async () => {

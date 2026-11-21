@@ -2444,6 +2444,8 @@
     return {
       ok: true, connected: false, ics: true, stored: true, storedHere: true, calendarId: 'primary', calendar: { kind: 'ics', ok: true, busy: 6 },
       rules: RULES, bookings: bookings(), holidayLast: '2027-12-31', holidays: {},
+      // 延びた面談の実績（架空）。前後の空き15分に対して、延びることが多いお店の例です。
+      overrun: { n: 18, overran: 7, avgOver: 22, maxOver: 40, p80: 25, suggestBuffer: 30, advice: 'raise' }, bookingOnlyMax: 80,
       mail: { resend: true, sandbox: false, from: 'info@example.com' }, links: true,
       cron: { secret: true, last: { at: new Date(t0 + 9 * 3600000 - (Date.now() < t0 + 9 * 3600000 ? DAY : 0)).toISOString(), reminders: { due: 2, sent: 2, failed: 0 } } },
       line: { token: true }, now: Date.now()

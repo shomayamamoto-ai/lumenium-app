@@ -663,13 +663,26 @@
     return S.data.stored ? '' : '<p class="bk-warn"><span>保存先（Upstash Redis）が無いため、ここで決めた内容は保存できません（いまは既定の決まりで動いています）。</span></p>';
   }
 
+  /* 延びた面談の実績と、前後の空きの目安（予定は8割まで・ばらつき）。 */
+  function overrunText(full) {
+    var o = S.data && S.data.overrun;
+    var buf = (S.rules && S.rules.bufferMin) || 0;
+    if (!o || !o.n) return full ? '来店済みの面談がまだ無いため、延びた実績はありません。面談が延びたときは、予約を開いて「日時・長さを直す」で実際の終わりの時刻を入れてください。その記録から、前後の空きの目安を出します。' : '';
+    var head = '直近の来店済み ' + o.n + '件のうち、延びたのは ' + o.overran + '件' + (o.overran ? '（延びた分は平均' + o.avgOver + '分・いちばん長くて' + o.maxOver + '分）' : '') + '。';
+    if (o.advice === 'few') return head + 'まだ件数が少ないので、目安は出していません（5件から出します）。';
+    if (o.advice === 'raise') return head + '8割の面談が、延びても次に響かないようにするには、前後の空きを<b>' + o.suggestBuffer + '分</b>にすることをおすすめします（いまは' + buf + '分）。';
+    if (o.advice === 'lower') return head + '延びることが少ないので、前後の空きは' + Math.max(o.suggestBuffer, 15) + '分でも足ります（いまは' + buf + '分）。空きを減らすと、受けられる予約が増えます。';
+    return head + 'いまの前後の空き（' + buf + '分）で、8割の面談は延びても次に響きません。';
+  }
+
   /* 上限の説明。いまの受付時間で「1日に何時間まで」になるかも出します（いちばん長い曜日で）。 */
   function capNote(r) {
     var longest = 0;
     (r.week || []).forEach(function (ranges) { var m = 0; (ranges || []).forEach(function (x) { m += x[1] - x[0]; }); longest = Math.max(longest, m); });
     var cap = r.loadCap || 100;
     return '予定（カレンダーの予定と予約）がこれを超える日は、枠を出しません。予定がぎっしりだと、1つ延びただけで後ろが全部ずれます（待ち行列の考え方。おすすめは8割）。' +
-      (cap < 100 && longest ? 'いまの受付時間だと、長い日で1日' + hrs(longest * cap / 100) + 'まで。' : '');
+      (cap < 100 && longest ? 'いまの受付時間だと、長い日で1日' + hrs(longest * cap / 100) + 'まで。' : '') +
+      (cap < 100 && S.data && S.data.bookingOnlyMax && S.data.bookingOnlyMax < cap ? '前後に' + (r.bufferMin || 0) + '分空けているので、予約だけで埋めても約' + S.data.bookingOnlyMax + '%までしか増えません。この上限が効くのは、カレンダーのほかの予定が多い日です。' : '');
   }
 
   async function saveRules(btn, next) {
@@ -708,7 +721,7 @@
         fld('何日先まで出すか', '<input type="number" id="bk-hor" min="1" max="90" value="' + r.horizonDays + '">') +
         fld('予約の前後に空ける時間', '<select id="bk-buf">' + [0, 15, 30, 45, 60, 90, 120].map(function (n) {
           return '<option value="' + n + '"' + (r.bufferMin === n ? ' selected' : '') + '>' + (n ? n + '分' : '空けない') + '</option>';
-        }).join('') + '</select>', '片付け・移動の時間。カレンダーの予定の前後にも空けます。') +
+        }).join('') + '</select>', '片付け・移動の時間。カレンダーの予定の前後にも空けます。面談が延びたときの受けにもなります。' + (overrunText(false) ? '<br>' + overrunText(false) : '')) +
         fld('1日の予定は、受付時間の', '<select id="bk-cap">' + [60, 70, 80, 90, 100].map(function (n) {
           return '<option value="' + n + '"' + ((r.loadCap || 100) === n ? ' selected' : '') + '>' + (n < 100 ? n + '%まで（' + (n / 10) + '割）' : '上限なし') + '</option>';
         }).join('') + '</select>', capNote(r)) +
@@ -1017,6 +1030,8 @@
       '</div>' +
       '<p class="soc-small">' + (few ? 'まだ件数が少ないので、割合は目安です（20件を超えるころから、ぶれが小さくなります）。' : '') +
         '無断キャンセルの割合は、「来店済み」か「無断キャンセル」を付けた予約だけで計算しています。付けていない予約は数に入りません。</p>' +
+      '<h3 class="soc-h" style="margin-top:14px">延びた面談と、前後の空き</h3>' +
+      '<p class="soc-small" style="font-size:13px;line-height:1.8">' + overrunText(true) + '</p>' +
       '<div class="bk-two">' +
         '<div><h3 class="soc-h" style="margin-top:14px">よく選ばれる時間</h3>' + rank(slots) + '</div>' +
         '<div><h3 class="soc-h" style="margin-top:14px">よく選ばれるメニュー</h3>' + rank(svcs) + '</div>' +
