@@ -88,6 +88,8 @@ p.lead{color:var(--muted);margin:0 0 18px}
 .alert.warn b{color:var(--warn)}
 .alert.info{background:var(--brand-weak);border-color:color-mix(in srgb,var(--brand) 30%,transparent)}
 .alert.ok{background:var(--pos-weak);border-color:color-mix(in srgb,var(--pos) 30%,transparent)}
+details.alert summary{cursor:pointer}
+.tbl input.in{min-width:90px}
 .tblw{overflow:auto;border:1px solid var(--line);border-radius:10px}
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl th{background:var(--surface2);text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
@@ -151,7 +153,7 @@ p.lead{color:var(--muted);margin:0 0 18px}
 @media (max-width:560px){
   .g2,.g3,.g4{grid-template-columns:1fr}
   .kpi .v{font-size:19px}
-  .dedrow{grid-template-columns:1fr}
+  .dedrow{grid-template-columns:minmax(0,1fr)}
   .dedrow .amt{text-align:left}
   .logo small{display:none}
   #saveState:not(.bad){display:none}
@@ -184,25 +186,28 @@ p.lead{color:var(--muted);margin:0 0 18px}
      ============================================================ -->
 <script id="engine">
 "use strict";
-const fl = Math.floor;
+const fl = Math.floor, cl = Math.ceil;
 const num = v => { if (v == null || v === '') return 0; const n = Number(String(v).normalize('NFKC').replace(/[,\s円¥￥]/g, '')); return Number.isFinite(n) ? Math.round(n) : 0; };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const sumBy = (arr, k) => arr.reduce((s, x) => s + (typeof k === 'function' ? k(x) : x[k]), 0);
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const isBlank = v => v == null || String(v).trim() === '';
 
-// 年分ごとの税制パラメータ（所得税）
+// 年分ごとの税制パラメータ（所得税。住民税は翌年度分）
 const YEARCFG = {
   2025: {
     label: '令和7年分', filing: ['2026-02-16', '2026-03-16'], ctaxDue: '2026-03-31',
     basic: t => t <= 1320000 ? 950000 : t <= 3360000 ? 880000 : t <= 4890000 ? 680000 : t <= 6550000 ? 630000
       : t <= 23500000 ? 580000 : t <= 24000000 ? 480000 : t <= 24500000 ? 320000 : t <= 25000000 ? 160000 : 0,
-    salaryMin: 650000, depLimit: 580000, lifeKidSpecial: false, twoWari: true,
+    basicNote: '132万円以下：95万円／336万円以下：88万円／489万円以下：68万円／655万円以下：63万円／2,350万円以下：58万円',
+    salaryMin: 650000, salaryFlat: 1900000, depLimit: 580000, studentLimit: 850000, lifeKidSpecial: false,
   },
   2026: {
     label: '令和8年分', filing: ['2027-02-16', '2027-03-15'], ctaxDue: '2027-03-31',
     basic: t => t <= 4890000 ? 1040000 : t <= 6550000 ? 670000 : t <= 23500000 ? 620000
       : t <= 24000000 ? 480000 : t <= 24500000 ? 320000 : t <= 25000000 ? 160000 : 0,
-    salaryMin: 740000, depLimit: 620000, lifeKidSpecial: true, twoWari: true,
+    basicNote: '489万円以下：104万円／655万円以下：67万円／2,350万円以下：62万円',
+    salaryMin: 740000, salaryFlat: 2200000, depLimit: 620000, studentLimit: 890000, lifeKidSpecial: true,
   },
 };
 const cfgOf = y => YEARCFG[y] || YEARCFG[2026];
@@ -211,13 +216,14 @@ const INCOME_ACCTS = ['売上高', '雑収入'];
 const EXPENSES = ['租税公課', '荷造運賃', '水道光熱費', '旅費交通費', '通信費', '広告宣伝費', '接待交際費', '損害保険料',
   '修繕費', '消耗品費', '減価償却費', '福利厚生費', '給料賃金', '外注工賃', '利子割引料', '地代家賃', '貸倒金',
   '支払手数料', '新聞図書費', '研修費', '会議費', '諸会費', '車両費', '雑費'];
-const EXPENSE_INPUT = ['仕入高', ...EXPENSES.filter(a => a !== '減価償却費')];
+const WORKER_ACCT = '専従者給与';
+const EXPENSE_INPUT = ['仕入高', ...EXPENSES.filter(a => a !== '減価償却費'), WORKER_ACCT];
 const ASSET_CATS = ['工具器具備品', 'ソフトウェア', '車両運搬具', '機械装置', '建物附属設備'];
 const BS_ASSETS = ['現金', '普通預金', '売掛金', '商品', ...ASSET_CATS, '一括償却資産', '事業主貸'];
-const BS_LIABS = ['未払金', '預り金', '事業主借', '元入金'];
+const BS_LIABS = ['未払金', '未払消費税等', '預り金', '事業主借', '元入金'];
 const ACCT_HINT = {
   '売上高': '本業の売上（請求額・税込）。源泉徴収された場合も差し引く前の金額', '雑収入': '本業以外の事業収入（協賛金、不用品売却など）',
-  '仕入高': '販売する商品・材料の仕入', '租税公課': '個人事業税・印紙・事業用の固定資産税（所得税・住民税は不可）',
+  '仕入高': '販売する商品・材料の仕入', '租税公課': '個人事業税・印紙・事業用の固定資産税・消費税（所得税・住民税は不可）',
   '荷造運賃': '発送費・梱包資材', '水道光熱費': '電気・ガス・水道（自宅なら按分）', '旅費交通費': '電車・バス・タクシー・出張の宿泊',
   '通信費': 'スマホ・ネット回線・サーバー・SaaS・切手', '広告宣伝費': '広告・チラシ・Web広告・名刺', '接待交際費': '取引先との飲食・贈答',
   '損害保険料': '事業用の火災保険・賠償責任保険', '修繕費': '事業用資産の修理', '消耗品費': '10万円未満の備品・文具・ソフト',
@@ -225,22 +231,24 @@ const ACCT_HINT = {
   '利子割引料': '事業用借入の利息', '地代家賃': '事務所・駐車場の賃料（自宅なら按分）', '貸倒金': '回収不能になった売掛金',
   '支払手数料': '振込手数料・決済手数料・仲介手数料', '新聞図書費': '書籍・新聞・電子書籍・有料記事', '研修費': 'セミナー・講座の受講料',
   '会議費': '打合せの飲食・会議室', '諸会費': '業界団体・商工会の会費', '車両費': 'ガソリン・車検・駐車場（按分）', '雑費': 'どれにも当てはまらない少額の経費',
+  '専従者給与': '青色事業専従者給与（家族への給与）。事前に届出が必要で、届出の範囲内の金額だけ経費になります',
 };
-const TAX_DEFAULT = { '雑収入': '0', '租税公課': '0', '損害保険料': '0', '給料賃金': '0', '利子割引料': '0', '貸倒金': '0', '諸会費': '0', '地代家賃': '0' };
+const TAX_DEFAULT = { '雑収入': '0', '租税公課': '0', '損害保険料': '0', '給料賃金': '0', '利子割引料': '0', '貸倒金': '0', '諸会費': '0', '地代家賃': '0', '専従者給与': '0' };
 const taxDef = a => TAX_DEFAULT[a] ?? '10';
 const KANI_RATE = { 1: .9, 2: .8, 3: .7, 4: .6, 5: .5, 6: .4 };
 const DISAB = { none: 0, normal: 270000, special: 400000, together: 750000 };
 const DISAB_R = { none: 0, normal: 260000, special: 300000, together: 530000 };
+const NONDEDUCT_RE = /所得税|住民税|市民税|県民税|都民税|国民年金|国民健康保険|国保|後期高齢|生命保険|医療保険|学資保険|罰金|反則金|違反|延滞税|加算税|延滞金|私用|プライベート|家族旅行/;
 
 function defYear() {
   return {
-    blue: '65', bizTax: 5, ctax: 'exempt', kani: 5, ctaxInterim: 0,
-    opening: { wallets: {}, ar: 0, ap: 0 }, inv: { start: 0, end: 0 },
-    salary: { revenue: 0, withheld: 0, social: 0 }, misc: { revenue: 0, expense: 0, withheld: 0 },
-    ded: { social: 0, smallBiz: 0, lifeNewGen: 0, lifeOldGen: 0, lifeCare: 0, lifeNewPen: 0, lifeOldPen: 0, quake: 0,
-      medMode: 'normal', medPaid: 0, medReimb: 0, selfMed: 0, donation: 0, housing: 0, prepaid: 0, otherWh: 0,
-      selfStatus: 'none', selfDisab: 'none' },
-    spouse: { has: false, income: 0, elderly: false, disab: 'none' },
+    blue: '65', bizTax: 5, bizMonths: 12, ctax: 'exempt', kani: 5, ctaxInterim: 0, accrueCtax: false, residentGrade: 1, kintou: 5000,
+    opening: { wallets: {}, ar: 0, ap: 0, ctax: 0 }, inv: { start: 0, end: 0 }, recon: {},
+    salary: { revenue: 0, withheld: 0, social: 0 }, misc: { revenue: 0, expense: 0, withheld: 0 }, lossCarry: 0,
+    ded: { social: 0, smallBiz: 0, lifeNewGen: 0, lifeOldGen: 0, lifeCare: 0, lifeNewPen: 0, lifeOldPen: 0, quake: 0, oldQuake: 0,
+      medMode: 'normal', medPaid: 0, medReimb: 0, selfMed: 0, donation: 0, donationOther: 0, housing: 0, prepaid: 0, otherWh: 0,
+      selfStatus: 'none', selfDisab: 'none', student: false },
+    spouse: { has: false, income: 0, elderly: false, birth: '', disab: 'none', worker: false },
     deps: [], checks: {},
   };
 }
@@ -262,26 +270,33 @@ function yearOf(D, y = D.year) {
 function walletAcct(D, wid, side) {
   if (wid === 'ar') return { a: '売掛金', s: '' };
   if (wid === 'ap') return { a: '未払金', s: '未払い' };
+  if (wid === 'ctax') return { a: '未払消費税等', s: '' };
   if (wid === 'private') return { a: side === 'dr' ? '事業主貸' : '事業主借', s: '' };
   const w = D.wallets.find(x => x.id === wid) || { kind: 'cash', name: '現金' };
   return { a: w.kind === 'bank' ? '普通預金' : w.kind === 'card' ? '未払金' : '現金', s: w.name };
 }
 
-// ---- 給与所得（給与所得控除後の金額。660万円未満は所得税法別表第五の端数処理に準拠） ----
+// 12月31日時点の年齢（法律上は誕生日の前日に年をとるため、1月1日生まれは1歳上になる）
+function ageOf(p, year) {
+  const b = String(p && p.birth || '');
+  const m = b.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return year - +m[1] + (+m[2] === 1 && +m[3] === 1 ? 1 : 0);
+  return isBlank(p && p.age) ? null : num(p.age);
+}
+
+// ---- 給与所得（給与所得控除後の金額。660万円未満は所得税法別表第五の端数処理） ----
 function salaryIncome(rev, cfg) {
   rev = Math.max(0, fl(num(rev)));
   if (!rev) return 0;
+  if (rev <= cfg.salaryFlat) return Math.max(0, rev - cfg.salaryMin);
   let inc;
-  if (rev < 1900000) inc = rev - 650000;
-  else if (rev < 6600000) { const A = fl(rev / 4 / 1000) * 1000; inc = rev < 3600000 ? A * 28 / 10 - 80000 : A * 32 / 10 - 440000; }
+  if (rev < 6600000) { const A = fl(rev / 4 / 1000) * 1000; inc = rev < 3600000 ? A * 28 / 10 - 80000 : A * 32 / 10 - 440000; }
   else if (rev < 8500000) inc = fl(rev * 9 / 10) - 1100000;
   else inc = rev - 1950000;
-  inc = Math.min(inc, rev - cfg.salaryMin);
-  return Math.max(0, fl(inc));
+  return Math.max(0, fl(Math.min(inc, rev - cfg.salaryMin)));
 }
 
-// ---- 生命保険料控除 ----
-const cl = Math.ceil;
+// ---- 生命保険料控除（1円未満切り上げ） ----
 const lifeNew = x => x <= 0 ? 0 : x <= 20000 ? x : x <= 40000 ? cl(x / 2 + 10000) : x <= 80000 ? cl(x / 4 + 20000) : 40000;
 const lifeNewKid = x => x <= 0 ? 0 : x <= 30000 ? x : x <= 60000 ? cl(x / 2 + 15000) : x <= 120000 ? cl(x / 4 + 30000) : 60000;
 const lifeOld = x => x <= 0 ? 0 : x <= 25000 ? x : x <= 50000 ? cl(x / 2 + 12500) : x <= 100000 ? cl(x / 4 + 25000) : 50000;
@@ -296,11 +311,14 @@ function lifeDeduction(d, kid) {
   const pen = lifeCat(num(d.lifeNewPen), num(d.lifeOldPen), lifeNew, 40000);
   return Math.min(120000, gen + care + pen);
 }
-// 住民税
 const lifeNewR = x => x <= 0 ? 0 : x <= 12000 ? x : x <= 32000 ? cl(x / 2 + 6000) : x <= 56000 ? cl(x / 4 + 14000) : 28000;
 const lifeOldR = x => x <= 0 ? 0 : x <= 15000 ? x : x <= 40000 ? cl(x / 2 + 7500) : x <= 70000 ? cl(x / 4 + 17500) : 35000;
 function lifeCatR(n0, o0) { const n = lifeNewR(n0), o = lifeOldR(o0); return n0 > 0 && o0 > 0 ? Math.max(o, Math.min(n + o, 28000)) : (n || o); }
 function lifeDeductionR(d) { return Math.min(70000, lifeCatR(num(d.lifeNewGen), num(d.lifeOldGen)) + lifeNewR(num(d.lifeCare)) + lifeCatR(num(d.lifeNewPen), num(d.lifeOldPen))); }
+
+// ---- 地震保険料控除（旧長期損害保険料を含む） ----
+function quakeDed(q, oq) { const b = oq <= 0 ? 0 : oq <= 10000 ? oq : oq <= 20000 ? cl(oq / 2 + 5000) : 15000; return Math.min(50000, Math.min(50000, Math.max(0, q)) + b); }
+function quakeDedR(q, oq) { const b = oq <= 0 ? 0 : oq <= 5000 ? oq : oq <= 15000 ? cl(oq / 2 + 2500) : 10000; return Math.min(25000, Math.min(25000, fl(Math.max(0, q) / 2)) + b); }
 
 // ---- 配偶者控除・配偶者特別控除 ----
 const SPOUSE_SP = [[950000, [380000, 260000, 130000]], [1000000, [360000, 240000, 120000]], [1050000, [310000, 210000, 110000]],
@@ -309,48 +327,64 @@ const SPOUSE_SP = [[950000, [380000, 260000, 130000]], [1000000, [360000, 240000
 const SPOUSE_SP_R = [[950000, [330000, 220000, 110000]], [1000000, [330000, 220000, 110000]], [1050000, [310000, 210000, 110000]],
   [1100000, [260000, 180000, 90000]], [1150000, [210000, 140000, 70000]], [1200000, [160000, 110000, 60000]],
   [1250000, [110000, 80000, 40000]], [1300000, [60000, 40000, 20000]], [1330000, [30000, 20000, 10000]]];
-function spouseDed(selfTotal, sp, L, resident) {
-  if (!sp || !sp.has || selfTotal > 10000000) return { kind: '', amt: 0 };
+function spouseElderly(sp, year) { const a = ageOf(sp, year); return a != null && !isBlank(sp.birth) ? a >= 70 : !!sp.elderly; }
+function spouseDed(selfTotal, sp, L, resident, year) {
+  if (!sp || !sp.has) return { kind: '', amt: 0 };
+  if (sp.worker) return { kind: '事業専従者のため対象外', amt: 0, worker: true };
+  if (selfTotal > 10000000) return { kind: '本人の所得が1,000万円超のため対象外', amt: 0 };
   const col = selfTotal <= 9000000 ? 0 : selfTotal <= 9500000 ? 1 : 2;
-  const inc = num(sp.income);
+  const inc = num(sp.income), old = spouseElderly(sp, year || 2026);
   if (inc <= L) {
-    const t = resident ? (sp.elderly ? [380000, 260000, 130000] : [330000, 220000, 110000]) : (sp.elderly ? [480000, 320000, 160000] : [380000, 260000, 130000]);
-    return { kind: '配偶者控除', amt: t[col] };
+    const t = resident ? (old ? [380000, 260000, 130000] : [330000, 220000, 110000]) : (old ? [480000, 320000, 160000] : [380000, 260000, 130000]);
+    return { kind: old ? '配偶者控除（老人）' : '配偶者控除', amt: t[col], same: true, col, old };
   }
-  for (const [lim, t] of (resident ? SPOUSE_SP_R : SPOUSE_SP)) if (inc <= lim) return { kind: '配偶者特別控除', amt: t[col] };
-  return { kind: '', amt: 0 };
+  for (const [lim, t] of (resident ? SPOUSE_SP_R : SPOUSE_SP)) if (inc <= lim) return { kind: '配偶者特別控除', amt: t[col], special: true, col };
+  return { kind: '配偶者の所得が基準超のため対象外', amt: 0 };
 }
-// ---- 特定親族特別控除（19〜22歳で所得が扶養の基準を超える親族） ----
+// ---- 扶養控除・特定親族特別控除 ----
 const TOKUTEI = [[850000, 630000], [900000, 610000], [950000, 510000], [1000000, 410000], [1050000, 310000], [1100000, 210000], [1150000, 110000], [1200000, 60000], [1230000, 30000]];
 const TOKUTEI_R = [[950000, 450000], [1000000, 410000], [1050000, 310000], [1100000, 210000], [1150000, 110000], [1200000, 60000], [1230000, 30000]];
-function depDed(p, L, resident) {
-  const age = num(p.age), inc = num(p.income);
+function depDed(p, L, resident, age) {
+  if (p.worker) return { kind: '事業専従者のため対象外', amt: 0 };
+  const inc = num(p.income);
   if (inc <= L) {
-    if (age < 16) return { kind: '年少扶養（控除なし）', amt: 0, isDep: true };
-    if (age >= 19 && age <= 22) return { kind: '特定扶養親族', amt: resident ? 450000 : 630000, isDep: true };
-    if (age >= 70) return p.together ? { kind: '同居老親等', amt: resident ? 450000 : 580000, isDep: true } : { kind: '老人扶養親族', amt: resident ? 380000 : 480000, isDep: true };
-    return { kind: '一般の扶養親族', amt: resident ? 330000 : 380000, isDep: true };
+    if (age != null && age < 16) return { kind: '年少扶養（控除なし）', amt: 0, isDep: true };
+    if (age != null && age >= 19 && age <= 22) return { kind: '特定扶養親族', amt: resident ? 450000 : 630000, isDep: true };
+    if (age != null && age >= 70) return p.together ? { kind: '同居老親等', amt: resident ? 450000 : 580000, isDep: true } : { kind: '老人扶養親族', amt: resident ? 380000 : 480000, isDep: true };
+    return { kind: age == null ? '一般の扶養親族（年齢未入力）' : '一般の扶養親族', amt: resident ? 330000 : 380000, isDep: true };
   }
-  if (age >= 19 && age <= 22) {
+  if (age != null && age >= 19 && age <= 22) {
     for (const [lim, v] of (resident ? TOKUTEI_R : TOKUTEI)) if (inc <= lim) return { kind: '特定親族特別控除', amt: v, tokutei: true };
   }
-  return { kind: '所得が基準超（対象外）', amt: 0 };
+  return { kind: '所得が基準超のため対象外', amt: 0 };
 }
 
 // ---- 所得税の速算表 ----
-const BRACKETS = [[1949000, .05, 0], [3299000, .10, 97500], [6949000, .20, 427500], [8999000, .23, 636000], [17999000, .33, 1536000], [39999000, .40, 2796000], [Infinity, .45, 4796000]];
-function incomeTax(t) { if (t < 1000) return 0; for (const [lim, r, d] of BRACKETS) if (t <= lim) return fl((t * Math.round(r * 100) - d * 100) / 100); return 0; }
-function marginalRate(t) { if (t < 1000) return 0; for (const [lim, r] of BRACKETS) if (t <= lim) return r; return .45; }
+const BRACKETS = [[1949000, 5, 0], [3299000, 10, 97500], [6949000, 20, 427500], [8999000, 23, 636000], [17999000, 33, 1536000], [39999000, 40, 2796000], [Infinity, 45, 4796000]];
+function incomeTax(t) { if (t < 1000) return 0; for (const [lim, r, d] of BRACKETS) if (t <= lim) return fl((t * r - d * 100) / 100); return 0; }
+function marginalRate(t) { if (t < 1000) return 0; for (const [lim, r] of BRACKETS) if (t <= lim) return r / 100; return .45; }
 function withholdingOf(x) { x = Math.max(0, num(x)); return x <= 1000000 ? fl(x * 1021 / 10000) : fl((x - 1000000) * 2042 / 10000) + 102100; }
+// ふるさと納税の特例控除割合（住民税の課税総所得金額 − 人的控除差調整額 で判定）
+function furusatoRate(base) {
+  if (base < 0) return 0.9;
+  return base <= 1950000 ? 0.84895 : base <= 3300000 ? 0.7979 : base <= 6950000 ? 0.6958 : base <= 9000000 ? 0.66517 : base <= 18000000 ? 0.56307 : base <= 40000000 ? 0.4916 : 0.44055;
+}
 
 // ---- 減価償却 ----
 const smallLimit = date => (date || '') >= '2026-04-01' ? 400000 : 300000;
+// 中古資産の耐用年数（簡便法）。経過年数は月数で入力
+function usedLife(legal, elapsedMonths) {
+  const L = Math.max(2, num(legal)) * 12, e = Math.max(0, num(elapsedMonths));
+  const months = e >= L ? fl(L * 0.2) : (L - e) + fl(e * 0.2);
+  return Math.max(2, fl(months / 12));
+}
+function assetLife(a) { return a.used ? usedLife(a.legalLife || a.life, a.elapsed) : Math.max(2, num(a.life) || 4); }
 function assetSchedule(a, year) {
   const cost = num(a.cost);
   if (!a.date || cost <= 0) return null;
   const ay = +a.date.slice(0, 4), am = +a.date.slice(5, 7) || 1;
   if (!ay || ay > year) return null;
-  const life = Math.max(2, num(a.life) || 4);
+  const life = assetLife(a);
   const R = Math.ceil(1000 / life);                 // 定額法の償却率（×1000）
   let book = cost, startBook = cost, dep = 0, months = 0;
   for (let y = ay; y <= year; y++) {
@@ -361,22 +395,48 @@ function assetSchedule(a, year) {
     if (y === year) { startBook = book; dep = d; months = m; }
     book -= d;
   }
-  const ratio = clamp(a.ratio == null || a.ratio === '' ? 100 : num(a.ratio), 0, 100);
+  const ratio = clamp(isBlank(a.ratio) ? 100 : num(a.ratio), 0, 100);
   return { thisYear: ay === year, startBook: ay === year ? 0 : startBook, dep, bizDep: Math.round(dep * ratio / 100), endBook: book, months, rate: R / 1000, life, ratio };
+}
+
+const ratioOf = t => clamp(isBlank(t.ratio) ? 100 : num(t.ratio), 0, 100);
+
+// ---- 消費税（税込経理） ----
+function ctaxCalc(txs, assets, Y) {
+  let s10 = 0, s8 = 0, p10 = 0, p8 = 0;
+  for (const t of txs) {
+    const a = num(t.amount);
+    if (t.type === 'income') { if (t.tax === '10') s10 += a; else if (t.tax === '8') s8 += a; }
+    else if (t.type === 'expense') { const b = Math.round(a * ratioOf(t) / 100); if (t.tax === '10') p10 += b; else if (t.tax === '8') p8 += b; }
+  }
+  for (const { a, s } of assets) if (s.thisYear) p10 += Math.round(num(a.cost) * s.ratio / 100);
+  const base10 = fl(s10 * 100 / 110 / 1000) * 1000, base8 = fl(s8 * 100 / 108 / 1000) * 1000;
+  const outTax = base10 * 78 / 1000 + fl(base8 * 624 / 10000 + 1e-9);
+  let inTax = 0;
+  if (Y.ctax === 'honsoku') inTax = fl(p10 * 78 / 1100 + p8 * 624 / 10800);
+  else if (Y.ctax === '2wari') inTax = fl(outTax * 0.8);
+  else if (Y.ctax === 'kani') inTax = fl(outTax * (KANI_RATE[Y.kani] || 0.5));
+  const netRaw = outTax - inTax;
+  const nat = netRaw >= 0 ? fl(netRaw / 100) * 100 : netRaw;
+  const loc = nat >= 0 ? fl(nat * 22 / 78 / 100) * 100 : -fl(-nat * 22 / 78);
+  const interim = num(Y.ctaxInterim);
+  return { mode: Y.ctax, s10, s8, p10, p8, base10, base8, outTax, inTax, nat, loc, total: nat + loc, interim, due: Y.ctax === 'exempt' ? 0 : nat + loc - interim };
 }
 
 // ============================================================
 //  全体計算：仕訳 → 試算表 → 決算書 → 税額
 // ============================================================
-function compute(D) {
-  const year = D.year, ys = String(year), cfg = cfgOf(year), Y = yearOf(D), L = cfg.depLimit;
-  const warnings = [];
+function compute(D, opts = {}) {
+  const year = D.year, ys = String(year), cfg = cfgOf(year), Y = yearOf(D), L = cfg.depLimit, d = Y.ded;
+  const warnings = [], infos = [], passed = [];
   const Ln = (a, s, dr, cr) => ({ a, s: s || '', dr, cr });
   const J = [];
+  const blue = Y.blue !== 'white';
 
   const txs = D.txs.filter(t => (t.date || '').startsWith(ys)).sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
   const assets = D.assets.map(a => ({ a, s: assetSchedule(a, year) })).filter(x => x.s);
   const assetAcct = a => a.method === 'lump3' ? '一括償却資産' : (a.cat || '工具器具備品');
+  const C = ctaxCalc(txs, assets, Y);
 
   // 期首残高
   const ol = [];
@@ -387,6 +447,7 @@ function compute(D) {
   }
   if (num(Y.opening.ar)) ol.push(Ln('売掛金', '', num(Y.opening.ar), 0));
   if (num(Y.opening.ap)) ol.push(Ln('未払金', '未払い', 0, num(Y.opening.ap)));
+  if (num(Y.opening.ctax)) ol.push(Ln('未払消費税等', '', 0, num(Y.opening.ctax)));
   if (num(Y.inv.start)) ol.push(Ln('商品', '', num(Y.inv.start), 0));
   for (const { a, s } of assets) if (!s.thisYear && s.startBook > 0) ol.push(Ln(assetAcct(a), a.name, s.startBook, 0));
   const capital = sumBy(ol, 'dr') - sumBy(ol, 'cr');
@@ -403,7 +464,7 @@ function compute(D) {
       if (wh) lines.push(Ln('事業主貸', '源泉所得税', wh, 0));
       lines.push(Ln(t.acct || '売上高', '', 0, amt));
     } else if (t.type === 'expense') {
-      const r = clamp(t.ratio == null || t.ratio === '' ? 100 : num(t.ratio), 0, 100), biz = Math.round(amt * r / 100);
+      const biz = Math.round(amt * ratioOf(t) / 100);
       if (biz) lines.push(Ln(t.acct || '雑費', '', biz, 0));
       if (amt - biz) lines.push(Ln('事業主貸', '家事分', amt - biz, 0));
       const w = walletAcct(D, t.wallet, 'cr'); lines.push(Ln(w.a, w.s, 0, amt));
@@ -430,12 +491,15 @@ function compute(D) {
     }
     if (a.method === 'small' && s.thisYear) {
       smallTotal += cost;
-      if (Y.blue === 'white') warnings.push(`「${a.name}」：少額減価償却資産の特例は青色申告のみ使えます。白色申告では通常の減価償却を選んでください。`);
-      if (cost >= smallLimit(a.date)) warnings.push(`「${a.name}」：取得価額が${(smallLimit(a.date) / 10000)}万円以上のため、少額減価償却資産の特例は使えません。`);
+      if (!blue) warnings.push(`「${a.name}」：少額減価償却資産の特例は青色申告だけが使えます。白色申告では定額法か一括償却を選んでください。`);
+      if (cost >= smallLimit(a.date)) warnings.push(`「${a.name}」：取得価額が${smallLimit(a.date) / 10000}万円以上のため、少額減価償却資産の特例は使えません。`);
     }
-    if (a.method === 'lump3' && cost >= 200000) warnings.push(`「${a.name}」：一括償却資産（3年均等）は20万円未満の資産のみです。`);
+    if (a.method === 'lump3' && (cost < 100000 || cost >= 200000)) warnings.push(`「${a.name}」：一括償却資産（3年均等）は10万円以上20万円未満の資産だけです。`);
   }
-  if (smallTotal > 3000000) warnings.push(`少額減価償却資産の特例は年間合計300万円までです（現在 ${smallTotal.toLocaleString()}円）。`);
+  if (smallTotal > 3000000) warnings.push(`少額減価償却資産の特例は年間合計300万円までです（いまは ${smallTotal.toLocaleString()}円）。超えた分は定額法にしてください。`);
+  // 消費税の未払計上（税込経理）
+  if (Y.accrueCtax && Y.ctax !== 'exempt' && C.due > 0)
+    J.push({ date: ys + '-12-31', desc: '消費税等の未払計上', lines: [Ln('租税公課', '消費税等', C.due, 0), Ln('未払消費税等', '', 0, C.due)], src: 'close' });
   // 棚卸
   const invS = num(Y.inv.start), invE = num(Y.inv.end);
   if (invS) J.push({ date: ys + '-12-31', desc: '期首商品の振替', lines: [Ln('期首商品棚卸高', '', invS, 0), Ln('商品', '', 0, invS)], src: 'close' });
@@ -452,6 +516,7 @@ function compute(D) {
     const k = l.a + '|' + l.s; (tbs[k] = tbs[k] || { a: l.a, s: l.s, dr: 0, cr: 0 }); tbs[k].dr += l.dr; tbs[k].cr += l.cr;
   }
   const bal = a => tb[a] ? tb[a].dr - tb[a].cr : 0;
+  const subBal = (a, s) => { const x = tbs[a + '|' + s]; return x ? x.dr - x.cr : 0; };
   const openBal = {};
   if (J[0] && J[0].src === 'open') for (const l of J[0].lines) openBal[l.a] = (openBal[l.a] || 0) + l.dr - l.cr;
 
@@ -461,39 +526,80 @@ function compute(D) {
   const cogs = invStart + purchases - invEnd, gross = revenue - cogs;
   const exp = EXPENSES.map(a => ({ a, v: bal(a) }));
   const expTotal = sumBy(exp, 'v');
-  const beforeBlue = gross - expTotal;
+  const afterExp = gross - expTotal;
+  const workerPay = bal(WORKER_ACCT);
+  const beforeBlue = afterExp - workerPay;                 // 青色申告特別控除前の所得金額（白色は専従者控除前）
+  // 事業専従者
+  const workers = [];
+  if (Y.spouse.has && Y.spouse.worker) workers.push({ name: '配偶者', rel: 'spouse' });
+  Y.deps.forEach(p => { if (p.worker) workers.push({ name: p.name || '扶養親族', rel: 'other' }); });
+  let workerDed = 0;
+  if (!blue && workers.length && beforeBlue > 0) {
+    const cap = fl(beforeBlue / (workers.length + 1));
+    workerDed = sumBy(workers, w => Math.min(w.rel === 'spouse' ? 860000 : 500000, cap));
+  }
   const blueCap = { '65': 650000, '55': 550000, '10': 100000 }[Y.blue] || 0;
-  const blueDed = Y.blue === 'white' ? 0 : Math.max(0, Math.min(blueCap, beforeBlue));
-  const bizIncome = beforeBlue - blueDed;
+  const blueDed = blue ? Math.max(0, Math.min(blueCap, beforeBlue)) : 0;
+  const bizIncome = beforeBlue - blueDed - workerDed;
+  if (workerPay && !blue) warnings.push('白色申告では「専従者給与」は経費にできません。家族への給与は⑤で「事業専従者」にチェックすると、事業専従者控除（配偶者86万円・その他50万円まで）として計算します。');
+  if (workerPay && blue && !workers.length) infos.push('専従者給与がありますが、⑤の配偶者・扶養親族で「事業専従者」にチェックが入っていません。専従者は配偶者控除・扶養控除の対象外になるため、チェックしてください。');
 
   // 貸借対照表
-  const known = new Set([...BS_ASSETS, ...BS_LIABS, ...INCOME_ACCTS, ...EXPENSES, '仕入高', '期首商品棚卸高', '期末商品棚卸高']);
+  const known = new Set([...BS_ASSETS, ...BS_LIABS, ...INCOME_ACCTS, ...EXPENSES, '仕入高', WORKER_ACCT, '期首商品棚卸高', '期末商品棚卸高']);
   const bsA = BS_ASSETS.map(a => ({ a, open: openBal[a] || 0, v: bal(a) }));
   const bsL = BS_LIABS.map(a => ({ a, open: -(openBal[a] || 0), v: -bal(a) }));
   for (const a of Object.keys(tb)) if (!known.has(a)) { const v = bal(a); (v >= 0 ? bsA : bsL).push({ a, open: 0, v: Math.abs(v) }); }
   const totA = sumBy(bsA, 'v'), totL = sumBy(bsL, 'v') + beforeBlue;
-  if (Math.abs(totA - totL) > 0) warnings.push('貸借対照表の左右が一致しません。取引データを確認してください。');
+  if (totA !== totL) warnings.push('貸借対照表の左右が一致しません。取引データを確認してください。');
+  else if (J.length) passed.push('貸借対照表の資産と負債・資本の合計が一致');
 
-  // 残高チェック
-  const subBal = (a, s) => { const x = tbs[a + '|' + s]; return x ? x.dr - x.cr : 0; };
+  // ---- 帳簿のチェック ----
   const walletEnd = {};
-  for (const w of D.wallets) {
-    const acc = walletAcct(D, w.id, 'dr');
-    walletEnd[w.id] = w.kind === 'card' ? -subBal(acc.a, acc.s) : subBal(acc.a, acc.s);
-  }
-  const running = {};
-  const minBal = {};
+  for (const w of D.wallets) { const acc = walletAcct(D, w.id, 'dr'); walletEnd[w.id] = w.kind === 'card' ? -subBal(acc.a, acc.s) : subBal(acc.a, acc.s); }
+  const running = {}, minBal = {};
   for (const e of J) for (const l of e.lines) {
     if (l.a !== '現金' && l.a !== '普通預金') continue;
     const k = l.a + '|' + l.s; running[k] = (running[k] || 0) + l.dr - l.cr;
     if (minBal[k] == null || running[k] < minBal[k].v) minBal[k] = { v: running[k], date: e.date };
   }
-  for (const [k, m] of Object.entries(minBal)) if (m.v < 0) warnings.push(`「${k.split('|')[1] || k.split('|')[0]}」の残高が ${m.date} 時点でマイナス（${m.v.toLocaleString()}円）になっています。入力漏れ（入金・引き出し）や期首残高を確認してください。`);
-  const arEnd = bal('売掛金');
-  if (arEnd < 0) warnings.push('売掛金がマイナスです。入金の振替が二重になっていないか確認してください。');
+  for (const [k, m] of Object.entries(minBal)) if (m.v < 0) warnings.push(`「${k.split('|')[1] || k.split('|')[0]}」の残高が ${m.date} 時点でマイナス（${m.v.toLocaleString()}円）です。入金・引き出しの入力漏れや期首残高を確認してください。`);
+  // 通帳・明細の残高との照合
+  const recon = [];
+  for (const w of D.wallets) {
+    const st = Y.recon && Y.recon[w.id];
+    if (isBlank(st)) { if (walletEnd[w.id]) recon.push({ w, book: walletEnd[w.id], st: null, diff: null }); continue; }
+    const diff = walletEnd[w.id] - num(st);
+    recon.push({ w, book: walletEnd[w.id], st: num(st), diff });
+    if (diff) warnings.push(`「${w.name}」の帳簿残高（${walletEnd[w.id].toLocaleString()}円）が、通帳・明細の12月31日残高（${num(st).toLocaleString()}円）と ${Math.abs(diff).toLocaleString()}円 ずれています。取引の入力漏れ・重複を確認してください。`);
+    else passed.push(`「${w.name}」の残高が通帳・明細と一致`);
+  }
+  const unrecon = recon.filter(r => r.st == null);
+  if (unrecon.length && txs.length) infos.push(`口座の残高照合がまだです（${unrecon.map(r => r.w.name).join('・')}）。⑥ 貸借対照表で12月31日の通帳・明細の残高を入れると、入力漏れを見つけられます。`);
+  if (bal('売掛金') < 0) warnings.push('売掛金がマイナスです。入金の振替が二重になっていないか確認してください。');
+  // 前年の期末残高との一致
+  if (!opts.noPrev && YEARCFG[year - 1] && D.txs.some(t => (t.date || '').startsWith(String(year - 1)))) {
+    const P = compute({ ...D, year: year - 1 }, { noPrev: true });
+    const diffs = [];
+    for (const w of D.wallets) { const o = num(Y.opening.wallets[w.id]), p = Math.max(0, P.walletEnd[w.id] || 0); if (o !== p) diffs.push(`${w.name}（期首 ${o.toLocaleString()}円／前年末 ${p.toLocaleString()}円）`); }
+    if (num(Y.opening.ar) !== Math.max(0, P.bal('売掛金'))) diffs.push(`売掛金（期首 ${num(Y.opening.ar).toLocaleString()}円／前年末 ${Math.max(0, P.bal('売掛金')).toLocaleString()}円）`);
+    if (diffs.length) warnings.push(`期首残高が前年の期末残高と一致しません：${diffs.join('、')}。「データ管理」の「翌年へ繰り越す」で合わせられます。`);
+    else passed.push('期首残高が前年の期末残高と一致');
+  }
+  // 経費にならない支出・固定資産の疑い・源泉額・重複
+  const nd = txs.filter(t => t.type === 'expense' && NONDEDUCT_RE.test(`${t.partner || ''} ${t.memo || ''}`));
+  if (nd.length) warnings.push(`経費にならない可能性がある支出が ${nd.length}件あります（${nd.slice(0, 3).map(t => `${t.date.slice(5)} ${t.memo || t.partner}`).join('、')}${nd.length > 3 ? ' ほか' : ''}）。所得税・住民税・国民年金・国民健康保険・生命保険・罰金などは経費ではありません（年金・保険は⑤の所得控除へ）。事業用の支出なら問題ありません。`);
+  const big = txs.filter(t => t.type === 'expense' && ['消耗品費', '雑費'].includes(t.acct) && num(t.amount) >= 100000);
+  if (big.length) warnings.push(`10万円以上の「消耗品費・雑費」が ${big.length}件あります（${big.slice(0, 3).map(t => `${t.date.slice(5)} ${t.memo || t.partner} ${num(t.amount).toLocaleString()}円`).join('、')}）。1つ10万円以上の備品は④の固定資産として登録するのが原則です。`);
+  const whOdd = txs.filter(t => t.type === 'income' && num(t.wh) > 0 && ![withholdingOf(num(t.amount)), withholdingOf(Math.round(num(t.amount) / 1.1)), withholdingOf(fl(num(t.amount) / 1.1)), withholdingOf(cl(num(t.amount) / 1.1))].some(x => Math.abs(x - num(t.wh)) <= 1));
+  if (whOdd.length) infos.push(`源泉徴収税額が「10.21%」の計算と合わない収入が ${whOdd.length}件あります（${whOdd.slice(0, 3).map(t => `${t.date.slice(5)} ${t.partner || t.memo}`).join('、')}）。支払調書・入金明細の金額と一致していれば問題ありません。`);
+  const seen = {}, dups = [];
+  for (const t of txs) { const k = [t.type, t.date, num(t.amount), t.partner || '', t.memo || ''].join('|'); if (seen[k]) dups.push(t); seen[k] = true; }
+  if (dups.length) infos.push(`日付・金額・内容がまったく同じ取引が ${dups.length}件あります（${dups.slice(0, 3).map(t => `${t.date.slice(5)} ${t.memo || t.partner}`).join('、')}）。二重登録でないか確認してください。`);
   const noPartner = txs.filter(t => t.type === 'income' && num(t.wh) > 0 && !t.partner).length;
-  if (noPartner) warnings.push(`源泉徴収のある収入のうち ${noPartner} 件に取引先が未入力です（申告書の「所得の内訳」に支払者名が必要です）。`);
-  if (beforeBlue < 0 && Y.blue !== 'white') warnings.push('事業が赤字です。青色申告なら赤字（純損失）を翌年以降3年間繰り越せます（申告書第四表）。このツールでは繰越の計算はしていません。');
+  if (noPartner) warnings.push(`源泉徴収のある収入のうち ${noPartner}件に取引先が未入力です（申告書の「所得の内訳」に支払者名が必要です）。`);
+  else if (txs.some(t => t.type === 'income' && num(t.wh) > 0)) passed.push('源泉徴収のある収入はすべて取引先入力済み');
+  const zatsu = bal('雑費');
+  if (expTotal > 0 && zatsu > expTotal * 0.1 && zatsu > 50000) infos.push(`雑費が経費全体の${Math.round(zatsu / expTotal * 100)}%あります。なるべく内容に合った科目に分けると、税務署から見ても分かりやすくなります。`);
 
   // 月別
   const monthly = Array.from({ length: 12 }, (_, i) => ({ m: i + 1, inc: 0, exp: 0 }));
@@ -502,120 +608,144 @@ function compute(D) {
     const m = +e.date.slice(5, 7) - 1; if (!(m >= 0 && m < 12)) continue;
     for (const l of e.lines) {
       if (INCOME_ACCTS.includes(l.a)) monthly[m].inc += l.cr - l.dr;
-      else if (l.a === '仕入高' || EXPENSES.includes(l.a)) monthly[m].exp += l.dr - l.cr;
+      else if (l.a === '仕入高' || l.a === WORKER_ACCT || EXPENSES.includes(l.a)) monthly[m].exp += l.dr - l.cr;
     }
   }
 
   // ---------------- 所得税 ----------------
-  const d = Y.ded;
-  const salaryInc = salaryIncome(Y.salary.revenue, cfg);
+  const ages = Y.deps.map(p => ageOf(p, year));
+  const isDepCand = p => !p.worker && num(p.income) <= L;
+  const salaryRev = num(Y.salary.revenue);
+  const salaryRaw = salaryIncome(salaryRev, cfg);
+  const adjCond = salaryRev > 8500000 && (d.selfDisab === 'special' || Y.deps.some((p, i) => isDepCand(p) && ((ages[i] != null && ages[i] < 23) || ['special', 'together'].includes(p.disab)))
+    || (Y.spouse.has && !Y.spouse.worker && num(Y.spouse.income) <= L && ['special', 'together'].includes(Y.spouse.disab)));
+  const incomeAdj = adjCond ? Math.min(salaryRaw, cl((Math.min(salaryRev, 10000000) - 8500000) / 10)) : 0;
+  const salaryInc = salaryRaw - incomeAdj;
   const miscInc = Math.max(0, num(Y.misc.revenue) - num(Y.misc.expense));
-  const total = Math.max(0, bizIncome + salaryInc + miscInc);   // 合計所得金額（総所得金額等）
+  const sumInc = bizIncome + salaryInc + miscInc;              // 損益通算後
+  const total = Math.max(0, sumInc);                          // 合計所得金額
+  const netLoss = sumInc < 0 ? -sumInc : 0;                   // 本年の純損失
+  const lossAvail = blue ? num(Y.lossCarry) : 0;
+  if (!blue && num(Y.lossCarry)) warnings.push('白色申告では事業の赤字（純損失）を翌年以降に繰り越せません（災害による損失を除く）。繰越損失は計算に入れていません。');
+  const lossUsed = Math.min(lossAvail, total);
+  const sogo = total - lossUsed;                              // 総所得金額等（繰越控除後）
+  const lossNext = (lossAvail - lossUsed) + (blue ? netLoss : 0);
+  if (netLoss && blue) infos.push(`本年は ${netLoss.toLocaleString()}円 の純損失です。確定申告書第四表で翌年以後3年間繰り越せます（期限内申告が条件）。`);
+
   const social = num(d.social) + num(Y.salary.social);
   const smallBiz = num(d.smallBiz);
-  const kid = cfg.lifeKidSpecial && Y.deps.some(p => num(p.age) < 23 && num(p.income) <= L);
+  const kid = cfg.lifeKidSpecial && Y.deps.some((p, i) => isDepCand(p) && ages[i] != null && ages[i] < 23);
   const life = lifeDeduction(d, kid);
-  const quake = Math.min(50000, num(d.quake));
+  const quake = quakeDed(num(d.quake), num(d.oldQuake));
   const medical = d.medMode === 'self'
     ? clamp(num(d.selfMed) - 12000, 0, 88000)
-    : clamp(num(d.medPaid) - num(d.medReimb) - Math.min(100000, fl(total * 0.05)), 0, 2000000);
-  const donation = Math.max(0, Math.min(num(d.donation), fl(total * 0.4)) - 2000);
-  const sp = spouseDed(total, Y.spouse, L, false);
-  const deps = Y.deps.map(p => ({ p, r: depDed(p, L, false) }));
+    : clamp(num(d.medPaid) - num(d.medReimb) - Math.min(100000, fl(sogo * 0.05)), 0, 2000000);
+  const don = num(d.donation) + num(d.donationOther);
+  const donation = Math.max(0, Math.min(don, fl(sogo * 0.4)) - 2000);
+  const sp = spouseDed(total, Y.spouse, L, false, year);
+  const deps = Y.deps.map((p, i) => ({ p, age: ages[i], r: depDed(p, L, false, ages[i]) }));
   const depAmt = sumBy(deps.filter(x => x.r.isDep), x => x.r.amt);
   const tokuteiAmt = sumBy(deps.filter(x => x.r.tokutei), x => x.r.amt);
+  if (Y.deps.some((p, i) => ages[i] == null && !p.worker)) warnings.push('生年月日（または年齢）が入っていない扶養親族がいます。年齢で控除額が変わるので入力してください（いまは一般の扶養親族として計算）。');
+  const spSame = Y.spouse.has && !Y.spouse.worker && num(Y.spouse.income) <= L;
   let disab = DISAB[d.selfDisab] || 0;
-  if (Y.spouse.has && num(Y.spouse.income) <= L) disab += DISAB[Y.spouse.disab] || 0;
-  for (const { p } of deps) if (num(p.income) <= L) disab += DISAB[p.disab] || 0;
+  if (spSame) disab += DISAB[Y.spouse.disab] || 0;
+  for (const p of Y.deps) if (isDepCand(p)) disab += DISAB[p.disab] || 0;
   const sw = total <= 5000000 ? (d.selfStatus === 'single' ? 350000 : d.selfStatus === 'widow' ? 270000 : 0) : 0;
+  if (d.selfStatus !== 'none' && total > 5000000) infos.push('合計所得金額が500万円を超えるため、寡婦控除・ひとり親控除は受けられません。');
+  const student = d.student ? (total <= cfg.studentLimit ? 270000 : 0) : 0;
+  if (d.student && !student) infos.push(`合計所得金額が${(cfg.studentLimit / 10000)}万円を超えるため、勤労学生控除は受けられません。`);
   const basic = cfg.basic(total);
   const dedList = [
     ['社会保険料控除', social], ['小規模企業共済等掛金控除', smallBiz], ['生命保険料控除', life], ['地震保険料控除', quake],
-    [d.selfStatus === 'widow' ? '寡婦控除' : 'ひとり親控除', sw], ['障害者控除', disab],
-    [sp.kind || '配偶者（特別）控除', sp.amt], ['扶養控除', depAmt], ['特定親族特別控除', tokuteiAmt], ['基礎控除', basic],
+    [d.selfStatus === 'widow' ? '寡婦控除' : 'ひとり親控除', sw], ['勤労学生控除', student], ['障害者控除', disab],
+    [sp.special ? '配偶者特別控除' : '配偶者控除', sp.amt], ['扶養控除', depAmt], ['特定親族特別控除', tokuteiAmt], ['基礎控除', basic],
     ['医療費控除', medical], ['寄附金控除', donation],
   ].map(([k, v]) => ({ k, v }));
   const dedSum = sumBy(dedList, 'v');
-  const taxable = Math.max(0, fl((total - dedSum) / 1000) * 1000);
+  const taxable = Math.max(0, fl((sogo - dedSum) / 1000) * 1000);
   const taxBase = incomeTax(taxable);
   const credit = Math.min(taxBase, num(d.housing));
-  const baseTax = taxBase - credit;                       // 再差引所得税額（基準所得税額）
-  const recon = fl(baseTax * 21 / 1000);
-  const totalTax = baseTax + recon;
+  const baseTax = taxBase - credit;
+  const recon2 = fl(baseTax * 21 / 1000);
+  const totalTax = baseTax + recon2;
   const whTx = sumBy(txs.filter(t => t.type === 'income'), t => clamp(num(t.wh), 0, num(t.amount)));
   const withheld = whTx + num(Y.salary.withheld) + num(Y.misc.withheld) + num(d.otherWh);
   const diff = totalTax - withheld;
-  const declared = diff >= 0 ? fl(diff / 100) * 100 : diff;   // 申告納税額
+  const declared = diff >= 0 ? fl(diff / 100) * 100 : diff;
   const prepaid = num(d.prepaid);
   const third = declared - prepaid;
   const payable = third > 0 ? fl(third / 100) * 100 : 0;
   const refund = third < 0 ? -third : 0;
+  const yotei = declared >= 150000 ? fl(declared / 3 / 100) * 100 : 0;
   const whByPartner = {};
   for (const t of txs) if (t.type === 'income' && num(t.wh) > 0) {
     const k = t.partner || '（取引先未入力）'; (whByPartner[k] = whByPartner[k] || { rev: 0, wh: 0 });
     whByPartner[k].rev += num(t.amount); whByPartner[k].wh += clamp(num(t.wh), 0, num(t.amount));
   }
 
-  // ---------------- 住民税（概算） ----------------
+  // ---------------- 住民税（翌年度分） ----------------
+  const grade = clamp(num(Y.residentGrade) || 1, 1, 3);
+  const nPeople = 1 + (spSame ? 1 : 0) + Y.deps.filter(p => isDepCand(p)).length;
+  const hasFam = nPeople > 1;
+  const kintouLimit = [350000, 315000, 280000][grade - 1] * nPeople + 100000 + (hasFam ? [210000, 189000, 168000][grade - 1] : 0);
+  const shotokuLimit = 350000 * nPeople + 100000 + (hasFam ? 320000 : 0);
+  const specialNontax = (d.selfDisab !== 'none' || d.selfStatus !== 'none') && total <= 1350000;
+  const kintouAmt = num(Y.kintou) || 5000;
   let resident;
-  if (total <= 450000) resident = { total: 0, shotoku: 0, kintou: 0, note: '合計所得が45万円以下のため非課税の可能性が高いです（基準は自治体・家族構成で異なります）。' };
-  else {
+  if (specialNontax || total <= kintouLimit) {
+    resident = { total: 0, shotoku: 0, kintou: 0, nontax: true, note: specialNontax ? '障害者・寡婦・ひとり親で合計所得金額135万円以下のため、住民税は非課税です。' : `合計所得金額が非課税限度額（${kintouLimit.toLocaleString()}円・${grade}級地）以下のため、住民税は非課税の見込みです。` };
+  } else {
     const basicR = total <= 24000000 ? 430000 : total <= 24500000 ? 290000 : total <= 25000000 ? 150000 : 0;
-    const spR = spouseDed(total, Y.spouse, L, true);
-    const depsR = sumBy(Y.deps, p => depDed(p, L, true).amt);
+    const spR = spouseDed(total, Y.spouse, L, true, year);
+    const depsR = Y.deps.map((p, i) => depDed(p, L, true, ages[i]));
     let disabR = DISAB_R[d.selfDisab] || 0;
-    if (Y.spouse.has && num(Y.spouse.income) <= L) disabR += DISAB_R[Y.spouse.disab] || 0;
-    for (const p of Y.deps) if (num(p.income) <= L) disabR += DISAB_R[p.disab] || 0;
+    if (spSame) disabR += DISAB_R[Y.spouse.disab] || 0;
+    Y.deps.forEach(p => { if (isDepCand(p)) disabR += DISAB_R[p.disab] || 0; });
     const swR = total <= 5000000 ? (d.selfStatus === 'single' ? 300000 : d.selfStatus === 'widow' ? 260000 : 0) : 0;
-    const dedR = social + smallBiz + medical + lifeDeductionR(d) + Math.min(25000, fl(num(d.quake) / 2)) + spR.amt + depsR + disabR + swR + basicR;
-    const taxableR = Math.max(0, fl((total - dedR) / 1000) * 1000);
-    let shotoku = Math.max(0, fl(taxableR / 10) - (total <= 25000000 && taxableR > 0 ? 2500 : 0));
-    let furusato = 0;
-    const don = num(d.donation);
-    if (don > 2000) {
-      const basicPart = fl(Math.max(0, Math.min(don, fl(total * 0.3)) - 2000) * 0.1);
-      const special = Math.min(fl((don - 2000) * (0.9 - marginalRate(taxable) * 1.021)), fl(shotoku * 0.2));
-      furusato = Math.min(shotoku, basicPart + Math.max(0, special));
+    const studentR = student ? 260000 : 0;
+    const dedR = social + smallBiz + medical + lifeDeductionR(d) + quakeDedR(num(d.quake), num(d.oldQuake)) + spR.amt + sumBy(depsR, 'amt') + disabR + swR + studentR + basicR;
+    const taxableR = Math.max(0, fl((sogo - dedR) / 1000) * 1000);
+    // 人的控除額の差（調整控除・ふるさと納税の計算用）
+    let jd = total <= 25000000 ? 50000 : 0;
+    if (sp.amt && !sp.special) jd += sp.amt - spR.amt;
+    deps.forEach((x, i) => { jd += Math.max(0, x.r.amt - depsR[i].amt); });
+    jd += Math.max(0, disab - disabR) + Math.max(0, sw - swR) + Math.max(0, student - studentR);
+    let adj = 0;
+    if (taxableR > 0 && total <= 25000000) adj = taxableR <= 2000000 ? fl(Math.min(jd, taxableR) * 5 / 100) : Math.max(2500, fl(Math.max(0, jd - (taxableR - 2000000)) * 5 / 100));
+    const shotokuBase = (sogo <= shotokuLimit) ? 0 : Math.max(0, fl(taxableR / 10) - adj);
+    let furusato = 0, fBasic = 0, fSpecial = 0;
+    const fd = num(d.donation);
+    if (fd > 2000 && shotokuBase > 0) {
+      fBasic = fl(Math.max(0, Math.min(fd, fl(sogo * 0.3)) - 2000) / 10);
+      // 割合の判定には「人的控除差調整額 ＋（所得税の基礎控除 − 48万円）」を使う（令和7年度改正）
+      const fRaw = fl((fd - 2000) * (taxableR > 0 ? furusatoRate(taxableR - jd - Math.max(0, basic - 480000)) : 0.9));
+      fSpecial = Math.min(fRaw, fl(shotokuBase * 0.2));
+      if (fRaw > fSpecial + 100) infos.push(`ふるさと納税が上限の目安を超えています。超えた分（住民税の特例分で約${(fRaw - fSpecial).toLocaleString()}円）は税金が減らず、自己負担が2,000円より多くなります。`);
+      furusato = Math.min(shotokuBase, fBasic + Math.max(0, fSpecial));
     }
-    shotoku = fl(Math.max(0, shotoku - furusato) / 100) * 100;
-    resident = { total: shotoku + 5000, shotoku, kintou: 5000, furusato, taxableR, dedR };
+    const shotoku = fl(Math.max(0, shotokuBase - furusato) / 100) * 100;
+    resident = { total: shotoku + kintouAmt, shotoku, shotokuBase, kintou: kintouAmt, furusato, fBasic, fSpecial, taxableR, dedR, adj, jd, shotokuNontax: sogo <= shotokuLimit,
+      note: sogo <= shotokuLimit ? `総所得金額等が所得割の非課税限度額（${shotokuLimit.toLocaleString()}円）以下のため、均等割だけの見込みです。` : '' };
   }
   // 個人事業税（概算）
-  const bizTaxBase = Math.max(0, beforeBlue - 2900000);
+  const months = clamp(num(Y.bizMonths) || 12, 1, 12);
+  const ownerDed = cl(2900000 * months / 12);
+  const bizTaxBase = Math.max(0, beforeBlue - workerDed - ownerDed);
   const bizTax = fl(bizTaxBase * num(Y.bizTax) / 10000) * 100;
 
-  // ---------------- 消費税（概算） ----------------
-  let s10 = 0, s8 = 0, p10 = 0, p8 = 0;
-  for (const t of txs) {
-    const a = num(t.amount);
-    if (t.type === 'income') { if (t.tax === '10') s10 += a; else if (t.tax === '8') s8 += a; }
-    else if (t.type === 'expense') {
-      const r = clamp(t.ratio == null || t.ratio === '' ? 100 : num(t.ratio), 0, 100), b = Math.round(a * r / 100);
-      if (t.tax === '10') p10 += b; else if (t.tax === '8') p8 += b;
-    }
-  }
-  for (const { a, s } of assets) if (s.thisYear) p10 += Math.round(num(a.cost) * s.ratio / 100);
-  const base10 = fl(s10 * 100 / 110 / 1000) * 1000, base8 = fl(s8 * 100 / 108 / 1000) * 1000;
-  const outTax = base10 * 78 / 1000 + fl(base8 * 624 / 10000 + 1e-9);
-  let inTax = 0;
-  if (Y.ctax === 'honsoku') inTax = fl(p10 * 78 / 1100 + p8 * 624 / 10800);
-  else if (Y.ctax === '2wari') inTax = fl(outTax * 0.8);
-  else if (Y.ctax === 'kani') inTax = fl(outTax * (KANI_RATE[Y.kani] || 0.5));
-  const netRaw = outTax - inTax;
-  const nat = netRaw >= 0 ? fl(netRaw / 100) * 100 : netRaw;
-  const loc = nat >= 0 ? fl(nat * 22 / 78 / 100) * 100 : -fl(-nat * 22 / 78);
-  const ctax = { mode: Y.ctax, s10, s8, p10, p8, base10, base8, outTax, inTax, nat, loc, total: nat + loc, interim: num(Y.ctaxInterim), due: nat + loc - num(Y.ctaxInterim) };
   if (Y.ctax === 'exempt' && sales > 10000000) warnings.push('売上が1,000万円を超えています。2年後の年分は消費税の課税事業者になります（基準期間の課税売上高）。');
+  if (Y.ctax === '2wari' && year >= 2027) warnings.push('2割特例は令和8年分までです。令和9年分以後は別の特例（3割特例など）の対象か確認してください。');
 
   return {
-    year, cfg, Y, J, tb, tbs, bal, txs, assets, warnings, monthly, walletEnd, txCount: txs.length,
-    pl: { sales, miscRev, revenue, purchases, invStart, invEnd, cogs, gross, exp, expTotal, beforeBlue, blueDed, blueCap, bizIncome },
+    year, cfg, Y, J, tb, tbs, bal, txs, assets, warnings, infos, passed, monthly, walletEnd, recon, txCount: txs.length,
+    pl: { sales, miscRev, revenue, purchases, invStart, invEnd, cogs, gross, exp, expTotal, afterExp, workerPay, workers, workerDed, beforeBlue, blueDed, blueCap, bizIncome },
     bs: { A: bsA, Lb: bsL, totA, totL },
-    tax: { salaryInc, miscInc, total, dedList, dedSum, taxable, taxBase, credit, baseTax, recon, totalTax, whTx, withheld, diff, declared, prepaid, third, payable, refund, whByPartner, kid, sp, deps },
-    resident, bizTax: { base: bizTaxBase, rate: num(Y.bizTax), tax: bizTax }, ctax,
+    tax: { salaryRaw, incomeAdj, salaryInc, miscInc, total, sogo, netLoss, lossAvail, lossUsed, lossNext, dedList, dedSum, taxable, taxBase, credit, baseTax, recon: recon2, totalTax, whTx, withheld, diff, declared, prepaid, third, payable, refund, yotei, whByPartner, kid, sp, deps },
+    resident, bizTax: { base: bizTaxBase, rate: num(Y.bizTax), tax: bizTax, months, ownerDed }, ctax: C,
   };
 }
-if (typeof module !== 'undefined') module.exports = { compute, salaryIncome, incomeTax, lifeDeduction, assetSchedule, withholdingOf, spouseDed, depDed, YEARCFG, defYear, yearOf };
+if (typeof module !== 'undefined') module.exports = { compute, salaryIncome, incomeTax, lifeDeduction, lifeDeductionR, quakeDed, quakeDedR, assetSchedule, usedLife, withholdingOf, spouseDed, depDed, ageOf, furusatoRate, YEARCFG, defYear, yearOf };
 </script>
 
 <!-- ============================================================
@@ -703,12 +833,12 @@ document.addEventListener('change', e => {
 });
 
 // ---- 口座 ----
-const walletName = id => id === 'ar' ? '売掛金（未入金）' : id === 'ap' ? '未払金（未払い）' : id === 'private' ? 'プライベート資金' : (D.wallets.find(w => w.id === id) || {}).name || '（削除済み）';
+const walletName = id => id === 'ar' ? '売掛金（未入金）' : id === 'ap' ? '未払金（未払い）' : id === 'ctax' ? '未払消費税等' : id === 'private' ? 'プライベート資金' : (D.wallets.find(w => w.id === id) || {}).name || '（削除済み）';
 function walletOpts(type) {
   const base = D.wallets.map(w => [w.id, w.name]);
   if (type === 'income') return [...base, ['ar', '売掛金（あとで入金）'], ['private', 'プライベート口座に入金']];
   if (type === 'expense') return [...base, ['ap', '未払金（あとで支払い）'], ['private', 'プライベート資金で支払い']];
-  return [...base, ['ar', '売掛金'], ['ap', '未払金'], ['private', 'プライベート（事業主貸・借）']];
+  return [...base, ['ar', '売掛金'], ['ap', '未払金'], ['ctax', '未払消費税等（前年分の消費税）'], ['private', 'プライベート（事業主貸・借）']];
 }
 function matchRule(text, dir) {
   const s = String(text || '').normalize('NFKC').toUpperCase();
@@ -736,7 +866,13 @@ function render(keep) {
 }
 $('#yearSel').addEventListener('change', e => { D.year = +e.target.value; UI.form = null; save(); render(); });
 
-const warnBox = () => R.warnings.length ? R.warnings.map(w => `<div class="alert warn"><b>確認：</b>${esc(w)}</div>`).join('') : '';
+const warnBox = () => (R.warnings.length ? R.warnings.map(w => `<div class="alert warn"><b>要確認：</b>${esc(w)}</div>`).join('') : '')
+  + (R.infos.length ? `<details class="alert info"><summary><b>参考</b>：ほかに確認しておきたい点が ${R.infos.length}件あります</summary>${R.infos.map(w => `<p style="margin:8px 0 0">${esc(w)}</p>`).join('')}</details>` : '');
+function checkPanel() {
+  const items = [...R.warnings.map(m => ['warn', '要確認', m]), ...R.infos.map(m => ['info', '参考', m]), ...R.passed.map(m => ['ok', 'OK', m])];
+  return `<div class="card"><h3>申告前チェック<small>要確認 ${R.warnings.length}件・参考 ${R.infos.length}件・OK ${R.passed.length}件</small></h3>
+    ${items.length ? items.map(([k, l, m]) => `<div class="alert ${k}"><b>${l}：</b>${esc(m)}</div>`).join('') : '<p class="mut" style="margin:0">取引を入力するとチェックが始まります。</p>'}</div>`;
+}
 
 // ============================================================
 //  ホーム
@@ -802,7 +938,7 @@ function vSettings() {
   const Y = yr(), p = yp();
   const openRows = D.wallets.map(w => `<tr><td>${esc(w.name)} <span class="badge gray">${w.kind === 'bank' ? '預金' : w.kind === 'card' ? 'カード（未払残高）' : '現金'}</span></td><td class="r">${inp(`${p}.opening.wallets.${w.id}`, { w: 'w-m' })}</td></tr>`).join('');
   const openA = D.wallets.filter(w => w.kind !== 'card').reduce((s, w) => s + num(Y.opening.wallets[w.id]), 0) + num(Y.opening.ar) + num(Y.inv.start) + sumBy(R.assets.filter(x => !x.s.thisYear), x => x.s.startBook);
-  const openL = D.wallets.filter(w => w.kind === 'card').reduce((s, w) => s + num(Y.opening.wallets[w.id]), 0) + num(Y.opening.ap);
+  const openL = D.wallets.filter(w => w.kind === 'card').reduce((s, w) => s + num(Y.opening.wallets[w.id]), 0) + num(Y.opening.ap) + num(Y.opening.ctax);
   return `
   ${head('① 基本設定・期首残高', '申告の種類と、事業で使うお金の置き場所（口座・カード）を登録します。開業した年なら期首残高は0のままで大丈夫です。')}
   <div class="card"><h3>申告者</h3><div class="grid g2">
@@ -814,13 +950,18 @@ function vSettings() {
       '青色申告は事前に「青色申告承認申請書」の提出が必要です（開業から2か月以内、または適用年の3月15日まで）。')}
     ${fld('個人事業税の税率（概算用）', sel(`${p}.bizTax`, [[5, '5%：デザイン業・広告業・コンサルタント業・写真業など'], [4, '4%：畜産業・水産業など'], [3, '3%：あん摩・はり・きゅうなど'], [0, '対象外：文筆業・作曲家など法定業種外']], 'n'),
       '業種が法定業種に当たるかは都道府県が判断します。')}
+    ${fld('今年の営業月数（事業税の事業主控除を月割り）', sel(`${p}.bizMonths`, Array.from({ length: 12 }, (_, i) => [12 - i, `${12 - i}か月`]), 'n'), '年の途中で開業した場合は、開業月から12月までの月数（1か月未満の端数は1か月）。')}
   </div>
   <p class="note">65万円控除の条件：複式簿記で記帳／貸借対照表と損益計算書を添付／期限内に e-Tax で提出（または優良な電子帳簿保存）。このツールは入力した取引から複式簿記の仕訳と貸借対照表を自動で作ります。※令和9年分から控除額の区分が改正予定（最大75万円・書面提出は10万円）。</p></div>
   <div class="card"><h3>消費税</h3><div class="grid g3">
     ${fld('課税の区分', sel(`${p}.ctax`, [['exempt', '免税事業者（インボイス未登録で売上1,000万円以下）'], ['2wari', '2割特例（インボイス登録で課税事業者になった方）'], ['kani', '簡易課税（届出済み）'], ['honsoku', '本則課税（一般課税）']]))}
     ${Y.ctax === 'kani' ? fld('事業区分（みなし仕入率）', sel(`${p}.kani`, [[1, '第1種 卸売業（90%）'], [2, '第2種 小売業（80%）'], [3, '第3種 製造業など（70%）'], [4, '第4種 飲食店など（60%）'], [5, '第5種 サービス業など（50%）'], [6, '第6種 不動産業（40%）']], 'n')) : ''}
     ${Y.ctax !== 'exempt' ? fld('中間納付した消費税', inp(`${p}.ctaxInterim`)) : ''}
-  </div>${Y.ctax === '2wari' ? '<p class="note">2割特例は、免税事業者がインボイス登録で課税事業者になった場合に、売上の消費税の2割を納めればよい制度です（個人は令和8年分まで）。</p>' : ''}</div>
+  </div>${Y.ctax !== 'exempt' ? `<div style="margin-top:10px">${chk(`${p}.accrueCtax`, '今年分の消費税を12月31日に未払計上して、今年の経費（租税公課）にする')}</div><div class="hint">チェックしない場合は、翌年に納めたときの経費になります（どちらも認められています）。チェックした場合、翌年の支払いは②で「振替：預金 → 未払消費税等」として入力します。</div>` : ''}${Y.ctax === '2wari' ? '<p class="note">2割特例は、免税事業者がインボイス登録で課税事業者になった場合に、売上の消費税の2割を納めればよい制度です（個人は令和8年分まで）。</p>' : ''}</div>
+  <div class="card"><h3>住民税の概算の設定</h3><div class="grid g2">
+    ${fld('お住まいの地域の級地（非課税の判定用）', sel(`${p}.residentGrade`, [[1, '1級地（東京23区・政令市など都市部）'], [2, '2級地（中規模の市など）'], [3, '3級地（町村など）']], 'n'), '生活保護の級地区分です。わからなければ1級地のままでOK（非課税の判定にだけ使います）。')}
+    ${fld('均等割（森林環境税を含む年額）', inp(`${p}.kintou`), '多くの自治体で5,000円。独自の上乗せがある自治体は、その額に変えてください。')}
+  </div></div>
   <div class="card"><h3>口座・カード<small>事業で使うものだけ。プライベートと分けるのがおすすめ</small></h3>
     <div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>種類</th><th></th></tr></thead><tbody>
     ${D.wallets.map((w, i) => `<tr><td>${inp(`wallets.${i}.name`, { t: 's' })}</td><td>${sel(`wallets.${i}.kind`, [['bank', '預金口座'], ['card', 'クレジットカード'], ['cash', '現金']])}</td><td class="r"><button class="btn sm dan" onclick="App.delWallet('${w.id}')">削除</button></td></tr>`).join('')}
@@ -832,6 +973,7 @@ function vSettings() {
       ${openRows}
       <tr><td>売掛金（前年の売上で、まだ入金されていないもの）</td><td class="r">${inp(`${p}.opening.ar`, { w: 'w-m' })}</td></tr>
       <tr><td>未払金（前年の経費で、まだ支払っていないもの）</td><td class="r">${inp(`${p}.opening.ap`, { w: 'w-m' })}</td></tr>
+      <tr><td>未払消費税等（前年分の消費税を未払計上した場合）</td><td class="r">${inp(`${p}.opening.ctax`, { w: 'w-m' })}</td></tr>
       <tr><td>期首の商品棚卸高（物販の方のみ）</td><td class="r">${inp(`${p}.inv.start`, { w: 'w-m' })}</td></tr>
       <tr><td>期末の商品棚卸高（12月31日の在庫・物販の方のみ）</td><td class="r">${inp(`${p}.inv.end`, { w: 'w-m' })}</td></tr>
       <tr class="sub"><td>元入金（自動計算＝期首の資産 − 負債）</td><td class="r">${yen(openA - openL)}円</td></tr>
@@ -1036,7 +1178,7 @@ function vImport() {
 // ============================================================
 const LIFE_PRESETS = [['', '耐用年数の目安から選ぶ…'], ['4', 'パソコン（4年）'], ['5', 'サーバー（5年）'], ['5', 'カメラ・ビデオカメラ（5年）'], ['5', '自社で使うソフトウェア（5年）'], ['6', '普通自動車（6年）'], ['4', '軽自動車（4年）'], ['15', '事務机・椅子 金属製（15年）'], ['8', '事務机・椅子 その他（8年）'], ['6', 'エアコン（6年）'], ['15', '内装工事（建物附属設備 15年）']];
 function vAssets() {
-  const af = UI.af || (UI.af = { name: '', cat: '工具器具備品', date: todayIn(), cost: '', method: 'straight', life: 4, ratio: 100, wallet: (D.wallets.find(w => w.kind === 'card') || D.wallets[0] || {}).id || 'private', editing: null });
+  const af = UI.af || (UI.af = { name: '', cat: '工具器具備品', date: todayIn(), cost: '', method: 'straight', life: 4, used: false, legalLife: '', elapsed: '', ratio: 100, wallet: (D.wallets.find(w => w.kind === 'card') || D.wallets[0] || {}).id || 'private', editing: null });
   const blue = R.Y.blue !== 'white';
   const lim = smallLimit(af.date) / 10000;
   return `
@@ -1056,6 +1198,7 @@ function vAssets() {
       ${fld('取得価額（税込）', `<input class="in r" id="a_cost" inputmode="numeric" value="${esc(af.cost)}" placeholder="0" required>`)}
       ${fld('償却のしかた', `<select class="in" id="a_method">${opt([['straight', '定額法（耐用年数で分割）'], ['lump3', '一括償却資産（3年均等）'], ['small', `少額減価償却資産の特例（買った年に全額）${blue ? '' : '※青色のみ'}`]], af.method)}</select>`)}
       ${fld('耐用年数（定額法）', `<div class="row"><input class="in r w-s" id="a_life" inputmode="numeric" value="${esc(af.life)}"> 年 <select class="in w-m" onchange="if(this.value)document.getElementById('a_life').value=this.value">${opt(LIFE_PRESETS, '')}</select></div>`)}
+      ${fld('中古で買った資産', `<label class="chk"><input type="checkbox" id="a_used" ${af.used ? 'checked' : ''}> 中古（耐用年数を簡便法で計算）</label><div class="row" style="margin-top:6px"><input class="in r w-s" id="a_legal" inputmode="numeric" value="${esc(af.legalLife)}" placeholder="法定"> 年／経過 <input class="in r w-s" id="a_elapsed" inputmode="numeric" value="${esc(af.elapsed)}" placeholder="0"> か月</div>`, '法定耐用年数と、新品のときから買うまでの経過月数（中古車なら初度登録から）。例：普通車6年・経過4年なら 6−4＋4×20% → 2年')}
       ${fld('勘定科目', `<select class="in" id="a_cat">${opt(ASSET_CATS.map(a => [a, a]), af.cat)}</select>`)}
       ${fld('事業で使う割合', `<div class="row"><input class="in r w-s" id="a_ratio" inputmode="numeric" value="${esc(af.ratio)}"> %</div>`)}
       ${fld('支払い元（今年買った場合）', `<select class="in" id="a_wallet">${opt(walletOpts('expense'), af.wallet)}</select>`, '前年以前に買った資産は支払いの記録は作られず、期首の帳簿価額だけが入ります。')}
@@ -1065,7 +1208,7 @@ function vAssets() {
   <div class="card"><h3>減価償却の明細<small>${R.cfg.label}</small></h3>
     ${R.assets.length || D.assets.length ? `<div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>取得日</th><th class="r">取得価額</th><th>方法</th><th class="r">期首帳簿価額</th><th class="r">本年の償却費</th><th class="r">事業割合</th><th class="r">経費になる額</th><th class="r">期末帳簿価額</th><th></th></tr></thead><tbody>
     ${D.assets.map(a => { const s = assetSchedule(a, D.year); return `<tr><td>${esc(a.name)}</td><td class="num">${esc(a.date)}</td><td class="r">${yen(num(a.cost))}</td>
-      <td>${a.method === 'small' ? '少額特例' : a.method === 'lump3' ? '一括3年' : `定額法 ${num(a.life)}年`}${s && a.method === 'straight' ? `<br><span class="mut">償却率 ${s.rate.toFixed(3)}・${s.months}か月</span>` : ''}</td>
+      <td>${a.method === 'small' ? '少額特例' : a.method === 'lump3' ? '一括3年' : `定額法 ${s ? s.life : num(a.life)}年${a.used ? '（中古）' : ''}`}${s && a.method === 'straight' ? `<br><span class="mut">償却率 ${s.rate.toFixed(3)}・${s.months}か月</span>` : ''}</td>
       ${s ? `<td class="r">${yen(s.thisYear ? 0 : s.startBook)}</td><td class="r">${yen(s.dep)}</td><td class="r">${s.ratio}%</td><td class="r"><b>${yen(s.bizDep)}</b></td><td class="r">${yen(s.endBook)}</td>` : '<td colspan="5" class="mut">この年分より後に取得</td>'}
       <td class="r" style="white-space:nowrap"><button class="btn sm" onclick="App.editAsset('${a.id}')">編集</button> <button class="btn sm dan" onclick="App.delAsset('${a.id}')">削除</button></td></tr>`; }).join('')}
     <tr class="tot"><td colspan="7">合計（必要経費に算入する減価償却費）</td><td class="r">${yen(sumBy(R.assets, x => x.s.bizDep))}</td><td class="r">${yen(sumBy(R.assets, x => x.s.endBook))}</td><td></td></tr>
@@ -1079,34 +1222,56 @@ function vAssets() {
 //  ⑤ 控除・ほかの所得
 // ============================================================
 function vDed() {
-  const Y = yr(), p = yp(), d = Y.ded, T = R.tax, cfg = R.cfg, L = cfg.depLimit;
+  const Y = yr(), p = yp(), d = Y.ded, T = R.tax, cfg = R.cfg, L = cfg.depLimit, blue = Y.blue !== 'white';
   const got = k => (T.dedList.find(x => x.k === k) || {}).v || 0;
   const row = (title, body, amt, label = '控除額') => `<div class="dedrow"><div><h4>${title}</h4>${body}</div><div class="amt"><small>${label}</small><b>${yen(amt)}円</b></div></div>`;
-  const depRows = Y.deps.map((x, i) => { const r = T.deps[i] ? T.deps[i].r : { kind: '', amt: 0 }; return `<tr><td>${inp(`${p}.deps.${i}.name`, { t: 's', ph: '名前' })}</td><td>${inp(`${p}.deps.${i}.age`, { w: 'w-s' })}</td><td>${inp(`${p}.deps.${i}.income`, { w: 'w-m' })}</td>
-    <td>${chk(`${p}.deps.${i}.together`, '同居')}</td><td>${sel(`${p}.deps.${i}.disab`, [['none', 'なし'], ['normal', '障害者'], ['special', '特別障害者'], ['together', '同居特別障害者']])}</td>
-    <td>${esc(r.kind)}<br><b>${yen(r.amt)}円</b></td><td><button class="btn sm dan" onclick="App.delDep(${i})">削除</button></td></tr>`; }).join('');
+  const DIS = [['none', 'なし'], ['normal', '障害者'], ['special', '特別障害者'], ['together', '同居特別障害者']];
+  const dateIn = (path, v) => `<input type="date" class="in" data-p="${path}" data-t="s" value="${esc(v || '')}">`;
+  const depRows = Y.deps.map((x, i) => {
+    const r = T.deps[i] || { r: { kind: '', amt: 0 }, age: null };
+    return `<tr><td>${inp(`${p}.deps.${i}.name`, { t: 's', ph: '名前' })}</td>
+    <td>${dateIn(`${p}.deps.${i}.birth`, x.birth)}${x.birth ? '' : `<div class="row" style="margin-top:4px">${inp(`${p}.deps.${i}.age`, { t: 's', w: 'w-s', ph: '年齢' })}<span class="hint">歳</span></div>`}
+      <div class="hint">${r.age != null ? `12月31日時点で ${r.age}歳` : '<b class="neg">未入力</b>'}</div></td>
+    <td>${inp(`${p}.deps.${i}.income`, { w: 'w-m' })}</td>
+    <td>${chk(`${p}.deps.${i}.together`, '同居')}<br>${chk(`${p}.deps.${i}.worker`, '事業専従者')}</td>
+    <td>${sel(`${p}.deps.${i}.disab`, DIS)}</td>
+    <td>${esc(r.r.kind)}<br><b>${yen(r.r.amt)}円</b></td><td><button class="btn sm dan" onclick="App.delDep(${i})">削除</button></td></tr>`;
+  }).join('');
+  const workerNote = R.pl.workers.length
+    ? (blue ? `<div class="alert info" style="margin-top:8px">事業専従者がいます。給与は②で科目「専従者給与」として登録します（「青色事業専従者給与に関する届出書」の範囲内の金額だけ経費になります）。いまの専従者給与：${yen(R.pl.workerPay)}円</div>`
+      : `<div class="alert info" style="margin-top:8px">白色申告の事業専従者控除 ${yen(R.pl.workerDed)}円 を事業所得から差し引いています（配偶者86万円・その他50万円まで、かつ 事業所得 ÷（専従者数＋1）まで）。</div>`) : '';
   return `
   ${head('⑤ 控除・ほかの所得', '証明書や源泉徴収票を見ながら入力します。入力すると右側に控除額が自動で計算されます。わからない項目は0のままで構いません。')}
-  <div class="card"><h3>ほかの所得</h3>
-    ${row('給与（会社員・アルバイトとの掛け持ち）', `<div class="inl">${fld('源泉徴収票の「支払金額」', inp(`${p}.salary.revenue`))}${fld('「源泉徴収税額」', inp(`${p}.salary.withheld`))}${fld('「社会保険料等の金額」', inp(`${p}.salary.social`))}</div><div class="hint">給与所得控除の最低額は${R.cfg.label}で${(cfg.salaryMin / 10000)}万円です。年末調整済みの生命保険料などは下の欄に入れてください。</div>`, T.salaryInc, '給与所得')}
+  <div class="card"><h3>ほかの所得・繰越損失</h3>
+    ${row('給与（会社員・アルバイトとの掛け持ち）', `<div class="inl">${fld('源泉徴収票の「支払金額」', inp(`${p}.salary.revenue`))}${fld('「源泉徴収税額」', inp(`${p}.salary.withheld`))}${fld('「社会保険料等の金額」', inp(`${p}.salary.social`))}</div>
+      <div class="hint">${R.cfg.label}の給与所得控除は、給与収入${(cfg.salaryFlat / 10000)}万円以下なら一律${(cfg.salaryMin / 10000)}万円。年末調整済みの生命保険料などは下の欄に入れてください。${T.incomeAdj ? `<br><b>所得金額調整控除 ${yen(T.incomeAdj)}円</b> を差し引いています（給与収入850万円超で、23歳未満の扶養親族や特別障害者がいる場合）。` : ''}</div>`, T.salaryInc, '給与所得')}
     ${row('雑所得（事業以外の副収入：原稿料・講演料・アフィリエイトなど）', `<div class="inl">${fld('収入', inp(`${p}.misc.revenue`))}${fld('必要経費', inp(`${p}.misc.expense`))}${fld('源泉徴収税額', inp(`${p}.misc.withheld`))}</div>`, T.miscInc, '雑所得')}
+    ${blue ? row('前年から繰り越された純損失（青色申告）', `<div class="inl">${fld('前年の申告書第四表「翌年以後に繰り越す損失額」', inp(`${p}.lossCarry`))}</div>
+      <div class="hint">赤字は3年間繰り越せます（3年を過ぎた分は入れないでください）。本年使う額 ${yen(T.lossUsed)}円／翌年以後に繰り越す額 ${yen(T.lossNext)}円</div>`, T.lossUsed, '本年の繰越控除') : ''}
+    <div class="res" style="border-top:2px solid var(--line2);padding-top:10px"><span>合計所得金額 <span class="mut">（基礎控除・配偶者控除などの判定に使用）</span></span><b>${yen(T.total)}円</b></div>
+    ${T.lossUsed ? `<div class="res"><span>総所得金額等 <span class="mut">（繰越控除後。医療費・寄附金の限度に使用）</span></span><b>${yen(T.sogo)}円</b></div>` : ''}
   </div>
-  <div class="card"><h3>所得控除<small>合計所得金額 ${yen(T.total)}円 をもとに計算</small></h3>
+  <div class="card"><h3>所得控除</h3>
     ${row('社会保険料控除', `<div class="inl">${fld('国民年金・国民健康保険・介護保険など（今年支払った額）', inp(`${p}.ded.social`))}</div><div class="hint">家族の分を払った場合も含められます。給与の源泉徴収票の分（${yen(num(Y.salary.social))}円）は自動で合算します。</div>`, got('社会保険料控除'))}
     ${row('小規模企業共済等掛金控除', `<div class="inl">${fld('iDeCo・小規模企業共済の掛金', inp(`${p}.ded.smallBiz`))}</div>`, got('小規模企業共済等掛金控除'))}
     ${row('生命保険料控除', `<div class="inl">${fld('一般（新契約）', inp(`${p}.ded.lifeNewGen`))}${fld('一般（旧契約）', inp(`${p}.ded.lifeOldGen`))}${fld('介護医療', inp(`${p}.ded.lifeCare`))}${fld('個人年金（新契約）', inp(`${p}.ded.lifeNewPen`))}${fld('個人年金（旧契約）', inp(`${p}.ded.lifeOldPen`))}</div>
       <div class="hint">控除証明書の「年間の支払額（申告額）」を入れます。新契約＝平成24年以後の契約。${cfg.lifeKidSpecial ? (T.kid ? '<b>23歳未満の扶養親族がいるため、一般（新契約）の上限が6万円になる特例を適用中です。</b>' : '令和8年分は、23歳未満の扶養親族がいると一般（新契約）の上限が6万円に上がります（下の扶養親族に登録すると自動判定）。') : ''}</div>`, got('生命保険料控除'))}
-    ${row('地震保険料控除', `<div class="inl">${fld('地震保険料（年間）', inp(`${p}.ded.quake`))}</div>`, got('地震保険料控除'))}
+    ${row('地震保険料控除', `<div class="inl">${fld('地震保険料（年間）', inp(`${p}.ded.quake`))}${fld('旧長期損害保険料（平成18年以前の長期契約）', inp(`${p}.ded.oldQuake`))}</div>`, got('地震保険料控除'))}
     ${row('医療費控除', `<div class="row" style="margin-bottom:8px">${sel(`${p}.ded.medMode`, [['normal', '通常の医療費控除'], ['self', 'セルフメディケーション税制']], 's', 'w-m')}</div>
-      ${d.medMode === 'self' ? `<div class="inl">${fld('対象の市販薬の購入額', inp(`${p}.ded.selfMed`))}</div><div class="hint">1.2万円を超えた分（上限8.8万円）。健康診断などを受けていることが条件です。</div>`
-        : `<div class="inl">${fld('支払った医療費（家族分も）', inp(`${p}.ded.medPaid`))}${fld('保険などで補てんされた額', inp(`${p}.ded.medReimb`))}</div><div class="hint">10万円（所得が200万円未満なら所得の5%）を超えた分が控除されます。医療費の明細書の添付が必要です。</div>`}`, got('医療費控除'))}
-    ${row('寄附金控除（ふるさと納税など）', `<div class="inl">${fld('寄附した金額の合計', inp(`${p}.ded.donation`))}</div><div class="hint">確定申告をするとワンストップ特例は無効になるので、ふるさと納税はすべてここに入れてください（受領証明書が必要）。</div>`, got('寄附金控除'))}
+      ${d.medMode === 'self' ? `<div class="inl">${fld('対象の市販薬の購入額', inp(`${p}.ded.selfMed`))}</div><div class="hint">1.2万円を超えた分（上限8.8万円）。健康診断などを受けていることが条件です。通常の医療費控除との併用はできません。</div>`
+        : `<div class="inl">${fld('支払った医療費（家族分も）', inp(`${p}.ded.medPaid`))}${fld('保険などで補てんされた額', inp(`${p}.ded.medReimb`))}</div><div class="hint">10万円（総所得金額等が200万円未満なら その5%）を超えた分が控除されます。いまの足切り額：${yen(Math.min(100000, Math.floor(T.sogo * 0.05)))}円。医療費控除の明細書が必要です。</div>`}`, got('医療費控除'))}
+    ${row('寄附金控除', `<div class="inl">${fld('ふるさと納税', inp(`${p}.ded.donation`))}${fld('その他の寄附（認定NPO・公益法人など）', inp(`${p}.ded.donationOther`))}</div><div class="hint">確定申告をするとワンストップ特例は無効になるので、ふるさと納税はすべて入れてください（受領証明書が必要）。所得税は「寄附の合計 − 2,000円」が控除され、住民税からも税額控除されます（⑦で確認）。</div>
+      <div class="alert info" style="margin-top:8px"><b>ふるさと納税の上限の目安：約 ${yen(furusatoLimit())}円</b>（今の入力内容で、自己負担が2,000円で済む寄附額の目安。住民税は概算のため、上限ぎりぎりは避けるのが安全です）</div>`, got('寄附金控除'))}
     ${row('配偶者控除・配偶者特別控除', `<div class="row" style="margin-bottom:8px">${chk(`${p}.spouse.has`, '配偶者がいる')}</div>
-      ${Y.spouse.has ? `<div class="inl">${fld('配偶者の合計所得金額', inp(`${p}.spouse.income`), `給与だけなら 給与収入 − 給与所得控除。${yen(L)}円以下なら配偶者控除、${yen(L + 1)}〜1,330,000円は配偶者特別控除`)}${fld('障害', sel(`${p}.spouse.disab`, [['none', 'なし'], ['normal', '障害者'], ['special', '特別障害者'], ['together', '同居特別障害者']]))}</div><div style="margin-top:6px">${chk(`${p}.spouse.elderly`, '12月31日時点で70歳以上')}</div><div class="hint">本人の合計所得金額が1,000万円を超えると受けられません。</div>` : ''}`, T.sp.amt, T.sp.kind || '控除額')}
-    ${row('扶養控除・特定親族特別控除', `<div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>年齢（12/31）</th><th>合計所得金額</th><th>同居</th><th>障害</th><th>判定</th><th></th></tr></thead><tbody>${depRows || '<tr><td colspan="7" class="mut">登録なし</td></tr>'}</tbody></table></div>
-      <div class="row" style="margin-top:8px"><button class="btn sm" onclick="App.addDep()">＋ 扶養親族を追加</button><span class="hint">所得が${yen(L)}円以下の親族が対象（16歳未満は控除なし）。19〜22歳で所得が基準を超える場合は特定親族特別控除を自動判定します。</span></div>`, got('扶養控除') + got('特定親族特別控除'))}
-    ${row('本人の状況', `<div class="inl">${fld('寡婦・ひとり親', sel(`${p}.ded.selfStatus`, [['none', '該当なし'], ['single', 'ひとり親（35万円）'], ['widow', '寡婦（27万円）']]))}${fld('障害者控除（本人）', sel(`${p}.ded.selfDisab`, [['none', '該当なし'], ['normal', '障害者（27万円）'], ['special', '特別障害者（40万円）']]))}</div><div class="hint">寡婦・ひとり親は本人の合計所得金額が500万円以下の場合。</div>`, got('寡婦控除') + got('ひとり親控除') + got('障害者控除'))}
-    ${row('基礎控除', `<div class="hint">合計所得金額に応じて自動で決まります。${R.cfg.label}は、${R.year === 2026 ? '489万円以下：104万円／655万円以下：67万円／2,350万円以下：62万円' : '132万円以下：95万円／336万円以下：88万円／489万円以下：68万円／655万円以下：63万円／2,350万円以下：58万円'}。</div>`, got('基礎控除'))}
+      ${Y.spouse.has ? `<div class="inl">${fld('配偶者の合計所得金額', inp(`${p}.spouse.income`), `給与だけなら 給与収入 − 給与所得控除。${yen(L)}円以下：配偶者控除／${yen(L + 1)}〜1,330,000円：配偶者特別控除`)}${fld('生年月日（70歳以上の判定）', dateIn(`${p}.spouse.birth`, Y.spouse.birth))}${fld('障害', sel(`${p}.spouse.disab`, DIS))}</div>
+        <div class="row" style="margin-top:6px">${Y.spouse.birth ? '' : chk(`${p}.spouse.elderly`, '12月31日時点で70歳以上')}${chk(`${p}.spouse.worker`, '事業専従者（家業を手伝い、給与を払っている）')}</div>
+        <div class="hint">本人の合計所得金額が1,000万円を超えると受けられません。事業専従者は配偶者控除の対象外です。</div>` : ''}`, T.sp.amt, T.sp.kind || '控除額')}
+    ${row('扶養控除・特定親族特別控除', `<div class="tblw"><table class="tbl"><thead><tr><th>名前</th><th>生年月日</th><th>合計所得金額</th><th>同居・専従</th><th>障害</th><th>判定</th><th></th></tr></thead><tbody>${depRows || '<tr><td colspan="7" class="mut">登録なし</td></tr>'}</tbody></table></div>
+      <div class="row" style="margin-top:8px"><button class="btn sm" onclick="App.addDep()">＋ 家族を追加</button><span class="hint">所得が${yen(L)}円以下の親族が扶養の対象（16歳未満は控除なし、ただし住民税の非課税判定や生命保険料の特例には使います）。19〜22歳で所得が基準を超える場合は特定親族特別控除を自動判定します。年齢は生年月日から12月31日時点で計算します。</span></div>${workerNote}`, got('扶養控除') + got('特定親族特別控除'))}
+    ${row('本人の状況', `<div class="inl">${fld('寡婦・ひとり親', sel(`${p}.ded.selfStatus`, [['none', '該当なし'], ['single', 'ひとり親（35万円）'], ['widow', '寡婦（27万円）']]))}${fld('障害者控除（本人）', sel(`${p}.ded.selfDisab`, [['none', '該当なし'], ['normal', '障害者（27万円）'], ['special', '特別障害者（40万円）']]))}</div>
+      <div style="margin-top:6px">${chk(`${p}.ded.student`, `勤労学生（合計所得金額${(cfg.studentLimit / 10000)}万円以下・勤労以外の所得10万円以下）`)}</div>
+      <div class="hint">寡婦・ひとり親は本人の合計所得金額が500万円以下の場合。ひとり親控除の38万円への引き上げは令和9年分からです。</div>`, got('寡婦控除') + got('ひとり親控除') + got('障害者控除') + got('勤労学生控除'))}
+    ${row('基礎控除', `<div class="hint">合計所得金額に応じて自動で決まります。${R.cfg.label}は、${cfg.basicNote}。住民税の基礎控除は43万円のままです。</div>`, got('基礎控除'))}
     <div class="res" style="border-top:2px solid var(--line2);padding-top:10px"><b>所得控除の合計</b><b>${yen(T.dedSum)}円</b></div>
   </div>
   <div class="card"><h3>税額控除・納付済みの税金</h3>
@@ -1143,8 +1308,9 @@ function rPL() {
     <tr class="sec"><td colspan="2">経費</td></tr>
     ${p.exp.map(x => r(x.a, x.v || '')).join('')}
     ${r('経費 計', p.expTotal, 'sub')}
-    ${r('差引金額', p.beforeBlue, 'sub')}
-    ${blue ? r('青色申告特別控除前の所得金額', p.beforeBlue, 'sub') + r(`青色申告特別控除額（${R.Y.blue}万円枠）`, p.blueDed) : ''}
+    ${r('差引金額', p.afterExp, 'sub')}
+    ${p.workerPay ? r('専従者給与', p.workerPay) : ''}
+    ${blue ? r('青色申告特別控除前の所得金額', p.beforeBlue, 'sub') + r(`青色申告特別控除額（${R.Y.blue}万円枠）`, p.blueDed) : (p.workerDed ? r(`事業専従者控除（${p.workers.length}人）`, p.workerDed) : '')}
     ${r('所得金額', p.bizIncome, 'tot')}
   </tbody></table></div>
   <p class="note">決算書の経費欄にない科目（支払手数料・新聞図書費・研修費・会議費・諸会費・車両費など）は、空欄の行に科目名を書いて記入します。</p></div>`;
@@ -1153,7 +1319,6 @@ function rBS() {
   const b = R.bs;
   const nm = a => a === '未払金' ? '未払金（カード等）' : a;
   const rows = list => list.filter(x => x.open || x.v).map(x => `<tr><td>${nm(x.a)}</td><td class="r">${yen(x.open)}</td><td class="r">${yen(x.v)}</td></tr>`).join('');
-  const subs = Object.values(R.tbs).filter(x => (x.a === '現金' || x.a === '普通預金' || x.a === '未払金') && x.s && (x.dr || x.cr));
   return `<div class="card"><h3>貸借対照表（資産負債調）<small>${R.cfg.label} 12月31日現在</small></h3>
   <div class="grid g2">
     <div class="tblw"><table class="tbl"><thead><tr><th>資産の部</th><th class="r">1月1日（期首）</th><th class="r">12月31日（期末）</th></tr></thead><tbody>
@@ -1163,7 +1328,12 @@ function rBS() {
       <tr class="tot"><td>合計</td><td class="r">${yen(sumBy(b.Lb, 'open'))}</td><td class="r">${yen(b.totL)}</td></tr></tbody></table></div>
   </div>
   ${b.totA === b.totL ? '<div class="alert ok" style="margin-top:12px">資産の合計と、負債・資本の合計が一致しています。</div>' : '<div class="alert warn" style="margin-top:12px"><b>不一致：</b>左右の合計が一致していません。</div>'}
-  ${subs.length ? `<h3 style="margin-top:14px">口座ごとの期末残高</h3><div class="tblw"><table class="tbl"><tbody>${subs.map(x => `<tr><td>${esc(x.a)}：${esc(x.s)}</td><td class="r">${yen(x.a === '未払金' ? x.cr - x.dr : x.dr - x.cr)}円</td></tr>`).join('')}</tbody></table></div><p class="note">通帳・カード明細の12月31日の残高と一致しているか確認してください。一致しない場合は入力漏れがあります。</p>` : ''}
+  <h3 style="margin-top:16px">口座の残高照合<small>12月31日の通帳・カード明細の残高を入れると、帳簿とのずれを自動でチェックします</small></h3>
+  <div class="tblw"><table class="tbl"><thead><tr><th>口座</th><th class="r">帳簿の残高</th><th class="r">通帳・明細の残高</th><th class="r">差額</th></tr></thead><tbody>
+  ${D.wallets.map(w => { const book = R.walletEnd[w.id] || 0, st = (R.Y.recon || {})[w.id], has = !isBlank(st), diff = has ? book - num(st) : 0;
+    return `<tr><td>${esc(w.name)}${w.kind === 'card' ? ' <span class="mut">（未払残高）</span>' : ''}</td><td class="r">${yen(book)}</td><td class="r"><input class="in r w-m" style="margin-left:auto" data-p="${yp()}.recon.${w.id}" data-t="s" inputmode="numeric" value="${esc(st ?? '')}" placeholder="未入力"></td><td class="r">${has ? (diff ? `<b class="neg">${yen(diff)}</b>` : '<b class="pos">一致</b>') : '<span class="mut">—</span>'}</td></tr>`; }).join('')}
+  </tbody></table></div>
+  <p class="note">カードは12月31日時点で「まだ引き落とされていない利用額（未確定分を含む）」を入れます。ずれがある場合は、取引の入力漏れ・重複・年をまたぐ日付を確認してください。</p>
   <p class="note">事業主貸＝事業のお金をプライベートに使った額（生活費・源泉所得税・家事按分の家事分など）、事業主借＝プライベートのお金を事業に入れた額。翌年の元入金 ＝ 元入金 ＋ 青色申告特別控除前の所得 ＋ 事業主借 − 事業主貸 です。</p></div>`;
 }
 function rMonthly() {
@@ -1213,17 +1383,18 @@ function vReturn() {
   const parts = Object.entries(T.whByPartner);
   return `
   ${head('⑦ 申告書・納税額', `${cfg.label}の確定申告書（第一表・第二表）に入力する金額と、納める税金・戻ってくる税金の計算です。`)}
-  ${warnBox()}
   <div class="grid g2">
     <div class="kpi"><div class="l">${T.refund ? '還付される税金' : '納める税金（第3期分）'}</div><div class="big ${T.refund ? 'pos' : 'neg'}">${yen(T.refund || T.payable)}円</div>
       <div class="s">${T.refund ? '指定した口座に振り込まれます（e-Taxなら3週間ほど）' : `納付期限：${fmtJ(cfg.filing[1])}（振替納税なら4月下旬に引き落とし）`}</div></div>
     <div class="kpi"><div class="l">所得税及び復興特別所得税の額（年税額）</div><div class="big">${yen(T.totalTax)}円</div><div class="s">課税される所得金額 ${yen(T.taxable)}円 × 税率 ${Math.round(marginalRate(T.taxable) * 100)}%（速算表）</div></div>
   </div>
+  <div style="margin-top:16px">${checkPanel()}</div>
   <div class="card" style="margin-top:16px"><h3>確定申告書に入力する金額<small>第一表</small></h3><div class="tblw"><table class="tbl calc"><tbody>
     <tr class="sec"><td colspan="2">収入金額等</td></tr>
     ${line('事業（営業等）', P.revenue)}${num(Y.salary.revenue) ? line('給与', num(Y.salary.revenue)) : ''}${num(Y.misc.revenue) ? line('雑（業務・その他）', num(Y.misc.revenue)) : ''}
     <tr class="sec"><td colspan="2">所得金額等</td></tr>
-    ${line('事業（営業等）', P.bizIncome)}${T.salaryInc ? line('給与', T.salaryInc) : ''}${T.miscInc ? line('雑', T.miscInc) : ''}${line('合計', T.total, 'sub')}
+    ${line('事業（営業等）', P.bizIncome)}${T.salaryInc ? line('給与' + (T.incomeAdj ? `（所得金額調整控除 ${yen(T.incomeAdj)}円 控除後）` : ''), T.salaryInc) : ''}${T.miscInc ? line('雑', T.miscInc) : ''}
+    ${T.lossUsed ? line('純損失の繰越控除（第四表）', -T.lossUsed) + line('合計（繰越控除後）', T.sogo, 'sub') : line('合計', T.total, 'sub')}
     <tr class="sec"><td colspan="2">所得から差し引かれる金額</td></tr>
     ${T.dedList.filter(x => x.v).map(x => line(x.k, x.v)).join('')}${line('合計', T.dedSum, 'sub')}
     <tr class="sec"><td colspan="2">税金の計算</td></tr>
@@ -1236,18 +1407,25 @@ function vReturn() {
     <tr class="sec"><td colspan="2">その他</td></tr>
     ${Y.blue !== 'white' ? line('青色申告特別控除額', P.blueDed) : ''}
     ${line('合計所得金額', T.total)}
+    ${T.lossNext ? line('翌年以後に繰り越す損失額（第四表）', T.lossNext) : ''}
   </tbody></table></div>
-  ${T.payable >= 150000 ? `<p class="note">申告納税額が15万円以上のため、翌年は7月と11月に予定納税（それぞれ約${yen(fl(T.declared / 3 / 100) * 100)}円）が求められる見込みです。</p>` : ''}</div>
+  ${T.yotei ? `<p class="note">申告納税額が15万円以上のため、翌年は7月と11月に予定納税（それぞれ約${yen(T.yotei)}円）の通知が届く見込みです。</p>` : ''}</div>
   ${parts.length ? `<div class="card"><h3>所得の内訳（源泉徴収税額）<small>第二表</small></h3><div class="tblw"><table class="tbl"><thead><tr><th>所得の種類</th><th>種目</th><th>支払者の名称</th><th class="r">収入金額</th><th class="r">源泉徴収税額</th></tr></thead><tbody>
     ${parts.map(([k, v]) => `<tr><td>事業（営業等）</td><td>報酬</td><td>${esc(k)}</td><td class="r">${yen(v.rev)}</td><td class="r">${yen(v.wh)}</td></tr>`).join('')}
     ${num(Y.salary.revenue) ? `<tr><td>給与</td><td>給料</td><td>（源泉徴収票の支払者）</td><td class="r">${yen(num(Y.salary.revenue))}</td><td class="r">${yen(num(Y.salary.withheld))}</td></tr>` : ''}
   </tbody></table></div></div>` : ''}
   <div class="grid g2">
     <div class="card"><h3>住民税（概算）<small>翌年6月から納付</small></h3>
-      ${R.resident.note ? `<p>${esc(R.resident.note)}</p>` : `<div class="res"><span>所得割（10%・調整控除の簡易計算）</span><b>${yen(R.resident.shotoku)}円</b></div><div class="res"><span>均等割（森林環境税を含む）</span><b>${yen(R.resident.kintou)}円</b></div>${R.resident.furusato ? `<div class="res"><span>うち ふるさと納税による減額（目安）</span><b>${yen(R.resident.furusato)}円</b></div>` : ''}<div class="res"><span><b>年額の目安</b></span><b>${yen(R.resident.total)}円</b></div>`}
-      <p class="note">確定申告の内容は自治体に送られるので、住民税の申告は別に必要ありません。副業がある会社員の方は、第二表で「自分で納付（普通徴収）」を選べます。金額は自治体の税率や調整控除で変わります。</p></div>
+      ${R.resident.nontax ? `<p>${esc(R.resident.note)}</p>` : `${R.resident.note ? `<p class="hint">${esc(R.resident.note)}</p>` : ''}
+        <div class="res"><span>課税所得（住民税の所得控除 ${yen(R.resident.dedR)}円 を差引）</span><b>${yen(R.resident.taxableR)}円</b></div>
+        <div class="res"><span>所得割 10% − 調整控除 ${yen(R.resident.adj)}円</span><b>${yen(R.resident.shotokuBase)}円</b></div>
+        ${R.resident.furusato ? `<div class="res"><span>寄附金税額控除（ふるさと納税：基本分 ${yen(R.resident.fBasic)}円＋特例分 ${yen(Math.max(0, R.resident.fSpecial))}円）</span><b>−${yen(R.resident.furusato)}円</b></div>` : ''}
+        <div class="res"><span>所得割（100円未満切り捨て）</span><b>${yen(R.resident.shotoku)}円</b></div>
+        <div class="res"><span>均等割（森林環境税を含む）</span><b>${yen(R.resident.kintou)}円</b></div>
+        <div class="res"><span><b>年額の目安</b></span><b>${yen(R.resident.total)}円</b></div>`}
+      <p class="note">確定申告の内容は自治体に送られるので、住民税の申告は別に必要ありません。副業がある会社員の方は、第二表で「自分で納付（普通徴収）」を選べます。実際は市区町村分と都道府県分を別々に端数処理するため、数百円ずれることがあります。</p></div>
     <div class="card"><h3>個人事業税（概算）<small>翌年8月・11月に納付</small></h3>
-      <div class="res"><span>事業所得（青色申告特別控除前）− 事業主控除290万円</span><b>${yen(R.bizTax.base)}円</b></div>
+      <div class="res"><span>事業所得（青色申告特別控除前）${P.workerDed ? '− 事業専従者控除 ' : ''}− 事業主控除 ${yen(R.bizTax.ownerDed)}円${R.bizTax.months < 12 ? `（${R.bizTax.months}か月分）` : ''}</span><b>${yen(R.bizTax.base)}円</b></div>
       <div class="res"><span>税率</span><b>${R.bizTax.rate}%</b></div>
       <div class="res"><span><b>年額の目安</b></span><b>${yen(R.bizTax.tax)}円</b></div>
       <p class="note">個人事業税は青色申告特別控除が使えません。納めた年に「租税公課」として経費にできます。</p></div>
@@ -1257,7 +1435,7 @@ function vReturn() {
     ${line('消費税額（国税 7.8%・6.24%）', C.outTax)}${line(Y.ctax === 'honsoku' ? '控除対象仕入税額（経費・固定資産の消費税）' : Y.ctax === '2wari' ? '控除する税額（売上の消費税の80%）' : `控除する税額（みなし仕入率 ${Math.round((KANI_RATE[Y.kani] || .5) * 100)}%）`, C.inTax)}
     ${line('差引税額（国税・100円未満切り捨て）', C.nat)}${line('地方消費税（差引税額×22/78）', C.loc)}${C.interim ? line('中間納付額', C.interim) : ''}
     ${line('納める消費税・地方消費税', C.due, 'tot')}</tbody></table></div>
-    <p class="note">税込経理で計算しています。消費税を納めた年に「租税公課」として経費にできます（未払計上も可）。</p></div>` : ''}
+    <p class="note">税込経理で計算しています。${Y.accrueCtax ? 'この金額を12月31日に未払計上して、今年の経費（租税公課）に入れています。' : '消費税は納めた年に「租税公課」として経費にできます（①で未払計上を選ぶと今年の経費にできます）。'}</p></div>` : ''}
   <div class="card guide"><h3>提出までの手順</h3><ol>
     <li><b>書類をそろえる</b>：源泉徴収票（給与がある方）、報酬の支払明細、国民年金の控除証明書、国保の納付額、生命保険・地震保険の控除証明書、iDeCo・小規模企業共済の証明書、医療費の明細、ふるさと納税の受領証明書、マイナンバーカード。</li>
     <li><b>国税庁「確定申告書等作成コーナー」を開く</b>：「作成開始」→「e-Tax（マイナンバーカード方式）」を選び、スマホでマイナンバーカードを読み取ってログインします。</li>
@@ -1290,6 +1468,19 @@ function vData() {
     <button class="btn" onclick="App.sample()">サンプルデータを入れる</button>
     <button class="btn dan" onclick="App.reset()">すべてのデータを削除</button>
   </div></div>`;
+}
+
+// ふるさと納税の上限の目安：自己負担が2,000円で収まる最大の寄附額（100円の誤差まで許容）を二分探索
+function furusatoLimit() {
+  const k = String(D.year), Y0 = yr();
+  const run = don => { const Yc = JSON.parse(JSON.stringify(Y0)); Yc.ded.donation = don; return compute({ ...D, years: { ...D.years, [k]: Yc } }, { noPrev: true }); };
+  const b = run(0), tax0 = b.tax.totalTax + b.resident.total;
+  const ok = don => { const r = run(don); return tax0 - r.tax.totalTax - r.resident.total >= don - 2000 - 100; };
+  if (!ok(5000)) return 0;
+  let lo = 5000, hi = 10000;
+  while (hi < 50000000 && ok(hi)) { lo = hi; hi *= 2; }
+  while (hi - lo > 1000) { const mid = Math.round((lo + hi) / 2000) * 1000; if (ok(mid)) lo = mid; else hi = mid; }
+  return lo;
 }
 
 const VIEWS = { home: vHome, settings: vSettings, tx: vTx, import: vImport, assets: vAssets, ded: vDed, reports: vReports, return: vReturn, data: vData };
@@ -1415,7 +1606,10 @@ window.App = {
   saveAsset(e) {
     e.preventDefault();
     const g = id => document.getElementById(id).value;
-    const a = { id: (UI.af && UI.af.editing) || uid(), name: g('a_name').trim(), date: g('a_date'), cost: num(g('a_cost')), method: g('a_method'), life: Math.max(2, num(g('a_life')) || 4), cat: g('a_cat'), ratio: clamp(num(g('a_ratio')), 0, 100), wallet: g('a_wallet') };
+    const used = document.getElementById('a_used').checked;
+    const a = { id: (UI.af && UI.af.editing) || uid(), name: g('a_name').trim(), date: g('a_date'), cost: num(g('a_cost')), method: g('a_method'), life: Math.max(2, num(g('a_life')) || 4), cat: g('a_cat'), ratio: clamp(num(g('a_ratio')), 0, 100), wallet: g('a_wallet'),
+      used, legalLife: used ? Math.max(2, num(g('a_legal')) || num(g('a_life')) || 4) : '', elapsed: used ? Math.max(0, num(g('a_elapsed'))) : '' };
+    if (used) a.life = usedLife(a.legalLife, a.elapsed);
     if (!a.name || !a.date || a.cost <= 0) { toast('名前・取得日・取得価額を入力してください'); return; }
     if (a.cost < 100000 && !confirm('10万円未満の物は固定資産にせず「消耗品費」として経費にできます。このまま固定資産として登録しますか？')) return;
     const i = D.assets.findIndex(x => x.id === a.id);
@@ -1426,7 +1620,7 @@ window.App = {
   delAsset(id) { if (!confirm('この固定資産を削除しますか？')) return; D.assets = D.assets.filter(x => x.id !== id); save(); render(true); },
   cancelAsset() { UI.af = null; render(true); },
   // 控除
-  addDep() { yr().deps.push({ id: uid(), name: '', age: 0, income: 0, together: false, disab: 'none' }); save(); render(true); },
+  addDep() { yr().deps.push({ id: uid(), name: '', birth: '', age: '', income: 0, together: false, worker: false, disab: 'none' }); save(); render(true); },
   delDep(i) { yr().deps.splice(i, 1); save(); render(true); },
   // 帳簿
   rep(k) { UI.rep = k; render(true); },
@@ -1463,7 +1657,11 @@ window.App = {
     Yn.opening.ar = Math.max(0, R.bal('売掛金'));
     const apKey = '未払金|未払い'; Yn.opening.ap = Math.max(0, R.tbs[apKey] ? R.tbs[apKey].cr - R.tbs[apKey].dr : 0);
     Yn.inv.start = num(Yc.inv.end);
-    for (const k of ['blue', 'bizTax', 'ctax', 'kani']) Yn[k] = Yc[k];
+    Yn.opening.ctax = Math.max(0, -R.bal('未払消費税等'));
+    Yn.lossCarry = R.tax.lossNext;
+    for (const k of ['blue', 'bizTax', 'ctax', 'kani', 'residentGrade', 'kintou', 'accrueCtax']) Yn[k] = Yc[k];
+    if (!Yn.spouse.has && Yc.spouse.has) Yn.spouse = JSON.parse(JSON.stringify(Yc.spouse));
+    if (!Yn.deps.length && Yc.deps.length) Yn.deps = Yc.deps.map(p => ({ ...p, id: uid(), age: isBlank(p.age) ? p.age : num(p.age) + 1 }));
     D.year = next; save(); go('settings'); toast(`${YEARCFG[next].label}に切り替えました`);
   },
   reset() { if (!confirm('すべてのデータを削除します。元に戻せません。先にバックアップを書き出しましたか？')) return; if (!confirm('本当に削除しますか？')) return; D = blank(); UI.form = null; UI.af = null; UI.imp = null; save(); go('home'); },
