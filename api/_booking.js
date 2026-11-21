@@ -39,6 +39,12 @@ export const DEFAULT_RULES = {
   // 予定の前後に空ける時間。埋まっている予定・既に入った予約のどちらの
   // 前後にも、この分だけ余白をとってから枠を出します。
   bufferMin: 30,
+  // 1日の予定は、受付時間のこの割合まで（待ち行列の考え方）。
+  // 予定を受付時間いっぱいまで詰めると、1つ延びただけで後ろが全部ずれます。埋まり具合が
+  // 8割を超えると、待ちは急に長くなります（80%で4倍、90%で9倍、95%で19倍。ρ/(1−ρ)）。
+  // その日の予定（カレンダーの予定＋入った予約）がこの割合を超える枠は、お客様に出しません。
+  // 100 は「上限なし」（以前の動き）。
+  loadCap: 80,
   // 開始時刻の刻み。30分刻みにしておくと、予定の30分後から始まる枠も
   // 出せます（1時間刻みだと、余白を取るたびに1時間まるごと消えます）。
   stepMin: 30,
@@ -180,6 +186,7 @@ export function normalizeRules(input) {
   r.bufferMin = int(src.bufferMin ?? D.bufferMin, 0, 120, D.bufferMin)
   if (!q15(r.bufferMin)) { problems.push('前後の空き時間は15分単位にしました。'); r.bufferMin = Math.round(r.bufferMin / 15) * 15 }
   r.stepMin = [15, 30, 60].includes(Number(src.stepMin)) ? Number(src.stepMin) : D.stepMin
+  r.loadCap = LOAD_CAPS.includes(Number(src.loadCap)) ? Number(src.loadCap) : D.loadCap
   r.cutoffHours = int(src.cutoffHours ?? D.cutoffHours, 0, 168, D.cutoffHours)
   r.online = src.online === undefined ? D.online : !!src.online
   r.place = String(src.place ?? '').trim().slice(0, 120)
@@ -257,6 +264,73 @@ export function candidates(now = Date.now(), rules = DEFAULT_RULES, minutes = 60
   // 翌日にも同じ時刻の決まりがあると重なります。時刻順に並べ、同じ開始は1つにします。
   out.sort((a, b) => a.start - b.start)
   return out.filter((x, i) => !i || x.start !== out[i - 1].start)
+}
+
+/* ---- 予定は8割まで（待ち行列の考え方） ----------------------------------
+ * 予定がバラバラに入ってくると、平均では空いていても、重なった所で詰まります。
+ * 埋まり具合 ρ（予定の時間 ÷ 受付時間）が上がるほど、詰まりは ρ/(1−ρ) で増えます。
+ * 8割なら4、9割なら9、95%なら19。1日の予定を受付時間の8割までにして、2割を
+ * 「延びたとき・急な用事が入ったとき」の受けにします。 */
+export const LOAD_CAPS = [60, 70, 80, 90, 100]
+
+/** 詰まりやすさ（ρ/(1−ρ)）。画面で「8割なら4倍」のように見せるのに使います。 */
+export const queueFactor = (rho) => (rho >= 1 ? Infinity : rho <= 0 ? 0 : rho / (1 - rho))
+
+/** from〜to の日ごとの受付時間（休みの日は除く）。日付をまたぐ受付（7:00〜26:00）は、
+ *  始まる日の受付として数えます。{ day:'2026-11-24', base, windows:[{start,end}], capMin } */
+export function businessDays(fromMs, toMs, rules = DEFAULT_RULES) {
+  const out = []
+  for (let base = dayStart(fromMs - DAY); base <= toMs; base = dayStart(base + DAY + 12 * 3600 * 1000)) {
+    if (closedOn(base, rules)) continue
+    const windows = rules.week[parts(base).dow].map(([s, e]) => ({ start: base + s * MIN, end: base + e * MIN }))
+    if (!windows.length) continue
+    const capMin = windows.reduce((a, w) => a + (w.end - w.start) / MIN, 0)
+    out.push({ day: jstDay(base), base, windows, capMin })
+  }
+  return out
+}
+
+/** 受付時間の中で埋まっている分（重なりは1回だけ数える）。 */
+function busyMinutes(windows, busy) {
+  let total = 0
+  for (const w of windows) {
+    const parts2 = (busy || [])
+      .map((b) => ({ start: Math.max(b.start, w.start), end: Math.min(b.end, w.end) }))
+      .filter((b) => b.end > b.start)
+      .sort((a, b) => a.start - b.start)
+    let cur = null
+    for (const b of parts2) {
+      if (cur && b.start <= cur.end) cur.end = Math.max(cur.end, b.end)
+      else { if (cur) total += cur.end - cur.start; cur = { ...b } }
+    }
+    if (cur) total += cur.end - cur.start
+  }
+  return total / MIN
+}
+
+/** 日ごとの埋まり具合。[{ day, capMin, busyMin, pct, limitMin, full }]（full = 上限に達した） */
+export function dayLoads(fromMs, toMs, busy, rules = DEFAULT_RULES) {
+  const cap = rules.loadCap || 100
+  return businessDays(fromMs, toMs, rules).map((d) => {
+    const busyMin = busyMinutes(d.windows, busy)
+    const limitMin = Math.floor(d.capMin * cap / 100)
+    return { day: d.day, base: d.base, capMin: d.capMin, busyMin, pct: d.capMin ? Math.round(busyMin / d.capMin * 100) : 0, limitMin, full: cap < 100 && busyMin >= limitMin }
+  })
+}
+
+/** その日の予定が上限（受付時間の loadCap %）を超えてしまう枠を落とします。
+ *  slots は、もう予定と重ならない枠（removeBusy のあと）。 */
+export function capByLoad(slots, busy, rules = DEFAULT_RULES) {
+  const cap = rules.loadCap || 100
+  if (cap >= 100 || !slots.length) return slots
+  const days = businessDays(slots[0].start, slots[slots.length - 1].end, rules)
+  const loads = new Map(days.map((d) => [d, busyMinutes(d.windows, busy)]))
+  const dayOf = (s) => days.find((d) => d.windows.some((w) => s.start >= w.start && s.end <= w.end))
+  return slots.filter((s) => {
+    const d = dayOf(s)
+    if (!d) return true
+    return loads.get(d) + (s.end - s.start) / MIN <= d.capMin * cap / 100
+  })
 }
 
 /** 埋まっている時間帯と重なる枠を落とす。予定の前後には bufferMin 分の

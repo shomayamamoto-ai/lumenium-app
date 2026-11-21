@@ -80,6 +80,64 @@ function fakeStore() {
 }
 
 /* ---- 1. 決まり → 枠 ---- */
+/* ---- 予定は8割まで（待ち行列の考え方） ---- */
+await t('予定は8割まで: 既定は80%。選べるのは 60〜90% と「上限なし」', () => {
+  assert.equal(B.normalizeRules(null).rules.loadCap, 80)
+  assert.equal(B.normalizeRules({ loadCap: 70 }).rules.loadCap, 70)
+  assert.equal(B.normalizeRules({ loadCap: 100 }).rules.loadCap, 100)
+  assert.equal(B.normalizeRules({ loadCap: 55 }).rules.loadCap, 80)       // 選べない値は既定に戻す
+  // 詰まりやすさ ρ/(1−ρ): 8割で4、9割で9、95%で19
+  assert.deepEqual([0.8, 0.9, 0.95].map((r) => Math.round(B.queueFactor(r))), [4, 9, 19])
+  assert.equal(B.queueFactor(1), Infinity)
+})
+
+await t('予定は8割まで: その日の予定が上限を超える枠は出さない（ほかの日は出す）', () => {
+  // 10:00〜20:00（600分）。80% = 480分まで。
+  const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [[600, 1200]], [], [], [], []], leadHours: 0, stepMin: 60, bufferMin: 0 })
+  const now = jst('2026-10-04 09:00')
+  const all = B.candidates(now, rules, 60)
+  const mon = (l) => l.filter((x) => ymd(x.start) === '2026-10-05')
+  const tue = (l) => l.filter((x) => ymd(x.start) === '2026-10-06')
+  // 月曜に 7時間（420分）の予定。あと60分（=480分）までは入れられる。
+  const busy7 = [{ start: jst('2026-10-05 10:00'), end: jst('2026-10-05 17:00') }]
+  const free7 = B.removeBusy(all, busy7, 0)
+  assert.equal(mon(free7).length, 3)                             // 17〜20時の3枠
+  assert.equal(mon(B.capByLoad(free7, busy7, rules)).length, 3)  // 420+60=480 なので、まだ出す
+  // 7時間半（450分）だと、60分の枠を足すと510分で上限（480分）を超える。
+  const busy75 = [{ start: jst('2026-10-05 10:00'), end: jst('2026-10-05 17:30') }]
+  const free75 = B.removeBusy(all, busy75, 0)
+  assert.ok(mon(free75).length > 0)
+  assert.equal(mon(B.capByLoad(free75, busy75, rules)).length, 0)
+  assert.equal(tue(B.capByLoad(free75, busy75, rules)).length, tue(all).length)   // 火曜はそのまま
+  // 上限なしにすると、以前どおり全部出す。
+  const off = { ...rules, loadCap: 100 }
+  assert.equal(mon(B.capByLoad(free75, busy75, off)).length, mon(free75).length)
+})
+
+await t('予定は8割まで: 重なった予定は1回だけ数え、受付時間の外の予定は数えない', () => {
+  const { rules } = B.normalizeRules({ week: [[], [[600, 1200]], [], [], [], [], []], leadHours: 0, stepMin: 60, bufferMin: 0 })
+  const busy = [
+    { start: jst('2026-10-05 10:00'), end: jst('2026-10-05 14:00') },   // 240分
+    { start: jst('2026-10-05 12:00'), end: jst('2026-10-05 15:00') },   // 重なり → 合わせて 300分
+    { start: jst('2026-10-05 06:00'), end: jst('2026-10-05 09:00') },   // 受付の前 → 数えない
+    { start: jst('2026-10-05 19:30'), end: jst('2026-10-05 23:00') },   // 受付の中は 30分だけ
+  ]
+  const d = B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-06 00:00'), busy, rules).find((x) => x.day === '2026-10-05')
+  assert.deepEqual([d.capMin, d.busyMin, d.pct, d.limitMin, d.full], [600, 330, 55, 480, false])
+})
+
+await t('予定は8割まで: 深夜まで受ける日（7:00〜26:00）は、始まる日の予定として数える', () => {
+  const rules = B.normalizeRules(null).rules              // 平日 7:00〜26:00（1140分）。80% = 912分
+  const busy = [{ start: jst('2026-10-05 08:00'), end: jst('2026-10-05 23:00') }]   // 900分
+  const all = B.candidates(jst('2026-10-04 09:00'), rules, 60)
+  const free = B.removeBusy(all, busy, 30)
+  const late = (l) => l.filter((x) => x.start >= jst('2026-10-05 23:00') && x.start < jst('2026-10-06 03:00'))
+  assert.ok(late(free).length > 0)                       // 23:30〜25:00 開始の枠は、予定とは重ならない
+  assert.equal(late(B.capByLoad(free, busy, rules)).length, 0)   // 900+60 = 960 > 912 なので出さない
+  const d = B.dayLoads(jst('2026-10-04 09:00'), jst('2026-10-07 00:00'), busy, rules).find((x) => x.day === '2026-10-05')
+  assert.deepEqual([d.capMin, d.busyMin, d.full], [1140, 900, false])
+})
+
 await t('既定の決まり（平日7〜26時・60分・30分刻み・20時間後から）', () => {
   const rules = B.normalizeRules(null).rules
   // 2026-10-05 は月曜。日曜の朝9時から見る。

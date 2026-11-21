@@ -2385,7 +2385,7 @@
     // 月曜定休。水曜は昼休みあり（時間帯を2つ持てる例）。
     week: [[[600, 1080]], [], [[600, 1140]], [[600, 720], [780, 1140]], [[600, 1140]], [[600, 1140]], [[600, 1080]]],
     holidays: false, closed: [new Date(t0 + 10 * DAY + JST).toISOString().slice(0, 10)],
-    leadHours: 3, horizonDays: 14, bufferMin: 15, stepMin: 30, cutoffHours: 24,
+    leadHours: 3, horizonDays: 14, bufferMin: 15, stepMin: 30, cutoffHours: 24, loadCap: 80,
     online: false, place: '〇〇駅 東口から徒歩3分（サンプル）', remind: true, lineUserId: 'U0123456789abcdef0123456789abcdef', lineEach: true,
     services: SERVICES
   };
@@ -2473,6 +2473,20 @@
       services: SERVICES.map(function (x) { return { id: x.id, name: x.name, minutes: x.minutes, desc: x.desc, price: x.price }; }),
       wording: '来店', online: false, brand: 'サンプル美容室', place: RULES.place, total: out.length, slots: all ? out : out.slice(0, 6) };
   }
+  /* 日ごとの埋まり具合（shape: api/booking.js の ?view=load）。数字は架空です。 */
+  function load() {
+    // 営業日だけに、架空の埋まり具合を順に割り当てます（定休日・臨時休業は出しません）。
+    var PCT = [35, 62, 84, 71, 48, 28, 55, 91, 66, 40, 22, 58, 74];
+    var days = [], k = 0;
+    for (var i = 0; i <= RULES.horizonDays; i++) {
+      var ms = t0 + i * DAY, d = new Date(ms + JST), key = d.toISOString().slice(0, 10);
+      var ranges = RULES.week[d.getUTCDay()];
+      if (!ranges.length || RULES.closed.indexOf(key) >= 0) continue;
+      var cap = ranges.reduce(function (a, r) { return a + r[1] - r[0]; }, 0), pct = PCT[k++ % PCT.length];
+      days.push({ day: key, label: key.slice(5).replace('-', '/'), capMin: cap, busyMin: Math.round(cap * pct / 100), pct: pct, limitMin: Math.floor(cap * 0.8), full: pct >= 80 });
+    }
+    return { ok: true, mode: 'ics', loadCap: 80, factor: 4, days: days };
+  }
   var inner = window.fetch;
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : (input && input.url) || String(input);
@@ -2482,6 +2496,7 @@
     var method = String((init && init.method) || 'GET').toUpperCase();
     var body = method !== 'GET' ? { ok: false, demo: true, message: MSG }
       : u.searchParams.get('view') === 'badge' ? badge()
+      : u.searchParams.get('view') === 'load' ? load()
       : u.searchParams.get('recent') ? admin() : slots(u.searchParams);
     return new Promise(function (ok) { setTimeout(ok, 120); }).then(function () {
       return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });

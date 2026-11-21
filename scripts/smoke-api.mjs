@@ -297,6 +297,7 @@ const CALLS = [
   // 返さないこと。
   ['booking', 'GET', '', {}],
   ['booking', 'GET', '?recent=1', KEY],
+  ['booking', 'GET', '?view=load', KEY],
   ['booking', 'GET', '?service=default&all=1', {}],
   ['booking', 'PUT', '', JSONH, { rules: { wording: '来店', services: [{ id: 'cut', name: 'カット', minutes: 60 }] } }],
   ['booking', 'PATCH', '', JSONH, { id: 'bk_1_smoke', action: 'cancel' }],

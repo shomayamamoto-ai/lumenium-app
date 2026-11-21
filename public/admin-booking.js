@@ -212,6 +212,49 @@
 
   var R = {};
 
+  /* ---------------- 予定は8割まで（日ごとの埋まり具合） ----------------
+     予定（カレンダーの予定＋入った予約）が受付時間の何割かを、日ごとに出します。
+     上限（受付の決まりの「1日の予定は〜まで」）に達した日は、お客様に枠を出していません。 */
+  async function loadLoad(force) {
+    if (S.load && !force) return S.load;
+    if (S.loadWait) return S.loadWait;
+    S.loadWait = api('/api/booking?view=load').then(function (r) {
+      S.loadWait = null;
+      S.load = (r.data && r.data.ok) ? r.data : { days: [], failed: true };
+      return S.load;
+    });
+    return S.loadWait;
+  }
+  function loadOf(key) {
+    var d = S.load && S.load.days ? S.load.days.filter(function (x) { return x.day === key; })[0] : null;
+    return d || null;
+  }
+  function hrs(min) { var h = Math.floor(min / 60), m = Math.round(min % 60); return h + '時間' + (m ? m + '分' : ''); }
+  function loadBar(d, cap) {
+    if (!d) return '';
+    var lim = cap || 100;
+    var tone = d.full ? 'full' : d.pct >= lim - 10 ? 'near' : 'ok';
+    return '<div class="bk-load ' + tone + '" title="予定 ' + hrs(d.busyMin) + ' ／ 受付 ' + hrs(d.capMin) + '">' +
+      '<span class="bar"><i style="width:' + Math.min(100, d.pct) + '%"></i>' + (lim < 100 ? '<b style="left:' + lim + '%"></b>' : '') + '</span>' +
+      '<span class="txt">' + d.pct + '%' + (d.full ? '・満' : '') + '</span></div>';
+  }
+  function loadSummary() {
+    var L = S.load;
+    if (!L) return '<p class="soc-small" style="margin:0 0 10px">予定の埋まり具合を読み込んでいます…</p>';
+    if (L.failed || !L.days || !L.days.length) return '';
+    var cap = L.loadCap || 100;
+    var full = L.days.filter(function (d) { return d.full; });
+    var near = L.days.filter(function (d) { return !d.full && cap < 100 && d.pct >= cap - 10; });
+    var easy = L.days.filter(function (d) { return d.pct < 50; }).slice(0, 3);
+    return '<div class="bk-loadnote">' +
+      '<b>予定は受付時間の' + (cap < 100 ? cap + '%まで' : '上限なし') + '</b>' +
+      (cap < 100 ? '<span>超える日は、お客様に枠を出していません。予定がぎっしりだと、1つ延びただけで後ろが全部ずれるためです（埋まり具合' + cap + '%で、待ちは空いているときの約' + Math.round(L.factor || 0) + '倍）。</span>' : '<span>上限をかけていません。「受付の決まり」で、1日の予定の上限を決められます。</span>') +
+      (full.length ? '<span class="hot">上限に達した日: ' + full.map(function (d) { return esc(d.label); }).join('、') + '</span>' : '') +
+      (near.length ? '<span class="warm">もうすぐ上限: ' + near.map(function (d) { return esc(d.label) + '（' + d.pct + '%）'; }).join('、') + '</span>' : '') +
+      (easy.length && (full.length || near.length) ? '<span>ゆとりのある日: ' + easy.map(function (d) { return esc(d.label); }).join('、') + '。急ぎでない予定は、こちらにずらせます。</span>' : '') +
+    '</div>';
+  }
+
   /* ---------------- 注意（メールが届かない・保存先が無い） ---------------- */
 
   /* カレンダーを実際に読めているか（api/booking.js の calendarCheck）。
@@ -557,6 +600,7 @@
       var items = all.filter(function (b) { var s = span(b).start; return s >= d0 && s < d0 + DAY; });
       cols.push('<div class="bk-day' + (d0 === t0 ? ' is-today' : '') + '">' +
         '<div class="bk-dh">' + dayLabel(d0) + (closed ? '<span>' + esc(closed) + '</span>' : rules ? '<span>' + esc(rangesText(rules.week[p.dow])) + '</span>' : '') + '</div>' +
+        (closed ? '' : loadBar(loadOf(key), S.load && S.load.loadCap)) +
         (items.length ? items.map(function (b) {
           var st = status(b), sp = span(b);
           return '<button type="button" class="bk-ev st-' + st + '" data-go="' + esc(b.id) + '" title="' + esc(STATUS[st]) + '">' +
@@ -564,7 +608,8 @@
         }).join('') : '<p class="soc-small" style="margin:4px 0 0">—</p>') +
       '</div>');
     }
-    body.innerHTML = mailWarn() +
+    if (!S.load) loadLoad().then(function () { if (S.sec === 'week') draw(); });
+    body.innerHTML = mailWarn() + loadSummary() +
       '<div class="vid-row" style="margin-bottom:10px">' +
         '<button type="button" class="ghost" id="bk-wprev" style="font-size:12px;padding:7px 12px">← 前の週</button>' +
         '<b style="font-size:13px">' + dayLabel(monday) + ' 〜 ' + dayLabel(monday + 6 * DAY) + '</b>' +
@@ -572,7 +617,7 @@
         (S.weekOff ? '<button type="button" class="ghost" id="bk-wnow" style="font-size:12px;padding:7px 12px">今週</button>' : '') +
       '</div>' +
       '<div class="bk-week">' + cols.join('') + '</div>' +
-      '<p class="soc-small" style="margin-top:8px">予約を押すと、一覧でその予約を開きます。日の見出しの時間は、その曜日の受付時間です。</p>';
+      '<p class="soc-small" style="margin-top:8px">予約を押すと、一覧でその予約を開きます。日の見出しの時間は、その曜日の受付時間です。棒は、その日の予定（カレンダーの予定と入った予約）が受付時間の何割かで、縦の線が上限です。</p>';
     el('bk-wprev').addEventListener('click', function () { S.weekOff--; draw(); });
     el('bk-wnext').addEventListener('click', function () { S.weekOff++; draw(); });
     if (el('bk-wnow')) el('bk-wnow').addEventListener('click', function () { S.weekOff = 0; draw(); });
@@ -587,6 +632,15 @@
     return S.data.stored ? '' : '<p class="bk-warn"><span>保存先（Upstash Redis）が無いため、ここで決めた内容は保存できません（いまは既定の決まりで動いています）。</span></p>';
   }
 
+  /* 上限の説明。いまの受付時間で「1日に何時間まで」になるかも出します（いちばん長い曜日で）。 */
+  function capNote(r) {
+    var longest = 0;
+    (r.week || []).forEach(function (ranges) { var m = 0; (ranges || []).forEach(function (x) { m += x[1] - x[0]; }); longest = Math.max(longest, m); });
+    var cap = r.loadCap || 100;
+    return '予定（カレンダーの予定と予約）がこれを超える日は、枠を出しません。予定がぎっしりだと、1つ延びただけで後ろが全部ずれます（待ち行列の考え方。おすすめは8割）。' +
+      (cap < 100 && longest ? 'いまの受付時間だと、長い日で1日' + hrs(longest * cap / 100) + 'まで。' : '');
+  }
+
   async function saveRules(btn, next) {
     btn.disabled = true;
     say('保存しています…', true);
@@ -595,6 +649,7 @@
     if (!r.data || !r.data.ok) { say((r.data && r.data.message) || '保存できませんでした。'); return false; }
     S.data.rules = r.data.rules;
     S.rules = JSON.parse(JSON.stringify(r.data.rules));
+    S.load = null;
     say(r.data.message + ((r.data.problems || []).length ? '　' + r.data.problems.join(' ') : ''), !(r.data.problems || []).length);
     return true;
   }
@@ -623,6 +678,9 @@
         fld('予約の前後に空ける時間', '<select id="bk-buf">' + [0, 15, 30, 45, 60, 90, 120].map(function (n) {
           return '<option value="' + n + '"' + (r.bufferMin === n ? ' selected' : '') + '>' + (n ? n + '分' : '空けない') + '</option>';
         }).join('') + '</select>', '片付け・移動の時間。カレンダーの予定の前後にも空けます。') +
+        fld('1日の予定は、受付時間の', '<select id="bk-cap">' + [60, 70, 80, 90, 100].map(function (n) {
+          return '<option value="' + n + '"' + ((r.loadCap || 100) === n ? ' selected' : '') + '>' + (n < 100 ? n + '%まで（' + (n / 10) + '割）' : '上限なし') + '</option>';
+        }).join('') + '</select>', capNote(r)) +
         fld('開始時刻の刻み', '<select id="bk-step">' + [15, 30, 60].map(function (n) {
           return '<option value="' + n + '"' + (r.stepMin === n ? ' selected' : '') + '>' + n + '分ごと</option>';
         }).join('') + '</select>') +
@@ -653,6 +711,7 @@
       next.horizonDays = Number(el('bk-hor').value);
       next.bufferMin = Number(el('bk-buf').value);
       next.stepMin = Number(el('bk-step').value);
+      next.loadCap = Number(el('bk-cap').value);
       next.cutoffHours = Number(el('bk-cut').value);
       next.online = el('bk-online').checked;
       next.place = el('bk-place').value;

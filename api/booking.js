@@ -33,6 +33,7 @@ import {
   cellsFor, takeCells, releaseCells, bookingsBetween, occupies, recSpan, recStatus, getBooking, STATUS, bookingAttention,
   saveBooking, recentBookings, icsFile,
   readRules, saveRules, pickService, activeServices, HOLIDAY_LAST, HOLIDAYS,
+  capByLoad, dayLoads, queueFactor,
 } from './_booking.js'
 import { BRAND, KV } from './_brand.js'
 import { mailBooked, mailConfirmed, summaryOf, descriptionOf, sandboxFrom, manageSecret } from './_booking-mail.js'
@@ -87,6 +88,9 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   const store = storeConfig()
   const all = candidates(Date.now(), rules, svc.minutes)
   const buf = rules.bufferMin
+  // 予定と重なる枠を落とし（前後の空きつき）、その日の予定が受付時間の loadCap % を超える枠も落とします。
+  // 管理画面の手入力（opts.blind）は、オーナーが決めることなので上限をかけません。
+  const fit = (slots, busy) => (opts.blind ? removeBusy(slots, busy, buf) : capByLoad(removeBusy(slots, busy, buf), busy, rules))
   if (!all.length) return { mode: 'off', slots: [], reason: 'NO_SLOTS' }
   const from = all[0].start
   const to = all[all.length - 1].end
@@ -101,8 +105,9 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   const unreadable = async (why) => {
     await noteCalendar(store, why)
     if (opts.blind && store) {
-      const free = removeBusy(all, await taken(), buf)
-      return { mode: 'local', slots: free.slice(0, wanted), total: free.length, warn: why }
+      const busy = await taken()
+      const free = fit(all, busy)
+      return { mode: 'local', slots: free.slice(0, wanted), total: free.length, warn: why, busy }
     }
     return { mode: 'off', slots: [], reason: why }
   }
@@ -110,9 +115,10 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   if (connected(c)) {
     try {
       const [busy, mine] = await Promise.all([gcalBusy(c, from, to), taken()])
-      const free = removeBusy(all, busy.concat(mine), buf)
+      const all2 = busy.concat(mine)
+      const free = fit(all, all2)
       await noteCalendar(store, '')
-      return { mode: 'google', slots: free.slice(0, wanted), total: free.length }
+      return { mode: 'google', slots: free.slice(0, wanted), total: free.length, busy: all2 }
     } catch (e) {
       // 接続が切れている・Googleが落ちている。簡易接続（非公開iCal URL）も入れて
       // あれば、そちらの空きで続けます（仮予約）。無ければ枠は出しません。
@@ -120,8 +126,9 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
       const viaIcs = icsUrl ? await busyFromUrl(icsUrl, from, to) : null
       if (!viaIcs) return unreadable(why)
       await noteCalendar(store, why)
-      const free = removeBusy(all, viaIcs.concat(await taken()), buf)
-      return { mode: 'ics', slots: free.slice(0, wanted), total: free.length, warn: why }
+      const all2 = viaIcs.concat(await taken())
+      const free = fit(all, all2)
+      return { mode: 'ics', slots: free.slice(0, wanted), total: free.length, warn: why, busy: all2 }
     }
   }
 
@@ -138,8 +145,9 @@ export async function openSlots(req, wanted, rules, svc, ignoreId = '', opts = {
   if (!store && !icsBusy) return { mode: 'off', slots: [], reason: 'NOT_CONFIGURED' }
 
   // 簡易接続ではカレンダーに書き込めないので、入った予約はここで見るしかありません。
-  const open = removeBusy(all, (icsBusy || []).concat(await taken()), buf)
-  return { mode: icsBusy ? 'ics' : 'local', slots: open.slice(0, wanted), total: open.length }
+  const all2 = (icsBusy || []).concat(await taken())
+  const open = fit(all, all2)
+  return { mode: icsBusy ? 'ics' : 'local', slots: open.slice(0, wanted), total: open.length, busy: all2 }
 }
 
 /** 管理画面で入れた日付と時刻（日本時間）を、始まりと終わりのミリ秒に。読めなければ null。 */
@@ -202,6 +210,23 @@ export async function GET(req) {
     // カレンダーを読めていないと、予約ページに枠が出ません。件数に1つ足して、タブに印を出します。
     const calDown = !!(await calendarError(store))
     return json({ ok: true, ...counts, total: (counts.total || 0) + (calDown ? 1 : 0), calendarDown: calDown, stored: true })
+  }
+
+  // 日ごとの埋まり具合（受け付けている期間）。予定は受付時間の何割か・上限に達したか。
+  // カレンダーを読むので、一覧とは別に、画面を開いたときだけ呼びます。
+  if (url.searchParams.get('view') === 'load') {
+    const denied = await requireAdmin(req)
+    if (denied) return denied
+    const store = storeConfig()
+    const rules = await readRules(store, pipeline)
+    const svc = pickService(rules)
+    const r = await openSlots(req, 0, rules, svc)
+    if (!r.busy) return json({ ok: true, mode: r.mode, reason: r.reason || '', days: [], loadCap: rules.loadCap })
+    const now = Date.now()
+    const days = dayLoads(now, now + rules.horizonDays * 86400000, r.busy, rules)
+      .filter((d) => d.base + 86400000 > now)
+      .map(({ base, ...d }) => ({ ...d, label: new Date(base + 9 * 3600000).toISOString().slice(5, 10).replace('-', '/') }))
+    return json({ ok: true, mode: r.mode, loadCap: rules.loadCap, factor: queueFactor((rules.loadCap || 100) / 100), days })
   }
 
   // 管理画面からの一覧。
