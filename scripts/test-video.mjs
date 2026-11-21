@@ -715,4 +715,138 @@ const ok = (name) => { n++; console.log(`  ✓ ${name}`) }
   ok('飲食店の型: 13ジャンル・タグは5個まで・台本の時間がすき間なくつながり、60秒以内')
 }
 
+/* ---- 企画の検証（変数固定）・純度・意外性・連想 ---- */
+const snapOf = (o) => ({ captured_at: '2026-11-01T00:00:00Z', ...o })
+const pubOf = (id, o, extra) => ({ id, platform: 'instagram', duration_sec: 30, published_at: '2026-11-02T10:00:00Z', snapshots: [snapOf(o)], ...(extra || {}) })
+// ふつうの投稿6本（再生1000前後・3秒維持率70%前後・AVP 60%前後・反応率5%前後）
+const others = [0, 1, 2, 3, 4, 5].map((i) => pubOf('p' + i, { views: 900 + i * 40, hold_3s: 0.66 + i * 0.02, avg_watch_sec: 17 + i, likes: 40 + i * 3, comments: 5, shares: 3, saves: 10 }))
+{
+  // 冒頭で崩れた投稿: 再生はふつう、3秒維持率だけ低い → ワクワク感
+  const hook = pubOf('x', { views: 1000, hold_3s: 0.4, avg_watch_sec: 19, likes: 48, comments: 5, shares: 3, saves: 10 })
+  const d1 = V.diagnoseFlop(hook, others)
+  assert.equal(d1.ok, true)
+  assert.equal(d1.first.stage, 'hook')
+  assert.deepEqual(d1.suspects.map((x) => x.id), ['excitement'])
+  assert.match(d1.message, /冒頭3秒/)
+  assert.match(d1.message, /7本中7位/)
+  const top = d1.stages.find((x) => x.stage === 'entrance')
+  assert.deepEqual([top.rank, top.of], [4, 7])   // 1000回は、6本のうち3本（1020・1060・1100）が上
+  // 入口で崩れた投稿 → 題材か出す条件
+  const low = pubOf('y', { views: 200, hold_3s: 0.7, avg_watch_sec: 19, likes: 10, comments: 1, shares: 1, saves: 2 })
+  assert.deepEqual(V.diagnoseFlop(low, others).suspects.map((x) => x.id), ['topic', 'timing'])
+  // 最後まで見られたのに反応が薄い → キャラ設定か着地
+  const flat = pubOf('z', { views: 1000, hold_3s: 0.74, avg_watch_sec: 20, likes: 5, comments: 0, shares: 0, saves: 0 })
+  assert.deepEqual(V.diagnoseFlop(flat, others).suspects.map((x) => x.id), ['character', 'landing'])
+  // どの段もふつう → 崩れた所なし（たまたまの可能性）
+  const fine = pubOf('w', { views: 1000, hold_3s: 0.71, avg_watch_sec: 19, likes: 46, comments: 5, shares: 3, saves: 10 })
+  assert.equal(V.diagnoseFlop(fine, others).first, null)
+  // 順位は最下位でも、ふだんの真ん中とほぼ同じ（15%未満の差）なら「崩れた」にしない
+  const fineStage = V.diagnoseFlop(fine, others).stages.find((x) => x.stage === 'reaction')
+  assert.equal(fineStage.pct, 0)
+  assert.ok(fineStage.gap < V.DROP_GAP && fineStage.weak === false)
+  // 比べる投稿が足りない・数字が無い
+  assert.equal(V.diagnoseFlop(hook, others.slice(0, 2)).ok, false)
+  assert.equal(V.diagnoseFlop({ id: 'q', snapshots: [] }, others).ok, false)
+  ok('どこで崩れたか: 入口 → 冒頭3秒 → 途中 → 反応 の最初に崩れた段から、変える変数を出す')
+}
+{
+  const base = { title: 'カンパーニュの穴の秘密', promise: 'カンパーニュに大きな穴ができる理由が分かる', hook_type: 'question', format: 'behind', character: 'パン歴20年の店長', fan_expect: '上手に焼けて終わる', landing: '焦げたほうが売れる',
+    target_duration_sec: 30, lines: [{ start: 0, end: 3, mark: '' }, { start: 3, end: 20, mark: 'switch_visual' }, { start: 20, end: 30, mark: 'peak_twist' }] }
+  const sig = (s, when) => V.planSignature({ platform: 'instagram', published_at: when || '2026-11-02T10:00:00Z', duration_sec: 30 }, s, null)
+  // ワクワク感（フックの型と約束）だけを変えた → 変数固定
+  const v1 = { ...base, hook_type: 'number', promise: '3つの工程で、気泡が大きく育つ' }
+  const c1 = V.experimentCheck(sig(base), sig(v1), 'excitement')
+  assert.equal(c1.ok, true, c1.message)
+  assert.ok(c1.fixed.includes('キャラ設定') && c1.fixed.includes('題材'))
+  // ワクワク感と一緒に投稿の時間帯も変わった → 交絡（どれのせいか分からない）
+  const c2 = V.experimentCheck(sig(base), sig(v1, '2026-11-03T03:00:00Z'), 'excitement')
+  assert.equal(c2.ok, false)
+  assert.deepEqual(c2.confounds.map((x) => x.id), ['timing'])
+  assert.match(c2.message, /出す条件も変わっています/)
+  // 変えると決めた所が同じまま
+  const c3 = V.experimentCheck(sig(base), sig({ ...base }), 'character')
+  assert.equal(c3.moved, false)
+  assert.match(c3.message, /元の投稿と同じです/)
+  // 着地: 山場（どんでん返し）を消した、も違いとして見つける
+  const v4 = { ...base, landing: '最後まで上手に焼けて、みんなで食べる', lines: base.lines.map((l) => ({ ...l, mark: l.mark === 'peak_twist' ? '' : l.mark })) }
+  const c4 = V.experimentCheck(sig(base), sig(v4), 'landing')
+  assert.equal(c4.ok, true, c4.message)
+  assert.ok(c4.diff.some((x) => /山場/.test(x)))
+  // 元の投稿に台本が無い: 台本の中身（見せ方・着地）は「分からない」で、変わったとは数えない
+  const noScript = V.planSignature({ platform: 'instagram', published_at: '2026-11-02T10:00:00Z', duration_sec: 30, hook_type: 'statement', title: 'カンパーニュの穴の秘密' }, null, null)
+  const c5 = V.experimentCheck(noScript, sig(v1), 'excitement')
+  assert.equal(c5.ok, true, c5.message)
+  assert.ok(c5.unknown.includes('着地'))                          // 台本が無いので、着地は分からない
+  assert.ok(!c5.confounds.some((x) => x.id === 'presentation'))    // 見せ方は、分かる所（長さ）だけで比べる
+  assert.match(c5.message, /比べられません/)
+  ok('変数固定: 変えると決めた変数だけが違うかを確かめ、ほかに変わった所（交絡）を名前で出す')
+}
+{
+  const base = pubOf('b', { views: 900 })
+  // ふだんのばらつき（真ん中50%の幅）は 940〜1060 → 幅120
+  const better = [pubOf('v1', { views: 1300 })]
+  const r1 = V.experimentVerdict(base, better, others, 'views')
+  assert.equal(r1.verdict, 'improved')
+  assert.match(r1.label, /1本だけの結果です/)
+  const r2 = V.experimentVerdict(base, [pubOf('v2', { views: 980 })], others, 'views')
+  assert.equal(r2.verdict, 'unclear')
+  const r3 = V.experimentVerdict(base, [pubOf('v3', { views: 500 }), pubOf('v4', { views: 560 })], others, 'views')
+  assert.equal(r3.verdict, 'worse')
+  assert.equal(V.experimentVerdict(base, [], others, 'views').verdict, 'none')
+  assert.equal(V.experimentVerdict(base, better, others.slice(0, 2), 'views').verdict, 'insufficient')
+  ok('検証の結果: 差が、ふだんのばらつきを超えたときだけ「効いた」と言う')
+}
+{
+  const thin = { title: '新作パン', length_mode: 'short', lines: [
+    { start: 0, end: 3, narration: 'どうも、店長です', telop: '' },
+    { start: 3, end: 6, narration: '今日は新作パンを紹介していきます', telop: '' },
+    { start: 6, end: 9, narration: 'ということで、さっそく見ていきましょう', telop: '' },
+    { start: 9, end: 12, narration: 'パンは一般的に発酵が大事と言われています', telop: '' },
+    { start: 12, end: 15, narration: '焼き上がりを手元で割ると、湯気が出る', telop: '' },
+  ] }
+  const p1 = V.purityCheck(thin)
+  assert.equal(p1.level, 'ng')
+  assert.equal(p1.padding.length, 4)
+  assert.deepEqual(p1.padding.map((x) => x.why), ['あいさつ', '予告（これから何をするかの説明）', 'つなぎの言葉', '説明・一般論'])
+  const rich = { title: '石窯で1000個', promise: '石窯で1日1000個焼く朝', length_mode: 'short', lines: [
+    { start: 0, end: 3, narration: '朝4時、1000個目の生地', telop: '1日1000個' },
+    { start: 3, end: 6, narration: '手元で生地を切る', telop: '' },
+    { start: 6, end: 9, narration: '石窯の前は60度', telop: '' },
+    { start: 9, end: 12, narration: '「あつっ」と声が出る', telop: '' },
+  ] }
+  const p2 = V.purityCheck(rich)
+  assert.equal(p2.level, 'ok')
+  assert.equal(p2.grand, true)
+  assert.deepEqual(p2.notes, [])
+  // 台本の中の数（パン歴15年）だけでは、壮大な企画とは見なさない
+  assert.equal(V.purityCheck({ ...rich, title: 'パン歴15年の朝', promise: '朝のパンが分かる' }).grand, false)
+  // 壮大な企画なのに、冒頭に規模が無く、人の反応も無い
+  const vague = { ...rich, lines: [{ start: 0, end: 3, narration: 'すごい量を焼きます', telop: '' }, { start: 3, end: 8, narration: '手元で生地を切る', telop: '' }] }
+  assert.equal(V.purityCheck(vague).notes.length, 2)
+  ok('体験の純度・濃度: 前置き・説明の行を数え、壮大な企画は冒頭の規模と人の反応を見る')
+}
+{
+  const s = { title: 't', fan_expect: '上手に焼けて終わる', landing: '焦げたパンのほうが売れてしまう', lines: [{ start: 0, end: 10 }, { start: 10, end: 20 }, { start: 20, end: 30, mark: 'peak_twist' }] }
+  assert.equal(V.surpriseCheck(s).ok, true)
+  assert.match(V.surpriseCheck({ ...s, landing: '上手に焼けて終わる' }).notes.join(), /予想とほとんど同じ/)
+  assert.match(V.surpriseCheck({ ...s, lines: s.lines.map((l) => ({ ...l, mark: '' })) }).notes.join(), /後半に山場/)
+  assert.match(V.surpriseCheck({ ...s, title: 'リクエストにお応えして、焦がしパン' }).notes.join(), /迎合/)
+  assert.match(V.surpriseCheck({ ...s, fan_expect: '' }).notes.join(), /ファンの予想」が空/)
+  // 山場が前半（3分の1の位置）だけだと、後半の山場とは数えない
+  assert.equal(V.surpriseCheck({ ...s, lines: [{ start: 0, end: 10 }, { start: 10, end: 20, mark: 'peak_twist' }, { start: 20, end: 30 }] }).twistLate, false)
+  ok('ファンに迎合しない: 予想と着地が近すぎないか・後半に山場があるか・リクエストに応える言い方')
+}
+{
+  const eps = ['開店初日、オーブンの温度を間違えてパンを全部焦がした', '常連さんに「パンの耳だけ売って」と言われた', '子どものころ、祖母と梅干しを漬けた', '雪の日に配達して転んだ']
+  const a = V.associationSeeds('焦げたパンの売り方', eps, 2)
+  assert.ok(a.near.length >= 1)
+  assert.ok(/焦がした|パン/.test(a.near[0].text))
+  assert.ok(a.far.every((x) => x.score === 0))
+  assert.ok(a.far.length >= 1)
+  // 同じテーマなら、毎回同じ答え（再現できる）
+  assert.deepEqual(V.associationSeeds('焦げたパンの売り方', eps, 2), a)
+  assert.deepEqual(V.associationSeeds('テーマ', [], 2), { near: [], far: [] })
+  ok('連想: 経験メモから、テーマに近い経験と、遠い経験（意外なつなぎ）を選ぶ')
+}
+
 console.log(`\n動画まわり ${n} 件すべて通りました。`)

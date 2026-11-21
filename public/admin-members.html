@@ -485,6 +485,8 @@ try { if (sessionStorage.getItem('lum_admin_key')) document.documentElement.clas
   .soc-res.ok { border-color: rgba(16,185,129,0.5); }
   .soc-res.ng { border-color: rgba(248,113,113,0.5); }
   .soc-res b { flex: none; }
+  /* 本文は縮められるように（長いボタンの文や英数字で、横にはみ出さない）。 */
+  .soc-res > span { min-width: 0; overflow-wrap: anywhere; }
   .soc-res a { color: var(--ui-accent); }
   .soc-post { padding: 10px 12px; margin-bottom: 6px; background: #f3f1ec; border: 1px solid var(--border); border-radius: 10px; }
   .soc-post .when { font-size: 11px; color: var(--sub); }

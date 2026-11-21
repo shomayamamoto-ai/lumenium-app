@@ -19,7 +19,7 @@ import {
   deleteItems, listAccounts, cleanAccount, cleanPost, str, KINDS, CAPS, getItem, mergePubEdit,
 } from './_video-store.js'
 import { pipeline } from './_analytics-store.js'
-import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs, RESTAURANT_GENRES, REEL_GUIDE } from './_video-core.js'
+import { scorePosts, durationBand, captionStats, checkScript, HOOK_TYPES, RULES, PLATFORMS, shotsFromLines, promiseCheck, STRONG_HOOKS, MARKS, FORMATS, FORMAT_KEYS, formatPerformance, cleanPipe, markStale, packTiming, storyMd, dataJson, timingTs, RESTAURANT_GENRES, REEL_GUIDE , PLAN_VARS, PLAN_VAR_LABEL, planSignature, experimentCheck, purityCheck, surpriseCheck, associationSeeds } from './_video-core.js'
 import { readiness, igDiscover } from './_video-platforms.js'
 import { createWithFallback } from './_ai-create.js'
 
@@ -244,9 +244,10 @@ async function analyze(req, cfg, project, ids) {
 // 出力の最初に置いています（AIは決まった順に書きます）。
 const SCRIPT_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['title', 'thumb_text', 'promise', 'wow', 'hook', 'hook_type', 'body', 'cta', 'target_duration_sec', 'lines', 'hashtags', 'rationale'],
+  required: ['title', 'thumb_text', 'promise', 'wow', 'character', 'fan_expect', 'landing', 'hook', 'hook_type', 'body', 'cta', 'target_duration_sec', 'lines', 'hashtags', 'rationale'],
   properties: {
     title: { type: 'string' }, thumb_text: { type: 'string' }, promise: { type: 'string' }, wow: { type: 'string' },
+    character: { type: 'string' }, fan_expect: { type: 'string' }, landing: { type: 'string' },
     hook: { type: 'string' }, hook_type: { type: 'string', enum: HOOK_TYPES },
     body: { type: 'string' }, cta: { type: 'string' }, target_duration_sec: { type: 'number' },
     lines: {
@@ -305,6 +306,28 @@ async function suggestHooks(req, project, raw) {
   return json({ ok: true, hooks })
 }
 
+/** 変数固定の作り直しで、AI に渡す元の台本の要点（変えない所・変える所）。 */
+function variableBrief(s, variable) {
+  const keep = {
+    character: `キャラ設定: ${s.character || '（未設定）'}`,
+    excitement: `冒頭の約束: ${s.promise || '（未設定）'}／フックの型: ${s.hook_type || '（未設定）'}／1行目: ${((s.lines || [])[0] || {}).narration || s.hook || ''}`,
+    presentation: `企画の型: ${s.format || '（未設定）'}／長さ: ${s.target_duration_sec || '?'}秒／行の数: ${(s.lines || []).length}`,
+    landing: `ファンの予想: ${s.fan_expect || '（未設定）'}／着地: ${s.landing || '（未設定）'}`,
+    topic: `題材（タイトル）: ${s.title || ''}`,
+  }
+  const out = ['変えない所（元と同じにする）:']
+  for (const v of PLAN_VARS) if (v.id !== variable && keep[v.id]) out.push(`- ${keep[v.id]}`)
+  out.push(`変える所: ${PLAN_VAR_LABEL[variable]}（${PLAN_VARS.find((v) => v.id === variable).hint}）。元は「${keep[variable] || ''}」。これとはっきり違うものにする。`)
+  return out.join('\n')
+}
+
+/** 台本どうしの変数固定の点検（出す条件は、投稿のときに決めるので比べません）。 */
+export function scriptExperimentCheck(base, next, variable) {
+  const a = planSignature({}, base), b = planSignature({}, next)
+  a.timing = b.timing = { platform: '', weekday: '', band: '' }
+  return experimentCheck(a, b, variable)
+}
+
 /** 台本づくり。決まった確認（禁止ワード・表記・流用・テロップの速さ）は
  *  AI に任せず、ここで機械的に行います。流用の疑いがあれば、どこが同じだったかを
  *  伝えて最大2回作り直し、それでも残れば結果と一緒に見せます。 */
@@ -329,6 +352,12 @@ async function generate(req, cfg, project, b) {
   const fstats = formatPerformance(posts).groups.filter((g) => g.reliability.band !== 'insufficient').slice(0, 2)
   // 飲食店のジャンルの型（任意）。伸びやすい構成の参考として渡し、言い回しはお店に合わせて書かせます。
   const genre = RESTAURANT_GENRES.find((g) => g.id === b.genre) || null
+  // 変数固定の作り直し: 元の台本のうち、1つの変数だけを変えます（ほかは同じにする）。
+  const variable = PLAN_VARS.some((v) => v.id === b.variable) ? b.variable : ''
+  const baseScript = variable && b.variant_of ? (await listItems(cfg, project.id, 'scripts')).find((x) => x.id === b.variant_of) || null : null
+  if (variable && !baseScript) return json({ ok: false, message: '元の台本が見つかりませんでした（削除されたかもしれません）。' }, 404)
+  // 連想の材料: 経験メモ（本人に実際にあったこと）から、テーマに近いものと遠いもの。
+  const seeds = associationSeeds(topic, project.episodes || [], 3)
   const base = [
     `テーマ: ${topic}`,
     `投稿先: ${P.label}`,
@@ -343,6 +372,15 @@ async function generate(req, cfg, project, b) {
     platform === 'instagram' && mode === 'short' ? `Instagram リールの目安: 基本は${REEL_GUIDE.SWEET_SEC[0]}〜${REEL_GUIDE.SWEET_SEC[1]}秒（最大${REEL_GUIDE.MAX_RECOMMEND_SEC}秒）。${REEL_GUIDE.SIGNALS} 見た人が誰かに送りたくなる理由（${REEL_GUIDE.TRIGGERS.join('・')}のどれか）を1つ必ず入れる。全部を平均点にするより1点を振り切る。` : '',
     '参考にする競合（構成の型だけを参考にし、言い回しはまねしないこと）:',
     ...top.map((p, i) => `${i + 1}. ${p.title}${p.analysis ? `（フック: ${p.analysis.hook_type}「${p.analysis.hook_text}」、構成: ${(p.analysis.beats || []).map((x) => x.label).join('→')}）` : ''}`),
+    '',
+    '企画の考え方（必ず守ること）:',
+    '- 体験の純度・濃度: 本物の体験（手元・声・反応・その場の音）を中心にする。あいさつ・予告・つなぎの言葉・一般論の説明は入れない。壮大な企画ほど、すごさを言葉で説明せず、規模が一目で分かる具体（数・比べ・ビフォーアフター）を冒頭に、人の反応を中盤に見せる。数はテーマに書かれたものだけ。',
+    '- ファンに迎合しない: リクエストに応える言い方（「リクエストにお応えして」など）はしない。fan_expect に「見る人がたぶんこうなると思う展開」を1文で書き、landing（着地）はそれとずらした「予想しない姿」にする。そのずれる瞬間を、後半の行に peak_twist か peak_reveal で置く。',
+    '- character に、だれが・どんな立場で出るかを1文で書く（話し手の設定があればそれに合わせる）。',
+    seeds.near.length || seeds.far.length
+      ? `- 連想の材料（本人に実際にあったこと。使うなら1つだけ、言い回しは変えてよいが中身は変えない。ここに無い体験は作らない）:\n${seeds.near.map((x) => `  ・近い: ${x.text}`).concat(seeds.far.map((x) => `  ・遠い（意外なつなぎ）: ${x.text}`)).join('\n')}`
+      : '- 本人の体験談は作らない（経験メモが無いため）。',
+    baseScript ? `\n変数固定の作り直し（いちばん大事）:\n元の台本の「${PLAN_VAR_LABEL[variable]}」だけを変え、ほかはできるだけ元と同じにする。\n${variableBrief(baseScript, variable)}` : '',
     '',
     '作り方（順番を守ること）:',
     '1. 先にパッケージを決める。title（タイトル）、thumb_text（サムネ＝表紙の文字。10文字前後）、promise（見た人が得られることを1文で）、wow（この店・会社にしか見せられないもの。職人の手元・工程・道具・常連さんとのやりとりなど、お金をかけた派手さではなく「ここでしか見られない」こと）。',
@@ -369,6 +407,8 @@ async function generate(req, cfg, project, b) {
   let attempt = 0
   let avoid = []
   let promiseMiss = []
+  let variantMiss = ''
+  let variantCheck = null
   let result = null
   let checks = null
   while (attempt <= RULES.originality.MAX_REGENERATIONS) {
@@ -380,7 +420,8 @@ async function generate(req, cfg, project, b) {
       if (g) break
     }
     const user = attempt === 0 ? base : base + (avoid.length ? '\n\n前の案は競合と同じ言い回しが含まれていました。次の部分は使わず、別の言い方にしてください:\n' + avoid.map((x) => `- 「${x}」`).join('\n') : '') +
-      (promiseMiss.length ? `\n\n前の案は、約束の言葉（${promiseMiss.join('・')}）が最初の${M.PROMISE_SEC}秒に入っていませんでした。冒頭のテロップかナレーションに入れてください。` : '')
+      (promiseMiss.length ? `\n\n前の案は、約束の言葉（${promiseMiss.join('・')}）が最初の${M.PROMISE_SEC}秒に入っていませんでした。冒頭のテロップかナレーションに入れてください。` : '') +
+      (variantMiss ? `\n\n前の案は、変数固定になっていませんでした: ${variantMiss} 「${PLAN_VAR_LABEL[variable]}」だけを変え、ほかは元の台本と同じにしてください。` : '')
     const r = await claude(req, { system: 'あなたは日本の小さなお店・会社の動画の台本を書く構成作家です。パッケージ（タイトルとサムネ）を先に決め、その約束を冒頭で必ず果たします。出力は日本語（visual だけ英語）。', user, schema: SCRIPT_SCHEMA, maxTokens: 12000 })
     if (r.error) { if (result) break; return r.error }
     attempt++
@@ -388,7 +429,10 @@ async function generate(req, cfg, project, b) {
     checks = checkScript({ ...result, hashtags: (result.hashtags || []).slice(0, RULES.post.MAX_HASHTAGS) }, brand, sources)
     const pc = promiseCheck({ ...checks.script, length_mode: mode })
     promiseMiss = pc.status === 'ng' ? pc.missing : []
-    if (checks.originality.clean && !promiseMiss.length) break
+    // 変数固定になっているか（台本どうしで比べます。出す条件は、投稿のときに決めるので見ません）。
+    variantCheck = baseScript ? scriptExperimentCheck(baseScript, { ...checks.script, format, length_mode: mode, target_duration_sec: target }, variable) : null
+    variantMiss = variantCheck && !variantCheck.ok ? variantCheck.message : ''
+    if (checks.originality.clean && !promiseMiss.length && !variantMiss) break
     avoid = checks.originality.findings.map((f) => f.shared)
   }
   const s = checks.script
@@ -404,12 +448,16 @@ async function generate(req, cfg, project, b) {
     style: brand.style || '',
     shots: shotsFromLines(s.lines, brand.style || ''),
     originality: { ...checks.originality, attempts: attempt },
+    variant_of: baseScript ? baseScript.id : '',
+    variable: baseScript ? variable : '',
   }
   // 禁止ワードが残っている台本は保存はしますが、書き出しと投稿は画面で止めます。
   const saved = await putItems(cfg, project.id, 'scripts', [draft])
   if (!saved.ok) return json(saved, 400)
   return json({
-    ok: true, script: saved.items[0], checks: { banned: checks.banned, notation: checks.notation, originality: checks.originality, speed: checks.speed },
+    ok: true, script: saved.items[0], checks: { banned: checks.banned, notation: checks.notation, originality: checks.originality, speed: checks.speed,
+      purity: purityCheck(saved.items[0]), surprise: surpriseCheck(saved.items[0]), variant: variantCheck },
+    seeds,
     attempts: attempt, band,
     message: checks.originality.clean
       ? (attempt > 1 ? `競合と同じ言い回し、または冒頭に約束の言葉が無かったため${attempt - 1}回作り直しました。` : '台本を作りました。読んで直してから使ってください。') +

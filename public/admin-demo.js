@@ -1707,6 +1707,8 @@
       notation_exceptions: ['焼立て窯'], style: 'warm natural light, 35mm photo, shallow depth of field'
     },
     research: [{ keyword: 'パン屋 朝', platform: 'instagram', at: '' }], created_at: ago(30 * DAY),
+    // 経験メモ（架空）。台本づくりの「連想」の材料です。
+    episodes: ['開店初日、石窯の温度を間違えてパンを全部焦がした', '常連さんに「パンの耳だけ売って」と言われた', '子どものころ、祖母と梅干しを漬けていた', '雪の日に配達して、パンごと転んだ'],
     reinvest: { budget: '材料費を2,000円ふやして、2種類のバゲットで対決', time: '撮影を30分長くして、手元の寄りを多めに', format: 'スタッフ対決をお客様投票つきで', note: '問いかけの冒頭は3秒維持率が高かった。次は対決の型で山場を2つ作る。' }
   };
   function videoPosts() {
@@ -1756,6 +1758,7 @@
       id: 'demo-script', title: 'カンパーニュの穴のひみつ', platform: 'instagram', length_mode: 'short', target_duration_sec: 24, hook: lines[0].narration, body: '水の量で食感が変わる', cta: '保存して朝に見返してね',
       thumb_text: '穴のひみつは水', promise: 'カンパーニュの大きな穴ができる理由が分かる', promise_keywords: [], wow: '15年使っている石窯から出す瞬間と、粉の8割の水',
       format: 'behind', loop: true, end_screen: '',
+      character: 'パン歴15年なのに、いまだに生地に話しかける店主', fan_expect: '水の量を教えて、きれいに焼けて終わる', landing: '店主が「答えは…」と言いかけて、最初の問いに戻る',
       hook_type: 'question', lines: lines, hashtags: ['パン屋', 'カンパーニュ', '朝ごはん'], style: VIDEO_PROJECT.brand.style,
       rationale: '競合の上位は「問いかけ→答え→工程」の順で、24秒前後に集まっています。答えを早めに出し、工程を2つに絞りました。最後の行は1行目の問いに戻るループにしています。',
       originality: { clean: true, attempts: 1, findings: [] }, created_at: ago(2 * DAY)
@@ -1794,7 +1797,10 @@
       ['youtube', 'published', 'story', 40, 4, 12, 3200, 140, null, null, null],
       ['instagram', 'processing', 'number', 30, 0, 0, null],
       ['tiktok', 'inbox', 'statement', 20, 1, 0, null],
-      ['instagram', 'failed', 'question', 0, 0, 0, null]
+      ['instagram', 'failed', 'question', 0, 0, 0, null],
+      // 数字つきの見本を2本（「どこで崩れたか」を見せるため）。8本目は、冒頭3秒で崩れた投稿。
+      ['instagram', 'published', 'statement', 26, 12, 19, 13600, 820, 210, 9.4, 0.5],
+      ['instagram', 'published', 'statement', 24, 3, 12, 14200, 760, 190, 9.0, 0.38]
     ];
     return specs.map(function (x, i) {
       var u = { id: 'demo-pub-' + i, platform: x[0], status: x[1], script_id: i === 0 ? 'demo-script' : '', title: ['カンパーニュの穴のひみつ', '朝4時の仕込み', '粉で味はどう変わる？', 'パン屋の1日', '人気ランキング', '新作の試作', '週末限定パンのお知らせ'][i],
@@ -1808,6 +1814,10 @@
           .map(function (p) { return { t: p[0], r: p[1] / 100 }; });
       }
       if (i === 2) u.snapshots[0].hold_3s = 0.79;
+      // 3秒維持率（手で入れた値の見本）。9本目（i=8）は冒頭で多くの人が離れた例。
+      var H3 = { 1: 0.68, 7: 0.74, 8: 0.44 };
+      if (H3[i] != null && u.snapshots[0]) u.snapshots[0].hold_3s = H3[i];
+      if (i >= 7) u.title = ['クロワッサンの層、何層ある？', 'カンパーニュは水で決まります'][i - 7];
       // 7本目は、動画を付けずに保存した下書きを送ろうとして失敗した例（「直す」で動画を付ける）。
       if (x[1] === 'failed') { u.error = '動画ファイルが付いていません。'; u.created_at = ago(DAY); u.updated_at = ago(DAY); }
       return u;
@@ -1843,7 +1853,9 @@
       posts: scored, band: C ? C.durationBand(scored) : { ok: false, message: '' },
       scripts: [videoScript(), videoLongScript()], pubs: videoPubs(), pipe: videoPipe(),
       pdca: [{ id: 'demo-pdca', title: '冒頭を問いかけにする', stage: 'check', hypothesis: '問いかけで始めると、最後まで見る人が増えるはず', target: { metric: 'retention_rate', target: 0.05, baseline: 0.46 },
-        publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) }]
+        publication_ids: ['demo-pub-0', 'demo-pub-2'], learnings: '', next_actions: ['問いかけの投稿をあと2本出して比べる'], created_at: ago(10 * DAY) },
+        { id: 'demo-exp', title: '「ワクワク感」だけ変えて試す（カンパーニュは水で決まります）', stage: 'do', hypothesis: '最初に崩れたのは「冒頭3秒（3秒維持率）」です。ワクワク感（冒頭の約束・フックの型）だけを変えて試します。',
+          target: { metric: 'hold_3s', baseline: 0.44 }, base_id: 'demo-pub-8', variable: 'excitement', change: '', publication_ids: ['demo-pub-0'], learnings: '', next_actions: [], created_at: ago(2 * DAY) }]
     };
   }
   /* 全プロジェクトの投稿（軽い形）と要対応の数（api/video-publish.js の overview と同じ形）。 */

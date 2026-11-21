@@ -400,6 +400,9 @@
         '<div><label class="soc-lab" for="vp-notation">表記の統一（1行に「元 → 後」）</label><textarea id="vp-notation" rows="4" placeholder="パソコン → PC">' + esc(notationText(b.notation)) + '</textarea></div>' +
         '<div><label class="soc-lab" for="vp-except">例外（置き換えない語・1行に1つ）</label><textarea id="vp-except" rows="4" placeholder="パソコン教室">' + esc((b.notation_exceptions || []).join('\n')) + '</textarea></div>' +
       '</div>' +
+      '<label class="soc-lab" for="vp-ep">経験メモ（本人に実際にあったこと。1行に1つ・80個まで）</label>' +
+      '<p class="soc-small" style="margin:0 0 4px">ボケや切り口は、過去の経験どうしのつながり（連想）から出てきます。AIが台本を作るとき、テーマに近い経験と、遠い経験（意外なつなぎ）をここから選んで材料にします。ここに無い体験は作りません。</p>' +
+      '<textarea id="vp-ep" class="vid-in" rows="4" placeholder="例：開店初日、オーブンの温度を間違えて全部焦がした&#10;例：常連さんに「パンの耳だけ売って」と言われた">' + esc(((p && p.episodes) || []).join('\n')) + '</textarea>' +
       '<label class="soc-lab" for="vp-style">絵コンテの画風（英語。画像生成に渡す文の後ろに付きます）</label>' +
       '<input type="text" id="vp-style" class="vid-in" maxlength="300" placeholder="warm natural light, shallow depth of field, 35mm photo" value="' + esc(b.style) + '">' +
       '<div class="vid-acts"><button type="button" id="vp-save">保存</button>' +
@@ -410,6 +413,7 @@
       var body = {
         id: p ? p.id : undefined, name: el('vp-name').value, description: el('vp-desc').value,
         created_at: p ? p.created_at : undefined, research: p ? p.research : [], imported_from: p ? p.imported_from : '', reinvest: p ? p.reinvest : undefined,
+        episodes: lines(el('vp-ep').value),
         brand: {
           persona: el('vp-persona').value, tone: el('vp-tone').value, banned_words: lines(el('vp-banned').value),
           notation: parseNotation(el('vp-notation').value), notation_exceptions: lines(el('vp-except').value), style: el('vp-style').value
@@ -843,6 +847,43 @@
     return h;
   }
 
+  /* 企画の考え方の点検: 体験の純度・濃度と、ファンの予想とのずれ。 */
+  function planHtml(s) {
+    var pu = V.purityCheck(s), su = V.surpriseCheck(s);
+    var h = '<h4 class="vid-sub">企画の考え方</h4>';
+    h += res(pu.level === 'ok' && !pu.notes.length ? true : pu.level === 'ng' ? false : null, '体験の純度・濃度',
+      esc(pu.message) + (pu.padding.length ? '<br>' + pu.padding.slice(0, 5).map(function (x) { return (x.line + 1) + '行目（' + esc(x.why) + '）: ' + esc(x.text); }).join('<br>') : '') +
+      (pu.notes.length ? '<br>' + pu.notes.map(esc).join('<br>') : ''));
+    h += res(su.ok, '予想しない着地', su.ok ? esc(su.message) : su.notes.map(esc).join('<br>'));
+    return h;
+  }
+  /* 変数固定の作り直し: この台本のうち、1つだけを変えた台本をAIに作ってもらいます。 */
+  function variantBox(s) {
+    if (!s.id || !S.ready.ai) return '';
+    return '<details class="soc-ai" style="margin-top:10px"><summary>1つだけ変えて作り直す（変数固定）</summary><div class="soc-ai-body">' +
+      '<p class="soc-small">伸びなかった企画を、全部作り直すと、どこが悪かったのか分かりません。1回に変えるのは1つだけ。ほかを同じにしたまま、選んだ所だけを変えた台本を作ります。作ったあと、ほかの所が変わっていないかを機械で確かめます。</p>' +
+      '<div class="vid-row"><select id="ve-var" aria-label="変える所">' + V.PLAN_VARS.filter(function (v) { return v.id !== 'timing'; }).map(function (v) {
+        return '<option value="' + v.id + '">' + esc(v.label) + '（' + esc(v.hint) + '）</option>';
+      }).join('') + '</select><button type="button" id="ve-var-go" style="font-size:12.5px;padding:8px 14px">この所だけ変えて作る</button></div>' +
+      '<p class="soc-small">「出す条件」（曜日・時間帯）を変えるときは、台本はそのままで、投稿の予約の日時だけを変えます。</p>' +
+      '</div></details>';
+  }
+  async function makeVariant(base, variable) {
+    say('AIが「' + V.PLAN_VAR_LABEL[variable] + '」だけを変えた台本を書いています（30秒〜1分ほど）…', true);
+    var r = await post({
+      action: 'script.generate', topic: [base.title, base.promise].filter(Boolean).join('。') || base.title || 'この企画',
+      variant_of: base.id, variable: variable, length_mode: V.lengthMode(base), platform: base.platform,
+      duration: base.target_duration_sec, loop: !!base.loop, format: variable === 'presentation' ? '' : (base.format || '')
+    });
+    if (!r.data.ok) { say(r.data.message || '作れませんでした。'); return false; }
+    S.scriptId = r.data.script.id;
+    await reload();
+    go('script');
+    var vc = r.data.checks && r.data.checks.variant;
+    say((r.data.message || '台本を作りました。') + (vc ? '　' + vc.message : ''), !vc || vc.ok);
+    return true;
+  }
+
   function editor(host, s) {
     host.innerHTML =
       '<div class="soc-ai vid-pack" style="margin-top:10px"><div class="soc-ai-body">' +
@@ -856,7 +897,13 @@
         fld('確かめる言葉（空欄なら約束から自動。読点区切り）', '<input type="text" id="ve-kw" maxlength="200" placeholder="例：穴、カンパーニュ" value="' + esc((s.promise_keywords || []).join('、')) + '">') +
         fld('企画の型', '<select id="ve-format">' + formatOptions(s.format) + '</select>') +
         fld('wow要素（うちにしか見せられないもの）', '<input type="text" id="ve-wow" maxlength="300" placeholder="例：15年使っている石窯から出す瞬間" value="' + esc(s.wow) + '">') +
-      '</div></div></div>' +
+        fld('キャラ設定（だれが・どんな立場で出るか）', '<input type="text" id="ve-char" maxlength="200" placeholder="例：パン歴20年なのに、なぜか毎回焦がす店長" value="' + esc(s.character) + '">') +
+        fld('ファンの予想（見る人が「たぶんこうなる」と思う展開）', '<input type="text" id="ve-expect" maxlength="300" placeholder="例：いつものように上手に焼けて終わる" value="' + esc(s.fan_expect) + '">') +
+        fld('着地（予想とずらした「予想しない姿」）', '<input type="text" id="ve-landing" maxlength="300" placeholder="例：焦げたパンのほうが常連さんに売れてしまう" value="' + esc(s.landing) + '">') +
+      '</div>' +
+      (s.variant_of ? '<p class="soc-small" style="margin-top:6px">変数固定の作り直しです（元の台本から「' + esc(V.PLAN_VAR_LABEL[s.variable] || '') + '」だけを変えています）。</p>' : '') +
+      '</div></div>' +
+      variantBox(s) +
       '<div class="soc-fields" style="margin-top:10px">' +
         fld('フックの型', '<select id="ve-hook-type">' + V.HOOK_TYPES.map(function (h) { return '<option value="' + h + '"' + (s.hook_type === h ? ' selected' : '') + '>' + V.HOOK_LABELS[h] + '</option>'; }).join('') + '</select>') +
         fld('フック（最初の約3秒）', '<input type="text" id="ve-hook" maxlength="300" value="' + esc(s.hook) + '">') +
@@ -894,6 +941,7 @@
       s.title = el('ve-title').value; s.hook = el('ve-hook').value; s.cta = el('ve-cta').value; s.hook_type = el('ve-hook-type').value;
       s.platform = el('ve-net').value; s.length_mode = el('ve-mode').value;
       s.thumb_text = el('ve-thumb').value; s.promise = el('ve-promise').value; s.wow = el('ve-wow').value;
+      s.character = el('ve-char').value; s.fan_expect = el('ve-expect').value; s.landing = el('ve-landing').value;
       s.loop = el('ve-loop').value === '1'; s.end_screen = el('ve-end').value; s.format = el('ve-format').value;
       s.promise_keywords = el('ve-kw').value.split(/[、,\s]+/).map(function (t) { return t.trim(); }).filter(Boolean);
       s.hashtags = el('ve-tags').value.split(/[\s、,]+/).map(function (t) { return t.replace(/^#/, ''); }).filter(Boolean);
@@ -922,7 +970,7 @@
         ? '<div class="soc-res"><b>テロップの速さ</b><span>' + c.speed.map(function (x) { return (x.index + 1) + '行目: 1秒あたり ' + x.cps + '文字'; }).join('、') + '。8文字を超えると読み切れない人が増えます。文字を減らすか、時間を延ばしてください。</span></div>'
         : '<div class="soc-res ok"><b>テロップの速さ</b><span>どの行も1秒あたり8文字以内です。</span></div>';
       if (c.tooManyTags) h += '<div class="soc-res"><b>ハッシュタグ</b><span>5個までにしてください（多いと宣伝くさく見え、読まれにくくなります）。</span></div>';
-      el('ve-checks').innerHTML = '<h4 class="vid-sub">見続けてもらう工夫（数字はどれも目安です）</h4>' + retentionHtml(s) + '<h4 class="vid-sub">決まりごと</h4>' + h;
+      el('ve-checks').innerHTML = '<h4 class="vid-sub">見続けてもらう工夫（数字はどれも目安です）</h4>' + retentionHtml(s) + planHtml(s) + '<h4 class="vid-sub">決まりごと</h4>' + h;
       var blocked = c.banned.length > 0;
       document.querySelectorAll('.ve-out').forEach(function (b) { b.disabled = blocked; });
       if (el('ve-norm')) el('ve-norm').addEventListener('click', function () {
@@ -992,6 +1040,7 @@
       s.lines.push({ start: st, end: Math.round((st + 3) * 10) / 10, narration: '', telop: '', visual: '' });
       rows(); check();
     });
+    if (el('ve-var-go')) el('ve-var-go').addEventListener('click', async function () { this.disabled = true; await makeVariant(collect(), el('ve-var').value); this.disabled = false; });
     el('ve-save').addEventListener('click', async function () {
       collect();
       this.disabled = true;
@@ -2034,6 +2083,7 @@
         return '<b>' + esc(x.title) + '</b>：' + esc(x.hypothesis) + ' <button type="button" class="linkish vm-pdca" data-id="' + esc(u.id) + '" data-i="' + i + '">PDCAの下書きにする</button>';
       }).join('<br>') + '</span></div>';
     }
+    h += diagHtml(u, script);
     h += '<div class="vid-grid3" style="margin-top:6px">' +
       '<input type="number" class="vm-h3" min="0" max="100" step="0.1" placeholder="3秒維持率（%）" aria-label="3秒維持率（%）">' +
       '<input type="number" class="vm-avd" min="0" step="0.1" placeholder="平均視聴秒数" aria-label="平均視聴秒数">' +
@@ -2041,6 +2091,22 @@
       '</div><textarea class="vm-curve" rows="2" style="margin-top:6px" placeholder="維持率の曲線（1行に「秒,残っている割合%」。例: 0,100 / 3,72 / 10,55）" aria-label="維持率の曲線"></textarea>' +
       '<div class="vid-acts" style="margin-top:6px"><button type="button" class="ghost vm-add" data-id="' + esc(u.id) + '" style="font-size:12px;padding:7px 12px">この数字を記録する</button></div>';
     return h + '</div></details>';
+  }
+
+  /* ダメだった投稿の、どこで崩れたか（入口 → 冒頭3秒 → 途中 → 反応）。比べる相手は、この
+     プロジェクトのほかの投稿です。最初に崩れた段の変数だけを変えて、次の1本で確かめます。 */
+  function diagHtml(u, script) {
+    var dg = V.diagnoseFlop(u, S.data.pubs || []);
+    if (!dg.ok) return res(null, 'どこで崩れたか', esc(dg.message));
+    var rows = dg.stages.map(function (st) {
+      var v = st.value == null ? '—' : fmtMetric(st.metric === 'engagement_rate' ? 'engagement_rate' : st.metric, st.value);
+      return (st.weak ? '<b style="color:#b3261e">' : '') + esc(st.label) + ': ' + v + (st.rank == null || st.pct == null ? '' : '（' + st.of + '本中' + st.rank + '位）') + (st.weak ? '</b>' : '');
+    }).join('<br>');
+    var btns = dg.suspects.map(function (v) {
+      return (script && S.ready.ai ? '<button type="button" class="linkish vm-var" data-id="' + esc(u.id) + '" data-var="' + v.id + '">「' + esc(v.label) + '」だけ変えた台本を作る</button>　' : '') +
+        '<button type="button" class="linkish vm-exp" data-id="' + esc(u.id) + '" data-var="' + v.id + '">「' + esc(v.label) + '」の検証として記録</button>';
+    }).join('<br>');
+    return res(dg.first ? false : true, 'どこで崩れたか', '<span class="soc-small">このプロジェクトのほかの' + dg.n + '本と比べて</span><br>' + rows + '<br>' + esc(dg.message) + (btns ? '<br>' + btns : ''));
   }
 
   function reinvestHtml() {
@@ -2065,6 +2131,34 @@
   }
 
   function bindLearn(host) {
+    host.querySelectorAll('.vm-var').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        var script = u && pubScript(u);
+        if (!script) { say('この投稿に台本が紐づいていません。'); return; }
+        b.disabled = true;
+        await makeVariant(script, b.getAttribute('data-var'));
+        b.disabled = false;
+      });
+    });
+    host.querySelectorAll('.vm-exp').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+        if (!u) return;
+        var variable = b.getAttribute('data-var');
+        var dg = V.diagnoseFlop(u, S.data.pubs || []);
+        var st = dg.first || {};
+        var r = await post({ action: 'pdca.save', item: {
+          title: '「' + V.PLAN_VAR_LABEL[variable] + '」だけ変えて試す（' + String(u.title || u.caption || '').slice(0, 30) + '）',
+          stage: 'do', hypothesis: dg.message || '', base_id: u.id, variable: variable,
+          target: { metric: st.metric === 'engagement_rate' ? 'engagement_rate' : (st.metric || 'views'), baseline: st.value == null ? null : st.value },
+          publication_ids: []
+        } });
+        if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }
+        await reload();
+        say('検証として記録しました。変えた投稿を出したら、「PDCA」で紐づけてください。ほかの所が変わっていないかと、結果を判定します。', true);
+      });
+    });
     host.querySelectorAll('.vm-pdca').forEach(function (b) {
       b.addEventListener('click', async function () {
         var u = S.data.pubs.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
@@ -2117,6 +2211,26 @@
 
   /* ---------------- 9. PDCA ---------------- */
 
+  /* 変数固定の検証（元の投稿と、1つだけ変えた投稿）。ほかの所が変わっていないかと、結果の判定。 */
+  function expHtml(c) {
+    if (!c.base_id || !c.variable) return '';
+    var pubs = S.data.pubs || [];
+    var base = pubs.filter(function (u) { return u.id === c.base_id; })[0];
+    if (!base) return '<div class="mx">変数固定: 元の投稿が見つかりません（削除されたかもしれません）。</div>';
+    var prj = project();
+    var sig = function (u) { return V.planSignature(u, pubScript(u), prj); };
+    var linked = pubs.filter(function (u) { return (c.publication_ids || []).indexOf(u.id) >= 0 && u.id !== base.id; });
+    var h = '<div class="mx">変数固定: 変えるのは「' + esc(V.PLAN_VAR_LABEL[c.variable]) + '」だけ（元の投稿: ' + esc(String(base.title || base.caption || '').slice(0, 30)) + '）</div>';
+    if (!linked.length) return h + '<div class="mx">変えた投稿を出したら、「直す」で紐づけてください。</div>';
+    linked.forEach(function (u) {
+      var ck = V.experimentCheck(sig(base), sig(u), c.variable);
+      h += '<div class="mx" style="color:' + (ck.ok ? 'inherit' : '#b3261e') + '">・' + esc(String(u.title || u.caption || '').slice(0, 30)) + ': ' + esc(ck.message) +
+        (ck.confounds.length ? '（' + ck.confounds.map(function (x) { return esc(x.label) + ': ' + x.what.map(esc).join('、'); }).join(' ／ ') + '）' : '') + '</div>';
+    });
+    var vd = V.experimentVerdict(base, linked, pubs, (c.target || {}).metric || 'views');
+    return h + '<div class="mx"><b>結果: ' + esc(vd.label) + '</b>' + (vd.base != null && vd.variant != null ? '（元 ' + fmtMetric((c.target || {}).metric, vd.base) + ' → 変えた後 ' + fmtMetric((c.target || {}).metric, vd.variant) + (vd.spread != null ? '、ふだんのばらつき ' + fmtMetric((c.target || {}).metric, vd.spread) : '') + '）' : '') + '</div>';
+  }
+
   R.pdca = function (host) {
     if (needProject(host)) return;
     var cycles = S.data.pdca || [];
@@ -2133,6 +2247,7 @@
           '<div class="body"><b>' + esc(c.title) + '</b>\n' + esc(c.hypothesis) + '</div>' +
           '<div class="mx">指標: ' + esc((V.METRICS[m.metric] || {}).label || m.metric || '未設定') + '・基準値 ' + (m.baseline == null ? '—' : fmtMetric(m.metric, m.baseline)) + (m.target != null ? '・目標の伸び ' + esc(m.target) : '') + '・紐づけた投稿 ' + (c.publication_ids || []).length + '本</div>' +
           '<div class="mx">判定: ' + esc(v.label) + (v.ci ? '（平均 ' + fmtMetric(m.metric, v.ci.mean) + '、区間 ' + fmtMetric(m.metric, v.ci.low) + '〜' + fmtMetric(m.metric, v.ci.high) + '）' : '') + '</div>' +
+          expHtml(c) +
           (c.learnings ? '<div class="mx">学び: ' + esc(c.learnings) + '</div>' : '') +
           ((c.next_actions || []).length ? '<div class="mx">次にやること: ' + c.next_actions.map(esc).join(' ／ ') + '</div>' : '') +
           '<div class="mx"><button type="button" class="linkish vd-edit" data-id="' + esc(c.id) + '">直す</button>　<button type="button" class="linkish vd-del" data-id="' + esc(c.id) + '">削除</button></div></div>';
@@ -2168,7 +2283,8 @@
         id: c.id, created_at: c.created_at, title: el('vd-title').value, stage: el('vd-stage').value, hypothesis: el('vd-hypo').value,
         target: { metric: el('vd-metric').value, baseline: num(el('vd-base').value), target: t.target },
         publication_ids: Array.prototype.map.call(document.querySelectorAll('.vd-pub:checked'), function (x) { return x.value; }),
-        learnings: el('vd-learn').value, next_actions: el('vd-next').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean)
+        learnings: el('vd-learn').value, next_actions: el('vd-next').value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
+        base_id: c.base_id || '', variable: c.variable || '', change: c.change || ''
       };
       var r = await post({ action: 'pdca.save', item: item });
       if (!r.data.ok) { say(r.data.message || '保存できませんでした。'); return; }

@@ -127,7 +127,10 @@ globalThis.fetch = async (input, init = {}) => {
       return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ analyses }) }], usage: { input_tokens: 1, output_tokens: 1 } })
     }
     if (fmt && fmt.type === 'json_schema' && fmt.schema.properties.lines) {
-      const script = { title: 'スモーク', hook: 'これ知ってた？', hook_type: 'question', body: '本文', cta: '保存してね', target_duration_sec: 9, hashtags: ['スモーク'], rationale: '型',
+      // 変数固定の作り直し（ワクワク感だけを変える）なら、フックの型と約束だけを変えて返します。
+      const variant = /変数固定の作り直し/.test(String(req.messages[0].content))
+      const script = { title: 'スモーク', hook: 'これ知ってた？', hook_type: variant ? 'number' : 'question', body: '本文', cta: '保存してね', target_duration_sec: 9, hashtags: ['スモーク'], rationale: '型',
+        promise: variant ? '3つの工程で気泡が育つ' : 'カフェの秋メニューが分かる', thumb_text: 'スモーク', wow: '石窯', character: '店長', fan_expect: 'ふつうに紹介して終わる', landing: '店長が自分で食べ過ぎる',
         lines: [{ start: 0, end: 3, narration: 'これ知ってた？', telop: 'これ知ってた？', visual: 'A cafe' }, { start: 3, end: 9, narration: '保存してね', telop: '保存してね', visual: 'A cup' }] }
       return ok({ id: 'm', type: 'message', role: 'assistant', model: req.model, stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(script) }], usage: { input_tokens: 1, output_tokens: 1 } })
     }
@@ -360,6 +363,9 @@ const CALLS = [
   ['video', 'GET', '?project=smoke-prj', KEY],
   ['video', 'POST', '', JSONH, { action: 'analyze', project: 'smoke-prj', ids: ['smoke-post'] }],
   ['video', 'POST', '', JSONH, { action: 'script.generate', project: 'smoke-prj', topic: '秋の新メニュー', platform: 'instagram' }],
+  // 変数固定の作り直し（元の台本のワクワク感だけを変える）。
+  ['video', 'POST', '', JSONH, { action: 'script.save', project: 'smoke-prj', item: { id: 'smoke-scr', title: 'スモーク', promise: 'カフェの秋メニューが分かる', hook_type: 'question', character: '店長', fan_expect: 'ふつうに紹介して終わる', landing: '店長が自分で食べ過ぎる', target_duration_sec: 9, lines: [{ start: 0, end: 3, narration: 'これ知ってた？' }, { start: 3, end: 9, narration: '保存してね' }] } }],
+  ['video', 'POST', '', JSONH, { action: 'script.generate', project: 'smoke-prj', topic: 'スモーク', platform: 'instagram', variant_of: 'smoke-scr', variable: 'excitement', duration: 9 }],
   ['video', 'POST', '', JSONH, { action: 'pub.save', project: 'smoke-prj', item: { id: 'smoke-pub', platform: 'instagram', caption: 'スモーク', hashtags: ['a'], video_url: 'https://x.public.blob.vercel-storage.com/video/a.mp4', video_size: 1000, external_id: '1' } }],
   ['video', 'POST', '', JSONH, { action: 'pub.save', project: 'smoke-prj', item: { id: 'smoke-tt', platform: 'tiktok', caption: 'スモーク', video_url: 'https://x.public.blob.vercel-storage.com/video/a.mp4', video_size: 7 } }],
   ['video', 'POST', '', JSONH, { action: 'ig.discover', project: 'smoke-prj', username: 'smoke_shop' }],

@@ -3226,3 +3226,292 @@ export function pipeHandoff(pipe, stepId, project) {
     '',
   ].join('\n')
 }
+
+/* ================= 企画の検証（変数固定）・純度・意外性・連想 =================
+ * 企画がダメだったとき、「なんとなく全部を変える」と、どこが悪かったのか分かりません。
+ * 理系の実験と同じで、1回に変えるのは1つだけ（変数固定）。ほかを同じにしたまま1つだけ
+ * 変えて、数字が動けば、それが原因だった、と言えます。
+ *
+ * 企画の変数は6つに分けます。
+ *   character    … キャラ設定（だれが・どんな立場で出るか）
+ *   excitement   … ワクワク感（冒頭の約束と、フックの型）
+ *   presentation … 企画の見せ方（企画の型・長さ・テンポ）
+ *   landing      … 着地（ファンの予想を、どう裏切るか）
+ *   topic        … 題材
+ *   timing       … 出す条件（投稿先・曜日・時間帯）
+ */
+export const PLAN_VARS = [
+  { id: 'character', label: 'キャラ設定', hint: 'だれが・どんな立場で出るか' },
+  { id: 'excitement', label: 'ワクワク感', hint: '冒頭の約束と、フックの型' },
+  { id: 'presentation', label: '企画の見せ方', hint: '企画の型・長さ・テンポ' },
+  { id: 'landing', label: '着地', hint: 'ファンの予想を、どう裏切るか' },
+  { id: 'topic', label: '題材', hint: '何についての動画か' },
+  { id: 'timing', label: '出す条件', hint: '投稿先・曜日・時間帯' },
+]
+export const PLAN_VAR_LABEL = PLAN_VARS.reduce((o, v) => { o[v.id] = v.label; return o }, {})
+
+/** 言葉の重なり（0〜1）。キーワードどうし、無ければ2文字ずつの重なりで見ます。 */
+export function wordOverlap(a, b) {
+  const ka = promiseKeywords(a), kb = promiseKeywords(b)
+  if (ka.length && kb.length) {
+    const hit = ka.filter((w) => kb.some((x) => x === w || x.indexOf(w) >= 0 || w.indexOf(x) >= 0)).length
+    return hit / Math.max(ka.length, kb.length)
+  }
+  const bg = (s) => { const t = normText(s); const out = new Set(); for (let i = 0; i + 1 < t.length; i++) out.add(t.slice(i, i + 2)); return out }
+  const A = bg(a), B = bg(b)
+  if (!A.size || !B.size) return A.size === B.size ? 1 : 0
+  let n = 0
+  A.forEach((x) => { if (B.has(x)) n++ })
+  return n / Math.max(A.size, B.size)
+}
+
+const hourBand = (h) => (h == null ? '' : h < 5 ? '深夜' : h < 11 ? '朝' : h < 15 ? '昼' : h < 19 ? '夕方' : '夜')
+const tempoBand = (s) => {
+  const lines = (s && s.lines) || []
+  const end = lines.length ? Number(lines[lines.length - 1].end) || 0 : 0
+  if (!end) return ''
+  const sw = lines.filter((l) => l.mark).length
+  const per10 = sw / (end / 10)
+  return per10 >= 2 ? '速い' : per10 >= 1 ? 'ふつう' : 'ゆっくり'
+}
+
+/** 投稿（と台本・プロジェクト）から、6つの変数の中身を取り出します。 */
+export function planSignature(pub, script, project) {
+  const u = pub || {}, s = script || {}, b = (project && project.brand) || {}
+  const t = Date.parse(u.published_at || u.scheduled_for || '')
+  const d = isNaN(t) ? null : new Date(t + 9 * 3600000)
+  const twist = ((s.lines || []).some((l) => l.mark === 'peak_twist' || l.mark === 'peak_reveal'))
+  return {
+    // 台本があるか（無ければ、台本の中身から決まる変数は「分からない」。変わったとは数えません）。
+    scripted: !!(script && ((script.lines || []).length || script.promise || script.title)),
+    character: String(s.character || b.persona || '').trim(),
+    excitement: { hook: s.hook_type || u.hook_type || '', promise: String(s.promise || '').trim() },
+    presentation: { format: s.format || '', length: durationBucket(u.duration_sec || s.target_duration_sec) || '', tempo: tempoBand(s), mode: s.length_mode === 'long' ? 'long' : 'short' },
+    landing: { text: String(s.landing || '').trim(), twist },
+    topic: String(s.title || u.title || '').trim(),
+    timing: { platform: u.platform || s.platform || '', weekday: d ? WEEK[d.getUTCDay()] : '', band: d ? hourBand(d.getUTCHours()) : '' },
+  }
+}
+
+/** 変数ごとに、2つの投稿で「同じ」と言えるか。違うときは、何が違うかを言葉で返します。
+ *  片方が分からない（台本が無い・未設定）項目は、違いに数えません（compareKnown で「比べられない」と分かります）。 */
+export function compareVar(id, a, b) {
+  const x = a[id], y = b[id]
+  const both = (p, q) => String(p || '') !== '' && String(q || '') !== ''
+  const diff = []
+  if (id === 'character') { if (both(x, y) && wordOverlap(x, y) < 0.5 && normText(x) !== normText(y)) diff.push(`「${x}」→「${y}」`) }
+  else if (id === 'excitement') {
+    if (both(x.hook, y.hook) && x.hook !== y.hook) diff.push(`フックの型 ${HOOK_LABELS[x.hook] || x.hook} → ${HOOK_LABELS[y.hook] || y.hook}`)
+    if (both(x.promise, y.promise) && wordOverlap(x.promise, y.promise) < 0.5) diff.push('冒頭の約束')
+  } else if (id === 'presentation') {
+    if (both(x.format, y.format) && x.format !== y.format) diff.push(`企画の型 ${(FORMATS[x.format] || {}).label || x.format} → ${(FORMATS[y.format] || {}).label || y.format}`)
+    if (both(x.length, y.length) && x.length !== y.length) diff.push(`長さ ${x.length} → ${y.length}`)
+    if (both(x.tempo, y.tempo) && x.tempo !== y.tempo) diff.push(`テンポ ${x.tempo} → ${y.tempo}`)
+  } else if (id === 'landing') {
+    if (a.scripted && b.scripted && x.twist !== y.twist) diff.push(y.twist ? '山場（どんでん返し・発表）を足した' : '山場（どんでん返し・発表）を消した')
+    if (both(x.text, y.text) && wordOverlap(x.text, y.text) < 0.5) diff.push('着地の中身')
+  } else if (id === 'topic') { if (both(x, y) && wordOverlap(x, y) < 0.5) diff.push(`「${x}」→「${y}」`) }
+  else if (id === 'timing') {
+    if (both(x.platform, y.platform) && x.platform !== y.platform) diff.push(`投稿先 ${x.platform} → ${y.platform}`)
+    if (both(x.weekday, y.weekday) && x.weekday !== y.weekday) diff.push(`曜日 ${x.weekday} → ${y.weekday}`)
+    if (both(x.band, y.band) && x.band !== y.band) diff.push(`時間帯 ${x.band} → ${y.band}`)
+  }
+  return diff
+}
+
+/** その変数を、2つの投稿で比べられるか（両方に中身があるか）。 */
+export function compareKnown(id, a, b) {
+  const has = (sig) => {
+    const v = sig[id]
+    if (id === 'character' || id === 'topic') return !!String(v || '').trim()
+    if (id === 'excitement') return !!(v.hook || v.promise)
+    if (id === 'presentation') return !!(v.format || v.length || v.tempo)
+    if (id === 'landing') return !!(v.text || sig.scripted)
+    if (id === 'timing') return !!(v.platform || v.weekday || v.band)
+    return false
+  }
+  return has(a) && has(b)
+}
+
+/** 変数固定になっているか。changed（変えると決めた変数）だけが違い、ほかは同じか。
+ *  ほかにも違う変数があれば confounds に入れます（結果の差が、どれのせいか分からなくなるため）。 */
+export function experimentCheck(baseSig, variantSig, changed) {
+  const diffs = {}
+  const unknown = []
+  for (const v of PLAN_VARS) {
+    if (!compareKnown(v.id, baseSig, variantSig)) { unknown.push(v.label); continue }
+    const d = compareVar(v.id, baseSig, variantSig); if (d.length) diffs[v.id] = d
+  }
+  const confounds = Object.keys(diffs).filter((k) => k !== changed).map((k) => ({ id: k, label: PLAN_VAR_LABEL[k], what: diffs[k] }))
+  const moved = !!diffs[changed]
+  const fixed = PLAN_VARS.filter((v) => v.id !== changed && !diffs[v.id] && unknown.indexOf(v.label) < 0).map((v) => v.label)
+  const others = unknown.filter((l) => l !== PLAN_VAR_LABEL[changed])
+  let message
+  if (!moved && !confounds.length) message = `「${PLAN_VAR_LABEL[changed]}」が元の投稿と同じです。変えると決めた所を変えてください。`
+  else if (!moved) message = `「${PLAN_VAR_LABEL[changed]}」は同じで、ほかの所（${confounds.map((c) => c.label).join('・')}）が変わっています。`
+  else if (confounds.length) message = `「${PLAN_VAR_LABEL[changed]}」のほかに、${confounds.map((c) => c.label).join('・')}も変わっています。数字が動いても、どれのせいか分かりません。`
+  else message = `変数固定になっています（変えたのは「${PLAN_VAR_LABEL[changed]}」だけ）。`
+  if (others.length) message += `（${others.join('・')}は、片方に台本や設定が無いため比べられません。台本を紐づけると確かめられます）`
+  return { ok: moved && !confounds.length, changed, moved, diff: diffs[changed] || [], confounds, fixed, unknown, message }
+}
+
+/* ---- ダメだった投稿の、どこで崩れたか ----
+ * 見た人は 入口（表示・再生）→ 冒頭3秒 → 途中 → 反応 の順に進みます。最初に崩れた段が、
+ * 直す変数です。目安は世間の数字ではなく、このアカウントのほかの投稿（下から25%なら弱い）。 */
+export const FUNNEL = [
+  { stage: 'entrance', label: '入口（再生数）', metric: 'views', vars: ['topic', 'timing'], advice: '題材（タイトル・サムネ）か、出す条件（曜日・時間帯）を1つだけ変えて試します。' },
+  { stage: 'hook', label: '冒頭3秒（3秒維持率）', metric: 'hold_3s', vars: ['excitement'], advice: 'ワクワク感（冒頭の約束・フックの型）だけを変えて試します。中身はそのまま。' },
+  { stage: 'middle', label: '途中（平均視聴率）', metric: 'avp', vars: ['presentation'], advice: '企画の見せ方（テンポ・構成・長さ）だけを変えて試します。体験の濃い所を残し、前置きと説明を削ります。' },
+  { stage: 'reaction', label: '反応（反応率・保存率）', metric: 'engagement_rate', vars: ['character', 'landing'], advice: 'キャラ設定か着地（予想を裏切る展開）のどちらか1つだけを変えて試します。' },
+]
+
+// 「崩れた」と言うのは、中央値よりこれだけ低いときだけ（15%）。
+export const DROP_GAP = 0.15
+
+export function percentileOf(value, list) {
+  const xs = (list || []).filter((v) => v != null && isFinite(v))
+  if (value == null || !xs.length) return null
+  const below = xs.filter((v) => v < value).length, same = xs.filter((v) => v === value).length
+  return Math.round(((below + same / 2) / xs.length) * 100) / 100
+}
+
+/** pub（ダメだった投稿）と others（計測済みのほかの投稿）から、崩れた段と、変える変数を出します。 */
+export function diagnoseFlop(pub, others, opts) {
+  const min = (opts && opts.min) || 4
+  const weakAt = (opts && opts.weak) || 0.25
+  const ref = (others || []).filter((p) => p && p.id !== (pub && pub.id) && latestSnapshot(p))
+  const samePlat = ref.filter((p) => p.platform === (pub && pub.platform))
+  const pool = samePlat.length >= min ? samePlat : ref
+  if (!pub || !latestSnapshot(pub)) return { ok: false, message: 'この投稿は、まだ数字がありません。「数字」で計測を入れてください。' }
+  if (pool.length < min) return { ok: false, message: `比べる投稿が足りません（計測済みのほかの投稿が${pool.length}本。${min}本から比べられます）。` }
+  const snap = latestSnapshot(pub)
+  const stages = FUNNEL.map((f) => {
+    const val = (p) => (f.metric === 'engagement_rate'
+      ? (() => { const e = metricValue(latestSnapshot(p), 'engagement_rate', p.duration_sec), s = metricValue(latestSnapshot(p), 'save_rate', p.duration_sec); return e == null && s == null ? null : (e || 0) + (s || 0) })()
+      : metricValue(latestSnapshot(p), f.metric, p.duration_sec))
+    const v = val(pub)
+    const vals = pool.map(val).filter((x) => x != null)
+    const sorted = vals.slice().sort((a, b) => a - b)
+    const p = vals.length >= min ? percentileOf(v, vals) : null
+    const median = sorted.length ? quantile(sorted, 0.5) : null
+    // 順位だけで決めると、比べる投稿が少ないとき、ほんの少し低いだけで「崩れた」になります。
+    // 下から25%以内で、しかも中央値より15%以上低いときだけ「崩れた」とします。
+    const gap = median > 0 && v != null ? (median - v) / median : 0
+    // 順位（この投稿も入れて、上から何番目か）。「下から何%」より読み違えにくいので、画面はこちらを出します。
+    const rank = v == null ? null : vals.filter((x) => x > v).length + 1
+    return { ...f, value: v, median, n: vals.length, pct: p, rank, of: vals.length + 1, gap: Math.round(gap * 100) / 100, weak: p != null && p <= weakAt && gap >= DROP_GAP }
+  })
+  const first = stages.find((s) => s.weak) || null
+  const measured = stages.filter((s) => s.pct != null)
+  let message
+  if (!measured.length) message = '比べられる数字がありません。'
+  else if (!first) message = 'どの段も、このアカウントのふだんの範囲に入っています。たまたまの可能性があります。同じ企画をもう1回出すか、ほかの投稿と一緒に見てください。'
+  else message = `最初に崩れたのは「${first.label}」です（${first.of}本中${first.rank}位・ふだんの真ん中より${Math.round(first.gap * 100)}%低い）。${first.advice}`
+  return {
+    ok: true, n: pool.length, stages, first,
+    suspects: first ? first.vars.map((id) => ({ id, label: PLAN_VAR_LABEL[id] })) : [],
+    message,
+  }
+}
+
+/** 1つだけ変えた投稿（variants）が、元の投稿（base）より良くなったか。
+ *  差が、このアカウントのふだんのばらつき（ほかの投稿の真ん中50%の幅）より大きいときだけ「効いた」と言います。 */
+export function experimentVerdict(base, variants, others, metric) {
+  const val = (p) => metricValue(latestSnapshot(p), metric, p && p.duration_sec)
+  const b = base ? val(base) : null
+  const vs = (variants || []).map(val).filter((x) => x != null)
+  const ids = new Set([base && base.id].concat((variants || []).map((p) => p && p.id)))
+  const ref = (others || []).filter((p) => p && !ids.has(p.id)).map(val).filter((x) => x != null).sort((x, y) => x - y)
+  const label = (METRICS[metric] || {}).label || metric
+  if (b == null) return { verdict: 'none', label: `元の投稿の「${label}」がまだありません。` }
+  if (!vs.length) return { verdict: 'none', label: `変えた投稿の「${label}」がまだありません（出して、計測を入れてください）。` }
+  if (ref.length < 4) return { verdict: 'insufficient', label: `ふだんのばらつきを測るには、ほかの計測済みの投稿が4本要ります（今は${ref.length}本）。`, base: b, variant: vs.reduce((a, x) => a + x, 0) / vs.length }
+  const mean = vs.reduce((a, x) => a + x, 0) / vs.length
+  const spread = quantile(ref, 0.75) - quantile(ref, 0.25)
+  const diff = mean - b
+  let verdict = 'unclear', text = 'ふだんのばらつきの範囲です。この変数が原因とは、まだ言えません。'
+  if (spread > 0 && diff > spread) { verdict = 'improved'; text = 'ふだんのばらつきを超えて良くなりました。変えた変数が効いた可能性が高いです。' }
+  else if (spread > 0 && -diff > spread) { verdict = 'worse'; text = 'ふだんのばらつきを超えて下がりました。元に戻すか、別の変数を試します。' }
+  if (vs.length === 1 && verdict !== 'unclear') text += '（1本だけの結果です。同じ変え方でもう1本出すと、たしかになります）'
+  return { verdict, label: text, base: b, variant: mean, diff, spread, n: vs.length }
+}
+
+/* ---- 体験の純度・濃度 ----
+ * リアルな体験（手元・声・反応・その場の音）が、前置き・説明・あいさつに薄められずに届いているか。
+ * 壮大な企画ほど「すごさ」を言葉で説明しがちです。規模は、数・比べ・人の反応で、冒頭に見せます。 */
+const PADDING = [
+  [/^(どうも|こんにち|こんばん|おはよう|はい[、,]|みなさん|皆さん)/, 'あいさつ'],
+  [/(今日は|今回は|この動画では).{0,24}(紹介|説明|お話|話し|やって|見て|お見せ|お届け)/, '予告（これから何をするかの説明）'],
+  [/(ということで|というわけで|さて|それでは|では早速|さっそく)/, 'つなぎの言葉'],
+  [/(いかがでしたか|チャンネル登録|高評価|フォローお願い|コメントで教えて)/, '締めのお願い'],
+  [/(と思います|かもしれません|と言われています|一般的に|そもそも)/, '説明・一般論'],
+]
+// 「すごい」「やばい」は、言葉で言っているだけで、体験や反応そのものではないので数えません。
+const EXPERIENCE = /[0-9０-９]|[「『].+[」』]|(手元|触|食べ|飲|持|切|焼|走|叫|笑|泣|驚|震|えっ|うわ|あつ|冷た|重|痛|音|匂|におい|香り|目の前|その場|初めて|失敗|成功|完成)/
+const SCALE = /[0-9０-９]|倍|万|億|トン|メートル|キロ|日間|時間|人分|全部|すべて|過去最大|史上|初めて|比べ/
+// 壮大な企画かどうか（タイトルと約束にある、規模の言葉）。台本の中の数（「パン歴15年」など）では決めません。
+const GRAND = /(万|億|千|[1-9][0-9]{2,}|全国|世界|史上|過去最大|挑戦|日間|ヶ月|か月|週間|全部|すべて|限界|徹底|密着)/
+const REACTION = /[「『].+[」』]|(えっ|うわ|わっ|おお|叫|笑い|笑っ|笑顔|泣|驚い|震え|息をのむ|声が出|歓声|拍手)/
+
+export function purityCheck(script) {
+  const s = script || {}
+  const lines = (s.lines || []).filter((l) => (l.narration || l.telop || l.visual))
+  if (!lines.length) return { ok: false, density: null, padding: [], message: '台本の行がまだありません。' }
+  const padding = []
+  let exp = 0
+  lines.forEach((l, i) => {
+    const t = `${l.narration || ''} ${l.telop || ''}`
+    const pad = PADDING.find((p) => p[0].test(t))
+    const real = EXPERIENCE.test(t) || /real|hands|close-up|reaction|footage|actual/i.test(l.visual || '')
+    if (real) exp++
+    else if (pad) padding.push({ line: i, why: pad[1], text: t.trim().slice(0, 40) })
+  })
+  const density = Math.round((exp / lines.length) * 100) / 100
+  const M = RULES.modes[s.length_mode === 'long' ? 'long' : 'short']
+  const early = lines.filter((l) => (Number(l.start) || 0) < M.PROMISE_SEC).map((l) => `${l.narration || ''} ${l.telop || ''}`).join(' ')
+  const grand = s.length_mode === 'long' || GRAND.test(`${s.promise || ''} ${s.title || ''}`)
+  const notes = []
+  if (grand && !SCALE.test(early)) notes.push(`壮大な企画です。最初の${M.PROMISE_SEC}秒に、規模が一目で分かる具体（数・比べ・ビフォーアフター）を見せます。`)
+  if (grand && !lines.some((l) => REACTION.test(`${l.narration || ''} ${l.telop || ''}`))) notes.push('人の反応（その場の声・表情）の行がありません。すごさは説明より、反応で伝わります。')
+  const level = density >= 0.6 ? 'ok' : density >= 0.4 ? 'mid' : 'ng'
+  const message = `体験の濃さ ${Math.round(density * 100)}%（${lines.length}行のうち${exp}行が、その場の体験を見せています）。` +
+    (padding.length ? `前置き・説明の行が${padding.length}行あります。削るか、体験の行に置きかえると濃くなります。` : '')
+  return { ok: level !== 'ng' && !notes.length, level, density, experience: exp, total: lines.length, padding, grand, notes, message }
+}
+
+/* ---- ファンに迎合しない・予想しない姿へ ----
+ * ファンが「たぶんこうなる」と思う展開（fan_expect）を先に書き、着地（landing）はそれとずらします。
+ * リクエストの再現や、予想どおりの着地は、安心はあっても感情は動きません。 */
+const PANDER = /(リクエストにお応え|ご要望(の多かった|にお応え)|皆さんの声で|コメントで多かった|お待たせしました|みんなが見たかった)/
+export function surpriseCheck(script) {
+  const s = script || {}
+  const lines = s.lines || []
+  const end = lines.length ? Number(lines[lines.length - 1].end) || 0 : 0
+  const twistLate = lines.some((l) => (l.mark === 'peak_twist' || l.mark === 'peak_reveal') && end && (Number(l.start) || 0) >= end * 0.4)
+  const notes = []
+  if (!String(s.fan_expect || '').trim()) notes.push('「ファンの予想」が空です。見る人が「たぶんこうなる」と思う展開を、先に1文で書きます。')
+  if (!String(s.landing || '').trim()) notes.push('「着地」が空です。予想とどうずらすか（予想しない姿）を1文で書きます。')
+  const near = s.fan_expect && s.landing ? wordOverlap(s.fan_expect, s.landing) : null
+  if (near != null && near >= 0.6) notes.push('着地が、ファンの予想とほとんど同じです。予想どおりの着地では、感情は動きません。')
+  if (!twistLate) notes.push('後半に山場（どんでん返し・発表）の行がありません。予想とずれる瞬間を、行の印で決めておきます。')
+  const pander = [s.title, s.promise, s.hook].concat(lines.map((l) => `${l.narration || ''}${l.telop || ''}`)).filter((x) => PANDER.test(x || ''))
+  if (pander.length) notes.push('リクエストに応える言い方があります（「リクエストにお応えして」など）。迎合して見えます。中身で応え、言葉では言わないほうが、予想を超えられます。')
+  return { ok: !notes.length, near, twistLate, notes, message: notes.length ? notes[0] : '予想とずれる着地と、その瞬間（山場）が決まっています。' }
+}
+
+/* ---- 連想（シナプスのつながり） ----
+ * ボケや切り口は、過去の経験どうしのつながりから出てきます。経験メモ（本人に実際にあったこと）から、
+ * テーマに近いもの（そのまま使える）と、遠いもの（意外なつなぎになる）を選びます。メモに無い体験は作りません。 */
+export function associationSeeds(theme, episodes, n = 3) {
+  const list = (episodes || []).map((e) => String(e || '').trim()).filter(Boolean)
+  if (!list.length || !String(theme || '').trim()) return { near: [], far: [] }
+  const scored = list.map((text, i) => ({ text, i, score: Math.round(wordOverlap(theme, text) * 100) / 100 }))
+  const near = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.i - b.i).slice(0, n)
+  const used = new Set(near.map((x) => x.i))
+  // 遠い連想: テーマと言葉が重ならない経験。毎回同じにならないよう、テーマの文字から選ぶ位置を決めます。
+  const rest = scored.filter((x) => !used.has(x.i) && x.score === 0)
+  const seed = normText(theme).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 9973, 7)
+  const far = []
+  for (let k = 0; k < Math.min(n, rest.length); k++) far.push(rest[(seed + k * 7) % rest.length])
+  return { near, far: Array.from(new Set(far)).slice(0, n) }
+}

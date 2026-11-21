@@ -19,7 +19,9 @@
 
 import { storeFor, storeConfig, pipeline } from './_analytics-store.js'
 import { KV } from './_brand.js'
-import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS } from './_video-core.js'
+import { HOOK_TYPES, RULES, PLATFORMS, MARKS, FORMAT_KEYS, PLAN_VARS } from './_video-core.js'
+
+const PLAN_VAR_IDS = PLAN_VARS.map((v) => v.id)
 
 export const VK = {
   projects: `${KV}video:projects`,
@@ -90,6 +92,9 @@ export function cleanProject(p) {
     },
     research: list(p && p.research, 20, (r) => ({ keyword: str(r && r.keyword, 100), platform: str(r && r.platform, 20), at: iso(r && r.at) })),
     imported_from: str(p && p.imported_from, 20),
+    // 経験メモ: 本人に実際にあったこと（1つ200字まで・80個まで）。台本づくりの「連想」の材料にします。
+    // ここに無い体験は、台本に作りません。
+    episodes: list(p && p.episodes, 80, (e) => str(e, 200).trim()).filter(Boolean),
     // 再投資メモ: 次の動画で何を大きくするか（予算・時間・企画の型・ひとこと）。任意。
     reinvest: {
       budget: str(p && p.reinvest && p.reinvest.budget, 200), time: str(p && p.reinvest && p.reinvest.time, 200),
@@ -163,6 +168,10 @@ export function cleanScript(s) {
     loop: !!(s && s.loop), end_screen: str(s && s.end_screen, 300),
     format: FORMAT_KEYS.indexOf(s && s.format) >= 0 ? s.format : '',
     hook: str(s && s.hook, 300), body: str(s && s.body, 2000), cta: str(s && s.cta, 300),
+    // 企画の変数（_video-core.js の PLAN_VARS）。キャラ設定と、ファンの予想・着地（予想しない姿）。
+    character: str(s && s.character, 200), fan_expect: str(s && s.fan_expect, 300), landing: str(s && s.landing, 300),
+    // 変数固定の作り直し: どの台本の、どの変数だけを変えたか。
+    variant_of: idOk(s && s.variant_of) ? s.variant_of : '', variable: PLAN_VAR_IDS.indexOf(s && s.variable) >= 0 ? s.variable : '',
     lines: list(s && s.lines, 200, cleanLine),
     hashtags: words(s && s.hashtags, RULES.post.MAX_HASHTAGS, 60).map((t) => t.replace(/^#/, '')),
     rationale: str(s && s.rationale, 1500),
@@ -270,6 +279,10 @@ export function cleanPdca(c) {
     target: { metric: str(t.metric, 40), target: num(t.target), baseline: num(t.baseline) },
     publication_ids: list(c && c.publication_ids, 50, (x) => str(x, 64)).filter(idOk),
     learnings: str(c && c.learnings, 2000),
+    // 変数固定の検証: 元の投稿（base_id）と、変えた変数（variable）・何をどう変えたか（change）。
+    base_id: idOk(c && c.base_id) ? c.base_id : '',
+    variable: PLAN_VAR_IDS.indexOf(c && c.variable) >= 0 ? c.variable : '',
+    change: str(c && c.change, 300),
     next_actions: words(c && c.next_actions, 10, 300),
     created_at: iso(c && c.created_at) || new Date().toISOString(),
     updated_at: new Date().toISOString(),
