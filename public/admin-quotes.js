@@ -56,6 +56,15 @@
     try { return await window.lumAdmin.fetch(url, opts); }
     catch (_) { return { res: { ok: false, status: 0 }, data: { ok: false, message: '通信できませんでした。ネットの接続を確かめて、もう一度お試しください。' } }; }
   }
+  /* Ctrl+S（Mac は ⌘+S）で保存。書類を開いているときだけ、ブラウザの「ページを保存」の代わりに使います。 */
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || String(e.key).toLowerCase() !== 's') return;
+    var b = document.getElementById('qt-save');
+    if (!b || !b.offsetParent) return;
+    e.preventDefault();
+    if (!b.disabled) b.click();
+  });
+
   function send(body) {
     return api('/api/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   }
@@ -94,6 +103,11 @@
     '.qt-tag.attn{background:rgba(180,35,24,.1);color:#b42318}' +
     '.qt-card .k{font-size:11px;font-weight:700;color:var(--sub)}.qt-card .v{font-size:20px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}' +
     '.qt-card .n{font-size:11px;color:var(--sub);line-height:1.6}' +
+    '.qt-svc{display:grid;gap:8px;margin:4px 0 12px}.qt-svc-g{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.qt-svc-g>b{font-size:11.5px;color:var(--sub);min-width:5.5em}' +
+    '.qt-chip{font:inherit;font-size:12.5px;line-height:1.4;min-height:34px;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#1f2937;cursor:pointer;text-align:left;max-width:100%;overflow-wrap:anywhere}' +
+    '.qt-chip small{color:var(--sub);margin-left:4px}.qt-chip:hover{border-color:#9ca3af}' +
+    '.qt-chip[aria-pressed=true]{background:#1f2937;border-color:#1f2937;color:#fff}.qt-chip[aria-pressed=true] small{color:#d1d5db}.qt-chip[aria-pressed=true]::before{content:"✓ "}' +
+    '.qt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.qt-chips .qt-chip{min-height:30px;padding:3px 10px;font-size:12px}' +
     '.qt-note{border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.75;background:#fffdf7}' +
     '.qt-note.red{border-left-color:#b42318;background:#fff8f7}.qt-note.gray{border-left-color:var(--sub);background:#faf9f6}.qt-note.blue{border-left-color:var(--ui-accent);background:#f7f7ff}' +
     '.qt-note.green{border-left-color:#047857;background:#f3fbf7}.qt-vers{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.qt-vers button{font-size:11.5px;padding:5px 10px}' +
@@ -288,12 +302,14 @@
         card('返事待ち', st.waiting + '件', '合計 ' + yen(st.waitingAmount) + '（送付済み・期限内）', 'sent') +
         card('受注率', st.winRate == null ? '—' : Math.round(st.winRate * 100) + '%', st.decided ? st.decided + '件中 ' + st.won + '件' + (st.few ? '（まだ少ないので参考程度）' : '') : 'まだ決まった見積書がありません') +
         card('今月の見積書', st.monthCount + '件', '合計 ' + yen(st.monthAmount) + (st.monthWonAmount ? '・受注 ' + yen(st.monthWonAmount) : ''));
+    var monthlyN = bill ? C.monthlyTargets(S.data.list || [], S.data.today).length : 0;
     body.innerHTML =
       (settingsMissing() ? '<div class="qt-note">はじめに「設定」で、見積書に載せる会社名・住所・連絡先を入れてください（登録番号があれば、それも）。入れるまでは、見積書の発行元が空のままです。 <button type="button" class="ghost" id="qt-goset" style="font-size:12px;padding:6px 12px;margin-left:4px">設定を開く</button></div>' : '') +
       '<div class="qt-top">' + top + '</div>' +
       (bill
         ? '<div class="qt-bar"><button type="button" id="qt-newinv">＋ 新しい請求書</button><button type="button" id="qt-newrcp">＋ 新しい領収書</button>' +
-          '<span class="soc-small">見積書から作るときは、見積書を「受注」にして「請求書を作る」を押します。</span></div>'
+          (monthlyN ? '<button type="button" class="ghost" id="qt-monthly">今月分の月額の請求書をまとめて作る（' + monthlyN + '件）</button>' : '') +
+          '<span class="soc-small">見積書から作るときは、見積書を「受注」にして「請求書を作る」を押します。' + (monthlyN ? '月額の請求書は、先月分を写して今月分の下書きを作れます（「〇月分」と支払期限は進めます）。' : '') + '</span></div>'
         : '<div class="qt-bar"><button type="button" id="qt-new">＋ 新しい見積書</button><button type="button" class="ghost" id="qt-frominq">問い合わせから作る</button></div>') +
       '<div class="nq-row" role="group" aria-label="絞り込み">' + MODE_FILTERS[S.mode].map(function (f) {
         var n = counts[f[0]] || 0;
@@ -329,6 +345,13 @@
     if (bill) {
       el('qt-newinv').addEventListener('click', function () { openNew(null, 'invoice'); });
       el('qt-newrcp').addEventListener('click', function () { openNew(null, 'receipt'); });
+      if (el('qt-monthly')) el('qt-monthly').addEventListener('click', async function () {
+        this.disabled = true;
+        var r = await send({ action: 'monthly' });
+        var d = r.data || {};
+        say(d.message || '作れませんでした。', !!d.ok);
+        if (d.ok && await load()) go('list');
+      });
     } else {
       el('qt-new').addEventListener('click', function () { openNew(); });
       el('qt-frominq').addEventListener('click', function () { S.pick = true; go('list'); });
@@ -505,6 +528,37 @@
     return '<div class="qt-field"><label for="' + id + '">' + esc(lb) + '</label>' + input + (hint ? '<div class="hint" id="' + id + '-hint">' + esc(hint) + '</div>' : '') + '</div>';
   }
   function inp(id, v, attrs) { return '<input class="qt-in" id="' + id + '" value="' + esc(v == null ? '' : v) + '"' + (attrs || '') + '>'; }
+  /* 欄の下の候補（押すとその文や日付が入ります）。中身は quote-core の fieldChoices。 */
+  function chipsInner(f) {
+    var list = (core().fieldChoices(S.cur, S.data.today) || {})[f] || [];
+    var cur = S.cur[f] || '';
+    return list.map(function (c) { return '<button type="button" class="qt-chip" data-fill="' + f + '" data-v="' + esc(c[1]) + '" aria-pressed="' + (cur === c[1]) + '">' + esc(c[0]) + '</button>'; }).join('');
+  }
+  function chips(f) { return '<div class="qt-chips" data-for="' + f + '" aria-label="よく使う書き方">' + chipsInner(f) + '</div>'; }
+  function refreshChips() {
+    document.querySelectorAll('.qt-chips[data-for]').forEach(function (b) { b.innerHTML = chipsInner(b.getAttribute('data-for')); });
+  }
+  /* サービスのトグル。研修・美容室パックのセット（サーバーが offers.js から作ります）と、よく使う品目。 */
+  function svcList() {
+    var sets = (S.data.sets || []).slice();
+    (S.data.catalog || []).forEach(function (c, i) {
+      sets.push({ id: 'cat-' + i, group: 'よく使う品目', label: c.name, subject: c.name.replace(/[（(].*$/, ''), items: [{ kind: 'item', name: c.name, qty: 1, unit: c.unit, price: c.price, rate: c.rate }] });
+    });
+    return sets;
+  }
+  function svcInner() {
+    var list = svcList(), groups = [];
+    list.forEach(function (x) { if (groups.indexOf(x.group) < 0) groups.push(x.group); });
+    var C = core();
+    return groups.map(function (g) {
+      return '<div class="qt-svc-g"><b>' + esc(g) + '</b>' + list.map(function (x, i) {
+        if (x.group !== g) return '';
+        var sum = x.items.reduce(function (a, it) { return a + (Number(it.qty) || 1) * (Number(it.price) || 0); }, 0);
+        return '<button type="button" class="qt-chip" data-svc="' + i + '" aria-pressed="' + C.setActive(S.cur.items, x) + '">' + esc(x.label) + '<small>' + esc(yen(sum)) + '</small></button>';
+      }).join('') + '</div>';
+    }).join('');
+  }
+  function paintSvc() { var b = el('qt-svc'); if (b) b.innerHTML = svcInner(); }
 
   function editor(body) {
     var C = core();
@@ -544,7 +598,7 @@
         ((q.versions || []).length ? '<div class="qt-vers">前の版: ' + q.versions.map(function (v) { return '<button type="button" class="ghost" data-ver="' + v.n + '">第' + v.n + '版（' + esc(md(v.at)) + 'まで）</button>'; }).join('') + '</div>' : '') + '</div>' : '') +
       (saved && st === 'expired' ? '<div class="qt-note red">有効期限（' + esc(C.jpDate(q.validUntil)) + '）を過ぎています。まだお話が続いているなら、有効期限を延ばして保存するか、複製して出し直してください。</div>' : '') +
       '<div class="qt-acts">' +
-        '<button type="button" id="qt-save">保存</button>' +
+        '<button type="button" id="qt-save" title="Ctrl+S（Mac は ⌘+S）でも保存できます">保存</button>' +
         '<button type="button" class="ghost" id="qt-print">印刷・PDFで保存</button>' +
         (saved ? '<button type="button" class="ghost" id="qt-mail">メールで送る</button><button type="button" class="ghost" id="qt-link">リンクを作る</button>' +
           '<button type="button" class="ghost" id="qt-dup">複製</button>' +
@@ -571,25 +625,25 @@
         field('qt-number', inv ? '請求番号' : rec ? '領収書番号' : '見積番号', inp('qt-number', q.number, ' placeholder="空なら保存のときに自動で振ります"')) +
         field('qt-date', inv ? '請求日' : '発行日', inp('qt-date', q.date, ' type="date"')) +
         (inv
-          ? field('qt-dueDate', 'お支払期限', inp('qt-dueDate', q.dueDate, ' type="date"')) +
-            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"'), '適格請求書（インボイス）には、取引の年月日が必要です。')
+          ? field('qt-dueDate', 'お支払期限', inp('qt-dueDate', q.dueDate, ' type="date"') + chips('dueDate')) +
+            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"') + chips('delivery'), '適格請求書（インボイス）には、取引の年月日が必要です。')
           : rec
-          ? field('qt-proviso', '但し書き（何の代金か）', inp('qt-proviso', q.proviso, ' placeholder="例: ホームページ制作代として" list="qt-bk-proviso"'), '「お品代」だけより、何の代金かが分かる書き方がおすすめです。') +
-            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"'), '適格簡易請求書（インボイス）には、取引の年月日が必要です。') +
-            field('qt-payMethod', 'お支払方法', inp('qt-payMethod', q.payMethod, ' placeholder="例: 銀行振込" list="qt-bk-payMethod"'))
-          : field('qt-validUntil', '有効期限', inp('qt-validUntil', q.validUntil, ' type="date"'), 'この日を過ぎて返事がないと「期限切れ」になります。') +
-            field('qt-delivery', '納期', inp('qt-delivery', q.delivery, ' list="qt-bk-delivery"')) +
-            field('qt-payTerms', 'お支払条件', inp('qt-payTerms', q.payTerms, ' list="qt-bk-payTerms"'))) +
+          ? field('qt-proviso', '但し書き（何の代金か）', inp('qt-proviso', q.proviso, ' placeholder="例: ホームページ制作代として" list="qt-bk-proviso"') + chips('proviso'), '「お品代」だけより、何の代金かが分かる書き方がおすすめです。') +
+            field('qt-delivery', 'お取引日（納品・作業の日）', inp('qt-delivery', q.delivery, ' placeholder="例: 2026年9月20日／2026年9月分" list="qt-bk-delivery"') + chips('delivery'), '適格簡易請求書（インボイス）には、取引の年月日が必要です。') +
+            field('qt-payMethod', 'お支払方法', inp('qt-payMethod', q.payMethod, ' placeholder="例: 銀行振込" list="qt-bk-payMethod"') + chips('payMethod'))
+          : field('qt-validUntil', '有効期限', inp('qt-validUntil', q.validUntil, ' type="date"') + chips('validUntil'), 'この日を過ぎて返事がないと「期限切れ」になります。') +
+            field('qt-delivery', '納期', inp('qt-delivery', q.delivery, ' list="qt-bk-delivery"') + chips('delivery')) +
+            field('qt-payTerms', 'お支払条件', inp('qt-payTerms', q.payTerms, ' list="qt-bk-payTerms"') + chips('payTerms'))) +
       '</div></div>' +
       '<div class="qt-sec"><h4>品目</h4>' +
+        '<div class="soc-small">サービスを押すと品目に入り、もう一度押すと外れます。件名' + (rec ? '・但し書き' : '') + 'が空なら、一緒に入ります。</div>' +
+        '<div class="qt-svc" id="qt-svc" aria-label="サービスから入れる">' + svcInner() + '</div>' +
         '<div style="max-width:300px">' + field('qt-taxMode', '単価の書き方', '<select class="qt-in" id="qt-taxMode"><option value="excl"' + (q.taxMode !== 'incl' ? ' selected' : '') + '>税抜の単価（消費税は下で足す）</option><option value="incl"' + (q.taxMode === 'incl' ? ' selected' : '') + '>税込の単価（消費税は内数で出す）</option></select>') + '</div>' +
         '<div class="qt-items" id="qt-items"><div class="qt-row head" aria-hidden="true"><span>品目</span><span>数量</span><span>単位</span><span>単価</span><span>税率</span><span style="text-align:right">金額</span><span></span></div>' +
           q.items.map(itemRow).join('') + '</div>' +
         '<datalist id="qt-cat">' + cat.map(function (c) { return '<option value="' + esc(c.name) + '">'; }).join('') +
           learned.map(function (c) { return '<option value="' + esc(c.name) + '">前に使った品目（' + esc(yen(c.price)) + '）</option>'; }).join('') + '</datalist>' +
         '<div class="qt-acts" style="margin-top:8px"><button type="button" class="ghost" id="qt-add">＋ 行を足す</button><button type="button" class="ghost" id="qt-adddisc">＋ 値引き</button>' +
-        (cat.length ? '<select class="qt-in" id="qt-addcat" style="width:auto;max-width:100%" aria-label="よく使う品目から足す"><option value="">よく使う品目から足す…</option>' +
-          cat.map(function (c, i) { return '<option value="' + i + '">' + esc(c.name) + '（' + esc(yen(c.price)) + '）</option>'; }).join('') + '</select>' : '') +
         '</div>' +
         '<div class="soc-small" style="margin-top:6px">品目の欄に打ち始めると、よく使う品目と前に使った品目が候補に出ます（選ぶと単価と単位も入ります）。値引きは「どの税率から引くか」を選びます。「全体」にすると、税率ごとの金額の割合で分けて引きます。</div>' +
         '<div class="qt-tot" id="qt-tot" aria-live="polite"></div>' +
@@ -665,10 +719,31 @@
     });
     el('qt-add').addEventListener('click', function () { addItem({ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }); });
     el('qt-adddisc').addEventListener('click', function () { addItem({ kind: 'discount', name: '値引き', price: 0, rate: onlyRate() }); });
-    if (el('qt-addcat')) el('qt-addcat').addEventListener('change', function () {
-      var c = cat[Number(this.value)];
-      this.value = '';
-      if (c) addItem({ kind: 'item', name: c.name, qty: 1, unit: c.unit, price: c.price, rate: c.rate });
+    el('qt-svc').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-svc]');
+      if (!b) return;
+      var x = svcList()[Number(b.getAttribute('data-svc'))];
+      if (!x) return;
+      readForm();
+      var on = !core().setActive(S.cur.items, x);
+      S.cur.items = core().toggleSet(S.cur.items, x);
+      if (!S.cur.items.length) S.cur.items = [{ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }];
+      if (on && x.subject && el('qt-subject') && !el('qt-subject').value.trim()) { el('qt-subject').value = x.subject; S.cur.subject = x.subject; }
+      if (on && x.proviso && el('qt-proviso') && !el('qt-proviso').value.trim()) { el('qt-proviso').value = x.proviso; S.cur.proviso = x.proviso; }
+      S.dirty = true;
+      redrawItems();
+      say(on ? '「' + x.label + '」を入れました。' : '「' + x.label + '」を外しました。', true);
+    });
+    // 欄の下の候補: 押すとその値が入ります。
+    body.querySelectorAll('.qt-chips[data-for]').forEach(function (box) {
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-fill]');
+        if (!b) return;
+        var f = el('qt-' + b.getAttribute('data-fill'));
+        if (!f) return;
+        f.value = b.getAttribute('data-v');
+        onEdit({ type: 'change', target: f });
+      });
     });
     if (S.panel) togglePanel(S.panel, true);
     totals();
@@ -789,6 +864,8 @@
       f.addEventListener('change', onEdit);
     });
     totals();
+    paintSvc();
+    refreshChips();
   }
 
   function onEdit(e) {
@@ -813,6 +890,8 @@
     }
     readForm();
     totals();
+    if (t && t.getAttribute && (t.getAttribute('data-f') === 'name' || t.id === 'qt-subject')) paintSvc();
+    refreshChips();
   }
 
   function val(id) { var f = el(id); return f ? f.value : undefined; }

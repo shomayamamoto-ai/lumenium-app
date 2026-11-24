@@ -773,4 +773,64 @@ await test('窓口: 見積書なしで請求書・領収書を直接作る・要
   assert.equal(b.overdue, b.bill.overdue, '全体の数（ホーム用）はこれまでどおり')
 })
 
+/* ---- 早く埋める: サービスのトグル・欄の候補・複製で日付を進める・月額のまとめ作り ---- */
+{
+  const { TRAINING_PLANS, SALON } = await import('../src/data/offers.js')
+  await test('研修・美容室のセット（料金はサイトと同じ）', () => {
+    const sets = C.serviceSets(TRAINING_PLANS, SALON)
+    const total = (x) => x.items.reduce((a, it) => a + it.qty * it.price, 0)
+    for (const p of TRAINING_PLANS) assert.equal(total(sets.find((x) => x.id === 'plan-' + p.id)), p.price, p.id)
+    assert.equal(sets.find((x) => x.id === 'plan-practice').items[0].qty, 5)
+    assert.equal(total(sets.find((x) => x.id === 'salon')), SALON.setup + SALON.monthly)
+    assert.equal(total(sets.find((x) => x.id === 'salon-monitor')), SALON.monitor.monthly * SALON.monitor.months)
+  })
+  await test('トグル: 押すと入り（空の行は片づける）、もう一度で外れる。値引きと手で足した行は残る', () => {
+    const set = C.serviceSets(TRAINING_PLANS, SALON).find((x) => x.id === 'salon')
+    const blank = [{ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }]
+    const on = C.toggleSet(blank, set)
+    assert.equal(on.length, 2); assert.ok(C.setActive(on, set))
+    const mine = on.concat([{ kind: 'item', name: '出張費', qty: 1, unit: '式', price: 5000, rate: 10 }, { kind: 'discount', name: '値引き', price: 1000, rate: 10 }])
+    const off = C.toggleSet(mine, set)
+    assert.deepEqual(off.map((x) => x.name), ['出張費', '値引き'])
+    assert.ok(!C.setActive(off, set))
+    // 片方だけ消した状態で押すと、足りない方だけ足す（二重にしない）
+    const half = C.toggleSet([on[0]], set)
+    assert.equal(half.filter((x) => x.name === on[0].name).length, 1); assert.equal(half.length, 2)
+  })
+  await test('欄の候補: 日付は発行日から、但し書きは件名と品目から、取引日は書類の種類で変わる', () => {
+    const q = { kind: 'receipt', date: '2026-11-24', subject: 'ホームページ制作のお見積り', items: [{ kind: 'item', name: 'LP制作（1ページ）', price: 300000 }] }
+    const c = C.fieldChoices(q, '2026-11-24')
+    assert.deepEqual(c.proviso.map((x) => x[1]), ['ホームページ制作代として', 'LP制作代として', 'お品代として'])
+    assert.deepEqual(c.delivery.map((x) => x[1]), ['2026年11月24日', '2026年11月分', '2026年10月分'])
+    assert.deepEqual(c.dueDate.map((x) => x[1]), ['2026-11-30', '2026-12-31', '2026-12-08'])
+    const qq = C.fieldChoices({ kind: 'quote', date: '2026-01-31' }, '2026-01-31')
+    assert.equal(qq.validUntil[1][1], '2026-03-02')
+    assert.ok(qq.delivery[0][1].includes('ご発注から'))
+  })
+  await test('複製: 請求書は「〇月分」と支払期限を進める。見積書から作る流れの日付は変えない', () => {
+    const inv = { kind: 'invoice', date: '2026-10-25', dueDate: '2026-11-30', delivery: '2026年10月分', subject: '月額', items: [{ kind: 'item', name: 'まとめパック 月額（2026年10月分）', qty: 1, unit: '月', price: 19800, rate: 10 }] }
+    const d = C.duplicateDoc(inv, '2026-11-24', 30)
+    assert.equal(d.delivery, '2026年11月分'); assert.equal(d.dueDate, '2026-12-31'); assert.equal(d.validUntil, '')
+    assert.equal(d.items[0].name, 'まとめパック 月額（2026年11月分）')
+    assert.equal(inv.delivery, '2026年10月分', '元は変えない')
+    assert.equal(C.shiftMonthLabel('2026年12月分', 1), '2027年1月分')
+    const r = C.receiptFrom(Object.assign({ id: 'x', number: 'INV-1', payments: [] }, inv), '2026-11-24', {})
+    assert.ok(!/11月分/.test(JSON.stringify(r.items)), '領収書は元の月のまま')
+  })
+  await test('月額のまとめ作り: 先月の月額の請求書だけ。今月分を作り済み・取消は除く', () => {
+    const list = [
+      { id: 'a', kind: 'invoice', monthly: true, status: 'paid', date: '2026-10-25' },
+      { id: 'b', kind: 'invoice', monthly: true, status: 'void', date: '2026-10-25' },
+      { id: 'c', kind: 'invoice', monthly: false, status: 'sent', date: '2026-10-25' },
+      { id: 'd', kind: 'invoice', monthly: true, status: 'sent', date: '2026-09-25' },
+      { id: 'e', kind: 'invoice', monthly: true, status: 'sent', date: '2026-10-02' },
+      { id: 'f', kind: 'invoice', monthly: true, status: 'draft', date: '2026-11-03', repeatOf: 'e' },
+    ]
+    assert.deepEqual(C.monthlyTargets(list, '2026-11-24').map((x) => x.id), ['a'])
+    assert.ok(C.isMonthly({ kind: 'invoice', items: [{ kind: 'item', unit: '月' }] }))
+    assert.ok(!C.isMonthly({ kind: 'quote', items: [{ kind: 'item', unit: '月' }] }))
+    assert.equal(C.quoteSummary({ kind: 'invoice', repeatOf: 'e', items: [{ kind: 'item', unit: '月', qty: 1, price: 1, rate: 10 }] }, 'floor').monthly, true)
+  })
+}
+
 console.log(`✓ 見積書のテスト ${passed}件`)

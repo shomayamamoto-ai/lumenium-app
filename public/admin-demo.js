@@ -3420,6 +3420,12 @@
     return {
       ok: true, stored: true, today: ymd(0), settings: Object.assign({}, SETTINGS, { seal: sealImage() }), regNo: C.checkRegNo(SETTINGS.regNo),
       catalog: CATALOG, catalogSeeded: true,
+      // 本番は src/data/offers.js から作ります（デモは同じ値の見本）。
+      sets: C.serviceSets ? C.serviceSets([
+        { id: 'intro', short: '入門研修（2時間×1回）', sessions: 1, price: 100000 },
+        { id: 'practice', short: '実務研修（2時間×5回・計10時間）', sessions: 5, price: 500000 },
+        { id: 'build', short: '実務研修＋自動化の開発＋3か月の運用', sessions: 5, price: 800000 }
+      ], { setup: 50000, monthly: 19800, monitor: { months: 3, monthly: 9800 } }) : [],
       list: QUOTES.map(function (q) { return C.quoteSummary(q, SETTINGS.rounding); }),
       mail: { key: true, sandbox: false, secret: true, from: '見本クリエイティブ <info@example.jp>' },
       // 記載の記録（保存した書類から覚えた宛先・文・品目）。
@@ -3476,6 +3482,7 @@
       return { ok: true, draft: core().prefillFromInquiry(x.item, SETTINGS, ymd(0)) };
     }
     if (b.action === 'link') return { ok: false, demo: true, message: MSG + '実際は、お客様が見るだけのリンク（' + SETTINGS.linkDays + '日間有効）を作ります。' };
+    if (b.action === 'monthly') return { ok: false, demo: true, message: MSG + '実際は、先月の月額の請求書を写して、今月分の下書きをまとめて作ります（「〇月分」と支払期限は進めます）。' };
     if (b.action === 'receipt') return { ok: false, demo: true, message: MSG + '実際は、宛先・件名・品目・お取引日を引き継いだ領収書の下書きを作ります（一部入金なら、その金額の分）。見本は「領収書」の絞り込みにある RCP-2026-0001 です。' };
     return { ok: false, demo: true, message: MSG };
   }

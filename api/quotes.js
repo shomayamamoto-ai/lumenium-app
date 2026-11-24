@@ -8,6 +8,7 @@ export const config = { runtime: 'edge' }
 //   POST { action:'save', quote }            -> 作る・直す（番号が空なら自動で振ります）
 //   POST { action:'status', id, status }     -> 下書き・送付済み・受注・失注（請求書は入金済み）
 //   POST { action:'duplicate', id }          -> 複製（番号・状態・送った記録は持ち越さない）
+//   POST { action:'monthly' }                -> 先月の月額の請求書から、今月分の下書きをまとめて作る
 //   POST { action:'delete', id }             -> 消す
 //   POST { action:'from-inquiry', inquiryId } -> 問い合わせから下書き（まだ保存しません）
 //   POST { action:'invoice', id }            -> 受注した見積書から請求書の下書き（保存します）
@@ -31,7 +32,8 @@ import {
 } from './_quotes.js'
 import { buildXlsx } from './_xlsx.js'
 import { BRAND } from './_brand.js'
-import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention, statusLabel, statusTable, kindOf, KIND_LABEL } from './_quote-core.js'
+import { jstToday, prefillFromInquiry, duplicateQuote, invoiceFromQuote, checkRegNo, quoteAttention, statusLabel, statusTable, kindOf, KIND_LABEL, serviceSets, monthlyTargets, duplicateDoc } from './_quote-core.js'
+import { TRAINING_PLANS, SALON } from '../src/data/offers.js'
 
 const NO_STORE = '保存先（Upstash Redis）が無いため、見積書を保存できません。「設定状況」で保存先をつないでください。'
 
@@ -42,6 +44,8 @@ async function state(req, cfg) {
   return {
     ok: true, stored: true, today: jstToday(), settings, regNo: checkRegNo(settings.regNo),
     catalog: catalog.items, catalogSeeded: catalog.seeded, list, mail, book,
+    // 押すだけで品目に入るセット（研修・美容室パック。料金は src/data/offers.js）
+    sets: serviceSets(TRAINING_PLANS, SALON),
   }
 }
 
@@ -117,6 +121,19 @@ export async function POST(req) {
     if (action === 'save') return reply(await saveQuote(cfg, b.quote || {}))
     if (action === 'status') return reply(await setQuoteStatus(cfg, id, String(b.status || '')))
     if (action === 'delete') return reply(await deleteQuote(cfg, id))
+    // 月額の請求書: 先月分を複製して、今月分の下書きをまとめて作ります（送るのは確かめてから）。
+    if (action === 'monthly') {
+      const today = jstToday()
+      const targets = monthlyTargets(await allQuoteSummaries(cfg), today)
+      const made = []
+      for (const t of targets.slice(0, 50)) {
+        const q = await getQuote(cfg, t.id)
+        if (!q) continue
+        const r = await saveQuote(cfg, Object.assign(duplicateDoc(q, today, 0), { id: '', repeatOf: q.id }))
+        if (r.ok) made.push(r.quote.number)
+      }
+      return reply({ ok: true, made, message: made.length ? `今月分の請求書の下書きを ${made.length}件 作りました（${made.join('・')}）。金額と宛先を確かめてから送ってください。` : '今月分を作る月額の請求書はありません（先月の月額の請求書が無いか、作り済みです）。' })
+    }
     if (action === 'duplicate' || action === 'invoice') {
       const q = await getQuote(cfg, id)
       if (!q) return reply({ ok: false, message: 'その見積書は見つかりませんでした。' })
@@ -125,7 +142,7 @@ export async function POST(req) {
       if (action === 'invoice' && (q.kind === 'invoice' || q.status !== 'won')) {
         return reply({ ok: false, message: '請求書にできるのは「受注」の見積書だけです。' })
       }
-      const draft = action === 'invoice' ? invoiceFromQuote(q, today) : duplicateQuote(q, today, s.validDays)
+      const draft = action === 'invoice' ? invoiceFromQuote(q, today) : duplicateDoc(q, today, s.validDays)
       const r = await saveQuote(cfg, Object.assign(draft, { id: '' }))
       return reply(Object.assign(r, r.ok ? { message: action === 'invoice' ? `請求書 ${r.quote.number} の下書きを作りました。` : `複製して ${r.quote.number} を作りました。` } : {}))
     }

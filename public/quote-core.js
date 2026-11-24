@@ -467,6 +467,7 @@ function cleanQuote(input, prev, today) {
     source: p.source || line(x.source, 60),
     sourceKind: p.sourceKind || line(x.sourceKind, 20),
     fromQuote: p.fromQuote || line(x.fromQuote, 40),
+    repeatOf: p.repeatOf || line(x.repeatOf, 40),
     createdAt: p.createdAt || '',
     sentAt: p.sentAt || '',
     openedAt: p.openedAt || '',
@@ -499,6 +500,7 @@ function quoteSummary(q, rounding) {
     inquiryId: q.inquiryId || '', source: q.source || '', sourceKind: q.sourceKind || '',
     fromQuote: q.fromQuote || '', createdAt: q.createdAt || '', email: q.toEmail || '',
     paid: paidTotal(q), balance: Math.max(0, t.total - paidTotal(q)), version: q.version || 1, acceptedAt: q.acceptedAt || '',
+    monthly: isMonthly(q), repeatOf: q.repeatOf || '',
   }
 }
 
@@ -612,11 +614,56 @@ function applyStatus(q, status, nowIso) {
 /** 複製。番号・状態・送った記録は持ち越しません。 */
 function duplicateQuote(q, today, validDays) {
   const r = JSON.parse(JSON.stringify(q))
-  return Object.assign(r, {
+  Object.assign(r, {
     id: '', number: '', date: today, status: 'draft', validUntil: addDays(today, validDays || 30),
     sentAt: '', openedAt: '', lastViewedAt: '', views: 0, decidedAt: '', sentTo: '', createdAt: '',
-    history: [], fromQuote: '',
+    history: [], fromQuote: '', repeatOf: '',
   })
+  return r
+}
+/** 「複製」ボタンと月額のまとめ作りの複製。請求書・領収書は、日付を今日に合わせて進めます
+ *  （「2026年10月分」→ 進んだ月の分、支払期限は翌月末）。領収書・請求書を作る流れ（receiptFrom など）は
+ *  元の月のままにしたいので、こちらは使いません。 */
+function duplicateDoc(q, today, validDays) {
+  const r = duplicateQuote(q, today, validDays)
+  const k = kindOf(q)
+  if (k !== 'quote') {
+    const months = validYmd(q.date) ? monthsBetween(q.date, today) : 0
+    r.validUntil = ''
+    r.delivery = shiftMonthLabel(r.delivery, months)
+    r.proviso = shiftMonthLabel(r.proviso, months)
+    r.items = (r.items || []).map((it) => Object.assign(it, { name: shiftMonthLabel(it.name, months) }))
+    if (k === 'invoice') r.dueDate = endOfNextMonth(today)
+  }
+  return r
+}
+/** 何か月先か（日は見ません）。 */
+function monthsBetween(a, b) {
+  return (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + Number(b.slice(5, 7)) - Number(a.slice(5, 7))
+}
+/** 文の中の「2026年10月分」を n か月進めます。 */
+function shiftMonthLabel(text, n) {
+  if (!n) return text
+  return String(text || '').replace(/(\d{4})年(\d{1,2})月分/g, (_, y, m) => {
+    const d = new Date(Date.UTC(Number(y), Number(m) - 1 + n, 1))
+    return d.getUTCFullYear() + '年' + (d.getUTCMonth() + 1) + '月分'
+  })
+}
+/** 月額の品目（単位が「月」）を含む請求書か。 */
+function isMonthly(q) {
+  return kindOf(q) === 'invoice' && (q.items || []).some((it) => it && it.kind !== 'discount' && !it.optional && it.unit === '月')
+}
+/** 今月分を作る相手: 先月の日付の、月額の請求書（取消を除く）。今月分を作り済みのものは除きます。
+ *  list は一覧の要約（quoteSummary）。 */
+function monthlyTargets(list, today) {
+  const prev = monthLabelYm(today, -1), cur = today.slice(0, 7)
+  const done = {}
+  ;(list || []).forEach((x) => { if (x.kind === 'invoice' && x.repeatOf && String(x.date || '').slice(0, 7) === cur) done[x.repeatOf] = 1 })
+  return (list || []).filter((x) => x.kind === 'invoice' && x.monthly && x.status !== 'void' && String(x.date || '').slice(0, 7) === prev && !done[x.id])
+}
+function monthLabelYm(ymd, n) {
+  const d = new Date(Date.UTC(Number(ymd.slice(0, 4)), Number(ymd.slice(5, 7)) - 1 + n, 1))
+  return d.toISOString().slice(0, 7)
 }
 
 /** 受注した見積書から、請求書の下書き。 */
@@ -1161,5 +1208,83 @@ function docPage(q, issuer, opts) {
     bar + (o.extra || '') + renderDoc(q, issuer, o) + '</body></html>'
 }
 
-window.lumQuoteCore = { QUOTE_STATUS, INVOICE_STATUS, RECEIPT_STATUS, KIND_LABEL, kindOf, statusTable, RATES, RATE_LABEL, ROUNDING, TAX_MODE, QCAPS, DEFAULT_QUOTE_SETTINGS, toHalf, num, divRound, lineAmount, comma, yen, qtyText, jstToday, validYmd, addDays, daysBetween, endOfNextMonth, jpDate, normalizeRegNo, regCheckDigit, checkRegNo, allocate, parseSchedule, cleanSchedule, scheduleText, scheduleAmounts, CLAUSE_TEMPLATES, computeTotals, formatNumber, nextNumber, effectiveStatus, ATTN_LABEL, quoteAttentionKind, quoteAttention, statusLabel, cleanQuote, quoteSummary, isLocked, MAX_PAYMENTS, paidTotal, addPayment, removePayment, searchQuotes, canAccept, acceptQuote, applyStatus, duplicateQuote, invoiceFromQuote, receiptFrom, receiptNotes, BOOK_CAPS, BOOK_FIELDS, cleanBook, learnBook, bookFromQuotes, findClient, copyFromPrevious, quoteStats, rateText, parseEstimate, prefillFromInquiry, parseYenAll, catalogFromServices, cleanCatalog, MAIL_VARS, fillMail, addressee, MAIL_BY_KIND, mailVars, DOC_CSS, renderDoc, docPage };
+/* ------------------------------------------- 早く埋める（トグルと候補） --
+ * サービスのセット（研修・美容室パックなど、サイトの料金から作ったもの）と、よく使う品目を、
+ * 押すだけで品目に入れたり外したりできるようにします。入れたかどうかは品目の名前で見ます。
+ * 文字の欄（納期・お支払条件・但し書き・お支払方法・日付）は、よく使う書き方を候補として出します。 */
+
+/** 研修・美容室パックのセット。plans・salon は src/data/offers.js（api/quotes.js が渡します）。 */
+function serviceSets(plans, salon) {
+  const out = []
+  ;(plans || []).forEach((p) => {
+    const perSession = p.sessions ? Math.round(Math.min(p.price, 500000) / p.sessions) : p.price
+    const items = [{ kind: 'item', name: line(`生成AI研修 ${p.short}`, QCAPS.name), qty: p.sessions || 1, unit: '回', price: perSession, rate: 10 }]
+    if (p.id === 'build') items.push({ kind: 'item', name: '業務の自動化（開発・3か月の運用）', qty: 1, unit: '式', price: Math.max(0, p.price - perSession * (p.sessions || 1)), rate: 10 })
+    out.push({ id: 'plan-' + p.id, group: '研修', label: p.short.replace(/（.*$/, ''), items, subject: p.id === 'intro' ? '生成AI研修（入門）' : p.id === 'build' ? '生成AI研修と業務の自動化' : '生成AI 実務研修', proviso: '生成AI研修代として' })
+  })
+  if (salon) {
+    out.push({ id: 'salon', group: '美容室', label: 'まとめパック', subject: '予約・口コミ・SNS動画まとめパック', proviso: '予約・口コミ・SNS動画まとめパック代として', items: [
+      { kind: 'item', name: 'まとめパック 初期費用（予約ページ・QR・最初の台本）', qty: 1, unit: '式', price: salon.setup, rate: 10 },
+      { kind: 'item', name: 'まとめパック 月額', qty: 1, unit: '月', price: salon.monthly, rate: 10 },
+    ] })
+    const m = salon.monitor || {}
+    out.push({ id: 'salon-monitor', group: '美容室', label: 'モニター（' + (m.months || 3) + 'か月）', subject: '予約・口コミ・SNS動画まとめパック（モニター）', proviso: '予約・口コミ・SNS動画まとめパック代として', items: [
+      { kind: 'item', name: 'まとめパック 月額（モニター価格）', qty: m.months || 3, unit: '月', price: m.monthly || 0, rate: 10 },
+    ] })
+  }
+  return out
+}
+
+/** そのセットの品目が、いまの品目にすべて入っているか。 */
+function setActive(items, set) {
+  const names = (items || []).map((it) => it && it.name)
+  return !!(set && set.items.length) && set.items.every((x) => names.indexOf(x.name) >= 0)
+}
+
+/** 押したときの品目。入っていれば外し、無ければ足します。
+ *  中身が空の行（名前も金額も無い、最初の1行など）は、足すときに片づけます。 */
+function toggleSet(items, set) {
+  const list = (items || []).slice()
+  const names = set.items.map((x) => x.name)
+  if (setActive(list, set)) return list.filter((it) => names.indexOf(it && it.name) < 0)
+  const kept = list.filter((it) => it && (it.kind === 'discount' || String(it.name || '').trim() || num(it.price)))
+  set.items.forEach((x) => { if (!kept.some((it) => it.name === x.name)) kept.push(Object.assign({}, x)) })
+  return kept
+}
+
+/** 今月末。 */
+function endOfMonth(ymd) {
+  const y = Number(ymd.slice(0, 4))
+  const m = Number(ymd.slice(5, 7))
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
+}
+/** 「2026年11月分」（offset で前後の月）。 */
+function monthLabel(ymd, offset) {
+  const d = new Date(Date.UTC(Number(ymd.slice(0, 4)), Number(ymd.slice(5, 7)) - 1 + (offset || 0), 1))
+  return d.getUTCFullYear() + '年' + (d.getUTCMonth() + 1) + '月分'
+}
+
+/** 文字の欄の候補。[表示, 入れる値] の並び。日付の欄は YYYY-MM-DD を入れます。 */
+function fieldChoices(q, today) {
+  const base = validYmd(q && q.date) ? q.date : today
+  const subj = String((q && q.subject) || '').replace(/(のお見積り|のご請求|の件)$/, '').replace(/[（(][^）)]*[）)]/g, '').trim()
+  const names = ((q && q.items) || []).filter((it) => it && it.kind !== 'discount' && String(it.name || '').trim())
+    .map((it) => String(it.name).replace(/[（(].*$/, '').trim()).filter(Boolean)
+  const proviso = []
+  if (subj) proviso.push(subj + '代として')
+  names.slice(0, 2).forEach((n) => { const v = n + '代として'; if (proviso.indexOf(v) < 0) proviso.push(v) })
+  proviso.push('お品代として')
+  return {
+    validUntil: [['2週間', addDays(base, 14)], ['30日', addDays(base, 30)], ['60日', addDays(base, 60)]],
+    dueDate: [['今月末', endOfMonth(base)], ['翌月末', endOfNextMonth(base)], ['2週間後', addDays(base, 14)]],
+    delivery: (q && kindOf(q) !== 'quote')
+      ? [[jpDate(base), jpDate(base)], [monthLabel(base, 0), monthLabel(base, 0)], [monthLabel(base, -1), monthLabel(base, -1)]]
+      : [['ご発注から2週間', 'ご発注から2週間'], ['ご発注から1か月', 'ご発注から1か月'], ['ご発注から2か月', 'ご発注から2か月'], ['別途ご相談', '別途ご相談のうえ決定']],
+    payTerms: [['月末締め・翌月末払い', '納品月の月末締め・翌月末払い'], ['着手時50%・納品時50%', 'ご発注時に50%、納品時に50%をお支払い'], ['前払い', 'ご発注時に全額を前払い'], ['月額は当月末払い', '月額費用は毎月末までにお支払い']],
+    proviso: proviso.map((v) => [v, v]),
+    payMethod: [['銀行振込', '銀行振込'], ['現金', '現金'], ['クレジットカード', 'クレジットカード'], ['QRコード決済', 'QRコード決済']],
+  }
+}
+
+window.lumQuoteCore = { QUOTE_STATUS, INVOICE_STATUS, RECEIPT_STATUS, KIND_LABEL, kindOf, statusTable, RATES, RATE_LABEL, ROUNDING, TAX_MODE, QCAPS, DEFAULT_QUOTE_SETTINGS, toHalf, num, divRound, lineAmount, comma, yen, qtyText, jstToday, validYmd, addDays, daysBetween, endOfNextMonth, jpDate, normalizeRegNo, regCheckDigit, checkRegNo, allocate, parseSchedule, cleanSchedule, scheduleText, scheduleAmounts, CLAUSE_TEMPLATES, computeTotals, formatNumber, nextNumber, effectiveStatus, ATTN_LABEL, quoteAttentionKind, quoteAttention, statusLabel, cleanQuote, quoteSummary, isLocked, MAX_PAYMENTS, paidTotal, addPayment, removePayment, searchQuotes, canAccept, acceptQuote, applyStatus, duplicateQuote, duplicateDoc, monthsBetween, shiftMonthLabel, isMonthly, monthlyTargets, invoiceFromQuote, receiptFrom, receiptNotes, BOOK_CAPS, BOOK_FIELDS, cleanBook, learnBook, bookFromQuotes, findClient, copyFromPrevious, quoteStats, rateText, parseEstimate, prefillFromInquiry, parseYenAll, catalogFromServices, cleanCatalog, MAIL_VARS, fillMail, addressee, MAIL_BY_KIND, mailVars, DOC_CSS, renderDoc, docPage, serviceSets, setActive, toggleSet, endOfMonth, monthLabel, fieldChoices };
 })();
