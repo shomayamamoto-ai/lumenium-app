@@ -1283,3 +1283,28 @@ export function fieldChoices(q, today) {
     payMethod: [['銀行振込', '銀行振込'], ['現金', '現金'], ['クレジットカード', 'クレジットカード'], ['QRコード決済', 'QRコード決済']],
   }
 }
+
+/** 送る前に足りないもの（保存は止めません。書類の下に一覧で出します）。 */
+export function missingFields(q) {
+  const k = kindOf(q)
+  const out = []
+  if (!String((q && q.toCompany) || '').trim() && !String((q && q.toPerson) || '').trim()) out.push('宛先')
+  if (!String((q && q.subject) || '').trim()) out.push('件名')
+  const items = ((q && q.items) || []).filter((it) => it && it.kind !== 'discount')
+  if (!items.some((it) => String(it.name || '').trim())) out.push('品目')
+  else if (items.some((it) => String(it.name || '').trim() && !num(it.price))) out.push('単価が0円の品目')
+  if (items.some((it) => !String(it.name || '').trim() && num(it.price))) out.push('名前のない品目')
+  if (k === 'quote' && !validYmd(q.validUntil)) out.push('有効期限')
+  if (k === 'invoice') { if (!validYmd(q.dueDate)) out.push('お支払期限'); if (!String(q.delivery || '').trim()) out.push('お取引日') }
+  if (k === 'receipt') { if (!String(q.proviso || '').trim()) out.push('但し書き'); if (!String(q.delivery || '').trim()) out.push('お取引日') }
+  if (k !== 'receipt' && !String((q && q.toEmail) || '').trim()) out.push('メールアドレス（メールで送るとき）')
+  return out
+}
+
+/** 何度も使った品目（よく使う品目・セットに無いもの）。多い順。 */
+export function learnedItems(book, exclude, min, max) {
+  const skip = {}
+  ;(exclude || []).forEach((n) => { skip[n] = 1 })
+  return cleanBook(book).items.filter((x) => (x.count || 0) >= (min || 2) && !skip[x.name] && x.price > 0)
+    .sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, max || 8)
+}

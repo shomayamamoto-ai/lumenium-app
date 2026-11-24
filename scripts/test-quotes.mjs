@@ -833,4 +833,22 @@ await test('窓口: 見積書なしで請求書・領収書を直接作る・要
   })
 }
 
+await test('送る前の点検: 種類ごとに足りない欄を出す', () => {
+  const base = { toCompany: 'A社', subject: '制作', toEmail: 'a@example.com', items: [{ kind: 'item', name: 'LP', price: 300000 }] }
+  assert.deepEqual(C.missingFields(Object.assign({ kind: 'quote', validUntil: '2026-12-24' }, base)), [])
+  assert.deepEqual(C.missingFields(Object.assign({ kind: 'invoice' }, base)), ['お支払期限', 'お取引日'])
+  assert.deepEqual(C.missingFields(Object.assign({ kind: 'receipt', delivery: '2026年11月分' }, base, { toEmail: '' })), ['但し書き'])
+  assert.deepEqual(C.missingFields({ kind: 'quote', validUntil: '2026-12-24', items: [{ kind: 'item', name: 'LP', price: 0 }, { kind: 'item', name: '', price: 5 }] }),
+    ['宛先', '件名', '単価が0円の品目', '名前のない品目', 'メールアドレス（メールで送るとき）'])
+})
+await test('前に使った品目: 2回以上・登録済みを除く・多い順', () => {
+  let b = C.cleanBook({})
+  const doc = (names) => ({ kind: 'quote', toCompany: 'A', items: names.map((n) => ({ kind: 'item', name: n, qty: 1, unit: '式', price: 1000, rate: 10 })) })
+  b = C.learnBook(b, doc(['撮影', '編集', 'LP']), '2026-11-01T00:00:00Z')
+  b = C.learnBook(b, doc(['撮影', '編集']), '2026-11-02T00:00:00Z')
+  b = C.learnBook(b, doc(['撮影']), '2026-11-03T00:00:00Z')
+  assert.deepEqual(C.learnedItems(b, ['編集'], 2, 8).map((x) => x.name), ['撮影'])
+  assert.deepEqual(C.learnedItems(b, [], 2, 8).map((x) => [x.name, x.count]), [['撮影', 3], ['編集', 2]])
+})
+
 console.log(`✓ 見積書のテスト ${passed}件`)

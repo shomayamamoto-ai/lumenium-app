@@ -107,6 +107,7 @@
     '.qt-chip{font:inherit;font-size:12.5px;line-height:1.4;min-height:34px;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#1f2937;cursor:pointer;text-align:left;max-width:100%;overflow-wrap:anywhere}' +
     '.qt-chip small{color:var(--sub);margin-left:4px}.qt-chip:hover{border-color:#9ca3af}' +
     '.qt-chip[aria-pressed=true]{background:#1f2937;border-color:#1f2937;color:#fff}.qt-chip[aria-pressed=true] small{color:#d1d5db}.qt-chip[aria-pressed=true]::before{content:"✓ "}' +
+    '.qt-check{font-size:12.5px;line-height:1.7;margin:6px 0 10px;padding:6px 10px;border-radius:8px;background:#fff7ed;color:#9a3412}.qt-check.ok{background:#f0fdf4;color:#166534}' +
     '.qt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.qt-chips .qt-chip{min-height:30px;padding:3px 10px;font-size:12px}' +
     '.qt-note{border:1px solid var(--border);border-left:4px solid #b45309;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.75;background:#fffdf7}' +
     '.qt-note.red{border-left-color:#b42318;background:#fff8f7}.qt-note.gray{border-left-color:var(--sub);background:#faf9f6}.qt-note.blue{border-left-color:var(--ui-accent);background:#f7f7ff}' +
@@ -544,19 +545,44 @@
     (S.data.catalog || []).forEach(function (c, i) {
       sets.push({ id: 'cat-' + i, group: 'よく使う品目', label: c.name, subject: c.name.replace(/[（(].*$/, ''), items: [{ kind: 'item', name: c.name, qty: 1, unit: c.unit, price: c.price, rate: c.rate }] });
     });
+    // 2回以上使った品目は、登録しなくてもボタンになります（多い順）。
+    var known = [];
+    sets.forEach(function (x) { x.items.forEach(function (it) { known.push(it.name); }); });
+    core().learnedItems(S.data.book, known, 2, 8).forEach(function (c, i) {
+      sets.push({ id: 'learn-' + i, group: '前に使った品目', label: c.name, subject: c.name.replace(/[（(].*$/, ''), uses: c.count, items: [{ kind: 'item', name: c.name, qty: 1, unit: c.unit, price: c.price, rate: c.rate }] });
+    });
     return sets;
   }
+  var SVC_SHOW = 6;
   function svcInner() {
     var list = svcList(), groups = [];
     list.forEach(function (x) { if (groups.indexOf(x.group) < 0) groups.push(x.group); });
     var C = core();
+    S.svcOpen = S.svcOpen || {};
     return groups.map(function (g) {
-      return '<div class="qt-svc-g"><b>' + esc(g) + '</b>' + list.map(function (x, i) {
+      var n = 0, hidden = 0;
+      var chipsHtml = list.map(function (x, i) {
         if (x.group !== g) return '';
+        var on = C.setActive(S.cur.items, x);
+        n++;
+        // 長い列は6つまで。入れたものと「ほかも見る」を押したときは全部出します。
+        if (n > SVC_SHOW && !on && !S.svcOpen[g]) { hidden++; return ''; }
         var sum = x.items.reduce(function (a, it) { return a + (Number(it.qty) || 1) * (Number(it.price) || 0); }, 0);
-        return '<button type="button" class="qt-chip" data-svc="' + i + '" aria-pressed="' + C.setActive(S.cur.items, x) + '">' + esc(x.label) + '<small>' + esc(yen(sum)) + '</small></button>';
-      }).join('') + '</div>';
+        return '<button type="button" class="qt-chip" data-svc="' + i + '" aria-pressed="' + on + '"' + (x.uses ? ' title="' + x.uses + '回使った品目"' : '') + '>' + esc(x.label) + '<small>' + esc(yen(sum)) + '</small></button>';
+      }).join('');
+      return '<div class="qt-svc-g"><b>' + esc(g) + '</b>' + chipsHtml +
+        (hidden ? '<button type="button" class="qt-chip" data-more="' + esc(g) + '">ほか' + hidden + '件</button>' : S.svcOpen[g] && n > SVC_SHOW ? '<button type="button" class="qt-chip" data-more="' + esc(g) + '">たたむ</button>' : '') + '</div>';
     }).join('');
+  }
+  /* 新しい書類で宛先が空のとき、最近のお客様をボタンで出します（押すと宛先・ご担当者・メールが入ります）。 */
+  function recentHtml() {
+    var q = S.cur;
+    if (q.id || (q.toCompany || '').trim() || (q.toPerson || '').trim()) return '';
+    var list = (book().clients || []).slice(0, 6);
+    if (!list.length) return '';
+    return '<div class="qt-chips" id="qt-recent" aria-label="最近のお客様"><span class="soc-small" style="align-self:center">最近のお客様:</span>' + list.map(function (c, i) {
+      return '<button type="button" class="qt-chip" data-client="' + i + '">' + esc([c.company, c.person].filter(Boolean).join(' ')) + (c.count > 1 ? '<small>' + c.count + '回</small>' : '') + '</button>';
+    }).join('') + '</div>';
   }
   function paintSvc() { var b = el('qt-svc'); if (b) b.innerHTML = svcInner(); }
 
@@ -607,6 +633,7 @@
           '<label style="font-size:12px;display:flex;gap:6px;align-items:center">状態 <select class="qt-in" id="qt-status" style="width:auto">' + stOpts + '</select></label>' +
           (C.isLocked(q) ? '' : '<button type="button" class="ghost" id="qt-del">消す</button>') : '') +
       '</div>' +
+      '<div class="qt-check" id="qt-check" aria-live="polite"></div>' +
       '<div id="qt-panel"></div>' +
       (inv && saved ? payHtml(q) : '') +
       '<div class="qt-sec"><h4>宛先と内容</h4><div class="qt-grid">' +
@@ -619,6 +646,7 @@
       dl('qt-bk-co', uniq(bk.clients.map(function (c) { return c.company; }))) + dl('qt-bk-pe', uniq(bk.clients.map(function (c) { return c.person; }))) +
       dl('qt-bk-em', uniq(bk.clients.map(function (c) { return c.email; }))) +
       ['subject', 'delivery', 'payTerms', 'proviso', 'payMethod'].map(function (f) { return dl('qt-bk-' + f, bk.words[f] || []); }).join('') +
+      recentHtml() +
       '<div class="qt-client" id="qt-client" aria-live="polite"></div>' +
       '<div class="qt-grid">' +
         field('qt-subject', '件名', inp('qt-subject', q.subject, ' placeholder="例: ホームページ制作" list="qt-bk-subject"')) +
@@ -709,6 +737,18 @@
       el(id).addEventListener('change', function (e) { if (!S.painting && e.target.isConnected) clientHint(true); });
     });
     clientHint(false);
+    if (el('qt-recent')) el('qt-recent').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-client]');
+      if (!b) return;
+      var c = (book().clients || [])[Number(b.getAttribute('data-client'))];
+      if (!c) return;
+      el('qt-toCompany').value = c.company || ''; el('qt-toPerson').value = c.person || ''; el('qt-toEmail').value = c.email || '';
+      el('qt-honor').value = c.honor || (c.person ? '様' : '御中');
+      readForm(); S.dirty = true;
+      el('qt-recent').remove();
+      clientHint(false);
+      refreshCheck();
+    });
     el('qt-items').addEventListener('click', function (e) {
       var b = e.target.closest('[data-del]');
       if (!b) return;
@@ -720,6 +760,8 @@
     el('qt-add').addEventListener('click', function () { addItem({ kind: 'item', name: '', qty: 1, unit: '式', price: 0, rate: 10 }); });
     el('qt-adddisc').addEventListener('click', function () { addItem({ kind: 'discount', name: '値引き', price: 0, rate: onlyRate() }); });
     el('qt-svc').addEventListener('click', function (e) {
+      var m = e.target.closest('[data-more]');
+      if (m) { var g = m.getAttribute('data-more'); S.svcOpen[g] = !S.svcOpen[g]; paintSvc(); return; }
       var b = e.target.closest('[data-svc]');
       if (!b) return;
       var x = svcList()[Number(b.getAttribute('data-svc'))];
@@ -929,7 +971,16 @@
       })
     });
   }
+  /* 送る前に足りないもの。保存は止めません。 */
+  function refreshCheck() {
+    var b = el('qt-check');
+    if (!b || !S.cur) return;
+    var miss = core().missingFields(S.cur);
+    b.className = 'qt-check' + (miss.length ? '' : ' ok');
+    b.textContent = miss.length ? '送る前に: ' + miss.join('・') + ' が空です。' : '必要な欄はそろっています。';
+  }
   function totals() {
+    refreshCheck();
     var C = core();
     var q = numeric(S.cur);
     var t = C.computeTotals(q, S.data.settings.rounding);
