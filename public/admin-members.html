@@ -2035,6 +2035,10 @@ window.lumAdmin = {
   key: function () { try { return sessionStorage.getItem('lum_admin_key') || ''; } catch (_) { return ''; } },
   signOut: function (reason) {
     try { sessionStorage.removeItem('lum_admin_key'); sessionStorage.removeItem('lum_admin_ping'); } catch (_) {}
+    // このページを開いたままログインし直すとき、画面を作り直すための印（enter() が見ます）。
+    window.lumAdmin.outHere = true;
+    var so = document.getElementById('sign-out');
+    if (so) so.style.display = 'none';
     document.documentElement.classList.remove('lum-boot');
     if (window.lumStaff) window.lumStaff.signedOut();
     document.body.classList.remove('is-in');
@@ -3227,7 +3231,13 @@ window.lumAdmin = {
       location.reload();
       return true;
     }
-    if (entered) return true;
+    if (entered) {
+      // 期限切れ・ログアウトでログインの画面に戻ったあと、同じページでログインし直したとき。
+      // 前は「もう入っている」と見なして何もせず、正しいキーでも画面が変わりませんでした。
+      // 途中まで読んだ画面は古いので、読み直して作り直します（キーはこのタブに保存済み）。
+      if (window.lumAdmin.outHere) { keyMsg.textContent = 'ログインしました。画面を読み込んでいます…'; keyMsg.className = 'msg info show'; location.reload(); }
+      return true;
+    }
     entered = true;
     if (!window.lumStaff || window.lumStaff.isOwner()) loadShare();
     keyPanel.style.display = 'none';
@@ -3697,9 +3707,14 @@ window.lumAdmin = {
     e.preventDefault();
     keyMsg.classList.remove('show');
     keyBtn.disabled = true;
+    var label = keyBtn.textContent;
+    keyBtn.textContent = '確認しています…';
     // trim: pasted keys often carry an invisible trailing space/newline
-    await load(document.getElementById('admin-key').value.trim(), true);
+    var ok = await load(document.getElementById('admin-key').value.trim(), true);
     keyBtn.disabled = false;
+    keyBtn.textContent = label;
+    // 万一、確認は通ったのに画面が切り替わらなかったときは、読み直して入ります。
+    if (ok && getComputedStyle(keyPanel).display !== 'none') location.reload();
   });
 
   searchEl.addEventListener('input', render);
